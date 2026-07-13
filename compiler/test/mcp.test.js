@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { classifySparql } from '../src/sparql-guard.js';
-import { makeRedactor, callTool, TOOLS } from '../src/mcp.js';
+import { makeRedactor, callTool, cappedSelect, TOOLS } from '../src/mcp.js';
 import { validContractRef, authorityDigest, bootstrapPacket } from '../src/bootstrap.js';
 
 test('read-only query forms are accepted', () => {
@@ -52,6 +52,21 @@ test('usf_query refuses mutations before touching Stardog', async () => {
     /refused: mutation keyword DROP/
   );
   assert.equal(touched, false);
+});
+
+test('a broad SELECT gets a server-side LIMIT; existing LIMIT/VALUES are untouched', async () => {
+  assert.match(cappedSelect('SELECT ?s WHERE { ?s ?p ?o }'), /LIMIT 201$/);
+  const withLimit = 'SELECT ?s WHERE { ?s ?p ?o } LIMIT 5';
+  assert.equal(cappedSelect(withLimit), withLimit);
+  const withInnerLimit = 'SELECT ?s WHERE { { SELECT ?s WHERE { ?s ?p ?o } LIMIT 10 } }';
+  assert.equal(cappedSelect(withInnerLimit), withInnerLimit);
+  const withValues = 'SELECT ?s WHERE { ?s ?p ?o } VALUES ?s { <urn:a> }';
+  assert.equal(cappedSelect(withValues), withValues);
+  // and the tool actually sends the capped query to Stardog
+  let sent = null;
+  const client = { select: async (q) => { sent = q; return []; } };
+  await callTool('usf_query', { sparql: 'SELECT ?s WHERE { ?s ?p ?o }' }, { client, config: {} });
+  assert.match(sent, /LIMIT 201$/);
 });
 
 test('usf_query caps SELECT rows and reports truncation', async () => {

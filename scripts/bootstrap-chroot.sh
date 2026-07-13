@@ -115,6 +115,10 @@ EOF
 	defaultBranch = main
 [pull]
 	rebase = false
+[credential "https://github.com"]
+	# token-free config: the credential is read from the environment at use
+	# time (populated by /root/.bashrc from the git-ignored /usf/.env)
+	helper = "!f() { echo username=x-access-token; echo \"password=${GITHUB_PERSONAL_ACCESS_TOKEN}\"; }; f"
 EOF
 # Pre-trust /usf and its project .mcp.json servers for headless agent launches.
 [ -f /root/.claude.json ] || cat > /root/.claude.json <<'EOF'

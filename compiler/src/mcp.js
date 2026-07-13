@@ -24,10 +24,19 @@ import { classifySparql } from './sparql-guard.js';
 import { bootstrapPacket } from './bootstrap.js';
 
 const PROTOCOL_VERSION = '2024-11-05';
-// ponytail: post-hoc caps keep a first slice simple; push LIMIT into the SPARQL
-// if bootstrap payload bytes become the binding constraint (USF-1154 §10).
 const MAX_ROWS = 200;
 const MAX_TEXT_BYTES = 100_000;
+
+// Cap a SELECT server-side so a broad query never streams the full authority
+// before slicing. LIMIT MAX_ROWS+1 keeps truncation detectable. Queries that
+// already carry LIMIT anywhere (theirs may be a subquery's) or a trailing
+// VALUES block (grammar puts it after solution modifiers) are left untouched
+// and fall back to the client-side slice — fail-safe, just less optimal.
+export function cappedSelect(sparql) {
+  const tokens = sparql.toUpperCase();
+  if (/\bLIMIT\b/.test(tokens) || /\bVALUES\b/.test(tokens)) return sparql;
+  return `${sparql.trimEnd()}\nLIMIT ${MAX_ROWS + 1}`;
+}
 
 const pkgPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'package.json');
 const VERSION = JSON.parse(readFileSync(pkgPath, 'utf8')).version;
@@ -97,7 +106,7 @@ export async function callTool(name, args, ctx) {
     if (verdict.form === 'ASK') {
       return { form: 'ASK', boolean: await client.ask(sparql) };
     }
-    const rows = await client.select(sparql);
+    const rows = await client.select(cappedSelect(sparql));
     return {
       form: 'SELECT',
       truncated: rows.length > MAX_ROWS,
