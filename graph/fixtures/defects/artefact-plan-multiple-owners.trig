@@ -1,0 +1,14 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix fx: <urn:usf:fixture:artefactplanmultipleowners:> .
+
+GRAPH <urn:usf:graph:fixture:artefactplanmultipleowners> {
+  fx:repositorya a usf:Repository . fx:repositoryb a usf:Repository .
+  fx:plan a usf:ArtefactPlan ; usf:ownedByRepository fx:repositorya, fx:repositoryb ; usf:plansArtefact fx:artefact .
+  fx:artefact a usf:Artefact ; usf:canonicalPath "generated/multiple-owners.json" ;
+    usf:artefactKind <urn:usf:artefactkind:contract> ; usf:governedByPathRule fx:pathrule ; usf:generatedByComponent fx:generator .
+  fx:pathrule usf:pathPattern "generated/multiple-owners.json" .
+  fx:generator a usf:CompilerComponent ; usf:semanticInputQuery "SELECT ?resource WHERE { ?resource a <urn:usf:ontology:SemanticContract> . }" ;
+    usf:outputSchema fx:artefact ; usf:outputPathRule fx:pathrule ; usf:integrityPolicy fx:integritypolicy ;
+    usf:normalisationPolicy fx:normalisationpolicy ; usf:missingSemanticsConstraint fx:missingconstraint ;
+    usf:requiresEquivalenceKind <urn:usf:equivalencekind:semantic> .
+}

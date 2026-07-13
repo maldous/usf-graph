@@ -1,0 +1,33 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix shp: <urn:usf:shacl:> .
+
+shp:AgentShape a sh:NodeShape ;
+    usf:canonicalName "agentshape" ;
+    sh:targetClass usf:Agent ;
+    sh:property [ sh:path usf:hasConstraint ; sh:minCount 1 ; sh:class usf:AgentConstraint ;
+        sh:message "agentconstraint: agent must carry at least one execution constraint" ] .
+
+shp:AgentConstraintShape a sh:NodeShape ;
+    usf:canonicalName "agentconstraintshape" ;
+    sh:targetClass usf:AgentConstraint ;
+    sh:property [ sh:path usf:constraintKind ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ConstraintKind ;
+        sh:message "constraintkind: agent constraint must declare exactly one kind" ] .
+
+shp:ValidatorRuleShape a sh:NodeShape ;
+    usf:canonicalName "validatorruleshape" ;
+    sh:targetClass usf:ValidatorRule ;
+    sh:property [ sh:path usf:validatorSeverity ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Severity ;
+        sh:message "validatorseverity: validator rule must declare one severity" ] ;
+    sh:property [ sh:path usf:resultCode ; sh:minCount 1 ; sh:maxCount 1 ;
+        sh:message "validatorresultcode: validator rule must declare one result code" ] ;
+    sh:or (
+        [ sh:property [ sh:path usf:targetsGraph ; sh:minCount 1 ] ]
+        [ sh:property [ sh:path usf:enforcesShape ; sh:minCount 1 ] ]
+        [ sh:property [ sh:path usf:detectsDefect ; sh:minCount 1 ] ]
+    ) ;
+    sh:message "validatortarget: validator rule must target a graph, shape or defect" .
+
+shp:ShapeConceptShape a sh:NodeShape ;
+    usf:canonicalName "shapeconceptshape" ;
+    sh:targetClass usf:Shape .

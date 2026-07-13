@@ -1,0 +1,199 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix svc: <urn:usf:service:> .
+@prefix cap: <urn:usf:capability:> .
+
+<urn:usf:graph:services> {
+    svc:alertmanager a usf:Service ;
+        usf:canonicalName "alertmanager" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:alloy a usf:Service ;
+        usf:canonicalName "alloy" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:breakglassregistry a usf:Service ;
+        usf:canonicalName "breakglassregistry" ;
+        usf:serves cap:supportmodebreakglassaccess .
+    svc:caddy a usf:Service ;
+        usf:canonicalName "caddy" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:clamav a usf:Service ;
+        usf:canonicalName "clamav" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:clickhouse a usf:Service ;
+        usf:canonicalName "clickhouse" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:contextfromclaims a usf:Service ;
+        usf:canonicalName "contextfromclaims" ;
+        usf:serves cap:tenanthostidentityresolution .
+    svc:createauditqueryservice a usf:Service ;
+        usf:canonicalName "createauditqueryservice" ;
+        usf:serves cap:auditofprivilegedaccess .
+    svc:createauditrecorder a usf:Service ;
+        usf:canonicalName "createauditrecorder" ;
+        usf:serves cap:auditofprivilegedaccess .
+    svc:createauthorizer a usf:Service ;
+        usf:canonicalName "createauthorizer" ;
+        usf:serves cap:rbacrolesandpermissions .
+    svc:createauthservice a usf:Service ;
+        usf:canonicalName "createauthservice" ;
+        usf:serves cap:authenticationplatform .
+    svc:createbulkoperationservice a usf:Service ;
+        usf:canonicalName "createbulkoperationservice" ;
+        usf:serves cap:tenantdataimportexport .
+    svc:createconfigservice a usf:Service ;
+        usf:canonicalName "createconfigservice" ;
+        usf:serves cap:configurationregistryandhistory .
+    svc:createenterpriseidentitycontrolplane a usf:Service ;
+        usf:canonicalName "createenterpriseidentitycontrolplane" ;
+        usf:serves cap:useridentityandtenantmembership .
+    svc:createenterprisenotificationcontrolplane a usf:Service ;
+        usf:canonicalName "createenterprisenotificationcontrolplane" ;
+        usf:serves cap:notificationdeliveryandpreferencesandchannels .
+    svc:createenterpriseworkflowcontrolplane a usf:Service ;
+        usf:canonicalName "createenterpriseworkflowcontrolplane" ;
+        usf:serves cap:workflowenginescheduledjobsapprovals .
+    svc:createfileservice a usf:Service ;
+        usf:canonicalName "createfileservice" ;
+        usf:serves cap:objectstorageandtenantprefixesandsignedurls .
+    svc:createjobservice a usf:Service ;
+        usf:canonicalName "createjobservice" ;
+        usf:serves cap:backgroundworkersjobrunner .
+    svc:createkeycloakauthservice a usf:Service ;
+        usf:canonicalName "createkeycloakauthservice" ;
+        usf:serves cap:authenticationplatform .
+    svc:createpolicydecisionpoint a usf:Service ;
+        usf:canonicalName "createpolicydecisionpoint" ;
+        usf:serves cap:abacpolicydecisionpoint .
+    svc:createresourcelifecycleservice a usf:Service ;
+        usf:canonicalName "createresourcelifecycleservice" ;
+        usf:serves cap:servicecatalogandproviderintegrationmodel .
+    svc:createsearchservice a usf:Service ;
+        usf:canonicalName "createsearchservice" ;
+        usf:serves cap:searchandindexingproductsearch .
+    svc:createsecretservice a usf:Service ;
+        usf:canonicalName "createsecretservice" ;
+        usf:serves cap:runtimesecretsmanagement .
+    svc:createsessionservice a usf:Service ;
+        usf:canonicalName "createsessionservice" ;
+        usf:serves cap:authenticationplatform .
+    svc:createworkflowservice a usf:Service ;
+        usf:canonicalName "createworkflowservice" ;
+        usf:serves cap:workflowenginescheduledjobsapprovals .
+    svc:grafana a usf:Service ;
+        usf:canonicalName "grafana" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:keycloak a usf:Service ;
+        usf:canonicalName "keycloak" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:keycloakdb a usf:Service ;
+        usf:canonicalName "keycloakdb" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:localstack a usf:Service ;
+        usf:canonicalName "localstack" ;
+        usf:serves cap:internalservicecatalogandreadiness , cap:mockprovidersdevtest .
+    svc:loki a usf:Service ;
+        usf:canonicalName "loki" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:mailpit a usf:Service ;
+        usf:canonicalName "mailpit" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:meilisearch a usf:Service ;
+        usf:canonicalName "meilisearch" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:minio a usf:Service ;
+        usf:canonicalName "minio" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:mockoidc a usf:Service ;
+        usf:canonicalName "mockoidc" ;
+        usf:serves cap:internalservicecatalogandreadiness , cap:mockprovidersdevtest .
+    svc:nats a usf:Service ;
+        usf:canonicalName "nats" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:openbao a usf:Service ;
+        usf:canonicalName "openbao" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:otelcollector a usf:Service ;
+        usf:canonicalName "otelcollector" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:pgadmin a usf:Service ;
+        usf:canonicalName "pgadmin" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:pgbackrest a usf:Service ;
+        usf:canonicalName "pgbackrest" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:platformapi a usf:Service ;
+        usf:canonicalName "platformapi" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:postgres a usf:Service ;
+        usf:canonicalName "postgres" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:prometheus a usf:Service ;
+        usf:canonicalName "prometheus" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:publicprooforigin a usf:Service ;
+        usf:canonicalName "publicprooforigin" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:redis a usf:Service ;
+        usf:canonicalName "redis" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:sentry a usf:Service ;
+        usf:canonicalName "sentry" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:sonaroidcplugin a usf:Service ;
+        usf:canonicalName "sonaroidcplugin" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:sonarpostgres a usf:Service ;
+        usf:canonicalName "sonarpostgres" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:sonarqube a usf:Service ;
+        usf:canonicalName "sonarqube" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:stagingproofcockpit a usf:Service ;
+        usf:canonicalName "stagingproofcockpit" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:tempo a usf:Service ;
+        usf:canonicalName "tempo" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:temporal a usf:Service ;
+        usf:canonicalName "temporal" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:temporalpostgres a usf:Service ;
+        usf:canonicalName "temporalpostgres" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:temporalui a usf:Service ;
+        usf:canonicalName "temporalui" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:webapp a usf:Service ;
+        usf:canonicalName "webapp" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:webhooksink a usf:Service ;
+        usf:canonicalName "webhooksink" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:windmill a usf:Service ;
+        usf:canonicalName "windmill" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:windmillpostgres a usf:Service ;
+        usf:canonicalName "windmillpostgres" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:windmillredis a usf:Service ;
+        usf:canonicalName "windmillredis" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:windmillworker a usf:Service ;
+        usf:canonicalName "windmillworker" ;
+        usf:serves cap:internalservicecatalogandreadiness .
+    svc:wiremock a usf:Service ;
+        usf:canonicalName "wiremock" ;
+        usf:serves cap:internalservicecatalogandreadiness , cap:mockprovidersdevtest .
+
+    # Normative service dependency ordering. Reuses the existing canonical
+    # property usf:dependsOnService (Service -> Service). A dependent
+    # service is not ready until every service it depends on is ready; the
+    # dependency graph is acyclic and integrity fails closed on self, unknown,
+    # or cyclic dependency.
+    svc:keycloak usf:dependsOnService svc:keycloakdb .
+    svc:temporal usf:dependsOnService svc:postgres .
+    svc:temporalui usf:dependsOnService svc:temporal .
+    svc:sonarqube usf:dependsOnService svc:sonarpostgres .
+    svc:windmill usf:dependsOnService svc:windmillpostgres , svc:windmillredis .
+    svc:windmillworker usf:dependsOnService svc:windmill , svc:windmillpostgres , svc:windmillredis .
+    svc:pgbackrest usf:dependsOnService svc:postgres .
+}

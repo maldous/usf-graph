@@ -1,0 +1,8 @@
+# graph: urn:usf:graph:services
+# expect: standalonemissingrationale
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+
+fixt:undocumentedstandaloneservice a usf:Service ;
+    usf:canonicalName "undocumentedstandaloneservice" ;
+    usf:intentionallyStandalone true .

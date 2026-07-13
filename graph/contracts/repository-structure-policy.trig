@@ -1,0 +1,31 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix policy: <urn:usf:repositorydependencyresolutionpolicy:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:usf:graph:repositorystructurepolicy> {
+  policy:validatedrepositoryobservation a usf:RepositoryDependencyResolutionPolicy ;
+    usf:canonicalName "validatedrepositoryobservation" ;
+    usf:requiredRelationshipEvidenceMinimum "1"^^xsd:nonNegativeInteger ;
+    usf:allowsWorkPackageDependencyType <urn:usf:workpackagedependencytype:canonicalartifactinput> ;
+    usf:allowsWorkPackageDependencyStatus <urn:usf:workpackagedependencystatus:requiredprerequisite> ;
+    usf:allowsSourceRelationshipType
+      <urn:usf:sourcerelationshiptype:references>,
+      <urn:usf:sourcerelationshiptype:imports> ;
+    usf:allowsRepositoryDependencyDirection <urn:usf:repositorydependencydirection:sourcerequiresprerequisite> ;
+    usf:allowsWorkPackageDependencyResolutionStatus <urn:usf:workpackagedependencyresolutionstatus:resolvedretained> ;
+    usf:allowsDependencyLineageDisposition <urn:usf:dependencylineagedisposition:retainedwithevidence> ;
+    usf:requiresRegisteredObservationRun true ;
+    usf:requiresExactEvidenceEndpointOwnership true ;
+    usf:requiresAcyclicRequiredPrerequisiteDependencies true .
+
+  <urn:usf:repositorydependencysatisfactionpolicy:validatedrequiredprerequisitedependency> a usf:RepositoryDependencySatisfactionPolicy ;
+    usf:canonicalName "validatedrequiredprerequisitedependency" ;
+    usf:allowsDependencySatisfactionStatus <urn:usf:dependencysatisfactionstatus:satisfied> ;
+    usf:allowsDependencySatisfactionBasisKind <urn:usf:dependencysatisfactionbasiskind:resolveddirectrelationshipevidence> ;
+    usf:requiresResolvedRetainedDependency true ;
+    usf:requiresRequiredPrerequisiteDependencyStatus true ;
+    usf:requiresExactSatisfactionEvidenceClosure true ;
+    usf:requiresSatisfactionEndpointOwnership true ;
+    usf:requiresSameSatisfactionObservationRun true ;
+    usf:requiresSatisfactionBasisDigest true .
+}

@@ -1,0 +1,249 @@
+version: 1
+database: USF
+baseIri: "urn:usf:"
+definitionGraphs:
+  - file: ontology.ttl
+    graph: "urn:usf:graph:ontology"
+    loadOrder: 1
+    validationOrder: 1
+  - file: taxonomy.ttl
+    graph: "urn:usf:graph:taxonomy"
+    loadOrder: 2
+    validationOrder: 2
+  - file: vocabulary.ttl
+    graph: "urn:usf:graph:vocabulary"
+    loadOrder: 3
+    validationOrder: 3
+  - file: authority.ttl
+    graph: "urn:usf:graph:authority"
+    loadOrder: 4
+    validationOrder: 4
+  - file: registry.ttl
+    graph: "urn:usf:graph:registry"
+    loadOrder: 5
+    validationOrder: 5
+authoredGraphs:
+  - file: providers.ttl
+    graph: "urn:usf:graph:providers"
+    loadOrder: 6
+    validationOrder: 10
+  - file: environments.ttl
+    graph: "urn:usf:graph:environments"
+    loadOrder: 7
+    validationOrder: 11
+  - file: claims.ttl
+    graph: "urn:usf:graph:claims"
+    loadOrder: 8
+    validationOrder: 12
+  - file: contracts/capabilities.trig
+    graph: "urn:usf:graph:capabilities"
+    loadOrder: 9
+    validationOrder: 13
+  - file: contracts/policies.trig
+    graph: "urn:usf:graph:policies"
+    loadOrder: 10
+    validationOrder: 14
+  - file: contracts/interfaces.trig
+    graph: "urn:usf:graph:interfaces"
+    loadOrder: 11
+    validationOrder: 15
+  - file: contracts/interactions.trig
+    graph: "urn:usf:graph:interactions"
+    loadOrder: 12
+    validationOrder: 16
+  - file: contracts/platform.trig
+    graph: "urn:usf:graph:platform"
+    loadOrder: 13
+    validationOrder: 17
+  - file: contracts/data.trig
+    graph: "urn:usf:graph:data"
+    loadOrder: 14
+    validationOrder: 18
+  - file: contracts/signals.trig
+    graph: "urn:usf:graph:signals"
+    loadOrder: 15
+    validationOrder: 19
+  - file: contracts/experience.trig
+    graph: "urn:usf:graph:experience"
+    loadOrder: 16
+    validationOrder: 20
+  - file: assurance/proofs.trig
+    graph: "urn:usf:graph:proofs"
+    loadOrder: 17
+    validationOrder: 21
+  - file: assurance/evidence.trig
+    graph: "urn:usf:graph:evidence"
+    loadOrder: 18
+    validationOrder: 22
+  - file: assurance/controls.trig
+    graph: "urn:usf:graph:controls"
+    loadOrder: 19
+    validationOrder: 23
+  - file: assurance/tests.trig
+    graph: "urn:usf:graph:tests"
+    loadOrder: 20
+    validationOrder: 24
+  - file: realisation/services.trig
+    graph: "urn:usf:graph:services"
+    loadOrder: 21
+    validationOrder: 25
+  - file: realisation/implementations.trig
+    graph: "urn:usf:graph:implementations"
+    loadOrder: 22
+    validationOrder: 26
+  - file: realisation/bindings.trig
+    graph: "urn:usf:graph:bindings"
+    loadOrder: 23
+    validationOrder: 27
+  - file: execution/agents.trig
+    graph: "urn:usf:graph:agents"
+    loadOrder: 24
+    validationOrder: 28
+  - file: execution/validators.trig
+    graph: "urn:usf:graph:validators"
+    loadOrder: 25
+    validationOrder: 29
+  - file: assurance/enterprise.trig
+    graph: "urn:usf:graph:enterprise"
+    loadOrder: 26
+    validationOrder: 30
+  - file: assurance/profiles.trig
+    graph: "urn:usf:graph:assurance-profiles"
+    loadOrder: 27
+    validationOrder: 31
+  - file: assurance/gates.trig
+    graph: "urn:usf:graph:readiness-gates"
+    loadOrder: 28
+    validationOrder: 32
+  - file: contracts/ui.trig
+    graph: "urn:usf:graph:ui"
+    loadOrder: 29
+    validationOrder: 33
+  - file: realisation/renderers.trig
+    graph: "urn:usf:graph:renderers"
+    loadOrder: 30
+    validationOrder: 34
+  - file: contracts/generation.trig
+    graph: "urn:usf:graph:generation"
+    loadOrder: 31
+    validationOrder: 35
+  - file: contracts/source-dispositions.trig
+    graph: "urn:usf:graph:sourcedispositionpolicies"
+    loadOrder: 33
+    validationOrder: 37
+  - file: contracts/semantic-depth.trig
+    graph: "urn:usf:graph:semanticdepth"
+    loadOrder: 32
+    validationOrder: 36
+  - file: contracts/repository-structure-policy.trig
+    graph: "urn:usf:graph:repositorystructurepolicy"
+    loadOrder: 34
+    validationOrder: 38
+observedGraphs:
+  - file: observed/source-artefacts.trig
+    collector: repositorysourceobserver
+    graph: "urn:usf:graph:observed:sourceartefacts"
+    loadOrder: 36
+    validationOrder: 39
+shapeGraphs:
+  - file: shapes.ttl
+    graph: "urn:usf:graph:shapes"
+    loadOrder: 35
+    validationOrder: 6
+  - file: shapes/contracts.ttl
+    graph: "urn:usf:graph:shapes"
+    loadOrder: 35
+    validationOrder: 6
+  - file: shapes/assurance.ttl
+    graph: "urn:usf:graph:shapes"
+    loadOrder: 35
+    validationOrder: 6
+  - file: shapes/realisation.ttl
+    graph: "urn:usf:graph:shapes"
+    loadOrder: 35
+    validationOrder: 6
+  - file: shapes/execution.ttl
+    graph: "urn:usf:graph:shapes"
+    loadOrder: 35
+    validationOrder: 6
+  - file: shapes/derivation.ttl
+    graph: "urn:usf:graph:shapes"
+    loadOrder: 35
+    validationOrder: 6
+  - file: shapes/generation.ttl
+    graph: "urn:usf:graph:shapes"
+    loadOrder: 35
+    validationOrder: 6
+  - file: shapes/readiness.ttl
+    graph: "urn:usf:graph:shapes"
+    loadOrder: 35
+    validationOrder: 6
+  - file: shapes/experience.ttl
+    graph: "urn:usf:graph:shapes"
+    loadOrder: 35
+    validationOrder: 6
+  - file: shapes/source-disposition.ttl
+    graph: "urn:usf:graph:shapes"
+    loadOrder: 35
+    validationOrder: 6
+  - file: shapes/repository-structure.ttl
+    graph: "urn:usf:graph:shapes"
+    loadOrder: 35
+    validationOrder: 6
+rules:
+  - file: rules/repository-structure.rq
+    output: "urn:usf:graph:derived:repositorystructure"
+    kind: derivation
+  - file: rules/source-dispositions.rq
+    output: "urn:usf:graph:derived:sourcedispositions"
+    kind: derivation
+  - file: rules/obligations.rq
+    output: "urn:usf:graph:derived:obligations"
+    kind: derivation
+  - file: rules/evidence.rq
+    output: "urn:usf:graph:derived:evidence"
+    kind: derivation
+  - file: rules/surfaces.rq
+    output: "urn:usf:graph:derived:surfaces"
+    kind: derivation
+  - file: rules/coverage.rq
+    output: "urn:usf:graph:derived:coverage"
+    kind: derivation
+  - file: rules/readiness.rq
+    output: "urn:usf:graph:derived:readiness"
+    kind: derivation
+  - file: rules/integrity.rq
+    kind: integrity
+derivedGraphs:
+  - file: derived/repository-structure.trig
+    graph: "urn:usf:graph:derived:repositorystructure"
+    loadOrder: 40
+    validationOrder: 40
+  - file: derived/source-dispositions.trig
+    graph: "urn:usf:graph:derived:sourcedispositions"
+    loadOrder: 41
+    validationOrder: 41
+  - file: derived/obligations.trig
+    graph: "urn:usf:graph:derived:obligations"
+    loadOrder: 42
+    validationOrder: 42
+  - file: derived/evidence.trig
+    graph: "urn:usf:graph:derived:evidence"
+    loadOrder: 43
+    validationOrder: 43
+  - file: derived/surfaces.trig
+    graph: "urn:usf:graph:derived:surfaces"
+    loadOrder: 44
+    validationOrder: 44
+  - file: derived/coverage.trig
+    graph: "urn:usf:graph:derived:coverage"
+    loadOrder: 45
+    validationOrder: 45
+  - file: derived/readiness.trig
+    graph: "urn:usf:graph:derived:readiness"
+    loadOrder: 46
+    validationOrder: 46
+fixtures:
+  conforming: fixtures/conforming
+  defects: fixtures/defects
+  loadAsAuthority: false

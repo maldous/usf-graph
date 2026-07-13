@@ -1,0 +1,362 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix port: <urn:usf:port:> .
+@prefix iface: <urn:usf:interface:> .
+@prefix op: <urn:usf:operation:> .
+@prefix sc: <urn:usf:semanticcontract:> .
+@prefix perm: <urn:usf:permission:> .
+@prefix aud: <urn:usf:auditevent:> .
+
+<urn:usf:graph:interfaces> {
+    iface:interfaceauditeventsgetapi a usf:Interface ;
+        usf:canonicalName "interfaceauditeventsgetapi" ;
+        usf:hasOperation op:auditeventsget ;
+        usf:interfaceForContract sc:auditofprivilegedaccess .
+    iface:interfaceauditeventslistapi a usf:Interface ;
+        usf:canonicalName "interfaceauditeventslistapi" ;
+        usf:hasOperation op:auditeventslist ;
+        usf:interfaceForContract sc:auditofprivilegedaccess .
+    iface:interfaceauditverifypostapi a usf:Interface ;
+        usf:canonicalName "interfaceauditverifypostapi" ;
+        usf:hasOperation op:auditverifypost ;
+        usf:interfaceForContract sc:auditofprivilegedaccess .
+    iface:interfaceauthenticationloginapi a usf:Interface ;
+        usf:canonicalName "interfaceauthenticationloginapi" ;
+        usf:hasOperation op:authloginpost ;
+        usf:interfaceForContract sc:authenticationplatform .
+    iface:interfaceapikeycreateapi a usf:Interface ;
+        usf:canonicalName "interfaceapikeycreateapi" ;
+        usf:hasOperation op:apikeycreate ;
+        usf:interfaceForContract sc:apikeyspersonalaccesstokens .
+    iface:interfaceauthzcheckpostapi a usf:Interface ;
+        usf:canonicalName "interfaceauthzcheckpostapi" ;
+        usf:hasOperation op:authzcheckpost ;
+        usf:interfaceForContract sc:abacpolicydecisionpoint .
+    iface:interfaceauthzpermissionsgetapi a usf:Interface ;
+        usf:canonicalName "interfaceauthzpermissionsgetapi" ;
+        usf:hasOperation op:authzpermissionsget ;
+        usf:interfaceForContract sc:rbacrolesandpermissions .
+    iface:interfaceconfigcurrentgetapi a usf:Interface ;
+        usf:canonicalName "interfaceconfigcurrentgetapi" ;
+        usf:hasOperation op:configcurrentget ;
+        usf:interfaceForContract sc:configurationregistryandhistory .
+    iface:interfaceconfigflagsgetapi a usf:Interface ;
+        usf:canonicalName "interfaceconfigflagsgetapi" ;
+        usf:hasOperation op:configflagsget ;
+        usf:interfaceForContract sc:configurationregistryandhistory .
+    iface:interfaceconfigproviderstatusgetapi a usf:Interface ;
+        usf:canonicalName "interfaceconfigproviderstatusgetapi" ;
+        usf:hasOperation op:configproviderstatusget ;
+        usf:interfaceForContract sc:providerenvironmentclassification .
+    iface:interfacefilesdownloadapi a usf:Interface ;
+        usf:canonicalName "interfacefilesdownloadapi" ;
+        usf:hasOperation op:filesdownload ;
+        usf:interfaceForContract sc:objectstorageandtenantprefixesandsignedurls .
+    iface:interfacefilesgetapi a usf:Interface ;
+        usf:canonicalName "interfacefilesgetapi" ;
+        usf:hasOperation op:filesget ;
+        usf:interfaceForContract sc:objectstorageandtenantprefixesandsignedurls .
+    iface:interfacefileslistapi a usf:Interface ;
+        usf:canonicalName "interfacefileslistapi" ;
+        usf:hasOperation op:fileslist ;
+        usf:interfaceForContract sc:objectstorageandtenantprefixesandsignedurls .
+    iface:interfacefilesuploadapi a usf:Interface ;
+        usf:canonicalName "interfacefilesuploadapi" ;
+        usf:hasOperation op:filesupload ;
+        usf:interfaceForContract sc:objectstorageandtenantprefixesandsignedurls .
+    iface:interfacefilesverifyapi a usf:Interface ;
+        usf:canonicalName "interfacefilesverifyapi" ;
+        usf:hasOperation op:filesverify ;
+        usf:interfaceForContract sc:objectstorageandtenantprefixesandsignedurls .
+    iface:interfacehealthzgetapi a usf:Interface ;
+        usf:canonicalName "interfacehealthzgetapi" ;
+        usf:hasOperation op:healthzget ;
+        usf:interfaceForContract sc:composedproviderreadinessspine .
+    iface:interfacejobscancelapi a usf:Interface ;
+        usf:canonicalName "interfacejobscancelapi" ;
+        usf:hasOperation op:jobscancel ;
+        usf:interfaceForContract sc:scheduledjobsbuiltinontheeventsubstrate .
+    iface:interfacejobscreateapi a usf:Interface ;
+        usf:canonicalName "interfacejobscreateapi" ;
+        usf:hasOperation op:jobscreate ;
+        usf:interfaceForContract sc:scheduledjobsbuiltinontheeventsubstrate .
+    iface:interfacejobsgetapi a usf:Interface ;
+        usf:canonicalName "interfacejobsgetapi" ;
+        usf:hasOperation op:jobsget ;
+        usf:interfaceForContract sc:scheduledjobsbuiltinontheeventsubstrate .
+    iface:interfacejobslistapi a usf:Interface ;
+        usf:canonicalName "interfacejobslistapi" ;
+        usf:hasOperation op:jobslist ;
+        usf:interfaceForContract sc:scheduledjobsbuiltinontheeventsubstrate .
+    iface:interfacenotificationscancelapi a usf:Interface ;
+        usf:canonicalName "interfacenotificationscancelapi" ;
+        usf:hasOperation op:notificationscancel ;
+        usf:interfaceForContract sc:notificationdeliveryandpreferencesandchannels .
+    iface:interfacenotificationscreateapi a usf:Interface ;
+        usf:canonicalName "interfacenotificationscreateapi" ;
+        usf:hasOperation op:notificationscreate ;
+        usf:interfaceForContract sc:notificationdeliveryandpreferencesandchannels .
+    iface:interfacenotificationsgetapi a usf:Interface ;
+        usf:canonicalName "interfacenotificationsgetapi" ;
+        usf:hasOperation op:notificationsget ;
+        usf:interfaceForContract sc:notificationdeliveryandpreferencesandchannels .
+    iface:interfacenotificationslistapi a usf:Interface ;
+        usf:canonicalName "interfacenotificationslistapi" ;
+        usf:hasOperation op:notificationslist ;
+        usf:interfaceForContract sc:notificationdeliveryandpreferencesandchannels .
+    iface:interfacenotificationssendapi a usf:Interface ;
+        usf:canonicalName "interfacenotificationssendapi" ;
+        usf:hasOperation op:notificationssend ;
+        usf:interfaceForContract sc:notificationdeliveryandpreferencesandchannels .
+    iface:interfacenotificationtemplatescreateapi a usf:Interface ;
+        usf:canonicalName "interfacenotificationtemplatescreateapi" ;
+        usf:hasOperation op:notificationtemplatescreate ;
+        usf:interfaceForContract sc:notificationdeliveryandpreferencesandchannels .
+    iface:interfaceprofiledetailgetapi a usf:Interface ;
+        usf:canonicalName "interfaceprofiledetailgetapi" ;
+        usf:hasOperation op:profiledetailget ;
+        usf:interfaceForContract sc:enduserprofileandpreferencesselfservice .
+    iface:interfaceprofilelistgetapi a usf:Interface ;
+        usf:canonicalName "interfaceprofilelistgetapi" ;
+        usf:hasOperation op:profilelistget ;
+        usf:interfaceForContract sc:enduserprofileandpreferencesselfservice .
+    iface:interfaceobservabilityreadinessgetapi a usf:Interface ;
+        usf:canonicalName "interfaceobservabilityreadinessgetapi" ;
+        usf:hasOperation op:observabilityreadinessget ;
+        usf:interfaceForContract sc:metricsandtraces .
+    iface:interfaceobservabilitysignalslistapi a usf:Interface ;
+        usf:canonicalName "interfaceobservabilitysignalslistapi" ;
+        usf:hasOperation op:observabilitysignalslist ;
+        usf:interfaceForContract sc:metricsandtraces .
+    iface:interfaceopenapigetapi a usf:Interface ;
+        usf:canonicalName "interfaceopenapigetapi" ;
+        usf:hasOperation op:openapiget ;
+        usf:interfaceForContract sc:openapidrifthardgate .
+    iface:interfaceprovidersgetapi a usf:Interface ;
+        usf:canonicalName "interfaceprovidersgetapi" ;
+        usf:hasOperation op:providersget ;
+        usf:interfaceForContract sc:providerconfigurationplane .
+    iface:interfaceproviderslistapi a usf:Interface ;
+        usf:canonicalName "interfaceproviderslistapi" ;
+        usf:hasOperation op:providerslist ;
+        usf:interfaceForContract sc:providerconfigurationplane .
+    iface:interfacereadyzgetapi a usf:Interface ;
+        usf:canonicalName "interfacereadyzgetapi" ;
+        usf:hasOperation op:readyzget ;
+        usf:interfaceForContract sc:composedproviderreadinessspine .
+    iface:interfacetenantcontextgetapi a usf:Interface ;
+        usf:canonicalName "interfacetenantcontextgetapi" ;
+        usf:hasOperation op:tenantcontextget ;
+        usf:interfaceForContract sc:tenanthostidentityresolution .
+    op:auditeventsget a usf:Query ;
+        usf:canonicalName "auditeventsget" ;
+        usf:requiresPermission perm:auditread .
+    op:auditeventslist a usf:Query ;
+        usf:canonicalName "auditeventslist" ;
+        usf:requiresPermission perm:auditsearch .
+    op:auditverifypost a usf:Query ;
+        usf:canonicalName "auditverifypost" ;
+        usf:requiresPermission perm:auditverify .
+    op:authloginpost a usf:Command ;
+        usf:canonicalName "authloginpost" ;
+        usf:emitsAuditEvent aud:authloginpostcmd ;
+        usf:requiresPermission perm:authlogin .
+    op:apikeycreate a usf:Command ;
+        usf:canonicalName "apikeycreate" ;
+        usf:emitsAuditEvent aud:apikeycreatecmd ;
+        usf:requiresPermission perm:apikeycreate .
+    op:authzcheckpost a usf:Query ;
+        usf:canonicalName "authzcheckpost" ;
+        usf:requiresPermission perm:authorizationcheck .
+    op:authzpermissionsget a usf:Query ;
+        usf:canonicalName "authzpermissionsget" ;
+        usf:requiresPermission perm:tenantmembersread .
+    op:configcurrentget a usf:Query ;
+        usf:canonicalName "configcurrentget" ;
+        usf:requiresPermission perm:configread .
+    op:configflagsget a usf:Query ;
+        usf:canonicalName "configflagsget" ;
+        usf:requiresPermission perm:configread .
+    op:configproviderstatusget a usf:Query ;
+        usf:canonicalName "configproviderstatusget" ;
+        usf:requiresPermission perm:configread .
+    op:filesdownload a usf:Query ;
+        usf:canonicalName "filesdownload" ;
+        usf:requiresPermission perm:filedownload .
+    op:filesget a usf:Query ;
+        usf:canonicalName "filesget" ;
+        usf:requiresPermission perm:fileread .
+    op:fileslist a usf:Query ;
+        usf:canonicalName "fileslist" ;
+        usf:requiresPermission perm:filelist .
+    op:filesupload a usf:Command ;
+        usf:canonicalName "filesupload" ;
+        usf:emitsAuditEvent aud:filesuploadcmd ;
+        usf:requiresPermission perm:filecreate .
+    op:filesverify a usf:Query ;
+        usf:canonicalName "filesverify" ;
+        usf:requiresPermission perm:fileread .
+    op:healthzget a usf:Query ;
+        usf:canonicalName "healthzget" ;
+        usf:requiresPermission perm:routeaccessnone .
+    op:jobscancel a usf:Command ;
+        usf:canonicalName "jobscancel" ;
+        usf:emitsAuditEvent aud:jobscancelcmd ;
+        usf:requiresPermission perm:jobcancel .
+    op:jobscreate a usf:Command ;
+        usf:canonicalName "jobscreate" ;
+        usf:emitsAuditEvent aud:jobscreatecmd ;
+        usf:requiresPermission perm:jobcreate .
+    op:jobsget a usf:Query ;
+        usf:canonicalName "jobsget" ;
+        usf:requiresPermission perm:jobread .
+    op:jobslist a usf:Query ;
+        usf:canonicalName "jobslist" ;
+        usf:requiresPermission perm:joblist .
+    op:notificationscancel a usf:Command ;
+        usf:canonicalName "notificationscancel" ;
+        usf:emitsAuditEvent aud:notificationscancelcmd ;
+        usf:requiresPermission perm:notificationcancel .
+    op:notificationscreate a usf:Command ;
+        usf:canonicalName "notificationscreate" ;
+        usf:emitsAuditEvent aud:notificationscreatecmd ;
+        usf:requiresPermission perm:notificationcreate .
+    op:notificationsget a usf:Query ;
+        usf:canonicalName "notificationsget" ;
+        usf:requiresPermission perm:notificationread .
+    op:notificationslist a usf:Query ;
+        usf:canonicalName "notificationslist" ;
+        usf:requiresPermission perm:notificationlist .
+    op:notificationssend a usf:Command ;
+        usf:canonicalName "notificationssend" ;
+        usf:emitsAuditEvent aud:notificationssendcmd ;
+        usf:requiresPermission perm:notificationsend .
+    op:profiledetailget a usf:Query ;
+        usf:canonicalName "profiledetailget" ;
+        usf:requiresPermission perm:tenantmembersread .
+    op:profilelistget a usf:Query ;
+        usf:canonicalName "profilelistget" ;
+        usf:requiresPermission perm:tenantmembersread .
+    op:notificationtemplatescreate a usf:Command ;
+        usf:canonicalName "notificationtemplatescreate" ;
+        usf:emitsAuditEvent aud:notificationtemplatescreatecmd ;
+        usf:requiresPermission perm:notificationtemplatecreate .
+    op:observabilityreadinessget a usf:Query ;
+        usf:canonicalName "observabilityreadinessget" ;
+        usf:requiresPermission perm:observabilityreadinessread .
+    op:observabilitysignalslist a usf:Query ;
+        usf:canonicalName "observabilitysignalslist" ;
+        usf:requiresPermission perm:observabilitysignalread .
+    op:openapiget a usf:Query ;
+        usf:canonicalName "openapiget" ;
+        usf:requiresPermission perm:routeaccessnone .
+    op:providersget a usf:Query ;
+        usf:canonicalName "providersget" ;
+        usf:requiresPermission perm:providerread .
+    op:providerslist a usf:Query ;
+        usf:canonicalName "providerslist" ;
+        usf:requiresPermission perm:providerlist .
+    op:readyzget a usf:Query ;
+        usf:canonicalName "readyzget" ;
+        usf:requiresPermission perm:routeaccessnone .
+    op:tenantcontextget a usf:Query ;
+        usf:canonicalName "tenantcontextget" ;
+        usf:requiresPermission perm:tenantcontextread .
+    port:analyticseventstore a usf:Port ;
+        usf:canonicalName "analyticseventstore" .
+    port:apiruntime a usf:Port ;
+        usf:canonicalName "apiruntime" .
+    port:auditeventledger a usf:Port ;
+        usf:canonicalName "auditeventledger" .
+    port:auditexporter a usf:Port ;
+        usf:canonicalName "auditexporter" ;
+        usf:intentionallyStandalone true ;
+        usf:decisionRationale "Port defined by the ports package and fulfilled in process by the audit capability; no adapter individual is modelled yet." .
+    port:auditledger a usf:Port ;
+        usf:canonicalName "auditledger" .
+    port:auditrecorder a usf:Port ;
+        usf:canonicalName "auditrecorder" ;
+        usf:intentionallyStandalone true ;
+        usf:decisionRationale "Port defined by the ports package and fulfilled in process by the audit capability recorder; no adapter individual is modelled yet." .
+    port:auditsigner a usf:Port ;
+        usf:canonicalName "auditsigner" ;
+        usf:intentionallyStandalone true ;
+        usf:decisionRationale "Port defined by the ports package for audit chain signing; in process fulfilment, adapter modelling deferred." .
+    port:backuprestoreprovider a usf:Port ;
+        usf:canonicalName "backuprestoreprovider" .
+    port:cacheprovider a usf:Port ;
+        usf:canonicalName "cacheprovider" .
+    port:cloudprovideremulator a usf:Port ;
+        usf:canonicalName "cloudprovideremulator" .
+    port:configlayerprovider a usf:Port ;
+        usf:canonicalName "configlayerprovider" .
+    port:durableworkflowport a usf:Port ;
+        usf:canonicalName "durableworkflowport" .
+    port:eventbus a usf:Port ;
+        usf:canonicalName "eventbus" .
+    port:externalsecretmanager a usf:Port ;
+        usf:canonicalName "externalsecretmanager" ;
+        usf:intentionallyStandalone true ;
+        usf:decisionRationale "Port defined by the ports package for external secret managers; only the composed OpenBao secret store is currently bound." .
+    port:featureflagsource a usf:Port ;
+        usf:canonicalName "featureflagsource" .
+    port:filemetadatastore a usf:Port ;
+        usf:canonicalName "filemetadatastore" .
+    port:guardrailport a usf:Port ;
+        usf:canonicalName "guardrailport" .
+    port:httpprovidermock a usf:Port ;
+        usf:canonicalName "httpprovidermock" .
+    port:identitydirectory a usf:Port ;
+        usf:canonicalName "identitydirectory" .
+    port:identityprovider a usf:Port ;
+        usf:canonicalName "identityprovider" .
+    port:importexportport a usf:Port ;
+        usf:canonicalName "importexportport" .
+    port:keycloaktokenverifier a usf:Port ;
+        usf:canonicalName "keycloaktokenverifier" .
+    port:mailprovider a usf:Port ;
+        usf:canonicalName "mailprovider" .
+    port:notificationprovider a usf:Port ;
+        usf:canonicalName "notificationprovider" .
+    port:objectstore a usf:Port ;
+        usf:canonicalName "objectstore" .
+    port:observabilitysink a usf:Port ;
+        usf:canonicalName "observabilitysink" .
+    port:operationaljobport a usf:Port ;
+        usf:canonicalName "operationaljobport" .
+    port:policydecisionpoint a usf:Port ;
+        usf:canonicalName "policydecisionpoint" ;
+        usf:intentionallyStandalone true ;
+        usf:decisionRationale "Port defined by the ports package and fulfilled in process by the tenant capability policy decision point service." .
+    port:qualitygateprovider a usf:Port ;
+        usf:canonicalName "qualitygateprovider" .
+    port:resourcelifecycleport a usf:Port ;
+        usf:canonicalName "resourcelifecycleport" .
+    port:scanprovider a usf:Port ;
+        usf:canonicalName "scanprovider" .
+    port:searchindexport a usf:Port ;
+        usf:canonicalName "searchindexport" .
+    port:secretresolver a usf:Port ;
+        usf:canonicalName "secretresolver" .
+    port:secretstore a usf:Port ;
+        usf:canonicalName "secretstore" .
+    port:sessionstore a usf:Port ;
+        usf:canonicalName "sessionstore" .
+    port:siemforwarder a usf:Port ;
+        usf:canonicalName "siemforwarder" ;
+        usf:intentionallyStandalone true ;
+        usf:decisionRationale "Port defined by the ports package for SIEM forwarding; composed forwarding is deferred until an external SIEM provider is admitted." .
+    port:signedurlissuer a usf:Port ;
+        usf:canonicalName "signedurlissuer" ;
+        usf:intentionallyStandalone true ;
+        usf:decisionRationale "Port defined by the ports package and fulfilled in process by the object store adapter; a dedicated adapter individual is not modelled." .
+    port:telemetryport a usf:Port ;
+        usf:canonicalName "telemetryport" .
+    port:tenantmembershipdirectory a usf:Port ;
+        usf:canonicalName "tenantmembershipdirectory" .
+    port:tenantscopedrepository a usf:Port ;
+        usf:canonicalName "tenantscopedrepository" .
+    port:webhookcaptureprovider a usf:Port ;
+        usf:canonicalName "webhookcaptureprovider" .
+    port:workflowengine a usf:Port ;
+        usf:canonicalName "workflowengine" .
+}

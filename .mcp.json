@@ -1,0 +1,29 @@
+{
+  "mcpServers": {
+    "usf": {
+      "command": "node",
+      "args": ["compiler/src/mcp.js"],
+      "env": {
+        "STARDOG_SERVER": "${STARDOG_SERVER:-}",
+        "STARDOG_DATABASE": "${STARDOG_DATABASE:-}",
+        "STARDOG_TOKEN": "${STARDOG_TOKEN:-}",
+        "STARDOG_USERNAME": "${STARDOG_USERNAME:-}",
+        "STARDOG_PASSWORD": "${STARDOG_PASSWORD:-}"
+      }
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
+    },
+    "linear": {
+      "type": "http",
+      "url": "https://mcp.linear.app/mcp",
+      "headers": {
+        "Authorization": "Bearer ${LINEAR_API_KEY}"
+      }
+    }
+  }
+}

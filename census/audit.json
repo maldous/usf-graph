@@ -1,0 +1,157 @@
+{
+  "auditId": "independent-hardened-regeneration-census",
+  "checks": [
+    {
+      "facts": {
+        "recordCount": 3252,
+        "shardCount": 4,
+        "uncompressedBytes": 75858666
+      },
+      "findings": [],
+      "id": "parser-evidence-storage",
+      "status": "pass"
+    },
+    {
+      "facts": {
+        "memberCount": 3252,
+        "universeCount": 4
+      },
+      "findings": [],
+      "id": "universes",
+      "status": "pass"
+    },
+    {
+      "facts": {
+        "inventoryCount": 2652,
+        "parserCount": 3252,
+        "relationshipCount": 19794
+      },
+      "findings": [],
+      "id": "parser-relationships",
+      "status": "pass"
+    },
+    {
+      "facts": {
+        "ownerCount": 3252
+      },
+      "findings": [],
+      "id": "family-ownership",
+      "status": "pass"
+    },
+    {
+      "facts": {
+        "coverageCount": 3252,
+        "mappingCount": 3252
+      },
+      "findings": [],
+      "id": "mappings-coverage",
+      "status": "pass"
+    },
+    {
+      "facts": {
+        "canonicalArtifactCount": 68,
+        "replacementGroupCount": 3252,
+        "semanticLayerArtifactOwnerCount": 0
+      },
+      "findings": [],
+      "id": "canonical-replacements",
+      "status": "pass"
+    },
+    {
+      "facts": {
+        "acceptedDispositionCount": 3252,
+        "artifactCount": 3252,
+        "canonicalArtifactCount": 68,
+        "missingDispositionCount": 0
+      },
+      "findings": [],
+      "id": "artifact-dispositions",
+      "status": "pass"
+    },
+    {
+      "facts": {
+        "acceptedDispositionCount": 3252,
+        "artifactCount": 3252,
+        "dispositionCount": 3252,
+        "findingDistribution": {},
+        "noOutputDispositionCount": 3184,
+        "observationCount": 3252,
+        "observationSetDigestCount": 1,
+        "outputPlanDispositionCount": 68,
+        "rejectedDispositionCount": 0
+      },
+      "findings": [],
+      "id": "source-disposition-ownership",
+      "status": "pass"
+    },
+    {
+      "facts": {
+        "semanticLayerPackageOwnerCount": 0,
+        "workPackageCount": 99
+      },
+      "findings": [],
+      "id": "work-packages",
+      "status": "pass"
+    },
+    {
+      "facts": {
+        "activeBlockingRelationshipCount": 0,
+        "blockingRelationshipCount": 0,
+        "dependencyCount": 94,
+        "requiredPrerequisiteRelationshipCount": 11,
+        "resolvedPrerequisiteRelationshipCount": 11,
+        "satisfiedPrerequisiteRelationshipCount": 11
+      },
+      "findings": [],
+      "id": "dependencies",
+      "status": "pass"
+    },
+    {
+      "facts": {
+        "activeBlockingDependencyCount": 0,
+        "dependencyCount": 94,
+        "findingCount": 0,
+        "inputCount": 9,
+        "parserShardCount": 4,
+        "relationshipCount": 19794,
+        "requiredPrerequisiteDependencyCount": 11,
+        "resolvedPrerequisiteDependencyCount": 11,
+        "retainedLineageCount": 10,
+        "satisfactionBasisCount": 11,
+        "satisfiedPrerequisiteDependencyCount": 11,
+        "workPackageCount": 99
+      },
+      "findings": [],
+      "id": "repository-structure-materialization",
+      "status": "pass"
+    },
+    {
+      "facts": {
+        "findingCount": 0,
+        "openCount": 0
+      },
+      "findings": [],
+      "id": "finding-classifications",
+      "status": "pass"
+    },
+    {
+      "facts": {
+        "canonicalDigest": "bf8f6481032ebe40880d7dcd4e798aa0fc2c2783ffba841bc2f12ffca413f75e",
+        "outputCount": 13
+      },
+      "findings": [],
+      "id": "determinism",
+      "status": "pass"
+    },
+    {
+      "facts": {
+        "afterCount": 3252,
+        "beforeCount": 3252
+      },
+      "findings": [],
+      "id": "mutation-boundary",
+      "status": "pass"
+    }
+  ],
+  "status": "pass"
+}

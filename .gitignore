@@ -1,0 +1,17 @@
+# Secrets — never commit real credentials
+.env
+
+# Python virtualenv (provisioned inside the chroot)
+.venv/
+__pycache__/
+*.pyc
+
+# Node dependencies (provisioned by bootstrap-chroot.sh / npm ci)
+node_modules/
+
+# Agent runtime state — the usf skill is tracked; local settings are not
+.claude/settings.local.json
+
+# Local snapshots / derived exports may be large; keep the dir, ignore contents
+graph/snapshots/*
+!graph/snapshots/.gitkeep

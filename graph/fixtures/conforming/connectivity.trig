@@ -1,0 +1,14 @@
+# graph: urn:usf:graph:services
+# conforming
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+
+# a service connected through capability ownership
+fixt:connectedservice a usf:Service ;
+    usf:canonicalName "connectedservice" ;
+    usf:serves <urn:usf:capability:internalservicecatalogandreadiness> .
+# a legitimately standalone service with a recorded decision rationale
+fixt:documentedstandaloneservice a usf:Service ;
+    usf:canonicalName "documentedstandaloneservice" ;
+    usf:intentionallyStandalone true ;
+    usf:decisionRationale "Fixture standalone service demonstrating the recorded exemption path." .

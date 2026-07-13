@@ -1,0 +1,60 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix fx: <urn:usf:fixture:sourcedisposition:overlap:> .
+
+GRAPH <urn:usf:graph:fixture:sourcedispositionpolicyoverlap> {
+  fx:policyalpha a usf:SourceDispositionPolicy ;
+    usf:canonicalName "policyalpha" ;
+    usf:policyDispositionKind <urn:usf:dispositionkind:retainasset> ;
+    usf:policyDispositionBasis <urn:usf:dispositionbasis:declaredretainedinput> ;
+    usf:policyDecisionState <urn:usf:dispositiondecisionstate:accepted> ;
+    usf:policyOutputMode <urn:usf:dispositionoutputmode:nooutput> ;
+    usf:policyPrecedence 10 ;
+    usf:policyMatchesContentRole <urn:usf:sourcecontentrole:fixture> ;
+    usf:isDefaultDispositionPolicy false ; usf:isActiveDispositionPolicy true ;
+    usf:decisionRationale "First active policy deliberately overlaps the second policy." .
+  fx:policybeta a usf:SourceDispositionPolicy ;
+    usf:canonicalName "policybeta" ;
+    usf:policyDispositionKind <urn:usf:dispositionkind:retainasset> ;
+    usf:policyDispositionBasis <urn:usf:dispositionbasis:declaredretainedinput> ;
+    usf:policyDecisionState <urn:usf:dispositiondecisionstate:accepted> ;
+    usf:policyOutputMode <urn:usf:dispositionoutputmode:nooutput> ;
+    usf:policyPrecedence 10 ;
+    usf:policyMatchesContentRole <urn:usf:sourcecontentrole:fixture> ;
+    usf:isDefaultDispositionPolicy false ; usf:isActiveDispositionPolicy true ;
+    usf:decisionRationale "Second active policy deliberately overlaps the first policy." .
+}
+
+GRAPH <urn:usf:graph:observed:sourceartefacts> {
+  <urn:usf:sourceartefact:s4444444444444444444444444444444444444444444444444444444444444444>
+    a usf:SourceArtefact ;
+    usf:canonicalName "s4444444444444444444444444444444444444444444444444444444444444444" ;
+    usf:sourceIdentityDigest "4444444444444444444444444444444444444444444444444444444444444444" ;
+    usf:hasCurrentSourceObservation fx:odddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd .
+  fx:odddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+    a usf:SourceArtefactObservation ;
+    usf:canonicalName "odddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" ;
+    usf:observesSourceArtefact <urn:usf:sourceartefact:s4444444444444444444444444444444444444444444444444444444444444444> ;
+    usf:observedSourcePath "fixtures/overlap.trig" ;
+    usf:observedContentDigest "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" ;
+    usf:observedFileMode "100644" ;
+    usf:observedUniverse <urn:usf:sourceuniverse:graphauthority> ;
+    usf:observedContentRole <urn:usf:sourcecontentrole:fixture> ;
+    usf:observationSetDigest "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" .
+}
+
+GRAPH <urn:usf:graph:derived:sourcedispositions> {
+  <urn:usf:sourceartefact:s4444444444444444444444444444444444444444444444444444444444444444>
+    usf:hasSourceDisposition fx:ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd .
+  fx:ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+    a usf:SourceArtefactDisposition ;
+    usf:canonicalName "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" ;
+    usf:dispositionOfSourceArtefact <urn:usf:sourceartefact:s4444444444444444444444444444444444444444444444444444444444444444> ;
+    usf:decidedAgainstObservation fx:odddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd ;
+    usf:derivedFromDispositionPolicy fx:policyalpha ;
+    usf:hasDispositionKind <urn:usf:dispositionkind:retainasset> ;
+    usf:hasDispositionBasis <urn:usf:dispositionbasis:declaredretainedinput> ;
+    usf:hasDispositionDecisionState <urn:usf:dispositiondecisionstate:accepted> ;
+    usf:hasDispositionOutputMode <urn:usf:dispositionoutputmode:nooutput> ;
+    usf:observationSetDigest "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" ;
+    usf:decisionRationale "One disposition is present, but two active non-default policies match its source." .
+}

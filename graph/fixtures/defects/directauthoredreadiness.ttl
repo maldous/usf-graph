@@ -1,0 +1,14 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+@prefix dom: <urn:usf:capabilitydomain:> .
+@prefix facet: <urn:usf:facetkind:> .
+@prefix rung: <urn:usf:proofrung:> .
+@prefix pmode: <urn:usf:providermode:> .
+@prefix envc: <urn:usf:environmentclass:> .
+@prefix fresh: <urn:usf:freshness:> .
+
+fixt:authoredreadiness a usf:Readiness ; usf:canonicalName "authoredreadiness" ;
+    usf:readinessOf fixt:arcap ; usf:readinessState <urn:usf:readinessstate:ready> ;
+    usf:readinessRung rung:foundation ; usf:derivedFrom fixt:arcap .
+fixt:arcap a usf:Capability ; usf:canonicalName "arcap" ; usf:inDomain dom:foundation ; usf:hasContract fixt:arc .
+fixt:arc a usf:SemanticContract ; usf:canonicalName "arc" .

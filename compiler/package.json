@@ -1,0 +1,33 @@
+{
+  "name": "usf-compiler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "USF semantic compiler for transactional Stardog authority and deterministic clean-room artefact generation.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "check": "node src/cli.js check",
+    "provision:db": "node src/ensure-db-config.js",
+    "compile": "node src/cli.js compile",
+    "plan": "node src/cli.js plan",
+    "migrate:contract-authority": "node src/migrate-contract-authority.js",
+    "snapshot:observed": "node src/cli.js snapshot-observed",
+    "snapshot:derived": "node src/cli.js snapshot-derived",
+    "generate": "node src/cli.js generate",
+    "verify-output": "node src/cli.js verify-output",
+    "verify": "node src/cli.js verify",
+    "verify:fixtures": "node src/cli.js verify-fixtures",
+    "drift": "node src/cli.js drift-live",
+    "mcp": "node src/mcp.js",
+    "test": "node --test test/compiler.test.js test/fixture-harness.test.js test/generation-output.test.js test/mcp.test.js",
+    "test:cloud": "node --test test/cloud.test.js"
+  },
+  "dependencies": {
+    "n3": "2.1.1",
+    "rdf-canonize": "^5.0.0",
+    "stardog": "10.0.1",
+    "yaml": "2.9.0"
+  }
+}

@@ -1,0 +1,14 @@
+PREFIX usf: <urn:usf:ontology:>
+# Replacement for coverage.rq: only observed executions can produce coverage.
+CONSTRUCT {
+  ?coverage a usf:Coverage ; usf:canonicalName ?name ; usf:coverageOf ?obligation ;
+      usf:coverageState ?state ; usf:derivedFrom ?obligation .
+}
+WHERE {
+  ?obligation a usf:TestObligation .
+  BIND(SHA256(STR(?obligation)) AS ?digest)
+  BIND(CONCAT("c", ?digest) AS ?name)
+  BIND(IRI(CONCAT("urn:usf:coverage:", ?name)) AS ?coverage)
+  BIND(IF(EXISTS { ?obligation usf:satisfiedByTestResult ?result },
+      <urn:usf:coveragestate:covered>, <urn:usf:coveragestate:uncovered>) AS ?state)
+}

@@ -1,0 +1,403 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix val: <urn:usf:validatorrule:> .
+@prefix sev: <urn:usf:severity:> .
+@prefix ng: <urn:usf:namedgraph:> .
+@prefix dfc: <urn:usf:defect:> .
+@prefix shp: <urn:usf:shape:> .
+
+<urn:usf:graph:validators> {
+    shp:adaptershape a usf:Shape ;
+        usf:canonicalName "adaptershape" .
+    shp:agentconstraintshape a usf:Shape ;
+        usf:canonicalName "agentconstraintshape" .
+    shp:agentshape a usf:Shape ;
+        usf:canonicalName "agentshape" .
+    shp:auditeventshape a usf:Shape ;
+        usf:canonicalName "auditeventshape" .
+    shp:bindingshape a usf:Shape ;
+        usf:canonicalName "bindingshape" .
+    shp:capabilityshape a usf:Shape ;
+        usf:canonicalName "capabilityshape" .
+    shp:commandshape a usf:Shape ;
+        usf:canonicalName "commandshape" .
+    shp:configurationkeyshape a usf:Shape ;
+        usf:canonicalName "configurationkeyshape" .
+    shp:consentrequirementshape a usf:Shape ;
+        usf:canonicalName "consentrequirementshape" .
+    shp:contractfacetcompletenessshape a usf:Shape ;
+        usf:canonicalName "contractfacetcompletenessshape" .
+    shp:contractfacetshape a usf:Shape ;
+        usf:canonicalName "contractfacetshape" .
+    shp:controlshape a usf:Shape ;
+        usf:canonicalName "controlshape" .
+    shp:coverageshape a usf:Shape ;
+        usf:canonicalName "coverageshape" .
+    shp:datamodelshape a usf:Shape ;
+        usf:canonicalName "datamodelshape" .
+    shp:defectshape a usf:Shape ;
+        usf:canonicalName "defectshape" .
+    shp:environmentshape a usf:Shape ;
+        usf:canonicalName "environmentshape" .
+    shp:eventshape a usf:Shape ;
+        usf:canonicalName "eventshape" .
+    shp:evidencerequirementshape a usf:Shape ;
+        usf:canonicalName "evidencerequirementshape" .
+    shp:evidenceresultshape a usf:Shape ;
+        usf:canonicalName "evidenceresultshape" .
+    shp:evidencesatisfactionshape a usf:Shape ;
+        usf:canonicalName "evidencesatisfactionshape" .
+    shp:fixtureshape a usf:Shape ;
+        usf:canonicalName "fixtureshape" .
+    shp:implementationshape a usf:Shape ;
+        usf:canonicalName "implementationshape" .
+    shp:interfaceshape a usf:Shape ;
+        usf:canonicalName "interfaceshape" .
+    shp:journeyshape a usf:Shape ;
+        usf:canonicalName "journeyshape" .
+    shp:observabilitysignalshape a usf:Shape ;
+        usf:canonicalName "observabilitysignalshape" .
+    shp:operationshape a usf:Shape ;
+        usf:canonicalName "operationshape" .
+    shp:permissionshape a usf:Shape ;
+        usf:canonicalName "permissionshape" .
+    shp:policyshape a usf:Shape ;
+        usf:canonicalName "policyshape" .
+    shp:portshape a usf:Shape ;
+        usf:canonicalName "portshape" .
+    shp:promotionshape a usf:Shape ;
+        usf:canonicalName "promotionshape" .
+    shp:proofexecutionshape a usf:Shape ;
+        usf:canonicalName "proofexecutionshape" .
+    shp:proofobligationshape a usf:Shape ;
+        usf:canonicalName "proofobligationshape" .
+    shp:proofresultshape a usf:Shape ;
+        usf:canonicalName "proofresultshape" .
+    shp:proofshape a usf:Shape ;
+        usf:canonicalName "proofshape" .
+    shp:providershape a usf:Shape ;
+        usf:canonicalName "providershape" .
+    shp:readinessshape a usf:Shape ;
+        usf:canonicalName "readinessshape" .
+    shp:realisationshape a usf:Shape ;
+        usf:canonicalName "realisationshape" .
+    shp:riskshape a usf:Shape ;
+        usf:canonicalName "riskshape" .
+    shp:semanticcontractshape a usf:Shape ;
+        usf:canonicalName "semanticcontractshape" .
+    shp:serviceshape a usf:Shape ;
+        usf:canonicalName "serviceshape" .
+    shp:shapeconceptshape a usf:Shape ;
+        usf:canonicalName "shapeconceptshape" .
+    shp:surfaceshape a usf:Shape ;
+        usf:canonicalName "surfaceshape" .
+    shp:testobligationshape a usf:Shape ;
+        usf:canonicalName "testobligationshape" .
+    shp:testshape a usf:Shape ;
+        usf:canonicalName "testshape" .
+    shp:transitionshape a usf:Shape ;
+        usf:canonicalName "transitionshape" .
+    shp:validatorruleshape a usf:Shape ;
+        usf:canonicalName "validatorruleshape" .
+    val:generatecompose a usf:ValidatorRule ;
+        usf:canonicalName "generatecompose" ;
+        usf:enforcesShape shp:contractfacetcompletenessshape ;
+        usf:resultCode "generatecompose" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:proofcockpitcompare a usf:ValidatorRule ;
+        usf:canonicalName "proofcockpitcompare" ;
+        usf:enforcesShape shp:serviceshape ;
+        usf:resultCode "proofcockpitcompare" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateaccessibilitygate a usf:ValidatorRule ;
+        usf:canonicalName "validateaccessibilitygate" ;
+        usf:enforcesShape shp:proofobligationshape ;
+        usf:resultCode "validateaccessibilitygate" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateaggregate a usf:ValidatorRule ;
+        usf:canonicalName "validateaggregate" ;
+        usf:detectsDefect dfc:sourcepath ;
+        usf:enforcesShape shp:evidenceresultshape ;
+        usf:resultCode "validateaggregate" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateapi a usf:ValidatorRule ;
+        usf:canonicalName "validateapi" ;
+        usf:detectsDefect dfc:readinessoverclaim ;
+        usf:enforcesShape shp:promotionshape ;
+        usf:resultCode "validateapi" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateappsurface a usf:ValidatorRule ;
+        usf:canonicalName "validateappsurface" ;
+        usf:enforcesShape shp:agentconstraintshape ;
+        usf:resultCode "validateappsurface" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateartifactpromotion a usf:ValidatorRule ;
+        usf:canonicalName "validateartifactpromotion" ;
+        usf:detectsDefect dfc:alias ;
+        usf:enforcesShape shp:riskshape ;
+        usf:resultCode "validateartifactpromotion" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateaudit a usf:ValidatorRule ;
+        usf:canonicalName "validateaudit" ;
+        usf:detectsDefect dfc:missingtenancyboundary ;
+        usf:enforcesShape shp:permissionshape ;
+        usf:resultCode "validateaudit" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateauth a usf:ValidatorRule ;
+        usf:canonicalName "validateauth" ;
+        usf:detectsDefect dfc:insufficientproofrung ;
+        usf:enforcesShape shp:datamodelshape ;
+        usf:resultCode "validateauth" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateauthnegativepath a usf:ValidatorRule ;
+        usf:canonicalName "validateauthnegativepath" ;
+        usf:enforcesShape shp:coverageshape ;
+        usf:resultCode "validateauthnegativepath" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateauthz a usf:ValidatorRule ;
+        usf:canonicalName "validateauthz" ;
+        usf:detectsDefect dfc:missingpermission ;
+        usf:enforcesShape shp:transitionshape ;
+        usf:resultCode "validateauthz" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatebootstrap a usf:ValidatorRule ;
+        usf:canonicalName "validatebootstrap" ;
+        usf:detectsDefect dfc:overloadedterm ;
+        usf:enforcesShape shp:semanticcontractshape ;
+        usf:resultCode "validatebootstrap" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatebulk a usf:ValidatorRule ;
+        usf:canonicalName "validatebulk" ;
+        usf:detectsDefect dfc:forbiddenmetadata ;
+        usf:enforcesShape shp:journeyshape ;
+        usf:resultCode "validatebulk" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatecompose a usf:ValidatorRule ;
+        usf:canonicalName "validatecompose" ;
+        usf:detectsDefect dfc:missinggraphreference ;
+        usf:enforcesShape shp:interfaceshape ;
+        usf:resultCode "validatecompose" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateconfig a usf:ValidatorRule ;
+        usf:canonicalName "validateconfig" ;
+        usf:detectsDefect dfc:missingauditsignal ;
+        usf:enforcesShape shp:portshape ;
+        usf:resultCode "validateconfig" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatedatarehearsal a usf:ValidatorRule ;
+        usf:canonicalName "validatedatarehearsal" ;
+        usf:enforcesShape shp:readinessshape ;
+        usf:resultCode "validatedatarehearsal" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatedb a usf:ValidatorRule ;
+        usf:canonicalName "validatedb" ;
+        usf:detectsDefect dfc:missingcontractfacet ;
+        usf:enforcesShape shp:commandshape ;
+        usf:resultCode "validatedb" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatedeveloperportal a usf:ValidatorRule ;
+        usf:canonicalName "validatedeveloperportal" ;
+        usf:enforcesShape shp:evidencerequirementshape ;
+        usf:resultCode "validatedeveloperportal" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatedevexhaustionbridge a usf:ValidatorRule ;
+        usf:canonicalName "validatedevexhaustionbridge" ;
+        usf:enforcesShape shp:evidencesatisfactionshape ;
+        usf:resultCode "validatedevexhaustionbridge" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatedevrealisation a usf:ValidatorRule ;
+        usf:canonicalName "validatedevrealisation" ;
+        usf:enforcesShape shp:validatorruleshape ;
+        usf:resultCode "validatedevrealisation" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatedomaindepth a usf:ValidatorRule ;
+        usf:canonicalName "validatedomaindepth" ;
+        usf:detectsDefect dfc:repositorymetadata ;
+        usf:enforcesShape shp:proofresultshape ;
+        usf:resultCode "validatedomaindepth" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateenterprise a usf:ValidatorRule ;
+        usf:canonicalName "validateenterprise" ;
+        usf:detectsDefect dfc:hyphenatedidentifier ;
+        usf:enforcesShape shp:policyshape ;
+        usf:resultCode "validateenterprise" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateenvironmentladder a usf:ValidatorRule ;
+        usf:canonicalName "validateenvironmentladder" ;
+        usf:enforcesShape shp:testshape ;
+        usf:resultCode "validateenvironmentladder" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateevidenceinvalidation a usf:ValidatorRule ;
+        usf:canonicalName "validateevidenceinvalidation" ;
+        usf:enforcesShape shp:fixtureshape ;
+        usf:resultCode "validateevidenceinvalidation" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateevidencereuse a usf:ValidatorRule ;
+        usf:canonicalName "validateevidencereuse" ;
+        usf:enforcesShape shp:defectshape ;
+        usf:resultCode "validateevidencereuse" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatefiles a usf:ValidatorRule ;
+        usf:canonicalName "validatefiles" ;
+        usf:detectsDefect dfc:staleevidence ;
+        usf:enforcesShape shp:eventshape ;
+        usf:resultCode "validatefiles" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatefoundationsubstrateclosure a usf:ValidatorRule ;
+        usf:canonicalName "validatefoundationsubstrateclosure" ;
+        usf:enforcesShape shp:realisationshape ;
+        usf:resultCode "validatefoundationsubstrateclosure" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateguardrails a usf:ValidatorRule ;
+        usf:canonicalName "validateguardrails" ;
+        usf:detectsDefect dfc:missingvalidatorcoverage ;
+        usf:enforcesShape shp:observabilitysignalshape ;
+        usf:resultCode "validateguardrails" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateiso27001controlmap a usf:ValidatorRule ;
+        usf:canonicalName "validateiso27001controlmap" ;
+        usf:enforcesShape shp:testobligationshape ;
+        usf:resultCode "validateiso27001controlmap" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatejobs a usf:ValidatorRule ;
+        usf:canonicalName "validatejobs" ;
+        usf:detectsDefect dfc:providermismatch ;
+        usf:enforcesShape shp:providershape ;
+        usf:resultCode "validatejobs" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatelinearboundary a usf:ValidatorRule ;
+        usf:canonicalName "validatelinearboundary" ;
+        usf:enforcesShape shp:bindingshape ;
+        usf:resultCode "validatelinearboundary" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatenonuicompleteness a usf:ValidatorRule ;
+        usf:canonicalName "validatenonuicompleteness" ;
+        usf:enforcesShape shp:adaptershape ;
+        usf:resultCode "validatenonuicompleteness" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatenotify a usf:ValidatorRule ;
+        usf:canonicalName "validatenotify" ;
+        usf:detectsDefect dfc:environmentmismatch ;
+        usf:enforcesShape shp:environmentshape ;
+        usf:resultCode "validatenotify" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateobservability a usf:ValidatorRule ;
+        usf:canonicalName "validateobservability" ;
+        usf:detectsDefect dfc:directauthoredreadiness ;
+        usf:enforcesShape shp:auditeventshape ;
+        usf:resultCode "validateobservability" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateoperatorworkbench a usf:ValidatorRule ;
+        usf:canonicalName "validateoperatorworkbench" ;
+        usf:enforcesShape shp:surfaceshape ;
+        usf:resultCode "validateoperatorworkbench" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateparitymatrix a usf:ValidatorRule ;
+        usf:canonicalName "validateparitymatrix" ;
+        usf:detectsDefect dfc:authorityinversion ;
+        usf:enforcesShape shp:operationshape ;
+        usf:resultCode "validateparitymatrix" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateproofcockpitacceptance a usf:ValidatorRule ;
+        usf:canonicalName "validateproofcockpitacceptance" ;
+        usf:enforcesShape shp:implementationshape ;
+        usf:resultCode "validateproofcockpitacceptance" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateproviderconsolidation a usf:ValidatorRule ;
+        usf:canonicalName "validateproviderconsolidation" ;
+        usf:enforcesShape shp:shapeconceptshape ;
+        usf:resultCode "validateproviderconsolidation" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateproviders a usf:ValidatorRule ;
+        usf:canonicalName "validateproviders" ;
+        usf:detectsDefect dfc:incompleterealisation ;
+        usf:enforcesShape shp:configurationkeyshape ;
+        usf:resultCode "validateproviders" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatepublicfqdn a usf:ValidatorRule ;
+        usf:canonicalName "validatepublicfqdn" ;
+        usf:detectsDefect dfc:adridentity ;
+        usf:enforcesShape shp:controlshape ;
+        usf:resultCode "validatepublicfqdn" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validaterepositoryoptimisation a usf:ValidatorRule ;
+        usf:canonicalName "validaterepositoryoptimisation" ;
+        usf:enforcesShape shp:agentshape ;
+        usf:resultCode "validaterepositoryoptimisation" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateresources a usf:ValidatorRule ;
+        usf:canonicalName "validateresources" ;
+        usf:detectsDefect dfc:issuestyleidentifier ;
+        usf:enforcesShape shp:proofexecutionshape ;
+        usf:resultCode "validateresources" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validateruntime a usf:ValidatorRule ;
+        usf:canonicalName "validateruntime" ;
+        usf:detectsDefect dfc:undefinedterm ;
+        usf:enforcesShape shp:contractfacetshape ;
+        usf:resultCode "validateruntime" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatesearch a usf:ValidatorRule ;
+        usf:canonicalName "validatesearch" ;
+        usf:detectsDefect dfc:externalworktrackingidentifier ;
+        usf:enforcesShape shp:proofshape ;
+        usf:resultCode "validatesearch" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatespec a usf:ValidatorRule ;
+        usf:canonicalName "validatespec" ;
+        usf:detectsDefect dfc:duplicatemeaning ;
+        usf:enforcesShape shp:capabilityshape ;
+        usf:resultCode "validatespec" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+    val:validatetestreadiness a usf:ValidatorRule ;
+        usf:canonicalName "validatetestreadiness" ;
+        usf:detectsDefect dfc:invalidcasing ;
+        usf:enforcesShape shp:consentrequirementshape ;
+        usf:resultCode "validatetestreadiness" ;
+        usf:targetsGraph ng:capabilities ;
+        usf:validatorSeverity sev:blocking .
+}

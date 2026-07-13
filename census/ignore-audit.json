@@ -1,0 +1,264 @@
+{
+  "blockedPatternCount": 0,
+  "blockedRules": [],
+  "closureStatus": "complete",
+  "ignoreFiles": [
+    ".gitignore",
+    "v2/.gitignore",
+    "v2/usf/.gitignore"
+  ],
+  "rules": [
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": ".gitignore",
+      "line": 1,
+      "negated": false,
+      "pathClass": "dependency-installation",
+      "pattern": "__pycache__/",
+      "reason": "installed dependencies are external materialisations"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": ".gitignore",
+      "line": 2,
+      "negated": false,
+      "pathClass": "dependency-installation",
+      "pattern": "*.pyc",
+      "reason": "installed dependencies are external materialisations"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": ".gitignore",
+      "line": 3,
+      "negated": false,
+      "pathClass": "dependency-installation",
+      "pattern": "node_modules/",
+      "reason": "installed dependencies are external materialisations"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": ".gitignore",
+      "line": 4,
+      "negated": false,
+      "pathClass": "generated-or-cache-output",
+      "pattern": "dist/",
+      "reason": "generated or cache output is recreated from tracked source"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": ".gitignore",
+      "line": 5,
+      "negated": false,
+      "pathClass": "generated-or-cache-output",
+      "pattern": "coverage/",
+      "reason": "generated or cache output is recreated from tracked source"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": ".gitignore",
+      "line": 6,
+      "negated": false,
+      "pathClass": "credential-boundary",
+      "pattern": ".env",
+      "reason": "credential-bearing state is prohibited from source control"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": ".gitignore",
+      "line": 7,
+      "negated": false,
+      "pathClass": "credential-boundary",
+      "pattern": ".env.*",
+      "reason": "credential-bearing state is prohibited from source control"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": ".gitignore",
+      "line": 8,
+      "negated": true,
+      "pathClass": "source-boundary-exception",
+      "pattern": "!.env.example",
+      "reason": "explicit tracked-source exception"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": ".gitignore",
+      "line": 9,
+      "negated": false,
+      "pathClass": "dependency-installation",
+      "pattern": ".pnpm-store/",
+      "reason": "installed dependencies are external materialisations"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": ".gitignore",
+      "line": 10,
+      "negated": false,
+      "pathClass": "generated-or-cache-output",
+      "pattern": ".codex/bin/",
+      "reason": "generated or cache output is recreated from tracked source"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": ".gitignore",
+      "line": 11,
+      "negated": false,
+      "pathClass": "generated-or-cache-output",
+      "pattern": ".claude/",
+      "reason": "generated or cache output is recreated from tracked source"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": ".gitignore",
+      "line": 12,
+      "negated": false,
+      "pathClass": "generated-or-cache-output",
+      "pattern": ".codex/",
+      "reason": "generated or cache output is recreated from tracked source"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": ".gitignore",
+      "line": 14,
+      "negated": false,
+      "pathClass": "generated-or-cache-output",
+      "pattern": ".proof-review/",
+      "reason": "generated or cache output is recreated from tracked source"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": "v2/.gitignore",
+      "line": 4,
+      "negated": false,
+      "pathClass": "chroot-runtime",
+      "pattern": "/*",
+      "reason": "the chroot filesystem is an external operating-system materialisation"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": "v2/.gitignore",
+      "line": 5,
+      "negated": true,
+      "pathClass": "source-boundary-exception",
+      "pattern": "!/.gitignore",
+      "reason": "explicit tracked-source exception"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": "v2/.gitignore",
+      "line": 6,
+      "negated": true,
+      "pathClass": "source-boundary-exception",
+      "pattern": "!/usf/",
+      "reason": "explicit tracked-source exception"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": "v2/.gitignore",
+      "line": 9,
+      "negated": true,
+      "pathClass": "source-boundary-exception",
+      "pattern": "!/etc/",
+      "reason": "explicit tracked-source exception"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": "v2/.gitignore",
+      "line": 10,
+      "negated": false,
+      "pathClass": "chroot-runtime",
+      "pattern": "/etc/*",
+      "reason": "the chroot operating-system tree is external except for explicit tracked wiring"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": "v2/.gitignore",
+      "line": 11,
+      "negated": true,
+      "pathClass": "source-boundary-exception",
+      "pattern": "!/etc/profile.d/",
+      "reason": "explicit tracked-source exception"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": "v2/.gitignore",
+      "line": 12,
+      "negated": false,
+      "pathClass": "chroot-runtime",
+      "pattern": "/etc/profile.d/*",
+      "reason": "the chroot operating-system tree is external except for explicit tracked wiring"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": "v2/.gitignore",
+      "line": 13,
+      "negated": true,
+      "pathClass": "source-boundary-exception",
+      "pattern": "!/etc/profile.d/java.sh",
+      "reason": "explicit tracked-source exception"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": "v2/.gitignore",
+      "line": 14,
+      "negated": true,
+      "pathClass": "source-boundary-exception",
+      "pattern": "!/etc/profile.d/stardog.sh",
+      "reason": "explicit tracked-source exception"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": "v2/usf/.gitignore",
+      "line": 2,
+      "negated": false,
+      "pathClass": "credential-boundary",
+      "pattern": ".env",
+      "reason": "credential-bearing state is prohibited from source control"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": "v2/usf/.gitignore",
+      "line": 5,
+      "negated": false,
+      "pathClass": "dependency-installation",
+      "pattern": ".venv/",
+      "reason": "installed dependencies are external materialisations"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": "v2/usf/.gitignore",
+      "line": 6,
+      "negated": false,
+      "pathClass": "dependency-installation",
+      "pattern": "__pycache__/",
+      "reason": "installed dependencies are external materialisations"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": "v2/usf/.gitignore",
+      "line": 7,
+      "negated": false,
+      "pathClass": "dependency-installation",
+      "pattern": "*.pyc",
+      "reason": "installed dependencies are external materialisations"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": "v2/usf/.gitignore",
+      "line": 10,
+      "negated": false,
+      "pathClass": "derived-graph-output",
+      "pattern": "graph/snapshots/*",
+      "reason": "graph snapshots are derived from tracked graph authority"
+    },
+    {
+      "closureDecision": "allowed",
+      "ignoreFile": "v2/usf/.gitignore",
+      "line": 11,
+      "negated": true,
+      "pathClass": "source-boundary-exception",
+      "pattern": "!graph/snapshots/.gitkeep",
+      "reason": "explicit tracked-source exception"
+    }
+  ]
+}

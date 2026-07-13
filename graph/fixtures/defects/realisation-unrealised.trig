@@ -1,0 +1,9 @@
+# graph: urn:usf:graph:bindings
+# expect-shacl: nonconforming
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+
+fixt:unrealisedrealisation a usf:Realisation ;
+    usf:canonicalName "unrealisedrealisation" ;
+    usf:realisationState <urn:usf:realisationstate:internal> ;
+    usf:realisesContract <urn:usf:semanticcontract:internalservicecatalogandreadiness> .

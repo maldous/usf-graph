@@ -1,0 +1,20 @@
+[project]
+name = "usf"
+version = "0.0.0"
+description = "USF semantic graph authority, compiler, and chroot validation toolchain"
+requires-python = ">=3.11"
+dependencies = [
+  "rdflib==7.6.0",
+  "pyshacl==0.40.0",
+  "pyyaml==6.0.3",
+]
+
+[project.optional-dependencies]
+dev = []
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["compiler"]

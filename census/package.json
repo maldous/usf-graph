@@ -1,0 +1,26 @@
+{
+  "name": "@usf/regeneration-census",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "audit": "node audit/index.mjs",
+    "build": "node src/build.mjs",
+    "closure": "node src/closure.mjs",
+    "test": "node --test",
+    "validate": "node src/validate.mjs",
+    "verify-drift": "node src/verify-drift.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@babel/parser": "8.0.4",
+    "graphql": "17.0.2",
+    "n3": "2.1.1",
+    "saxes": "6.0.0",
+    "smol-toml": "1.7.0",
+    "sql-parser-cst": "0.42.1",
+    "yaml": "2.9.0"
+  }
+}

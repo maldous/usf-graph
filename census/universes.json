@@ -1,0 +1,12 @@
+{
+  "repositoryUniverseDigest": "1f4e43b87d494032992904107a6be6d62396f87d2dbe338d0d4297a8af6102e6",
+  "universeCounts": {
+    "repository-output": 3088,
+    "v2-compiler-implementation": 24,
+    "v2-graph-authority": 117,
+    "v2-support-provisioning": 23
+  },
+  "v2CompilerUniverseDigest": "6c92c8accb25d7865acff303492bd2fd87baeb626034988246f52e49d7bc47a4",
+  "v2GraphUniverseDigest": "69d2bf037d921baf10eadba37f92ed42488a379cf4d6b40f2c7ecb8664799c46",
+  "v2SupportUniverseDigest": "3f52e0f874275e6c75d4abc3b80589c9f57f3050b211ad5ef905bc20c4fb3ceb"
+}

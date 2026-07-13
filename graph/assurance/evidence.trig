@@ -1,0 +1,90 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix evr: <urn:usf:evidenceresult:> .
+@prefix evk: <urn:usf:evidencekind:> .
+@prefix pmode: <urn:usf:providermode:> .
+@prefix env: <urn:usf:environment:> .
+@prefix fresh: <urn:usf:freshness:> .
+@prefix sc: <urn:usf:semanticcontract:> .
+
+<urn:usf:graph:evidence> {
+    evr:evidencenormalisedauthenticationsliceprooflineage a usf:EvidenceResult ;
+        usf:canonicalName "evidencenormalisedauthenticationsliceprooflineage" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:normalisedevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:localdev ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:evidencenormalisedobservabilitysignalsruntimeprooflineage a usf:EvidenceResult ;
+        usf:canonicalName "evidencenormalisedobservabilitysignalsruntimeprooflineage" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:normalisedevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:localdev ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:evidenceregister a usf:EvidenceResult ;
+        usf:canonicalName "evidenceregister" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:runtimeproofevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:localdev ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:evidenceruntimeproofauthenticationsliceproof a usf:EvidenceResult ;
+        usf:canonicalName "evidenceruntimeproofauthenticationsliceproof" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:runtimeproofevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:evidenceruntimeproofobservabilitysignalsruntimeproof a usf:EvidenceResult ;
+        usf:canonicalName "evidenceruntimeproofobservabilitysignalsruntimeproof" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:runtimeproofevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:proofcockpitexternalreviewbundle a usf:EvidenceResult ;
+        usf:canonicalName "proofcockpitexternalreviewbundle" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:runtimeproofevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:localdev ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:proofcockpithumanreviewactions a usf:EvidenceResult ;
+        usf:canonicalName "proofcockpithumanreviewactions" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:runtimeproofevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:localdev ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:proofcockpitstagingevidencestore a usf:EvidenceResult ;
+        usf:canonicalName "proofcockpitstagingevidencestore" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:runtimeproofevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:localdev ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:proofcockpitwarninginventory a usf:EvidenceResult ;
+        usf:canonicalName "proofcockpitwarninginventory" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:runtimeproofevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:localdev ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:repositoryoptimisationgeneratedreports a usf:EvidenceResult ;
+        usf:canonicalName "repositoryoptimisationgeneratedreports" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:generatedreport ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:localdev ;
+        usf:usesProviderMode pmode:hermeticmock .
+}

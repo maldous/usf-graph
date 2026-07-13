@@ -1,0 +1,5 @@
+@prefix usf: <urn:usf:ontology:> .
+<urn:usf:graph:derived:repositorystructure> {
+  <urn:usf:resolvedworkpackagedependency:dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb> a usf:RepositoryDependency ; usf:resolvedDependencyStatus <urn:usf:workpackagedependencystatus:requiredprerequisite> ; usf:resolvedDependencySource <urn:usf:repositoryworkpackage:w00000000000000000001> ; usf:resolvedDependencyPrerequisite <urn:usf:repositoryworkpackage:w00000000000000000002> .
+  <urn:usf:resolvedworkpackagedependency:dcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc> a usf:RepositoryDependency ; usf:resolvedDependencyStatus <urn:usf:workpackagedependencystatus:requiredprerequisite> ; usf:resolvedDependencySource <urn:usf:repositoryworkpackage:w00000000000000000002> ; usf:resolvedDependencyPrerequisite <urn:usf:repositoryworkpackage:w00000000000000000001> .
+}

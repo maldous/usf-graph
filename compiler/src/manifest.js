@@ -1,0 +1,204 @@
+// Manifest loading for the USF semantic compiler.
+//
+// v2/usf/graph/manifest.yaml is the sole loading registry and is semantic
+// authority: this module reads it but never writes it. Every registered entry
+// is resolved to { file, graph, contentType, role, order }. contentType and
+// role are DERIVED deterministically from the manifest section and file path,
+// not read from (or written back to) the manifest.
+
+import { readFileSync } from 'node:fs';
+import { join, isAbsolute, normalize, sep } from 'node:path';
+import { parse as parseYaml } from 'yaml';
+
+export class ManifestError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'ManifestError';
+  }
+}
+
+// The closed, canonical set of roles. A derived role outside this set is a bug.
+export const ROLES = Object.freeze([
+  'authority',
+  'ontology',
+  'vocabulary',
+  'contracts',
+  'assurance',
+  'realisation',
+  'execution',
+  'observed',
+  'shapes',
+  'rules',
+  'derived',
+]);
+
+// The one required derivation order. Repository structure is promoted from
+// validated observations first, source dispositions are then classified, and
+// obligations → evidence → surfaces → coverage → readiness follow; whole-
+// dataset integrity is checked last.
+export const DERIVATION_ORDER = Object.freeze([
+  'repository-structure',
+  'source-dispositions',
+  'obligations',
+  'evidence',
+  'surfaces',
+  'coverage',
+  'readiness',
+]);
+
+const CONTENT_TYPES = Object.freeze({
+  '.ttl': 'text/turtle',
+  '.trig': 'application/trig',
+  '.rq': 'application/sparql-query',
+});
+
+function contentTypeFor(file) {
+  const dot = file.lastIndexOf('.');
+  const ext = dot >= 0 ? file.slice(dot).toLowerCase() : '';
+  const ct = CONTENT_TYPES[ext];
+  if (!ct) throw new ManifestError(`Unsupported file extension for ${file}`);
+  return ct;
+}
+
+// Role derivation is a pure function of (section, file). It never consults the
+// manifest for a role field, because roles are not authored there.
+function roleFor(section, file) {
+  const first = file.split('/')[0];
+  const base = file.split('/').pop();
+  switch (section) {
+    case 'shapes':
+      return 'shapes';
+    case 'rules':
+      return 'rules';
+    case 'derived':
+      return 'derived';
+    case 'observed':
+      return 'observed';
+    case 'definition':
+      if (base === 'ontology.ttl') return 'ontology';
+      if (base === 'vocabulary.ttl' || base === 'taxonomy.ttl') return 'vocabulary';
+      if (base === 'authority.ttl' || base === 'registry.ttl') return 'authority';
+      throw new ManifestError(`Cannot derive role for definition file ${file}`);
+    case 'authored':
+      if (first === 'contracts') return 'contracts';
+      if (first === 'assurance') return 'assurance';
+      if (first === 'realisation') return 'realisation';
+      if (first === 'execution') return 'execution';
+      if (!file.includes('/')) return 'authority'; // authored top-level registries
+      throw new ManifestError(`Cannot derive role for authored file ${file}`);
+    default:
+      throw new ManifestError(`Unknown section ${section}`);
+  }
+}
+
+// A registered path must stay inside the graph directory. Reject absolute
+// paths, parent traversal, and anything that normalises outside the root.
+function assertContained(graphDir, file) {
+  if (isAbsolute(file) || file.includes('\\')) {
+    throw new ManifestError(`Registered path must be relative and POSIX: ${file}`);
+  }
+  const abs = normalize(join(graphDir, file));
+  const rootWithSep = graphDir.endsWith(sep) ? graphDir : graphDir + sep;
+  if (!abs.startsWith(rootWithSep)) {
+    throw new ManifestError(`Registered path escapes the graph directory: ${file}`);
+  }
+  return abs;
+}
+
+function entry(section, raw, graphDir, order) {
+  if (!raw || (typeof raw.file !== 'string' && typeof raw.collector !== 'string')) {
+    throw new ManifestError(`Malformed ${section} entry: missing file or collector`);
+  }
+  if (raw.file && raw.collector && section !== 'observed') throw new ManifestError(`Malformed ${section} entry: file and collector are mutually exclusive`);
+  const file = raw.file || null;
+  return Object.freeze({
+    file,
+    collector: raw.collector || null,
+    path: file ? assertContained(graphDir, file) : null,
+    graph: raw.graph || null,
+    output: raw.output || null,
+    kind: raw.kind || null,
+    role: roleFor(section, file || raw.collector),
+    contentType: file ? contentTypeFor(file) : 'text/turtle',
+    order,
+    validationOrder: raw.validationOrder ?? null,
+  });
+}
+
+export function loadManifest(graphDir) {
+  const root = normalize(isAbsolute(graphDir) ? graphDir : join(process.cwd(), graphDir));
+  const text = readFileSync(join(root, 'manifest.yaml'), 'utf8');
+  const doc = parseYaml(text);
+  if (!doc || typeof doc !== 'object') throw new ManifestError('manifest.yaml is empty or invalid');
+
+  const definitions = (doc.definitionGraphs || []).map((r) =>
+    entry('definition', r, root, r.loadOrder)
+  );
+  const authored = (doc.authoredGraphs || []).map((r) => entry('authored', r, root, r.loadOrder));
+  const observed = (doc.observedGraphs || []).map((r) => entry('observed', r, root, r.loadOrder));
+  const shapes = (doc.shapeGraphs || []).map((r, i) => entry('shapes', r, root, r.loadOrder ?? 1000 + i));
+  const rules = (doc.rules || []).map((r, i) => entry('rules', r, root, i));
+  const derived = (doc.derivedGraphs || []).map((r, i) => entry('derived', r, root, r.loadOrder ?? 2000 + i));
+
+  const fixtures = doc.fixtures
+    ? Object.freeze({
+        conforming: doc.fixtures.conforming || null,
+        defects: doc.fixtures.defects || null,
+        loadAsAuthority: doc.fixtures.loadAsAuthority === true,
+      })
+    : null;
+
+  return Object.freeze({
+    root,
+    version: doc.version,
+    database: doc.database,
+    baseIri: doc.baseIri,
+    definitions: Object.freeze(definitions),
+    authored: Object.freeze(authored),
+    observed: Object.freeze(observed),
+    shapes: Object.freeze(shapes),
+    rules: Object.freeze(rules),
+    derived: Object.freeze(derived),
+    fixtures,
+  });
+}
+
+// The ordered set of authored inputs actually loaded as data (definitions then
+// authored graphs, by declared load order). Derived and fixture data are never
+// part of this list.
+export function authoredLoadList(manifest) {
+  return [...manifest.definitions, ...manifest.authored].sort((a, b) => a.order - b.order);
+}
+
+export function observedLoadList(manifest) {
+  return [...manifest.observed].sort((a, b) => a.order - b.order);
+}
+
+// The single shapes graph IRI (all shape files register into one graph).
+export function shapesGraph(manifest) {
+  const iris = new Set(manifest.shapes.map((s) => s.graph));
+  if (iris.size !== 1) throw new ManifestError('Expected exactly one shapes graph IRI');
+  return [...iris][0];
+}
+
+// Every named graph the compiler is permitted to clear and (re)write: the
+// authored graphs, the shapes graph, and the derived graphs. This is the
+// closed allow-list for named-graph clearing — nothing else may be touched,
+// and the whole database is never cleared.
+export function managedGraphs(manifest) {
+  const set = new Set();
+  for (const e of authoredLoadList(manifest)) set.add(e.graph);
+  for (const e of observedLoadList(manifest)) set.add(e.graph);
+  set.add(shapesGraph(manifest));
+  for (const d of manifest.derived) set.add(d.graph);
+  for (const r of manifest.rules) if (r.output) set.add(r.output);
+  return [...set];
+}
+
+// Derivation rules in required execution order; integrity checked separately.
+export function derivationRules(manifest) {
+  return manifest.rules.filter((r) => r.kind === 'derivation');
+}
+export function integrityRule(manifest) {
+  return manifest.rules.find((r) => r.kind === 'integrity') || null;
+}

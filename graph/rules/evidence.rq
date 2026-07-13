@@ -1,0 +1,93 @@
+PREFIX usf: <urn:usf:ontology:>
+PREFIX fresh: <urn:usf:freshness:>
+PREFIX evk: <urn:usf:evidencekind:>
+PREFIX es: <urn:usf:evidencestage:>
+PREFIX rs: <urn:usf:resultstate:>
+# Replacement rule 1: one exact fresh, signed, integrity-verified evidence
+# requirement per proof obligation, copying the complete assurance cell.
+CONSTRUCT {
+  ?er a usf:EvidenceRequirement, usf:AssuranceObligation ; usf:canonicalName ?name ; usf:obligationFor ?subject ;
+      usf:requiresEvidenceKind evk:runtimeproofevidence ;
+      usf:requiresFreshness fresh:fresh ; usf:requiresProviderMode ?mode ;
+      usf:requiresEnvironmentClass ?environmentClass ;
+      usf:requiresEvidenceStage es:emitted, es:collected, es:normalised,
+          es:ingested, es:signed, es:integrityverified ;
+      usf:obligationEffect ?effect ; usf:usesAssuranceCell ?cell ;
+      usf:requiredByGate ?authoredGate ; usf:derivedFrom ?po .
+}
+WHERE {
+  ?po a usf:ProofObligation ; usf:obligationFor ?subject ;
+      usf:obligationEffect ?effect ; usf:usesAssuranceCell ?cell .
+  OPTIONAL { ?po usf:requiredByGate ?authoredGate }
+  ?cell usf:profileProviderMode ?mode ; usf:profileEnvironmentClass ?environmentClass .
+  BIND(SHA256(STR(?po)) AS ?digest)
+  BIND(CONCAT("e", ?digest) AS ?name)
+  BIND(IRI(CONCAT("urn:usf:evidencerequirement:", ?name)) AS ?er)
+}
+#---NEXT---#
+PREFIX usf: <urn:usf:ontology:>
+PREFIX fresh: <urn:usf:freshness:>
+PREFIX es: <urn:usf:evidencestage:>
+PREFIX rs: <urn:usf:resultstate:>
+# Replacement rule 2: proof satisfaction requires an executed passing result at
+# or above the required rung in the exact provider-mode/environment cell.
+CONSTRUCT { ?po usf:satisfiedByProofResult ?result . }
+WHERE {
+  ?po a usf:ProofObligation ; usf:obligationFor ?subject ; usf:requiresRung/usf:rungOrder ?requiredOrder ; usf:usesAssuranceCell ?cell .
+  ?cell usf:profileProviderMode ?mode ; usf:profileEnvironmentClass ?environmentClass .
+  ?proof a usf:Proof ; usf:provesSubject ?subject .
+  ?execution a usf:ProofExecution ; usf:executesProof ?proof ; usf:producesResult ?result .
+  ?result a usf:ProofResult ; usf:resultForProof ?proof ; usf:resultState rs:passed ;
+      usf:observedRung/usf:rungOrder ?observedOrder ; usf:hasFreshness fresh:fresh ;
+      usf:usesProviderMode ?mode ; usf:inEnvironment/usf:hasEnvironmentClass ?environmentClass .
+  FILTER(?observedOrder >= ?requiredOrder)
+}
+#---NEXT---#
+PREFIX usf: <urn:usf:ontology:>
+PREFIX rs: <urn:usf:resultstate:>
+# Replacement rule 3: test definitions do not satisfy obligations. A positive
+# test must have an executed passing result; an adversarial test must have an
+# executed detected-defect result identifying its planted defect.
+CONSTRUCT { ?to usf:satisfiedByTestResult ?result . }
+WHERE {
+  ?to a usf:TestObligation ; usf:obligationFor ?subject .
+  ?execution a usf:TestExecution ; usf:executionOfTest ?test ; usf:testProducesResult ?result .
+  ?result a usf:TestResult ; usf:resultForTest ?test ; usf:resultState ?state .
+  { ?test usf:testsContract ?subject } UNION { ?test usf:testsControl ?subject } UNION { ?test usf:testsSubject ?subject }
+  FILTER(
+    ?state = rs:passed ||
+    (?state = rs:detecteddefect && EXISTS { ?result usf:detectedDefect ?defect . ?test usf:plantsDefect ?defect })
+  )
+}
+#---NEXT---#
+PREFIX usf: <urn:usf:ontology:>
+PREFIX fresh: <urn:usf:freshness:>
+PREFIX es: <urn:usf:evidencestage:>
+PREFIX rs: <urn:usf:resultstate:>
+# Replacement rule 4: evidence is admissible only after every pipeline stage,
+# passing proof linkage, signature/checksum presence, and executed integrity verification.
+CONSTRUCT {
+  ?er usf:satisfiedByEvidence ?evidence .
+  ?evidence usf:satisfies ?er .
+}
+WHERE {
+  ?er a usf:EvidenceRequirement ; usf:obligationFor ?subject ;
+      usf:requiresProviderMode ?mode ; usf:requiresEnvironmentClass ?environmentClass ;
+      usf:requiresEvidenceKind ?kind ; usf:requiresFreshness fresh:fresh .
+  ?evidence a usf:EvidenceResult ; usf:evidenceFor ?subject ; usf:evidenceKind ?kind ;
+      usf:hasFreshness fresh:fresh ; usf:usesProviderMode ?mode ;
+      usf:inEnvironment/usf:hasEnvironmentClass ?environmentClass ;
+      usf:evidenceFromProofResult ?proofResult ;
+      usf:evidenceStage es:emitted, es:collected, es:normalised,
+          es:ingested, es:signed, es:integrityverified ;
+      usf:collectedBy ?collection ; usf:normalisedBy ?normalisation ; usf:ingestedBy ?ingestion ;
+      usf:evidenceSignature ?signature ; usf:evidenceChecksum ?checksum ;
+      usf:integrityVerification ?verification .
+  ?proofResult a usf:ProofResult ; usf:resultState rs:passed .
+  ?collection a usf:EvidenceCollection .
+  ?normalisation a usf:EvidenceNormalisation .
+  ?ingestion a usf:EvidenceIngestion .
+  ?signature a usf:Signature .
+  ?checksum a usf:Checksum .
+  ?verification a usf:IntegrityVerification ; usf:verifiesEvidence ?evidence ; usf:verificationState rs:passed .
+}
