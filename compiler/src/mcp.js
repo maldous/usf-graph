@@ -155,6 +155,14 @@ export async function runMcpServer({ input = process.stdin, output = process.std
         send({ jsonrpc: '2.0', id, result: {} });
       } else if (method === 'tools/list') {
         send({ jsonrpc: '2.0', id, result: { tools: TOOLS } });
+      } else if (method === 'resources/list') {
+        // Tools-only server; answer the standard discovery probes (Codex sends
+        // them regardless of advertised capabilities) instead of erroring.
+        send({ jsonrpc: '2.0', id, result: { resources: [] } });
+      } else if (method === 'resources/templates/list') {
+        send({ jsonrpc: '2.0', id, result: { resourceTemplates: [] } });
+      } else if (method === 'prompts/list') {
+        send({ jsonrpc: '2.0', id, result: { prompts: [] } });
       } else if (method === 'tools/call') {
         try {
           const result = await callTool(params && params.name, params && params.arguments, ctx);

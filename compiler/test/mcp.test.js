@@ -149,3 +149,31 @@ test('bootstrap refuses an injecting contract reference before querying', async 
   );
   assert.equal(touched, false);
 });
+
+test('standard discovery probes get empty results, not method-not-found', async () => {
+  // Codex probes resources/templates/prompts regardless of advertised
+  // capabilities; a -32601 there surfaces as discovery errors in the agent.
+  const { PassThrough } = await import('node:stream');
+  const { runMcpServer } = await import('../src/mcp.js');
+  const env = { ...process.env };
+  process.env.STARDOG_SERVER = 'https://example.stardog.cloud:5820';
+  process.env.STARDOG_TOKEN = 'test-token';
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const done = runMcpServer({ input, output });
+  for (const [id, method] of [
+    [1, 'initialize'], [2, 'resources/list'], [3, 'resources/templates/list'],
+    [4, 'prompts/list'], [5, 'no/such/method'],
+  ]) {
+    input.write(JSON.stringify({ jsonrpc: '2.0', id, method, params: {} }) + '\n');
+  }
+  input.end();
+  await done;
+  process.env = env;
+  const replies = output.read().toString().trim().split('\n').map((l) => JSON.parse(l));
+  const byId = Object.fromEntries(replies.map((r) => [r.id, r]));
+  assert.deepEqual(byId[2].result, { resources: [] });
+  assert.deepEqual(byId[3].result, { resourceTemplates: [] });
+  assert.deepEqual(byId[4].result, { prompts: [] });
+  assert.equal(byId[5].error.code, -32601);
+});

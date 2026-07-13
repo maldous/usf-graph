@@ -8,6 +8,7 @@ for p in /usf /usf/graph /usf/graph/manifest.yaml /usf/.venv/bin/python \
   /usr/local/bin/node /usr/local/bin/npm /usf/compiler/node_modules/stardog \
   /usr/local/bin/claude /usr/local/bin/codex /usf/AGENTS.md /usf/CLAUDE.md \
   /usf/CODEX.md /usf/.mcp.json /usf/.claude/skills/usf/SKILL.md \
+  /usf/.codex/skills/usf/SKILL.md /root/.codex/config.toml \
   /root/.bashrc /root/.gitconfig /root/.claude.json; do
   if [ -e "$p" ]; then note "ok   $p"; else note "MISS $p"; fail=1; fi
 done
