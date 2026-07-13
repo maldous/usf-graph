@@ -17,7 +17,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 USF_DIR="$(dirname "$SCRIPT_DIR")"
-CENSUS_DIR="$USF_DIR/census"
+# graph/ and census/ live in the parent usf repository; this pipeline runs
+# host-side, outside the chroot. Env vars override the parent-checkout default.
+REPO_ROOT="$(cd "$USF_DIR/../.." && pwd)"
+GRAPH_DIR="${USF_GRAPH_DIR:-$REPO_ROOT/graph}"
+CENSUS_DIR="${USF_CENSUS_DIR:-$REPO_ROOT/census}"
 COMPILER_DIR="$USF_DIR/compiler"
 
 SIGNING_KEY=""
@@ -41,7 +45,7 @@ fi
 step() { echo "== $*" >&2; }
 
 observed_digest() {
-  sha256sum "$USF_DIR/graph/observed/source-artefacts.trig" | cut -d' ' -f1
+  sha256sum "$GRAPH_DIR/observed/source-artefacts.trig" | cut -d' ' -f1
 }
 
 step "compiler: local check"

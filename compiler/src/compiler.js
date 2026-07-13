@@ -1,6 +1,7 @@
 // The USF semantic compiler.
 //
-// JavaScript owns orchestration only. The graph under v2/usf/graph owns all
+// JavaScript owns orchestration only. The graph (parent-repo graph/, used
+// host-side outside the chroot) owns all
 // meaning: ontology, vocabulary, SHACL constraints, derivation rules,
 // integrity invariants and readiness. Nothing here duplicates that meaning,
 // and authored graph files are never modified during normal execution.

@@ -634,9 +634,8 @@ function interleaveQuadsBySubject(quads) {
 
 export async function collectRepositorySourceObservations({ manifest, entry }) {
   // census is always a sibling of the graph directory (…/census next to …/graph),
-  // so resolve it relative to the graph root. Deriving it from a 3-levels-up
-  // repository root assumed the host's v2/usf/graph nesting and broke inside the
-  // chroot, where the graph is mounted directly at /usf/graph.
+  // so resolve it relative to the graph root. Both live side by side in the
+  // parent usf repository and are used host-side, outside the chroot.
   const censusRoot = resolve(manifest.root, '../census');
   const inputSpecs = [
     ['artifacts.jsonl', 'jsonl'], ['mappings.jsonl', 'jsonl'], ['relationships.jsonl', 'jsonl'],

@@ -1,7 +1,0 @@
-# graph: urn:usf:graph:interfaces
-# expect: portuncovered
-@prefix usf: <urn:usf:ontology:> .
-@prefix fixt: <urn:usf:fixturenode:> .
-
-fixt:uncoveredport a usf:Port ;
-    usf:canonicalName "uncoveredport" .

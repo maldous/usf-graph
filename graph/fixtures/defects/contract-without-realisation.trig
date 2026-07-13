@@ -1,7 +1,0 @@
-# graph: urn:usf:graph:capabilities
-# expect: contractwithoutrealisation
-@prefix usf: <urn:usf:ontology:> .
-@prefix fixt: <urn:usf:fixturenode:> .
-
-fixt:unrealisedcontract a usf:SemanticContract ;
-    usf:canonicalName "unrealisedcontract" .

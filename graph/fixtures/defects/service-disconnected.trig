@@ -1,7 +1,0 @@
-# graph: urn:usf:graph:services
-# expect: servicedisconnected
-@prefix usf: <urn:usf:ontology:> .
-@prefix fixt: <urn:usf:fixturenode:> .
-
-fixt:disconnectedservice a usf:Service ;
-    usf:canonicalName "disconnectedservice" .

@@ -12,6 +12,6 @@ node_modules/
 # Agent runtime state — the usf skill is tracked; local settings are not
 .claude/settings.local.json
 
-# Local snapshots / derived exports may be large; keep the dir, ignore contents
-graph/snapshots/*
-!graph/snapshots/.gitkeep
+# graph/ and census/ live in the parent usf repository and are bind-mounted
+# into the chroot at /graph and /census (see scripts/enter-chroot.sh); this
+# repository is the graph workspace (compiler, MCP, Stardog tooling) only.

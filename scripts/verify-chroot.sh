@@ -4,7 +4,7 @@ set -euo pipefail
 fail=0
 note(){ echo "$@" >&2; }
 
-for p in /usf /usf/graph /usf/graph/manifest.yaml /usf/.venv/bin/python \
+for p in /usf /usf/.venv/bin/python \
   /usr/local/bin/node /usr/local/bin/npm /usf/compiler/node_modules/stardog \
   /usr/local/bin/claude /usr/local/bin/codex /usf/AGENTS.md /usf/CLAUDE.md \
   /usf/CODEX.md /usf/.mcp.json /usf/.claude/skills/usf/SKILL.md \
@@ -25,9 +25,14 @@ fi
   { note "FAIL Python RDF imports"; fail=1; }
 (cd /usf/compiler && node -e 'import("stardog")') >/dev/null 2>&1 ||
   { note "FAIL official Stardog SDK import"; fail=1; }
-/usf/scripts/validate-graph.sh >/dev/null ||
-  { note "FAIL RDF parse validation"; fail=1; }
-(cd /usf/compiler && npm run check >/dev/null && npm test >/dev/null) ||
+# graph/ and census/ live in the parent repository and are used host-side only
+# (validate-graph.sh, npm run check); the chroot never sees them.
+if [ -e /graph ] || [ -e /census ]; then
+  note "FAIL graph/census must not exist inside the chroot"; fail=1
+else
+  note "ok   chroot is graph/census-free"
+fi
+(cd /usf/compiler && npm test >/dev/null) ||
   { note "FAIL compiler local validation"; fail=1; }
 
 [ "$fail" -eq 0 ] || { note "verification FAILED"; exit 1; }

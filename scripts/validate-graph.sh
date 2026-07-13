@@ -4,10 +4,18 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GRAPH_DIR="$(cd "$HERE/../graph" && pwd)"
-PY="$(cd "$HERE/../.." && pwd)/usf/.venv/bin/python"
-[ -x "$PY" ] || PY="/usf/.venv/bin/python"
-[ -x "$PY" ] || { echo "error: venv python not found at $PY" >&2; exit 1; }
+# The graph lives in the parent usf repository; this validator runs host-side,
+# outside the chroot. USF_GRAPH_DIR overrides the parent-checkout default.
+GRAPH_DIR="${USF_GRAPH_DIR:-$(cd "$HERE/../../.." && pwd)/graph}"
+# Host-side python with rdflib+pyshacl. Resolution: explicit override, then a
+# .venv at the parent repository root, then the chroot venv (same-version
+# hosts only). Create the host venv with:
+#   python3 -m venv .venv && .venv/bin/pip install rdflib==7.6.0 pyshacl==0.40.0 pyyaml==6.0.3
+usable(){ [ -x "$1" ] && "$1" -c 'import rdflib, pyshacl' 2>/dev/null; }
+PY="${USF_GRAPH_PY:-}"
+[ -n "$PY" ] || { p="$(cd "$HERE/../../.." && pwd)/.venv/bin/python"; usable "$p" && PY="$p"; } || true
+[ -n "$PY" ] || { p="$(cd "$HERE/.." && pwd)/.venv/bin/python"; usable "$p" && PY="$p"; } || true
+[ -n "$PY" ] || { echo "error: no python with rdflib+pyshacl found; create the parent-root .venv (see comment above) or set USF_GRAPH_PY" >&2; exit 1; }
 
 exec "$PY" - "$GRAPH_DIR" <<'PY'
 import sys, pathlib

@@ -1,6 +1,7 @@
 // Manifest loading for the USF semantic compiler.
 //
-// v2/usf/graph/manifest.yaml is the sole loading registry and is semantic
+// graph/manifest.yaml (parent usf repository, host-side) is the
+// sole loading registry and is semantic
 // authority: this module reads it but never writes it. Every registered entry
 // is resolved to { file, graph, contentType, role, order }. contentType and
 // role are DERIVED deterministically from the manifest section and file path,

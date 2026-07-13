@@ -26,7 +26,12 @@ import {
   verifyLiveAttestation,
 } from './live-attestation.js';
 
-const GRAPH_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'graph');
+// The graph and its sibling census live in the parent usf repository, outside
+// this workspace and outside the chroot. Graph/census work runs host-side:
+// the default resolves the parent checkout (…/usf/graph); USF_GRAPH_DIR
+// overrides it for any other layout.
+const GRAPH_DIR = process.env.USF_GRAPH_DIR
+  || join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'graph');
 
 function emit(obj) {
   process.stdout.write(JSON.stringify(obj, null, 2) + '\n');
@@ -74,7 +79,7 @@ async function main() {
     const manifest = loadManifest(GRAPH_DIR);
     checkLocal(manifest);
     const dataset = loadAuthorityDataset(manifest);
-    emit({ command, ...generateAuthority({ store: dataset.store, outputDir: process.argv[outputAt + 1], mode: modeAt >= 0 ? process.argv[modeAt + 1] : 'full', signingKeyPath: signingAt >= 0 ? process.argv[signingAt + 1] : null, sourceRoot: sourceRootAt >= 0 ? process.argv[sourceRootAt + 1] : join(GRAPH_DIR, '..', '..', '..') }) });
+    emit({ command, ...generateAuthority({ store: dataset.store, outputDir: process.argv[outputAt + 1], mode: modeAt >= 0 ? process.argv[modeAt + 1] : 'full', signingKeyPath: signingAt >= 0 ? process.argv[signingAt + 1] : null, sourceRoot: sourceRootAt >= 0 ? process.argv[sourceRootAt + 1] : join(GRAPH_DIR, '..') }) });
     return 0;
   }
 
@@ -135,7 +140,7 @@ async function main() {
     const result = await createLiveAttestation({
       manifest,
       client,
-      repoRoot: join(GRAPH_DIR, '..', '..', '..'),
+      repoRoot: join(GRAPH_DIR, '..'),
       target: describeConfig(config),
       signingKeyPath: process.argv[signingAt + 1],
       outputPath: process.argv[outputAt + 1],
@@ -158,7 +163,7 @@ async function main() {
       expectedKeyFingerprint: process.argv[fingerprintAt + 1],
       manifest,
       client,
-      repoRoot: join(GRAPH_DIR, '..', '..', '..'),
+      repoRoot: join(GRAPH_DIR, '..'),
     });
     emit({ command, target: describeConfig(config), ...result });
     return result.ok ? 0 : 1;

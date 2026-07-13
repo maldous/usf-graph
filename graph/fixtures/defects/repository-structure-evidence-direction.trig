@@ -1,8 +1,0 @@
-@prefix usf: <urn:usf:ontology:> .
-<urn:usf:graph:observed:sourceartefacts> {
-  <urn:usf:workpackageobservation:w00000000000000000001> a usf:WorkPackageObservation ; usf:observedOwnedSourceArtefact <urn:usf:sourceartefact:s7777777777777777777777777777777777777777777777777777777777777777> .
-  <urn:usf:workpackageobservation:w00000000000000000002> a usf:WorkPackageObservation ; usf:observedOwnedSourceArtefact <urn:usf:sourceartefact:s8888888888888888888888888888888888888888888888888888888888888888> .
-  <urn:usf:sourcerelationshipobservation:r9999999999999999999999999999999999999999999999999999999999999999> a usf:SourceRelationshipObservation ; usf:sourceRelationshipSource <urn:usf:sourceartefact:s8888888888888888888888888888888888888888888888888888888888888888> ; usf:sourceRelationshipTarget <urn:usf:sourcerelationshiptarget:t9999999999999999999999999999999999999999999999999999999999999999> ; usf:sourceRelationshipResolved true .
-  <urn:usf:sourcerelationshiptarget:t9999999999999999999999999999999999999999999999999999999999999999> a usf:SourceRelationshipTargetObservation ; usf:resolvesToSourceArtefact <urn:usf:sourceartefact:s7777777777777777777777777777777777777777777777777777777777777777> .
-  <urn:usf:workpackagedependencyobservation:daaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa> a usf:WorkPackageDependencyObservation ; usf:workPackageDependencySource <urn:usf:workpackageobservation:w00000000000000000001> ; usf:workPackageDependencyPrerequisite <urn:usf:workpackageobservation:w00000000000000000002> ; usf:supportedBySourceRelationshipObservation <urn:usf:sourcerelationshipobservation:r9999999999999999999999999999999999999999999999999999999999999999> .
-}

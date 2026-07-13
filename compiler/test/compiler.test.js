@@ -13,6 +13,17 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DataFactory, Parser, Store } from 'n3';
 
+// The real graph/census live in the parent usf repository and are used
+// host-side only; inside the graph-free chroot these tests skip.
+const REAL_GRAPH_DIR = process.env.USF_GRAPH_DIR
+  || join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'graph');
+const realGraphAbsent = (t) => {
+  if (existsSync(join(REAL_GRAPH_DIR, 'manifest.yaml'))) return false;
+  t.skip('real graph not present (graph/census live host-side, outside the chroot)');
+  return true;
+};
+
+
 import { loadConfig, describeConfig, ConfigError } from '../src/config.js';
 import { loadManifest, managedGraphs, ManifestError } from '../src/manifest.js';
 import { checkLocal, compile, buildPlan, verify, verificationConforms, CompilerError, CONTAMINATION_PATTERNS } from '../src/compiler.js';
@@ -515,8 +526,9 @@ test('source observer: census expansion fails closed on endpoints, ownership, ev
   assert.equal(withheld.attributesDisclosure.disclosedValue, null);
 });
 
-test('source observer: current census emits the complete deterministic observation projection', async () => {
-  const graphDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'graph');
+test('source observer: current census emits the complete deterministic observation projection', async (t) => {
+  if (realGraphAbsent(t)) return;
+  const graphDir = REAL_GRAPH_DIR;
   const manifest = loadManifest(graphDir);
   const censusDir = join(graphDir, '..', 'census');
   const censusSummary = JSON.parse(readFileSync(join(censusDir, 'summary.json'), 'utf8'));
@@ -598,8 +610,9 @@ function dispositionPolicySelections(store) {
   });
 }
 
-test('source disposition rule selects one highest-precedence policy for every current observation', () => {
-  const graphDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'graph');
+test('source disposition rule selects one highest-precedence policy for every current observation', (t) => {
+  if (realGraphAbsent(t)) return;
+  const graphDir = REAL_GRAPH_DIR;
   const manifest = loadManifest(graphDir);
   const dataset = loadAuthorityDataset(manifest);
   const observed = manifest.observed[0];
@@ -1052,8 +1065,9 @@ test('derived snapshot: canonical TriG is deterministic across blank-node labels
   assert.match(await canonicalGraphTrig(graph, left), /^GRAPH <urn:usf:graph:derived:test>/);
 });
 
-test('UI semantic closure is exact, contract-scoped, and exposure-complete', () => {
-  const graphDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'graph');
+test('UI semantic closure is exact, contract-scoped, and exposure-complete', (t) => {
+  if (realGraphAbsent(t)) return;
+  const graphDir = REAL_GRAPH_DIR;
   const store = loadAuthorityDataset(loadManifest(graphDir)).store;
   const rdfType = DataFactory.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
   const usf = (local) => DataFactory.namedNode(`urn:usf:ontology:${local}`);
@@ -1134,8 +1148,8 @@ test('UI semantic closure is exact, contract-scoped, and exposure-complete', () 
 });
 
 test('generation: real authority has no semantic gaps and reuses deterministic incremental outputs', (t) => {
-  const graphDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'graph');
-  const repositoryRoot = join(graphDir, '..', '..', '..');
+  const graphDir = REAL_GRAPH_DIR;
+  const repositoryRoot = join(graphDir, '..');
   // Retained templates are declared with repository-root-relative paths. Inside
   // the clean-room chroot only /usf exists, so template-backed generation
   // cannot run there; skip explicitly rather than fail on a missing source root.

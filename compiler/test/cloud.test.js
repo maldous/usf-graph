@@ -16,7 +16,7 @@ import { createClient } from '../src/stardog.js';
 import { verify } from '../src/compiler.js';
 import { proveLiveRollback } from '../src/live-attestation.js';
 
-const GRAPH_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'graph');
+const GRAPH_DIR = process.env.USF_GRAPH_DIR || join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'graph');
 const configured = Boolean(process.env.STARDOG_SERVER && (process.env.STARDOG_TOKEN || process.env.STARDOG_PASSWORD));
 const opts = { skip: configured ? false : 'set STARDOG_* to run cloud tests' };
 
