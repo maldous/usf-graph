@@ -12,6 +12,7 @@ node_modules/
 # Agent runtime state — the usf skill is tracked; local settings are not
 .claude/settings.local.json
 
-# graph/ and census/ live in the parent usf repository and are bind-mounted
-# into the chroot at /graph and /census (see scripts/enter-chroot.sh); this
-# repository is the graph workspace (compiler, MCP, Stardog tooling) only.
+# graph/ and census/ live in the parent usf repository and are used host-side
+# only — never mounted or copied into the chroot (verify-chroot.sh asserts
+# their absence); this repository is the graph workspace (compiler, MCP,
+# Stardog tooling) only.
