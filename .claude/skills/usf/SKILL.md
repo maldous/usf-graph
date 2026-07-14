@@ -13,8 +13,9 @@ corpus or read graph TriG/TTL files or a census to reconstruct meaning.
 
 - At task start: call `usf_bootstrap` with a short `task` string to orient.
 - Before realising or validating a capability: call `usf_bootstrap` with the
-  `{ contract: "<canonicalName>" }` to get its model→facet→obligation→contract
-  →realisation trace.
+  `{ contract: "<canonicalName>" }` to get its
+  model→evidence→proof→contract→realisation→validation trace. Facets and
+  obligations remain supporting context, not lifecycle replacements.
 - Whenever you would otherwise guess semantics, ownership, naming, or a path
   rule: query instead. If it is not in the model, it is not yet authoritative.
 

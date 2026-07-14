@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { classifySparql } from '../src/sparql-guard.js';
 import { makeRedactor, callTool, cappedSelect, TOOLS } from '../src/mcp.js';
-import { validContractRef, authorityDigest, bootstrapPacket } from '../src/bootstrap.js';
+import { BOOTSTRAP_TRACE, MAX_BOOTSTRAP_BINDINGS, MAX_BOOTSTRAP_BYTES, MAX_BOOTSTRAP_DEPTH, validContractRef, authorityDigest, bootstrapPacket } from '../src/bootstrap.js';
 
 test('read-only query forms are accepted', () => {
   assert.equal(classifySparql('SELECT ?s WHERE { ?s ?p ?o }').form, 'SELECT');
@@ -116,28 +116,66 @@ test('authority digest is deterministic and order-independent', () => {
 
 test('bootstrap contract packet assembles the traceability chain', async () => {
   const client = {
+    size: async () => 3,
     select: async (q) => {
-      if (q.includes('LIMIT 1')) return [{ c: { value: 'urn:usf:contract:x' }, cn: { value: 'x' }, state: { value: 'urn:usf:lifecycle:active' } }];
-      if (q.includes('asserts')) return [
-        { rel: { value: 'urn:usf:ontology:asserts' }, cn: { value: 'urn:usf:claim:c1' } },
-        { rel: { value: 'urn:usf:ontology:disclaims' }, cn: { value: 'urn:usf:nonclaim:n1' } },
+      if (q.includes('COUNT(*) AS ?triples')) return [{ g: { value: 'urn:g' }, triples: { value: '3' } }];
+      if (q.includes('SELECT ?c ?cn')) return [{ c: { value: 'urn:usf:contract:x' }, cn: { value: 'x' }, state: { value: 'urn:usf:contractactivationstate:active' } }];
+      if (q.includes('?relation ?id')) return [
+        { relation: { value: 'urn:usf:ontology:asserts' }, id: { value: 'urn:usf:claim:c1' }, canonicalName: { value: 'c1' } },
+        { relation: { value: 'urn:usf:ontology:disclaims' }, id: { value: 'urn:usf:nonclaim:n1' }, canonicalName: { value: 'n1' } },
       ];
-      if (q.includes('declaresFacet')) return [{ kind: { value: 'urn:usf:facetkind:security' }, status: { value: 'urn:usf:facetstatus:asserted' }, stmt: { value: 'must encrypt' } }];
-      if (q.includes('realisesContract')) return [{ state: { value: 'urn:usf:realisationstate:realised' }, impl: { value: 'urn:usf:impl:i1' } }];
-      if (q.includes('obligationFor')) return [{ type: { value: 'urn:usf:ontology:ProofObligation' }, rung: { value: 'urn:usf:rung:unit' } }];
+      if (q.includes('a <urn:usf:ontology:EvidenceRequirement>')) return [{ id: { value: 'urn:usf:evidencerequirement:e1' } }];
+      if (q.includes('a <urn:usf:ontology:EvidenceResult>')) return [{ id: { value: 'urn:usf:evidenceresult:e1' }, admission: { value: 'urn:usf:evidenceadmissionstate:admitted' } }];
+      if (q.includes('a <urn:usf:ontology:ProofObligation>')) return [{ id: { value: 'urn:usf:proofobligation:p1' }, requirement: { value: 'urn:usf:evidencerequirement:e1' } }];
+      if (q.includes('a <urn:usf:ontology:ProofEvaluation>')) return [{ id: { value: 'urn:usf:proofevaluation:p1' }, obligation: { value: 'urn:usf:proofobligation:p1' } }];
+      if (q.includes('a <urn:usf:ontology:ProofResult>')) return [{ id: { value: 'urn:usf:proofresult:p1' }, state: { value: 'urn:usf:proofresultstate:successful' }, evidenceSetDigest: { value: 'sha256:e1' } }];
+      if (q.includes('a <urn:usf:ontology:Realisation>')) return [{ id: { value: 'urn:usf:realisation:r1' }, state: { value: 'urn:usf:realisationstate:implementable' }, decision: { value: 'urn:usf:decision:d1' }, path: { value: 'census/local-semantic-validation' } }];
+      if (q.includes('authorisedByDecision')) return [{ id: { value: 'urn:usf:decision:d1' }, state: { value: 'urn:usf:decisionstate:accepted' }, path: { value: 'census/local-semantic-validation' }, type: { value: 'urn:usf:ontology:Implementation' } }];
+      if (q.includes('a <urn:usf:ontology:ValidationObligation>')) return [{ id: { value: 'urn:usf:validationobligation:v1' } }];
+      if (q.includes('a <urn:usf:ontology:ValidationExecution>') || q.includes('a <urn:usf:ontology:ValidationResult>')) return [];
+      if (q.includes('declaresFacet')) return [{ id: { value: 'urn:usf:facet:f1' }, kind: { value: 'urn:usf:facetkind:security' }, statement: { value: 'must encrypt' } }];
       return [];
     },
   };
   const ctx = { client, config: { endpoint: 'https://x', database: 'USF', auth: { kind: 'token' } } };
   const packet = await bootstrapPacket(ctx, { contract: 'x' });
   assert.equal(packet.found, true);
-  assert.equal(packet.contract.canonicalName, 'x');
-  assert.equal(packet.contract.lifecycleState, 'active');
-  assert.deepEqual(packet.claims, ['c1']);
-  assert.deepEqual(packet.nonClaims, ['n1']);
-  assert.equal(packet.facets[0].kind, 'security');
-  assert.equal(packet.realisations[0].state, 'realised');
-  assert.equal(packet.obligations[0].type, 'ProofObligation');
+  assert.equal(packet.traceability, BOOTSTRAP_TRACE);
+  assert.equal(packet.contracts[0].canonicalName, 'x');
+  assert.equal(packet.contracts[0].activationState, 'active');
+  assert.equal(packet.contracts[0].actionable, true);
+  assert.equal(packet.claims[0].id, 'urn:usf:claim:c1');
+  assert.equal(packet.evidenceRequirements[0].id, 'urn:usf:evidencerequirement:e1');
+  assert.equal(packet.evidenceResults[0].admissionState, 'admitted');
+  assert.equal(packet.proofResults[0].evidenceSetDigest, 'sha256:e1');
+  assert.equal(packet.validationObligations[0].id, 'urn:usf:validationobligation:v1');
+  assert.equal(packet.bounds.maximumTraversalDepth, MAX_BOOTSTRAP_DEPTH);
+  assert.ok(packet.serializedBytes <= MAX_BOOTSTRAP_BYTES);
+  assert.ok(packet.bindingCount <= MAX_BOOTSTRAP_BINDINGS);
+});
+
+test('bootstrap continuation is deterministic and invalidates after digest change', async () => {
+  let triples = 60;
+  const claims = Array.from({ length: 80 }, (_, index) => ({ relation: { value: 'urn:usf:ontology:asserts' }, id: { value: `urn:usf:claim:c${index}` }, canonicalName: { value: `c${index}` } }));
+  const client = {
+    size: async () => triples,
+    select: async (q) => {
+      if (q.includes('COUNT(*) AS ?triples')) return [{ g: { value: 'urn:g' }, triples: { value: String(triples) } }];
+      if (q.includes('SELECT ?c ?cn')) return [{ c: { value: 'urn:usf:contract:x' }, cn: { value: 'x' }, state: { value: 'urn:usf:contractactivationstate:active' } }];
+      if (q.includes('?relation ?id')) return claims;
+      return [];
+    },
+  };
+  const ctx = { client, config: { database: 'USF' } };
+  const first = await bootstrapPacket(ctx, { contract: 'x' });
+  const repeat = await bootstrapPacket(ctx, { contract: 'x' });
+  assert.equal(first.truncated, true);
+  assert.equal(first.continuation, repeat.continuation);
+  assert.ok(first.serializedBytes <= MAX_BOOTSTRAP_BYTES);
+  const second = await bootstrapPacket(ctx, { contract: 'x', continuation: first.continuation });
+  assert.notEqual(second.claims[0]?.id, first.claims[0]?.id);
+  triples = 61;
+  await assert.rejects(() => bootstrapPacket(ctx, { contract: 'x', continuation: first.continuation }), /authority digest no longer matches/);
 });
 
 test('bootstrap refuses an injecting contract reference before querying', async () => {

@@ -25,10 +25,21 @@ Reject the build-first inversion:
 Tickets track requested work. Source code is a candidate realisation. Tests
 produce evidence. Reports describe outcomes. None establish semantic truth.
 
-## Authority
+## Authority and roles
 
-The live semantic model in Stardog is the authority, ranked: semantic
-definitions > ADRs > validators > runtime proof > source > generated reports.
+Validated semantic state in Stardog is the sole USF semantic authority. The
+storage technology alone does not establish truth: the state must satisfy the
+live model, constraints, evidence admission, proof and contract lifecycle.
+
+Model defines semantic truth. Evidence is an admitted observation or produced
+fact satisfying a requirement. Proof deterministically evaluates an exact
+admitted evidence set against an obligation. Contract records warranted
+features and constraints. ADR records historical rationale and is never
+semantic authority. Toolchain is a selected mechanism. Code is a candidate
+realisation. Validation produces evidence. Report projects evidence and
+results. Ticket tracks work. None of the latter roles independently establish
+or retrospectively override truth.
+
 Never claim done, proven, complete, or production-ready beyond what evidence
 supports. Do not overclaim. On any authority conflict, stop and report.
 
@@ -40,7 +51,7 @@ semantic context, choose task scope, run query and mutation modes, and validate.
 ## Stardog access boundary
 
 Query the model through the `usf` MCP server — `usf_bootstrap` (task
-orientation and per-contract model→realisation traces), `usf_query` (bounded
+orientation and per-contract model→evidence→proof→contract→realisation→validation traces), `usf_query` (bounded
 read-only SPARQL), `usf_health` (liveness) — not by reading graph files or a
 census. Workers are read-only. Only a coordinator may mutate, transactionally,
 fail-closed with rollback. Mutation SPARQL on the read path is refused.

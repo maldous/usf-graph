@@ -73,12 +73,13 @@ export const TOOLS = [
   },
   {
     name: 'usf_bootstrap',
-    description: 'Bounded semantic bootstrap from the live authority. With no contract: live-state digest, graph inventory, key-class census, and a contract index. With { contract: "<canonicalName or urn:usf: IRI>" }: the model->facet->obligation->contract->realisation trace for that contract (claims, non-claims, facets, realisations, obligations), each list bounded. Optional task string is echoed for context.',
+    description: 'Bounded evidence-first semantic bootstrap from live authority. A focused packet traces model -> evidence -> proof -> contract -> realisation -> validation, preserves category visibility, and stays within 8 KiB, 50 semantic items, and traversal depth three. Continuations are deterministic and authority-digest-bound.',
     inputSchema: {
       type: 'object',
       properties: {
         contract: { type: 'string', description: 'Contract canonical-name slug or urn:usf: IRI to trace.' },
         task: { type: 'string' },
+        continuation: { type: 'string', description: 'Digest-bound continuation token returned by an earlier packet.' },
       },
       additionalProperties: false,
     },
@@ -115,7 +116,7 @@ export async function callTool(name, args, ctx) {
     };
   }
   if (name === 'usf_bootstrap') {
-    return bootstrapPacket(ctx, { contract: args && args.contract, task: args && args.task });
+    return bootstrapPacket(ctx, { contract: args && args.contract, task: args && args.task, continuation: args && args.continuation });
   }
   const err = new Error(`unknown tool ${name}`);
   err.userFacing = true;
