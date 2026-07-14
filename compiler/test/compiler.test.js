@@ -623,9 +623,10 @@ test('source disposition rule selects one highest-precedence policy for every cu
   assert.ok(selections.some((row) => row.kind === 'structural'));
   assert.ok(selections.every((row) => row.selected.length === 1));
   const rule = readFileSync(join(graphDir, 'rules/source-dispositions.rq'), 'utf8');
-  assert.doesNotMatch(rule, /MAX\s*\(\s*\?candidatePrecedence/i);
-  assert.match(rule, /\?higherPrecedence\s*>\s*\?selectedPrecedence/);
-  assert.match(rule, /FILTER NOT EXISTS \{\s*\?policy a usf:SourceDispositionPolicy/);
+  assert.match(rule, /MAX\s*\(\s*\?precedence\s*\)\s+AS\s+\?maximumPrecedence/i);
+  assert.match(rule, /FILTER\s*\(\s*\?selectedPrecedence\s*=\s*\?maximumPrecedence\s*\)/i);
+  assert.doesNotMatch(rule, /\?higherPrecedence\s*>\s*\?selectedPrecedence/);
+  assert.match(rule, /SELECT DISTINCT \?source \?observation \?policy/i);
 });
 
 test('source disposition selector prefers binding/high precedence, preserves equal ties, and falls back to default', () => {
