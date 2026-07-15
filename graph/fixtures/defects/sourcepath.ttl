@@ -1,0 +1,12 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+@prefix dom: <urn:usf:capabilitydomain:> .
+@prefix facet: <urn:usf:facetkind:> .
+@prefix rung: <urn:usf:proofrung:> .
+@prefix pmode: <urn:usf:providermode:> .
+@prefix envc: <urn:usf:environmentclass:> .
+@prefix fresh: <urn:usf:freshness:> .
+
+fixt:srcpath a usf:Capability ;
+    usf:canonicalName "srcpath" ; usf:inDomain dom:foundation ; usf:hasContract fixt:x ;
+    usf:definition "defined in capabilities/tenant/src/pdp.ts" .

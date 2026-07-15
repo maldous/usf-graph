@@ -1,0 +1,269 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix evr: <urn:usf:evidenceresult:> .
+@prefix evk: <urn:usf:evidencekind:> .
+@prefix pmode: <urn:usf:providermode:> .
+@prefix env: <urn:usf:environment:> .
+@prefix fresh: <urn:usf:freshness:> .
+@prefix sc: <urn:usf:semanticcontract:> .
+@prefix admission: <urn:usf:evidenceadmissionstate:> .
+@prefix freshnessstate: <urn:usf:evidencefreshnessstate:> .
+@prefix integritystate: <urn:usf:evidenceintegritystate:> .
+@prefix contractstate: <urn:usf:contractactivationstate:> .
+@prefix decisionstate: <urn:usf:decisionstate:> .
+@prefix proofstate: <urn:usf:proofresultstate:> .
+@prefix confidence: <urn:usf:proofconfidencestate:> .
+
+<urn:usf:graph:evidence> {
+    evr:evidencenormalisedauthenticationsliceprooflineage a usf:EvidenceResult ;
+        usf:canonicalName "evidencenormalisedauthenticationsliceprooflineage" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:normalisedevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:localdev ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:evidencenormalisedobservabilitysignalsruntimeprooflineage a usf:EvidenceResult ;
+        usf:canonicalName "evidencenormalisedobservabilitysignalsruntimeprooflineage" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:normalisedevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:localdev ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:evidenceregister a usf:EvidenceResult ;
+        usf:canonicalName "evidenceregister" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:runtimeproofevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:localdev ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:evidenceruntimeproofauthenticationsliceproof a usf:EvidenceResult ;
+        usf:canonicalName "evidenceruntimeproofauthenticationsliceproof" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:runtimeproofevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:evidenceruntimeproofobservabilitysignalsruntimeproof a usf:EvidenceResult ;
+        usf:canonicalName "evidenceruntimeproofobservabilitysignalsruntimeproof" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:runtimeproofevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:proofcockpitexternalreviewbundle a usf:EvidenceResult ;
+        usf:canonicalName "proofcockpitexternalreviewbundle" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:runtimeproofevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:localdev ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:proofcockpithumanreviewactions a usf:EvidenceResult ;
+        usf:canonicalName "proofcockpithumanreviewactions" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:runtimeproofevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:localdev ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:proofcockpitstagingevidencestore a usf:EvidenceResult ;
+        usf:canonicalName "proofcockpitstagingevidencestore" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:runtimeproofevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:localdev ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:proofcockpitwarninginventory a usf:EvidenceResult ;
+        usf:canonicalName "proofcockpitwarninginventory" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:runtimeproofevidence ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:localdev ;
+        usf:usesProviderMode pmode:hermeticmock .
+    evr:repositoryoptimisationgeneratedreports a usf:EvidenceResult ;
+        usf:canonicalName "repositoryoptimisationgeneratedreports" ;
+        usf:evidenceForContract sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceFor sc:universalservicefoundationscopeandprinciples ;
+        usf:evidenceKind evk:generatedreport ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:localdev ;
+        usf:usesProviderMode pmode:hermeticmock .
+}
+
+<urn:usf:graph:evidence> {
+ admission:pending usf:canonicalName "pending" . admission:admitted usf:canonicalName "admitted" . admission:rejected usf:canonicalName "rejected" . admission:invalidated usf:canonicalName "invalidated" .
+ freshnessstate:fresh usf:canonicalName "fresh" . freshnessstate:stale usf:canonicalName "stale" . freshnessstate:unknown usf:canonicalName "unknown" .
+ integritystate:valid usf:canonicalName "valid" . integritystate:invalid usf:canonicalName "invalid" . integritystate:unknown usf:canonicalName "unknown" .
+ proofstate:successful usf:canonicalName "successful" . proofstate:failed usf:canonicalName "failed" . proofstate:invalidated usf:canonicalName "invalidated" . proofstate:unknown usf:canonicalName "unknown" .
+ confidence:warranted usf:canonicalName "warranted" . confidence:reduced usf:canonicalName "reduced" . confidence:withdrawn usf:canonicalName "withdrawn" . confidence:unknown usf:canonicalName "unknown" .
+ contractstate:draft usf:canonicalName "draft" . contractstate:proofblocked usf:canonicalName "proofblocked" . contractstate:eligible usf:canonicalName "eligible" . contractstate:active usf:canonicalName "active" . contractstate:suspended usf:canonicalName "suspended" . contractstate:superseded usf:canonicalName "superseded" . contractstate:retired usf:canonicalName "retired" .
+ decisionstate:proposed usf:canonicalName "proposed" . decisionstate:accepted usf:canonicalName "accepted" . decisionstate:reopened usf:canonicalName "reopened" . decisionstate:superseded usf:canonicalName "superseded" . decisionstate:rejected usf:canonicalName "rejected" .
+}
+
+@prefix usf: <urn:usf:ontology:> .
+@prefix admission: <urn:usf:evidenceadmissionstate:> .
+@prefix freshnessstate: <urn:usf:evidencefreshnessstate:> .
+@prefix integritystate: <urn:usf:evidenceintegritystate:> .
+@prefix contractstate: <urn:usf:contractactivationstate:> .
+@prefix decisionstate: <urn:usf:decisionstate:> .
+@prefix proofstate: <urn:usf:proofresultstate:> .
+@prefix confidence: <urn:usf:proofconfidencestate:> .
+
+<urn:usf:graph:evidence> {
+ admission:pending a usf:EvidenceAdmissionState . admission:admitted a usf:EvidenceAdmissionState . admission:rejected a usf:EvidenceAdmissionState . admission:invalidated a usf:EvidenceAdmissionState .
+ freshnessstate:fresh a usf:EvidenceFreshnessState . freshnessstate:stale a usf:EvidenceFreshnessState . freshnessstate:unknown a usf:EvidenceFreshnessState .
+ integritystate:valid a usf:EvidenceIntegrityState . integritystate:invalid a usf:EvidenceIntegrityState . integritystate:unknown a usf:EvidenceIntegrityState .
+ proofstate:successful a usf:ProofResultState . proofstate:failed a usf:ProofResultState . proofstate:invalidated a usf:ProofResultState . proofstate:unknown a usf:ProofResultState .
+ confidence:warranted a usf:ProofConfidenceState . confidence:reduced a usf:ProofConfidenceState . confidence:withdrawn a usf:ProofConfidenceState . confidence:unknown a usf:ProofConfidenceState .
+ contractstate:draft a usf:ContractActivationState . contractstate:proofblocked a usf:ContractActivationState . contractstate:eligible a usf:ContractActivationState . contractstate:active a usf:ContractActivationState . contractstate:suspended a usf:ContractActivationState . contractstate:superseded a usf:ContractActivationState . contractstate:retired a usf:ContractActivationState .
+ decisionstate:proposed a usf:DecisionState . decisionstate:accepted a usf:DecisionState . decisionstate:reopened a usf:DecisionState . decisionstate:superseded a usf:DecisionState . decisionstate:rejected a usf:DecisionState .
+}
+@prefix usf: <urn:usf:ontology:> .
+@prefix admission: <urn:usf:evidenceadmissionstate:> .
+@prefix freshnessstate: <urn:usf:evidencefreshnessstate:> .
+@prefix integritystate: <urn:usf:evidenceintegritystate:> .
+
+<urn:usf:graph:evidence> {
+  <urn:usf:evidencefreshnesspolicy:localvalidationthirtydays> a usf:EvidenceRetentionPolicy ;
+      usf:canonicalName "localvalidationthirtydays" .
+
+  <urn:usf:validator:rdf4jjenacrossengine> a usf:Validator ;
+      usf:canonicalName "rdf4jjenacrossengine" .
+
+  <urn:usf:validationexecution:localsemanticvalidationtoolchain> a usf:ValidationExecution ;
+      usf:canonicalName "localsemanticvalidationtoolchain" ;
+      usf:executesValidation <urn:usf:validationobligation:localsemanticvalidationtoolchain> ;
+      usf:producesValidationResult <urn:usf:validationresult:localsemanticvalidationtoolchain> ;
+      usf:validationEnvironment <urn:usf:validationenvironment:hostlocalvalidation> .
+
+  <urn:usf:validationresult:localsemanticvalidationtoolchain> a usf:ValidationResult ;
+      usf:canonicalName "localsemanticvalidationtoolchain" ;
+      usf:resultState <urn:usf:resultstate:passed> ;
+      usf:entersEvidenceLifecycleAs <urn:usf:evidenceresult:rdf4jjenasemanticparity> .
+
+  <urn:usf:evidenceresult:rdf4jjenasemanticparity> a usf:EvidenceResult, usf:ValidationEvidence ;
+      usf:canonicalName "rdf4jjenasemanticparity" ;
+      usf:evidenceKind <urn:usf:evidencekind:validationevidence> ;
+      usf:usesProviderMode <urn:usf:providermode:hermeticmock> ;
+      usf:inEnvironment <urn:usf:environment:localdev> ;
+      usf:hasFreshness <urn:usf:freshness:stale> ;
+      usf:evidenceForContract <urn:usf:semanticcontract:localsemanticvalidationtoolchain> ;
+      usf:evidenceFor <urn:usf:semanticcontract:localsemanticvalidationtoolchain> ;
+      usf:evidenceFromProofResult <urn:usf:proofresult:localsemanticvalidationtoolchain> ;
+      usf:concernsSemanticSubject <urn:usf:semanticcontract:localsemanticvalidationtoolchain> ;
+      usf:supportsClaim <urn:usf:claim:crossenginesemanticparity>, <urn:usf:claim:hostlocalvalidationboundary> ;
+      usf:contentDigest "sha256:0b48ede84d50013714fd4a12aa224751442fa8d18a0e0f591c929a5f1349bcf8" ;
+      usf:mediaType "application/vnd.usf.validation-evidence-manifest+json" ;
+      usf:byteSize "7622"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+      usf:storageLocator "sha256:0b48ede84d50013714fd4a12aa224751442fa8d18a0e0f591c929a5f1349bcf8" ;
+      usf:wasProducedBy <urn:usf:validator:rdf4jjenacrossengine> ;
+      usf:collectedInEnvironment <urn:usf:environment:localdev> ;
+      usf:collectedAt "2026-07-15T05:44:00.954037171Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> ;
+      usf:validUntil "2026-08-14T05:44:00.954037171Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> ;
+      usf:hasFreshnessPolicy <urn:usf:evidencefreshnesspolicy:localvalidationthirtydays> ;
+      usf:hasAdmissionState admission:invalidated ;
+      usf:hasFreshnessState freshnessstate:stale ;
+      usf:hasIntegrityState integritystate:valid ;
+      usf:applicableToObligation <urn:usf:proofobligation:localsemanticvalidationtoolchain> ;
+      usf:withinValidityScope false .
+
+  <urn:usf:evidenceadmission:rdf4jjenasemanticparity> a usf:EvidenceAdmission ;
+      usf:canonicalName "rdf4jjenasemanticparity" ;
+      usf:admissionForEvidence <urn:usf:evidenceresult:rdf4jjenasemanticparity> ;
+      usf:admissionDecidedByValidator <urn:usf:validator:rdf4jjenacrossengine> .
+
+  <urn:usf:evidencefreshnesspolicy:materialisationthirtydays> a usf:EvidenceRetentionPolicy ;
+      usf:canonicalName "materialisationthirtydays" .
+
+  <urn:usf:validationexecution:repositoryexternalartefactmaterialisation> a usf:ValidationExecution ;
+      usf:canonicalName "repositoryexternalartefactmaterialisation" ;
+      usf:executesValidation <urn:usf:validationobligation:repositoryexternalartefactmaterialisation> ;
+      usf:producesValidationResult <urn:usf:validationresult:repositoryexternalartefactmaterialisation> ;
+      usf:validationEnvironment <urn:usf:validationenvironment:standalonechroot> .
+
+  <urn:usf:validationresult:repositoryexternalartefactmaterialisation> a usf:ValidationResult ;
+      usf:canonicalName "repositoryexternalartefactmaterialisation" ;
+      usf:resultState <urn:usf:resultstate:passed> ;
+      usf:entersEvidenceLifecycleAs <urn:usf:evidenceresult:repositoryexternalartefactmaterialisation> .
+
+  <urn:usf:evidenceresult:repositoryexternalartefactmaterialisation> a usf:EvidenceResult, usf:ValidationEvidence ;
+      usf:canonicalName "repositoryexternalartefactmaterialisation" ;
+      usf:evidenceKind <urn:usf:evidencekind:validationevidence> ;
+      usf:usesProviderMode <urn:usf:providermode:hermeticmock> ;
+      usf:inEnvironment <urn:usf:environment:localdev> ;
+      usf:hasFreshness <urn:usf:freshness:stale> ;
+      usf:evidenceForContract <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> ;
+      usf:evidenceFor <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> ;
+      usf:evidenceFromProofResult <urn:usf:proofresult:repositoryexternalartefactmaterialisation> ;
+      usf:concernsSemanticSubject <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> ;
+      usf:supportsClaim <urn:usf:claim:standalonesemanticgraphrepository>, <urn:usf:claim:semanticcontrolpayloadseparation>, <urn:usf:claim:authorityboundmaterialisation>, <urn:usf:claim:deterministicmaterialisation>, <urn:usf:claim:boundedagentconsumption>, <urn:usf:claim:transactionalsemanticmodelevolution> ;
+      usf:contentDigest "sha256:20edd968a3d7be6199507204f14f9587cdfd5902749ecb6602bb8c8e3080d860" ;
+      usf:mediaType "application/vnd.usf.materialisation-evidence-manifest+json" ;
+      usf:byteSize "37891"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+      usf:storageLocator "cas://sha256/20edd968a3d7be6199507204f14f9587cdfd5902749ecb6602bb8c8e3080d860"^^<http://www.w3.org/2001/XMLSchema#anyURI> ;
+      usf:wasProducedBy <urn:usf:validatorrule:validatematerialisationfoundation> ;
+      usf:collectedInEnvironment <urn:usf:environment:localdev> ;
+      usf:collectedAt "2026-07-15T07:55:35.027912209Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> ;
+      usf:validUntil "2026-08-14T07:55:35.027912209Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> ;
+      usf:hasFreshnessPolicy <urn:usf:evidencefreshnesspolicy:materialisationthirtydays> ;
+      usf:hasAdmissionState admission:invalidated ;
+      usf:hasFreshnessState freshnessstate:stale ;
+      usf:hasIntegrityState integritystate:valid ;
+      usf:evidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:signed>, <urn:usf:evidencestage:integrityverified> ;
+      usf:applicableToObligation <urn:usf:proofobligation:repositoryexternalartefactmaterialisation> ;
+      usf:withinValidityScope false .
+
+  <urn:usf:evidenceadmission:repositoryexternalartefactmaterialisation> a usf:EvidenceAdmission ;
+      usf:canonicalName "repositoryexternalartefactmaterialisation" ;
+      usf:admissionForEvidence <urn:usf:evidenceresult:repositoryexternalartefactmaterialisation> ;
+      usf:admissionDecidedByValidator <urn:usf:validatorrule:validatematerialisationfoundation> .
+
+  <urn:usf:validationexecution:repositoryexternalartefactmaterialisationfinal> a usf:ValidationExecution ;
+      usf:canonicalName "repositoryexternalartefactmaterialisationfinal" ;
+      usf:executesValidation <urn:usf:validationobligation:repositoryexternalartefactmaterialisation> ;
+      usf:producesValidationResult <urn:usf:validationresult:repositoryexternalartefactmaterialisationfinal> ;
+      usf:validationEnvironment <urn:usf:validationenvironment:standalonechroot> .
+
+  <urn:usf:validationresult:repositoryexternalartefactmaterialisationfinal> a usf:ValidationResult ;
+      usf:canonicalName "repositoryexternalartefactmaterialisationfinal" ;
+      usf:resultState <urn:usf:resultstate:passed> ;
+      usf:entersEvidenceLifecycleAs <urn:usf:evidenceresult:repositoryexternalartefactmaterialisationfinal> .
+
+  <urn:usf:evidenceresult:repositoryexternalartefactmaterialisationfinal> a usf:EvidenceResult, usf:ValidationEvidence ;
+      usf:canonicalName "repositoryexternalartefactmaterialisationfinal" ;
+      usf:evidenceKind <urn:usf:evidencekind:validationevidence> ;
+      usf:usesProviderMode <urn:usf:providermode:hermeticmock> ;
+      usf:inEnvironment <urn:usf:environment:localdev> ;
+      usf:hasFreshness <urn:usf:freshness:fresh> ;
+      usf:evidenceForContract <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> ;
+      usf:evidenceFor <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> ;
+      usf:evidenceFromProofResult <urn:usf:proofresult:repositoryexternalartefactmaterialisationfinal> ;
+      usf:concernsSemanticSubject <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> ;
+      usf:supportsClaim <urn:usf:claim:standalonesemanticgraphrepository>, <urn:usf:claim:semanticcontrolpayloadseparation>, <urn:usf:claim:authorityboundmaterialisation>, <urn:usf:claim:deterministicmaterialisation>, <urn:usf:claim:boundedagentconsumption>, <urn:usf:claim:transactionalsemanticmodelevolution> ;
+      usf:contentDigest "sha256:e21975692963d01fde0acb19d9aca461427106b494a7a0300b33b76b43604472" ;
+      usf:mediaType "application/vnd.usf.materialisation-evidence-manifest+json" ;
+      usf:byteSize "6095"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+      usf:storageLocator "cas://sha256/e21975692963d01fde0acb19d9aca461427106b494a7a0300b33b76b43604472"^^<http://www.w3.org/2001/XMLSchema#anyURI> ;
+      usf:wasProducedBy <urn:usf:validatorrule:validatematerialisationfoundation> ;
+      usf:collectedInEnvironment <urn:usf:environment:localdev> ;
+      usf:collectedAt "2026-07-15T09:58:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> ;
+      usf:validUntil "2026-08-14T09:58:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> ;
+      usf:hasFreshnessPolicy <urn:usf:evidencefreshnesspolicy:materialisationthirtydays> ;
+      usf:hasAdmissionState admission:admitted ;
+      usf:hasFreshnessState freshnessstate:fresh ;
+      usf:hasIntegrityState integritystate:valid ;
+      usf:evidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:signed>, <urn:usf:evidencestage:integrityverified> ;
+      usf:applicableToObligation <urn:usf:proofobligation:repositoryexternalartefactmaterialisation> ;
+      usf:withinValidityScope true .
+
+  <urn:usf:evidenceadmission:repositoryexternalartefactmaterialisationfinal> a usf:EvidenceAdmission ;
+      usf:canonicalName "repositoryexternalartefactmaterialisationfinal" ;
+      usf:admissionForEvidence <urn:usf:evidenceresult:repositoryexternalartefactmaterialisationfinal> ;
+      usf:admissionDecidedByValidator <urn:usf:validatorrule:validatematerialisationfoundation> .
+}

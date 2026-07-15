@@ -1,0 +1,1 @@
+@prefix usf: <urn:usf:ontology:> . <urn:usf:defect:testproofinversion> a usf:Test ; usf:directlyEstablishesProof <urn:usf:defect:proof> .

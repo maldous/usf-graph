@@ -1,0 +1,27 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:usf:sourceuniverse:usf> a usf:SourceUniverse .
+
+<urn:usf:fixture:nonnegativequantityrun> a usf:CensusObservationRun ;
+    usf:observationSetDigest "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" ;
+    usf:observedRequiredPrerequisiteDependencyCount "0"^^xsd:integer ;
+    usf:observedResolvedPrerequisiteDependencyCount "1"^^xsd:integer ;
+    usf:observedSatisfiedPrerequisiteDependencyCount "1"^^xsd:integer ;
+    usf:observedActiveBlockingDependencyCount "0"^^xsd:integer ;
+    usf:hasCensusObservationInput <urn:usf:fixture:nonnegativequantityinput> ;
+    usf:hasCensusParserShardObservation <urn:usf:fixture:nonnegativequantityparser> .
+
+<urn:usf:fixture:nonnegativequantityinput> a usf:CensusObservationInput ;
+    usf:observedInputPath "fixture/input" ;
+    usf:observedInputContentDigest "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" ;
+    usf:observedInputByteCount 1 ;
+    usf:observedInCensusRun <urn:usf:fixture:nonnegativequantityrun> .
+
+<urn:usf:fixture:nonnegativequantityparser> a usf:CensusParserShardObservation ;
+    usf:observedParserShardPath "fixture/parser" ;
+    usf:observedParserUniverse <urn:usf:sourceuniverse:usf> ;
+    usf:observedCompressedContentDigest "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" ;
+    usf:observedUncompressedContentDigest "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" ;
+    usf:observedParserRecordCount 1 ;
+    usf:observedInCensusRun <urn:usf:fixture:nonnegativequantityrun> .

@@ -1,0 +1,788 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix adp: <urn:usf:adapter:> .
+@prefix bnd: <urn:usf:binding:> .
+@prefix rz: <urn:usf:realisation:> .
+@prefix port: <urn:usf:port:> .
+@prefix prov: <urn:usf:provider:> .
+@prefix pmode: <urn:usf:providermode:> .
+@prefix bst: <urn:usf:bindingstate:> .
+@prefix rst: <urn:usf:realisationstate:> .
+@prefix sc: <urn:usf:semanticcontract:> .
+@prefix impl: <urn:usf:implementation:> .
+@prefix svc: <urn:usf:service:> .
+
+<urn:usf:graph:bindings> {
+    adp:capturedobservabilitysink a usf:Adapter ;
+        usf:bindsProvider prov:observabilitycapturedlocal ;
+        usf:canonicalName "capturedobservabilitysink" ;
+        usf:implementsPort port:observabilitysink .
+    adp:clamavscanprovider a usf:Adapter ;
+        usf:bindsProvider prov:filescanclamavcomposedtest ;
+        usf:canonicalName "clamavscanprovider" ;
+        usf:implementsPort port:scanprovider .
+    adp:clickhousecomposedanalyticseventstoreadapter a usf:Adapter ;
+        usf:bindsProvider prov:analyticsstoreclickhousecomposedtest ;
+        usf:canonicalName "clickhousecomposedanalyticseventstoreadapter" ;
+        usf:implementsPort port:analyticseventstore .
+    adp:createkeycloaktokenverifier a usf:Adapter ;
+        usf:bindsProvider prov:identitykeycloakcomposedtest ;
+        usf:canonicalName "createkeycloaktokenverifier" ;
+        usf:implementsPort port:keycloaktokenverifier .
+    adp:hermetickeycloak a usf:Adapter ;
+        usf:bindsProvider prov:identityinmemory ;
+        usf:canonicalName "hermetickeycloak" ;
+        usf:implementsPort port:identityprovider .
+    adp:inmemoryauditeventstore a usf:Adapter ;
+        usf:bindsProvider prov:auditledgerinmemory ;
+        usf:canonicalName "inmemoryauditeventstore" ;
+        usf:implementsPort port:auditeventledger .
+    adp:inmemoryauditledger a usf:Adapter ;
+        usf:bindsProvider prov:auditledgerinmemory ;
+        usf:canonicalName "inmemoryauditledger" ;
+        usf:implementsPort port:auditledger .
+    adp:inmemoryconfiglayerprovider a usf:Adapter ;
+        usf:bindsProvider prov:configinmemory ;
+        usf:canonicalName "inmemoryconfiglayerprovider" ;
+        usf:implementsPort port:configlayerprovider .
+    adp:inmemorydurableworkflow a usf:Adapter ;
+        usf:bindsProvider prov:workflowengineinmemory ;
+        usf:canonicalName "inmemorydurableworkflow" ;
+        usf:implementsPort port:durableworkflowport .
+    adp:inmemoryeventbus a usf:Adapter ;
+        usf:bindsProvider prov:eventbusinmemory ;
+        usf:canonicalName "inmemoryeventbus" ;
+        usf:implementsPort port:eventbus .
+    adp:inmemoryfeatureflagsource a usf:Adapter ;
+        usf:bindsProvider prov:configinmemory ;
+        usf:canonicalName "inmemoryfeatureflagsource" ;
+        usf:implementsPort port:featureflagsource .
+    adp:inmemoryfilemetadatastore a usf:Adapter ;
+        usf:bindsProvider prov:objectstorageinmemory ;
+        usf:canonicalName "inmemoryfilemetadatastore" ;
+        usf:implementsPort port:filemetadatastore .
+    adp:inmemoryguardrailstore a usf:Adapter ;
+        usf:bindsProvider prov:guardrailinmemory ;
+        usf:canonicalName "inmemoryguardrailstore" ;
+        usf:implementsPort port:guardrailport .
+    adp:inmemoryidentitydirectory a usf:Adapter ;
+        usf:bindsProvider prov:identityinmemory ;
+        usf:canonicalName "inmemoryidentitydirectory" ;
+        usf:implementsPort port:identitydirectory .
+    adp:inmemoryidentityprovider a usf:Adapter ;
+        usf:bindsProvider prov:identityinmemory ;
+        usf:canonicalName "inmemoryidentityprovider" ;
+        usf:implementsPort port:identityprovider .
+    adp:inmemoryimportexportstore a usf:Adapter ;
+        usf:bindsProvider prov:importexportinmemory ;
+        usf:canonicalName "inmemoryimportexportstore" ;
+        usf:implementsPort port:importexportport .
+    adp:inmemorymailprovider a usf:Adapter ;
+        usf:bindsProvider prov:notificationdeliveryinmemory ;
+        usf:canonicalName "inmemorymailprovider" ;
+        usf:implementsPort port:mailprovider .
+    adp:inmemorynotificationprovider a usf:Adapter ;
+        usf:bindsProvider prov:notificationdeliveryinmemory ;
+        usf:canonicalName "inmemorynotificationprovider" ;
+        usf:implementsPort port:notificationprovider .
+    adp:inmemoryobjectstore a usf:Adapter ;
+        usf:bindsProvider prov:objectstorageinmemory ;
+        usf:canonicalName "inmemoryobjectstore" ;
+        usf:implementsPort port:objectstore .
+    adp:inmemoryoperationaljobstore a usf:Adapter ;
+        usf:bindsProvider prov:operationaljobengineinmemory ;
+        usf:canonicalName "inmemoryoperationaljobstore" ;
+        usf:implementsPort port:operationaljobport .
+    adp:inmemoryresourcelifecyclestore a usf:Adapter ;
+        usf:bindsProvider prov:resourcelifecycleinmemory ;
+        usf:canonicalName "inmemoryresourcelifecyclestore" ;
+        usf:implementsPort port:resourcelifecycleport .
+    adp:inmemoryscanprovider a usf:Adapter ;
+        usf:bindsProvider prov:filescaninmemory ;
+        usf:canonicalName "inmemoryscanprovider" ;
+        usf:implementsPort port:scanprovider .
+    adp:inmemorysearchindex a usf:Adapter ;
+        usf:bindsProvider prov:searchindexinmemory ;
+        usf:canonicalName "inmemorysearchindex" ;
+        usf:implementsPort port:searchindexport .
+    adp:inmemorysecretstore a usf:Adapter ;
+        usf:bindsProvider prov:secretsinmemory ;
+        usf:canonicalName "inmemorysecretstore" ;
+        usf:implementsPort port:secretstore .
+    adp:inmemorysessionstore a usf:Adapter ;
+        usf:bindsProvider prov:sessionstoreinmemory ;
+        usf:canonicalName "inmemorysessionstore" ;
+        usf:implementsPort port:sessionstore .
+    adp:inmemorytelemetrycollector a usf:Adapter ;
+        usf:bindsProvider prov:observabilitycapturedlocal ;
+        usf:canonicalName "inmemorytelemetrycollector" ;
+        usf:implementsPort port:telemetryport .
+    adp:inmemorytenantmembershipdirectory a usf:Adapter ;
+        usf:bindsProvider prov:tenantmembershipinmemory ;
+        usf:canonicalName "inmemorytenantmembershipdirectory" ;
+        usf:implementsPort port:tenantmembershipdirectory .
+    adp:inmemorytenantmembershiprepository a usf:Adapter ;
+        usf:bindsProvider prov:tenantmembershipinmemory ;
+        usf:canonicalName "inmemorytenantmembershiprepository" ;
+        usf:implementsPort port:tenantscopedrepository .
+    adp:inmemoryworkflowengine a usf:Adapter ;
+        usf:bindsProvider prov:workflowengineinmemory ;
+        usf:canonicalName "inmemoryworkflowengine" ;
+        usf:implementsPort port:workflowengine .
+    adp:keycloakcomposedidentityprovider a usf:Adapter ;
+        usf:bindsProvider prov:identitykeycloakcomposedtest ;
+        usf:canonicalName "keycloakcomposedidentityprovider" ;
+        usf:implementsPort port:identityprovider .
+    adp:localstackcloudemulatorproofadapter a usf:Adapter ;
+        usf:bindsProvider prov:provideremulatorlocalstackcomposedtest ;
+        usf:canonicalName "localstackcloudemulatorproofadapter" ;
+        usf:implementsPort port:cloudprovideremulator .
+    adp:mailpitnotificationprovider a usf:Adapter ;
+        usf:bindsProvider prov:notificationdeliverymailpitcomposedtest ;
+        usf:canonicalName "mailpitnotificationprovider" ;
+        usf:implementsPort port:notificationprovider .
+    adp:meilisearchcomposedsearchadapter a usf:Adapter ;
+        usf:bindsProvider prov:fulltextsearchmeilisearchcomposedtest ;
+        usf:canonicalName "meilisearchcomposedsearchadapter" ;
+        usf:implementsPort port:searchindexport .
+    adp:minioobjectstore a usf:Adapter ;
+        usf:bindsProvider prov:objectstorageminiocomposedtest ;
+        usf:canonicalName "minioobjectstore" ;
+        usf:implementsPort port:objectstore .
+    adp:natseventbus a usf:Adapter ;
+        usf:bindsProvider prov:eventbusnatscomposedtest ;
+        usf:canonicalName "natseventbus" ;
+        usf:implementsPort port:eventbus .
+    adp:openbaosecretstore a usf:Adapter ;
+        usf:bindsProvider prov:secretstoreopenbaocomposedtest ;
+        usf:canonicalName "openbaosecretstore" ;
+        usf:implementsPort port:secretstore .
+    adp:postgrestenantmembershipdirectory a usf:Adapter ;
+        usf:bindsProvider prov:databasepostgrescomposedtest ;
+        usf:canonicalName "postgrestenantmembershipdirectory" ;
+        usf:implementsPort port:tenantmembershipdirectory .
+    adp:postgrestenantmembershiprepository a usf:Adapter ;
+        usf:bindsProvider prov:databasepostgrescomposedtest ;
+        usf:canonicalName "postgrestenantmembershiprepository" ;
+        usf:implementsPort port:tenantscopedrepository .
+    adp:rediscomposedcacheadapter a usf:Adapter ;
+        usf:bindsProvider prov:cacherediscomposedtest ;
+        usf:canonicalName "rediscomposedcacheadapter" ;
+        usf:implementsPort port:cacheprovider .
+    adp:sentrysdkenvelopeproofadapter a usf:Adapter ;
+        usf:bindsProvider prov:observabilitysentrysdkenvelopelocal ;
+        usf:canonicalName "sentrysdkenvelopeproofadapter" ;
+        usf:implementsPort port:observabilitysink .
+    adp:sonarqubecomposedqualitygateadapter a usf:Adapter ;
+        usf:bindsProvider prov:qualitygatesonarqubecomposedtest ;
+        usf:canonicalName "sonarqubecomposedqualitygateadapter" ;
+        usf:implementsPort port:qualitygateprovider .
+    adp:temporalcomposedworkflowengine a usf:Adapter ;
+        usf:bindsProvider prov:workflowenginetemporalcomposedtest ;
+        usf:canonicalName "temporalcomposedworkflowengine" ;
+        usf:implementsPort port:workflowengine .
+    adp:webhooksinkcaptureprovider a usf:Adapter ;
+        usf:bindsProvider prov:notificationdeliverywebhooksinkcomposedtest ;
+        usf:canonicalName "webhooksinkcaptureprovider" ;
+        usf:implementsPort port:webhookcaptureprovider .
+    adp:wiremockhttpprovidermock a usf:Adapter ;
+        usf:bindsProvider prov:providermockwiremockcomposedtest ;
+        usf:canonicalName "wiremockhttpprovidermock" ;
+        usf:implementsPort port:httpprovidermock .
+    bnd:analyticsstoreclickhousecomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:analyticseventstore ;
+        usf:bindsProvider prov:analyticsstoreclickhousecomposedtest ;
+        usf:canonicalName "analyticsstoreclickhousecomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:analyticsstoreclickhousedeferred a usf:Binding ;
+        usf:bindingState bst:deferred ;
+        usf:bindsPort port:analyticseventstore ;
+        usf:bindsProvider prov:analyticsstoreclickhousedeferred ;
+        usf:canonicalName "analyticsstoreclickhousedeferred" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:apigatewayfastifylocaltest a usf:Binding ;
+        usf:bindingState bst:inmemory ;
+        usf:bindsPort port:apiruntime ;
+        usf:bindsProvider prov:apigatewayfastifylocaltest ;
+        usf:canonicalName "apigatewayfastifylocaltest" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:auditledgerinmemory a usf:Binding ;
+        usf:bindingState bst:inmemory ;
+        usf:bindsPort port:auditledger ;
+        usf:bindsProvider prov:auditledgerinmemory ;
+        usf:canonicalName "auditledgerinmemory" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:autocompletelivedeferred a usf:Binding ;
+        usf:bindingState bst:deferred ;
+        usf:bindsPort port:searchindexport ;
+        usf:bindsProvider prov:autocompletelivedeferred ;
+        usf:canonicalName "autocompletelivedeferred" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:backuprestorepgbackrestcomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:backuprestoreprovider ;
+        usf:bindsProvider prov:backuprestorepgbackrestcomposedtest ;
+        usf:canonicalName "backuprestorepgbackrestcomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:backuprestorepgbackrestdeferred a usf:Binding ;
+        usf:bindingState bst:deferred ;
+        usf:bindsPort port:backuprestoreprovider ;
+        usf:bindsProvider prov:backuprestorepgbackrestdeferred ;
+        usf:canonicalName "backuprestorepgbackrestdeferred" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:cacherediscomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:cacheprovider ;
+        usf:bindsProvider prov:cacherediscomposedtest ;
+        usf:canonicalName "cacherediscomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:cacheredisdeferred a usf:Binding ;
+        usf:bindingState bst:deferred ;
+        usf:bindsPort port:cacheprovider ;
+        usf:bindsProvider prov:cacheredisdeferred ;
+        usf:canonicalName "cacheredisdeferred" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:cacheunavailable a usf:Binding ;
+        usf:bindingState bst:unavailable ;
+        usf:bindsPort port:cacheprovider ;
+        usf:bindsProvider prov:cacheunavailable ;
+        usf:canonicalName "cacheunavailable" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:configinmemory a usf:Binding ;
+        usf:bindingState bst:inmemory ;
+        usf:bindsPort port:configlayerprovider ;
+        usf:bindsProvider prov:configinmemory ;
+        usf:canonicalName "configinmemory" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:databasepostgrescomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:tenantscopedrepository ;
+        usf:bindsProvider prov:databasepostgrescomposedtest ;
+        usf:canonicalName "databasepostgrescomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:eventbusinmemory a usf:Binding ;
+        usf:bindingState bst:inmemory ;
+        usf:bindsPort port:eventbus ;
+        usf:bindsProvider prov:eventbusinmemory ;
+        usf:canonicalName "eventbusinmemory" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:eventbusnatscomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:eventbus ;
+        usf:bindsProvider prov:eventbusnatscomposedtest ;
+        usf:canonicalName "eventbusnatscomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:filescanclamavcomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:scanprovider ;
+        usf:bindsProvider prov:filescanclamavcomposedtest ;
+        usf:canonicalName "filescanclamavcomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:filescanclamavdeferred a usf:Binding ;
+        usf:bindingState bst:deferred ;
+        usf:bindsPort port:scanprovider ;
+        usf:bindsProvider prov:filescanclamavdeferred ;
+        usf:canonicalName "filescanclamavdeferred" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:filescaninmemory a usf:Binding ;
+        usf:bindingState bst:inmemory ;
+        usf:bindsPort port:scanprovider ;
+        usf:bindsProvider prov:filescaninmemory ;
+        usf:canonicalName "filescaninmemory" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:fulltextsearchlivedeferred a usf:Binding ;
+        usf:bindingState bst:deferred ;
+        usf:bindsPort port:searchindexport ;
+        usf:bindsProvider prov:fulltextsearchlivedeferred ;
+        usf:canonicalName "fulltextsearchlivedeferred" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:fulltextsearchmeilisearchcomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:searchindexport ;
+        usf:bindsProvider prov:fulltextsearchmeilisearchcomposedtest ;
+        usf:canonicalName "fulltextsearchmeilisearchcomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:fulltextsearchmeilisearchdeferred a usf:Binding ;
+        usf:bindingState bst:deferred ;
+        usf:bindsPort port:searchindexport ;
+        usf:bindsProvider prov:fulltextsearchmeilisearchdeferred ;
+        usf:canonicalName "fulltextsearchmeilisearchdeferred" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:identityinmemory a usf:Binding ;
+        usf:bindingState bst:inmemory ;
+        usf:bindsPort port:identityprovider ;
+        usf:bindsProvider prov:identityinmemory ;
+        usf:canonicalName "identityinmemory" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:identitykeycloakcomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:identityprovider ;
+        usf:bindsProvider prov:identitykeycloakcomposedtest ;
+        usf:canonicalName "identitykeycloakcomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:notificationdeliveryinmemory a usf:Binding ;
+        usf:bindingState bst:inmemory ;
+        usf:bindsPort port:notificationprovider ;
+        usf:bindsProvider prov:notificationdeliveryinmemory ;
+        usf:canonicalName "notificationdeliveryinmemory" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:notificationdeliverylivedeferred a usf:Binding ;
+        usf:bindingState bst:deferred ;
+        usf:bindsPort port:notificationprovider ;
+        usf:bindsProvider prov:notificationdeliverylivedeferred ;
+        usf:canonicalName "notificationdeliverylivedeferred" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:notificationdeliverymailpitcomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:notificationprovider ;
+        usf:bindsProvider prov:notificationdeliverymailpitcomposedtest ;
+        usf:canonicalName "notificationdeliverymailpitcomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:notificationdeliverywebhooksinkcomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:webhookcaptureprovider ;
+        usf:bindsProvider prov:notificationdeliverywebhooksinkcomposedtest ;
+        usf:canonicalName "notificationdeliverywebhooksinkcomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:notificationdeliverywebhooksinkdeferred a usf:Binding ;
+        usf:bindingState bst:deferred ;
+        usf:bindsPort port:webhookcaptureprovider ;
+        usf:bindsProvider prov:notificationdeliverywebhooksinkdeferred ;
+        usf:canonicalName "notificationdeliverywebhooksinkdeferred" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:objectstorageinmemory a usf:Binding ;
+        usf:bindingState bst:inmemory ;
+        usf:bindsPort port:objectstore ;
+        usf:bindsProvider prov:objectstorageinmemory ;
+        usf:canonicalName "objectstorageinmemory" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:objectstorageminiocomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:objectstore ;
+        usf:bindsProvider prov:objectstorageminiocomposedtest ;
+        usf:canonicalName "objectstorageminiocomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:observabilitycapturedlocal a usf:Binding ;
+        usf:bindingState bst:inmemory ;
+        usf:bindsPort port:observabilitysink ;
+        usf:bindsProvider prov:observabilitycapturedlocal ;
+        usf:canonicalName "observabilitycapturedlocal" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:observabilitycomposestack a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:observabilitysink ;
+        usf:bindsProvider prov:observabilitycomposestack ;
+        usf:canonicalName "observabilitycomposestack" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:observabilitysentrysdkenvelopelocal a usf:Binding ;
+        usf:bindingState bst:inmemory ;
+        usf:bindsPort port:observabilitysink ;
+        usf:bindsProvider prov:observabilitysentrysdkenvelopelocal ;
+        usf:canonicalName "observabilitysentrysdkenvelopelocal" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:operationaljobengineinmemory a usf:Binding ;
+        usf:bindingState bst:inmemory ;
+        usf:bindsPort port:operationaljobport ;
+        usf:bindsProvider prov:operationaljobengineinmemory ;
+        usf:canonicalName "operationaljobengineinmemory" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:operationaljobenginewindmillcomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:operationaljobport ;
+        usf:bindsProvider prov:operationaljobenginewindmillcomposedtest ;
+        usf:canonicalName "operationaljobenginewindmillcomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:operationaljobenginewindmilldeferred a usf:Binding ;
+        usf:bindingState bst:deferred ;
+        usf:bindsPort port:operationaljobport ;
+        usf:bindsProvider prov:operationaljobenginewindmilldeferred ;
+        usf:canonicalName "operationaljobenginewindmilldeferred" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:provideremulatorlocalstackcomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:cloudprovideremulator ;
+        usf:bindsProvider prov:provideremulatorlocalstackcomposedtest ;
+        usf:canonicalName "provideremulatorlocalstackcomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:provideremulatorlocalstackdeferred a usf:Binding ;
+        usf:bindingState bst:deferred ;
+        usf:bindsPort port:cloudprovideremulator ;
+        usf:bindsProvider prov:provideremulatorlocalstackdeferred ;
+        usf:canonicalName "provideremulatorlocalstackdeferred" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:providermockwiremockcomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:httpprovidermock ;
+        usf:bindsProvider prov:providermockwiremockcomposedtest ;
+        usf:canonicalName "providermockwiremockcomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:providermockwiremockdeferred a usf:Binding ;
+        usf:bindingState bst:deferred ;
+        usf:bindsPort port:httpprovidermock ;
+        usf:bindsProvider prov:providermockwiremockdeferred ;
+        usf:canonicalName "providermockwiremockdeferred" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:qualitygatesonarqubecomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:qualitygateprovider ;
+        usf:bindsProvider prov:qualitygatesonarqubecomposedtest ;
+        usf:canonicalName "qualitygatesonarqubecomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:searchindexdisabled a usf:Binding ;
+        usf:bindingState bst:disabled ;
+        usf:bindsPort port:searchindexport ;
+        usf:bindsProvider prov:searchindexdisabled ;
+        usf:canonicalName "searchindexdisabled" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:searchindexinmemory a usf:Binding ;
+        usf:bindingState bst:inmemory ;
+        usf:bindsPort port:searchindexport ;
+        usf:bindsProvider prov:searchindexinmemory ;
+        usf:canonicalName "searchindexinmemory" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:secretsinmemory a usf:Binding ;
+        usf:bindingState bst:inmemory ;
+        usf:bindsPort port:secretresolver ;
+        usf:bindsProvider prov:secretsinmemory ;
+        usf:canonicalName "secretsinmemory" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:secretstoreopenbaocomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:secretstore ;
+        usf:bindsProvider prov:secretstoreopenbaocomposedtest ;
+        usf:canonicalName "secretstoreopenbaocomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    bnd:vectorsearchlivedeferred a usf:Binding ;
+        usf:bindingState bst:deferred ;
+        usf:bindsPort port:searchindexport ;
+        usf:bindsProvider prov:vectorsearchlivedeferred ;
+        usf:canonicalName "vectorsearchlivedeferred" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:workflowengineinmemory a usf:Binding ;
+        usf:bindingState bst:inmemory ;
+        usf:bindsPort port:workflowengine ;
+        usf:bindsProvider prov:workflowengineinmemory ;
+        usf:canonicalName "workflowengineinmemory" ;
+        usf:hasProviderMode pmode:hermeticmock .
+    bnd:workflowenginetemporalcomposedtest a usf:Binding ;
+        usf:bindingState bst:composed ;
+        usf:bindsPort port:workflowengine ;
+        usf:bindsProvider prov:workflowenginetemporalcomposedtest ;
+        usf:canonicalName "workflowenginetemporalcomposedtest" ;
+        usf:hasProviderMode pmode:composedreal .
+    rz:semanticcontractabacpolicydecisionpoint a usf:Realisation ;
+        usf:canonicalName "semanticcontractabacpolicydecisionpoint" ;
+        usf:realisationState rst:routerealised ;
+        usf:realisesContract sc:abacpolicydecisionpoint ;
+        usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilitytenant .
+    rz:semanticcontractaccessibilitya11ygate a usf:Realisation ;
+        usf:canonicalName "semanticcontractaccessibilitya11ygate" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:accessibilitya11ygate .
+    rz:semanticcontractalertingincidentmanagementoncallstatuspage a usf:Realisation ;
+        usf:canonicalName "semanticcontractalertingincidentmanagementoncallstatuspage" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:alertingincidentmanagementoncallstatuspage ;
+        usf:viaService svc:alertmanager .
+    rz:semanticcontractapidocsdeveloperportalsdksratelimits a usf:Realisation ;
+        usf:canonicalName "semanticcontractapidocsdeveloperportalsdksratelimits" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:apidocsdeveloperportalsdksratelimits .
+    rz:semanticcontractapikeyspersonalaccesstokens a usf:Realisation ;
+        usf:canonicalName "semanticcontractapikeyspersonalaccesstokens" ;
+        usf:realisationState rst:routerealised ;
+        usf:realisesContract sc:apikeyspersonalaccesstokens ;
+        usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilityauth .
+    rz:semanticcontractauditofprivilegedaccess a usf:Realisation ;
+        usf:canonicalName "semanticcontractauditofprivilegedaccess" ;
+        usf:realisationState rst:routerealised ;
+        usf:realisesContract sc:auditofprivilegedaccess ;
+        usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilityaudit .
+    rz:semanticcontractauthenticationplatform a usf:Realisation ;
+        usf:canonicalName "semanticcontractauthenticationplatform" ;
+        usf:realisationState rst:routerealised ;
+        usf:realisesContract sc:authenticationplatform ;
+        usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilityauth .
+    rz:semanticcontractbackgroundworkersjobrunner a usf:Realisation ;
+        usf:canonicalName "semanticcontractbackgroundworkersjobrunner" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:backgroundworkersjobrunner ;
+        usf:realisingImplementation impl:foundationadapterwf , impl:foundationcapabilityjobs .
+    rz:semanticcontractbackupandrestore a usf:Realisation ;
+        usf:canonicalName "semanticcontractbackupandrestore" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:backupandrestore ;
+        usf:realisingImplementation impl:foundationproof ;
+        usf:viaService svc:pgbackrest .
+    rz:semanticcontractbrandingandtheming a usf:Realisation ;
+        usf:canonicalName "semanticcontractbrandingandtheming" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:brandingandtheming .
+    rz:semanticcontractbrowsertelemetrygrafanafarorumandbrowsertobfftracing a usf:Realisation ;
+        usf:canonicalName "semanticcontractbrowsertelemetrygrafanafarorumandbrowsertobfftracing" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:browsertelemetrygrafanafarorumandbrowsertobfftracing .
+    rz:semanticcontractbuildversuscomposedecisionframework a usf:Realisation ;
+        usf:canonicalName "semanticcontractbuildversuscomposedecisionframework" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:buildversuscomposedecisionframework .
+    rz:semanticcontractcodequalityandsecretanddependencyscanning a usf:Realisation ;
+        usf:canonicalName "semanticcontractcodequalityandsecretanddependencyscanning" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:codequalityandsecretanddependencyscanning ;
+        usf:realisingImplementation impl:foundationadapterassurance ;
+        usf:viaService svc:sonarqube .
+    rz:semanticcontractcompliancereportsaccessreviewsevidencepacks a usf:Realisation ;
+        usf:canonicalName "semanticcontractcompliancereportsaccessreviewsevidencepacks" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:compliancereportsaccessreviewsevidencepacks .
+    rz:semanticcontractcomposedproviderreadinessspine a usf:Realisation ;
+        usf:canonicalName "semanticcontractcomposedproviderreadinessspine" ;
+        usf:realisationState rst:routerealised ;
+        usf:realisesContract sc:composedproviderreadinessspine ;
+        usf:realisingImplementation impl:foundationappapi .
+    rz:semanticcontractconfigurationregistryandhistory a usf:Realisation ;
+        usf:canonicalName "semanticcontractconfigurationregistryandhistory" ;
+        usf:realisationState rst:routerealised ;
+        usf:realisesContract sc:configurationregistryandhistory ;
+        usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilityconfig .
+    rz:semanticcontractcustomdomainsdnsownershiptlscanonical a usf:Realisation ;
+        usf:canonicalName "semanticcontractcustomdomainsdnsownershiptlscanonical" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:customdomainsdnsownershiptlscanonical .
+    rz:semanticcontractdatagovernancecataloglineageclassificationpiidsrgdpr a usf:Realisation ;
+        usf:canonicalName "semanticcontractdatagovernancecataloglineageclassificationpiidsrgdpr" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:datagovernancecataloglineageclassificationpiidsrgdpr .
+    rz:semanticcontractdelegatedadministrationroles a usf:Realisation ;
+        usf:canonicalName "semanticcontractdelegatedadministrationroles" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:delegatedadministrationroles .
+    rz:semanticcontracte2econfidenceladderstageaware a usf:Realisation ;
+        usf:canonicalName "semanticcontracte2econfidenceladderstageaware" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:e2econfidenceladderstageaware .
+    rz:semanticcontractenduserprofileandpreferencesselfservice a usf:Realisation ;
+        usf:canonicalName "semanticcontractenduserprofileandpreferencesselfservice" ;
+        usf:realisationState rst:routerealised ;
+        usf:realisesContract sc:enduserprofileandpreferencesselfservice ;
+        usf:realisingImplementation impl:foundationappapi .
+    rz:semanticcontractentitlementengine a usf:Realisation ;
+        usf:canonicalName "semanticcontractentitlementengine" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:entitlementengine .
+    rz:semanticcontractenvironmentregistryandbootstrap a usf:Realisation ;
+        usf:canonicalName "semanticcontractenvironmentregistryandbootstrap" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:environmentregistryandbootstrap .
+    rz:semanticcontractenvironmentspecificvssharedservicemodel a usf:Realisation ;
+        usf:canonicalName "semanticcontractenvironmentspecificvssharedservicemodel" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:environmentspecificvssharedservicemodel .
+    rz:semanticcontracteventbusdurablequeuesdlqredrive a usf:Realisation ;
+        usf:canonicalName "semanticcontracteventbusdurablequeuesdlqredrive" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:eventbusdurablequeuesdlqredrive ;
+        usf:realisingImplementation impl:foundationadapterbus ;
+        usf:viaService svc:nats .
+    rz:semanticcontracthistoryreadmodelreadonlyprojection a usf:Realisation ;
+        usf:canonicalName "semanticcontracthistoryreadmodelreadonlyprojection" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:historyreadmodelreadonlyprojection .
+    rz:semanticcontracti18nruntimeandvalidation a usf:Realisation ;
+        usf:canonicalName "semanticcontracti18nruntimeandvalidation" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:i18nruntimeandvalidation ;
+        usf:realisingImplementation impl:foundationappsurface .
+    rz:semanticcontractinternalservicecatalogandreadiness a usf:Realisation ;
+        usf:canonicalName "semanticcontractinternalservicecatalogandreadiness" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:internalservicecatalogandreadiness ;
+        usf:realisingImplementation impl:foundationcore .
+    rz:semanticcontractlogsaggregationandtenantscopedsearch a usf:Realisation ;
+        usf:canonicalName "semanticcontractlogsaggregationandtenantscopedsearch" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:logsaggregationandtenantscopedsearch ;
+        usf:realisingImplementation impl:foundationadapterobs ;
+        usf:viaService svc:loki .
+    rz:semanticcontractmetricsandtraces a usf:Realisation ;
+        usf:canonicalName "semanticcontractmetricsandtraces" ;
+        usf:realisationState rst:routerealised ;
+        usf:realisesContract sc:metricsandtraces ;
+        usf:realisingImplementation impl:foundationadapterobs , impl:foundationappapi .
+    rz:semanticcontractmockprovidersdevtest a usf:Realisation ;
+        usf:canonicalName "semanticcontractmockprovidersdevtest" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:mockprovidersdevtest ;
+        usf:viaService svc:localstack , svc:mockoidc , svc:wiremock .
+    rz:semanticcontractnotificationdeliveryandpreferencesandchannels a usf:Realisation ;
+        usf:canonicalName "semanticcontractnotificationdeliveryandpreferencesandchannels" ;
+        usf:realisationState rst:routerealised ;
+        usf:realisesContract sc:notificationdeliveryandpreferencesandchannels ;
+        usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilitynotify .
+    rz:semanticcontractobjectstorageandtenantprefixesandsignedurls a usf:Realisation ;
+        usf:canonicalName "semanticcontractobjectstorageandtenantprefixesandsignedurls" ;
+        usf:realisationState rst:routerealised ;
+        usf:realisesContract sc:objectstorageandtenantprefixesandsignedurls ;
+        usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilityfiles .
+    rz:semanticcontractobservabilitybuiltinalertingandincidents a usf:Realisation ;
+        usf:canonicalName "semanticcontractobservabilitybuiltinalertingandincidents" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:observabilitybuiltinalertingandincidents ;
+        usf:realisingImplementation impl:foundationadapterobs ;
+        usf:viaService svc:alertmanager , svc:grafana .
+    rz:semanticcontractopenapidrifthardgate a usf:Realisation ;
+        usf:canonicalName "semanticcontractopenapidrifthardgate" ;
+        usf:realisationState rst:routerealised ;
+        usf:realisesContract sc:openapidrifthardgate ;
+        usf:realisingImplementation impl:foundationappapi , impl:foundationopenapi .
+    rz:semanticcontractpitrretentionlegalholddataresidency a usf:Realisation ;
+        usf:canonicalName "semanticcontractpitrretentionlegalholddataresidency" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:pitrretentionlegalholddataresidency .
+    rz:semanticcontractproductcatalogplansprices a usf:Realisation ;
+        usf:canonicalName "semanticcontractproductcatalogplansprices" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:productcatalogplansprices .
+    rz:semanticcontractproviderconfigurationplane a usf:Realisation ;
+        usf:canonicalName "semanticcontractproviderconfigurationplane" ;
+        usf:realisationState rst:routerealised ;
+        usf:realisesContract sc:providerconfigurationplane ;
+        usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilityconfig .
+    rz:semanticcontractproviderenvironmentclassification a usf:Realisation ;
+        usf:canonicalName "semanticcontractproviderenvironmentclassification" ;
+        usf:realisationState rst:routerealised ;
+        usf:realisesContract sc:providerenvironmentclassification ;
+        usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilityconfig .
+    rz:semanticcontractquotaenforcement a usf:Realisation ;
+        usf:canonicalName "semanticcontractquotaenforcement" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:quotaenforcement .
+    rz:semanticcontractratelimitingapi a usf:Realisation ;
+        usf:canonicalName "semanticcontractratelimitingapi" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:ratelimitingapi .
+    rz:semanticcontractrbacrolesandpermissions a usf:Realisation ;
+        usf:canonicalName "semanticcontractrbacrolesandpermissions" ;
+        usf:realisationState rst:routerealised ;
+        usf:realisesContract sc:rbacrolesandpermissions ;
+        usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilitytenant .
+    rz:semanticcontractrelationalstorageandmigrationsandrls a usf:Realisation ;
+        usf:canonicalName "semanticcontractrelationalstorageandmigrationsandrls" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:relationalstorageandmigrationsandrls ;
+        usf:realisingImplementation impl:foundationadapterdb ;
+        usf:viaService svc:postgres .
+    rz:semanticcontractruntimesecretsmanagement a usf:Realisation ;
+        usf:canonicalName "semanticcontractruntimesecretsmanagement" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:runtimesecretsmanagement ;
+        usf:realisingImplementation impl:foundationadaptersecrets ;
+        usf:viaService svc:openbao .
+    rz:semanticcontractscheduledjobsbuiltinontheeventsubstrate a usf:Realisation ;
+        usf:canonicalName "semanticcontractscheduledjobsbuiltinontheeventsubstrate" ;
+        usf:realisationState rst:routerealised ;
+        usf:realisesContract sc:scheduledjobsbuiltinontheeventsubstrate ;
+        usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilityjobs .
+    rz:semanticcontractsearchandindexingproductsearch a usf:Realisation ;
+        usf:canonicalName "semanticcontractsearchandindexingproductsearch" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:searchandindexingproductsearch ;
+        usf:realisingImplementation impl:foundationadaptersearch ;
+        usf:viaService svc:meilisearch .
+    rz:semanticcontractserverlessfunctionruntime a usf:Realisation ;
+        usf:canonicalName "semanticcontractserverlessfunctionruntime" ;
+        usf:realisationState rst:deferred ;
+        usf:realisesContract sc:serverlessfunctionruntime .
+    rz:semanticcontractservicecatalogandproviderintegrationmodel a usf:Realisation ;
+        usf:canonicalName "semanticcontractservicecatalogandproviderintegrationmodel" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:servicecatalogandproviderintegrationmodel .
+    rz:semanticcontractsuborganisations a usf:Realisation ;
+        usf:canonicalName "semanticcontractsuborganisations" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:suborganisations .
+    rz:semanticcontractsubscriptionsinvoicespaymentmethodsdunning a usf:Realisation ;
+        usf:canonicalName "semanticcontractsubscriptionsinvoicespaymentmethodsdunning" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:subscriptionsinvoicespaymentmethodsdunning .
+    rz:semanticcontractsupportmodebreakglassaccess a usf:Realisation ;
+        usf:canonicalName "semanticcontractsupportmodebreakglassaccess" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:supportmodebreakglassaccess ;
+        usf:realisingImplementation impl:foundationcapabilitytenant .
+    rz:semanticcontractsupportticketscustomerhealthannouncements a usf:Realisation ;
+        usf:canonicalName "semanticcontractsupportticketscustomerhealthannouncements" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:supportticketscustomerhealthannouncements .
+    rz:semanticcontracttenantcanonicaldomainsetunset a usf:Realisation ;
+        usf:canonicalName "semanticcontracttenantcanonicaldomainsetunset" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:tenantcanonicaldomainsetunset .
+    rz:semanticcontracttenantdataimportexport a usf:Realisation ;
+        usf:canonicalName "semanticcontracttenantdataimportexport" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:tenantdataimportexport ;
+        usf:realisingImplementation impl:foundationcapabilitybulk .
+    rz:semanticcontracttenantdomainactivationauthclient a usf:Realisation ;
+        usf:canonicalName "semanticcontracttenantdomainactivationauthclient" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:tenantdomainactivationauthclient .
+    rz:semanticcontracttenantgroups a usf:Realisation ;
+        usf:canonicalName "semanticcontracttenantgroups" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:tenantgroups .
+    rz:semanticcontracttenanthostidentityresolution a usf:Realisation ;
+        usf:canonicalName "semanticcontracttenanthostidentityresolution" ;
+        usf:realisationState rst:routerealised ;
+        usf:realisesContract sc:tenanthostidentityresolution ;
+        usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilitytenant .
+    rz:semanticcontracttenantidentityrecordandfqdn a usf:Realisation ;
+        usf:canonicalName "semanticcontracttenantidentityrecordandfqdn" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:tenantidentityrecordandfqdn .
+    rz:semanticcontracttenantisolationproof a usf:Realisation ;
+        usf:canonicalName "semanticcontracttenantisolationproof" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:tenantisolationproof ;
+        usf:realisingImplementation impl:foundationproof .
+    rz:semanticcontracttenantlifecycleprovisionsuspenddeleteexport a usf:Realisation ;
+        usf:canonicalName "semanticcontracttenantlifecycleprovisionsuspenddeleteexport" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:tenantlifecycleprovisionsuspenddeleteexport .
+    rz:semanticcontracttenantserviceclickthroughpolicy a usf:Realisation ;
+        usf:canonicalName "semanticcontracttenantserviceclickthroughpolicy" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:tenantserviceclickthroughpolicy .
+    rz:semanticcontractuniversalservicefoundationscopeandprinciples a usf:Realisation ;
+        usf:canonicalName "semanticcontractuniversalservicefoundationscopeandprinciples" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:universalservicefoundationscopeandprinciples .
+    rz:semanticcontractusagemeteringandmetereventingestion a usf:Realisation ;
+        usf:canonicalName "semanticcontractusagemeteringandmetereventingestion" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:usagemeteringandmetereventingestion ;
+        usf:realisingImplementation impl:foundationadapterbus ;
+        usf:viaService svc:clickhouse .
+    rz:semanticcontractuseridentityandtenantmembership a usf:Realisation ;
+        usf:canonicalName "semanticcontractuseridentityandtenantmembership" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:useridentityandtenantmembership ;
+        usf:realisingImplementation impl:foundationadapteridp , impl:foundationcapabilitytenant ;
+        usf:viaService svc:keycloak .
+    rz:semanticcontractwebhooksdeveloperfacing a usf:Realisation ;
+        usf:canonicalName "semanticcontractwebhooksdeveloperfacing" ;
+        usf:realisationState rst:contractonly ;
+        usf:realisesContract sc:webhooksdeveloperfacing .
+    rz:semanticcontractworkflowenginescheduledjobsapprovals a usf:Realisation ;
+        usf:canonicalName "semanticcontractworkflowenginescheduledjobsapprovals" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:workflowenginescheduledjobsapprovals ;
+        usf:realisingImplementation impl:foundationadapterwf ;
+        usf:viaService svc:temporal .
+    rz:semanticcontractwriteonlysecretsettings a usf:Realisation ;
+        usf:canonicalName "semanticcontractwriteonlysecretsettings" ;
+        usf:realisationState rst:internal ;
+        usf:realisesContract sc:writeonlysecretsettings ;
+        usf:realisingImplementation impl:foundationadaptersecrets .
+}

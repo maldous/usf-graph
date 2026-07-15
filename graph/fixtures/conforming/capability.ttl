@@ -1,0 +1,34 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+@prefix dom: <urn:usf:capabilitydomain:> .
+@prefix facet: <urn:usf:facetkind:> .
+@prefix rung: <urn:usf:proofrung:> .
+@prefix pmode: <urn:usf:providermode:> .
+@prefix envc: <urn:usf:environmentclass:> .
+@prefix fresh: <urn:usf:freshness:> .
+
+fixt:conformingcapability a usf:Capability ;
+    usf:canonicalName "conformingcapability" ;
+    usf:inDomain dom:foundation ;
+    usf:hasContract fixt:conformingcontract .
+fixt:conformingcontract a usf:SemanticContract ; usf:canonicalName "conformingcontract" ;
+    usf:declaresFacet fixt:ccflifecycle ,
+    fixt:ccfstatemodel ,
+    fixt:ccfpermissions ,
+    fixt:ccfcontracts ,
+    fixt:ccfvalidation ,
+    fixt:ccferrormodel ,
+    fixt:ccfauditmodel ,
+    fixt:ccfreadinessmodel ,
+    fixt:ccfproof ,
+    fixt:ccfuisemantics .
+fixt:ccflifecycle a usf:ContractFacet ; usf:canonicalName "ccflifecycle" ; usf:facetKind facet:lifecycle .
+fixt:ccfstatemodel a usf:ContractFacet ; usf:canonicalName "ccfstatemodel" ; usf:facetKind facet:statemodel .
+fixt:ccfpermissions a usf:ContractFacet ; usf:canonicalName "ccfpermissions" ; usf:facetKind facet:permissions .
+fixt:ccfcontracts a usf:ContractFacet ; usf:canonicalName "ccfcontracts" ; usf:facetKind facet:contracts .
+fixt:ccfvalidation a usf:ContractFacet ; usf:canonicalName "ccfvalidation" ; usf:facetKind facet:validation .
+fixt:ccferrormodel a usf:ContractFacet ; usf:canonicalName "ccferrormodel" ; usf:facetKind facet:errormodel .
+fixt:ccfauditmodel a usf:ContractFacet ; usf:canonicalName "ccfauditmodel" ; usf:facetKind facet:auditmodel .
+fixt:ccfreadinessmodel a usf:ContractFacet ; usf:canonicalName "ccfreadinessmodel" ; usf:facetKind facet:readinessmodel .
+fixt:ccfproof a usf:ContractFacet ; usf:canonicalName "ccfproof" ; usf:facetKind facet:proof .
+fixt:ccfuisemantics a usf:ContractFacet ; usf:canonicalName "ccfuisemantics" ; usf:facetKind facet:uisemantics .

@@ -1,0 +1,11 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+@prefix dom: <urn:usf:capabilitydomain:> .
+@prefix facet: <urn:usf:facetkind:> .
+@prefix rung: <urn:usf:proofrung:> .
+@prefix pmode: <urn:usf:providermode:> .
+@prefix envc: <urn:usf:environmentclass:> .
+@prefix fresh: <urn:usf:freshness:> .
+
+fixt:conformingresult a usf:ProofResult ; usf:canonicalName "conformingresult" ;
+    usf:claimedRung rung:behaviour ; usf:observedRung rung:behaviour ; usf:hasFreshness fresh:stale .

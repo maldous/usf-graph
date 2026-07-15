@@ -1,0 +1,60 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix shp: <urn:usf:shacl:> .
+
+shp:RealisationShape a sh:NodeShape ;
+    usf:canonicalName "realisationshape" ;
+    sh:targetClass usf:Realisation ;
+    sh:property [ sh:path usf:realisesContract ; sh:minCount 1 ; sh:class usf:SemanticContract ;
+        sh:message "realisationcontract: realisation must realise at least one semantic contract" ] ;
+    sh:property [ sh:path usf:realisingImplementation ; sh:class usf:Implementation ;
+        sh:message "realisationimplementation: a realising implementation must be a declared implementation" ] ;
+    sh:property [ sh:path usf:viaService ; sh:class usf:Service ;
+        sh:message "realisationservice: a realisation service must be a declared service" ] ;
+    sh:property [ sh:path usf:viaAdapter ; sh:class usf:Adapter ;
+        sh:message "realisationadapter: a realisation adapter must be a declared adapter" ] ;
+    sh:property [ sh:path usf:viaBinding ; sh:class usf:Binding ;
+        sh:message "realisationbinding: a realisation binding must be a declared binding" ] ;
+    sh:property [ sh:path usf:realisationState ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:RealisationState ;
+        sh:message "realisationstate: realisation must declare one state" ] ;
+    sh:sparql [ sh:prefixes usf:prefixes ;
+        sh:message "realisationrealiser: a realisation claiming completed realisation must name an implementation, service, adapter or binding; contract-only, implementable, deferred, not-claimed and deprecated states are exempt" ;
+        sh:select """SELECT $this WHERE {
+          $this usf:realisationState ?state .
+          FILTER(?state NOT IN (<urn:usf:realisationstate:contractonly>, <urn:usf:realisationstate:implementable>, <urn:usf:realisationstate:deferred>,
+                                <urn:usf:realisationstate:notclaimed>, <urn:usf:realisationstate:deprecated>))
+          FILTER NOT EXISTS { $this usf:realisingImplementation ?implementation }
+          FILTER NOT EXISTS { $this usf:viaService ?service }
+          FILTER NOT EXISTS { $this usf:viaAdapter ?adapter }
+          FILTER NOT EXISTS { $this usf:viaBinding ?binding }
+        }""" ] .
+
+shp:ImplementationShape a sh:NodeShape ;
+    usf:canonicalName "implementationshape" ;
+    sh:targetClass usf:Implementation .
+
+shp:ServiceShape a sh:NodeShape ;
+    usf:canonicalName "serviceshape" ;
+    sh:targetClass usf:Service ;
+    sh:property [ sh:path usf:dependsOnService ; sh:nodeKind sh:IRI ; sh:class usf:Service ;
+        sh:message "servicedependency: a service dependency must reference a declared service" ] .
+
+shp:AdapterShape a sh:NodeShape ;
+    usf:canonicalName "adaptershape" ;
+    sh:targetClass usf:Adapter ;
+    sh:property [ sh:path usf:implementsPort ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Port ;
+        sh:message "adapterport: adapter must implement exactly one port" ] ;
+    sh:property [ sh:path usf:bindsProvider ; sh:minCount 1 ; sh:class usf:Provider ;
+        sh:message "adapterprovider: adapter must bind at least one provider" ] .
+
+shp:BindingShape a sh:NodeShape ;
+    usf:canonicalName "bindingshape" ;
+    sh:targetClass usf:Binding ;
+    sh:property [ sh:path usf:bindsPort ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Port ;
+        sh:message "bindingport: binding must name exactly one port" ] ;
+    sh:property [ sh:path usf:bindsProvider ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Provider ;
+        sh:message "bindingprovider: binding must name exactly one provider" ] ;
+    sh:property [ sh:path usf:hasProviderMode ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ProviderMode ;
+        sh:message "bindingprovidermode: binding must declare exactly one provider mode" ] ;
+    sh:property [ sh:path usf:bindingState ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:BindingState ;
+        sh:message "bindingstate: binding must declare exactly one lifecycle state" ] .

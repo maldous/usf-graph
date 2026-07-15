@@ -1,0 +1,946 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix wf: <urn:usf:workflow:> .
+@prefix evt: <urn:usf:event:> .
+@prefix msg: <urn:usf:message:> .
+@prefix stt: <urn:usf:state:> .
+@prefix tr: <urn:usf:transition:> .
+@prefix del: <urn:usf:deliverysemantics:> .
+@prefix cap: <urn:usf:capability:> .
+
+<urn:usf:graph:interactions> {
+    evt:authenticationlogin a usf:Event ;
+        usf:canonicalName "authenticationlogin" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:authorizationdecision a usf:Event ;
+        usf:canonicalName "authorizationdecision" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:breakglassgranted a usf:Event ;
+        usf:canonicalName "breakglassgranted" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:bulkoperationapproved a usf:Event ;
+        usf:canonicalName "bulkoperationapproved" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:bulkoperationcancelled a usf:Event ;
+        usf:canonicalName "bulkoperationcancelled" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:bulkoperationcompleted a usf:Event ;
+        usf:canonicalName "bulkoperationcompleted" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:bulkoperationcreated a usf:Event ;
+        usf:canonicalName "bulkoperationcreated" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:bulkoperationdenied a usf:Event ;
+        usf:canonicalName "bulkoperationdenied" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:bulkoperationfailed a usf:Event ;
+        usf:canonicalName "bulkoperationfailed" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:bulkoperationpreviewed a usf:Event ;
+        usf:canonicalName "bulkoperationpreviewed" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:bulkoperationpurged a usf:Event ;
+        usf:canonicalName "bulkoperationpurged" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:bulkoperationrolledback a usf:Event ;
+        usf:canonicalName "bulkoperationrolledback" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:bulkoperationstarted a usf:Event ;
+        usf:canonicalName "bulkoperationstarted" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:bulkoperationvalidated a usf:Event ;
+        usf:canonicalName "bulkoperationvalidated" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:dataexported a usf:Event ;
+        usf:canonicalName "dataexported" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:eventauthenticationloginaudit a usf:Event ;
+        usf:canonicalName "eventauthenticationloginaudit" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:evidencepackagecreated a usf:Event ;
+        usf:canonicalName "evidencepackagecreated" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:export a usf:Event ;
+        usf:canonicalName "export" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:fileuploaded a usf:Event ;
+        usf:canonicalName "fileuploaded" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:import a usf:Event ;
+        usf:canonicalName "import" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:jobcancelled a usf:Event ;
+        usf:canonicalName "jobcancelled" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:jobcompleted a usf:Event ;
+        usf:canonicalName "jobcompleted" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:jobcreated a usf:Event ;
+        usf:canonicalName "jobcreated" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:jobdeadlettered a usf:Event ;
+        usf:canonicalName "jobdeadlettered" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:jobdenied a usf:Event ;
+        usf:canonicalName "jobdenied" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:jobfailed a usf:Event ;
+        usf:canonicalName "jobfailed" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:jobleased a usf:Event ;
+        usf:canonicalName "jobleased" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:jobretrying a usf:Event ;
+        usf:canonicalName "jobretrying" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:jobscheduled a usf:Event ;
+        usf:canonicalName "jobscheduled" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:jobstarted a usf:Event ;
+        usf:canonicalName "jobstarted" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:notificationcancelled a usf:Event ;
+        usf:canonicalName "notificationcancelled" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:notificationcreated a usf:Event ;
+        usf:canonicalName "notificationcreated" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:notificationdeadlettered a usf:Event ;
+        usf:canonicalName "notificationdeadlettered" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:notificationdenied a usf:Event ;
+        usf:canonicalName "notificationdenied" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:notificationfailed a usf:Event ;
+        usf:canonicalName "notificationfailed" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:notificationqueued a usf:Event ;
+        usf:canonicalName "notificationqueued" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:notificationread a usf:Event ;
+        usf:canonicalName "notificationread" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:notificationrendered a usf:Event ;
+        usf:canonicalName "notificationrendered" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:notificationretrying a usf:Event ;
+        usf:canonicalName "notificationretrying" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:notificationscheduled a usf:Event ;
+        usf:canonicalName "notificationscheduled" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:notificationsent a usf:Event ;
+        usf:canonicalName "notificationsent" ;
+        usf:carriesMessage msg:notificationdeliverymessage ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:notificationsuppressed a usf:Event ;
+        usf:canonicalName "notificationsuppressed" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:providerconfigured a usf:Event ;
+        usf:canonicalName "providerconfigured" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:tenantcontextaccepted a usf:Event ;
+        usf:carriesMessage msg:tenantcontextmessage ;
+        usf:canonicalName "tenantcontextaccepted" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:workflowapprovalapproved a usf:Event ;
+        usf:canonicalName "workflowapprovalapproved" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:workflowapprovalrejected a usf:Event ;
+        usf:canonicalName "workflowapprovalrejected" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:workflowapprovalrequested a usf:Event ;
+        usf:canonicalName "workflowapprovalrequested" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:workflowcancelled a usf:Event ;
+        usf:canonicalName "workflowcancelled" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:workflowsignalled a usf:Event ;
+        usf:canonicalName "workflowsignalled" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    evt:workflowstarted a usf:Event ;
+        usf:canonicalName "workflowstarted" ;
+        usf:hasDeliverySemantics del:atleastonce .
+    msg:mailmessage a usf:Message ;
+        usf:canonicalName "mailmessage" ;
+        usf:intentionallyStandalone true ;
+        usf:decisionRationale "Captured mail payload evidence for hermetic delivery capture; message flow is modelled through notification events rather than a dedicated mail event." .
+    msg:notificationdeliverymessage a usf:Message ;
+        usf:canonicalName "notificationdeliverymessage" .
+    msg:runtimeproofmessage a usf:Message ;
+        usf:canonicalName "runtimeproofmessage" ;
+        usf:intentionallyStandalone true ;
+        usf:decisionRationale "Captured runtime proof bus payload used by composed event bus proofs; it is capture evidence, not a workflow-carried message." .
+    msg:tenantcontextmessage a usf:Message ;
+        usf:canonicalName "tenantcontextmessage" .
+    stt:apiroutecontractlifecycledeprecated a usf:State ;
+        usf:canonicalName "apiroutecontractlifecycledeprecated" .
+    stt:apiroutecontractlifecycledraft a usf:State ;
+        usf:canonicalName "apiroutecontractlifecycledraft" .
+    stt:apiroutecontractlifecycleexperimental a usf:State ;
+        usf:canonicalName "apiroutecontractlifecycleexperimental" .
+    stt:apiroutecontractlifecycleinternalonly a usf:State ;
+        usf:canonicalName "apiroutecontractlifecycleinternalonly" .
+    stt:apiroutecontractlifecycleremoved a usf:State ;
+        usf:canonicalName "apiroutecontractlifecycleremoved" .
+    stt:apiroutecontractlifecyclestable a usf:State ;
+        usf:canonicalName "apiroutecontractlifecyclestable" .
+    stt:apiroutecontractlifecyclesunset a usf:State ;
+        usf:canonicalName "apiroutecontractlifecyclesunset" .
+    stt:auditeventoutcomecompensated a usf:State ;
+        usf:canonicalName "auditeventoutcomecompensated" .
+    stt:auditeventoutcomedenied a usf:State ;
+        usf:canonicalName "auditeventoutcomedenied" .
+    stt:auditeventoutcomeerror a usf:State ;
+        usf:canonicalName "auditeventoutcomeerror" .
+    stt:auditeventoutcomefailed a usf:State ;
+        usf:canonicalName "auditeventoutcomefailed" .
+    stt:auditeventoutcomepartial a usf:State ;
+        usf:canonicalName "auditeventoutcomepartial" .
+    stt:auditeventoutcomesuccess a usf:State ;
+        usf:canonicalName "auditeventoutcomesuccess" .
+    stt:authenticationidentitycontextworkflowstatesauditandobservabilitycorrelated a usf:State ;
+        usf:canonicalName "authenticationidentitycontextworkflowstatesauditandobservabilitycorrelated" .
+    stt:authenticationidentitycontextworkflowstatesdenied a usf:State ;
+        usf:canonicalName "authenticationidentitycontextworkflowstatesdenied" .
+    stt:authenticationidentitycontextworkflowstatespermissioncontextready a usf:State ;
+        usf:canonicalName "authenticationidentitycontextworkflowstatespermissioncontextready" .
+    stt:authenticationidentitycontextworkflowstatesproofready a usf:State ;
+        usf:canonicalName "authenticationidentitycontextworkflowstatesproofready" .
+    stt:authenticationidentitycontextworkflowstatesrequestwithhost a usf:State ;
+        usf:canonicalName "authenticationidentitycontextworkflowstatesrequestwithhost" .
+    stt:authenticationidentitycontextworkflowstatessessionactorprojected a usf:State ;
+        usf:canonicalName "authenticationidentitycontextworkflowstatessessionactorprojected" .
+    stt:authenticationidentitycontextworkflowstatestenantcontextresolved a usf:State ;
+        usf:canonicalName "authenticationidentitycontextworkflowstatestenantcontextresolved" .
+    stt:authenticationloginworkflowstatesauthenticated a usf:State ;
+        usf:canonicalName "authenticationloginworkflowstatesauthenticated" .
+    stt:authenticationloginworkflowstatesauthenticating a usf:State ;
+        usf:canonicalName "authenticationloginworkflowstatesauthenticating" .
+    stt:authenticationloginworkflowstatesdenied a usf:State ;
+        usf:canonicalName "authenticationloginworkflowstatesdenied" .
+    stt:authenticationloginworkflowstatesunauthenticated a usf:State ;
+        usf:canonicalName "authenticationloginworkflowstatesunauthenticated" .
+    stt:bulkoperationlifecycle a usf:State ;
+        usf:canonicalName "bulkoperationlifecycle" .
+    stt:bulkoperationlifecyclea a usf:State ;
+        usf:canonicalName "bulkoperationlifecyclea" .
+    stt:bulkoperationlifecyclee a usf:State ;
+        usf:canonicalName "bulkoperationlifecyclee" .
+    stt:bulkoperationlifecyclem a usf:State ;
+        usf:canonicalName "bulkoperationlifecyclem" .
+    stt:bulkoperationlifecycles a usf:State ;
+        usf:canonicalName "bulkoperationlifecycles" .
+    stt:bulkoperationlifecyclet a usf:State ;
+        usf:canonicalName "bulkoperationlifecyclet" .
+    stt:bulkoperationstatusapproved a usf:State ;
+        usf:canonicalName "bulkoperationstatusapproved" .
+    stt:bulkoperationstatusawaitingapproval a usf:State ;
+        usf:canonicalName "bulkoperationstatusawaitingapproval" .
+    stt:bulkoperationstatuscancelled a usf:State ;
+        usf:canonicalName "bulkoperationstatuscancelled" .
+    stt:bulkoperationstatusdraft a usf:State ;
+        usf:canonicalName "bulkoperationstatusdraft" .
+    stt:bulkoperationstatusexpired a usf:State ;
+        usf:canonicalName "bulkoperationstatusexpired" .
+    stt:bulkoperationstatusfailed a usf:State ;
+        usf:canonicalName "bulkoperationstatusfailed" .
+    stt:bulkoperationstatuspartiallysucceeded a usf:State ;
+        usf:canonicalName "bulkoperationstatuspartiallysucceeded" .
+    stt:bulkoperationstatuspreviewed a usf:State ;
+        usf:canonicalName "bulkoperationstatuspreviewed" .
+    stt:bulkoperationstatusqueued a usf:State ;
+        usf:canonicalName "bulkoperationstatusqueued" .
+    stt:bulkoperationstatusrunning a usf:State ;
+        usf:canonicalName "bulkoperationstatusrunning" .
+    stt:bulkoperationstatussucceeded a usf:State ;
+        usf:canonicalName "bulkoperationstatussucceeded" .
+    stt:bulkoperationstatusvalidating a usf:State ;
+        usf:canonicalName "bulkoperationstatusvalidating" .
+    stt:filescanstatusvalueclean a usf:State ;
+        usf:canonicalName "filescanstatusvalueclean" .
+    stt:filescanstatusvaluefailed a usf:State ;
+        usf:canonicalName "filescanstatusvaluefailed" .
+    stt:filescanstatusvalueinfected a usf:State ;
+        usf:canonicalName "filescanstatusvalueinfected" .
+    stt:filescanstatusvaluenotrequired a usf:State ;
+        usf:canonicalName "filescanstatusvaluenotrequired" .
+    stt:filescanstatusvaluepending a usf:State ;
+        usf:canonicalName "filescanstatusvaluepending" .
+    stt:filescanstatusvalueproviderunavailable a usf:State ;
+        usf:canonicalName "filescanstatusvalueproviderunavailable" .
+    stt:filescanstatusvaluequarantined a usf:State ;
+        usf:canonicalName "filescanstatusvaluequarantined" .
+    stt:filescanstatusvaluesuspicious a usf:State ;
+        usf:canonicalName "filescanstatusvaluesuspicious" .
+    stt:filestatusvalueavailable a usf:State ;
+        usf:canonicalName "filestatusvalueavailable" .
+    stt:filestatusvalueblocked a usf:State ;
+        usf:canonicalName "filestatusvalueblocked" .
+    stt:filestatusvaluedeleted a usf:State ;
+        usf:canonicalName "filestatusvaluedeleted" .
+    stt:filestatusvaluefailed a usf:State ;
+        usf:canonicalName "filestatusvaluefailed" .
+    stt:filestatusvaluependingupload a usf:State ;
+        usf:canonicalName "filestatusvaluependingupload" .
+    stt:filestatusvaluepurged a usf:State ;
+        usf:canonicalName "filestatusvaluepurged" .
+    stt:filestatusvaluequarantined a usf:State ;
+        usf:canonicalName "filestatusvaluequarantined" .
+    stt:filestatusvaluerestored a usf:State ;
+        usf:canonicalName "filestatusvaluerestored" .
+    stt:filestatusvalueuploaded a usf:State ;
+        usf:canonicalName "filestatusvalueuploaded" .
+    stt:guardraildecisionoutcomeallow a usf:State ;
+        usf:canonicalName "guardraildecisionoutcomeallow" .
+    stt:guardraildecisionoutcomedegrade a usf:State ;
+        usf:canonicalName "guardraildecisionoutcomedegrade" .
+    stt:guardraildecisionoutcomedelay a usf:State ;
+        usf:canonicalName "guardraildecisionoutcomedelay" .
+    stt:guardraildecisionoutcomedeny a usf:State ;
+        usf:canonicalName "guardraildecisionoutcomedeny" .
+    stt:guardraildecisionoutcomemonitoronly a usf:State ;
+        usf:canonicalName "guardraildecisionoutcomemonitoronly" .
+    stt:guardraildecisionoutcomeshadowdeny a usf:State ;
+        usf:canonicalName "guardraildecisionoutcomeshadowdeny" .
+    stt:guardraildecisionoutcomethrottle a usf:State ;
+        usf:canonicalName "guardraildecisionoutcomethrottle" .
+    stt:jobfailureclassauthorizationdenied a usf:State ;
+        usf:canonicalName "jobfailureclassauthorizationdenied" .
+    stt:jobfailureclasscancelled a usf:State ;
+        usf:canonicalName "jobfailureclasscancelled" .
+    stt:jobfailureclassidempotencyconflict a usf:State ;
+        usf:canonicalName "jobfailureclassidempotencyconflict" .
+    stt:jobfailureclasspermanenterror a usf:State ;
+        usf:canonicalName "jobfailureclasspermanenterror" .
+    stt:jobfailureclassproviderdenied a usf:State ;
+        usf:canonicalName "jobfailureclassproviderdenied" .
+    stt:jobfailureclassprovidererror a usf:State ;
+        usf:canonicalName "jobfailureclassprovidererror" .
+    stt:jobfailureclassprovidertimeout a usf:State ;
+        usf:canonicalName "jobfailureclassprovidertimeout" .
+    stt:jobfailureclasstenantcontextmismatch a usf:State ;
+        usf:canonicalName "jobfailureclasstenantcontextmismatch" .
+    stt:jobfailureclasstenantcontextmissing a usf:State ;
+        usf:canonicalName "jobfailureclasstenantcontextmissing" .
+    stt:jobfailureclasstimeout a usf:State ;
+        usf:canonicalName "jobfailureclasstimeout" .
+    stt:jobfailureclasstransienterror a usf:State ;
+        usf:canonicalName "jobfailureclasstransienterror" .
+    stt:jobfailureclassvalidationfailed a usf:State ;
+        usf:canonicalName "jobfailureclassvalidationfailed" .
+    stt:jobstatusawaitingapproval a usf:State ;
+        usf:canonicalName "jobstatusawaitingapproval" .
+    stt:jobstatuscancelled a usf:State ;
+        usf:canonicalName "jobstatuscancelled" .
+    stt:jobstatusdeadlettered a usf:State ;
+        usf:canonicalName "jobstatusdeadlettered" .
+    stt:jobstatusexpired a usf:State ;
+        usf:canonicalName "jobstatusexpired" .
+    stt:jobstatusfailed a usf:State ;
+        usf:canonicalName "jobstatusfailed" .
+    stt:jobstatusleased a usf:State ;
+        usf:canonicalName "jobstatusleased" .
+    stt:jobstatusqueued a usf:State ;
+        usf:canonicalName "jobstatusqueued" .
+    stt:jobstatusretrying a usf:State ;
+        usf:canonicalName "jobstatusretrying" .
+    stt:jobstatusrunning a usf:State ;
+        usf:canonicalName "jobstatusrunning" .
+    stt:jobstatusscheduled a usf:State ;
+        usf:canonicalName "jobstatusscheduled" .
+    stt:jobstatussucceeded a usf:State ;
+        usf:canonicalName "jobstatussucceeded" .
+    stt:jobstatuswaiting a usf:State ;
+        usf:canonicalName "jobstatuswaiting" .
+    stt:notificationdeliverystatusdeadlettered a usf:State ;
+        usf:canonicalName "notificationdeliverystatusdeadlettered" .
+    stt:notificationdeliverystatusdelivered a usf:State ;
+        usf:canonicalName "notificationdeliverystatusdelivered" .
+    stt:notificationdeliverystatusdraft a usf:State ;
+        usf:canonicalName "notificationdeliverystatusdraft" .
+    stt:notificationdeliverystatusfailed a usf:State ;
+        usf:canonicalName "notificationdeliverystatusfailed" .
+    stt:notificationdeliverystatusqueued a usf:State ;
+        usf:canonicalName "notificationdeliverystatusqueued" .
+    stt:notificationdeliverystatusrendered a usf:State ;
+        usf:canonicalName "notificationdeliverystatusrendered" .
+    stt:notificationdeliverystatusrendering a usf:State ;
+        usf:canonicalName "notificationdeliverystatusrendering" .
+    stt:notificationdeliverystatusretrying a usf:State ;
+        usf:canonicalName "notificationdeliverystatusretrying" .
+    stt:notificationdeliverystatusscheduled a usf:State ;
+        usf:canonicalName "notificationdeliverystatusscheduled" .
+    stt:notificationdeliverystatussending a usf:State ;
+        usf:canonicalName "notificationdeliverystatussending" .
+    stt:notificationdeliverystatussent a usf:State ;
+        usf:canonicalName "notificationdeliverystatussent" .
+    stt:notificationdeliverystatussuppressed a usf:State ;
+        usf:canonicalName "notificationdeliverystatussuppressed" .
+    stt:resourcelifecyclestatusactive a usf:State ;
+        usf:canonicalName "resourcelifecyclestatusactive" .
+    stt:resourcelifecyclestatusarchived a usf:State ;
+        usf:canonicalName "resourcelifecyclestatusarchived" .
+    stt:resourcelifecyclestatusdraft a usf:State ;
+        usf:canonicalName "resourcelifecyclestatusdraft" .
+    stt:resourcelifecyclestatusheld a usf:State ;
+        usf:canonicalName "resourcelifecyclestatusheld" .
+    stt:resourcelifecyclestatuslocked a usf:State ;
+        usf:canonicalName "resourcelifecyclestatuslocked" .
+    stt:resourcelifecyclestatusmerged a usf:State ;
+        usf:canonicalName "resourcelifecyclestatusmerged" .
+    stt:resourcelifecyclestatuspendingdelete a usf:State ;
+        usf:canonicalName "resourcelifecyclestatuspendingdelete" .
+    stt:resourcelifecyclestatuspurged a usf:State ;
+        usf:canonicalName "resourcelifecyclestatuspurged" .
+    stt:resourcelifecyclestatuspurgeeligible a usf:State ;
+        usf:canonicalName "resourcelifecyclestatuspurgeeligible" .
+    stt:resourcelifecyclestatussoftdeleted a usf:State ;
+        usf:canonicalName "resourcelifecyclestatussoftdeleted" .
+    stt:resourcelifecyclestatussuperseded a usf:State ;
+        usf:canonicalName "resourcelifecyclestatussuperseded" .
+    stt:resourcelifecyclestatussuspended a usf:State ;
+        usf:canonicalName "resourcelifecyclestatussuspended" .
+    stt:workflowauthenticationidentitycontextauditandobservabilitycorrelated a usf:State ;
+        usf:canonicalName "workflowauthenticationidentitycontextauditandobservabilitycorrelated" .
+    stt:workflowauthenticationidentitycontextdenied a usf:State ;
+        usf:canonicalName "workflowauthenticationidentitycontextdenied" .
+    stt:workflowauthenticationidentitycontextpermissioncontextready a usf:State ;
+        usf:canonicalName "workflowauthenticationidentitycontextpermissioncontextready" .
+    stt:workflowauthenticationidentitycontextproofready a usf:State ;
+        usf:canonicalName "workflowauthenticationidentitycontextproofready" .
+    stt:workflowauthenticationidentitycontextrequestwithhost a usf:State ;
+        usf:canonicalName "workflowauthenticationidentitycontextrequestwithhost" .
+    stt:workflowauthenticationidentitycontextsessionactorprojected a usf:State ;
+        usf:canonicalName "workflowauthenticationidentitycontextsessionactorprojected" .
+    stt:workflowauthenticationidentitycontexttenantcontextresolved a usf:State ;
+        usf:canonicalName "workflowauthenticationidentitycontexttenantcontextresolved" .
+    stt:workflowauthenticationloginauthenticated a usf:State ;
+        usf:canonicalName "workflowauthenticationloginauthenticated" .
+    stt:workflowauthenticationloginauthenticating a usf:State ;
+        usf:canonicalName "workflowauthenticationloginauthenticating" .
+    stt:workflowauthenticationlogindenied a usf:State ;
+        usf:canonicalName "workflowauthenticationlogindenied" .
+    stt:workflowauthenticationloginunauthenticated a usf:State ;
+        usf:canonicalName "workflowauthenticationloginunauthenticated" .
+    stt:workflowstatusawaitingapproval a usf:State ;
+        usf:canonicalName "workflowstatusawaitingapproval" .
+    stt:workflowstatuscancelled a usf:State ;
+        usf:canonicalName "workflowstatuscancelled" .
+    stt:workflowstatuscompleted a usf:State ;
+        usf:canonicalName "workflowstatuscompleted" .
+    stt:workflowstatusfailed a usf:State ;
+        usf:canonicalName "workflowstatusfailed" .
+    stt:workflowstatusrunning a usf:State ;
+        usf:canonicalName "workflowstatusrunning" .
+    stt:workflowstatuswaiting a usf:State ;
+        usf:canonicalName "workflowstatuswaiting" .
+    tr:apiroutecontractlifecycletr0 a usf:Transition ;
+        usf:canonicalName "apiroutecontractlifecycletr0" ;
+        usf:fromState stt:apiroutecontractlifecycledraft ;
+        usf:toState stt:apiroutecontractlifecycleexperimental .
+    tr:apiroutecontractlifecycletr1 a usf:Transition ;
+        usf:canonicalName "apiroutecontractlifecycletr1" ;
+        usf:fromState stt:apiroutecontractlifecycleexperimental ;
+        usf:toState stt:apiroutecontractlifecyclestable .
+    tr:apiroutecontractlifecycletr2 a usf:Transition ;
+        usf:canonicalName "apiroutecontractlifecycletr2" ;
+        usf:fromState stt:apiroutecontractlifecyclestable ;
+        usf:toState stt:apiroutecontractlifecycledeprecated .
+    tr:apiroutecontractlifecycletr3 a usf:Transition ;
+        usf:canonicalName "apiroutecontractlifecycletr3" ;
+        usf:fromState stt:apiroutecontractlifecycledeprecated ;
+        usf:toState stt:apiroutecontractlifecyclesunset .
+    tr:apiroutecontractlifecycletr4 a usf:Transition ;
+        usf:canonicalName "apiroutecontractlifecycletr4" ;
+        usf:fromState stt:apiroutecontractlifecyclesunset ;
+        usf:toState stt:apiroutecontractlifecycleremoved .
+    tr:apiroutecontractlifecycletr5 a usf:Transition ;
+        usf:canonicalName "apiroutecontractlifecycletr5" ;
+        usf:fromState stt:apiroutecontractlifecycleremoved ;
+        usf:toState stt:apiroutecontractlifecycleinternalonly .
+    tr:auditeventoutcometr0 a usf:Transition ;
+        usf:canonicalName "auditeventoutcometr0" ;
+        usf:fromState stt:auditeventoutcomesuccess ;
+        usf:toState stt:auditeventoutcomedenied .
+    tr:auditeventoutcometr1 a usf:Transition ;
+        usf:canonicalName "auditeventoutcometr1" ;
+        usf:fromState stt:auditeventoutcomedenied ;
+        usf:toState stt:auditeventoutcomefailed .
+    tr:auditeventoutcometr2 a usf:Transition ;
+        usf:canonicalName "auditeventoutcometr2" ;
+        usf:fromState stt:auditeventoutcomefailed ;
+        usf:toState stt:auditeventoutcomeerror .
+    tr:auditeventoutcometr3 a usf:Transition ;
+        usf:canonicalName "auditeventoutcometr3" ;
+        usf:fromState stt:auditeventoutcomeerror ;
+        usf:toState stt:auditeventoutcomepartial .
+    tr:auditeventoutcometr4 a usf:Transition ;
+        usf:canonicalName "auditeventoutcometr4" ;
+        usf:fromState stt:auditeventoutcomepartial ;
+        usf:toState stt:auditeventoutcomecompensated .
+    tr:authenticationidentitycontextworkflowstatestr0 a usf:Transition ;
+        usf:canonicalName "authenticationidentitycontextworkflowstatestr0" ;
+        usf:fromState stt:authenticationidentitycontextworkflowstatesrequestwithhost ;
+        usf:toState stt:authenticationidentitycontextworkflowstatestenantcontextresolved .
+    tr:authenticationidentitycontextworkflowstatestr1 a usf:Transition ;
+        usf:canonicalName "authenticationidentitycontextworkflowstatestr1" ;
+        usf:fromState stt:authenticationidentitycontextworkflowstatestenantcontextresolved ;
+        usf:toState stt:authenticationidentitycontextworkflowstatessessionactorprojected .
+    tr:authenticationidentitycontextworkflowstatestr2 a usf:Transition ;
+        usf:canonicalName "authenticationidentitycontextworkflowstatestr2" ;
+        usf:fromState stt:authenticationidentitycontextworkflowstatessessionactorprojected ;
+        usf:toState stt:authenticationidentitycontextworkflowstatespermissioncontextready .
+    tr:authenticationidentitycontextworkflowstatestr3 a usf:Transition ;
+        usf:canonicalName "authenticationidentitycontextworkflowstatestr3" ;
+        usf:fromState stt:authenticationidentitycontextworkflowstatespermissioncontextready ;
+        usf:toState stt:authenticationidentitycontextworkflowstatesauditandobservabilitycorrelated .
+    tr:authenticationidentitycontextworkflowstatestr4 a usf:Transition ;
+        usf:canonicalName "authenticationidentitycontextworkflowstatestr4" ;
+        usf:fromState stt:authenticationidentitycontextworkflowstatesauditandobservabilitycorrelated ;
+        usf:toState stt:authenticationidentitycontextworkflowstatesproofready .
+    tr:authenticationidentitycontextworkflowstatestr5 a usf:Transition ;
+        usf:canonicalName "authenticationidentitycontextworkflowstatestr5" ;
+        usf:fromState stt:authenticationidentitycontextworkflowstatesproofready ;
+        usf:toState stt:authenticationidentitycontextworkflowstatesdenied .
+    tr:authenticationloginworkflowstatestr0 a usf:Transition ;
+        usf:canonicalName "authenticationloginworkflowstatestr0" ;
+        usf:fromState stt:authenticationloginworkflowstatesunauthenticated ;
+        usf:toState stt:authenticationloginworkflowstatesauthenticating .
+    tr:authenticationloginworkflowstatestr1 a usf:Transition ;
+        usf:canonicalName "authenticationloginworkflowstatestr1" ;
+        usf:fromState stt:authenticationloginworkflowstatesauthenticating ;
+        usf:toState stt:authenticationloginworkflowstatesauthenticated .
+    tr:authenticationloginworkflowstatestr2 a usf:Transition ;
+        usf:canonicalName "authenticationloginworkflowstatestr2" ;
+        usf:fromState stt:authenticationloginworkflowstatesauthenticated ;
+        usf:toState stt:authenticationloginworkflowstatesdenied .
+    tr:bulkoperationlifecyclet0 a usf:Transition ;
+        usf:canonicalName "bulkoperationlifecyclet0" ;
+        usf:fromState stt:bulkoperationlifecycles ;
+        usf:toState stt:bulkoperationlifecyclee .
+    tr:bulkoperationlifecyclet1 a usf:Transition ;
+        usf:canonicalName "bulkoperationlifecyclet1" ;
+        usf:fromState stt:bulkoperationlifecyclee ;
+        usf:toState stt:bulkoperationlifecyclee .
+    tr:bulkoperationlifecyclet2 a usf:Transition ;
+        usf:canonicalName "bulkoperationlifecyclet2" ;
+        usf:fromState stt:bulkoperationlifecyclee ;
+        usf:toState stt:bulkoperationlifecycle .
+    tr:bulkoperationlifecyclet3 a usf:Transition ;
+        usf:canonicalName "bulkoperationlifecyclet3" ;
+        usf:fromState stt:bulkoperationlifecycle ;
+        usf:toState stt:bulkoperationlifecycles .
+    tr:bulkoperationlifecyclet4 a usf:Transition ;
+        usf:canonicalName "bulkoperationlifecyclet4" ;
+        usf:fromState stt:bulkoperationlifecycles ;
+        usf:toState stt:bulkoperationlifecyclet .
+    tr:bulkoperationlifecyclet5 a usf:Transition ;
+        usf:canonicalName "bulkoperationlifecyclet5" ;
+        usf:fromState stt:bulkoperationlifecyclet ;
+        usf:toState stt:bulkoperationlifecyclea .
+    tr:bulkoperationlifecyclet6 a usf:Transition ;
+        usf:canonicalName "bulkoperationlifecyclet6" ;
+        usf:fromState stt:bulkoperationlifecyclea ;
+        usf:toState stt:bulkoperationlifecyclet .
+    tr:bulkoperationlifecyclet7 a usf:Transition ;
+        usf:canonicalName "bulkoperationlifecyclet7" ;
+        usf:fromState stt:bulkoperationlifecyclet ;
+        usf:toState stt:bulkoperationlifecyclee .
+    tr:bulkoperationlifecyclet8 a usf:Transition ;
+        usf:canonicalName "bulkoperationlifecyclet8" ;
+        usf:fromState stt:bulkoperationlifecyclee ;
+        usf:toState stt:bulkoperationlifecyclem .
+    tr:bulkoperationstatustr0 a usf:Transition ;
+        usf:canonicalName "bulkoperationstatustr0" ;
+        usf:fromState stt:bulkoperationstatusdraft ;
+        usf:toState stt:bulkoperationstatusqueued .
+    tr:bulkoperationstatustr1 a usf:Transition ;
+        usf:canonicalName "bulkoperationstatustr1" ;
+        usf:fromState stt:bulkoperationstatusqueued ;
+        usf:toState stt:bulkoperationstatusvalidating .
+    tr:bulkoperationstatustr10 a usf:Transition ;
+        usf:canonicalName "bulkoperationstatustr10" ;
+        usf:fromState stt:bulkoperationstatuscancelled ;
+        usf:toState stt:bulkoperationstatusexpired .
+    tr:bulkoperationstatustr2 a usf:Transition ;
+        usf:canonicalName "bulkoperationstatustr2" ;
+        usf:fromState stt:bulkoperationstatusvalidating ;
+        usf:toState stt:bulkoperationstatuspreviewed .
+    tr:bulkoperationstatustr3 a usf:Transition ;
+        usf:canonicalName "bulkoperationstatustr3" ;
+        usf:fromState stt:bulkoperationstatuspreviewed ;
+        usf:toState stt:bulkoperationstatusawaitingapproval .
+    tr:bulkoperationstatustr4 a usf:Transition ;
+        usf:canonicalName "bulkoperationstatustr4" ;
+        usf:fromState stt:bulkoperationstatusawaitingapproval ;
+        usf:toState stt:bulkoperationstatusapproved .
+    tr:bulkoperationstatustr5 a usf:Transition ;
+        usf:canonicalName "bulkoperationstatustr5" ;
+        usf:fromState stt:bulkoperationstatusapproved ;
+        usf:toState stt:bulkoperationstatusrunning .
+    tr:bulkoperationstatustr6 a usf:Transition ;
+        usf:canonicalName "bulkoperationstatustr6" ;
+        usf:fromState stt:bulkoperationstatusrunning ;
+        usf:toState stt:bulkoperationstatussucceeded .
+    tr:bulkoperationstatustr7 a usf:Transition ;
+        usf:canonicalName "bulkoperationstatustr7" ;
+        usf:fromState stt:bulkoperationstatussucceeded ;
+        usf:toState stt:bulkoperationstatuspartiallysucceeded .
+    tr:bulkoperationstatustr8 a usf:Transition ;
+        usf:canonicalName "bulkoperationstatustr8" ;
+        usf:fromState stt:bulkoperationstatuspartiallysucceeded ;
+        usf:toState stt:bulkoperationstatusfailed .
+    tr:bulkoperationstatustr9 a usf:Transition ;
+        usf:canonicalName "bulkoperationstatustr9" ;
+        usf:fromState stt:bulkoperationstatusfailed ;
+        usf:toState stt:bulkoperationstatuscancelled .
+    tr:filescanstatusvaluetr0 a usf:Transition ;
+        usf:canonicalName "filescanstatusvaluetr0" ;
+        usf:fromState stt:filescanstatusvaluenotrequired ;
+        usf:toState stt:filescanstatusvaluepending .
+    tr:filescanstatusvaluetr1 a usf:Transition ;
+        usf:canonicalName "filescanstatusvaluetr1" ;
+        usf:fromState stt:filescanstatusvaluepending ;
+        usf:toState stt:filescanstatusvalueclean .
+    tr:filescanstatusvaluetr2 a usf:Transition ;
+        usf:canonicalName "filescanstatusvaluetr2" ;
+        usf:fromState stt:filescanstatusvalueclean ;
+        usf:toState stt:filescanstatusvaluesuspicious .
+    tr:filescanstatusvaluetr3 a usf:Transition ;
+        usf:canonicalName "filescanstatusvaluetr3" ;
+        usf:fromState stt:filescanstatusvaluesuspicious ;
+        usf:toState stt:filescanstatusvalueinfected .
+    tr:filescanstatusvaluetr4 a usf:Transition ;
+        usf:canonicalName "filescanstatusvaluetr4" ;
+        usf:fromState stt:filescanstatusvalueinfected ;
+        usf:toState stt:filescanstatusvaluefailed .
+    tr:filescanstatusvaluetr5 a usf:Transition ;
+        usf:canonicalName "filescanstatusvaluetr5" ;
+        usf:fromState stt:filescanstatusvaluefailed ;
+        usf:toState stt:filescanstatusvaluequarantined .
+    tr:filescanstatusvaluetr6 a usf:Transition ;
+        usf:canonicalName "filescanstatusvaluetr6" ;
+        usf:fromState stt:filescanstatusvaluequarantined ;
+        usf:toState stt:filescanstatusvalueproviderunavailable .
+    tr:filestatusvaluetr0 a usf:Transition ;
+        usf:canonicalName "filestatusvaluetr0" ;
+        usf:fromState stt:filestatusvaluependingupload ;
+        usf:toState stt:filestatusvalueuploaded .
+    tr:filestatusvaluetr1 a usf:Transition ;
+        usf:canonicalName "filestatusvaluetr1" ;
+        usf:fromState stt:filestatusvalueuploaded ;
+        usf:toState stt:filestatusvalueavailable .
+    tr:filestatusvaluetr2 a usf:Transition ;
+        usf:canonicalName "filestatusvaluetr2" ;
+        usf:fromState stt:filestatusvalueavailable ;
+        usf:toState stt:filestatusvaluequarantined .
+    tr:filestatusvaluetr3 a usf:Transition ;
+        usf:canonicalName "filestatusvaluetr3" ;
+        usf:fromState stt:filestatusvaluequarantined ;
+        usf:toState stt:filestatusvalueblocked .
+    tr:filestatusvaluetr4 a usf:Transition ;
+        usf:canonicalName "filestatusvaluetr4" ;
+        usf:fromState stt:filestatusvalueblocked ;
+        usf:toState stt:filestatusvaluedeleted .
+    tr:filestatusvaluetr5 a usf:Transition ;
+        usf:canonicalName "filestatusvaluetr5" ;
+        usf:fromState stt:filestatusvaluedeleted ;
+        usf:toState stt:filestatusvaluerestored .
+    tr:filestatusvaluetr6 a usf:Transition ;
+        usf:canonicalName "filestatusvaluetr6" ;
+        usf:fromState stt:filestatusvaluerestored ;
+        usf:toState stt:filestatusvaluepurged .
+    tr:filestatusvaluetr7 a usf:Transition ;
+        usf:canonicalName "filestatusvaluetr7" ;
+        usf:fromState stt:filestatusvaluepurged ;
+        usf:toState stt:filestatusvaluefailed .
+    tr:guardraildecisionoutcometr0 a usf:Transition ;
+        usf:canonicalName "guardraildecisionoutcometr0" ;
+        usf:fromState stt:guardraildecisionoutcomeallow ;
+        usf:toState stt:guardraildecisionoutcomedeny .
+    tr:guardraildecisionoutcometr1 a usf:Transition ;
+        usf:canonicalName "guardraildecisionoutcometr1" ;
+        usf:fromState stt:guardraildecisionoutcomedeny ;
+        usf:toState stt:guardraildecisionoutcomedelay .
+    tr:guardraildecisionoutcometr2 a usf:Transition ;
+        usf:canonicalName "guardraildecisionoutcometr2" ;
+        usf:fromState stt:guardraildecisionoutcomedelay ;
+        usf:toState stt:guardraildecisionoutcomethrottle .
+    tr:guardraildecisionoutcometr3 a usf:Transition ;
+        usf:canonicalName "guardraildecisionoutcometr3" ;
+        usf:fromState stt:guardraildecisionoutcomethrottle ;
+        usf:toState stt:guardraildecisionoutcomedegrade .
+    tr:guardraildecisionoutcometr4 a usf:Transition ;
+        usf:canonicalName "guardraildecisionoutcometr4" ;
+        usf:fromState stt:guardraildecisionoutcomedegrade ;
+        usf:toState stt:guardraildecisionoutcomemonitoronly .
+    tr:guardraildecisionoutcometr5 a usf:Transition ;
+        usf:canonicalName "guardraildecisionoutcometr5" ;
+        usf:fromState stt:guardraildecisionoutcomemonitoronly ;
+        usf:toState stt:guardraildecisionoutcomeshadowdeny .
+    tr:jobfailureclasstr0 a usf:Transition ;
+        usf:canonicalName "jobfailureclasstr0" ;
+        usf:fromState stt:jobfailureclassvalidationfailed ;
+        usf:toState stt:jobfailureclassauthorizationdenied .
+    tr:jobfailureclasstr1 a usf:Transition ;
+        usf:canonicalName "jobfailureclasstr1" ;
+        usf:fromState stt:jobfailureclassauthorizationdenied ;
+        usf:toState stt:jobfailureclasstenantcontextmissing .
+    tr:jobfailureclasstr10 a usf:Transition ;
+        usf:canonicalName "jobfailureclasstr10" ;
+        usf:fromState stt:jobfailureclasstimeout ;
+        usf:toState stt:jobfailureclasscancelled .
+    tr:jobfailureclasstr2 a usf:Transition ;
+        usf:canonicalName "jobfailureclasstr2" ;
+        usf:fromState stt:jobfailureclasstenantcontextmissing ;
+        usf:toState stt:jobfailureclasstenantcontextmismatch .
+    tr:jobfailureclasstr3 a usf:Transition ;
+        usf:canonicalName "jobfailureclasstr3" ;
+        usf:fromState stt:jobfailureclasstenantcontextmismatch ;
+        usf:toState stt:jobfailureclassidempotencyconflict .
+    tr:jobfailureclasstr4 a usf:Transition ;
+        usf:canonicalName "jobfailureclasstr4" ;
+        usf:fromState stt:jobfailureclassidempotencyconflict ;
+        usf:toState stt:jobfailureclassprovidertimeout .
+    tr:jobfailureclasstr5 a usf:Transition ;
+        usf:canonicalName "jobfailureclasstr5" ;
+        usf:fromState stt:jobfailureclassprovidertimeout ;
+        usf:toState stt:jobfailureclassproviderdenied .
+    tr:jobfailureclasstr6 a usf:Transition ;
+        usf:canonicalName "jobfailureclasstr6" ;
+        usf:fromState stt:jobfailureclassproviderdenied ;
+        usf:toState stt:jobfailureclassprovidererror .
+    tr:jobfailureclasstr7 a usf:Transition ;
+        usf:canonicalName "jobfailureclasstr7" ;
+        usf:fromState stt:jobfailureclassprovidererror ;
+        usf:toState stt:jobfailureclasstransienterror .
+    tr:jobfailureclasstr8 a usf:Transition ;
+        usf:canonicalName "jobfailureclasstr8" ;
+        usf:fromState stt:jobfailureclasstransienterror ;
+        usf:toState stt:jobfailureclasspermanenterror .
+    tr:jobfailureclasstr9 a usf:Transition ;
+        usf:canonicalName "jobfailureclasstr9" ;
+        usf:fromState stt:jobfailureclasspermanenterror ;
+        usf:toState stt:jobfailureclasstimeout .
+    tr:jobstatustr0 a usf:Transition ;
+        usf:canonicalName "jobstatustr0" ;
+        usf:fromState stt:jobstatusqueued ;
+        usf:toState stt:jobstatusscheduled .
+    tr:jobstatustr1 a usf:Transition ;
+        usf:canonicalName "jobstatustr1" ;
+        usf:fromState stt:jobstatusscheduled ;
+        usf:toState stt:jobstatusleased .
+    tr:jobstatustr10 a usf:Transition ;
+        usf:canonicalName "jobstatustr10" ;
+        usf:fromState stt:jobstatuscancelled ;
+        usf:toState stt:jobstatusexpired .
+    tr:jobstatustr2 a usf:Transition ;
+        usf:canonicalName "jobstatustr2" ;
+        usf:fromState stt:jobstatusleased ;
+        usf:toState stt:jobstatusrunning .
+    tr:jobstatustr3 a usf:Transition ;
+        usf:canonicalName "jobstatustr3" ;
+        usf:fromState stt:jobstatusrunning ;
+        usf:toState stt:jobstatuswaiting .
+    tr:jobstatustr4 a usf:Transition ;
+        usf:canonicalName "jobstatustr4" ;
+        usf:fromState stt:jobstatuswaiting ;
+        usf:toState stt:jobstatusawaitingapproval .
+    tr:jobstatustr5 a usf:Transition ;
+        usf:canonicalName "jobstatustr5" ;
+        usf:fromState stt:jobstatusawaitingapproval ;
+        usf:toState stt:jobstatussucceeded .
+    tr:jobstatustr6 a usf:Transition ;
+        usf:canonicalName "jobstatustr6" ;
+        usf:fromState stt:jobstatussucceeded ;
+        usf:toState stt:jobstatusfailed .
+    tr:jobstatustr7 a usf:Transition ;
+        usf:canonicalName "jobstatustr7" ;
+        usf:fromState stt:jobstatusfailed ;
+        usf:toState stt:jobstatusretrying .
+    tr:jobstatustr8 a usf:Transition ;
+        usf:canonicalName "jobstatustr8" ;
+        usf:fromState stt:jobstatusretrying ;
+        usf:toState stt:jobstatusdeadlettered .
+    tr:jobstatustr9 a usf:Transition ;
+        usf:canonicalName "jobstatustr9" ;
+        usf:fromState stt:jobstatusdeadlettered ;
+        usf:toState stt:jobstatuscancelled .
+    tr:notificationdeliverystatustr0 a usf:Transition ;
+        usf:canonicalName "notificationdeliverystatustr0" ;
+        usf:fromState stt:notificationdeliverystatusdraft ;
+        usf:toState stt:notificationdeliverystatusqueued .
+    tr:notificationdeliverystatustr1 a usf:Transition ;
+        usf:canonicalName "notificationdeliverystatustr1" ;
+        usf:fromState stt:notificationdeliverystatusqueued ;
+        usf:toState stt:notificationdeliverystatusscheduled .
+    tr:notificationdeliverystatustr10 a usf:Transition ;
+        usf:canonicalName "notificationdeliverystatustr10" ;
+        usf:fromState stt:notificationdeliverystatusretrying ;
+        usf:toState stt:notificationdeliverystatusdeadlettered .
+    tr:notificationdeliverystatustr2 a usf:Transition ;
+        usf:canonicalName "notificationdeliverystatustr2" ;
+        usf:fromState stt:notificationdeliverystatusscheduled ;
+        usf:toState stt:notificationdeliverystatusrendering .
+    tr:notificationdeliverystatustr3 a usf:Transition ;
+        usf:canonicalName "notificationdeliverystatustr3" ;
+        usf:fromState stt:notificationdeliverystatusrendering ;
+        usf:toState stt:notificationdeliverystatusrendered .
+    tr:notificationdeliverystatustr4 a usf:Transition ;
+        usf:canonicalName "notificationdeliverystatustr4" ;
+        usf:fromState stt:notificationdeliverystatusrendered ;
+        usf:toState stt:notificationdeliverystatussuppressed .
+    tr:notificationdeliverystatustr5 a usf:Transition ;
+        usf:canonicalName "notificationdeliverystatustr5" ;
+        usf:fromState stt:notificationdeliverystatussuppressed ;
+        usf:toState stt:notificationdeliverystatussending .
+    tr:notificationdeliverystatustr6 a usf:Transition ;
+        usf:canonicalName "notificationdeliverystatustr6" ;
+        usf:fromState stt:notificationdeliverystatussending ;
+        usf:toState stt:notificationdeliverystatussent .
+    tr:notificationdeliverystatustr7 a usf:Transition ;
+        usf:canonicalName "notificationdeliverystatustr7" ;
+        usf:fromState stt:notificationdeliverystatussent ;
+        usf:toState stt:notificationdeliverystatusdelivered .
+    tr:notificationdeliverystatustr8 a usf:Transition ;
+        usf:canonicalName "notificationdeliverystatustr8" ;
+        usf:fromState stt:notificationdeliverystatusdelivered ;
+        usf:toState stt:notificationdeliverystatusfailed .
+    tr:notificationdeliverystatustr9 a usf:Transition ;
+        usf:canonicalName "notificationdeliverystatustr9" ;
+        usf:fromState stt:notificationdeliverystatusfailed ;
+        usf:toState stt:notificationdeliverystatusretrying .
+    tr:resourcelifecyclestatustr0 a usf:Transition ;
+        usf:canonicalName "resourcelifecyclestatustr0" ;
+        usf:fromState stt:resourcelifecyclestatusdraft ;
+        usf:toState stt:resourcelifecyclestatusactive .
+    tr:resourcelifecyclestatustr1 a usf:Transition ;
+        usf:canonicalName "resourcelifecyclestatustr1" ;
+        usf:fromState stt:resourcelifecyclestatusactive ;
+        usf:toState stt:resourcelifecyclestatussuspended .
+    tr:resourcelifecyclestatustr10 a usf:Transition ;
+        usf:canonicalName "resourcelifecyclestatustr10" ;
+        usf:fromState stt:resourcelifecyclestatusmerged ;
+        usf:toState stt:resourcelifecyclestatussuperseded .
+    tr:resourcelifecyclestatustr2 a usf:Transition ;
+        usf:canonicalName "resourcelifecyclestatustr2" ;
+        usf:fromState stt:resourcelifecyclestatussuspended ;
+        usf:toState stt:resourcelifecyclestatusarchived .
+    tr:resourcelifecyclestatustr3 a usf:Transition ;
+        usf:canonicalName "resourcelifecyclestatustr3" ;
+        usf:fromState stt:resourcelifecyclestatusarchived ;
+        usf:toState stt:resourcelifecyclestatussoftdeleted .
+    tr:resourcelifecyclestatustr4 a usf:Transition ;
+        usf:canonicalName "resourcelifecyclestatustr4" ;
+        usf:fromState stt:resourcelifecyclestatussoftdeleted ;
+        usf:toState stt:resourcelifecyclestatuspendingdelete .
+    tr:resourcelifecyclestatustr5 a usf:Transition ;
+        usf:canonicalName "resourcelifecyclestatustr5" ;
+        usf:fromState stt:resourcelifecyclestatuspendingdelete ;
+        usf:toState stt:resourcelifecyclestatuspurgeeligible .
+    tr:resourcelifecyclestatustr6 a usf:Transition ;
+        usf:canonicalName "resourcelifecyclestatustr6" ;
+        usf:fromState stt:resourcelifecyclestatuspurgeeligible ;
+        usf:toState stt:resourcelifecyclestatuspurged .
+    tr:resourcelifecyclestatustr7 a usf:Transition ;
+        usf:canonicalName "resourcelifecyclestatustr7" ;
+        usf:fromState stt:resourcelifecyclestatuspurged ;
+        usf:toState stt:resourcelifecyclestatuslocked .
+    tr:resourcelifecyclestatustr8 a usf:Transition ;
+        usf:canonicalName "resourcelifecyclestatustr8" ;
+        usf:fromState stt:resourcelifecyclestatuslocked ;
+        usf:toState stt:resourcelifecyclestatusheld .
+    tr:resourcelifecyclestatustr9 a usf:Transition ;
+        usf:canonicalName "resourcelifecyclestatustr9" ;
+        usf:fromState stt:resourcelifecyclestatusheld ;
+        usf:toState stt:resourcelifecyclestatusmerged .
+    tr:workflowauthenticationidentitycontextt0 a usf:Transition ;
+        usf:canonicalName "workflowauthenticationidentitycontextt0" ;
+        usf:fromState stt:workflowauthenticationidentitycontextrequestwithhost ;
+        usf:toState stt:workflowauthenticationidentitycontexttenantcontextresolved .
+    tr:workflowauthenticationidentitycontextt1 a usf:Transition ;
+        usf:canonicalName "workflowauthenticationidentitycontextt1" ;
+        usf:fromState stt:workflowauthenticationidentitycontexttenantcontextresolved ;
+        usf:toState stt:workflowauthenticationidentitycontextsessionactorprojected .
+    tr:workflowauthenticationidentitycontextt2 a usf:Transition ;
+        usf:canonicalName "workflowauthenticationidentitycontextt2" ;
+        usf:fromState stt:workflowauthenticationidentitycontextsessionactorprojected ;
+        usf:toState stt:workflowauthenticationidentitycontextpermissioncontextready .
+    tr:workflowauthenticationidentitycontextt3 a usf:Transition ;
+        usf:canonicalName "workflowauthenticationidentitycontextt3" ;
+        usf:fromState stt:workflowauthenticationidentitycontextpermissioncontextready ;
+        usf:toState stt:workflowauthenticationidentitycontextauditandobservabilitycorrelated .
+    tr:workflowauthenticationidentitycontextt4 a usf:Transition ;
+        usf:canonicalName "workflowauthenticationidentitycontextt4" ;
+        usf:fromState stt:workflowauthenticationidentitycontextauditandobservabilitycorrelated ;
+        usf:toState stt:workflowauthenticationidentitycontextproofready .
+    tr:workflowauthenticationidentitycontextt5 a usf:Transition ;
+        usf:canonicalName "workflowauthenticationidentitycontextt5" ;
+        usf:fromState stt:workflowauthenticationidentitycontextproofready ;
+        usf:toState stt:workflowauthenticationidentitycontextdenied .
+    tr:workflowauthenticationlogint0 a usf:Transition ;
+        usf:canonicalName "workflowauthenticationlogint0" ;
+        usf:fromState stt:workflowauthenticationloginunauthenticated ;
+        usf:toState stt:workflowauthenticationloginauthenticating .
+    tr:workflowauthenticationlogint1 a usf:Transition ;
+        usf:canonicalName "workflowauthenticationlogint1" ;
+        usf:fromState stt:workflowauthenticationloginauthenticating ;
+        usf:toState stt:workflowauthenticationloginauthenticated .
+    tr:workflowauthenticationlogint2 a usf:Transition ;
+        usf:canonicalName "workflowauthenticationlogint2" ;
+        usf:fromState stt:workflowauthenticationloginauthenticated ;
+        usf:toState stt:workflowauthenticationlogindenied .
+    tr:workflowstatustr0 a usf:Transition ;
+        usf:canonicalName "workflowstatustr0" ;
+        usf:fromState stt:workflowstatusrunning ;
+        usf:toState stt:workflowstatuswaiting .
+    tr:workflowstatustr1 a usf:Transition ;
+        usf:canonicalName "workflowstatustr1" ;
+        usf:fromState stt:workflowstatuswaiting ;
+        usf:toState stt:workflowstatusawaitingapproval .
+    tr:workflowstatustr2 a usf:Transition ;
+        usf:canonicalName "workflowstatustr2" ;
+        usf:fromState stt:workflowstatusawaitingapproval ;
+        usf:toState stt:workflowstatuscompleted .
+    tr:workflowstatustr3 a usf:Transition ;
+        usf:canonicalName "workflowstatustr3" ;
+        usf:fromState stt:workflowstatuscompleted ;
+        usf:toState stt:workflowstatusfailed .
+    tr:workflowstatustr4 a usf:Transition ;
+        usf:canonicalName "workflowstatustr4" ;
+        usf:fromState stt:workflowstatusfailed ;
+        usf:toState stt:workflowstatuscancelled .
+    wf:bulkoperationlifecycle a usf:Workflow ;
+        usf:canonicalName "bulkoperationlifecycle" ;
+        usf:crossesCapability cap:universalservicefoundationscopeandprinciples ;
+        usf:hasState stt:bulkoperationlifecycle , stt:bulkoperationlifecyclea , stt:bulkoperationlifecyclee , stt:bulkoperationlifecyclem , stt:bulkoperationlifecycles , stt:bulkoperationlifecyclet ;
+        usf:hasTransition tr:bulkoperationlifecyclet0 , tr:bulkoperationlifecyclet1 , tr:bulkoperationlifecyclet2 , tr:bulkoperationlifecyclet3 , tr:bulkoperationlifecyclet4 , tr:bulkoperationlifecyclet5 , tr:bulkoperationlifecyclet6 , tr:bulkoperationlifecyclet7 , tr:bulkoperationlifecyclet8 ;
+        usf:producesEvent evt:bulkoperationapproved , evt:bulkoperationcancelled , evt:bulkoperationcompleted , evt:bulkoperationcreated , evt:bulkoperationdenied , evt:bulkoperationfailed , evt:bulkoperationpreviewed , evt:bulkoperationpurged , evt:bulkoperationrolledback , evt:bulkoperationstarted , evt:bulkoperationvalidated , evt:evidencepackagecreated , evt:export , evt:import .
+    wf:durableworkflowapprovallifecyclecreateworkflowservice a usf:Workflow ;
+        usf:canonicalName "durableworkflowapprovallifecyclecreateworkflowservice" ;
+        usf:crossesCapability cap:universalservicefoundationscopeandprinciples ;
+        usf:producesEvent evt:workflowapprovalapproved , evt:workflowapprovalrejected , evt:workflowapprovalrequested , evt:workflowcancelled , evt:workflowsignalled , evt:workflowstarted .
+    wf:jobexecutionlifecyclecreatejobservice a usf:Workflow ;
+        usf:canonicalName "jobexecutionlifecyclecreatejobservice" ;
+        usf:crossesCapability cap:universalservicefoundationscopeandprinciples ;
+        usf:producesEvent evt:jobcancelled , evt:jobcompleted , evt:jobcreated , evt:jobdeadlettered , evt:jobdenied , evt:jobfailed , evt:jobleased , evt:jobretrying , evt:jobscheduled , evt:jobstarted .
+    wf:notificationdeliveryworkflow a usf:Workflow ;
+        usf:canonicalName "notificationdeliveryworkflow" ;
+        usf:crossesCapability cap:universalservicefoundationscopeandprinciples ;
+        usf:producesEvent evt:notificationcancelled , evt:notificationcreated , evt:notificationdeadlettered , evt:notificationdenied , evt:notificationfailed , evt:notificationqueued , evt:notificationread , evt:notificationrendered , evt:notificationretrying , evt:notificationscheduled , evt:notificationsent , evt:notificationsuppressed .
+    wf:proofreviewoperatorlifecyclecommandproofreviewupcommandproofreviewrepincommandproofreviewdown a usf:Workflow ;
+        usf:canonicalName "proofreviewoperatorlifecyclecommandproofreviewupcommandproofreviewrepincommandproofreviewdown" .
+    wf:synthetictenantworkflow a usf:Workflow ;
+        usf:canonicalName "synthetictenantworkflow" .
+    wf:workflowauthenticationidentitycontext a usf:Workflow ;
+        usf:canonicalName "workflowauthenticationidentitycontext" ;
+        usf:crossesCapability cap:authenticationplatform , cap:rbacrolesandpermissions , cap:tenanthostidentityresolution , cap:tenantidentityrecordandfqdn , cap:universalservicefoundationscopeandprinciples , cap:useridentityandtenantmembership ;
+        usf:hasState stt:workflowauthenticationidentitycontextauditandobservabilitycorrelated , stt:workflowauthenticationidentitycontextdenied , stt:workflowauthenticationidentitycontextpermissioncontextready , stt:workflowauthenticationidentitycontextproofready , stt:workflowauthenticationidentitycontextrequestwithhost , stt:workflowauthenticationidentitycontextsessionactorprojected , stt:workflowauthenticationidentitycontexttenantcontextresolved ;
+        usf:hasTransition tr:workflowauthenticationidentitycontextt0 , tr:workflowauthenticationidentitycontextt1 , tr:workflowauthenticationidentitycontextt2 , tr:workflowauthenticationidentitycontextt3 , tr:workflowauthenticationidentitycontextt4 , tr:workflowauthenticationidentitycontextt5 .
+    wf:workflowauthenticationlogin a usf:Workflow ;
+        usf:canonicalName "workflowauthenticationlogin" ;
+        usf:crossesCapability cap:universalservicefoundationscopeandprinciples ;
+        usf:hasState stt:workflowauthenticationloginauthenticated , stt:workflowauthenticationloginauthenticating , stt:workflowauthenticationlogindenied , stt:workflowauthenticationloginunauthenticated ;
+        usf:hasTransition tr:workflowauthenticationlogint0 , tr:workflowauthenticationlogint1 , tr:workflowauthenticationlogint2 ;
+        usf:producesEvent evt:eventauthenticationloginaudit .
+}

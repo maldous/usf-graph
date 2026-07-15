@@ -1,0 +1,20 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+@prefix dom: <urn:usf:capabilitydomain:> .
+@prefix facet: <urn:usf:facetkind:> .
+@prefix rung: <urn:usf:proofrung:> .
+@prefix pmode: <urn:usf:providermode:> .
+@prefix envc: <urn:usf:environmentclass:> .
+@prefix fresh: <urn:usf:freshness:> .
+
+fixt:mismatchevidence a usf:EvidenceResult ; usf:canonicalName "mismatchevidence" ;
+    usf:evidenceKind <urn:usf:evidencekind:runtimeproofevidence> ;
+    usf:usesProviderMode pmode:hermeticmock ;
+    usf:inEnvironment fixt:mmenv ; usf:hasFreshness fresh:fresh ;
+    usf:evidenceForContract fixt:mmc ; usf:satisfies fixt:mmreq .
+fixt:mmreq a usf:EvidenceRequirement ; usf:canonicalName "mmreq" ;
+    usf:requiresEvidenceKind <urn:usf:evidencekind:runtimeproofevidence> ;
+    usf:requiresFreshness fresh:fresh ; usf:requiresProviderMode pmode:liveexternal ;
+    usf:derivedFrom fixt:mmc .
+fixt:mmenv a usf:Environment ; usf:canonicalName "mmenv" ; usf:hasEnvironmentClass envc:hermetic .
+fixt:mmc a usf:SemanticContract ; usf:canonicalName "mmc" .

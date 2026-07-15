@@ -1,0 +1,13 @@
+PREFIX usf: <urn:usf:ontology:>
+# Derive the contract surface of each semantic contract from its exposed interfaces.
+CONSTRUCT {
+  ?cs a usf:ContractSurface ;
+      usf:canonicalName ?ln ;
+      usf:surfaceOf ?c ;
+      usf:derivedFrom ?c .
+}
+WHERE {
+  ?c a usf:SemanticContract .
+  BIND(REPLACE(STR(?c), "^.*:", "") AS ?ln)
+  BIND(IRI(CONCAT("urn:usf:contractsurface:", ?ln)) AS ?cs)
+}

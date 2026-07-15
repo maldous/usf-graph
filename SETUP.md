@@ -1,77 +1,62 @@
-# USF v2 graph — chroot + Stardog provisioning setup
+# Standalone setup
 
-Recreate the full chrooted Stardog provisioning environment for the semantic graph under
-`v2/usf/graph`. Only the USF artefacts and the token-free `profile.d` wiring are tracked in git;
-the OS rootfs, the Temurin JRE, the Stardog CLI, the Python venv, and your credentials are
-provisioned locally by these steps.
+## Requirements
 
-## Prerequisites
+- Linux with Node.js 22 or later.
+- Access to a dedicated Stardog database through the official JavaScript SDK.
+- For the isolation proof: a Debian-compatible chroot whose root is the parent directory of this repository, plus `sudo` and `chroot`.
+- Python 3.11 or later with the exact dependencies in `pyproject.toml` for RDF/SHACL and representative Parquet proof cases.
 
-- A Linux host with `sudo` and `debootstrap` (`sudo apt-get install -y debootstrap`).
-- Network access to Adoptium, `downloads.stardog.com`, and your Stardog server.
-- ~2 GB free disk for the chroot.
-- A Stardog server and credentials (Stardog Cloud, or your own). The reference deployment uses
-  Stardog Cloud with token auth.
+No Stardog CLI or local Stardog server is required. No cloud object-storage account is required.
 
-Run every command from the repository root (the directory that contains `v2/`).
+## Credentials and local payloads
 
-## 1. Create the base Debian chroot
-
-`debootstrap` populates `v2/` with a minimal Debian rootfs. The tracked `v2/usf/` and
-`v2/etc/profile.d/` are left in place.
+From the repository root:
 
 ```bash
-sudo debootstrap --variant=minbase bookworm v2 http://deb.debian.org/debian
-sudo cp /etc/resolv.conf v2/etc/resolv.conf        # DNS for downloads and the Stardog server
+cp .env.example .env
 ```
 
-## 2. Provide credentials (never committed)
+Set `STARDOG_SERVER`, `STARDOG_DATABASE`, and either `STARDOG_TOKEN` or `STARDOG_USERNAME` plus `STARDOG_PASSWORD`. Set `USF_CAS_ROOT` to an operator-owned directory outside this repository, such as `/var/lib/usf-cas` inside the chroot. `.env` and CAS bytes are ignored and must never be committed.
+
+The default architecture does not create a GCS bucket, link a billing account, or upload a payload. A managed backend is out of scope until separately modelled and proved.
+
+## Local compiler
 
 ```bash
-cp v2/usf/.env.example v2/usf/.env
+npm ci --prefix tools/compiler
+npm --prefix tools/compiler run check
+npm --prefix tools/compiler test
+tools/validation/validate-materialisation.mjs schemas
 ```
 
-Edit `v2/usf/.env` and set `STARDOG_SERVER`, `STARDOG_DATABASE` (default `USF`), and either
-`STARDOG_TOKEN` or `STARDOG_USERNAME` + `STARDOG_PASSWORD`. `v2/usf/.env` is git-ignored; the
-token is read from it at runtime and is never written into any tracked file.
-
-## 3. Bootstrap the chroot dependencies
-
-Installs everything a `minbase` chroot lacks: curl/unzip/ca-certificates/python3+venv+pip, the
-Temurin JRE 21 (`/opt`), the Stardog CLI (`/opt`, symlinked into `/usr/local/bin`), and the
-Python RDF toolchain venv (`/usf/.venv`). Idempotent; downloads Java and Stardog on first run.
+To publish registered authored model changes:
 
 ```bash
-sudo chroot v2 /bin/bash /usf/scripts/bootstrap-chroot.sh
+tools/compiler/bin/publish-authority.sh
 ```
 
-Ends with a readiness check. Re-run any time; present components are skipped.
+The publisher performs local checks and tests, asserts database options, replaces only registered named graphs inside the compiler transaction, runs SHACL/integrity/contamination/derivation gates, commits only after complete success, verifies live state, and checks source/live drift.
 
-## 4. Provision and verify the database
+## Chroot
 
-Recreates the `USF` database solely from `v2/usf/graph`, loads the named graphs, shapes and
-derived graphs, validates (SHACL), runs the integrity and contamination queries, derives
-readiness, and proves guarded writes reject invalid transactions.
+The host-side entry helper derives the chroot root from its own repository location:
 
 ```bash
-sudo chroot v2 /bin/bash /usf/scripts/provision-graph.sh
+sudo tools/chroot/enter.sh
 ```
 
-Expected: `sh:conforms true`, integrity and contamination queries return zero rows, readiness
-derived for every capability, defect transactions rejected, conforming transaction committed.
+Inside the chroot:
 
-## Optional helpers (all under `v2/usf/scripts/`)
+```bash
+/usf/tools/chroot/bootstrap.sh
+/usf/tools/chroot/verify-isolation.sh
+```
 
-- `enter-chroot.sh` — open an interactive shell in the chroot (mounts `/proc`, `/sys`, `/dev`
-  and copies `resolv.conf`, working dir `/usf`).
-- `verify-chroot.sh` — read-only Stardog connectivity check.
-- `validate-graph.sh` — parse/validate the graph locally with the venv, no database.
-- `load-graph.sh` — additive load of the graph files (no drop/create).
+Bootstrap installs pinned Node, Python dependencies, compiler dependencies, agent CLIs, and token-free MCP wiring. The repository and `.env` are already available at `/usf`; no parent repository or census is mounted. `verify-isolation.sh` checks the locally owned graph/compiler/agent surface and fails if a parent path is visible.
 
-## Notes
+## Agent gateway
 
-- The chroot rootfs, `v2/usf/.venv`, and `v2/usf/.env` are intentionally untracked
-  (`v2/.gitignore`, `v2/usf/.gitignore`). Only source artefacts and the token-free
-  `v2/etc/profile.d/{java.sh,stardog.sh}` are committed.
-- `provision-graph.sh` drops and recreates the `USF` database each run — point `.env` at a
-  database dedicated to this graph.
+The project MCP configuration launches `tools/compiler/src/mcp.js`. Its bounded operations include health/query/bootstrap, layout context/plan/validation/application, artifact description/verification, contract packet projection, and semantic-gap work projection. Direct RDF mutation through MCP is refused. Coordinator mutations are realised as registered authored source and published by the compiler transaction.
+
+AI agents should request `usf_contract_project` for the relevant active contract. The returned packet contains the live authority digest, semantic identifiers, states, objective, claims/nonclaims, authorised actions/paths/formats, acceptance and validation obligations, result requirements, and fail-closed stop conditions.

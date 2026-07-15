@@ -1,0 +1,22 @@
+PREFIX usf: <urn:usf:ontology:>
+PREFIX admission: <urn:usf:evidenceadmissionstate:>
+PREFIX freshnessstate: <urn:usf:evidencefreshnessstate:>
+PREFIX integritystate: <urn:usf:evidenceintegritystate:>
+PREFIX proofstate: <urn:usf:proofresultstate:>
+PREFIX contractstate: <urn:usf:contractactivationstate:>
+SELECT DISTINCT ?violation ?subject WHERE {
+ {?subject a usf:ProofObligation . FILTER NOT EXISTS {?subject usf:requiresEvidence ?r . ?r a usf:EvidenceRequirement} BIND("proofobligationmissingevidencerequirement" AS ?violation)} UNION
+ {?subject a usf:ProofResult ; usf:hasProofResultState proofstate:successful . FILTER NOT EXISTS {?subject usf:evidenceSetDigest ?d} BIND("proofmissingevidencesetdigest" AS ?violation)} UNION
+ {?subject a usf:ProofResult ; usf:hasProofResultState proofstate:successful ; usf:proofResultForObligation ?o ; usf:usesAdmittedEvidence ?e . FILTER NOT EXISTS {?e usf:hasAdmissionState admission:admitted ; usf:hasFreshnessState freshnessstate:fresh ; usf:hasIntegrityState integritystate:valid ; usf:applicableToObligation ?o ; usf:withinValidityScope true} BIND("successfulproofusesinvalidevidence" AS ?violation)} UNION
+ {?subject usf:hasConfidenceState ?c . FILTER NOT EXISTS {?subject a usf:ProofResult ; usf:hasProofResultState proofstate:successful ; usf:usesAdmittedEvidence ?e ; usf:confidenceBasis ?e} BIND("confidencewithoutsuccessfulproof" AS ?violation)} UNION
+ {?subject a usf:SemanticContract ; usf:hasActivationState contractstate:active . FILTER (NOT EXISTS {?subject usf:mandatoryProofObligation ?o} || EXISTS {?subject usf:mandatoryProofObligation ?o . FILTER NOT EXISTS {?subject usf:reliesOnProofResult ?r . ?r usf:proofResultForObligation ?o ; usf:hasProofResultState proofstate:successful}}) BIND("activecontractmissingproof" AS ?violation)} UNION
+ {?subject a usf:Realisation ; usf:realisationState <urn:usf:realisationstate:implementable> ; usf:realisesContract ?c . FILTER NOT EXISTS {?c usf:hasActivationState contractstate:active ; usf:mandatoryProofObligation ?ob ; usf:reliesOnProofResult ?pr . ?pr usf:proofResultForObligation ?ob ; usf:hasProofResultState proofstate:successful ; usf:usesAdmittedEvidence ?e ; usf:confidenceBasis ?e . ?e usf:hasAdmissionState admission:admitted ; usf:hasFreshnessState freshnessstate:fresh ; usf:hasIntegrityState integritystate:valid ; usf:applicableToObligation ?ob ; usf:withinValidityScope true} BIND("implementablerealisationunwarranted" AS ?violation)} UNION
+ {?subject a usf:Realisation ; usf:realisationState <urn:usf:realisationstate:implementable> ; usf:authorisedByDecision ?d . FILTER NOT EXISTS {?d usf:decisionState <urn:usf:decisionstate:accepted>} BIND("implementationdecisionunauthorised" AS ?violation)} UNION
+ {?subject a usf:Realisation ; usf:realisationState <urn:usf:realisationstate:implementable> ; usf:realisesContract ?c ; usf:authorisedByDecision ?d . FILTER NOT EXISTS {?c usf:permittedRealisationType ?type . ?d usf:authorisesRealisationType ?type} BIND("implementationtypeunauthorised" AS ?violation)} UNION
+ {?subject a usf:Realisation ; usf:realisationState <urn:usf:realisationstate:implementable> . FILTER NOT EXISTS {?subject usf:authorisedByDecision ?d ; usf:authorisedSourcePath ?p . ?d usf:authorisesSourcePath ?p} BIND("implementationpathunauthorised" AS ?violation)} UNION
+ {?subject a usf:ValidationResult . FILTER NOT EXISTS {?subject usf:entersEvidenceLifecycleAs ?e . ?e a usf:ValidationEvidence} BIND("validationbypassesevidenceadmission" AS ?violation)} UNION
+ {?subject a usf:ADRRecord ; usf:establishesSemanticTruth ?x . BIND("adrauthorityinversion" AS ?violation)} UNION
+ {?subject a usf:Ticket ; usf:directlyActivatesContract ?x . BIND("ticketactivationinversion" AS ?violation)} UNION
+ {?subject a usf:Report ; usf:directlyAdmitsEvidence ?x . BIND("reportadmissioninversion" AS ?violation)} UNION
+ {?subject a usf:Test ; usf:directlyEstablishesProof ?x . BIND("testproofinversion" AS ?violation)}
+}

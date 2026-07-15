@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:usf:schema:external-payload-descriptor:00000003",
+  "title": "USF external payload descriptor projection",
+  "type": "object",
+  "required": ["id", "digest", "artefactFamily", "representationFormat", "mediaType", "byteSize", "locator", "artifactType", "storageClass"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^urn:usf:externalpayloaddescriptor:" },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "artefactFamily": { "type": "string", "pattern": "^urn:usf:artefactfamily:" },
+    "representationFormat": { "type": "string", "pattern": "^urn:usf:representationformat:" },
+    "mediaType": { "type": "string", "pattern": "^[a-z0-9.+-]+/[A-Za-z0-9.+-]+$" },
+    "byteSize": { "type": "integer", "minimum": 0 },
+    "locator": { "type": "string", "pattern": "^cas://sha256/[0-9a-f]{64}$" },
+    "artifactType": { "type": "string", "pattern": "^urn:usf:artefacttype:" },
+    "storageClass": { "const": "urn:usf:storageclass:contentaddressedobjectstorage" }
+  },
+  "additionalProperties": false
+}

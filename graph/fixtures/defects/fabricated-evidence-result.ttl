@@ -1,0 +1,14 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix admission: <urn:usf:evidenceadmissionstate:> .
+@prefix freshness: <urn:usf:evidencefreshnessstate:> .
+@prefix integrity: <urn:usf:evidenceintegritystate:> .
+@prefix proofstate: <urn:usf:proofresultstate:> .
+# expect: successfulproofusesinvalidevidence
+<urn:usf:defect:fabricatedproof> a usf:ProofResult ;
+    usf:hasProofResultState proofstate:successful ;
+    usf:proofResultForObligation <urn:usf:defect:fabricatedobligation> ;
+    usf:usesAdmittedEvidence <urn:usf:defect:fabricatedevidence> .
+<urn:usf:defect:fabricatedevidence> a usf:EvidenceResult ;
+    usf:hasAdmissionState admission:pending ;
+    usf:hasFreshnessState freshness:fresh ;
+    usf:hasIntegrityState integrity:valid .

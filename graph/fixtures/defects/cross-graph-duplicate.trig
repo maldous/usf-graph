@@ -1,0 +1,12 @@
+# expect: crossgraphduplicate
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+
+<urn:usf:graph:services> {
+    fixt:duplicatedassertionservice a usf:Service ;
+        usf:canonicalName "duplicatedassertionservice" ;
+        usf:serves <urn:usf:capability:internalservicecatalogandreadiness> .
+}
+<urn:usf:graph:implementations> {
+    fixt:duplicatedassertionservice usf:serves <urn:usf:capability:internalservicecatalogandreadiness> .
+}

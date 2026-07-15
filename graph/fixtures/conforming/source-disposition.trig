@@ -1,0 +1,102 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix policy: <urn:usf:sourcedispositionpolicy:> .
+@prefix fx: <urn:usf:fixture:sourcedisposition:positive:> .
+
+GRAPH <urn:usf:graph:observed:sourceartefacts> {
+  <urn:usf:sourceartefact:s1111111111111111111111111111111111111111111111111111111111111111>
+    a usf:SourceArtefact ;
+    usf:canonicalName "s1111111111111111111111111111111111111111111111111111111111111111" ;
+    usf:sourceIdentityDigest "1111111111111111111111111111111111111111111111111111111111111111" ;
+    usf:hasCurrentSourceObservation fx:oaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa .
+  fx:oaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    a usf:SourceArtefactObservation ;
+    usf:canonicalName "oaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" ;
+    usf:observesSourceArtefact <urn:usf:sourceartefact:s1111111111111111111111111111111111111111111111111111111111111111> ;
+    usf:observedSourcePath "v2/usf/graph/ontology.ttl" ;
+    usf:observedContentDigest "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" ;
+    usf:observedFileMode "100644" ;
+    usf:observedUniverse <urn:usf:sourceuniverse:graphauthority> ;
+    usf:observedContentRole <urn:usf:sourcecontentrole:semanticdefinition> ;
+    usf:observationSetDigest "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" .
+
+  <urn:usf:sourceartefact:s2222222222222222222222222222222222222222222222222222222222222222>
+    a usf:SourceArtefact ;
+    usf:canonicalName "s2222222222222222222222222222222222222222222222222222222222222222" ;
+    usf:sourceIdentityDigest "2222222222222222222222222222222222222222222222222222222222222222" ;
+    usf:hasCurrentSourceObservation fx:obbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb .
+  fx:obbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    a usf:SourceArtefactObservation ;
+    usf:canonicalName "obbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" ;
+    usf:observesSourceArtefact <urn:usf:sourceartefact:s2222222222222222222222222222222222222222222222222222222222222222> ;
+    usf:observedSourcePath "v2/usf/graph/fixtures/conforming/provider.ttl" ;
+    usf:observedContentDigest "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" ;
+    usf:observedFileMode "100644" ;
+    usf:observedUniverse <urn:usf:sourceuniverse:graphauthority> ;
+    usf:observedContentRole <urn:usf:sourcecontentrole:fixture> ;
+    usf:observationSetDigest "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" .
+
+  <urn:usf:sourceartefact:s3333333333333333333333333333333333333333333333333333333333333333>
+    a usf:SourceArtefact ;
+    usf:canonicalName "s3333333333333333333333333333333333333333333333333333333333333333" ;
+    usf:sourceIdentityDigest "3333333333333333333333333333333333333333333333333333333333333333" ;
+    usf:hasCurrentSourceObservation fx:occcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc .
+  fx:occcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+    a usf:SourceArtefactObservation ;
+    usf:canonicalName "occcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" ;
+    usf:observesSourceArtefact <urn:usf:sourceartefact:s3333333333333333333333333333333333333333333333333333333333333333> ;
+    usf:observedSourcePath "docs/architecture/charter.md" ;
+    usf:observedContentDigest "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" ;
+    usf:observedFileMode "100644" ;
+    usf:observedUniverse <urn:usf:sourceuniverse:canonicalrepository> ;
+    usf:observedContentRole <urn:usf:sourcecontentrole:documentation> ;
+    usf:observationSetDigest "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" .
+}
+
+GRAPH <urn:usf:graph:derived:sourcedispositions> {
+  <urn:usf:sourceartefact:s1111111111111111111111111111111111111111111111111111111111111111>
+    usf:hasSourceDisposition fx:daaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa .
+  fx:daaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    a usf:SourceArtefactDisposition ;
+    usf:canonicalName "daaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" ;
+    usf:dispositionOfSourceArtefact <urn:usf:sourceartefact:s1111111111111111111111111111111111111111111111111111111111111111> ;
+    usf:decidedAgainstObservation fx:oaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ;
+    usf:derivedFromDispositionPolicy policy:semanticdefinition ;
+    usf:hasDispositionKind <urn:usf:dispositionkind:retainsemanticauthority> ;
+    usf:hasDispositionBasis <urn:usf:dispositionbasis:registeredgraphmembership>, <urn:usf:dispositionbasis:independentintegrityobservation> ;
+    usf:hasDispositionDecisionState <urn:usf:dispositiondecisionstate:accepted> ;
+    usf:hasDispositionOutputMode <urn:usf:dispositionoutputmode:nooutput> ;
+    usf:permittedGenerationInputRole <urn:usf:generationinputrole:semanticauthority> ;
+    usf:observationSetDigest "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" ;
+    usf:decisionRationale "The fixture source is retained as registered semantic authority with no generated output." .
+
+  <urn:usf:sourceartefact:s2222222222222222222222222222222222222222222222222222222222222222>
+    usf:hasSourceDisposition fx:dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb .
+  fx:dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    a usf:SourceArtefactDisposition ;
+    usf:canonicalName "dbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" ;
+    usf:dispositionOfSourceArtefact <urn:usf:sourceartefact:s2222222222222222222222222222222222222222222222222222222222222222> ;
+    usf:decidedAgainstObservation fx:obbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb ;
+    usf:derivedFromDispositionPolicy policy:fixture ;
+    usf:hasDispositionKind <urn:usf:dispositionkind:retainasset> ;
+    usf:hasDispositionBasis <urn:usf:dispositionbasis:declaredretainedinput>, <urn:usf:dispositionbasis:independentintegrityobservation> ;
+    usf:hasDispositionDecisionState <urn:usf:dispositiondecisionstate:accepted> ;
+    usf:hasDispositionOutputMode <urn:usf:dispositionoutputmode:nooutput> ;
+    usf:permittedGenerationInputRole <urn:usf:generationinputrole:fixture> ;
+    usf:observationSetDigest "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" ;
+    usf:decisionRationale "The fixture source is retained as an admitted fixture and produces no canonical output." .
+
+  <urn:usf:sourceartefact:s3333333333333333333333333333333333333333333333333333333333333333>
+    usf:hasSourceDisposition fx:dcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc .
+  fx:dcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+    a usf:SourceArtefactDisposition ;
+    usf:canonicalName "dcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" ;
+    usf:dispositionOfSourceArtefact <urn:usf:sourceartefact:s3333333333333333333333333333333333333333333333333333333333333333> ;
+    usf:decidedAgainstObservation fx:occcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc ;
+    usf:derivedFromDispositionPolicy policy:reviewrequired ;
+    usf:hasDispositionKind <urn:usf:dispositionkind:reviewrequired> ;
+    usf:hasDispositionBasis <urn:usf:dispositionbasis:independentintegrityobservation> ;
+    usf:hasDispositionDecisionState <urn:usf:dispositiondecisionstate:reviewrequired> ;
+    usf:hasDispositionOutputMode <urn:usf:dispositionoutputmode:nooutput> ;
+    usf:observationSetDigest "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" ;
+    usf:decisionRationale "No non-default policy matches the observation, so review is required without output." .
+}

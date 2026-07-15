@@ -1,0 +1,11 @@
+@prefix usf: <urn:usf:ontology:> .
+
+<urn:usf:defect:reasoningschemaauthority> a usf:SemanticAuthority ;
+    usf:canonicalName "reasoningschemaauthority" ;
+    usf:soleSemanticAuthority true ;
+    usf:validatedInStardog true ;
+    usf:authorityVerificationState "validator-and-shacl-conformant" ;
+    usf:defaultReasoningSchemaGraph
+        <urn:usf:namedgraph:ontology> ,
+        <urn:usf:namedgraph:taxonomy> ,
+        <urn:usf:namedgraph:vocabulary> .

@@ -1,0 +1,46 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix admission: <urn:usf:evidenceadmissionstate:> .
+@prefix freshnessstate: <urn:usf:evidencefreshnessstate:> .
+@prefix integritystate: <urn:usf:evidenceintegritystate:> .
+@prefix proofstate: <urn:usf:proofresultstate:> .
+@prefix contractstate: <urn:usf:contractactivationstate:> .
+
+<urn:usf:shape:proofobligationevidence> a sh:NodeShape ; sh:targetClass usf:ProofObligation ; sh:property [ sh:path usf:requiresEvidence ; sh:minCount 1 ; sh:class usf:EvidenceRequirement ] .
+<urn:usf:shape:successfulproofresult> a sh:NodeShape ; sh:targetClass usf:ProofResult ; sh:sparql [ sh:message "Successful proof requires exact admitted fresh integrity-valid applicable evidence and evaluation metadata." ; sh:select """PREFIX usf: <urn:usf:ontology:>\nPREFIX admission: <urn:usf:evidenceadmissionstate:>\nPREFIX freshnessstate: <urn:usf:evidencefreshnessstate:>\nPREFIX integritystate: <urn:usf:evidenceintegritystate:>\nPREFIX proofstate: <urn:usf:proofresultstate:>\nPREFIX contractstate: <urn:usf:contractactivationstate:>\nSELECT $this WHERE { $this usf:hasProofResultState proofstate:successful . FILTER (NOT EXISTS {$this usf:proofResultForObligation ?o} || NOT EXISTS {$this usf:usesAdmittedEvidence ?e} || NOT EXISTS {$this usf:evidenceSetDigest ?d} || NOT EXISTS {$this usf:usesProofAlgorithm ?a} || NOT EXISTS {$this usf:usesAlgorithmVersion ?v} || NOT EXISTS {$this usf:evaluatedByValidator ?validator} || NOT EXISTS {$this usf:proofExecutionEnvironment ?env} || NOT EXISTS {$this usf:hasConfidenceState ?c} || NOT EXISTS {$this usf:evaluatedAt ?t} || NOT EXISTS {$this usf:hasInvalidationCondition ?i} || EXISTS {$this usf:proofResultForObligation ?o ; usf:usesAdmittedEvidence ?e . FILTER NOT EXISTS {?e usf:hasAdmissionState admission:admitted ; usf:hasFreshnessState freshnessstate:fresh ; usf:hasIntegrityState integritystate:valid ; usf:applicableToObligation ?o ; usf:withinValidityScope true}}) }""" ] .
+<urn:usf:shape:evidenceboundconfidence> a sh:NodeShape ; sh:targetSubjectsOf usf:hasConfidenceState ; sh:sparql [ sh:message "Confidence requires successful evidence-bound proof." ; sh:select """PREFIX usf: <urn:usf:ontology:>\nPREFIX admission: <urn:usf:evidenceadmissionstate:>\nPREFIX freshnessstate: <urn:usf:evidencefreshnessstate:>\nPREFIX integritystate: <urn:usf:evidenceintegritystate:>\nPREFIX proofstate: <urn:usf:proofresultstate:>\nPREFIX contractstate: <urn:usf:contractactivationstate:>\nSELECT $this WHERE { FILTER NOT EXISTS {$this a usf:ProofResult ; usf:hasProofResultState proofstate:successful ; usf:usesAdmittedEvidence ?e ; usf:confidenceBasis ?e} }""" ] .
+<urn:usf:shape:activecontractproof> a sh:NodeShape ; sh:targetClass usf:SemanticContract ; sh:sparql [ sh:message "Active contracts require current successful proof for every mandatory obligation." ; sh:select """PREFIX usf: <urn:usf:ontology:>\nPREFIX admission: <urn:usf:evidenceadmissionstate:>\nPREFIX freshnessstate: <urn:usf:evidencefreshnessstate:>\nPREFIX integritystate: <urn:usf:evidenceintegritystate:>\nPREFIX proofstate: <urn:usf:proofresultstate:>\nPREFIX contractstate: <urn:usf:contractactivationstate:>\nSELECT $this WHERE { $this usf:hasActivationState contractstate:active . FILTER (NOT EXISTS {$this usf:mandatoryProofObligation ?o} || EXISTS {$this usf:mandatoryProofObligation ?o . FILTER NOT EXISTS {$this usf:reliesOnProofResult ?r . ?r usf:proofResultForObligation ?o ; usf:hasProofResultState proofstate:successful ; usf:usesAdmittedEvidence ?e ; usf:confidenceBasis ?e . ?e usf:hasAdmissionState admission:admitted ; usf:hasFreshnessState freshnessstate:fresh ; usf:hasIntegrityState integritystate:valid}}) }""" ] .
+<urn:usf:shape:implementablestatedefinition> a sh:NodeShape ;
+    sh:targetNode <urn:usf:realisationstate:implementable> ;
+    sh:property [ sh:path usf:canonicalName ; sh:hasValue "implementable" ] ;
+    sh:property [ sh:path usf:allowsRealisationPredecessor ; sh:hasValue <urn:usf:realisationstate:contractonly> ] ;
+    sh:property [ sh:path usf:allowsRealisationSuccessor ; sh:minCount 1 ; sh:class usf:RealisationState ] ;
+    sh:property [ sh:path usf:requiresContractActivationState ; sh:hasValue contractstate:active ] ;
+    sh:property [ sh:path usf:requiresDecisionState ; sh:hasValue <urn:usf:decisionstate:accepted> ] ;
+    sh:property [ sh:path usf:requiresRealisationType ; sh:hasValue usf:Implementation ] ;
+    sh:property [ sh:path usf:requiresAuthorisedSourcePath ; sh:hasValue true ] ;
+    sh:property [ sh:path usf:requiresExistingImplementation ; sh:hasValue false ] .
+<urn:usf:shape:implementablerealisation> a sh:NodeShape ; sh:targetNode <urn:usf:ontology> ; sh:sparql [ sh:message "Implementable realisation requires an active evidence-backed contract, successful proof, accepted decision, authorised implementation type and an exactly authorised path." ; sh:select """PREFIX usf: <urn:usf:ontology:>
+PREFIX admission: <urn:usf:evidenceadmissionstate:>
+PREFIX freshnessstate: <urn:usf:evidencefreshnessstate:>
+PREFIX integritystate: <urn:usf:evidenceintegritystate:>
+PREFIX proofstate: <urn:usf:proofresultstate:>
+PREFIX contractstate: <urn:usf:contractactivationstate:>
+SELECT $this WHERE {
+  FILTER EXISTS {
+    ?realisation a usf:Realisation ; usf:realisationState <urn:usf:realisationstate:implementable> ; usf:realisesContract ?c .
+    FILTER NOT EXISTS {
+        ?c usf:hasActivationState contractstate:active ; usf:mandatoryProofObligation ?ob ;
+           usf:reliesOnProofResult ?pr ; usf:permittedRealisationType ?type .
+        ?pr usf:proofResultForObligation ?ob ; usf:hasProofResultState proofstate:successful ;
+            usf:usesAdmittedEvidence ?e ; usf:confidenceBasis ?e .
+        ?e usf:hasAdmissionState admission:admitted ; usf:hasFreshnessState freshnessstate:fresh ;
+           usf:hasIntegrityState integritystate:valid ; usf:applicableToObligation ?ob ; usf:withinValidityScope true .
+        ?realisation usf:authorisedByDecision ?d ; usf:authorisedSourcePath ?path .
+        ?d usf:decisionState <urn:usf:decisionstate:accepted> ; usf:authorisesSourcePath ?path ;
+           usf:authorisesRealisationType ?type .
+    }
+  }
+}""" ] .
+<urn:usf:shape:validationevidenceentry> a sh:NodeShape ; sh:targetClass usf:ValidationResult ; sh:property [ sh:path usf:entersEvidenceLifecycleAs ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ValidationEvidence ] .
+<urn:usf:shape:forbiddenshortcuts> a sh:NodeShape ; sh:targetSubjectsOf usf:establishesSemanticTruth, usf:directlyActivatesContract, usf:directlyAdmitsEvidence, usf:directlyEstablishesProof ; sh:sparql [ sh:message "ADR, ticket, report and test authority inversions are forbidden." ; sh:select """PREFIX usf: <urn:usf:ontology:>\nPREFIX admission: <urn:usf:evidenceadmissionstate:>\nPREFIX freshnessstate: <urn:usf:evidencefreshnessstate:>\nPREFIX integritystate: <urn:usf:evidenceintegritystate:>\nPREFIX proofstate: <urn:usf:proofresultstate:>\nPREFIX contractstate: <urn:usf:contractactivationstate:>\nSELECT $this WHERE { {$this a usf:ADRRecord ; usf:establishesSemanticTruth ?x} UNION {$this a usf:Ticket ; usf:directlyActivatesContract ?x} UNION {$this a usf:Report ; usf:directlyAdmitsEvidence ?x} UNION {$this a usf:Test ; usf:directlyEstablishesProof ?x} }""" ] .

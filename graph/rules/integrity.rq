@@ -1,0 +1,541 @@
+PREFIX usf:  <urn:usf:ontology:>
+PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl:  <http://www.w3.org/2002/07/owl#>
+# Whole-dataset integrity invariants. A conforming graph returns zero rows.
+# Each branch binds ?violation (the integrity rule code) and ?subject (the offending node).
+SELECT DISTINCT ?violation ?subject WHERE {
+  {
+    # hyphenated or underscored canonical local name
+    ?subject ?p ?o .
+    FILTER(isIRI(?subject) && STRSTARTS(STR(?subject), "urn:usf:"))
+    BIND(REPLACE(STR(?subject), "^.*:", "") AS ?ln)
+    FILTER(REGEX(?ln, "[-_]"))
+    BIND("hyphenatedidentifier" AS ?violation)
+  } UNION {
+    # duplicate canonical meaning within one class
+    ?subject a ?cls ; usf:canonicalName ?n .
+    ?other a ?cls ; usf:canonicalName ?n .
+    FILTER(?subject != ?other)
+    FILTER(STRSTARTS(STR(?cls), "urn:usf:ontology:"))
+    BIND("duplicatemeaning" AS ?violation)
+  } UNION {
+    # instance typed with an undeclared ontology class
+    ?subject a ?cls .
+    FILTER(STRSTARTS(STR(?cls), "urn:usf:ontology:"))
+    FILTER NOT EXISTS { ?cls a owl:Class }
+    BIND("undefinedterm" AS ?violation)
+  } UNION {
+    # unresolved cross-graph reference in semantic authority: an entity/value IRI
+    # referenced but never defined. Observed graphs are deliberately excluded:
+    # they record source IRIs as evidence and do not promote those IRIs into USF
+    # canonical identity or impose definition obligations on authority graphs.
+    GRAPH ?referenceGraph { ?s ?pp ?subject }
+    FILTER(?referenceGraph != <urn:usf:graph:observed:sourceartefacts>)
+    FILTER(isIRI(?subject) && STRSTARTS(STR(?subject), "urn:usf:"))
+    FILTER(!STRSTARTS(STR(?subject), "urn:usf:ontology:"))
+    FILTER(!STRSTARTS(STR(?subject), "urn:usf:graph:"))
+    FILTER NOT EXISTS { ?subject ?p2 ?o2 }
+    BIND("unresolvedreference" AS ?violation)
+  } UNION {
+    # a derived-only class asserted outside a derived graph (direct authored readiness etc.)
+    GRAPH ?g {
+      ?subject a ?dc .
+    }
+    VALUES ?dc { usf:Readiness usf:Coverage usf:DerivedSurface usf:ContractSurface
+                 usf:TestObligation }
+    FILTER(!STRSTARTS(STR(?g), "urn:usf:graph:derived"))
+    BIND("directauthoredreadiness" AS ?violation)
+  } UNION {
+    # the same resource typed in more than one named graph (must be declared exactly once)
+    GRAPH ?g1 { ?subject a ?t1 }
+    GRAPH ?g2 { ?subject a ?t2 }
+    FILTER(?g1 != ?g2)
+    FILTER(isIRI(?subject) && STRSTARTS(STR(?subject), "urn:usf:"))
+    FILTER(!STRSTARTS(STR(?g1), "urn:usf:graph:shapes"))
+    FILTER(!STRSTARTS(STR(?g2), "urn:usf:graph:shapes"))
+    BIND("multipledeclaration" AS ?violation)
+  } UNION {
+    # proof result claiming a higher rung than observed
+    ?subject a usf:ProofResult ;
+             usf:claimedRung/usf:rungOrder ?co ;
+             usf:observedRung/usf:rungOrder ?oo .
+    FILTER(?co > ?oo)
+    BIND("readinessoverclaim" AS ?violation)
+  } UNION {
+    # a service declared to depend on itself
+    ?subject usf:dependsOnService ?subject .
+    BIND("selfdependency" AS ?violation)
+  } UNION {
+    # a service dependency whose target is not a declared service
+    ?subject usf:dependsOnService ?dep .
+    FILTER NOT EXISTS { ?dep a usf:Service }
+    BIND("unknowndependency" AS ?violation)
+  } UNION {
+    # a dependency cycle through at least one other service
+    ?subject usf:dependsOnService ?mid .
+    ?mid usf:dependsOnService+ ?subject .
+    FILTER(?subject != ?mid)
+    BIND("dependencycycle" AS ?violation)
+  } UNION {
+    GRAPH ?g { ?subject a ?type }
+    VALUES ?type { usf:SourceArtefact usf:SourceArtefactObservation }
+    FILTER(?g != <urn:usf:graph:observed:sourceartefacts>)
+    BIND("sourceobservationgraphplacement" AS ?violation)
+  } UNION {
+    GRAPH ?g { ?subject a usf:SourceArtefactDisposition }
+    FILTER(?g != <urn:usf:graph:derived:sourcedispositions>)
+    BIND("sourcedispositiongraphplacement" AS ?violation)
+  } UNION {
+    GRAPH <urn:usf:graph:observed:sourceartefacts> {
+      ?subject a ?declarationType .
+      VALUES ?declarationType { owl:Class owl:ObjectProperty owl:DatatypeProperty rdf:Property }
+    }
+    BIND("observedgraphtermdeclaration" AS ?violation)
+  } UNION {
+    ?subject a usf:SourceArtefact .
+    FILTER NOT EXISTS { ?subject usf:hasCurrentSourceObservation ?observation }
+    BIND("sourceobservationmissing" AS ?violation)
+  } UNION {
+    ?subject a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?left, ?right .
+    FILTER(?left != ?right)
+    BIND("sourceobservationmultiple" AS ?violation)
+  } UNION {
+    ?subject a usf:SourceArtefact ; usf:hasSourceDisposition ?left, ?right .
+    FILTER(?left != ?right)
+    BIND("sourcedispositionmultiple" AS ?violation)
+  } UNION {
+    ?subject a usf:SourceArtefact .
+    FILTER NOT EXISTS { ?subject usf:hasSourceDisposition ?disposition }
+    BIND("sourcedispositionmissing" AS ?violation)
+  } UNION {
+    ?subject a usf:SourceArtefactDisposition ; usf:dispositionOfSourceArtefact ?source ; usf:decidedAgainstObservation ?observation .
+    FILTER NOT EXISTS { ?source usf:hasCurrentSourceObservation ?observation }
+    BIND("sourcedispositionstaleobservation" AS ?violation)
+  } UNION {
+    ?subject a usf:SourceArtefactDisposition ; usf:observationSetDigest ?left .
+    ?other a usf:SourceArtefactDisposition ; usf:observationSetDigest ?right .
+    FILTER(?left != ?right)
+    BIND("observationsetdigestdivergence" AS ?violation)
+  } UNION {
+    ?subject a usf:SourceArtefactDisposition ; usf:hasDispositionOutputMode <urn:usf:dispositionoutputmode:canonicaloutput> .
+    FILTER NOT EXISTS { ?subject usf:assignedToArtefactPlan ?plan . ?plan a usf:ArtefactPlan }
+    BIND("outputdispositionmissingplan" AS ?violation)
+  } UNION {
+    ?subject a usf:SourceArtefactDisposition ;
+      usf:hasDispositionOutputMode <urn:usf:dispositionoutputmode:canonicaloutput> ;
+      usf:assignedToArtefactPlan ?left, ?right .
+    FILTER(?left != ?right)
+    BIND("outputdispositionmultipleplans" AS ?violation)
+  } UNION {
+    ?subject a usf:SourceArtefactDisposition ; usf:hasDispositionOutputMode <urn:usf:dispositionoutputmode:nooutput> ; usf:assignedToArtefactPlan ?plan .
+    BIND("nooutputdispositionhasplan" AS ?violation)
+  } UNION {
+    ?binding a usf:SourceSemanticBinding ;
+      usf:sourceBindingSource ?source ;
+      usf:sourceBindingArtefactPlan ?plan .
+    FILTER(
+      NOT EXISTS { ?plan a usf:ArtefactPlan }
+      || NOT EXISTS {
+        ?source usf:hasSourceDisposition ?subject .
+        ?subject a usf:SourceArtefactDisposition ;
+          usf:hasDispositionOutputMode <urn:usf:dispositionoutputmode:canonicaloutput> ;
+          usf:assignedToArtefactPlan ?plan .
+      }
+    )
+    BIND("sourceboundplanorphan" AS ?violation)
+  } UNION {
+    ?subject a usf:ArtefactPlan .
+    FILTER NOT EXISTS { ?subject usf:ownedByRepository ?owner . ?owner a usf:Repository }
+    BIND("artefactplanmissingowner" AS ?violation)
+  } UNION {
+    ?subject a usf:ArtefactPlan ; usf:ownedByRepository ?left, ?right .
+    FILTER(?left != ?right)
+    BIND("artefactplanmultipleowners" AS ?violation)
+  } UNION {
+    ?subject a usf:ArtefactPlan .
+    FILTER NOT EXISTS { ?subject usf:plansArtefact/usf:canonicalPath ?path }
+    BIND("artefactplanmissingpath" AS ?violation)
+  } UNION {
+    ?subject a usf:ArtefactPlan ; usf:plansArtefact ?artefact .
+    ?artefact usf:canonicalPath ?leftPath, ?rightPath .
+    FILTER(?leftPath != ?rightPath)
+    BIND("artefactplanmultiplepaths" AS ?violation)
+  } UNION {
+    ?subject a usf:ArtefactPlan ; usf:plansArtefact ?artefact .
+    FILTER NOT EXISTS {
+      ?artefact usf:generatedByComponent ?component .
+      ?component usf:semanticInputQuery ?query ;
+        usf:outputSchema ?schema ;
+        usf:outputPathRule ?pathRule ;
+        usf:integrityPolicy ?integrityPolicy ;
+        usf:normalisationPolicy ?normalisationPolicy ;
+        usf:missingSemanticsConstraint ?missingConstraint ;
+        usf:requiresEquivalenceKind ?equivalenceKind .
+    }
+    BIND("incompletegenerator" AS ?violation)
+  } UNION {
+    ?subject a usf:SourceArtefactDisposition ; usf:hasDispositionKind <urn:usf:dispositionkind:reviewrequired> ; usf:hasDispositionDecisionState <urn:usf:dispositiondecisionstate:accepted> .
+    BIND("reviewrequiredaccepted" AS ?violation)
+  } UNION {
+    ?subject a usf:SourceArtefactDisposition ;
+      usf:dispositionOfSourceArtefact ?source ;
+      usf:decidedAgainstObservation ?observation ;
+      usf:derivedFromDispositionPolicy ?selectedPolicy .
+    ?selectedPolicy usf:policyPrecedence ?selectedPrecedence .
+    ?higherPolicy a usf:SourceDispositionPolicy ;
+      usf:isActiveDispositionPolicy true ;
+      usf:isDefaultDispositionPolicy false ;
+      usf:policyPrecedence ?higherPrecedence .
+    FILTER(?higherPrecedence > ?selectedPrecedence)
+    FILTER(
+      EXISTS {
+        ?higherPolicy usf:policyMatchesSourceBinding ?higherBinding .
+        ?higherBinding usf:sourceBindingSource ?source .
+      }
+      || (
+        NOT EXISTS { ?higherPolicy usf:policyMatchesSourceBinding ?anyHigherBinding }
+        && NOT EXISTS { ?higherPolicy usf:policyMatchesSourceIdentityDigest ?required . FILTER NOT EXISTS { ?source usf:sourceIdentityDigest ?required } }
+        && NOT EXISTS { ?higherPolicy usf:policyMatchesUniverse ?required . FILTER NOT EXISTS { ?observation usf:observedUniverse ?required } }
+        && NOT EXISTS { ?higherPolicy usf:policyMatchesContentRole ?required . FILTER NOT EXISTS { ?observation usf:observedContentRole ?required } }
+        && NOT EXISTS { ?higherPolicy usf:policyMatchesExactSemanticReference ?required . FILTER NOT EXISTS { ?observation usf:hasExactSemanticReference ?required } }
+      )
+    )
+    BIND("sourcedispositionnonmaxprecedence" AS ?violation)
+  } UNION {
+    ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+    ?left a usf:SourceDispositionPolicy ; usf:isActiveDispositionPolicy true ; usf:isDefaultDispositionPolicy false ; usf:policyPrecedence ?precedence .
+    ?right a usf:SourceDispositionPolicy ; usf:isActiveDispositionPolicy true ; usf:isDefaultDispositionPolicy false ; usf:policyPrecedence ?precedence .
+    FILTER(?left != ?right)
+    {
+      { ?left usf:policyMatchesSourceBinding ?leftBinding . ?leftBinding usf:sourceBindingSource ?source }
+      UNION
+      {
+        FILTER NOT EXISTS { ?left usf:policyMatchesSourceBinding ?leftBinding }
+        FILTER NOT EXISTS { ?left usf:policyMatchesSourceIdentityDigest ?required . ?source usf:sourceIdentityDigest ?actual . FILTER(?required != ?actual) }
+        FILTER NOT EXISTS { ?left usf:policyMatchesUniverse ?required . FILTER NOT EXISTS { ?observation usf:observedUniverse ?required } }
+        FILTER NOT EXISTS { ?left usf:policyMatchesContentRole ?required . FILTER NOT EXISTS { ?observation usf:observedContentRole ?required } }
+        FILTER NOT EXISTS { ?left usf:policyMatchesExactSemanticReference ?required . FILTER NOT EXISTS { ?observation usf:hasExactSemanticReference ?required } }
+      }
+    }
+    {
+      { ?right usf:policyMatchesSourceBinding ?rightBinding . ?rightBinding usf:sourceBindingSource ?source }
+      UNION
+      {
+        FILTER NOT EXISTS { ?right usf:policyMatchesSourceBinding ?rightBinding }
+        FILTER NOT EXISTS { ?right usf:policyMatchesSourceIdentityDigest ?required . ?source usf:sourceIdentityDigest ?actual . FILTER(?required != ?actual) }
+        FILTER NOT EXISTS { ?right usf:policyMatchesUniverse ?required . FILTER NOT EXISTS { ?observation usf:observedUniverse ?required } }
+        FILTER NOT EXISTS { ?right usf:policyMatchesContentRole ?required . FILTER NOT EXISTS { ?observation usf:observedContentRole ?required } }
+        FILTER NOT EXISTS { ?right usf:policyMatchesExactSemanticReference ?required . FILTER NOT EXISTS { ?observation usf:hasExactSemanticReference ?required } }
+      }
+    }
+    FILTER NOT EXISTS {
+      ?higher a usf:SourceDispositionPolicy ;
+        usf:isActiveDispositionPolicy true ;
+        usf:isDefaultDispositionPolicy false ;
+        usf:policyPrecedence ?higherPrecedence .
+      FILTER(?higherPrecedence > ?precedence)
+      {
+        { ?higher usf:policyMatchesSourceBinding ?higherBinding . ?higherBinding usf:sourceBindingSource ?source }
+        UNION
+        {
+          FILTER NOT EXISTS { ?higher usf:policyMatchesSourceBinding ?higherBinding }
+          FILTER NOT EXISTS { ?higher usf:policyMatchesSourceIdentityDigest ?required . ?source usf:sourceIdentityDigest ?actual . FILTER(?required != ?actual) }
+          FILTER NOT EXISTS { ?higher usf:policyMatchesUniverse ?required . FILTER NOT EXISTS { ?observation usf:observedUniverse ?required } }
+          FILTER NOT EXISTS { ?higher usf:policyMatchesContentRole ?required . FILTER NOT EXISTS { ?observation usf:observedContentRole ?required } }
+          FILTER NOT EXISTS { ?higher usf:policyMatchesExactSemanticReference ?required . FILTER NOT EXISTS { ?observation usf:hasExactSemanticReference ?required } }
+        }
+      }
+    }
+    BIND("sourcedispositionpolicyoverlap" AS ?violation)
+    BIND(?source AS ?subject)
+  } UNION {
+    ?subject a usf:SourceDispositionPolicy ; usf:isDefaultDispositionPolicy true .
+    ?other a usf:SourceDispositionPolicy ; usf:isDefaultDispositionPolicy true .
+    FILTER(?subject != ?other)
+    BIND("multipledefaultdispositionpolicies" AS ?violation)
+  } UNION {
+    VALUES ?type {
+      usf:CensusObservationRun usf:CensusObservationInput usf:CensusParserShardObservation
+      usf:SourceRelationshipTargetObservation usf:SourceRelationshipObservation
+      usf:WorkPackageObservation usf:WorkPackageDependencyObservation usf:WorkPackageDependencyLineageObservation
+    }
+    GRAPH ?graph { ?subject a ?type }
+    FILTER(?graph != <urn:usf:graph:observed:sourceartefacts>)
+    BIND("repositorystructureobservationoutsideobservedgraph" AS ?violation)
+  } UNION {
+    GRAPH ?graph { ?subject a usf:RepositoryDependencyResolutionPolicy }
+    FILTER(?graph != <urn:usf:graph:repositorystructurepolicy>)
+    BIND("repositorystructurepolicyoutsideauthoredgraph" AS ?violation)
+  } UNION {
+    VALUES ?type { usf:RepositoryWorkPackage usf:RepositoryDependency usf:RetainedWorkPackageDependencyLineage }
+    GRAPH ?graph { ?subject a ?type }
+    FILTER(?graph != <urn:usf:graph:derived:repositorystructure>)
+    BIND("repositorystructureresultoutsidederivedgraph" AS ?violation)
+  } UNION {
+    ?subject a usf:WorkPackageDependencyObservation ; usf:observedInCensusRun ?run .
+    FILTER NOT EXISTS {
+      ?run a usf:CensusObservationRun ; usf:observationSetDigest ?digest ; usf:hasCensusObservationInput ?input ; usf:hasCensusParserShardObservation ?parser .
+      ?input a usf:CensusObservationInput ; usf:observedInputContentDigest ?inputDigest .
+      ?parser a usf:CensusParserShardObservation ; usf:observedCompressedContentDigest ?parserDigest ; usf:observedUncompressedContentDigest ?expandedDigest .
+    }
+    BIND("dependencyobservationwithoutregisteredprovenance" AS ?violation)
+  } UNION {
+    ?subject a usf:WorkPackageDependencyObservation ;
+      usf:workPackageDependencySource ?sourcePackage ; usf:workPackageDependencyPrerequisite ?prerequisitePackage ;
+      usf:supportedBySourceRelationshipObservation ?relationship .
+    ?relationship usf:sourceRelationshipSource ?sourceArtefact ; usf:sourceRelationshipTarget ?targetObservation ; usf:sourceRelationshipResolved true .
+    ?targetObservation usf:resolvesToSourceArtefact ?targetArtefact .
+    FILTER(
+      NOT EXISTS { ?sourcePackage usf:observedOwnedSourceArtefact ?sourceArtefact } ||
+      NOT EXISTS { ?prerequisitePackage usf:observedOwnedSourceArtefact ?targetArtefact }
+    )
+    BIND("dependencyevidenceownershipmismatch" AS ?violation)
+  } UNION {
+    ?subject a usf:WorkPackageDependencyObservation ; usf:supportedBySourceRelationshipObservation ?relationship .
+    FILTER NOT EXISTS { ?relationship a usf:SourceRelationshipObservation ; usf:sourceRelationshipResolved true }
+    BIND("dependencyobservationmissingrelationship" AS ?violation)
+  } UNION {
+    ?subject a usf:RepositoryDependency ; usf:resolvedDependencySource ?endpoint ; usf:resolvedDependencyPrerequisite ?endpoint .
+    BIND("repositorydependencyselfreference" AS ?violation)
+  } UNION {
+    ?subject a usf:RepositoryDependency ;
+      usf:resolvedDependencyStatus <urn:usf:workpackagedependencystatus:requiredprerequisite> ;
+      usf:resolvedDependencySource ?source ; usf:resolvedDependencyPrerequisite ?prerequisite .
+    ?other a usf:RepositoryDependency ;
+      usf:resolvedDependencyStatus <urn:usf:workpackagedependencystatus:requiredprerequisite> ;
+      usf:resolvedDependencySource ?prerequisite ; usf:resolvedDependencyPrerequisite+ ?source .
+    BIND("repositoryrequiredprerequisitedependencycycle" AS ?violation)
+  } UNION {
+    ?subject a usf:RepositoryDependency ; usf:promotedByRepositoryStructurePolicy ?policy .
+    FILTER NOT EXISTS {
+      ?policy a usf:RepositoryDependencyResolutionPolicy ;
+        usf:allowsWorkPackageDependencyResolutionStatus <urn:usf:workpackagedependencyresolutionstatus:resolvedretained> ;
+        usf:requiresRegisteredObservationRun true ; usf:requiresExactEvidenceEndpointOwnership true ; usf:requiresAcyclicRequiredPrerequisiteDependencies true .
+    }
+    BIND("deriveddependencywithoutcompletepolicy" AS ?violation)
+  } UNION {
+    ?subject a usf:RepositoryDependency ; usf:resolvedDependencyStatus ?status ; usf:promotedByRepositoryStructurePolicy ?policy .
+    FILTER NOT EXISTS { ?policy usf:allowsWorkPackageDependencyStatus ?status }
+    BIND("deriveddependencywithunapprovedstatus" AS ?violation)
+  } UNION {
+    ?subject a usf:RepositoryDependency ; usf:resolvedDependencySource ?source ; usf:resolvedDependencyPrerequisite ?prerequisite ; usf:resolvedDependencyType ?kind .
+    ?other a usf:RepositoryDependency ; usf:resolvedDependencySource ?source ; usf:resolvedDependencyPrerequisite ?prerequisite ; usf:resolvedDependencyType ?kind .
+    FILTER(STR(?subject) < STR(?other))
+    BIND("duplicateresolvedrepositorydependency" AS ?violation)
+  } UNION {
+    ?subject a usf:RetainedWorkPackageDependencyLineage ; usf:derivedFromWorkPackageDependencyLineageObservation ?observation ; usf:promotedByRepositoryStructurePolicy ?policy .
+    FILTER NOT EXISTS {
+      ?observation usf:dependencyLineageDisposition <urn:usf:dependencylineagedisposition:retainedwithevidence> ; usf:observedInCensusRun ?run .
+      ?policy usf:allowsDependencyLineageDisposition <urn:usf:dependencylineagedisposition:retainedwithevidence> .
+      ?run a usf:CensusObservationRun .
+    }
+    BIND("retainedlineagewithoutobservationpolicyrun" AS ?violation)
+  } UNION {
+    GRAPH ?graph { ?subject a usf:WorkPackageDependencySatisfactionBasisObservation }
+    FILTER(?graph != <urn:usf:graph:observed:sourceartefacts>)
+    BIND("dependencysatisfactionbasisoutsideobservedsourcegraph" AS ?violation)
+  } UNION {
+    GRAPH ?graph { ?subject a usf:RepositoryDependencySatisfactionPolicy }
+    FILTER(?graph != <urn:usf:graph:repositorystructurepolicy>)
+    BIND("dependencysatisfactionpolicyoutsideauthoredpolicygraph" AS ?violation)
+  } UNION {
+    GRAPH ?graph { ?subject a usf:ActiveRepositoryDependencyBlocker }
+    FILTER(?graph != <urn:usf:graph:derived:repositorystructure>)
+    BIND("activedependencyblockeroutsidederivedrepositorystructure" AS ?violation)
+  } UNION {
+    ?subject a usf:WorkPackageDependencyObservation ;
+      usf:workPackageDependencyStatus <urn:usf:workpackagedependencystatus:requiredprerequisite> .
+    FILTER NOT EXISTS {
+      ?subject usf:workPackageDependencySatisfactionSeed ?seed ;
+        usf:hasWorkPackageDependencySatisfactionBasis ?basis .
+      ?basis a usf:WorkPackageDependencySatisfactionBasisObservation ;
+        usf:satisfactionBasisForWorkPackageDependency ?subject ;
+        usf:observedDependencySatisfactionStatus ?seed .
+    }
+    BIND("requiredprerequisitedependencywithoutexactsatisfactionseedbasis" AS ?violation)
+  } UNION {
+    ?subject a usf:WorkPackageDependencySatisfactionBasisObservation ;
+      usf:satisfactionBasisForWorkPackageDependency ?dependencyObservation ;
+      usf:observedInCensusRun ?basisRun .
+    ?dependencyObservation usf:observedInCensusRun ?dependencyRun .
+    FILTER(?basisRun != ?dependencyRun)
+    BIND("dependencysatisfactionbasisrunmismatch" AS ?violation)
+  } UNION {
+    ?subject a usf:WorkPackageDependencySatisfactionBasisObservation ;
+      usf:satisfactionBasisForWorkPackageDependency ?dependencyObservation ;
+      usf:satisfactionBasisRelationshipObservation ?relationship .
+    FILTER NOT EXISTS { ?dependencyObservation usf:supportedBySourceRelationshipObservation ?relationship }
+    BIND("dependencysatisfactionbasishasextrarelationship" AS ?violation)
+  } UNION {
+    ?subject a usf:WorkPackageDependencyObservation ;
+      usf:hasWorkPackageDependencySatisfactionBasis ?basis ;
+      usf:supportedBySourceRelationshipObservation ?relationship .
+    FILTER NOT EXISTS { ?basis usf:satisfactionBasisRelationshipObservation ?relationship }
+    BIND("dependencysatisfactionbasismissingrelationship" AS ?violation)
+  } UNION {
+    ?subject a usf:ResolvedWorkPackageDependency ;
+      usf:resolvedDependencyStatus <urn:usf:workpackagedependencystatus:requiredprerequisite> ;
+      usf:derivedFromWorkPackageDependencyObservation ?observation .
+    FILTER NOT EXISTS {
+      ?subject usf:dependencySatisfactionStatus <urn:usf:dependencysatisfactionstatus:satisfied> ;
+        usf:derivedFromDependencySatisfactionBasis ?basis ;
+        usf:promotedByDependencySatisfactionPolicy ?policy .
+      ?basis usf:satisfactionBasisForWorkPackageDependency ?observation .
+      ?policy a usf:RepositoryDependencySatisfactionPolicy .
+    }
+    BIND("derivedrequiredprerequisitedependencynotsatisfied" AS ?violation)
+  } UNION {
+    ?subject a usf:WorkPackageDependencyObservation ;
+      usf:workPackageDependencyStatus <urn:usf:workpackagedependencystatus:requiredprerequisite> .
+    FILTER NOT EXISTS {
+      ?dependency a usf:ResolvedWorkPackageDependency ;
+        usf:derivedFromWorkPackageDependencyObservation ?subject ;
+        usf:dependencySatisfactionStatus <urn:usf:dependencysatisfactionstatus:satisfied> .
+    }
+    BIND("observedrequiredprerequisitedependencywithoutderivedsatisfiedparity" AS ?violation)
+  } UNION {
+    ?subject a usf:ActiveRepositoryDependencyBlocker .
+    BIND("activerepositorydependencyblocker" AS ?violation)
+  } UNION {
+    ?subject a usf:CensusObservationRun ; usf:observedRequiredPrerequisiteDependencyCount ?expected .
+    { SELECT ?subject (COUNT(?dependency) AS ?actual) WHERE {
+        ?dependency a usf:WorkPackageDependencyObservation ;
+          usf:workPackageDependencyStatus <urn:usf:workpackagedependencystatus:requiredprerequisite> ;
+          usf:observedInCensusRun ?subject .
+      } GROUP BY ?subject }
+    FILTER(?expected != ?actual)
+    BIND("observedrequiredprerequisitedependencycountmismatch" AS ?violation)
+  } UNION {
+    ?subject a usf:CensusObservationRun ; usf:observedResolvedPrerequisiteDependencyCount ?expected .
+    { SELECT ?subject (COUNT(?dependency) AS ?actual) WHERE {
+        ?dependency a usf:WorkPackageDependencyObservation ;
+          usf:workPackageDependencyStatus <urn:usf:workpackagedependencystatus:requiredprerequisite> ;
+          usf:workPackageDependencyResolutionStatus <urn:usf:workpackagedependencyresolutionstatus:resolvedretained> ;
+          usf:observedInCensusRun ?subject .
+      } GROUP BY ?subject }
+    FILTER(?expected != ?actual)
+    BIND("observedresolvedprerequisitedependencycountmismatch" AS ?violation)
+  } UNION {
+    ?subject a usf:CensusObservationRun ; usf:observedSatisfiedPrerequisiteDependencyCount ?expected .
+    { SELECT ?subject (COUNT(?dependency) AS ?actual) WHERE {
+        ?dependency a usf:WorkPackageDependencyObservation ;
+          usf:workPackageDependencyStatus <urn:usf:workpackagedependencystatus:requiredprerequisite> ;
+          usf:workPackageDependencySatisfactionSeed <urn:usf:dependencysatisfactionstatus:satisfied> ;
+          usf:observedInCensusRun ?subject .
+      } GROUP BY ?subject }
+    FILTER(?expected != ?actual)
+    BIND("observedsatisfiedprerequisitedependencycountmismatch" AS ?violation)
+  } UNION {
+    ?subject a usf:CensusObservationRun ; usf:observedActiveBlockingDependencyCount ?expected .
+    OPTIONAL {
+      { SELECT ?subject (COUNT(?dependency) AS ?actualCount) WHERE {
+          ?dependency a usf:WorkPackageDependencyObservation ;
+            usf:workPackageDependencyStatus <urn:usf:workpackagedependencystatus:requiredprerequisite> ;
+            usf:workPackageDependencySatisfactionSeed <urn:usf:dependencysatisfactionstatus:unsatisfied> ;
+            usf:observedInCensusRun ?subject .
+        } GROUP BY ?subject }
+    }
+    BIND(COALESCE(?actualCount, 0) AS ?actual)
+    FILTER(?expected != ?actual)
+    BIND("observedactiveblockingdependencycountmismatch" AS ?violation)
+  } UNION {
+    # exact assertion duplicated across two definition/authored graphs
+    GRAPH ?duplicateGraphA { ?subject ?duplicatePredicate ?duplicateObject }
+    GRAPH ?duplicateGraphB { ?subject ?duplicatePredicate ?duplicateObject }
+    FILTER(STR(?duplicateGraphA) < STR(?duplicateGraphB))
+    FILTER(?duplicateGraphA != <urn:usf:graph:shapes> && ?duplicateGraphB != <urn:usf:graph:shapes>)
+    FILTER(!STRSTARTS(STR(?duplicateGraphA), "urn:usf:graph:observed") && !STRSTARTS(STR(?duplicateGraphA), "urn:usf:graph:derived"))
+    FILTER(!STRSTARTS(STR(?duplicateGraphB), "urn:usf:graph:observed") && !STRSTARTS(STR(?duplicateGraphB), "urn:usf:graph:derived"))
+    BIND("crossgraphduplicate" AS ?violation)
+  } UNION {
+    # declared ontology term with no usage anywhere and no explicit usage disposition
+    GRAPH <urn:usf:graph:ontology> { ?subject a ?declaredTermKind }
+    VALUES ?declaredTermKind { owl:Class owl:ObjectProperty owl:DatatypeProperty owl:AnnotationProperty }
+    FILTER(isIRI(?subject) && STRSTARTS(STR(?subject), "urn:usf:ontology:"))
+    FILTER NOT EXISTS { ?usageSubject ?subject ?usageObject }
+    FILTER NOT EXISTS { ?usageInstance a ?subject }
+    FILTER NOT EXISTS { ?usageChild rdfs:subClassOf ?subject }
+    FILTER NOT EXISTS { ?usageChildProperty rdfs:subPropertyOf ?subject }
+    FILTER NOT EXISTS { ?usageInverse owl:inverseOf ?subject }
+    FILTER NOT EXISTS { ?usageDomainProperty rdfs:domain ?subject }
+    FILTER NOT EXISTS { ?usageRangeProperty rdfs:range ?subject }
+    FILTER NOT EXISTS { ?usageShape <http://www.w3.org/ns/shacl#targetClass> ?subject }
+    FILTER NOT EXISTS { ?usagePath <http://www.w3.org/ns/shacl#path> ?subject }
+    # non-assertional class references: OWL axiom membership (disjointness/union
+    # RDF lists, equivalence) is genuine use, not an unexplained-unused term.
+    FILTER NOT EXISTS { ?usageList rdf:rest*/rdf:first ?subject }
+    FILTER NOT EXISTS { ?usageEquivalent owl:equivalentClass ?subject }
+    FILTER NOT EXISTS { ?subject owl:equivalentClass ?equivalentUsage }
+    FILTER NOT EXISTS { ?subject usf:termUsageState ?usageState }
+    BIND("unexplainedunusedterm" AS ?violation)
+  } UNION {
+    # an intentionally standalone decision requires a recorded rationale
+    ?subject usf:intentionallyStandalone true .
+    FILTER NOT EXISTS { ?subject usf:decisionRationale ?standaloneRationale }
+    BIND("standalonemissingrationale" AS ?violation)
+  } UNION {
+    # capability with no substantive architectural connection and no explicit decision
+    GRAPH <urn:usf:graph:capabilities> { ?subject a usf:Capability }
+    FILTER NOT EXISTS { ?subject usf:dependsOn ?capabilityDependency }
+    FILTER NOT EXISTS { ?dependentCapability usf:dependsOn ?subject }
+    FILTER NOT EXISTS { ?crossingWorkflow usf:crossesCapability ?subject }
+    FILTER NOT EXISTS { ?subject usf:hasUISemanticModel ?uiModel }
+    FILTER NOT EXISTS { ?servingService usf:serves ?subject }
+    FILTER NOT EXISTS { ?governingPolicy usf:appliesToCapability ?subject }
+    FILTER NOT EXISTS { ?mappedJourney usf:mapsToCapability ?subject }
+    FILTER NOT EXISTS { ?subject usf:hasContract ?interfaceContract . ?contractInterface usf:interfaceForContract ?interfaceContract }
+    FILTER NOT EXISTS {
+      ?subject usf:hasContract ?realisedContract .
+      ?contractRealisation usf:realisesContract ?realisedContract ; usf:realisationState ?realisationState .
+      FILTER(?realisationState != <urn:usf:realisationstate:contractonly>)
+    }
+    FILTER NOT EXISTS { ?subject usf:hasContract ?deferredContract . ?deferredContract usf:disclaims <urn:usf:nonclaim:deferredcapabilities> }
+    FILTER NOT EXISTS { ?subject usf:intentionallyStandalone true }
+    BIND("capabilitydisconnected" AS ?violation)
+  } UNION {
+    # service with no capability ownership, dependency or realisation context
+    GRAPH <urn:usf:graph:services> { ?subject a usf:Service }
+    FILTER NOT EXISTS { ?subject usf:serves ?servedCapability }
+    FILTER NOT EXISTS { ?subject usf:dependsOnService ?serviceDependency }
+    FILTER NOT EXISTS { ?dependentService usf:dependsOnService ?subject }
+    FILTER NOT EXISTS { ?serviceRealisation usf:viaService ?subject }
+    FILTER NOT EXISTS { ?subject usf:intentionallyStandalone true }
+    BIND("servicedisconnected" AS ?violation)
+  } UNION {
+    # implementation with no realisation or dependency context
+    GRAPH <urn:usf:graph:implementations> { ?subject a usf:Implementation }
+    FILTER NOT EXISTS { ?implementationRealisation usf:realisingImplementation ?subject }
+    FILTER NOT EXISTS { ?subject usf:dependsOn ?implementationDependency }
+    FILTER NOT EXISTS { ?dependentImplementation usf:dependsOn ?subject }
+    FILTER NOT EXISTS { ?subject usf:intentionallyStandalone true }
+    BIND("implementationdisconnected" AS ?violation)
+  } UNION {
+    # adapter implementing a port that none of its bound providers fulfils:
+    # a binding is incoherent if the provider it binds cannot fulfil the port
+    # the adapter implements.
+    ?subject a usf:Adapter ; usf:implementsPort ?implementedPort .
+    FILTER NOT EXISTS {
+      ?subject usf:bindsProvider ?boundProvider .
+      ?boundProvider usf:fulfilsPort ?implementedPort .
+    }
+    BIND("adapterportnotfulfilled" AS ?violation)
+  } UNION {
+    # port that no provider fulfils, no adapter implements and no binding binds
+    GRAPH <urn:usf:graph:interfaces> { ?subject a usf:Port }
+    FILTER NOT EXISTS { ?fulfillingProvider usf:fulfilsPort ?subject }
+    FILTER NOT EXISTS { ?implementingAdapter usf:implementsPort ?subject }
+    FILTER NOT EXISTS { ?bindingResource usf:bindsPort ?subject }
+    FILTER NOT EXISTS { ?subject usf:intentionallyStandalone true }
+    BIND("portuncovered" AS ?violation)
+  } UNION {
+    # semantic contract without any realisation resource. Invariant: every
+    # semantic contract carries at least a contract-only Realisation node
+    # (deferred/not-claimed contracts still get one, with a non-realising
+    # realisationState), so this fires only on a genuinely missing realisation
+    # and needs no deferred/standalone exemption.
+    GRAPH <urn:usf:graph:capabilities> { ?subject a usf:SemanticContract }
+    FILTER NOT EXISTS { ?anyRealisation usf:realisesContract ?subject }
+    BIND("contractwithoutrealisation" AS ?violation)
+  }
+}

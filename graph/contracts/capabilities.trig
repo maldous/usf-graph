@@ -1,0 +1,2642 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix cap: <urn:usf:capability:> .
+@prefix sc: <urn:usf:semanticcontract:> .
+@prefix cf: <urn:usf:contractfacet:> .
+@prefix dom: <urn:usf:capabilitydomain:> .
+@prefix facet: <urn:usf:facetkind:> .
+
+<urn:usf:graph:capabilities> {
+    cap:abacpolicydecisionpoint a usf:Capability ;
+        usf:canonicalName "abacpolicydecisionpoint" ;
+        usf:dependsOn cap:authenticationplatform , cap:rbacrolesandpermissions ;
+        usf:hasContract sc:abacpolicydecisionpoint ;
+        usf:inDomain dom:identityaccess .
+    cap:accessibilitya11ygate a usf:Capability ;
+        usf:canonicalName "accessibilitya11ygate" ;
+        usf:intentionallyStandalone true ;
+        usf:decisionRationale "Validation gate capability enforced through the foundation accessibility gate tooling; it acts as a quality gate rather than a runtime architectural dependency." ;
+        usf:hasContract sc:accessibilitya11ygate ;
+        usf:inDomain dom:foundation .
+    cap:alertingincidentmanagementoncallstatuspage a usf:Capability ;
+        usf:canonicalName "alertingincidentmanagementoncallstatuspage" ;
+        usf:dependsOn cap:observabilitybuiltinalertingandincidents ;
+        usf:hasContract sc:alertingincidentmanagementoncallstatuspage ;
+        usf:inDomain dom:observabilityops .
+    cap:apidocsdeveloperportalsdksratelimits a usf:Capability ;
+        usf:canonicalName "apidocsdeveloperportalsdksratelimits" ;
+        usf:dependsOn cap:apikeyspersonalaccesstokens , cap:entitlementengine , cap:openapidrifthardgate , cap:ratelimitingapi ;
+        usf:hasContract sc:apidocsdeveloperportalsdksratelimits ;
+        usf:inDomain dom:developerplatform .
+    cap:apikeyspersonalaccesstokens a usf:Capability ;
+        usf:canonicalName "apikeyspersonalaccesstokens" ;
+        usf:dependsOn cap:entitlementengine , cap:relationalstorageandmigrationsandrls ;
+        usf:hasContract sc:apikeyspersonalaccesstokens ;
+        usf:inDomain dom:identityaccess .
+    cap:auditofprivilegedaccess a usf:Capability ;
+        usf:canonicalName "auditofprivilegedaccess" ;
+        usf:dependsOn cap:supportmodebreakglassaccess ;
+        usf:hasContract sc:auditofprivilegedaccess ;
+        usf:inDomain dom:identityaccess .
+    cap:authenticationplatform a usf:Capability ;
+        usf:canonicalName "authenticationplatform" ;
+        usf:dependsOn cap:customdomainsdnsownershiptlscanonical , cap:rbacrolesandpermissions , cap:tenanthostidentityresolution , cap:tenantidentityrecordandfqdn , cap:useridentityandtenantmembership ;
+        usf:hasContract sc:authenticationplatform ;
+        usf:inDomain dom:authentication .
+    cap:backgroundworkersjobrunner a usf:Capability ;
+        usf:canonicalName "backgroundworkersjobrunner" ;
+        usf:dependsOn cap:eventbusdurablequeuesdlqredrive ;
+        usf:hasContract sc:backgroundworkersjobrunner ;
+        usf:inDomain dom:computeruntime .
+    cap:backupandrestore a usf:Capability ;
+        usf:canonicalName "backupandrestore" ;
+        usf:dependsOn cap:environmentregistryandbootstrap , cap:relationalstorageandmigrationsandrls ;
+        usf:hasContract sc:backupandrestore ;
+        usf:inDomain dom:dataplatform .
+    cap:brandingandtheming a usf:Capability ;
+        usf:canonicalName "brandingandtheming" ;
+        usf:dependsOn cap:configurationregistryandhistory , cap:tenanthostidentityresolution ;
+        usf:hasContract sc:brandingandtheming ;
+        usf:inDomain dom:configuration .
+    cap:browsertelemetrygrafanafarorumandbrowsertobfftracing a usf:Capability ;
+        usf:canonicalName "browsertelemetrygrafanafarorumandbrowsertobfftracing" ;
+        usf:dependsOn cap:metricsandtraces ;
+        usf:hasContract sc:browsertelemetrygrafanafarorumandbrowsertobfftracing ;
+        usf:inDomain dom:observabilityops .
+    cap:buildversuscomposedecisionframework a usf:Capability ;
+        usf:canonicalName "buildversuscomposedecisionframework" ;
+        usf:intentionallyStandalone true ;
+        usf:decisionRationale "Decision framework capability; it is a governing principle applied during design and review rather than a runtime architectural dependency." ;
+        usf:hasContract sc:buildversuscomposedecisionframework ;
+        usf:inDomain dom:foundation .
+    cap:codequalityandsecretanddependencyscanning a usf:Capability ;
+        usf:canonicalName "codequalityandsecretanddependencyscanning" ;
+        usf:hasContract sc:codequalityandsecretanddependencyscanning ;
+        usf:inDomain dom:securitygovernance .
+    cap:compliancereportsaccessreviewsevidencepacks a usf:Capability ;
+        usf:canonicalName "compliancereportsaccessreviewsevidencepacks" ;
+        usf:dependsOn cap:metricsandtraces , cap:objectstorageandtenantprefixesandsignedurls , cap:observabilitybuiltinalertingandincidents , cap:pitrretentionlegalholddataresidency ;
+        usf:hasContract sc:compliancereportsaccessreviewsevidencepacks ;
+        usf:inDomain dom:securitygovernance .
+    cap:composedproviderreadinessspine a usf:Capability ;
+        usf:canonicalName "composedproviderreadinessspine" ;
+        usf:dependsOn cap:providerconfigurationplane ;
+        usf:hasContract sc:composedproviderreadinessspine ;
+        usf:inDomain dom:foundation .
+    cap:configurationregistryandhistory a usf:Capability ;
+        usf:canonicalName "configurationregistryandhistory" ;
+        usf:dependsOn cap:historyreadmodelreadonlyprojection , cap:relationalstorageandmigrationsandrls ;
+        usf:hasContract sc:configurationregistryandhistory ;
+        usf:inDomain dom:configuration .
+    cap:customdomainsdnsownershiptlscanonical a usf:Capability ;
+        usf:canonicalName "customdomainsdnsownershiptlscanonical" ;
+        usf:dependsOn cap:tenantidentityrecordandfqdn ;
+        usf:hasContract sc:customdomainsdnsownershiptlscanonical ;
+        usf:inDomain dom:configuration .
+    cap:datagovernancecataloglineageclassificationpiidsrgdpr a usf:Capability ;
+        usf:canonicalName "datagovernancecataloglineageclassificationpiidsrgdpr" ;
+        usf:hasContract sc:datagovernancecataloglineageclassificationpiidsrgdpr ;
+        usf:inDomain dom:dataplatform .
+    cap:delegatedadministrationroles a usf:Capability ;
+        usf:canonicalName "delegatedadministrationroles" ;
+        usf:hasContract sc:delegatedadministrationroles ;
+        usf:inDomain dom:identityaccess .
+    cap:e2econfidenceladderstageaware a usf:Capability ;
+        usf:canonicalName "e2econfidenceladderstageaware" ;
+        usf:intentionallyStandalone true ;
+        usf:decisionRationale "Stage aware confidence ladder capability realised through the foundation validation and proof gates rather than runtime architecture." ;
+        usf:hasContract sc:e2econfidenceladderstageaware ;
+        usf:inDomain dom:foundation .
+    cap:enduserprofileandpreferencesselfservice a usf:Capability ;
+        usf:canonicalName "enduserprofileandpreferencesselfservice" ;
+        usf:hasContract sc:enduserprofileandpreferencesselfservice ;
+        usf:inDomain dom:identityaccess .
+    cap:entitlementengine a usf:Capability ;
+        usf:canonicalName "entitlementengine" ;
+        usf:dependsOn cap:rbacrolesandpermissions ;
+        usf:hasContract sc:entitlementengine ;
+        usf:inDomain dom:identityaccess .
+    cap:environmentregistryandbootstrap a usf:Capability ;
+        usf:canonicalName "environmentregistryandbootstrap" ;
+        usf:dependsOn cap:runtimesecretsmanagement ;
+        usf:hasContract sc:environmentregistryandbootstrap ;
+        usf:inDomain dom:foundation .
+    cap:environmentspecificvssharedservicemodel a usf:Capability ;
+        usf:canonicalName "environmentspecificvssharedservicemodel" ;
+        usf:hasContract sc:environmentspecificvssharedservicemodel ;
+        usf:inDomain dom:foundation .
+    cap:eventbusdurablequeuesdlqredrive a usf:Capability ;
+        usf:canonicalName "eventbusdurablequeuesdlqredrive" ;
+        usf:dependsOn cap:relationalstorageandmigrationsandrls ;
+        usf:hasContract sc:eventbusdurablequeuesdlqredrive ;
+        usf:inDomain dom:eventsworkflow .
+    cap:historyreadmodelreadonlyprojection a usf:Capability ;
+        usf:canonicalName "historyreadmodelreadonlyprojection" ;
+        usf:dependsOn cap:relationalstorageandmigrationsandrls ;
+        usf:hasContract sc:historyreadmodelreadonlyprojection ;
+        usf:inDomain dom:dataplatform .
+    cap:i18nruntimeandvalidation a usf:Capability ;
+        usf:canonicalName "i18nruntimeandvalidation" ;
+        usf:hasContract sc:i18nruntimeandvalidation ;
+        usf:inDomain dom:foundation .
+    cap:internalservicecatalogandreadiness a usf:Capability ;
+        usf:canonicalName "internalservicecatalogandreadiness" ;
+        usf:dependsOn cap:composedproviderreadinessspine ;
+        usf:hasContract sc:internalservicecatalogandreadiness ;
+        usf:inDomain dom:observabilityops .
+    cap:logsaggregationandtenantscopedsearch a usf:Capability ;
+        usf:canonicalName "logsaggregationandtenantscopedsearch" ;
+        usf:hasContract sc:logsaggregationandtenantscopedsearch ;
+        usf:inDomain dom:observabilityops .
+    cap:metricsandtraces a usf:Capability ;
+        usf:canonicalName "metricsandtraces" ;
+        usf:hasContract sc:metricsandtraces ;
+        usf:inDomain dom:observabilityops .
+    cap:mockprovidersdevtest a usf:Capability ;
+        usf:canonicalName "mockprovidersdevtest" ;
+        usf:hasContract sc:mockprovidersdevtest ;
+        usf:inDomain dom:developerplatform .
+    cap:notificationdeliveryandpreferencesandchannels a usf:Capability ;
+        usf:canonicalName "notificationdeliveryandpreferencesandchannels" ;
+        usf:dependsOn cap:enduserprofileandpreferencesselfservice , cap:eventbusdurablequeuesdlqredrive ;
+        usf:hasContract sc:notificationdeliveryandpreferencesandchannels ;
+        usf:inDomain dom:eventsworkflow .
+    cap:objectstorageandtenantprefixesandsignedurls a usf:Capability ;
+        usf:canonicalName "objectstorageandtenantprefixesandsignedurls" ;
+        usf:dependsOn cap:quotaenforcement , cap:relationalstorageandmigrationsandrls , cap:usagemeteringandmetereventingestion ;
+        usf:hasContract sc:objectstorageandtenantprefixesandsignedurls ;
+        usf:inDomain dom:storage .
+    cap:observabilitybuiltinalertingandincidents a usf:Capability ;
+        usf:canonicalName "observabilitybuiltinalertingandincidents" ;
+        usf:dependsOn cap:metricsandtraces , cap:notificationdeliveryandpreferencesandchannels ;
+        usf:hasContract sc:observabilitybuiltinalertingandincidents ;
+        usf:inDomain dom:observabilityops .
+    cap:openapidrifthardgate a usf:Capability ;
+        usf:canonicalName "openapidrifthardgate" ;
+        usf:hasContract sc:openapidrifthardgate ;
+        usf:inDomain dom:developerplatform .
+    cap:pitrretentionlegalholddataresidency a usf:Capability ;
+        usf:canonicalName "pitrretentionlegalholddataresidency" ;
+        usf:dependsOn cap:backupandrestore , cap:relationalstorageandmigrationsandrls ;
+        usf:hasContract sc:pitrretentionlegalholddataresidency ;
+        usf:inDomain dom:dataplatform .
+    cap:productcatalogplansprices a usf:Capability ;
+        usf:canonicalName "productcatalogplansprices" ;
+        usf:hasContract sc:productcatalogplansprices ;
+        usf:inDomain dom:entitlementsbilling .
+    cap:providerconfigurationplane a usf:Capability ;
+        usf:canonicalName "providerconfigurationplane" ;
+        usf:dependsOn cap:runtimesecretsmanagement ;
+        usf:hasContract sc:providerconfigurationplane ;
+        usf:inDomain dom:foundation .
+    cap:providerenvironmentclassification a usf:Capability ;
+        usf:canonicalName "providerenvironmentclassification" ;
+        usf:hasContract sc:providerenvironmentclassification ;
+        usf:inDomain dom:foundation .
+    cap:quotaenforcement a usf:Capability ;
+        usf:canonicalName "quotaenforcement" ;
+        usf:dependsOn cap:entitlementengine , cap:usagemeteringandmetereventingestion ;
+        usf:hasContract sc:quotaenforcement ;
+        usf:inDomain dom:entitlementsbilling .
+    cap:ratelimitingapi a usf:Capability ;
+        usf:canonicalName "ratelimitingapi" ;
+        usf:dependsOn cap:entitlementengine ;
+        usf:hasContract sc:ratelimitingapi ;
+        usf:inDomain dom:developerplatform .
+    cap:rbacrolesandpermissions a usf:Capability ;
+        usf:canonicalName "rbacrolesandpermissions" ;
+        usf:dependsOn cap:useridentityandtenantmembership ;
+        usf:hasContract sc:rbacrolesandpermissions ;
+        usf:inDomain dom:identityaccess .
+    cap:relationalstorageandmigrationsandrls a usf:Capability ;
+        usf:canonicalName "relationalstorageandmigrationsandrls" ;
+        usf:hasContract sc:relationalstorageandmigrationsandrls ;
+        usf:inDomain dom:dataplatform .
+    cap:runtimesecretsmanagement a usf:Capability ;
+        usf:canonicalName "runtimesecretsmanagement" ;
+        usf:dependsOn cap:relationalstorageandmigrationsandrls ;
+        usf:hasContract sc:runtimesecretsmanagement ;
+        usf:inDomain dom:computeruntime .
+    cap:scheduledjobsbuiltinontheeventsubstrate a usf:Capability ;
+        usf:canonicalName "scheduledjobsbuiltinontheeventsubstrate" ;
+        usf:dependsOn cap:eventbusdurablequeuesdlqredrive ;
+        usf:hasContract sc:scheduledjobsbuiltinontheeventsubstrate ;
+        usf:inDomain dom:eventsworkflow .
+    cap:searchandindexingproductsearch a usf:Capability ;
+        usf:canonicalName "searchandindexingproductsearch" ;
+        usf:dependsOn cap:relationalstorageandmigrationsandrls ;
+        usf:hasContract sc:searchandindexingproductsearch ;
+        usf:inDomain dom:search .
+    cap:serverlessfunctionruntime a usf:Capability ;
+        usf:canonicalName "serverlessfunctionruntime" ;
+        usf:hasContract sc:serverlessfunctionruntime ;
+        usf:inDomain dom:computeruntime .
+    cap:servicecatalogandproviderintegrationmodel a usf:Capability ;
+        usf:canonicalName "servicecatalogandproviderintegrationmodel" ;
+        usf:dependsOn cap:entitlementengine , cap:tenantserviceclickthroughpolicy ;
+        usf:hasContract sc:servicecatalogandproviderintegrationmodel ;
+        usf:inDomain dom:foundation .
+    cap:suborganisations a usf:Capability ;
+        usf:canonicalName "suborganisations" ;
+        usf:dependsOn cap:tenantidentityrecordandfqdn ;
+        usf:hasContract sc:suborganisations ;
+        usf:inDomain dom:identityaccess .
+    cap:subscriptionsinvoicespaymentmethodsdunning a usf:Capability ;
+        usf:canonicalName "subscriptionsinvoicespaymentmethodsdunning" ;
+        usf:dependsOn cap:productcatalogplansprices ;
+        usf:hasContract sc:subscriptionsinvoicespaymentmethodsdunning ;
+        usf:inDomain dom:entitlementsbilling .
+    cap:supportmodebreakglassaccess a usf:Capability ;
+        usf:canonicalName "supportmodebreakglassaccess" ;
+        usf:dependsOn cap:workflowenginescheduledjobsapprovals ;
+        usf:hasContract sc:supportmodebreakglassaccess ;
+        usf:inDomain dom:identityaccess .
+    cap:supportticketscustomerhealthannouncements a usf:Capability ;
+        usf:canonicalName "supportticketscustomerhealthannouncements" ;
+        usf:dependsOn cap:supportmodebreakglassaccess , cap:usagemeteringandmetereventingestion ;
+        usf:hasContract sc:supportticketscustomerhealthannouncements ;
+        usf:inDomain dom:supportadmin .
+    cap:tenantcanonicaldomainsetunset a usf:Capability ;
+        usf:canonicalName "tenantcanonicaldomainsetunset" ;
+        usf:dependsOn cap:customdomainsdnsownershiptlscanonical , cap:tenantdomainactivationauthclient ;
+        usf:hasContract sc:tenantcanonicaldomainsetunset ;
+        usf:inDomain dom:configuration .
+    cap:tenantdataimportexport a usf:Capability ;
+        usf:canonicalName "tenantdataimportexport" ;
+        usf:dependsOn cap:relationalstorageandmigrationsandrls ;
+        usf:hasContract sc:tenantdataimportexport ;
+        usf:inDomain dom:dataplatform .
+    cap:tenantdomainactivationauthclient a usf:Capability ;
+        usf:canonicalName "tenantdomainactivationauthclient" ;
+        usf:dependsOn cap:customdomainsdnsownershiptlscanonical ;
+        usf:hasContract sc:tenantdomainactivationauthclient ;
+        usf:inDomain dom:configuration .
+    cap:tenantgroups a usf:Capability ;
+        usf:canonicalName "tenantgroups" ;
+        usf:dependsOn cap:authenticationplatform ;
+        usf:hasContract sc:tenantgroups ;
+        usf:inDomain dom:identityaccess .
+    cap:tenanthostidentityresolution a usf:Capability ;
+        usf:canonicalName "tenanthostidentityresolution" ;
+        usf:dependsOn cap:customdomainsdnsownershiptlscanonical , cap:tenantidentityrecordandfqdn ;
+        usf:hasContract sc:tenanthostidentityresolution ;
+        usf:inDomain dom:identityaccess .
+    cap:tenantidentityrecordandfqdn a usf:Capability ;
+        usf:canonicalName "tenantidentityrecordandfqdn" ;
+        usf:hasContract sc:tenantidentityrecordandfqdn ;
+        usf:inDomain dom:identityaccess .
+    cap:tenantisolationproof a usf:Capability ;
+        usf:canonicalName "tenantisolationproof" ;
+        usf:dependsOn cap:objectstorageandtenantprefixesandsignedurls , cap:relationalstorageandmigrationsandrls , cap:tenanthostidentityresolution ;
+        usf:hasContract sc:tenantisolationproof ;
+        usf:inDomain dom:securitygovernance .
+    cap:tenantlifecycleprovisionsuspenddeleteexport a usf:Capability ;
+        usf:canonicalName "tenantlifecycleprovisionsuspenddeleteexport" ;
+        usf:dependsOn cap:datagovernancecataloglineageclassificationpiidsrgdpr , cap:tenantdataimportexport ;
+        usf:hasContract sc:tenantlifecycleprovisionsuspenddeleteexport ;
+        usf:inDomain dom:supportadmin .
+    cap:tenantserviceclickthroughpolicy a usf:Capability ;
+        usf:canonicalName "tenantserviceclickthroughpolicy" ;
+        usf:dependsOn cap:internalservicecatalogandreadiness ;
+        usf:hasContract sc:tenantserviceclickthroughpolicy ;
+        usf:inDomain dom:observabilityops .
+    cap:universalservicefoundationscopeandprinciples a usf:Capability ;
+        usf:canonicalName "universalservicefoundationscopeandprinciples" ;
+        usf:hasContract sc:universalservicefoundationscopeandprinciples ;
+        usf:inDomain dom:foundation .
+    cap:usagemeteringandmetereventingestion a usf:Capability ;
+        usf:canonicalName "usagemeteringandmetereventingestion" ;
+        usf:dependsOn cap:entitlementengine ;
+        usf:hasContract sc:usagemeteringandmetereventingestion ;
+        usf:inDomain dom:entitlementsbilling .
+    cap:useridentityandtenantmembership a usf:Capability ;
+        usf:canonicalName "useridentityandtenantmembership" ;
+        usf:hasContract sc:useridentityandtenantmembership ;
+        usf:inDomain dom:identityaccess .
+    cap:webhooksdeveloperfacing a usf:Capability ;
+        usf:canonicalName "webhooksdeveloperfacing" ;
+        usf:dependsOn cap:eventbusdurablequeuesdlqredrive , cap:notificationdeliveryandpreferencesandchannels ;
+        usf:hasContract sc:webhooksdeveloperfacing ;
+        usf:inDomain dom:developerplatform .
+    cap:workflowenginescheduledjobsapprovals a usf:Capability ;
+        usf:canonicalName "workflowenginescheduledjobsapprovals" ;
+        usf:dependsOn cap:eventbusdurablequeuesdlqredrive , cap:notificationdeliveryandpreferencesandchannels ;
+        usf:hasContract sc:workflowenginescheduledjobsapprovals ;
+        usf:inDomain dom:eventsworkflow .
+    cap:writeonlysecretsettings a usf:Capability ;
+        usf:canonicalName "writeonlysecretsettings" ;
+        usf:dependsOn cap:runtimesecretsmanagement ;
+        usf:hasContract sc:writeonlysecretsettings ;
+        usf:inDomain dom:configuration .
+    cf:abacpolicydecisionpointauditmodel a usf:ContractFacet ;
+        usf:canonicalName "abacpolicydecisionpointauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:abacpolicydecisionpointcontracts a usf:ContractFacet ;
+        usf:canonicalName "abacpolicydecisionpointcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:abacpolicydecisionpointerrormodel a usf:ContractFacet ;
+        usf:canonicalName "abacpolicydecisionpointerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:abacpolicydecisionpointlifecycle a usf:ContractFacet ;
+        usf:canonicalName "abacpolicydecisionpointlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:abacpolicydecisionpointpermissions a usf:ContractFacet ;
+        usf:canonicalName "abacpolicydecisionpointpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:abacpolicydecisionpointproof a usf:ContractFacet ;
+        usf:canonicalName "abacpolicydecisionpointproof" ;
+        usf:facetKind facet:proof .
+    cf:abacpolicydecisionpointreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "abacpolicydecisionpointreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:abacpolicydecisionpointstatemodel a usf:ContractFacet ;
+        usf:canonicalName "abacpolicydecisionpointstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:abacpolicydecisionpointuisemantics a usf:ContractFacet ;
+        usf:canonicalName "abacpolicydecisionpointuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:abacpolicydecisionpointvalidation a usf:ContractFacet ;
+        usf:canonicalName "abacpolicydecisionpointvalidation" ;
+        usf:facetKind facet:validation .
+    cf:accessibilitya11ygateauditmodel a usf:ContractFacet ;
+        usf:canonicalName "accessibilitya11ygateauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:accessibilitya11ygatecontracts a usf:ContractFacet ;
+        usf:canonicalName "accessibilitya11ygatecontracts" ;
+        usf:facetKind facet:contracts .
+    cf:accessibilitya11ygateerrormodel a usf:ContractFacet ;
+        usf:canonicalName "accessibilitya11ygateerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:accessibilitya11ygatelifecycle a usf:ContractFacet ;
+        usf:canonicalName "accessibilitya11ygatelifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:accessibilitya11ygatepermissions a usf:ContractFacet ;
+        usf:canonicalName "accessibilitya11ygatepermissions" ;
+        usf:facetKind facet:permissions .
+    cf:accessibilitya11ygateproof a usf:ContractFacet ;
+        usf:canonicalName "accessibilitya11ygateproof" ;
+        usf:facetKind facet:proof .
+    cf:accessibilitya11ygatereadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "accessibilitya11ygatereadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:accessibilitya11ygatestatemodel a usf:ContractFacet ;
+        usf:canonicalName "accessibilitya11ygatestatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:accessibilitya11ygateuisemantics a usf:ContractFacet ;
+        usf:canonicalName "accessibilitya11ygateuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:accessibilitya11ygatevalidation a usf:ContractFacet ;
+        usf:canonicalName "accessibilitya11ygatevalidation" ;
+        usf:facetKind facet:validation .
+    cf:alertingincidentmanagementoncallstatuspageauditmodel a usf:ContractFacet ;
+        usf:canonicalName "alertingincidentmanagementoncallstatuspageauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:alertingincidentmanagementoncallstatuspagecontracts a usf:ContractFacet ;
+        usf:canonicalName "alertingincidentmanagementoncallstatuspagecontracts" ;
+        usf:facetKind facet:contracts .
+    cf:alertingincidentmanagementoncallstatuspageerrormodel a usf:ContractFacet ;
+        usf:canonicalName "alertingincidentmanagementoncallstatuspageerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:alertingincidentmanagementoncallstatuspagelifecycle a usf:ContractFacet ;
+        usf:canonicalName "alertingincidentmanagementoncallstatuspagelifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:alertingincidentmanagementoncallstatuspagepermissions a usf:ContractFacet ;
+        usf:canonicalName "alertingincidentmanagementoncallstatuspagepermissions" ;
+        usf:facetKind facet:permissions .
+    cf:alertingincidentmanagementoncallstatuspageproof a usf:ContractFacet ;
+        usf:canonicalName "alertingincidentmanagementoncallstatuspageproof" ;
+        usf:facetKind facet:proof .
+    cf:alertingincidentmanagementoncallstatuspagereadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "alertingincidentmanagementoncallstatuspagereadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:alertingincidentmanagementoncallstatuspagestatemodel a usf:ContractFacet ;
+        usf:canonicalName "alertingincidentmanagementoncallstatuspagestatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:alertingincidentmanagementoncallstatuspageuisemantics a usf:ContractFacet ;
+        usf:canonicalName "alertingincidentmanagementoncallstatuspageuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:alertingincidentmanagementoncallstatuspagevalidation a usf:ContractFacet ;
+        usf:canonicalName "alertingincidentmanagementoncallstatuspagevalidation" ;
+        usf:facetKind facet:validation .
+    cf:apidocsdeveloperportalsdksratelimitsauditmodel a usf:ContractFacet ;
+        usf:canonicalName "apidocsdeveloperportalsdksratelimitsauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:apidocsdeveloperportalsdksratelimitscontracts a usf:ContractFacet ;
+        usf:canonicalName "apidocsdeveloperportalsdksratelimitscontracts" ;
+        usf:facetKind facet:contracts .
+    cf:apidocsdeveloperportalsdksratelimitserrormodel a usf:ContractFacet ;
+        usf:canonicalName "apidocsdeveloperportalsdksratelimitserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:apidocsdeveloperportalsdksratelimitslifecycle a usf:ContractFacet ;
+        usf:canonicalName "apidocsdeveloperportalsdksratelimitslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:apidocsdeveloperportalsdksratelimitspermissions a usf:ContractFacet ;
+        usf:canonicalName "apidocsdeveloperportalsdksratelimitspermissions" ;
+        usf:facetKind facet:permissions .
+    cf:apidocsdeveloperportalsdksratelimitsproof a usf:ContractFacet ;
+        usf:canonicalName "apidocsdeveloperportalsdksratelimitsproof" ;
+        usf:facetKind facet:proof .
+    cf:apidocsdeveloperportalsdksratelimitsreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "apidocsdeveloperportalsdksratelimitsreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:apidocsdeveloperportalsdksratelimitsstatemodel a usf:ContractFacet ;
+        usf:canonicalName "apidocsdeveloperportalsdksratelimitsstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:apidocsdeveloperportalsdksratelimitsuisemantics a usf:ContractFacet ;
+        usf:canonicalName "apidocsdeveloperportalsdksratelimitsuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:apidocsdeveloperportalsdksratelimitsvalidation a usf:ContractFacet ;
+        usf:canonicalName "apidocsdeveloperportalsdksratelimitsvalidation" ;
+        usf:facetKind facet:validation .
+    cf:apikeyspersonalaccesstokensauditmodel a usf:ContractFacet ;
+        usf:canonicalName "apikeyspersonalaccesstokensauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:apikeyspersonalaccesstokenscontracts a usf:ContractFacet ;
+        usf:canonicalName "apikeyspersonalaccesstokenscontracts" ;
+        usf:facetKind facet:contracts .
+    cf:apikeyspersonalaccesstokenserrormodel a usf:ContractFacet ;
+        usf:canonicalName "apikeyspersonalaccesstokenserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:apikeyspersonalaccesstokenslifecycle a usf:ContractFacet ;
+        usf:canonicalName "apikeyspersonalaccesstokenslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:apikeyspersonalaccesstokenspermissions a usf:ContractFacet ;
+        usf:canonicalName "apikeyspersonalaccesstokenspermissions" ;
+        usf:facetKind facet:permissions .
+    cf:apikeyspersonalaccesstokensproof a usf:ContractFacet ;
+        usf:canonicalName "apikeyspersonalaccesstokensproof" ;
+        usf:facetKind facet:proof .
+    cf:apikeyspersonalaccesstokensreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "apikeyspersonalaccesstokensreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:apikeyspersonalaccesstokensstatemodel a usf:ContractFacet ;
+        usf:canonicalName "apikeyspersonalaccesstokensstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:apikeyspersonalaccesstokensuisemantics a usf:ContractFacet ;
+        usf:canonicalName "apikeyspersonalaccesstokensuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:apikeyspersonalaccesstokensvalidation a usf:ContractFacet ;
+        usf:canonicalName "apikeyspersonalaccesstokensvalidation" ;
+        usf:facetKind facet:validation .
+    cf:auditofprivilegedaccessauditmodel a usf:ContractFacet ;
+        usf:canonicalName "auditofprivilegedaccessauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:auditofprivilegedaccesscontracts a usf:ContractFacet ;
+        usf:canonicalName "auditofprivilegedaccesscontracts" ;
+        usf:facetKind facet:contracts .
+    cf:auditofprivilegedaccesserrormodel a usf:ContractFacet ;
+        usf:canonicalName "auditofprivilegedaccesserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:auditofprivilegedaccesslifecycle a usf:ContractFacet ;
+        usf:canonicalName "auditofprivilegedaccesslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:auditofprivilegedaccesspermissions a usf:ContractFacet ;
+        usf:canonicalName "auditofprivilegedaccesspermissions" ;
+        usf:facetKind facet:permissions .
+    cf:auditofprivilegedaccessproof a usf:ContractFacet ;
+        usf:canonicalName "auditofprivilegedaccessproof" ;
+        usf:facetKind facet:proof .
+    cf:auditofprivilegedaccessreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "auditofprivilegedaccessreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:auditofprivilegedaccessstatemodel a usf:ContractFacet ;
+        usf:canonicalName "auditofprivilegedaccessstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:auditofprivilegedaccessuisemantics a usf:ContractFacet ;
+        usf:canonicalName "auditofprivilegedaccessuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:auditofprivilegedaccessvalidation a usf:ContractFacet ;
+        usf:canonicalName "auditofprivilegedaccessvalidation" ;
+        usf:facetKind facet:validation .
+    cf:authenticationplatformauditmodel a usf:ContractFacet ;
+        usf:canonicalName "authenticationplatformauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:authenticationplatformcontracts a usf:ContractFacet ;
+        usf:canonicalName "authenticationplatformcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:authenticationplatformerrormodel a usf:ContractFacet ;
+        usf:canonicalName "authenticationplatformerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:authenticationplatformlifecycle a usf:ContractFacet ;
+        usf:canonicalName "authenticationplatformlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:authenticationplatformpermissions a usf:ContractFacet ;
+        usf:canonicalName "authenticationplatformpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:authenticationplatformproof a usf:ContractFacet ;
+        usf:canonicalName "authenticationplatformproof" ;
+        usf:facetKind facet:proof .
+    cf:authenticationplatformreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "authenticationplatformreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:authenticationplatformstatemodel a usf:ContractFacet ;
+        usf:canonicalName "authenticationplatformstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:authenticationplatformuisemantics a usf:ContractFacet ;
+        usf:canonicalName "authenticationplatformuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:authenticationplatformvalidation a usf:ContractFacet ;
+        usf:canonicalName "authenticationplatformvalidation" ;
+        usf:facetKind facet:validation .
+    cf:backgroundworkersjobrunnerauditmodel a usf:ContractFacet ;
+        usf:canonicalName "backgroundworkersjobrunnerauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:backgroundworkersjobrunnercontracts a usf:ContractFacet ;
+        usf:canonicalName "backgroundworkersjobrunnercontracts" ;
+        usf:facetKind facet:contracts .
+    cf:backgroundworkersjobrunnererrormodel a usf:ContractFacet ;
+        usf:canonicalName "backgroundworkersjobrunnererrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:backgroundworkersjobrunnerlifecycle a usf:ContractFacet ;
+        usf:canonicalName "backgroundworkersjobrunnerlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:backgroundworkersjobrunnerpermissions a usf:ContractFacet ;
+        usf:canonicalName "backgroundworkersjobrunnerpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:backgroundworkersjobrunnerproof a usf:ContractFacet ;
+        usf:canonicalName "backgroundworkersjobrunnerproof" ;
+        usf:facetKind facet:proof .
+    cf:backgroundworkersjobrunnerreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "backgroundworkersjobrunnerreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:backgroundworkersjobrunnerstatemodel a usf:ContractFacet ;
+        usf:canonicalName "backgroundworkersjobrunnerstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:backgroundworkersjobrunneruisemantics a usf:ContractFacet ;
+        usf:canonicalName "backgroundworkersjobrunneruisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:backgroundworkersjobrunnervalidation a usf:ContractFacet ;
+        usf:canonicalName "backgroundworkersjobrunnervalidation" ;
+        usf:facetKind facet:validation .
+    cf:backupandrestoreauditmodel a usf:ContractFacet ;
+        usf:canonicalName "backupandrestoreauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:backupandrestorecontracts a usf:ContractFacet ;
+        usf:canonicalName "backupandrestorecontracts" ;
+        usf:facetKind facet:contracts .
+    cf:backupandrestoreerrormodel a usf:ContractFacet ;
+        usf:canonicalName "backupandrestoreerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:backupandrestorelifecycle a usf:ContractFacet ;
+        usf:canonicalName "backupandrestorelifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:backupandrestorepermissions a usf:ContractFacet ;
+        usf:canonicalName "backupandrestorepermissions" ;
+        usf:facetKind facet:permissions .
+    cf:backupandrestoreproof a usf:ContractFacet ;
+        usf:canonicalName "backupandrestoreproof" ;
+        usf:facetKind facet:proof .
+    cf:backupandrestorereadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "backupandrestorereadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:backupandrestorestatemodel a usf:ContractFacet ;
+        usf:canonicalName "backupandrestorestatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:backupandrestoreuisemantics a usf:ContractFacet ;
+        usf:canonicalName "backupandrestoreuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:backupandrestorevalidation a usf:ContractFacet ;
+        usf:canonicalName "backupandrestorevalidation" ;
+        usf:facetKind facet:validation .
+    cf:brandingandthemingauditmodel a usf:ContractFacet ;
+        usf:canonicalName "brandingandthemingauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:brandingandthemingcontracts a usf:ContractFacet ;
+        usf:canonicalName "brandingandthemingcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:brandingandthemingerrormodel a usf:ContractFacet ;
+        usf:canonicalName "brandingandthemingerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:brandingandtheminglifecycle a usf:ContractFacet ;
+        usf:canonicalName "brandingandtheminglifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:brandingandthemingpermissions a usf:ContractFacet ;
+        usf:canonicalName "brandingandthemingpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:brandingandthemingproof a usf:ContractFacet ;
+        usf:canonicalName "brandingandthemingproof" ;
+        usf:facetKind facet:proof .
+    cf:brandingandthemingreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "brandingandthemingreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:brandingandthemingstatemodel a usf:ContractFacet ;
+        usf:canonicalName "brandingandthemingstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:brandingandtheminguisemantics a usf:ContractFacet ;
+        usf:canonicalName "brandingandtheminguisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:brandingandthemingvalidation a usf:ContractFacet ;
+        usf:canonicalName "brandingandthemingvalidation" ;
+        usf:facetKind facet:validation .
+    cf:browsertelemetrygrafanafarorumandbrowsertobfftracingauditmodel a usf:ContractFacet ;
+        usf:canonicalName "browsertelemetrygrafanafarorumandbrowsertobfftracingauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:browsertelemetrygrafanafarorumandbrowsertobfftracingcontracts a usf:ContractFacet ;
+        usf:canonicalName "browsertelemetrygrafanafarorumandbrowsertobfftracingcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:browsertelemetrygrafanafarorumandbrowsertobfftracingerrormodel a usf:ContractFacet ;
+        usf:canonicalName "browsertelemetrygrafanafarorumandbrowsertobfftracingerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:browsertelemetrygrafanafarorumandbrowsertobfftracinglifecycle a usf:ContractFacet ;
+        usf:canonicalName "browsertelemetrygrafanafarorumandbrowsertobfftracinglifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:browsertelemetrygrafanafarorumandbrowsertobfftracingpermissions a usf:ContractFacet ;
+        usf:canonicalName "browsertelemetrygrafanafarorumandbrowsertobfftracingpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:browsertelemetrygrafanafarorumandbrowsertobfftracingproof a usf:ContractFacet ;
+        usf:canonicalName "browsertelemetrygrafanafarorumandbrowsertobfftracingproof" ;
+        usf:facetKind facet:proof .
+    cf:browsertelemetrygrafanafarorumandbrowsertobfftracingreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "browsertelemetrygrafanafarorumandbrowsertobfftracingreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:browsertelemetrygrafanafarorumandbrowsertobfftracingstatemodel a usf:ContractFacet ;
+        usf:canonicalName "browsertelemetrygrafanafarorumandbrowsertobfftracingstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:browsertelemetrygrafanafarorumandbrowsertobfftracinguisemantics a usf:ContractFacet ;
+        usf:canonicalName "browsertelemetrygrafanafarorumandbrowsertobfftracinguisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:browsertelemetrygrafanafarorumandbrowsertobfftracingvalidation a usf:ContractFacet ;
+        usf:canonicalName "browsertelemetrygrafanafarorumandbrowsertobfftracingvalidation" ;
+        usf:facetKind facet:validation .
+    cf:buildversuscomposedecisionframeworkauditmodel a usf:ContractFacet ;
+        usf:canonicalName "buildversuscomposedecisionframeworkauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:buildversuscomposedecisionframeworkcontracts a usf:ContractFacet ;
+        usf:canonicalName "buildversuscomposedecisionframeworkcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:buildversuscomposedecisionframeworkerrormodel a usf:ContractFacet ;
+        usf:canonicalName "buildversuscomposedecisionframeworkerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:buildversuscomposedecisionframeworklifecycle a usf:ContractFacet ;
+        usf:canonicalName "buildversuscomposedecisionframeworklifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:buildversuscomposedecisionframeworkpermissions a usf:ContractFacet ;
+        usf:canonicalName "buildversuscomposedecisionframeworkpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:buildversuscomposedecisionframeworkproof a usf:ContractFacet ;
+        usf:canonicalName "buildversuscomposedecisionframeworkproof" ;
+        usf:facetKind facet:proof .
+    cf:buildversuscomposedecisionframeworkreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "buildversuscomposedecisionframeworkreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:buildversuscomposedecisionframeworkstatemodel a usf:ContractFacet ;
+        usf:canonicalName "buildversuscomposedecisionframeworkstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:buildversuscomposedecisionframeworkuisemantics a usf:ContractFacet ;
+        usf:canonicalName "buildversuscomposedecisionframeworkuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:buildversuscomposedecisionframeworkvalidation a usf:ContractFacet ;
+        usf:canonicalName "buildversuscomposedecisionframeworkvalidation" ;
+        usf:facetKind facet:validation .
+    cf:codequalityandsecretanddependencyscanningauditmodel a usf:ContractFacet ;
+        usf:canonicalName "codequalityandsecretanddependencyscanningauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:codequalityandsecretanddependencyscanningcontracts a usf:ContractFacet ;
+        usf:canonicalName "codequalityandsecretanddependencyscanningcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:codequalityandsecretanddependencyscanningerrormodel a usf:ContractFacet ;
+        usf:canonicalName "codequalityandsecretanddependencyscanningerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:codequalityandsecretanddependencyscanninglifecycle a usf:ContractFacet ;
+        usf:canonicalName "codequalityandsecretanddependencyscanninglifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:codequalityandsecretanddependencyscanningpermissions a usf:ContractFacet ;
+        usf:canonicalName "codequalityandsecretanddependencyscanningpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:codequalityandsecretanddependencyscanningproof a usf:ContractFacet ;
+        usf:canonicalName "codequalityandsecretanddependencyscanningproof" ;
+        usf:facetKind facet:proof .
+    cf:codequalityandsecretanddependencyscanningreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "codequalityandsecretanddependencyscanningreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:codequalityandsecretanddependencyscanningstatemodel a usf:ContractFacet ;
+        usf:canonicalName "codequalityandsecretanddependencyscanningstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:codequalityandsecretanddependencyscanninguisemantics a usf:ContractFacet ;
+        usf:canonicalName "codequalityandsecretanddependencyscanninguisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:codequalityandsecretanddependencyscanningvalidation a usf:ContractFacet ;
+        usf:canonicalName "codequalityandsecretanddependencyscanningvalidation" ;
+        usf:facetKind facet:validation .
+    cf:compliancereportsaccessreviewsevidencepacksauditmodel a usf:ContractFacet ;
+        usf:canonicalName "compliancereportsaccessreviewsevidencepacksauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:compliancereportsaccessreviewsevidencepackscontracts a usf:ContractFacet ;
+        usf:canonicalName "compliancereportsaccessreviewsevidencepackscontracts" ;
+        usf:facetKind facet:contracts .
+    cf:compliancereportsaccessreviewsevidencepackserrormodel a usf:ContractFacet ;
+        usf:canonicalName "compliancereportsaccessreviewsevidencepackserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:compliancereportsaccessreviewsevidencepackslifecycle a usf:ContractFacet ;
+        usf:canonicalName "compliancereportsaccessreviewsevidencepackslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:compliancereportsaccessreviewsevidencepackspermissions a usf:ContractFacet ;
+        usf:canonicalName "compliancereportsaccessreviewsevidencepackspermissions" ;
+        usf:facetKind facet:permissions .
+    cf:compliancereportsaccessreviewsevidencepacksproof a usf:ContractFacet ;
+        usf:canonicalName "compliancereportsaccessreviewsevidencepacksproof" ;
+        usf:facetKind facet:proof .
+    cf:compliancereportsaccessreviewsevidencepacksreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "compliancereportsaccessreviewsevidencepacksreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:compliancereportsaccessreviewsevidencepacksstatemodel a usf:ContractFacet ;
+        usf:canonicalName "compliancereportsaccessreviewsevidencepacksstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:compliancereportsaccessreviewsevidencepacksuisemantics a usf:ContractFacet ;
+        usf:canonicalName "compliancereportsaccessreviewsevidencepacksuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:compliancereportsaccessreviewsevidencepacksvalidation a usf:ContractFacet ;
+        usf:canonicalName "compliancereportsaccessreviewsevidencepacksvalidation" ;
+        usf:facetKind facet:validation .
+    cf:composedproviderreadinessspineauditmodel a usf:ContractFacet ;
+        usf:canonicalName "composedproviderreadinessspineauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:composedproviderreadinessspinecontracts a usf:ContractFacet ;
+        usf:canonicalName "composedproviderreadinessspinecontracts" ;
+        usf:facetKind facet:contracts .
+    cf:composedproviderreadinessspineerrormodel a usf:ContractFacet ;
+        usf:canonicalName "composedproviderreadinessspineerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:composedproviderreadinessspinelifecycle a usf:ContractFacet ;
+        usf:canonicalName "composedproviderreadinessspinelifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:composedproviderreadinessspinepermissions a usf:ContractFacet ;
+        usf:canonicalName "composedproviderreadinessspinepermissions" ;
+        usf:facetKind facet:permissions .
+    cf:composedproviderreadinessspineproof a usf:ContractFacet ;
+        usf:canonicalName "composedproviderreadinessspineproof" ;
+        usf:facetKind facet:proof .
+    cf:composedproviderreadinessspinereadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "composedproviderreadinessspinereadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:composedproviderreadinessspinestatemodel a usf:ContractFacet ;
+        usf:canonicalName "composedproviderreadinessspinestatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:composedproviderreadinessspineuisemantics a usf:ContractFacet ;
+        usf:canonicalName "composedproviderreadinessspineuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:composedproviderreadinessspinevalidation a usf:ContractFacet ;
+        usf:canonicalName "composedproviderreadinessspinevalidation" ;
+        usf:facetKind facet:validation .
+    cf:configurationregistryandhistoryauditmodel a usf:ContractFacet ;
+        usf:canonicalName "configurationregistryandhistoryauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:configurationregistryandhistorycontracts a usf:ContractFacet ;
+        usf:canonicalName "configurationregistryandhistorycontracts" ;
+        usf:facetKind facet:contracts .
+    cf:configurationregistryandhistoryerrormodel a usf:ContractFacet ;
+        usf:canonicalName "configurationregistryandhistoryerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:configurationregistryandhistorylifecycle a usf:ContractFacet ;
+        usf:canonicalName "configurationregistryandhistorylifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:configurationregistryandhistorypermissions a usf:ContractFacet ;
+        usf:canonicalName "configurationregistryandhistorypermissions" ;
+        usf:facetKind facet:permissions .
+    cf:configurationregistryandhistoryproof a usf:ContractFacet ;
+        usf:canonicalName "configurationregistryandhistoryproof" ;
+        usf:facetKind facet:proof .
+    cf:configurationregistryandhistoryreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "configurationregistryandhistoryreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:configurationregistryandhistorystatemodel a usf:ContractFacet ;
+        usf:canonicalName "configurationregistryandhistorystatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:configurationregistryandhistoryuisemantics a usf:ContractFacet ;
+        usf:canonicalName "configurationregistryandhistoryuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:configurationregistryandhistoryvalidation a usf:ContractFacet ;
+        usf:canonicalName "configurationregistryandhistoryvalidation" ;
+        usf:facetKind facet:validation .
+    cf:customdomainsdnsownershiptlscanonicalauditmodel a usf:ContractFacet ;
+        usf:canonicalName "customdomainsdnsownershiptlscanonicalauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:customdomainsdnsownershiptlscanonicalcontracts a usf:ContractFacet ;
+        usf:canonicalName "customdomainsdnsownershiptlscanonicalcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:customdomainsdnsownershiptlscanonicalerrormodel a usf:ContractFacet ;
+        usf:canonicalName "customdomainsdnsownershiptlscanonicalerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:customdomainsdnsownershiptlscanonicallifecycle a usf:ContractFacet ;
+        usf:canonicalName "customdomainsdnsownershiptlscanonicallifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:customdomainsdnsownershiptlscanonicalpermissions a usf:ContractFacet ;
+        usf:canonicalName "customdomainsdnsownershiptlscanonicalpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:customdomainsdnsownershiptlscanonicalproof a usf:ContractFacet ;
+        usf:canonicalName "customdomainsdnsownershiptlscanonicalproof" ;
+        usf:facetKind facet:proof .
+    cf:customdomainsdnsownershiptlscanonicalreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "customdomainsdnsownershiptlscanonicalreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:customdomainsdnsownershiptlscanonicalstatemodel a usf:ContractFacet ;
+        usf:canonicalName "customdomainsdnsownershiptlscanonicalstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:customdomainsdnsownershiptlscanonicaluisemantics a usf:ContractFacet ;
+        usf:canonicalName "customdomainsdnsownershiptlscanonicaluisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:customdomainsdnsownershiptlscanonicalvalidation a usf:ContractFacet ;
+        usf:canonicalName "customdomainsdnsownershiptlscanonicalvalidation" ;
+        usf:facetKind facet:validation .
+    cf:datagovernancecataloglineageclassificationpiidsrgdprauditmodel a usf:ContractFacet ;
+        usf:canonicalName "datagovernancecataloglineageclassificationpiidsrgdprauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:datagovernancecataloglineageclassificationpiidsrgdprcontracts a usf:ContractFacet ;
+        usf:canonicalName "datagovernancecataloglineageclassificationpiidsrgdprcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:datagovernancecataloglineageclassificationpiidsrgdprerrormodel a usf:ContractFacet ;
+        usf:canonicalName "datagovernancecataloglineageclassificationpiidsrgdprerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:datagovernancecataloglineageclassificationpiidsrgdprlifecycle a usf:ContractFacet ;
+        usf:canonicalName "datagovernancecataloglineageclassificationpiidsrgdprlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:datagovernancecataloglineageclassificationpiidsrgdprpermissions a usf:ContractFacet ;
+        usf:canonicalName "datagovernancecataloglineageclassificationpiidsrgdprpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:datagovernancecataloglineageclassificationpiidsrgdprproof a usf:ContractFacet ;
+        usf:canonicalName "datagovernancecataloglineageclassificationpiidsrgdprproof" ;
+        usf:facetKind facet:proof .
+    cf:datagovernancecataloglineageclassificationpiidsrgdprreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "datagovernancecataloglineageclassificationpiidsrgdprreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:datagovernancecataloglineageclassificationpiidsrgdprstatemodel a usf:ContractFacet ;
+        usf:canonicalName "datagovernancecataloglineageclassificationpiidsrgdprstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:datagovernancecataloglineageclassificationpiidsrgdpruisemantics a usf:ContractFacet ;
+        usf:canonicalName "datagovernancecataloglineageclassificationpiidsrgdpruisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:datagovernancecataloglineageclassificationpiidsrgdprvalidation a usf:ContractFacet ;
+        usf:canonicalName "datagovernancecataloglineageclassificationpiidsrgdprvalidation" ;
+        usf:facetKind facet:validation .
+    cf:delegatedadministrationrolesauditmodel a usf:ContractFacet ;
+        usf:canonicalName "delegatedadministrationrolesauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:delegatedadministrationrolescontracts a usf:ContractFacet ;
+        usf:canonicalName "delegatedadministrationrolescontracts" ;
+        usf:facetKind facet:contracts .
+    cf:delegatedadministrationroleserrormodel a usf:ContractFacet ;
+        usf:canonicalName "delegatedadministrationroleserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:delegatedadministrationroleslifecycle a usf:ContractFacet ;
+        usf:canonicalName "delegatedadministrationroleslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:delegatedadministrationrolespermissions a usf:ContractFacet ;
+        usf:canonicalName "delegatedadministrationrolespermissions" ;
+        usf:facetKind facet:permissions .
+    cf:delegatedadministrationrolesproof a usf:ContractFacet ;
+        usf:canonicalName "delegatedadministrationrolesproof" ;
+        usf:facetKind facet:proof .
+    cf:delegatedadministrationrolesreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "delegatedadministrationrolesreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:delegatedadministrationrolesstatemodel a usf:ContractFacet ;
+        usf:canonicalName "delegatedadministrationrolesstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:delegatedadministrationrolesuisemantics a usf:ContractFacet ;
+        usf:canonicalName "delegatedadministrationrolesuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:delegatedadministrationrolesvalidation a usf:ContractFacet ;
+        usf:canonicalName "delegatedadministrationrolesvalidation" ;
+        usf:facetKind facet:validation .
+    cf:e2econfidenceladderstageawareauditmodel a usf:ContractFacet ;
+        usf:canonicalName "e2econfidenceladderstageawareauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:e2econfidenceladderstageawarecontracts a usf:ContractFacet ;
+        usf:canonicalName "e2econfidenceladderstageawarecontracts" ;
+        usf:facetKind facet:contracts .
+    cf:e2econfidenceladderstageawareerrormodel a usf:ContractFacet ;
+        usf:canonicalName "e2econfidenceladderstageawareerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:e2econfidenceladderstageawarelifecycle a usf:ContractFacet ;
+        usf:canonicalName "e2econfidenceladderstageawarelifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:e2econfidenceladderstageawarepermissions a usf:ContractFacet ;
+        usf:canonicalName "e2econfidenceladderstageawarepermissions" ;
+        usf:facetKind facet:permissions .
+    cf:e2econfidenceladderstageawareproof a usf:ContractFacet ;
+        usf:canonicalName "e2econfidenceladderstageawareproof" ;
+        usf:facetKind facet:proof .
+    cf:e2econfidenceladderstageawarereadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "e2econfidenceladderstageawarereadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:e2econfidenceladderstageawarestatemodel a usf:ContractFacet ;
+        usf:canonicalName "e2econfidenceladderstageawarestatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:e2econfidenceladderstageawareuisemantics a usf:ContractFacet ;
+        usf:canonicalName "e2econfidenceladderstageawareuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:e2econfidenceladderstageawarevalidation a usf:ContractFacet ;
+        usf:canonicalName "e2econfidenceladderstageawarevalidation" ;
+        usf:facetKind facet:validation .
+    cf:enduserprofileandpreferencesselfserviceauditmodel a usf:ContractFacet ;
+        usf:canonicalName "enduserprofileandpreferencesselfserviceauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:enduserprofileandpreferencesselfservicecontracts a usf:ContractFacet ;
+        usf:canonicalName "enduserprofileandpreferencesselfservicecontracts" ;
+        usf:facetKind facet:contracts .
+    cf:enduserprofileandpreferencesselfserviceerrormodel a usf:ContractFacet ;
+        usf:canonicalName "enduserprofileandpreferencesselfserviceerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:enduserprofileandpreferencesselfservicelifecycle a usf:ContractFacet ;
+        usf:canonicalName "enduserprofileandpreferencesselfservicelifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:enduserprofileandpreferencesselfservicepermissions a usf:ContractFacet ;
+        usf:canonicalName "enduserprofileandpreferencesselfservicepermissions" ;
+        usf:facetKind facet:permissions .
+    cf:enduserprofileandpreferencesselfserviceproof a usf:ContractFacet ;
+        usf:canonicalName "enduserprofileandpreferencesselfserviceproof" ;
+        usf:facetKind facet:proof .
+    cf:enduserprofileandpreferencesselfservicereadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "enduserprofileandpreferencesselfservicereadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:enduserprofileandpreferencesselfservicestatemodel a usf:ContractFacet ;
+        usf:canonicalName "enduserprofileandpreferencesselfservicestatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:enduserprofileandpreferencesselfserviceuisemantics a usf:ContractFacet ;
+        usf:canonicalName "enduserprofileandpreferencesselfserviceuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:enduserprofileandpreferencesselfservicevalidation a usf:ContractFacet ;
+        usf:canonicalName "enduserprofileandpreferencesselfservicevalidation" ;
+        usf:facetKind facet:validation .
+    cf:entitlementengineauditmodel a usf:ContractFacet ;
+        usf:canonicalName "entitlementengineauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:entitlementenginecontracts a usf:ContractFacet ;
+        usf:canonicalName "entitlementenginecontracts" ;
+        usf:facetKind facet:contracts .
+    cf:entitlementengineerrormodel a usf:ContractFacet ;
+        usf:canonicalName "entitlementengineerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:entitlementenginelifecycle a usf:ContractFacet ;
+        usf:canonicalName "entitlementenginelifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:entitlementenginepermissions a usf:ContractFacet ;
+        usf:canonicalName "entitlementenginepermissions" ;
+        usf:facetKind facet:permissions .
+    cf:entitlementengineproof a usf:ContractFacet ;
+        usf:canonicalName "entitlementengineproof" ;
+        usf:facetKind facet:proof .
+    cf:entitlementenginereadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "entitlementenginereadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:entitlementenginestatemodel a usf:ContractFacet ;
+        usf:canonicalName "entitlementenginestatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:entitlementengineuisemantics a usf:ContractFacet ;
+        usf:canonicalName "entitlementengineuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:entitlementenginevalidation a usf:ContractFacet ;
+        usf:canonicalName "entitlementenginevalidation" ;
+        usf:facetKind facet:validation .
+    cf:environmentregistryandbootstrapauditmodel a usf:ContractFacet ;
+        usf:canonicalName "environmentregistryandbootstrapauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:environmentregistryandbootstrapcontracts a usf:ContractFacet ;
+        usf:canonicalName "environmentregistryandbootstrapcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:environmentregistryandbootstraperrormodel a usf:ContractFacet ;
+        usf:canonicalName "environmentregistryandbootstraperrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:environmentregistryandbootstraplifecycle a usf:ContractFacet ;
+        usf:canonicalName "environmentregistryandbootstraplifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:environmentregistryandbootstrappermissions a usf:ContractFacet ;
+        usf:canonicalName "environmentregistryandbootstrappermissions" ;
+        usf:facetKind facet:permissions .
+    cf:environmentregistryandbootstrapproof a usf:ContractFacet ;
+        usf:canonicalName "environmentregistryandbootstrapproof" ;
+        usf:facetKind facet:proof .
+    cf:environmentregistryandbootstrapreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "environmentregistryandbootstrapreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:environmentregistryandbootstrapstatemodel a usf:ContractFacet ;
+        usf:canonicalName "environmentregistryandbootstrapstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:environmentregistryandbootstrapuisemantics a usf:ContractFacet ;
+        usf:canonicalName "environmentregistryandbootstrapuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:environmentregistryandbootstrapvalidation a usf:ContractFacet ;
+        usf:canonicalName "environmentregistryandbootstrapvalidation" ;
+        usf:facetKind facet:validation .
+    cf:environmentspecificvssharedservicemodelauditmodel a usf:ContractFacet ;
+        usf:canonicalName "environmentspecificvssharedservicemodelauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:environmentspecificvssharedservicemodelcontracts a usf:ContractFacet ;
+        usf:canonicalName "environmentspecificvssharedservicemodelcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:environmentspecificvssharedservicemodelerrormodel a usf:ContractFacet ;
+        usf:canonicalName "environmentspecificvssharedservicemodelerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:environmentspecificvssharedservicemodellifecycle a usf:ContractFacet ;
+        usf:canonicalName "environmentspecificvssharedservicemodellifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:environmentspecificvssharedservicemodelpermissions a usf:ContractFacet ;
+        usf:canonicalName "environmentspecificvssharedservicemodelpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:environmentspecificvssharedservicemodelproof a usf:ContractFacet ;
+        usf:canonicalName "environmentspecificvssharedservicemodelproof" ;
+        usf:facetKind facet:proof .
+    cf:environmentspecificvssharedservicemodelreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "environmentspecificvssharedservicemodelreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:environmentspecificvssharedservicemodelstatemodel a usf:ContractFacet ;
+        usf:canonicalName "environmentspecificvssharedservicemodelstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:environmentspecificvssharedservicemodeluisemantics a usf:ContractFacet ;
+        usf:canonicalName "environmentspecificvssharedservicemodeluisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:environmentspecificvssharedservicemodelvalidation a usf:ContractFacet ;
+        usf:canonicalName "environmentspecificvssharedservicemodelvalidation" ;
+        usf:facetKind facet:validation .
+    cf:eventbusdurablequeuesdlqredriveauditmodel a usf:ContractFacet ;
+        usf:canonicalName "eventbusdurablequeuesdlqredriveauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:eventbusdurablequeuesdlqredrivecontracts a usf:ContractFacet ;
+        usf:canonicalName "eventbusdurablequeuesdlqredrivecontracts" ;
+        usf:facetKind facet:contracts .
+    cf:eventbusdurablequeuesdlqredriveerrormodel a usf:ContractFacet ;
+        usf:canonicalName "eventbusdurablequeuesdlqredriveerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:eventbusdurablequeuesdlqredrivelifecycle a usf:ContractFacet ;
+        usf:canonicalName "eventbusdurablequeuesdlqredrivelifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:eventbusdurablequeuesdlqredrivepermissions a usf:ContractFacet ;
+        usf:canonicalName "eventbusdurablequeuesdlqredrivepermissions" ;
+        usf:facetKind facet:permissions .
+    cf:eventbusdurablequeuesdlqredriveproof a usf:ContractFacet ;
+        usf:canonicalName "eventbusdurablequeuesdlqredriveproof" ;
+        usf:facetKind facet:proof .
+    cf:eventbusdurablequeuesdlqredrivereadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "eventbusdurablequeuesdlqredrivereadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:eventbusdurablequeuesdlqredrivestatemodel a usf:ContractFacet ;
+        usf:canonicalName "eventbusdurablequeuesdlqredrivestatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:eventbusdurablequeuesdlqredriveuisemantics a usf:ContractFacet ;
+        usf:canonicalName "eventbusdurablequeuesdlqredriveuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:eventbusdurablequeuesdlqredrivevalidation a usf:ContractFacet ;
+        usf:canonicalName "eventbusdurablequeuesdlqredrivevalidation" ;
+        usf:facetKind facet:validation .
+    cf:historyreadmodelreadonlyprojectionauditmodel a usf:ContractFacet ;
+        usf:canonicalName "historyreadmodelreadonlyprojectionauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:historyreadmodelreadonlyprojectioncontracts a usf:ContractFacet ;
+        usf:canonicalName "historyreadmodelreadonlyprojectioncontracts" ;
+        usf:facetKind facet:contracts .
+    cf:historyreadmodelreadonlyprojectionerrormodel a usf:ContractFacet ;
+        usf:canonicalName "historyreadmodelreadonlyprojectionerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:historyreadmodelreadonlyprojectionlifecycle a usf:ContractFacet ;
+        usf:canonicalName "historyreadmodelreadonlyprojectionlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:historyreadmodelreadonlyprojectionpermissions a usf:ContractFacet ;
+        usf:canonicalName "historyreadmodelreadonlyprojectionpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:historyreadmodelreadonlyprojectionproof a usf:ContractFacet ;
+        usf:canonicalName "historyreadmodelreadonlyprojectionproof" ;
+        usf:facetKind facet:proof .
+    cf:historyreadmodelreadonlyprojectionreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "historyreadmodelreadonlyprojectionreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:historyreadmodelreadonlyprojectionstatemodel a usf:ContractFacet ;
+        usf:canonicalName "historyreadmodelreadonlyprojectionstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:historyreadmodelreadonlyprojectionuisemantics a usf:ContractFacet ;
+        usf:canonicalName "historyreadmodelreadonlyprojectionuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:historyreadmodelreadonlyprojectionvalidation a usf:ContractFacet ;
+        usf:canonicalName "historyreadmodelreadonlyprojectionvalidation" ;
+        usf:facetKind facet:validation .
+    cf:i18nruntimeandvalidationauditmodel a usf:ContractFacet ;
+        usf:canonicalName "i18nruntimeandvalidationauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:i18nruntimeandvalidationcontracts a usf:ContractFacet ;
+        usf:canonicalName "i18nruntimeandvalidationcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:i18nruntimeandvalidationerrormodel a usf:ContractFacet ;
+        usf:canonicalName "i18nruntimeandvalidationerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:i18nruntimeandvalidationlifecycle a usf:ContractFacet ;
+        usf:canonicalName "i18nruntimeandvalidationlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:i18nruntimeandvalidationpermissions a usf:ContractFacet ;
+        usf:canonicalName "i18nruntimeandvalidationpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:i18nruntimeandvalidationproof a usf:ContractFacet ;
+        usf:canonicalName "i18nruntimeandvalidationproof" ;
+        usf:facetKind facet:proof .
+    cf:i18nruntimeandvalidationreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "i18nruntimeandvalidationreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:i18nruntimeandvalidationstatemodel a usf:ContractFacet ;
+        usf:canonicalName "i18nruntimeandvalidationstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:i18nruntimeandvalidationuisemantics a usf:ContractFacet ;
+        usf:canonicalName "i18nruntimeandvalidationuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:i18nruntimeandvalidationvalidation a usf:ContractFacet ;
+        usf:canonicalName "i18nruntimeandvalidationvalidation" ;
+        usf:facetKind facet:validation .
+    cf:internalservicecatalogandreadinessauditmodel a usf:ContractFacet ;
+        usf:canonicalName "internalservicecatalogandreadinessauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:internalservicecatalogandreadinesscontracts a usf:ContractFacet ;
+        usf:canonicalName "internalservicecatalogandreadinesscontracts" ;
+        usf:facetKind facet:contracts .
+    cf:internalservicecatalogandreadinesserrormodel a usf:ContractFacet ;
+        usf:canonicalName "internalservicecatalogandreadinesserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:internalservicecatalogandreadinesslifecycle a usf:ContractFacet ;
+        usf:canonicalName "internalservicecatalogandreadinesslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:internalservicecatalogandreadinesspermissions a usf:ContractFacet ;
+        usf:canonicalName "internalservicecatalogandreadinesspermissions" ;
+        usf:facetKind facet:permissions .
+    cf:internalservicecatalogandreadinessproof a usf:ContractFacet ;
+        usf:canonicalName "internalservicecatalogandreadinessproof" ;
+        usf:facetKind facet:proof .
+    cf:internalservicecatalogandreadinessreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "internalservicecatalogandreadinessreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:internalservicecatalogandreadinessstatemodel a usf:ContractFacet ;
+        usf:canonicalName "internalservicecatalogandreadinessstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:internalservicecatalogandreadinessuisemantics a usf:ContractFacet ;
+        usf:canonicalName "internalservicecatalogandreadinessuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:internalservicecatalogandreadinessvalidation a usf:ContractFacet ;
+        usf:canonicalName "internalservicecatalogandreadinessvalidation" ;
+        usf:facetKind facet:validation .
+    cf:logsaggregationandtenantscopedsearchauditmodel a usf:ContractFacet ;
+        usf:canonicalName "logsaggregationandtenantscopedsearchauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:logsaggregationandtenantscopedsearchcontracts a usf:ContractFacet ;
+        usf:canonicalName "logsaggregationandtenantscopedsearchcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:logsaggregationandtenantscopedsearcherrormodel a usf:ContractFacet ;
+        usf:canonicalName "logsaggregationandtenantscopedsearcherrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:logsaggregationandtenantscopedsearchlifecycle a usf:ContractFacet ;
+        usf:canonicalName "logsaggregationandtenantscopedsearchlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:logsaggregationandtenantscopedsearchpermissions a usf:ContractFacet ;
+        usf:canonicalName "logsaggregationandtenantscopedsearchpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:logsaggregationandtenantscopedsearchproof a usf:ContractFacet ;
+        usf:canonicalName "logsaggregationandtenantscopedsearchproof" ;
+        usf:facetKind facet:proof .
+    cf:logsaggregationandtenantscopedsearchreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "logsaggregationandtenantscopedsearchreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:logsaggregationandtenantscopedsearchstatemodel a usf:ContractFacet ;
+        usf:canonicalName "logsaggregationandtenantscopedsearchstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:logsaggregationandtenantscopedsearchuisemantics a usf:ContractFacet ;
+        usf:canonicalName "logsaggregationandtenantscopedsearchuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:logsaggregationandtenantscopedsearchvalidation a usf:ContractFacet ;
+        usf:canonicalName "logsaggregationandtenantscopedsearchvalidation" ;
+        usf:facetKind facet:validation .
+    cf:metricsandtracesauditmodel a usf:ContractFacet ;
+        usf:canonicalName "metricsandtracesauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:metricsandtracescontracts a usf:ContractFacet ;
+        usf:canonicalName "metricsandtracescontracts" ;
+        usf:facetKind facet:contracts .
+    cf:metricsandtraceserrormodel a usf:ContractFacet ;
+        usf:canonicalName "metricsandtraceserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:metricsandtraceslifecycle a usf:ContractFacet ;
+        usf:canonicalName "metricsandtraceslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:metricsandtracespermissions a usf:ContractFacet ;
+        usf:canonicalName "metricsandtracespermissions" ;
+        usf:facetKind facet:permissions .
+    cf:metricsandtracesproof a usf:ContractFacet ;
+        usf:canonicalName "metricsandtracesproof" ;
+        usf:facetKind facet:proof .
+    cf:metricsandtracesreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "metricsandtracesreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:metricsandtracesstatemodel a usf:ContractFacet ;
+        usf:canonicalName "metricsandtracesstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:metricsandtracesuisemantics a usf:ContractFacet ;
+        usf:canonicalName "metricsandtracesuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:metricsandtracesvalidation a usf:ContractFacet ;
+        usf:canonicalName "metricsandtracesvalidation" ;
+        usf:facetKind facet:validation .
+    cf:mockprovidersdevtestauditmodel a usf:ContractFacet ;
+        usf:canonicalName "mockprovidersdevtestauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:mockprovidersdevtestcontracts a usf:ContractFacet ;
+        usf:canonicalName "mockprovidersdevtestcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:mockprovidersdevtesterrormodel a usf:ContractFacet ;
+        usf:canonicalName "mockprovidersdevtesterrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:mockprovidersdevtestlifecycle a usf:ContractFacet ;
+        usf:canonicalName "mockprovidersdevtestlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:mockprovidersdevtestpermissions a usf:ContractFacet ;
+        usf:canonicalName "mockprovidersdevtestpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:mockprovidersdevtestproof a usf:ContractFacet ;
+        usf:canonicalName "mockprovidersdevtestproof" ;
+        usf:facetKind facet:proof .
+    cf:mockprovidersdevtestreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "mockprovidersdevtestreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:mockprovidersdevteststatemodel a usf:ContractFacet ;
+        usf:canonicalName "mockprovidersdevteststatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:mockprovidersdevtestuisemantics a usf:ContractFacet ;
+        usf:canonicalName "mockprovidersdevtestuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:mockprovidersdevtestvalidation a usf:ContractFacet ;
+        usf:canonicalName "mockprovidersdevtestvalidation" ;
+        usf:facetKind facet:validation .
+    cf:notificationdeliveryandpreferencesandchannelsauditmodel a usf:ContractFacet ;
+        usf:canonicalName "notificationdeliveryandpreferencesandchannelsauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:notificationdeliveryandpreferencesandchannelscontracts a usf:ContractFacet ;
+        usf:canonicalName "notificationdeliveryandpreferencesandchannelscontracts" ;
+        usf:facetKind facet:contracts .
+    cf:notificationdeliveryandpreferencesandchannelserrormodel a usf:ContractFacet ;
+        usf:canonicalName "notificationdeliveryandpreferencesandchannelserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:notificationdeliveryandpreferencesandchannelslifecycle a usf:ContractFacet ;
+        usf:canonicalName "notificationdeliveryandpreferencesandchannelslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:notificationdeliveryandpreferencesandchannelspermissions a usf:ContractFacet ;
+        usf:canonicalName "notificationdeliveryandpreferencesandchannelspermissions" ;
+        usf:facetKind facet:permissions .
+    cf:notificationdeliveryandpreferencesandchannelsproof a usf:ContractFacet ;
+        usf:canonicalName "notificationdeliveryandpreferencesandchannelsproof" ;
+        usf:facetKind facet:proof .
+    cf:notificationdeliveryandpreferencesandchannelsreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "notificationdeliveryandpreferencesandchannelsreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:notificationdeliveryandpreferencesandchannelsstatemodel a usf:ContractFacet ;
+        usf:canonicalName "notificationdeliveryandpreferencesandchannelsstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:notificationdeliveryandpreferencesandchannelsuisemantics a usf:ContractFacet ;
+        usf:canonicalName "notificationdeliveryandpreferencesandchannelsuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:notificationdeliveryandpreferencesandchannelsvalidation a usf:ContractFacet ;
+        usf:canonicalName "notificationdeliveryandpreferencesandchannelsvalidation" ;
+        usf:facetKind facet:validation .
+    cf:objectstorageandtenantprefixesandsignedurlsauditmodel a usf:ContractFacet ;
+        usf:canonicalName "objectstorageandtenantprefixesandsignedurlsauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:objectstorageandtenantprefixesandsignedurlscontracts a usf:ContractFacet ;
+        usf:canonicalName "objectstorageandtenantprefixesandsignedurlscontracts" ;
+        usf:facetKind facet:contracts .
+    cf:objectstorageandtenantprefixesandsignedurlserrormodel a usf:ContractFacet ;
+        usf:canonicalName "objectstorageandtenantprefixesandsignedurlserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:objectstorageandtenantprefixesandsignedurlslifecycle a usf:ContractFacet ;
+        usf:canonicalName "objectstorageandtenantprefixesandsignedurlslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:objectstorageandtenantprefixesandsignedurlspermissions a usf:ContractFacet ;
+        usf:canonicalName "objectstorageandtenantprefixesandsignedurlspermissions" ;
+        usf:facetKind facet:permissions .
+    cf:objectstorageandtenantprefixesandsignedurlsproof a usf:ContractFacet ;
+        usf:canonicalName "objectstorageandtenantprefixesandsignedurlsproof" ;
+        usf:facetKind facet:proof .
+    cf:objectstorageandtenantprefixesandsignedurlsreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "objectstorageandtenantprefixesandsignedurlsreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:objectstorageandtenantprefixesandsignedurlsstatemodel a usf:ContractFacet ;
+        usf:canonicalName "objectstorageandtenantprefixesandsignedurlsstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:objectstorageandtenantprefixesandsignedurlsuisemantics a usf:ContractFacet ;
+        usf:canonicalName "objectstorageandtenantprefixesandsignedurlsuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:objectstorageandtenantprefixesandsignedurlsvalidation a usf:ContractFacet ;
+        usf:canonicalName "objectstorageandtenantprefixesandsignedurlsvalidation" ;
+        usf:facetKind facet:validation .
+    cf:observabilitybuiltinalertingandincidentsauditmodel a usf:ContractFacet ;
+        usf:canonicalName "observabilitybuiltinalertingandincidentsauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:observabilitybuiltinalertingandincidentscontracts a usf:ContractFacet ;
+        usf:canonicalName "observabilitybuiltinalertingandincidentscontracts" ;
+        usf:facetKind facet:contracts .
+    cf:observabilitybuiltinalertingandincidentserrormodel a usf:ContractFacet ;
+        usf:canonicalName "observabilitybuiltinalertingandincidentserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:observabilitybuiltinalertingandincidentslifecycle a usf:ContractFacet ;
+        usf:canonicalName "observabilitybuiltinalertingandincidentslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:observabilitybuiltinalertingandincidentspermissions a usf:ContractFacet ;
+        usf:canonicalName "observabilitybuiltinalertingandincidentspermissions" ;
+        usf:facetKind facet:permissions .
+    cf:observabilitybuiltinalertingandincidentsproof a usf:ContractFacet ;
+        usf:canonicalName "observabilitybuiltinalertingandincidentsproof" ;
+        usf:facetKind facet:proof .
+    cf:observabilitybuiltinalertingandincidentsreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "observabilitybuiltinalertingandincidentsreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:observabilitybuiltinalertingandincidentsstatemodel a usf:ContractFacet ;
+        usf:canonicalName "observabilitybuiltinalertingandincidentsstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:observabilitybuiltinalertingandincidentsuisemantics a usf:ContractFacet ;
+        usf:canonicalName "observabilitybuiltinalertingandincidentsuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:observabilitybuiltinalertingandincidentsvalidation a usf:ContractFacet ;
+        usf:canonicalName "observabilitybuiltinalertingandincidentsvalidation" ;
+        usf:facetKind facet:validation .
+    cf:openapidrifthardgateauditmodel a usf:ContractFacet ;
+        usf:canonicalName "openapidrifthardgateauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:openapidrifthardgatecontracts a usf:ContractFacet ;
+        usf:canonicalName "openapidrifthardgatecontracts" ;
+        usf:facetKind facet:contracts .
+    cf:openapidrifthardgateerrormodel a usf:ContractFacet ;
+        usf:canonicalName "openapidrifthardgateerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:openapidrifthardgatelifecycle a usf:ContractFacet ;
+        usf:canonicalName "openapidrifthardgatelifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:openapidrifthardgatepermissions a usf:ContractFacet ;
+        usf:canonicalName "openapidrifthardgatepermissions" ;
+        usf:facetKind facet:permissions .
+    cf:openapidrifthardgateproof a usf:ContractFacet ;
+        usf:canonicalName "openapidrifthardgateproof" ;
+        usf:facetKind facet:proof .
+    cf:openapidrifthardgatereadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "openapidrifthardgatereadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:openapidrifthardgatestatemodel a usf:ContractFacet ;
+        usf:canonicalName "openapidrifthardgatestatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:openapidrifthardgateuisemantics a usf:ContractFacet ;
+        usf:canonicalName "openapidrifthardgateuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:openapidrifthardgatevalidation a usf:ContractFacet ;
+        usf:canonicalName "openapidrifthardgatevalidation" ;
+        usf:facetKind facet:validation .
+    cf:pitrretentionlegalholddataresidencyauditmodel a usf:ContractFacet ;
+        usf:canonicalName "pitrretentionlegalholddataresidencyauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:pitrretentionlegalholddataresidencycontracts a usf:ContractFacet ;
+        usf:canonicalName "pitrretentionlegalholddataresidencycontracts" ;
+        usf:facetKind facet:contracts .
+    cf:pitrretentionlegalholddataresidencyerrormodel a usf:ContractFacet ;
+        usf:canonicalName "pitrretentionlegalholddataresidencyerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:pitrretentionlegalholddataresidencylifecycle a usf:ContractFacet ;
+        usf:canonicalName "pitrretentionlegalholddataresidencylifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:pitrretentionlegalholddataresidencypermissions a usf:ContractFacet ;
+        usf:canonicalName "pitrretentionlegalholddataresidencypermissions" ;
+        usf:facetKind facet:permissions .
+    cf:pitrretentionlegalholddataresidencyproof a usf:ContractFacet ;
+        usf:canonicalName "pitrretentionlegalholddataresidencyproof" ;
+        usf:facetKind facet:proof .
+    cf:pitrretentionlegalholddataresidencyreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "pitrretentionlegalholddataresidencyreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:pitrretentionlegalholddataresidencystatemodel a usf:ContractFacet ;
+        usf:canonicalName "pitrretentionlegalholddataresidencystatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:pitrretentionlegalholddataresidencyuisemantics a usf:ContractFacet ;
+        usf:canonicalName "pitrretentionlegalholddataresidencyuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:pitrretentionlegalholddataresidencyvalidation a usf:ContractFacet ;
+        usf:canonicalName "pitrretentionlegalholddataresidencyvalidation" ;
+        usf:facetKind facet:validation .
+    cf:productcatalogplanspricesauditmodel a usf:ContractFacet ;
+        usf:canonicalName "productcatalogplanspricesauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:productcatalogplanspricescontracts a usf:ContractFacet ;
+        usf:canonicalName "productcatalogplanspricescontracts" ;
+        usf:facetKind facet:contracts .
+    cf:productcatalogplanspriceserrormodel a usf:ContractFacet ;
+        usf:canonicalName "productcatalogplanspriceserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:productcatalogplanspriceslifecycle a usf:ContractFacet ;
+        usf:canonicalName "productcatalogplanspriceslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:productcatalogplanspricespermissions a usf:ContractFacet ;
+        usf:canonicalName "productcatalogplanspricespermissions" ;
+        usf:facetKind facet:permissions .
+    cf:productcatalogplanspricesproof a usf:ContractFacet ;
+        usf:canonicalName "productcatalogplanspricesproof" ;
+        usf:facetKind facet:proof .
+    cf:productcatalogplanspricesreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "productcatalogplanspricesreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:productcatalogplanspricesstatemodel a usf:ContractFacet ;
+        usf:canonicalName "productcatalogplanspricesstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:productcatalogplanspricesuisemantics a usf:ContractFacet ;
+        usf:canonicalName "productcatalogplanspricesuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:productcatalogplanspricesvalidation a usf:ContractFacet ;
+        usf:canonicalName "productcatalogplanspricesvalidation" ;
+        usf:facetKind facet:validation .
+    cf:providerconfigurationplaneauditmodel a usf:ContractFacet ;
+        usf:canonicalName "providerconfigurationplaneauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:providerconfigurationplanecontracts a usf:ContractFacet ;
+        usf:canonicalName "providerconfigurationplanecontracts" ;
+        usf:facetKind facet:contracts .
+    cf:providerconfigurationplaneerrormodel a usf:ContractFacet ;
+        usf:canonicalName "providerconfigurationplaneerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:providerconfigurationplanelifecycle a usf:ContractFacet ;
+        usf:canonicalName "providerconfigurationplanelifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:providerconfigurationplanepermissions a usf:ContractFacet ;
+        usf:canonicalName "providerconfigurationplanepermissions" ;
+        usf:facetKind facet:permissions .
+    cf:providerconfigurationplaneproof a usf:ContractFacet ;
+        usf:canonicalName "providerconfigurationplaneproof" ;
+        usf:facetKind facet:proof .
+    cf:providerconfigurationplanereadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "providerconfigurationplanereadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:providerconfigurationplanestatemodel a usf:ContractFacet ;
+        usf:canonicalName "providerconfigurationplanestatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:providerconfigurationplaneuisemantics a usf:ContractFacet ;
+        usf:canonicalName "providerconfigurationplaneuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:providerconfigurationplanevalidation a usf:ContractFacet ;
+        usf:canonicalName "providerconfigurationplanevalidation" ;
+        usf:facetKind facet:validation .
+    cf:providerenvironmentclassificationauditmodel a usf:ContractFacet ;
+        usf:canonicalName "providerenvironmentclassificationauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:providerenvironmentclassificationcontracts a usf:ContractFacet ;
+        usf:canonicalName "providerenvironmentclassificationcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:providerenvironmentclassificationerrormodel a usf:ContractFacet ;
+        usf:canonicalName "providerenvironmentclassificationerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:providerenvironmentclassificationlifecycle a usf:ContractFacet ;
+        usf:canonicalName "providerenvironmentclassificationlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:providerenvironmentclassificationpermissions a usf:ContractFacet ;
+        usf:canonicalName "providerenvironmentclassificationpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:providerenvironmentclassificationproof a usf:ContractFacet ;
+        usf:canonicalName "providerenvironmentclassificationproof" ;
+        usf:facetKind facet:proof .
+    cf:providerenvironmentclassificationreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "providerenvironmentclassificationreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:providerenvironmentclassificationstatemodel a usf:ContractFacet ;
+        usf:canonicalName "providerenvironmentclassificationstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:providerenvironmentclassificationuisemantics a usf:ContractFacet ;
+        usf:canonicalName "providerenvironmentclassificationuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:providerenvironmentclassificationvalidation a usf:ContractFacet ;
+        usf:canonicalName "providerenvironmentclassificationvalidation" ;
+        usf:facetKind facet:validation .
+    cf:quotaenforcementauditmodel a usf:ContractFacet ;
+        usf:canonicalName "quotaenforcementauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:quotaenforcementcontracts a usf:ContractFacet ;
+        usf:canonicalName "quotaenforcementcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:quotaenforcementerrormodel a usf:ContractFacet ;
+        usf:canonicalName "quotaenforcementerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:quotaenforcementlifecycle a usf:ContractFacet ;
+        usf:canonicalName "quotaenforcementlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:quotaenforcementpermissions a usf:ContractFacet ;
+        usf:canonicalName "quotaenforcementpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:quotaenforcementproof a usf:ContractFacet ;
+        usf:canonicalName "quotaenforcementproof" ;
+        usf:facetKind facet:proof .
+    cf:quotaenforcementreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "quotaenforcementreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:quotaenforcementstatemodel a usf:ContractFacet ;
+        usf:canonicalName "quotaenforcementstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:quotaenforcementuisemantics a usf:ContractFacet ;
+        usf:canonicalName "quotaenforcementuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:quotaenforcementvalidation a usf:ContractFacet ;
+        usf:canonicalName "quotaenforcementvalidation" ;
+        usf:facetKind facet:validation .
+    cf:ratelimitingapiauditmodel a usf:ContractFacet ;
+        usf:canonicalName "ratelimitingapiauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:ratelimitingapicontracts a usf:ContractFacet ;
+        usf:canonicalName "ratelimitingapicontracts" ;
+        usf:facetKind facet:contracts .
+    cf:ratelimitingapierrormodel a usf:ContractFacet ;
+        usf:canonicalName "ratelimitingapierrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:ratelimitingapilifecycle a usf:ContractFacet ;
+        usf:canonicalName "ratelimitingapilifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:ratelimitingapipermissions a usf:ContractFacet ;
+        usf:canonicalName "ratelimitingapipermissions" ;
+        usf:facetKind facet:permissions .
+    cf:ratelimitingapiproof a usf:ContractFacet ;
+        usf:canonicalName "ratelimitingapiproof" ;
+        usf:facetKind facet:proof .
+    cf:ratelimitingapireadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "ratelimitingapireadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:ratelimitingapistatemodel a usf:ContractFacet ;
+        usf:canonicalName "ratelimitingapistatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:ratelimitingapiuisemantics a usf:ContractFacet ;
+        usf:canonicalName "ratelimitingapiuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:ratelimitingapivalidation a usf:ContractFacet ;
+        usf:canonicalName "ratelimitingapivalidation" ;
+        usf:facetKind facet:validation .
+    cf:rbacrolesandpermissionsauditmodel a usf:ContractFacet ;
+        usf:canonicalName "rbacrolesandpermissionsauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:rbacrolesandpermissionscontracts a usf:ContractFacet ;
+        usf:canonicalName "rbacrolesandpermissionscontracts" ;
+        usf:facetKind facet:contracts .
+    cf:rbacrolesandpermissionserrormodel a usf:ContractFacet ;
+        usf:canonicalName "rbacrolesandpermissionserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:rbacrolesandpermissionslifecycle a usf:ContractFacet ;
+        usf:canonicalName "rbacrolesandpermissionslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:rbacrolesandpermissionspermissions a usf:ContractFacet ;
+        usf:canonicalName "rbacrolesandpermissionspermissions" ;
+        usf:facetKind facet:permissions .
+    cf:rbacrolesandpermissionsproof a usf:ContractFacet ;
+        usf:canonicalName "rbacrolesandpermissionsproof" ;
+        usf:facetKind facet:proof .
+    cf:rbacrolesandpermissionsreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "rbacrolesandpermissionsreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:rbacrolesandpermissionsstatemodel a usf:ContractFacet ;
+        usf:canonicalName "rbacrolesandpermissionsstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:rbacrolesandpermissionsuisemantics a usf:ContractFacet ;
+        usf:canonicalName "rbacrolesandpermissionsuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:rbacrolesandpermissionsvalidation a usf:ContractFacet ;
+        usf:canonicalName "rbacrolesandpermissionsvalidation" ;
+        usf:facetKind facet:validation .
+    cf:relationalstorageandmigrationsandrlsauditmodel a usf:ContractFacet ;
+        usf:canonicalName "relationalstorageandmigrationsandrlsauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:relationalstorageandmigrationsandrlscontracts a usf:ContractFacet ;
+        usf:canonicalName "relationalstorageandmigrationsandrlscontracts" ;
+        usf:facetKind facet:contracts .
+    cf:relationalstorageandmigrationsandrlserrormodel a usf:ContractFacet ;
+        usf:canonicalName "relationalstorageandmigrationsandrlserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:relationalstorageandmigrationsandrlslifecycle a usf:ContractFacet ;
+        usf:canonicalName "relationalstorageandmigrationsandrlslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:relationalstorageandmigrationsandrlspermissions a usf:ContractFacet ;
+        usf:canonicalName "relationalstorageandmigrationsandrlspermissions" ;
+        usf:facetKind facet:permissions .
+    cf:relationalstorageandmigrationsandrlsproof a usf:ContractFacet ;
+        usf:canonicalName "relationalstorageandmigrationsandrlsproof" ;
+        usf:facetKind facet:proof .
+    cf:relationalstorageandmigrationsandrlsreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "relationalstorageandmigrationsandrlsreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:relationalstorageandmigrationsandrlsstatemodel a usf:ContractFacet ;
+        usf:canonicalName "relationalstorageandmigrationsandrlsstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:relationalstorageandmigrationsandrlsuisemantics a usf:ContractFacet ;
+        usf:canonicalName "relationalstorageandmigrationsandrlsuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:relationalstorageandmigrationsandrlsvalidation a usf:ContractFacet ;
+        usf:canonicalName "relationalstorageandmigrationsandrlsvalidation" ;
+        usf:facetKind facet:validation .
+    cf:runtimesecretsmanagementauditmodel a usf:ContractFacet ;
+        usf:canonicalName "runtimesecretsmanagementauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:runtimesecretsmanagementcontracts a usf:ContractFacet ;
+        usf:canonicalName "runtimesecretsmanagementcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:runtimesecretsmanagementerrormodel a usf:ContractFacet ;
+        usf:canonicalName "runtimesecretsmanagementerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:runtimesecretsmanagementlifecycle a usf:ContractFacet ;
+        usf:canonicalName "runtimesecretsmanagementlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:runtimesecretsmanagementpermissions a usf:ContractFacet ;
+        usf:canonicalName "runtimesecretsmanagementpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:runtimesecretsmanagementproof a usf:ContractFacet ;
+        usf:canonicalName "runtimesecretsmanagementproof" ;
+        usf:facetKind facet:proof .
+    cf:runtimesecretsmanagementreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "runtimesecretsmanagementreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:runtimesecretsmanagementstatemodel a usf:ContractFacet ;
+        usf:canonicalName "runtimesecretsmanagementstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:runtimesecretsmanagementuisemantics a usf:ContractFacet ;
+        usf:canonicalName "runtimesecretsmanagementuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:runtimesecretsmanagementvalidation a usf:ContractFacet ;
+        usf:canonicalName "runtimesecretsmanagementvalidation" ;
+        usf:facetKind facet:validation .
+    cf:scheduledjobsbuiltinontheeventsubstrateauditmodel a usf:ContractFacet ;
+        usf:canonicalName "scheduledjobsbuiltinontheeventsubstrateauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:scheduledjobsbuiltinontheeventsubstratecontracts a usf:ContractFacet ;
+        usf:canonicalName "scheduledjobsbuiltinontheeventsubstratecontracts" ;
+        usf:facetKind facet:contracts .
+    cf:scheduledjobsbuiltinontheeventsubstrateerrormodel a usf:ContractFacet ;
+        usf:canonicalName "scheduledjobsbuiltinontheeventsubstrateerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:scheduledjobsbuiltinontheeventsubstratelifecycle a usf:ContractFacet ;
+        usf:canonicalName "scheduledjobsbuiltinontheeventsubstratelifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:scheduledjobsbuiltinontheeventsubstratepermissions a usf:ContractFacet ;
+        usf:canonicalName "scheduledjobsbuiltinontheeventsubstratepermissions" ;
+        usf:facetKind facet:permissions .
+    cf:scheduledjobsbuiltinontheeventsubstrateproof a usf:ContractFacet ;
+        usf:canonicalName "scheduledjobsbuiltinontheeventsubstrateproof" ;
+        usf:facetKind facet:proof .
+    cf:scheduledjobsbuiltinontheeventsubstratereadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "scheduledjobsbuiltinontheeventsubstratereadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:scheduledjobsbuiltinontheeventsubstratestatemodel a usf:ContractFacet ;
+        usf:canonicalName "scheduledjobsbuiltinontheeventsubstratestatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:scheduledjobsbuiltinontheeventsubstrateuisemantics a usf:ContractFacet ;
+        usf:canonicalName "scheduledjobsbuiltinontheeventsubstrateuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:scheduledjobsbuiltinontheeventsubstratevalidation a usf:ContractFacet ;
+        usf:canonicalName "scheduledjobsbuiltinontheeventsubstratevalidation" ;
+        usf:facetKind facet:validation .
+    cf:searchandindexingproductsearchauditmodel a usf:ContractFacet ;
+        usf:canonicalName "searchandindexingproductsearchauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:searchandindexingproductsearchcontracts a usf:ContractFacet ;
+        usf:canonicalName "searchandindexingproductsearchcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:searchandindexingproductsearcherrormodel a usf:ContractFacet ;
+        usf:canonicalName "searchandindexingproductsearcherrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:searchandindexingproductsearchlifecycle a usf:ContractFacet ;
+        usf:canonicalName "searchandindexingproductsearchlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:searchandindexingproductsearchpermissions a usf:ContractFacet ;
+        usf:canonicalName "searchandindexingproductsearchpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:searchandindexingproductsearchproof a usf:ContractFacet ;
+        usf:canonicalName "searchandindexingproductsearchproof" ;
+        usf:facetKind facet:proof .
+    cf:searchandindexingproductsearchreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "searchandindexingproductsearchreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:searchandindexingproductsearchstatemodel a usf:ContractFacet ;
+        usf:canonicalName "searchandindexingproductsearchstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:searchandindexingproductsearchuisemantics a usf:ContractFacet ;
+        usf:canonicalName "searchandindexingproductsearchuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:searchandindexingproductsearchvalidation a usf:ContractFacet ;
+        usf:canonicalName "searchandindexingproductsearchvalidation" ;
+        usf:facetKind facet:validation .
+    cf:serverlessfunctionruntimeauditmodel a usf:ContractFacet ;
+        usf:canonicalName "serverlessfunctionruntimeauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:serverlessfunctionruntimecontracts a usf:ContractFacet ;
+        usf:canonicalName "serverlessfunctionruntimecontracts" ;
+        usf:facetKind facet:contracts .
+    cf:serverlessfunctionruntimeerrormodel a usf:ContractFacet ;
+        usf:canonicalName "serverlessfunctionruntimeerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:serverlessfunctionruntimelifecycle a usf:ContractFacet ;
+        usf:canonicalName "serverlessfunctionruntimelifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:serverlessfunctionruntimepermissions a usf:ContractFacet ;
+        usf:canonicalName "serverlessfunctionruntimepermissions" ;
+        usf:facetKind facet:permissions .
+    cf:serverlessfunctionruntimeproof a usf:ContractFacet ;
+        usf:canonicalName "serverlessfunctionruntimeproof" ;
+        usf:facetKind facet:proof .
+    cf:serverlessfunctionruntimereadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "serverlessfunctionruntimereadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:serverlessfunctionruntimestatemodel a usf:ContractFacet ;
+        usf:canonicalName "serverlessfunctionruntimestatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:serverlessfunctionruntimeuisemantics a usf:ContractFacet ;
+        usf:canonicalName "serverlessfunctionruntimeuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:serverlessfunctionruntimevalidation a usf:ContractFacet ;
+        usf:canonicalName "serverlessfunctionruntimevalidation" ;
+        usf:facetKind facet:validation .
+    cf:servicecatalogandproviderintegrationmodelauditmodel a usf:ContractFacet ;
+        usf:canonicalName "servicecatalogandproviderintegrationmodelauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:servicecatalogandproviderintegrationmodelcontracts a usf:ContractFacet ;
+        usf:canonicalName "servicecatalogandproviderintegrationmodelcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:servicecatalogandproviderintegrationmodelerrormodel a usf:ContractFacet ;
+        usf:canonicalName "servicecatalogandproviderintegrationmodelerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:servicecatalogandproviderintegrationmodellifecycle a usf:ContractFacet ;
+        usf:canonicalName "servicecatalogandproviderintegrationmodellifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:servicecatalogandproviderintegrationmodelpermissions a usf:ContractFacet ;
+        usf:canonicalName "servicecatalogandproviderintegrationmodelpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:servicecatalogandproviderintegrationmodelproof a usf:ContractFacet ;
+        usf:canonicalName "servicecatalogandproviderintegrationmodelproof" ;
+        usf:facetKind facet:proof .
+    cf:servicecatalogandproviderintegrationmodelreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "servicecatalogandproviderintegrationmodelreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:servicecatalogandproviderintegrationmodelstatemodel a usf:ContractFacet ;
+        usf:canonicalName "servicecatalogandproviderintegrationmodelstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:servicecatalogandproviderintegrationmodeluisemantics a usf:ContractFacet ;
+        usf:canonicalName "servicecatalogandproviderintegrationmodeluisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:servicecatalogandproviderintegrationmodelvalidation a usf:ContractFacet ;
+        usf:canonicalName "servicecatalogandproviderintegrationmodelvalidation" ;
+        usf:facetKind facet:validation .
+    cf:suborganisationsauditmodel a usf:ContractFacet ;
+        usf:canonicalName "suborganisationsauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:suborganisationscontracts a usf:ContractFacet ;
+        usf:canonicalName "suborganisationscontracts" ;
+        usf:facetKind facet:contracts .
+    cf:suborganisationserrormodel a usf:ContractFacet ;
+        usf:canonicalName "suborganisationserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:suborganisationslifecycle a usf:ContractFacet ;
+        usf:canonicalName "suborganisationslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:suborganisationspermissions a usf:ContractFacet ;
+        usf:canonicalName "suborganisationspermissions" ;
+        usf:facetKind facet:permissions .
+    cf:suborganisationsproof a usf:ContractFacet ;
+        usf:canonicalName "suborganisationsproof" ;
+        usf:facetKind facet:proof .
+    cf:suborganisationsreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "suborganisationsreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:suborganisationsstatemodel a usf:ContractFacet ;
+        usf:canonicalName "suborganisationsstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:suborganisationsuisemantics a usf:ContractFacet ;
+        usf:canonicalName "suborganisationsuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:suborganisationsvalidation a usf:ContractFacet ;
+        usf:canonicalName "suborganisationsvalidation" ;
+        usf:facetKind facet:validation .
+    cf:subscriptionsinvoicespaymentmethodsdunningauditmodel a usf:ContractFacet ;
+        usf:canonicalName "subscriptionsinvoicespaymentmethodsdunningauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:subscriptionsinvoicespaymentmethodsdunningcontracts a usf:ContractFacet ;
+        usf:canonicalName "subscriptionsinvoicespaymentmethodsdunningcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:subscriptionsinvoicespaymentmethodsdunningerrormodel a usf:ContractFacet ;
+        usf:canonicalName "subscriptionsinvoicespaymentmethodsdunningerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:subscriptionsinvoicespaymentmethodsdunninglifecycle a usf:ContractFacet ;
+        usf:canonicalName "subscriptionsinvoicespaymentmethodsdunninglifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:subscriptionsinvoicespaymentmethodsdunningpermissions a usf:ContractFacet ;
+        usf:canonicalName "subscriptionsinvoicespaymentmethodsdunningpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:subscriptionsinvoicespaymentmethodsdunningproof a usf:ContractFacet ;
+        usf:canonicalName "subscriptionsinvoicespaymentmethodsdunningproof" ;
+        usf:facetKind facet:proof .
+    cf:subscriptionsinvoicespaymentmethodsdunningreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "subscriptionsinvoicespaymentmethodsdunningreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:subscriptionsinvoicespaymentmethodsdunningstatemodel a usf:ContractFacet ;
+        usf:canonicalName "subscriptionsinvoicespaymentmethodsdunningstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:subscriptionsinvoicespaymentmethodsdunninguisemantics a usf:ContractFacet ;
+        usf:canonicalName "subscriptionsinvoicespaymentmethodsdunninguisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:subscriptionsinvoicespaymentmethodsdunningvalidation a usf:ContractFacet ;
+        usf:canonicalName "subscriptionsinvoicespaymentmethodsdunningvalidation" ;
+        usf:facetKind facet:validation .
+    cf:supportmodebreakglassaccessauditmodel a usf:ContractFacet ;
+        usf:canonicalName "supportmodebreakglassaccessauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:supportmodebreakglassaccesscontracts a usf:ContractFacet ;
+        usf:canonicalName "supportmodebreakglassaccesscontracts" ;
+        usf:facetKind facet:contracts .
+    cf:supportmodebreakglassaccesserrormodel a usf:ContractFacet ;
+        usf:canonicalName "supportmodebreakglassaccesserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:supportmodebreakglassaccesslifecycle a usf:ContractFacet ;
+        usf:canonicalName "supportmodebreakglassaccesslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:supportmodebreakglassaccesspermissions a usf:ContractFacet ;
+        usf:canonicalName "supportmodebreakglassaccesspermissions" ;
+        usf:facetKind facet:permissions .
+    cf:supportmodebreakglassaccessproof a usf:ContractFacet ;
+        usf:canonicalName "supportmodebreakglassaccessproof" ;
+        usf:facetKind facet:proof .
+    cf:supportmodebreakglassaccessreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "supportmodebreakglassaccessreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:supportmodebreakglassaccessstatemodel a usf:ContractFacet ;
+        usf:canonicalName "supportmodebreakglassaccessstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:supportmodebreakglassaccessuisemantics a usf:ContractFacet ;
+        usf:canonicalName "supportmodebreakglassaccessuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:supportmodebreakglassaccessvalidation a usf:ContractFacet ;
+        usf:canonicalName "supportmodebreakglassaccessvalidation" ;
+        usf:facetKind facet:validation .
+    cf:supportticketscustomerhealthannouncementsauditmodel a usf:ContractFacet ;
+        usf:canonicalName "supportticketscustomerhealthannouncementsauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:supportticketscustomerhealthannouncementscontracts a usf:ContractFacet ;
+        usf:canonicalName "supportticketscustomerhealthannouncementscontracts" ;
+        usf:facetKind facet:contracts .
+    cf:supportticketscustomerhealthannouncementserrormodel a usf:ContractFacet ;
+        usf:canonicalName "supportticketscustomerhealthannouncementserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:supportticketscustomerhealthannouncementslifecycle a usf:ContractFacet ;
+        usf:canonicalName "supportticketscustomerhealthannouncementslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:supportticketscustomerhealthannouncementspermissions a usf:ContractFacet ;
+        usf:canonicalName "supportticketscustomerhealthannouncementspermissions" ;
+        usf:facetKind facet:permissions .
+    cf:supportticketscustomerhealthannouncementsproof a usf:ContractFacet ;
+        usf:canonicalName "supportticketscustomerhealthannouncementsproof" ;
+        usf:facetKind facet:proof .
+    cf:supportticketscustomerhealthannouncementsreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "supportticketscustomerhealthannouncementsreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:supportticketscustomerhealthannouncementsstatemodel a usf:ContractFacet ;
+        usf:canonicalName "supportticketscustomerhealthannouncementsstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:supportticketscustomerhealthannouncementsuisemantics a usf:ContractFacet ;
+        usf:canonicalName "supportticketscustomerhealthannouncementsuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:supportticketscustomerhealthannouncementsvalidation a usf:ContractFacet ;
+        usf:canonicalName "supportticketscustomerhealthannouncementsvalidation" ;
+        usf:facetKind facet:validation .
+    cf:tenantcanonicaldomainsetunsetauditmodel a usf:ContractFacet ;
+        usf:canonicalName "tenantcanonicaldomainsetunsetauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:tenantcanonicaldomainsetunsetcontracts a usf:ContractFacet ;
+        usf:canonicalName "tenantcanonicaldomainsetunsetcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:tenantcanonicaldomainsetunseterrormodel a usf:ContractFacet ;
+        usf:canonicalName "tenantcanonicaldomainsetunseterrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:tenantcanonicaldomainsetunsetlifecycle a usf:ContractFacet ;
+        usf:canonicalName "tenantcanonicaldomainsetunsetlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:tenantcanonicaldomainsetunsetpermissions a usf:ContractFacet ;
+        usf:canonicalName "tenantcanonicaldomainsetunsetpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:tenantcanonicaldomainsetunsetproof a usf:ContractFacet ;
+        usf:canonicalName "tenantcanonicaldomainsetunsetproof" ;
+        usf:facetKind facet:proof .
+    cf:tenantcanonicaldomainsetunsetreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "tenantcanonicaldomainsetunsetreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:tenantcanonicaldomainsetunsetstatemodel a usf:ContractFacet ;
+        usf:canonicalName "tenantcanonicaldomainsetunsetstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:tenantcanonicaldomainsetunsetuisemantics a usf:ContractFacet ;
+        usf:canonicalName "tenantcanonicaldomainsetunsetuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:tenantcanonicaldomainsetunsetvalidation a usf:ContractFacet ;
+        usf:canonicalName "tenantcanonicaldomainsetunsetvalidation" ;
+        usf:facetKind facet:validation .
+    cf:tenantdataimportexportauditmodel a usf:ContractFacet ;
+        usf:canonicalName "tenantdataimportexportauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:tenantdataimportexportcontracts a usf:ContractFacet ;
+        usf:canonicalName "tenantdataimportexportcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:tenantdataimportexporterrormodel a usf:ContractFacet ;
+        usf:canonicalName "tenantdataimportexporterrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:tenantdataimportexportlifecycle a usf:ContractFacet ;
+        usf:canonicalName "tenantdataimportexportlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:tenantdataimportexportpermissions a usf:ContractFacet ;
+        usf:canonicalName "tenantdataimportexportpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:tenantdataimportexportproof a usf:ContractFacet ;
+        usf:canonicalName "tenantdataimportexportproof" ;
+        usf:facetKind facet:proof .
+    cf:tenantdataimportexportreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "tenantdataimportexportreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:tenantdataimportexportstatemodel a usf:ContractFacet ;
+        usf:canonicalName "tenantdataimportexportstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:tenantdataimportexportuisemantics a usf:ContractFacet ;
+        usf:canonicalName "tenantdataimportexportuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:tenantdataimportexportvalidation a usf:ContractFacet ;
+        usf:canonicalName "tenantdataimportexportvalidation" ;
+        usf:facetKind facet:validation .
+    cf:tenantdomainactivationauthclientauditmodel a usf:ContractFacet ;
+        usf:canonicalName "tenantdomainactivationauthclientauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:tenantdomainactivationauthclientcontracts a usf:ContractFacet ;
+        usf:canonicalName "tenantdomainactivationauthclientcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:tenantdomainactivationauthclienterrormodel a usf:ContractFacet ;
+        usf:canonicalName "tenantdomainactivationauthclienterrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:tenantdomainactivationauthclientlifecycle a usf:ContractFacet ;
+        usf:canonicalName "tenantdomainactivationauthclientlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:tenantdomainactivationauthclientpermissions a usf:ContractFacet ;
+        usf:canonicalName "tenantdomainactivationauthclientpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:tenantdomainactivationauthclientproof a usf:ContractFacet ;
+        usf:canonicalName "tenantdomainactivationauthclientproof" ;
+        usf:facetKind facet:proof .
+    cf:tenantdomainactivationauthclientreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "tenantdomainactivationauthclientreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:tenantdomainactivationauthclientstatemodel a usf:ContractFacet ;
+        usf:canonicalName "tenantdomainactivationauthclientstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:tenantdomainactivationauthclientuisemantics a usf:ContractFacet ;
+        usf:canonicalName "tenantdomainactivationauthclientuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:tenantdomainactivationauthclientvalidation a usf:ContractFacet ;
+        usf:canonicalName "tenantdomainactivationauthclientvalidation" ;
+        usf:facetKind facet:validation .
+    cf:tenantgroupsauditmodel a usf:ContractFacet ;
+        usf:canonicalName "tenantgroupsauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:tenantgroupscontracts a usf:ContractFacet ;
+        usf:canonicalName "tenantgroupscontracts" ;
+        usf:facetKind facet:contracts .
+    cf:tenantgroupserrormodel a usf:ContractFacet ;
+        usf:canonicalName "tenantgroupserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:tenantgroupslifecycle a usf:ContractFacet ;
+        usf:canonicalName "tenantgroupslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:tenantgroupspermissions a usf:ContractFacet ;
+        usf:canonicalName "tenantgroupspermissions" ;
+        usf:facetKind facet:permissions .
+    cf:tenantgroupsproof a usf:ContractFacet ;
+        usf:canonicalName "tenantgroupsproof" ;
+        usf:facetKind facet:proof .
+    cf:tenantgroupsreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "tenantgroupsreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:tenantgroupsstatemodel a usf:ContractFacet ;
+        usf:canonicalName "tenantgroupsstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:tenantgroupsuisemantics a usf:ContractFacet ;
+        usf:canonicalName "tenantgroupsuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:tenantgroupsvalidation a usf:ContractFacet ;
+        usf:canonicalName "tenantgroupsvalidation" ;
+        usf:facetKind facet:validation .
+    cf:tenanthostidentityresolutionauditmodel a usf:ContractFacet ;
+        usf:canonicalName "tenanthostidentityresolutionauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:tenanthostidentityresolutioncontracts a usf:ContractFacet ;
+        usf:canonicalName "tenanthostidentityresolutioncontracts" ;
+        usf:facetKind facet:contracts .
+    cf:tenanthostidentityresolutionerrormodel a usf:ContractFacet ;
+        usf:canonicalName "tenanthostidentityresolutionerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:tenanthostidentityresolutionlifecycle a usf:ContractFacet ;
+        usf:canonicalName "tenanthostidentityresolutionlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:tenanthostidentityresolutionpermissions a usf:ContractFacet ;
+        usf:canonicalName "tenanthostidentityresolutionpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:tenanthostidentityresolutionproof a usf:ContractFacet ;
+        usf:canonicalName "tenanthostidentityresolutionproof" ;
+        usf:facetKind facet:proof .
+    cf:tenanthostidentityresolutionreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "tenanthostidentityresolutionreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:tenanthostidentityresolutionstatemodel a usf:ContractFacet ;
+        usf:canonicalName "tenanthostidentityresolutionstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:tenanthostidentityresolutionuisemantics a usf:ContractFacet ;
+        usf:canonicalName "tenanthostidentityresolutionuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:tenanthostidentityresolutionvalidation a usf:ContractFacet ;
+        usf:canonicalName "tenanthostidentityresolutionvalidation" ;
+        usf:facetKind facet:validation .
+    cf:tenantidentityrecordandfqdnauditmodel a usf:ContractFacet ;
+        usf:canonicalName "tenantidentityrecordandfqdnauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:tenantidentityrecordandfqdncontracts a usf:ContractFacet ;
+        usf:canonicalName "tenantidentityrecordandfqdncontracts" ;
+        usf:facetKind facet:contracts .
+    cf:tenantidentityrecordandfqdnerrormodel a usf:ContractFacet ;
+        usf:canonicalName "tenantidentityrecordandfqdnerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:tenantidentityrecordandfqdnlifecycle a usf:ContractFacet ;
+        usf:canonicalName "tenantidentityrecordandfqdnlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:tenantidentityrecordandfqdnpermissions a usf:ContractFacet ;
+        usf:canonicalName "tenantidentityrecordandfqdnpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:tenantidentityrecordandfqdnproof a usf:ContractFacet ;
+        usf:canonicalName "tenantidentityrecordandfqdnproof" ;
+        usf:facetKind facet:proof .
+    cf:tenantidentityrecordandfqdnreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "tenantidentityrecordandfqdnreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:tenantidentityrecordandfqdnstatemodel a usf:ContractFacet ;
+        usf:canonicalName "tenantidentityrecordandfqdnstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:tenantidentityrecordandfqdnuisemantics a usf:ContractFacet ;
+        usf:canonicalName "tenantidentityrecordandfqdnuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:tenantidentityrecordandfqdnvalidation a usf:ContractFacet ;
+        usf:canonicalName "tenantidentityrecordandfqdnvalidation" ;
+        usf:facetKind facet:validation .
+    cf:tenantisolationproofauditmodel a usf:ContractFacet ;
+        usf:canonicalName "tenantisolationproofauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:tenantisolationproofcontracts a usf:ContractFacet ;
+        usf:canonicalName "tenantisolationproofcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:tenantisolationprooferrormodel a usf:ContractFacet ;
+        usf:canonicalName "tenantisolationprooferrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:tenantisolationprooflifecycle a usf:ContractFacet ;
+        usf:canonicalName "tenantisolationprooflifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:tenantisolationproofpermissions a usf:ContractFacet ;
+        usf:canonicalName "tenantisolationproofpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:tenantisolationproofproof a usf:ContractFacet ;
+        usf:canonicalName "tenantisolationproofproof" ;
+        usf:facetKind facet:proof .
+    cf:tenantisolationproofreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "tenantisolationproofreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:tenantisolationproofstatemodel a usf:ContractFacet ;
+        usf:canonicalName "tenantisolationproofstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:tenantisolationproofuisemantics a usf:ContractFacet ;
+        usf:canonicalName "tenantisolationproofuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:tenantisolationproofvalidation a usf:ContractFacet ;
+        usf:canonicalName "tenantisolationproofvalidation" ;
+        usf:facetKind facet:validation .
+    cf:tenantlifecycleprovisionsuspenddeleteexportauditmodel a usf:ContractFacet ;
+        usf:canonicalName "tenantlifecycleprovisionsuspenddeleteexportauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:tenantlifecycleprovisionsuspenddeleteexportcontracts a usf:ContractFacet ;
+        usf:canonicalName "tenantlifecycleprovisionsuspenddeleteexportcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:tenantlifecycleprovisionsuspenddeleteexporterrormodel a usf:ContractFacet ;
+        usf:canonicalName "tenantlifecycleprovisionsuspenddeleteexporterrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:tenantlifecycleprovisionsuspenddeleteexportlifecycle a usf:ContractFacet ;
+        usf:canonicalName "tenantlifecycleprovisionsuspenddeleteexportlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:tenantlifecycleprovisionsuspenddeleteexportpermissions a usf:ContractFacet ;
+        usf:canonicalName "tenantlifecycleprovisionsuspenddeleteexportpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:tenantlifecycleprovisionsuspenddeleteexportproof a usf:ContractFacet ;
+        usf:canonicalName "tenantlifecycleprovisionsuspenddeleteexportproof" ;
+        usf:facetKind facet:proof .
+    cf:tenantlifecycleprovisionsuspenddeleteexportreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "tenantlifecycleprovisionsuspenddeleteexportreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:tenantlifecycleprovisionsuspenddeleteexportstatemodel a usf:ContractFacet ;
+        usf:canonicalName "tenantlifecycleprovisionsuspenddeleteexportstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:tenantlifecycleprovisionsuspenddeleteexportuisemantics a usf:ContractFacet ;
+        usf:canonicalName "tenantlifecycleprovisionsuspenddeleteexportuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:tenantlifecycleprovisionsuspenddeleteexportvalidation a usf:ContractFacet ;
+        usf:canonicalName "tenantlifecycleprovisionsuspenddeleteexportvalidation" ;
+        usf:facetKind facet:validation .
+    cf:tenantserviceclickthroughpolicyauditmodel a usf:ContractFacet ;
+        usf:canonicalName "tenantserviceclickthroughpolicyauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:tenantserviceclickthroughpolicycontracts a usf:ContractFacet ;
+        usf:canonicalName "tenantserviceclickthroughpolicycontracts" ;
+        usf:facetKind facet:contracts .
+    cf:tenantserviceclickthroughpolicyerrormodel a usf:ContractFacet ;
+        usf:canonicalName "tenantserviceclickthroughpolicyerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:tenantserviceclickthroughpolicylifecycle a usf:ContractFacet ;
+        usf:canonicalName "tenantserviceclickthroughpolicylifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:tenantserviceclickthroughpolicypermissions a usf:ContractFacet ;
+        usf:canonicalName "tenantserviceclickthroughpolicypermissions" ;
+        usf:facetKind facet:permissions .
+    cf:tenantserviceclickthroughpolicyproof a usf:ContractFacet ;
+        usf:canonicalName "tenantserviceclickthroughpolicyproof" ;
+        usf:facetKind facet:proof .
+    cf:tenantserviceclickthroughpolicyreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "tenantserviceclickthroughpolicyreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:tenantserviceclickthroughpolicystatemodel a usf:ContractFacet ;
+        usf:canonicalName "tenantserviceclickthroughpolicystatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:tenantserviceclickthroughpolicyuisemantics a usf:ContractFacet ;
+        usf:canonicalName "tenantserviceclickthroughpolicyuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:tenantserviceclickthroughpolicyvalidation a usf:ContractFacet ;
+        usf:canonicalName "tenantserviceclickthroughpolicyvalidation" ;
+        usf:facetKind facet:validation .
+    cf:universalservicefoundationscopeandprinciplesauditmodel a usf:ContractFacet ;
+        usf:canonicalName "universalservicefoundationscopeandprinciplesauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:universalservicefoundationscopeandprinciplescontracts a usf:ContractFacet ;
+        usf:canonicalName "universalservicefoundationscopeandprinciplescontracts" ;
+        usf:facetKind facet:contracts .
+    cf:universalservicefoundationscopeandprincipleserrormodel a usf:ContractFacet ;
+        usf:canonicalName "universalservicefoundationscopeandprincipleserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:universalservicefoundationscopeandprincipleslifecycle a usf:ContractFacet ;
+        usf:canonicalName "universalservicefoundationscopeandprincipleslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:universalservicefoundationscopeandprinciplespermissions a usf:ContractFacet ;
+        usf:canonicalName "universalservicefoundationscopeandprinciplespermissions" ;
+        usf:facetKind facet:permissions .
+    cf:universalservicefoundationscopeandprinciplesproof a usf:ContractFacet ;
+        usf:canonicalName "universalservicefoundationscopeandprinciplesproof" ;
+        usf:facetKind facet:proof .
+    cf:universalservicefoundationscopeandprinciplesreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "universalservicefoundationscopeandprinciplesreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:universalservicefoundationscopeandprinciplesstatemodel a usf:ContractFacet ;
+        usf:canonicalName "universalservicefoundationscopeandprinciplesstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:universalservicefoundationscopeandprinciplesuisemantics a usf:ContractFacet ;
+        usf:canonicalName "universalservicefoundationscopeandprinciplesuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:universalservicefoundationscopeandprinciplesvalidation a usf:ContractFacet ;
+        usf:canonicalName "universalservicefoundationscopeandprinciplesvalidation" ;
+        usf:facetKind facet:validation .
+    cf:usagemeteringandmetereventingestionauditmodel a usf:ContractFacet ;
+        usf:canonicalName "usagemeteringandmetereventingestionauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:usagemeteringandmetereventingestioncontracts a usf:ContractFacet ;
+        usf:canonicalName "usagemeteringandmetereventingestioncontracts" ;
+        usf:facetKind facet:contracts .
+    cf:usagemeteringandmetereventingestionerrormodel a usf:ContractFacet ;
+        usf:canonicalName "usagemeteringandmetereventingestionerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:usagemeteringandmetereventingestionlifecycle a usf:ContractFacet ;
+        usf:canonicalName "usagemeteringandmetereventingestionlifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:usagemeteringandmetereventingestionpermissions a usf:ContractFacet ;
+        usf:canonicalName "usagemeteringandmetereventingestionpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:usagemeteringandmetereventingestionproof a usf:ContractFacet ;
+        usf:canonicalName "usagemeteringandmetereventingestionproof" ;
+        usf:facetKind facet:proof .
+    cf:usagemeteringandmetereventingestionreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "usagemeteringandmetereventingestionreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:usagemeteringandmetereventingestionstatemodel a usf:ContractFacet ;
+        usf:canonicalName "usagemeteringandmetereventingestionstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:usagemeteringandmetereventingestionuisemantics a usf:ContractFacet ;
+        usf:canonicalName "usagemeteringandmetereventingestionuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:usagemeteringandmetereventingestionvalidation a usf:ContractFacet ;
+        usf:canonicalName "usagemeteringandmetereventingestionvalidation" ;
+        usf:facetKind facet:validation .
+    cf:useridentityandtenantmembershipauditmodel a usf:ContractFacet ;
+        usf:canonicalName "useridentityandtenantmembershipauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:useridentityandtenantmembershipcontracts a usf:ContractFacet ;
+        usf:canonicalName "useridentityandtenantmembershipcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:useridentityandtenantmembershiperrormodel a usf:ContractFacet ;
+        usf:canonicalName "useridentityandtenantmembershiperrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:useridentityandtenantmembershiplifecycle a usf:ContractFacet ;
+        usf:canonicalName "useridentityandtenantmembershiplifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:useridentityandtenantmembershippermissions a usf:ContractFacet ;
+        usf:canonicalName "useridentityandtenantmembershippermissions" ;
+        usf:facetKind facet:permissions .
+    cf:useridentityandtenantmembershipproof a usf:ContractFacet ;
+        usf:canonicalName "useridentityandtenantmembershipproof" ;
+        usf:facetKind facet:proof .
+    cf:useridentityandtenantmembershipreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "useridentityandtenantmembershipreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:useridentityandtenantmembershipstatemodel a usf:ContractFacet ;
+        usf:canonicalName "useridentityandtenantmembershipstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:useridentityandtenantmembershipuisemantics a usf:ContractFacet ;
+        usf:canonicalName "useridentityandtenantmembershipuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:useridentityandtenantmembershipvalidation a usf:ContractFacet ;
+        usf:canonicalName "useridentityandtenantmembershipvalidation" ;
+        usf:facetKind facet:validation .
+    cf:webhooksdeveloperfacingauditmodel a usf:ContractFacet ;
+        usf:canonicalName "webhooksdeveloperfacingauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:webhooksdeveloperfacingcontracts a usf:ContractFacet ;
+        usf:canonicalName "webhooksdeveloperfacingcontracts" ;
+        usf:facetKind facet:contracts .
+    cf:webhooksdeveloperfacingerrormodel a usf:ContractFacet ;
+        usf:canonicalName "webhooksdeveloperfacingerrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:webhooksdeveloperfacinglifecycle a usf:ContractFacet ;
+        usf:canonicalName "webhooksdeveloperfacinglifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:webhooksdeveloperfacingpermissions a usf:ContractFacet ;
+        usf:canonicalName "webhooksdeveloperfacingpermissions" ;
+        usf:facetKind facet:permissions .
+    cf:webhooksdeveloperfacingproof a usf:ContractFacet ;
+        usf:canonicalName "webhooksdeveloperfacingproof" ;
+        usf:facetKind facet:proof .
+    cf:webhooksdeveloperfacingreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "webhooksdeveloperfacingreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:webhooksdeveloperfacingstatemodel a usf:ContractFacet ;
+        usf:canonicalName "webhooksdeveloperfacingstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:webhooksdeveloperfacinguisemantics a usf:ContractFacet ;
+        usf:canonicalName "webhooksdeveloperfacinguisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:webhooksdeveloperfacingvalidation a usf:ContractFacet ;
+        usf:canonicalName "webhooksdeveloperfacingvalidation" ;
+        usf:facetKind facet:validation .
+    cf:workflowenginescheduledjobsapprovalsauditmodel a usf:ContractFacet ;
+        usf:canonicalName "workflowenginescheduledjobsapprovalsauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:workflowenginescheduledjobsapprovalscontracts a usf:ContractFacet ;
+        usf:canonicalName "workflowenginescheduledjobsapprovalscontracts" ;
+        usf:facetKind facet:contracts .
+    cf:workflowenginescheduledjobsapprovalserrormodel a usf:ContractFacet ;
+        usf:canonicalName "workflowenginescheduledjobsapprovalserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:workflowenginescheduledjobsapprovalslifecycle a usf:ContractFacet ;
+        usf:canonicalName "workflowenginescheduledjobsapprovalslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:workflowenginescheduledjobsapprovalspermissions a usf:ContractFacet ;
+        usf:canonicalName "workflowenginescheduledjobsapprovalspermissions" ;
+        usf:facetKind facet:permissions .
+    cf:workflowenginescheduledjobsapprovalsproof a usf:ContractFacet ;
+        usf:canonicalName "workflowenginescheduledjobsapprovalsproof" ;
+        usf:facetKind facet:proof .
+    cf:workflowenginescheduledjobsapprovalsreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "workflowenginescheduledjobsapprovalsreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:workflowenginescheduledjobsapprovalsstatemodel a usf:ContractFacet ;
+        usf:canonicalName "workflowenginescheduledjobsapprovalsstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:workflowenginescheduledjobsapprovalsuisemantics a usf:ContractFacet ;
+        usf:canonicalName "workflowenginescheduledjobsapprovalsuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:workflowenginescheduledjobsapprovalsvalidation a usf:ContractFacet ;
+        usf:canonicalName "workflowenginescheduledjobsapprovalsvalidation" ;
+        usf:facetKind facet:validation .
+    cf:writeonlysecretsettingsauditmodel a usf:ContractFacet ;
+        usf:canonicalName "writeonlysecretsettingsauditmodel" ;
+        usf:facetKind facet:auditmodel .
+    cf:writeonlysecretsettingscontracts a usf:ContractFacet ;
+        usf:canonicalName "writeonlysecretsettingscontracts" ;
+        usf:facetKind facet:contracts .
+    cf:writeonlysecretsettingserrormodel a usf:ContractFacet ;
+        usf:canonicalName "writeonlysecretsettingserrormodel" ;
+        usf:facetKind facet:errormodel .
+    cf:writeonlysecretsettingslifecycle a usf:ContractFacet ;
+        usf:canonicalName "writeonlysecretsettingslifecycle" ;
+        usf:facetKind facet:lifecycle .
+    cf:writeonlysecretsettingspermissions a usf:ContractFacet ;
+        usf:canonicalName "writeonlysecretsettingspermissions" ;
+        usf:facetKind facet:permissions .
+    cf:writeonlysecretsettingsproof a usf:ContractFacet ;
+        usf:canonicalName "writeonlysecretsettingsproof" ;
+        usf:facetKind facet:proof .
+    cf:writeonlysecretsettingsreadinessmodel a usf:ContractFacet ;
+        usf:canonicalName "writeonlysecretsettingsreadinessmodel" ;
+        usf:facetKind facet:readinessmodel .
+    cf:writeonlysecretsettingsstatemodel a usf:ContractFacet ;
+        usf:canonicalName "writeonlysecretsettingsstatemodel" ;
+        usf:facetKind facet:statemodel .
+    cf:writeonlysecretsettingsuisemantics a usf:ContractFacet ;
+        usf:canonicalName "writeonlysecretsettingsuisemantics" ;
+        usf:facetKind facet:uisemantics .
+    cf:writeonlysecretsettingsvalidation a usf:ContractFacet ;
+        usf:canonicalName "writeonlysecretsettingsvalidation" ;
+        usf:facetKind facet:validation .
+    sc:abacpolicydecisionpoint a usf:SemanticContract ;
+        usf:canonicalName "abacpolicydecisionpoint" ;
+        usf:declaresFacet cf:abacpolicydecisionpointauditmodel , cf:abacpolicydecisionpointcontracts , cf:abacpolicydecisionpointerrormodel , cf:abacpolicydecisionpointlifecycle , cf:abacpolicydecisionpointpermissions , cf:abacpolicydecisionpointproof , cf:abacpolicydecisionpointreadinessmodel , cf:abacpolicydecisionpointstatemodel , cf:abacpolicydecisionpointuisemantics , cf:abacpolicydecisionpointvalidation .
+    sc:accessibilitya11ygate a usf:SemanticContract ;
+        usf:canonicalName "accessibilitya11ygate" ;
+        usf:declaresFacet cf:accessibilitya11ygateauditmodel , cf:accessibilitya11ygatecontracts , cf:accessibilitya11ygateerrormodel , cf:accessibilitya11ygatelifecycle , cf:accessibilitya11ygatepermissions , cf:accessibilitya11ygateproof , cf:accessibilitya11ygatereadinessmodel , cf:accessibilitya11ygatestatemodel , cf:accessibilitya11ygateuisemantics , cf:accessibilitya11ygatevalidation .
+    sc:alertingincidentmanagementoncallstatuspage a usf:SemanticContract ;
+        usf:canonicalName "alertingincidentmanagementoncallstatuspage" ;
+        usf:declaresFacet cf:alertingincidentmanagementoncallstatuspageauditmodel , cf:alertingincidentmanagementoncallstatuspagecontracts , cf:alertingincidentmanagementoncallstatuspageerrormodel , cf:alertingincidentmanagementoncallstatuspagelifecycle , cf:alertingincidentmanagementoncallstatuspagepermissions , cf:alertingincidentmanagementoncallstatuspageproof , cf:alertingincidentmanagementoncallstatuspagereadinessmodel , cf:alertingincidentmanagementoncallstatuspagestatemodel , cf:alertingincidentmanagementoncallstatuspageuisemantics , cf:alertingincidentmanagementoncallstatuspagevalidation .
+    sc:apidocsdeveloperportalsdksratelimits a usf:SemanticContract ;
+        usf:canonicalName "apidocsdeveloperportalsdksratelimits" ;
+        usf:declaresFacet cf:apidocsdeveloperportalsdksratelimitsauditmodel , cf:apidocsdeveloperportalsdksratelimitscontracts , cf:apidocsdeveloperportalsdksratelimitserrormodel , cf:apidocsdeveloperportalsdksratelimitslifecycle , cf:apidocsdeveloperportalsdksratelimitspermissions , cf:apidocsdeveloperportalsdksratelimitsproof , cf:apidocsdeveloperportalsdksratelimitsreadinessmodel , cf:apidocsdeveloperportalsdksratelimitsstatemodel , cf:apidocsdeveloperportalsdksratelimitsuisemantics , cf:apidocsdeveloperportalsdksratelimitsvalidation .
+    sc:apikeyspersonalaccesstokens a usf:SemanticContract ;
+        usf:canonicalName "apikeyspersonalaccesstokens" ;
+        usf:declaresFacet cf:apikeyspersonalaccesstokensauditmodel , cf:apikeyspersonalaccesstokenscontracts , cf:apikeyspersonalaccesstokenserrormodel , cf:apikeyspersonalaccesstokenslifecycle , cf:apikeyspersonalaccesstokenspermissions , cf:apikeyspersonalaccesstokensproof , cf:apikeyspersonalaccesstokensreadinessmodel , cf:apikeyspersonalaccesstokensstatemodel , cf:apikeyspersonalaccesstokensuisemantics , cf:apikeyspersonalaccesstokensvalidation .
+    sc:auditofprivilegedaccess a usf:SemanticContract ;
+        usf:canonicalName "auditofprivilegedaccess" ;
+        usf:declaresFacet cf:auditofprivilegedaccessauditmodel , cf:auditofprivilegedaccesscontracts , cf:auditofprivilegedaccesserrormodel , cf:auditofprivilegedaccesslifecycle , cf:auditofprivilegedaccesspermissions , cf:auditofprivilegedaccessproof , cf:auditofprivilegedaccessreadinessmodel , cf:auditofprivilegedaccessstatemodel , cf:auditofprivilegedaccessuisemantics , cf:auditofprivilegedaccessvalidation .
+    sc:authenticationplatform a usf:SemanticContract ;
+        usf:canonicalName "authenticationplatform" ;
+        usf:declaresFacet cf:authenticationplatformauditmodel , cf:authenticationplatformcontracts , cf:authenticationplatformerrormodel , cf:authenticationplatformlifecycle , cf:authenticationplatformpermissions , cf:authenticationplatformproof , cf:authenticationplatformreadinessmodel , cf:authenticationplatformstatemodel , cf:authenticationplatformuisemantics , cf:authenticationplatformvalidation .
+    sc:backgroundworkersjobrunner a usf:SemanticContract ;
+        usf:canonicalName "backgroundworkersjobrunner" ;
+        usf:declaresFacet cf:backgroundworkersjobrunnerauditmodel , cf:backgroundworkersjobrunnercontracts , cf:backgroundworkersjobrunnererrormodel , cf:backgroundworkersjobrunnerlifecycle , cf:backgroundworkersjobrunnerpermissions , cf:backgroundworkersjobrunnerproof , cf:backgroundworkersjobrunnerreadinessmodel , cf:backgroundworkersjobrunnerstatemodel , cf:backgroundworkersjobrunneruisemantics , cf:backgroundworkersjobrunnervalidation .
+    sc:backupandrestore a usf:SemanticContract ;
+        usf:canonicalName "backupandrestore" ;
+        usf:declaresFacet cf:backupandrestoreauditmodel , cf:backupandrestorecontracts , cf:backupandrestoreerrormodel , cf:backupandrestorelifecycle , cf:backupandrestorepermissions , cf:backupandrestoreproof , cf:backupandrestorereadinessmodel , cf:backupandrestorestatemodel , cf:backupandrestoreuisemantics , cf:backupandrestorevalidation .
+    sc:brandingandtheming a usf:SemanticContract ;
+        usf:canonicalName "brandingandtheming" ;
+        usf:declaresFacet cf:brandingandthemingauditmodel , cf:brandingandthemingcontracts , cf:brandingandthemingerrormodel , cf:brandingandtheminglifecycle , cf:brandingandthemingpermissions , cf:brandingandthemingproof , cf:brandingandthemingreadinessmodel , cf:brandingandthemingstatemodel , cf:brandingandtheminguisemantics , cf:brandingandthemingvalidation .
+    sc:browsertelemetrygrafanafarorumandbrowsertobfftracing a usf:SemanticContract ;
+        usf:canonicalName "browsertelemetrygrafanafarorumandbrowsertobfftracing" ;
+        usf:declaresFacet cf:browsertelemetrygrafanafarorumandbrowsertobfftracingauditmodel , cf:browsertelemetrygrafanafarorumandbrowsertobfftracingcontracts , cf:browsertelemetrygrafanafarorumandbrowsertobfftracingerrormodel , cf:browsertelemetrygrafanafarorumandbrowsertobfftracinglifecycle , cf:browsertelemetrygrafanafarorumandbrowsertobfftracingpermissions , cf:browsertelemetrygrafanafarorumandbrowsertobfftracingproof , cf:browsertelemetrygrafanafarorumandbrowsertobfftracingreadinessmodel , cf:browsertelemetrygrafanafarorumandbrowsertobfftracingstatemodel , cf:browsertelemetrygrafanafarorumandbrowsertobfftracinguisemantics , cf:browsertelemetrygrafanafarorumandbrowsertobfftracingvalidation .
+    sc:buildversuscomposedecisionframework a usf:SemanticContract ;
+        usf:canonicalName "buildversuscomposedecisionframework" ;
+        usf:declaresFacet cf:buildversuscomposedecisionframeworkauditmodel , cf:buildversuscomposedecisionframeworkcontracts , cf:buildversuscomposedecisionframeworkerrormodel , cf:buildversuscomposedecisionframeworklifecycle , cf:buildversuscomposedecisionframeworkpermissions , cf:buildversuscomposedecisionframeworkproof , cf:buildversuscomposedecisionframeworkreadinessmodel , cf:buildversuscomposedecisionframeworkstatemodel , cf:buildversuscomposedecisionframeworkuisemantics , cf:buildversuscomposedecisionframeworkvalidation .
+    sc:codequalityandsecretanddependencyscanning a usf:SemanticContract ;
+        usf:canonicalName "codequalityandsecretanddependencyscanning" ;
+        usf:declaresFacet cf:codequalityandsecretanddependencyscanningauditmodel , cf:codequalityandsecretanddependencyscanningcontracts , cf:codequalityandsecretanddependencyscanningerrormodel , cf:codequalityandsecretanddependencyscanninglifecycle , cf:codequalityandsecretanddependencyscanningpermissions , cf:codequalityandsecretanddependencyscanningproof , cf:codequalityandsecretanddependencyscanningreadinessmodel , cf:codequalityandsecretanddependencyscanningstatemodel , cf:codequalityandsecretanddependencyscanninguisemantics , cf:codequalityandsecretanddependencyscanningvalidation .
+    sc:compliancereportsaccessreviewsevidencepacks a usf:SemanticContract ;
+        usf:canonicalName "compliancereportsaccessreviewsevidencepacks" ;
+        usf:declaresFacet cf:compliancereportsaccessreviewsevidencepacksauditmodel , cf:compliancereportsaccessreviewsevidencepackscontracts , cf:compliancereportsaccessreviewsevidencepackserrormodel , cf:compliancereportsaccessreviewsevidencepackslifecycle , cf:compliancereportsaccessreviewsevidencepackspermissions , cf:compliancereportsaccessreviewsevidencepacksproof , cf:compliancereportsaccessreviewsevidencepacksreadinessmodel , cf:compliancereportsaccessreviewsevidencepacksstatemodel , cf:compliancereportsaccessreviewsevidencepacksuisemantics , cf:compliancereportsaccessreviewsevidencepacksvalidation .
+    sc:composedproviderreadinessspine a usf:SemanticContract ;
+        usf:canonicalName "composedproviderreadinessspine" ;
+        usf:declaresFacet cf:composedproviderreadinessspineauditmodel , cf:composedproviderreadinessspinecontracts , cf:composedproviderreadinessspineerrormodel , cf:composedproviderreadinessspinelifecycle , cf:composedproviderreadinessspinepermissions , cf:composedproviderreadinessspineproof , cf:composedproviderreadinessspinereadinessmodel , cf:composedproviderreadinessspinestatemodel , cf:composedproviderreadinessspineuisemantics , cf:composedproviderreadinessspinevalidation .
+    sc:configurationregistryandhistory a usf:SemanticContract ;
+        usf:canonicalName "configurationregistryandhistory" ;
+        usf:declaresFacet cf:configurationregistryandhistoryauditmodel , cf:configurationregistryandhistorycontracts , cf:configurationregistryandhistoryerrormodel , cf:configurationregistryandhistorylifecycle , cf:configurationregistryandhistorypermissions , cf:configurationregistryandhistoryproof , cf:configurationregistryandhistoryreadinessmodel , cf:configurationregistryandhistorystatemodel , cf:configurationregistryandhistoryuisemantics , cf:configurationregistryandhistoryvalidation .
+    sc:customdomainsdnsownershiptlscanonical a usf:SemanticContract ;
+        usf:canonicalName "customdomainsdnsownershiptlscanonical" ;
+        usf:declaresFacet cf:customdomainsdnsownershiptlscanonicalauditmodel , cf:customdomainsdnsownershiptlscanonicalcontracts , cf:customdomainsdnsownershiptlscanonicalerrormodel , cf:customdomainsdnsownershiptlscanonicallifecycle , cf:customdomainsdnsownershiptlscanonicalpermissions , cf:customdomainsdnsownershiptlscanonicalproof , cf:customdomainsdnsownershiptlscanonicalreadinessmodel , cf:customdomainsdnsownershiptlscanonicalstatemodel , cf:customdomainsdnsownershiptlscanonicaluisemantics , cf:customdomainsdnsownershiptlscanonicalvalidation .
+    sc:datagovernancecataloglineageclassificationpiidsrgdpr a usf:SemanticContract ;
+        usf:canonicalName "datagovernancecataloglineageclassificationpiidsrgdpr" ;
+        usf:declaresFacet cf:datagovernancecataloglineageclassificationpiidsrgdprauditmodel , cf:datagovernancecataloglineageclassificationpiidsrgdprcontracts , cf:datagovernancecataloglineageclassificationpiidsrgdprerrormodel , cf:datagovernancecataloglineageclassificationpiidsrgdprlifecycle , cf:datagovernancecataloglineageclassificationpiidsrgdprpermissions , cf:datagovernancecataloglineageclassificationpiidsrgdprproof , cf:datagovernancecataloglineageclassificationpiidsrgdprreadinessmodel , cf:datagovernancecataloglineageclassificationpiidsrgdprstatemodel , cf:datagovernancecataloglineageclassificationpiidsrgdpruisemantics , cf:datagovernancecataloglineageclassificationpiidsrgdprvalidation .
+    sc:delegatedadministrationroles a usf:SemanticContract ;
+        usf:canonicalName "delegatedadministrationroles" ;
+        usf:declaresFacet cf:delegatedadministrationrolesauditmodel , cf:delegatedadministrationrolescontracts , cf:delegatedadministrationroleserrormodel , cf:delegatedadministrationroleslifecycle , cf:delegatedadministrationrolespermissions , cf:delegatedadministrationrolesproof , cf:delegatedadministrationrolesreadinessmodel , cf:delegatedadministrationrolesstatemodel , cf:delegatedadministrationrolesuisemantics , cf:delegatedadministrationrolesvalidation .
+    sc:e2econfidenceladderstageaware a usf:SemanticContract ;
+        usf:canonicalName "e2econfidenceladderstageaware" ;
+        usf:declaresFacet cf:e2econfidenceladderstageawareauditmodel , cf:e2econfidenceladderstageawarecontracts , cf:e2econfidenceladderstageawareerrormodel , cf:e2econfidenceladderstageawarelifecycle , cf:e2econfidenceladderstageawarepermissions , cf:e2econfidenceladderstageawareproof , cf:e2econfidenceladderstageawarereadinessmodel , cf:e2econfidenceladderstageawarestatemodel , cf:e2econfidenceladderstageawareuisemantics , cf:e2econfidenceladderstageawarevalidation .
+    sc:enduserprofileandpreferencesselfservice a usf:SemanticContract ;
+        usf:canonicalName "enduserprofileandpreferencesselfservice" ;
+        usf:declaresFacet cf:enduserprofileandpreferencesselfserviceauditmodel , cf:enduserprofileandpreferencesselfservicecontracts , cf:enduserprofileandpreferencesselfserviceerrormodel , cf:enduserprofileandpreferencesselfservicelifecycle , cf:enduserprofileandpreferencesselfservicepermissions , cf:enduserprofileandpreferencesselfserviceproof , cf:enduserprofileandpreferencesselfservicereadinessmodel , cf:enduserprofileandpreferencesselfservicestatemodel , cf:enduserprofileandpreferencesselfserviceuisemantics , cf:enduserprofileandpreferencesselfservicevalidation .
+    sc:entitlementengine a usf:SemanticContract ;
+        usf:canonicalName "entitlementengine" ;
+        usf:declaresFacet cf:entitlementengineauditmodel , cf:entitlementenginecontracts , cf:entitlementengineerrormodel , cf:entitlementenginelifecycle , cf:entitlementenginepermissions , cf:entitlementengineproof , cf:entitlementenginereadinessmodel , cf:entitlementenginestatemodel , cf:entitlementengineuisemantics , cf:entitlementenginevalidation .
+    sc:environmentregistryandbootstrap a usf:SemanticContract ;
+        usf:canonicalName "environmentregistryandbootstrap" ;
+        usf:declaresFacet cf:environmentregistryandbootstrapauditmodel , cf:environmentregistryandbootstrapcontracts , cf:environmentregistryandbootstraperrormodel , cf:environmentregistryandbootstraplifecycle , cf:environmentregistryandbootstrappermissions , cf:environmentregistryandbootstrapproof , cf:environmentregistryandbootstrapreadinessmodel , cf:environmentregistryandbootstrapstatemodel , cf:environmentregistryandbootstrapuisemantics , cf:environmentregistryandbootstrapvalidation .
+    sc:environmentspecificvssharedservicemodel a usf:SemanticContract ;
+        usf:canonicalName "environmentspecificvssharedservicemodel" ;
+        usf:declaresFacet cf:environmentspecificvssharedservicemodelauditmodel , cf:environmentspecificvssharedservicemodelcontracts , cf:environmentspecificvssharedservicemodelerrormodel , cf:environmentspecificvssharedservicemodellifecycle , cf:environmentspecificvssharedservicemodelpermissions , cf:environmentspecificvssharedservicemodelproof , cf:environmentspecificvssharedservicemodelreadinessmodel , cf:environmentspecificvssharedservicemodelstatemodel , cf:environmentspecificvssharedservicemodeluisemantics , cf:environmentspecificvssharedservicemodelvalidation .
+    sc:eventbusdurablequeuesdlqredrive a usf:SemanticContract ;
+        usf:canonicalName "eventbusdurablequeuesdlqredrive" ;
+        usf:declaresFacet cf:eventbusdurablequeuesdlqredriveauditmodel , cf:eventbusdurablequeuesdlqredrivecontracts , cf:eventbusdurablequeuesdlqredriveerrormodel , cf:eventbusdurablequeuesdlqredrivelifecycle , cf:eventbusdurablequeuesdlqredrivepermissions , cf:eventbusdurablequeuesdlqredriveproof , cf:eventbusdurablequeuesdlqredrivereadinessmodel , cf:eventbusdurablequeuesdlqredrivestatemodel , cf:eventbusdurablequeuesdlqredriveuisemantics , cf:eventbusdurablequeuesdlqredrivevalidation .
+    sc:historyreadmodelreadonlyprojection a usf:SemanticContract ;
+        usf:canonicalName "historyreadmodelreadonlyprojection" ;
+        usf:declaresFacet cf:historyreadmodelreadonlyprojectionauditmodel , cf:historyreadmodelreadonlyprojectioncontracts , cf:historyreadmodelreadonlyprojectionerrormodel , cf:historyreadmodelreadonlyprojectionlifecycle , cf:historyreadmodelreadonlyprojectionpermissions , cf:historyreadmodelreadonlyprojectionproof , cf:historyreadmodelreadonlyprojectionreadinessmodel , cf:historyreadmodelreadonlyprojectionstatemodel , cf:historyreadmodelreadonlyprojectionuisemantics , cf:historyreadmodelreadonlyprojectionvalidation .
+    sc:i18nruntimeandvalidation a usf:SemanticContract ;
+        usf:canonicalName "i18nruntimeandvalidation" ;
+        usf:declaresFacet cf:i18nruntimeandvalidationauditmodel , cf:i18nruntimeandvalidationcontracts , cf:i18nruntimeandvalidationerrormodel , cf:i18nruntimeandvalidationlifecycle , cf:i18nruntimeandvalidationpermissions , cf:i18nruntimeandvalidationproof , cf:i18nruntimeandvalidationreadinessmodel , cf:i18nruntimeandvalidationstatemodel , cf:i18nruntimeandvalidationuisemantics , cf:i18nruntimeandvalidationvalidation .
+    sc:internalservicecatalogandreadiness a usf:SemanticContract ;
+        usf:canonicalName "internalservicecatalogandreadiness" ;
+        usf:declaresFacet cf:internalservicecatalogandreadinessauditmodel , cf:internalservicecatalogandreadinesscontracts , cf:internalservicecatalogandreadinesserrormodel , cf:internalservicecatalogandreadinesslifecycle , cf:internalservicecatalogandreadinesspermissions , cf:internalservicecatalogandreadinessproof , cf:internalservicecatalogandreadinessreadinessmodel , cf:internalservicecatalogandreadinessstatemodel , cf:internalservicecatalogandreadinessuisemantics , cf:internalservicecatalogandreadinessvalidation .
+    sc:logsaggregationandtenantscopedsearch a usf:SemanticContract ;
+        usf:canonicalName "logsaggregationandtenantscopedsearch" ;
+        usf:declaresFacet cf:logsaggregationandtenantscopedsearchauditmodel , cf:logsaggregationandtenantscopedsearchcontracts , cf:logsaggregationandtenantscopedsearcherrormodel , cf:logsaggregationandtenantscopedsearchlifecycle , cf:logsaggregationandtenantscopedsearchpermissions , cf:logsaggregationandtenantscopedsearchproof , cf:logsaggregationandtenantscopedsearchreadinessmodel , cf:logsaggregationandtenantscopedsearchstatemodel , cf:logsaggregationandtenantscopedsearchuisemantics , cf:logsaggregationandtenantscopedsearchvalidation .
+    sc:metricsandtraces a usf:SemanticContract ;
+        usf:canonicalName "metricsandtraces" ;
+        usf:declaresFacet cf:metricsandtracesauditmodel , cf:metricsandtracescontracts , cf:metricsandtraceserrormodel , cf:metricsandtraceslifecycle , cf:metricsandtracespermissions , cf:metricsandtracesproof , cf:metricsandtracesreadinessmodel , cf:metricsandtracesstatemodel , cf:metricsandtracesuisemantics , cf:metricsandtracesvalidation .
+    sc:mockprovidersdevtest a usf:SemanticContract ;
+        usf:canonicalName "mockprovidersdevtest" ;
+        usf:declaresFacet cf:mockprovidersdevtestauditmodel , cf:mockprovidersdevtestcontracts , cf:mockprovidersdevtesterrormodel , cf:mockprovidersdevtestlifecycle , cf:mockprovidersdevtestpermissions , cf:mockprovidersdevtestproof , cf:mockprovidersdevtestreadinessmodel , cf:mockprovidersdevteststatemodel , cf:mockprovidersdevtestuisemantics , cf:mockprovidersdevtestvalidation .
+    sc:notificationdeliveryandpreferencesandchannels a usf:SemanticContract ;
+        usf:canonicalName "notificationdeliveryandpreferencesandchannels" ;
+        usf:declaresFacet cf:notificationdeliveryandpreferencesandchannelsauditmodel , cf:notificationdeliveryandpreferencesandchannelscontracts , cf:notificationdeliveryandpreferencesandchannelserrormodel , cf:notificationdeliveryandpreferencesandchannelslifecycle , cf:notificationdeliveryandpreferencesandchannelspermissions , cf:notificationdeliveryandpreferencesandchannelsproof , cf:notificationdeliveryandpreferencesandchannelsreadinessmodel , cf:notificationdeliveryandpreferencesandchannelsstatemodel , cf:notificationdeliveryandpreferencesandchannelsuisemantics , cf:notificationdeliveryandpreferencesandchannelsvalidation .
+    sc:objectstorageandtenantprefixesandsignedurls a usf:SemanticContract ;
+        usf:canonicalName "objectstorageandtenantprefixesandsignedurls" ;
+        usf:declaresFacet cf:objectstorageandtenantprefixesandsignedurlsauditmodel , cf:objectstorageandtenantprefixesandsignedurlscontracts , cf:objectstorageandtenantprefixesandsignedurlserrormodel , cf:objectstorageandtenantprefixesandsignedurlslifecycle , cf:objectstorageandtenantprefixesandsignedurlspermissions , cf:objectstorageandtenantprefixesandsignedurlsproof , cf:objectstorageandtenantprefixesandsignedurlsreadinessmodel , cf:objectstorageandtenantprefixesandsignedurlsstatemodel , cf:objectstorageandtenantprefixesandsignedurlsuisemantics , cf:objectstorageandtenantprefixesandsignedurlsvalidation .
+    sc:observabilitybuiltinalertingandincidents a usf:SemanticContract ;
+        usf:canonicalName "observabilitybuiltinalertingandincidents" ;
+        usf:declaresFacet cf:observabilitybuiltinalertingandincidentsauditmodel , cf:observabilitybuiltinalertingandincidentscontracts , cf:observabilitybuiltinalertingandincidentserrormodel , cf:observabilitybuiltinalertingandincidentslifecycle , cf:observabilitybuiltinalertingandincidentspermissions , cf:observabilitybuiltinalertingandincidentsproof , cf:observabilitybuiltinalertingandincidentsreadinessmodel , cf:observabilitybuiltinalertingandincidentsstatemodel , cf:observabilitybuiltinalertingandincidentsuisemantics , cf:observabilitybuiltinalertingandincidentsvalidation .
+    sc:openapidrifthardgate a usf:SemanticContract ;
+        usf:canonicalName "openapidrifthardgate" ;
+        usf:declaresFacet cf:openapidrifthardgateauditmodel , cf:openapidrifthardgatecontracts , cf:openapidrifthardgateerrormodel , cf:openapidrifthardgatelifecycle , cf:openapidrifthardgatepermissions , cf:openapidrifthardgateproof , cf:openapidrifthardgatereadinessmodel , cf:openapidrifthardgatestatemodel , cf:openapidrifthardgateuisemantics , cf:openapidrifthardgatevalidation .
+    sc:pitrretentionlegalholddataresidency a usf:SemanticContract ;
+        usf:canonicalName "pitrretentionlegalholddataresidency" ;
+        usf:declaresFacet cf:pitrretentionlegalholddataresidencyauditmodel , cf:pitrretentionlegalholddataresidencycontracts , cf:pitrretentionlegalholddataresidencyerrormodel , cf:pitrretentionlegalholddataresidencylifecycle , cf:pitrretentionlegalholddataresidencypermissions , cf:pitrretentionlegalholddataresidencyproof , cf:pitrretentionlegalholddataresidencyreadinessmodel , cf:pitrretentionlegalholddataresidencystatemodel , cf:pitrretentionlegalholddataresidencyuisemantics , cf:pitrretentionlegalholddataresidencyvalidation .
+    sc:productcatalogplansprices a usf:SemanticContract ;
+        usf:canonicalName "productcatalogplansprices" ;
+        usf:declaresFacet cf:productcatalogplanspricesauditmodel , cf:productcatalogplanspricescontracts , cf:productcatalogplanspriceserrormodel , cf:productcatalogplanspriceslifecycle , cf:productcatalogplanspricespermissions , cf:productcatalogplanspricesproof , cf:productcatalogplanspricesreadinessmodel , cf:productcatalogplanspricesstatemodel , cf:productcatalogplanspricesuisemantics , cf:productcatalogplanspricesvalidation .
+    sc:providerconfigurationplane a usf:SemanticContract ;
+        usf:canonicalName "providerconfigurationplane" ;
+        usf:declaresFacet cf:providerconfigurationplaneauditmodel , cf:providerconfigurationplanecontracts , cf:providerconfigurationplaneerrormodel , cf:providerconfigurationplanelifecycle , cf:providerconfigurationplanepermissions , cf:providerconfigurationplaneproof , cf:providerconfigurationplanereadinessmodel , cf:providerconfigurationplanestatemodel , cf:providerconfigurationplaneuisemantics , cf:providerconfigurationplanevalidation .
+    sc:providerenvironmentclassification a usf:SemanticContract ;
+        usf:canonicalName "providerenvironmentclassification" ;
+        usf:declaresFacet cf:providerenvironmentclassificationauditmodel , cf:providerenvironmentclassificationcontracts , cf:providerenvironmentclassificationerrormodel , cf:providerenvironmentclassificationlifecycle , cf:providerenvironmentclassificationpermissions , cf:providerenvironmentclassificationproof , cf:providerenvironmentclassificationreadinessmodel , cf:providerenvironmentclassificationstatemodel , cf:providerenvironmentclassificationuisemantics , cf:providerenvironmentclassificationvalidation .
+    sc:quotaenforcement a usf:SemanticContract ;
+        usf:canonicalName "quotaenforcement" ;
+        usf:declaresFacet cf:quotaenforcementauditmodel , cf:quotaenforcementcontracts , cf:quotaenforcementerrormodel , cf:quotaenforcementlifecycle , cf:quotaenforcementpermissions , cf:quotaenforcementproof , cf:quotaenforcementreadinessmodel , cf:quotaenforcementstatemodel , cf:quotaenforcementuisemantics , cf:quotaenforcementvalidation .
+    sc:ratelimitingapi a usf:SemanticContract ;
+        usf:canonicalName "ratelimitingapi" ;
+        usf:declaresFacet cf:ratelimitingapiauditmodel , cf:ratelimitingapicontracts , cf:ratelimitingapierrormodel , cf:ratelimitingapilifecycle , cf:ratelimitingapipermissions , cf:ratelimitingapiproof , cf:ratelimitingapireadinessmodel , cf:ratelimitingapistatemodel , cf:ratelimitingapiuisemantics , cf:ratelimitingapivalidation .
+    sc:rbacrolesandpermissions a usf:SemanticContract ;
+        usf:canonicalName "rbacrolesandpermissions" ;
+        usf:declaresFacet cf:rbacrolesandpermissionsauditmodel , cf:rbacrolesandpermissionscontracts , cf:rbacrolesandpermissionserrormodel , cf:rbacrolesandpermissionslifecycle , cf:rbacrolesandpermissionspermissions , cf:rbacrolesandpermissionsproof , cf:rbacrolesandpermissionsreadinessmodel , cf:rbacrolesandpermissionsstatemodel , cf:rbacrolesandpermissionsuisemantics , cf:rbacrolesandpermissionsvalidation .
+    sc:relationalstorageandmigrationsandrls a usf:SemanticContract ;
+        usf:canonicalName "relationalstorageandmigrationsandrls" ;
+        usf:declaresFacet cf:relationalstorageandmigrationsandrlsauditmodel , cf:relationalstorageandmigrationsandrlscontracts , cf:relationalstorageandmigrationsandrlserrormodel , cf:relationalstorageandmigrationsandrlslifecycle , cf:relationalstorageandmigrationsandrlspermissions , cf:relationalstorageandmigrationsandrlsproof , cf:relationalstorageandmigrationsandrlsreadinessmodel , cf:relationalstorageandmigrationsandrlsstatemodel , cf:relationalstorageandmigrationsandrlsuisemantics , cf:relationalstorageandmigrationsandrlsvalidation .
+    sc:runtimesecretsmanagement a usf:SemanticContract ;
+        usf:canonicalName "runtimesecretsmanagement" ;
+        usf:declaresFacet cf:runtimesecretsmanagementauditmodel , cf:runtimesecretsmanagementcontracts , cf:runtimesecretsmanagementerrormodel , cf:runtimesecretsmanagementlifecycle , cf:runtimesecretsmanagementpermissions , cf:runtimesecretsmanagementproof , cf:runtimesecretsmanagementreadinessmodel , cf:runtimesecretsmanagementstatemodel , cf:runtimesecretsmanagementuisemantics , cf:runtimesecretsmanagementvalidation .
+    sc:scheduledjobsbuiltinontheeventsubstrate a usf:SemanticContract ;
+        usf:canonicalName "scheduledjobsbuiltinontheeventsubstrate" ;
+        usf:declaresFacet cf:scheduledjobsbuiltinontheeventsubstrateauditmodel , cf:scheduledjobsbuiltinontheeventsubstratecontracts , cf:scheduledjobsbuiltinontheeventsubstrateerrormodel , cf:scheduledjobsbuiltinontheeventsubstratelifecycle , cf:scheduledjobsbuiltinontheeventsubstratepermissions , cf:scheduledjobsbuiltinontheeventsubstrateproof , cf:scheduledjobsbuiltinontheeventsubstratereadinessmodel , cf:scheduledjobsbuiltinontheeventsubstratestatemodel , cf:scheduledjobsbuiltinontheeventsubstrateuisemantics , cf:scheduledjobsbuiltinontheeventsubstratevalidation .
+    sc:searchandindexingproductsearch a usf:SemanticContract ;
+        usf:canonicalName "searchandindexingproductsearch" ;
+        usf:declaresFacet cf:searchandindexingproductsearchauditmodel , cf:searchandindexingproductsearchcontracts , cf:searchandindexingproductsearcherrormodel , cf:searchandindexingproductsearchlifecycle , cf:searchandindexingproductsearchpermissions , cf:searchandindexingproductsearchproof , cf:searchandindexingproductsearchreadinessmodel , cf:searchandindexingproductsearchstatemodel , cf:searchandindexingproductsearchuisemantics , cf:searchandindexingproductsearchvalidation .
+    sc:serverlessfunctionruntime a usf:SemanticContract ;
+        usf:canonicalName "serverlessfunctionruntime" ;
+        usf:declaresFacet cf:serverlessfunctionruntimeauditmodel , cf:serverlessfunctionruntimecontracts , cf:serverlessfunctionruntimeerrormodel , cf:serverlessfunctionruntimelifecycle , cf:serverlessfunctionruntimepermissions , cf:serverlessfunctionruntimeproof , cf:serverlessfunctionruntimereadinessmodel , cf:serverlessfunctionruntimestatemodel , cf:serverlessfunctionruntimeuisemantics , cf:serverlessfunctionruntimevalidation .
+    sc:servicecatalogandproviderintegrationmodel a usf:SemanticContract ;
+        usf:canonicalName "servicecatalogandproviderintegrationmodel" ;
+        usf:declaresFacet cf:servicecatalogandproviderintegrationmodelauditmodel , cf:servicecatalogandproviderintegrationmodelcontracts , cf:servicecatalogandproviderintegrationmodelerrormodel , cf:servicecatalogandproviderintegrationmodellifecycle , cf:servicecatalogandproviderintegrationmodelpermissions , cf:servicecatalogandproviderintegrationmodelproof , cf:servicecatalogandproviderintegrationmodelreadinessmodel , cf:servicecatalogandproviderintegrationmodelstatemodel , cf:servicecatalogandproviderintegrationmodeluisemantics , cf:servicecatalogandproviderintegrationmodelvalidation .
+    sc:suborganisations a usf:SemanticContract ;
+        usf:canonicalName "suborganisations" ;
+        usf:declaresFacet cf:suborganisationsauditmodel , cf:suborganisationscontracts , cf:suborganisationserrormodel , cf:suborganisationslifecycle , cf:suborganisationspermissions , cf:suborganisationsproof , cf:suborganisationsreadinessmodel , cf:suborganisationsstatemodel , cf:suborganisationsuisemantics , cf:suborganisationsvalidation .
+    sc:subscriptionsinvoicespaymentmethodsdunning a usf:SemanticContract ;
+        usf:canonicalName "subscriptionsinvoicespaymentmethodsdunning" ;
+        usf:declaresFacet cf:subscriptionsinvoicespaymentmethodsdunningauditmodel , cf:subscriptionsinvoicespaymentmethodsdunningcontracts , cf:subscriptionsinvoicespaymentmethodsdunningerrormodel , cf:subscriptionsinvoicespaymentmethodsdunninglifecycle , cf:subscriptionsinvoicespaymentmethodsdunningpermissions , cf:subscriptionsinvoicespaymentmethodsdunningproof , cf:subscriptionsinvoicespaymentmethodsdunningreadinessmodel , cf:subscriptionsinvoicespaymentmethodsdunningstatemodel , cf:subscriptionsinvoicespaymentmethodsdunninguisemantics , cf:subscriptionsinvoicespaymentmethodsdunningvalidation .
+    sc:supportmodebreakglassaccess a usf:SemanticContract ;
+        usf:canonicalName "supportmodebreakglassaccess" ;
+        usf:declaresFacet cf:supportmodebreakglassaccessauditmodel , cf:supportmodebreakglassaccesscontracts , cf:supportmodebreakglassaccesserrormodel , cf:supportmodebreakglassaccesslifecycle , cf:supportmodebreakglassaccesspermissions , cf:supportmodebreakglassaccessproof , cf:supportmodebreakglassaccessreadinessmodel , cf:supportmodebreakglassaccessstatemodel , cf:supportmodebreakglassaccessuisemantics , cf:supportmodebreakglassaccessvalidation .
+    sc:supportticketscustomerhealthannouncements a usf:SemanticContract ;
+        usf:canonicalName "supportticketscustomerhealthannouncements" ;
+        usf:declaresFacet cf:supportticketscustomerhealthannouncementsauditmodel , cf:supportticketscustomerhealthannouncementscontracts , cf:supportticketscustomerhealthannouncementserrormodel , cf:supportticketscustomerhealthannouncementslifecycle , cf:supportticketscustomerhealthannouncementspermissions , cf:supportticketscustomerhealthannouncementsproof , cf:supportticketscustomerhealthannouncementsreadinessmodel , cf:supportticketscustomerhealthannouncementsstatemodel , cf:supportticketscustomerhealthannouncementsuisemantics , cf:supportticketscustomerhealthannouncementsvalidation .
+    sc:tenantcanonicaldomainsetunset a usf:SemanticContract ;
+        usf:canonicalName "tenantcanonicaldomainsetunset" ;
+        usf:declaresFacet cf:tenantcanonicaldomainsetunsetauditmodel , cf:tenantcanonicaldomainsetunsetcontracts , cf:tenantcanonicaldomainsetunseterrormodel , cf:tenantcanonicaldomainsetunsetlifecycle , cf:tenantcanonicaldomainsetunsetpermissions , cf:tenantcanonicaldomainsetunsetproof , cf:tenantcanonicaldomainsetunsetreadinessmodel , cf:tenantcanonicaldomainsetunsetstatemodel , cf:tenantcanonicaldomainsetunsetuisemantics , cf:tenantcanonicaldomainsetunsetvalidation .
+    sc:tenantdataimportexport a usf:SemanticContract ;
+        usf:canonicalName "tenantdataimportexport" ;
+        usf:declaresFacet cf:tenantdataimportexportauditmodel , cf:tenantdataimportexportcontracts , cf:tenantdataimportexporterrormodel , cf:tenantdataimportexportlifecycle , cf:tenantdataimportexportpermissions , cf:tenantdataimportexportproof , cf:tenantdataimportexportreadinessmodel , cf:tenantdataimportexportstatemodel , cf:tenantdataimportexportuisemantics , cf:tenantdataimportexportvalidation .
+    sc:tenantdomainactivationauthclient a usf:SemanticContract ;
+        usf:canonicalName "tenantdomainactivationauthclient" ;
+        usf:declaresFacet cf:tenantdomainactivationauthclientauditmodel , cf:tenantdomainactivationauthclientcontracts , cf:tenantdomainactivationauthclienterrormodel , cf:tenantdomainactivationauthclientlifecycle , cf:tenantdomainactivationauthclientpermissions , cf:tenantdomainactivationauthclientproof , cf:tenantdomainactivationauthclientreadinessmodel , cf:tenantdomainactivationauthclientstatemodel , cf:tenantdomainactivationauthclientuisemantics , cf:tenantdomainactivationauthclientvalidation .
+    sc:tenantgroups a usf:SemanticContract ;
+        usf:canonicalName "tenantgroups" ;
+        usf:declaresFacet cf:tenantgroupsauditmodel , cf:tenantgroupscontracts , cf:tenantgroupserrormodel , cf:tenantgroupslifecycle , cf:tenantgroupspermissions , cf:tenantgroupsproof , cf:tenantgroupsreadinessmodel , cf:tenantgroupsstatemodel , cf:tenantgroupsuisemantics , cf:tenantgroupsvalidation .
+    sc:tenanthostidentityresolution a usf:SemanticContract ;
+        usf:canonicalName "tenanthostidentityresolution" ;
+        usf:declaresFacet cf:tenanthostidentityresolutionauditmodel , cf:tenanthostidentityresolutioncontracts , cf:tenanthostidentityresolutionerrormodel , cf:tenanthostidentityresolutionlifecycle , cf:tenanthostidentityresolutionpermissions , cf:tenanthostidentityresolutionproof , cf:tenanthostidentityresolutionreadinessmodel , cf:tenanthostidentityresolutionstatemodel , cf:tenanthostidentityresolutionuisemantics , cf:tenanthostidentityresolutionvalidation .
+    sc:tenantidentityrecordandfqdn a usf:SemanticContract ;
+        usf:canonicalName "tenantidentityrecordandfqdn" ;
+        usf:declaresFacet cf:tenantidentityrecordandfqdnauditmodel , cf:tenantidentityrecordandfqdncontracts , cf:tenantidentityrecordandfqdnerrormodel , cf:tenantidentityrecordandfqdnlifecycle , cf:tenantidentityrecordandfqdnpermissions , cf:tenantidentityrecordandfqdnproof , cf:tenantidentityrecordandfqdnreadinessmodel , cf:tenantidentityrecordandfqdnstatemodel , cf:tenantidentityrecordandfqdnuisemantics , cf:tenantidentityrecordandfqdnvalidation .
+    sc:tenantisolationproof a usf:SemanticContract ;
+        usf:canonicalName "tenantisolationproof" ;
+        usf:declaresFacet cf:tenantisolationproofauditmodel , cf:tenantisolationproofcontracts , cf:tenantisolationprooferrormodel , cf:tenantisolationprooflifecycle , cf:tenantisolationproofpermissions , cf:tenantisolationproofproof , cf:tenantisolationproofreadinessmodel , cf:tenantisolationproofstatemodel , cf:tenantisolationproofuisemantics , cf:tenantisolationproofvalidation .
+    sc:tenantlifecycleprovisionsuspenddeleteexport a usf:SemanticContract ;
+        usf:canonicalName "tenantlifecycleprovisionsuspenddeleteexport" ;
+        usf:declaresFacet cf:tenantlifecycleprovisionsuspenddeleteexportauditmodel , cf:tenantlifecycleprovisionsuspenddeleteexportcontracts , cf:tenantlifecycleprovisionsuspenddeleteexporterrormodel , cf:tenantlifecycleprovisionsuspenddeleteexportlifecycle , cf:tenantlifecycleprovisionsuspenddeleteexportpermissions , cf:tenantlifecycleprovisionsuspenddeleteexportproof , cf:tenantlifecycleprovisionsuspenddeleteexportreadinessmodel , cf:tenantlifecycleprovisionsuspenddeleteexportstatemodel , cf:tenantlifecycleprovisionsuspenddeleteexportuisemantics , cf:tenantlifecycleprovisionsuspenddeleteexportvalidation .
+    sc:tenantserviceclickthroughpolicy a usf:SemanticContract ;
+        usf:canonicalName "tenantserviceclickthroughpolicy" ;
+        usf:declaresFacet cf:tenantserviceclickthroughpolicyauditmodel , cf:tenantserviceclickthroughpolicycontracts , cf:tenantserviceclickthroughpolicyerrormodel , cf:tenantserviceclickthroughpolicylifecycle , cf:tenantserviceclickthroughpolicypermissions , cf:tenantserviceclickthroughpolicyproof , cf:tenantserviceclickthroughpolicyreadinessmodel , cf:tenantserviceclickthroughpolicystatemodel , cf:tenantserviceclickthroughpolicyuisemantics , cf:tenantserviceclickthroughpolicyvalidation .
+    sc:universalservicefoundationscopeandprinciples a usf:SemanticContract ;
+        usf:canonicalName "universalservicefoundationscopeandprinciples" ;
+        usf:declaresFacet cf:universalservicefoundationscopeandprinciplesauditmodel , cf:universalservicefoundationscopeandprinciplescontracts , cf:universalservicefoundationscopeandprincipleserrormodel , cf:universalservicefoundationscopeandprincipleslifecycle , cf:universalservicefoundationscopeandprinciplespermissions , cf:universalservicefoundationscopeandprinciplesproof , cf:universalservicefoundationscopeandprinciplesreadinessmodel , cf:universalservicefoundationscopeandprinciplesstatemodel , cf:universalservicefoundationscopeandprinciplesuisemantics , cf:universalservicefoundationscopeandprinciplesvalidation .
+    sc:usagemeteringandmetereventingestion a usf:SemanticContract ;
+        usf:canonicalName "usagemeteringandmetereventingestion" ;
+        usf:declaresFacet cf:usagemeteringandmetereventingestionauditmodel , cf:usagemeteringandmetereventingestioncontracts , cf:usagemeteringandmetereventingestionerrormodel , cf:usagemeteringandmetereventingestionlifecycle , cf:usagemeteringandmetereventingestionpermissions , cf:usagemeteringandmetereventingestionproof , cf:usagemeteringandmetereventingestionreadinessmodel , cf:usagemeteringandmetereventingestionstatemodel , cf:usagemeteringandmetereventingestionuisemantics , cf:usagemeteringandmetereventingestionvalidation .
+    sc:useridentityandtenantmembership a usf:SemanticContract ;
+        usf:canonicalName "useridentityandtenantmembership" ;
+        usf:declaresFacet cf:useridentityandtenantmembershipauditmodel , cf:useridentityandtenantmembershipcontracts , cf:useridentityandtenantmembershiperrormodel , cf:useridentityandtenantmembershiplifecycle , cf:useridentityandtenantmembershippermissions , cf:useridentityandtenantmembershipproof , cf:useridentityandtenantmembershipreadinessmodel , cf:useridentityandtenantmembershipstatemodel , cf:useridentityandtenantmembershipuisemantics , cf:useridentityandtenantmembershipvalidation .
+    sc:webhooksdeveloperfacing a usf:SemanticContract ;
+        usf:canonicalName "webhooksdeveloperfacing" ;
+        usf:declaresFacet cf:webhooksdeveloperfacingauditmodel , cf:webhooksdeveloperfacingcontracts , cf:webhooksdeveloperfacingerrormodel , cf:webhooksdeveloperfacinglifecycle , cf:webhooksdeveloperfacingpermissions , cf:webhooksdeveloperfacingproof , cf:webhooksdeveloperfacingreadinessmodel , cf:webhooksdeveloperfacingstatemodel , cf:webhooksdeveloperfacinguisemantics , cf:webhooksdeveloperfacingvalidation .
+    sc:workflowenginescheduledjobsapprovals a usf:SemanticContract ;
+        usf:canonicalName "workflowenginescheduledjobsapprovals" ;
+        usf:declaresFacet cf:workflowenginescheduledjobsapprovalsauditmodel , cf:workflowenginescheduledjobsapprovalscontracts , cf:workflowenginescheduledjobsapprovalserrormodel , cf:workflowenginescheduledjobsapprovalslifecycle , cf:workflowenginescheduledjobsapprovalspermissions , cf:workflowenginescheduledjobsapprovalsproof , cf:workflowenginescheduledjobsapprovalsreadinessmodel , cf:workflowenginescheduledjobsapprovalsstatemodel , cf:workflowenginescheduledjobsapprovalsuisemantics , cf:workflowenginescheduledjobsapprovalsvalidation .
+    sc:writeonlysecretsettings a usf:SemanticContract ;
+        usf:canonicalName "writeonlysecretsettings" ;
+        usf:declaresFacet cf:writeonlysecretsettingsauditmodel , cf:writeonlysecretsettingscontracts , cf:writeonlysecretsettingserrormodel , cf:writeonlysecretsettingslifecycle , cf:writeonlysecretsettingspermissions , cf:writeonlysecretsettingsproof , cf:writeonlysecretsettingsreadinessmodel , cf:writeonlysecretsettingsstatemodel , cf:writeonlysecretsettingsuisemantics , cf:writeonlysecretsettingsvalidation .
+}
+
+<urn:usf:graph:capabilities> {
+ <urn:usf:realisation:compilersemanticenforcementcontractonly> usf:canonicalName "compilersemanticenforcementcontractonly" .
+ <urn:usf:realisation:bootstrappacketcontractonly> usf:canonicalName "bootstrappacketcontractonly" .
+}
+
+@prefix usf: <urn:usf:ontology:> .
+@prefix contractstate: <urn:usf:contractactivationstate:> .
+<urn:usf:graph:capabilities> {
+ <urn:usf:semanticcontract:compilersemanticenforcement> a usf:SemanticContract ; usf:canonicalName "compilersemanticenforcement" ; usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:planned> ; usf:hasActivationState contractstate:proofblocked ; usf:activationReason "Awaiting admitted validation evidence and successful proof evaluation." ; usf:mandatoryProofObligation <urn:usf:proofobligation:compilersemantics> ; usf:permittedRealisationType usf:Implementation ; usf:asserts <urn:usf:claim:semanticfirstlifecycle> ; usf:disclaims <urn:usf:nonclaim:bootstrapexceptionisimplementationauthority> .
+ <urn:usf:semanticcontract:bootstrappacket> a usf:SemanticContract ; usf:canonicalName "bootstrappacket" ; usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:planned> ; usf:hasActivationState contractstate:proofblocked ; usf:activationReason "Awaiting admitted packet validation evidence and successful proof evaluation." ; usf:mandatoryProofObligation <urn:usf:proofobligation:bootstrappacketsemantics> ; usf:permittedRealisationType usf:Implementation ; usf:asserts <urn:usf:claim:semanticfirstlifecycle> ; usf:disclaims <urn:usf:nonclaim:bootstrapexceptionisimplementationauthority> .
+ <urn:usf:claim:semanticfirstlifecycle> a usf:Claim ; usf:canonicalName "semanticfirstlifecycle" .
+ <urn:usf:nonclaim:bootstrapexceptionisimplementationauthority> a usf:NonClaim ; usf:canonicalName "bootstrapexceptionisimplementationauthority" .
+ <urn:usf:realisation:compilersemanticenforcementcontractonly> a usf:Realisation ; usf:realisesContract <urn:usf:semanticcontract:compilersemanticenforcement> ; usf:realisationState <urn:usf:realisationstate:contractonly> .
+ <urn:usf:realisation:bootstrappacketcontractonly> a usf:Realisation ; usf:realisesContract <urn:usf:semanticcontract:bootstrappacket> ; usf:realisationState <urn:usf:realisationstate:contractonly> .
+}
+@prefix usf: <urn:usf:ontology:> .
+
+<urn:usf:graph:capabilities> {
+  <urn:usf:claim:crossenginesemanticparity> a usf:Claim ; usf:canonicalName "crossenginesemanticparity" .
+  <urn:usf:claim:hostlocalvalidationboundary> a usf:Claim ; usf:canonicalName "hostlocalvalidationboundary" .
+  <urn:usf:nonclaim:localenginenotsemanticauthority> a usf:NonClaim ; usf:canonicalName "localenginenotsemanticauthority" .
+  <urn:usf:nonclaim:nochrootjavaruntime> a usf:NonClaim ; usf:canonicalName "nochrootjavaruntime" .
+  <urn:usf:nonclaim:nolivepublicationfromlocalevidencealone> a usf:NonClaim ; usf:canonicalName "nolivepublicationfromlocalevidencealone" .
+
+  <urn:usf:feature:indexedlocalrdfvalidation> a usf:Feature ; usf:canonicalName "indexedlocalrdfvalidation" .
+  <urn:usf:feature:independentengineparity> a usf:Feature ; usf:canonicalName "independentengineparity" .
+
+  <urn:usf:validationobligation:localsemanticvalidationtoolchain> a usf:ValidationObligation ;
+      usf:canonicalName "localsemanticvalidationtoolchain" ;
+      usf:validationForContract <urn:usf:semanticcontract:localsemanticvalidationtoolchain> .
+  <urn:usf:validationenvironment:hostlocalvalidation> a usf:ValidationEnvironment ;
+      usf:canonicalName "hostlocalvalidation" ;
+      usf:hasEnvironmentClass <urn:usf:environmentclass:hermetic> .
+
+  <urn:usf:realisationoption:rdf4jnativestoreshaclsail> a usf:RealisationOption ;
+      usf:canonicalName "rdf4jnativestoreshaclsail" .
+  <urn:usf:realisationoption:jenatdbjenashacl> a usf:RealisationOption ;
+      usf:canonicalName "jenatdbjenashacl" .
+  <urn:usf:realisationoption:dualenginelocalvalidation> a usf:RealisationOption ;
+      usf:canonicalName "dualenginelocalvalidation" .
+  <urn:usf:realisationoption:hostsidefullcorpusvalidation> a usf:RealisationOption ;
+      usf:canonicalName "hostsidefullcorpusvalidation" .
+  <urn:usf:realisationoption:chrootfullcorpusvalidation> a usf:RealisationOption ;
+      usf:canonicalName "chrootfullcorpusvalidation" .
+  <urn:usf:realisationoption:splithostchrootvalidation> a usf:RealisationOption ;
+      usf:canonicalName "splithostchrootvalidation" .
+
+  <urn:usf:adrrequirement:localvalidationtoolchain> a usf:ADRRequirement ;
+      usf:canonicalName "localvalidationtoolchain" .
+  <urn:usf:realisationdecision:localvalidationtoolchain> a usf:RealisationDecision ;
+      usf:canonicalName "localvalidationtoolchain" ;
+      usf:decisionState <urn:usf:decisionstate:superseded> ;
+      usf:considersOption <urn:usf:realisationoption:rdf4jnativestoreshaclsail>, <urn:usf:realisationoption:jenatdbjenashacl>, <urn:usf:realisationoption:dualenginelocalvalidation>, <urn:usf:realisationoption:hostsidefullcorpusvalidation>, <urn:usf:realisationoption:chrootfullcorpusvalidation>, <urn:usf:realisationoption:splithostchrootvalidation> ;
+      usf:authorisesRepository "maldous/usf" ;
+      usf:authorisesSourcePath "census/local-semantic-validation" ;
+      usf:authorisesRealisationType usf:Implementation ;
+      usf:requiresADR <urn:usf:adrrequirement:localvalidationtoolchain> .
+  <urn:usf:adrrecord:localvalidationtoolchain> a usf:ADRRecord ;
+      usf:canonicalName "localvalidationtoolchain" ;
+      usf:recordsDecision <urn:usf:realisationdecision:localvalidationtoolchain> .
+
+  <urn:usf:semanticcontract:localsemanticvalidationtoolchain> a usf:SemanticContract ;
+      usf:canonicalName "localsemanticvalidationtoolchain" ;
+      usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:deprecated> ;
+      usf:hasActivationState <urn:usf:contractactivationstate:superseded> ;
+      usf:activationReason "Superseded by the standalone repository and external artefact materialisation contract; retained only as historical cross-engine proof lineage." ;
+      usf:supersededBy <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:localsemanticvalidationtoolchain> ;
+      usf:reliesOnProofResult <urn:usf:proofresult:localsemanticvalidationtoolchain> ;
+      usf:asserts <urn:usf:claim:crossenginesemanticparity>, <urn:usf:claim:hostlocalvalidationboundary> ;
+      usf:disclaims <urn:usf:nonclaim:localenginenotsemanticauthority>, <urn:usf:nonclaim:nochrootjavaruntime>, <urn:usf:nonclaim:nolivepublicationfromlocalevidencealone> ;
+      usf:permittedRealisationType usf:Implementation ;
+      usf:requiredValidation <urn:usf:validationobligation:localsemanticvalidationtoolchain> ;
+      usf:contractConstraint "Purpose: deterministic indexed local derivation and SHACL validation producing admissible evidence, never semantic authority." ;
+      usf:contractConstraint "Permitted engines: RDF4J NativeStore with ShaclSail as primary candidate and Jena TDB2 with Jena SHACL as mandatory independent parity engine." ;
+      usf:contractConstraint "Formats: Turtle, TriG and N-Quads with named-graph preservation; SPARQL SELECT, ASK, CONSTRUCT and DESCRIBE; portable SHACL Core and SHACL-SPARQL." ;
+      usf:contractConstraint "Outputs must be deterministic, digest-bound, independently compared and fail closed on divergence, timeout, insufficient disk or memory, dependency drift, cleanup failure or baseline mismatch." ;
+      usf:contractConstraint "Host limits: five NativeStore indexes may use at most 256 MiB persistent temporary disk, 2304 MiB peak RSS, 180 seconds per global query and 600 seconds per complete run." ;
+      usf:contractConstraint "Temporary NativeStore data and Maven caches remain outside tracked source and must be removed after execution; generated evidence manifests are content-addressed and admitted separately." ;
+      usf:contractConstraint "Full-corpus Java execution is host-side. The minimal chroot receives only bounded validation results and must not contain Java, NativeStore databases or broad Maven caches." ;
+      usf:contractConstraint "Runtime: host OpenJDK 25; RDF4J 6.0.0 is the primary indexed and SHACL engine; Apache Jena 6.1.0 is the independent parity engine; RDFLib is limited to parsing compatibility, canonical comparison, small fixtures and diagnostics." ;
+      usf:contractConstraint "Dependency strategy: a pinned Maven launcher, exact dependency versions, a digest-bound dependency lock and checksum verification; dependency caches remain outside tracked source and drift fails closed." ;
+      usf:contractConstraint "Repository ownership: maldous/usf owns the host implementation at census/local-semantic-validation; maldous/usf-graph receives no Java runtime or NativeStore and may consume only a bounded digest-verified result projection." ;
+      usf:contractConstraint "Proof-mode evidence is a bounded deterministic JSON result manifest and a separate bounded execution envelope. Raw logs remain external and temporary; admitted evidence is content-addressed and subject to the local-validation thirty-day freshness policy." .
+
+  <urn:usf:realisation:localsemanticvalidationtoolchaincontractonly> a usf:Realisation ;
+      usf:canonicalName "localsemanticvalidationtoolchaincontractonly" ;
+      usf:realisesContract <urn:usf:semanticcontract:localsemanticvalidationtoolchain> ;
+      usf:realisationState <urn:usf:realisationstate:deprecated> ;
+      usf:authorisedByDecision <urn:usf:realisationdecision:localvalidationtoolchain> ;
+      usf:authorisedSourcePath "census/local-semantic-validation" .
+
+  <urn:usf:realisation:localsemanticvalidationtoolchain> a usf:Realisation ;
+      usf:canonicalName "localsemanticvalidationtoolchain" ;
+      usf:realisesContract <urn:usf:semanticcontract:localsemanticvalidationtoolchain> ;
+      usf:realisingImplementation <urn:usf:implementation:localsemanticvalidationtoolchain> ;
+      usf:realisationState <urn:usf:realisationstate:deprecated> ;
+      usf:authorisedByDecision <urn:usf:realisationdecision:localvalidationtoolchain> ;
+      usf:authorisedSourcePath "census/local-semantic-validation" .
+}

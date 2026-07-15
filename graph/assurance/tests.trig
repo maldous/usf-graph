@@ -1,0 +1,473 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix tst: <urn:usf:test:> .
+@prefix fx: <urn:usf:fixture:> .
+@prefix dfc: <urn:usf:defect:> .
+@prefix sc: <urn:usf:semanticcontract:> .
+@prefix ctl: <urn:usf:control:> .
+@prefix shp: <urn:usf:shape:> .
+
+<urn:usf:graph:tests> {
+    dfc:adridentity a usf:Defect ;
+        usf:canonicalName "adridentity" .
+    dfc:alias a usf:Defect ;
+        usf:canonicalName "alias" .
+    dfc:authorityinversion a usf:Defect ;
+        usf:canonicalName "authorityinversion" .
+    dfc:directauthoredreadiness a usf:Defect ;
+        usf:canonicalName "directauthoredreadiness" .
+    dfc:duplicatemeaning a usf:Defect ;
+        usf:canonicalName "duplicatemeaning" .
+    dfc:environmentmismatch a usf:Defect ;
+        usf:canonicalName "environmentmismatch" .
+    dfc:externalworktrackingidentifier a usf:Defect ;
+        usf:canonicalName "externalworktrackingidentifier" .
+    dfc:forbiddenmetadata a usf:Defect ;
+        usf:canonicalName "forbiddenmetadata" .
+    dfc:hyphenatedidentifier a usf:Defect ;
+        usf:canonicalName "hyphenatedidentifier" .
+    dfc:incompleterealisation a usf:Defect ;
+        usf:canonicalName "incompleterealisation" .
+    dfc:insufficientproofrung a usf:Defect ;
+        usf:canonicalName "insufficientproofrung" .
+    dfc:invalidcasing a usf:Defect ;
+        usf:canonicalName "invalidcasing" .
+    dfc:issuestyleidentifier a usf:Defect ;
+        usf:canonicalName "issuestyleidentifier" .
+    dfc:missingauditsignal a usf:Defect ;
+        usf:canonicalName "missingauditsignal" .
+    dfc:missingcontractfacet a usf:Defect ;
+        usf:canonicalName "missingcontractfacet" .
+    dfc:missinggraphreference a usf:Defect ;
+        usf:canonicalName "missinggraphreference" .
+    dfc:missingpermission a usf:Defect ;
+        usf:canonicalName "missingpermission" .
+    dfc:missingtenancyboundary a usf:Defect ;
+        usf:canonicalName "missingtenancyboundary" .
+    dfc:missingvalidatorcoverage a usf:Defect ;
+        usf:canonicalName "missingvalidatorcoverage" .
+    dfc:overloadedterm a usf:Defect ;
+        usf:canonicalName "overloadedterm" .
+    dfc:providermismatch a usf:Defect ;
+        usf:canonicalName "providermismatch" .
+    dfc:readinessoverclaim a usf:Defect ;
+        usf:canonicalName "readinessoverclaim" .
+    dfc:repositorymetadata a usf:Defect ;
+        usf:canonicalName "repositorymetadata" .
+    dfc:sourcepath a usf:Defect ;
+        usf:canonicalName "sourcepath" .
+    dfc:staleevidence a usf:Defect ;
+        usf:canonicalName "staleevidence" .
+    dfc:undefinedterm a usf:Defect ;
+        usf:canonicalName "undefinedterm" .
+    fx:adridentitydefect a usf:Fixture ;
+        usf:canonicalName "adridentitydefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:adridentity .
+    fx:agentshapeconforming a usf:Fixture ;
+        usf:canonicalName "agentshapeconforming" ;
+        usf:conforming true ;
+        usf:exercisesShape shp:agentshape .
+    fx:aliasdefect a usf:Fixture ;
+        usf:canonicalName "aliasdefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:alias .
+    fx:authorityinversiondefect a usf:Fixture ;
+        usf:canonicalName "authorityinversiondefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:authorityinversion .
+    fx:bindingshapeconforming a usf:Fixture ;
+        usf:canonicalName "bindingshapeconforming" ;
+        usf:conforming true ;
+        usf:exercisesShape shp:bindingshape .
+    fx:capabilityshapeconforming a usf:Fixture ;
+        usf:canonicalName "capabilityshapeconforming" ;
+        usf:conforming true ;
+        usf:exercisesShape shp:capabilityshape .
+    fx:commandshapeconforming a usf:Fixture ;
+        usf:canonicalName "commandshapeconforming" ;
+        usf:conforming true ;
+        usf:exercisesShape shp:commandshape .
+    fx:contractfacetcompletenessshapeconforming a usf:Fixture ;
+        usf:canonicalName "contractfacetcompletenessshapeconforming" ;
+        usf:conforming true ;
+        usf:exercisesShape shp:contractfacetcompletenessshape .
+    fx:controlshapeconforming a usf:Fixture ;
+        usf:canonicalName "controlshapeconforming" ;
+        usf:conforming true ;
+        usf:exercisesShape shp:controlshape .
+    fx:directauthoredreadinessdefect a usf:Fixture ;
+        usf:canonicalName "directauthoredreadinessdefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:directauthoredreadiness .
+    fx:duplicatemeaningdefect a usf:Fixture ;
+        usf:canonicalName "duplicatemeaningdefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:duplicatemeaning .
+    fx:environmentmismatchdefect a usf:Fixture ;
+        usf:canonicalName "environmentmismatchdefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:environmentmismatch .
+    fx:evidenceresultshapeconforming a usf:Fixture ;
+        usf:canonicalName "evidenceresultshapeconforming" ;
+        usf:conforming true ;
+        usf:exercisesShape shp:evidenceresultshape .
+    fx:externalworktrackingidentifierdefect a usf:Fixture ;
+        usf:canonicalName "externalworktrackingidentifierdefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:externalworktrackingidentifier .
+    fx:forbiddenmetadatadefect a usf:Fixture ;
+        usf:canonicalName "forbiddenmetadatadefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:forbiddenmetadata .
+    fx:hyphenatedidentifierdefect a usf:Fixture ;
+        usf:canonicalName "hyphenatedidentifierdefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:hyphenatedidentifier .
+    fx:incompleterealisationdefect a usf:Fixture ;
+        usf:canonicalName "incompleterealisationdefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:incompleterealisation .
+    fx:insufficientproofrungdefect a usf:Fixture ;
+        usf:canonicalName "insufficientproofrungdefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:insufficientproofrung .
+    fx:interfaceshapeconforming a usf:Fixture ;
+        usf:canonicalName "interfaceshapeconforming" ;
+        usf:conforming true ;
+        usf:exercisesShape shp:interfaceshape .
+    fx:invalidcasingdefect a usf:Fixture ;
+        usf:canonicalName "invalidcasingdefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:invalidcasing .
+    fx:issuestyleidentifierdefect a usf:Fixture ;
+        usf:canonicalName "issuestyleidentifierdefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:issuestyleidentifier .
+    fx:missingauditsignaldefect a usf:Fixture ;
+        usf:canonicalName "missingauditsignaldefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:missingauditsignal .
+    fx:missingcontractfacetdefect a usf:Fixture ;
+        usf:canonicalName "missingcontractfacetdefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:missingcontractfacet .
+    fx:missinggraphreferencedefect a usf:Fixture ;
+        usf:canonicalName "missinggraphreferencedefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:missinggraphreference .
+    fx:missingpermissiondefect a usf:Fixture ;
+        usf:canonicalName "missingpermissiondefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:missingpermission .
+    fx:missingtenancyboundarydefect a usf:Fixture ;
+        usf:canonicalName "missingtenancyboundarydefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:missingtenancyboundary .
+    fx:missingvalidatorcoveragedefect a usf:Fixture ;
+        usf:canonicalName "missingvalidatorcoveragedefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:missingvalidatorcoverage .
+    fx:operationshapeconforming a usf:Fixture ;
+        usf:canonicalName "operationshapeconforming" ;
+        usf:conforming true ;
+        usf:exercisesShape shp:operationshape .
+    fx:overloadedtermdefect a usf:Fixture ;
+        usf:canonicalName "overloadedtermdefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:overloadedterm .
+    fx:proofresultshapeconforming a usf:Fixture ;
+        usf:canonicalName "proofresultshapeconforming" ;
+        usf:conforming true ;
+        usf:exercisesShape shp:proofresultshape .
+    fx:proofshapeconforming a usf:Fixture ;
+        usf:canonicalName "proofshapeconforming" ;
+        usf:conforming true ;
+        usf:exercisesShape shp:proofshape .
+    fx:providermismatchdefect a usf:Fixture ;
+        usf:canonicalName "providermismatchdefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:providermismatch .
+    fx:providershapeconforming a usf:Fixture ;
+        usf:canonicalName "providershapeconforming" ;
+        usf:conforming true ;
+        usf:exercisesShape shp:providershape .
+    fx:readinessoverclaimdefect a usf:Fixture ;
+        usf:canonicalName "readinessoverclaimdefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:readinessoverclaim .
+    fx:readinessshapeconforming a usf:Fixture ;
+        usf:canonicalName "readinessshapeconforming" ;
+        usf:conforming true ;
+        usf:exercisesShape shp:readinessshape .
+    fx:realisationshapeconforming a usf:Fixture ;
+        usf:canonicalName "realisationshapeconforming" ;
+        usf:conforming true ;
+        usf:exercisesShape shp:realisationshape .
+    fx:repositorymetadatadefect a usf:Fixture ;
+        usf:canonicalName "repositorymetadatadefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:repositorymetadata .
+    fx:semanticcontractshapeconforming a usf:Fixture ;
+        usf:canonicalName "semanticcontractshapeconforming" ;
+        usf:conforming true ;
+        usf:exercisesShape shp:semanticcontractshape .
+    fx:sourcepathdefect a usf:Fixture ;
+        usf:canonicalName "sourcepathdefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:sourcepath .
+    fx:staleevidencedefect a usf:Fixture ;
+        usf:canonicalName "staleevidencedefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:staleevidence .
+    fx:undefinedtermdefect a usf:Fixture ;
+        usf:canonicalName "undefinedtermdefect" ;
+        usf:conforming false ;
+        usf:demonstratesDefect dfc:undefinedterm .
+    fx:validatorruleshapeconforming a usf:Fixture ;
+        usf:canonicalName "validatorruleshapeconforming" ;
+        usf:conforming true ;
+        usf:exercisesShape shp:validatorruleshape .
+    tst:abacpolicydecisionpointnegativepath a usf:Test ;
+        usf:canonicalName "abacpolicydecisionpointnegativepath" ;
+        usf:testsContract sc:abacpolicydecisionpoint .
+    tst:accessibilitya11ygatenegativepath a usf:Test ;
+        usf:canonicalName "accessibilitya11ygatenegativepath" ;
+        usf:testsContract sc:accessibilitya11ygate .
+    tst:accessibilitygateevidencecontroltest a usf:Test ;
+        usf:canonicalName "accessibilitygateevidencecontroltest" ;
+        usf:testsControl ctl:accessibilitygateevidence .
+    tst:accessreviewprivilegedoperationposturecontroltest a usf:Test ;
+        usf:canonicalName "accessreviewprivilegedoperationposturecontroltest" ;
+        usf:testsControl ctl:accessreviewprivilegedoperationposture .
+    tst:alertingincidentmanagementoncallstatuspagenegativepath a usf:Test ;
+        usf:canonicalName "alertingincidentmanagementoncallstatuspagenegativepath" ;
+        usf:testsContract sc:alertingincidentmanagementoncallstatuspage .
+    tst:apidocsdeveloperportalsdksratelimitsnegativepath a usf:Test ;
+        usf:canonicalName "apidocsdeveloperportalsdksratelimitsnegativepath" ;
+        usf:testsContract sc:apidocsdeveloperportalsdksratelimits .
+    tst:apikeyspersonalaccesstokensnegativepath a usf:Test ;
+        usf:canonicalName "apikeyspersonalaccesstokensnegativepath" ;
+        usf:testsContract sc:apikeyspersonalaccesstokens .
+    tst:auditofprivilegedaccessnegativepath a usf:Test ;
+        usf:canonicalName "auditofprivilegedaccessnegativepath" ;
+        usf:testsContract sc:auditofprivilegedaccess .
+    tst:authenticationplatformnegativepath a usf:Test ;
+        usf:canonicalName "authenticationplatformnegativepath" ;
+        usf:testsContract sc:authenticationplatform .
+    tst:backgroundworkersjobrunnernegativepath a usf:Test ;
+        usf:canonicalName "backgroundworkersjobrunnernegativepath" ;
+        usf:testsContract sc:backgroundworkersjobrunner .
+    tst:backupandrestorenegativepath a usf:Test ;
+        usf:canonicalName "backupandrestorenegativepath" ;
+        usf:testsContract sc:backupandrestore .
+    tst:backuprestoreresilienceposturecontroltest a usf:Test ;
+        usf:canonicalName "backuprestoreresilienceposturecontroltest" ;
+        usf:testsControl ctl:backuprestoreresilienceposture .
+    tst:brandingandthemingnegativepath a usf:Test ;
+        usf:canonicalName "brandingandthemingnegativepath" ;
+        usf:testsContract sc:brandingandtheming .
+    tst:browsertelemetrygrafanafarorumandbrowsertobfftracingnegativepath a usf:Test ;
+        usf:canonicalName "browsertelemetrygrafanafarorumandbrowsertobfftracingnegativepath" ;
+        usf:testsContract sc:browsertelemetrygrafanafarorumandbrowsertobfftracing .
+    tst:buildversuscomposedecisionframeworknegativepath a usf:Test ;
+        usf:canonicalName "buildversuscomposedecisionframeworknegativepath" ;
+        usf:testsContract sc:buildversuscomposedecisionframework .
+    tst:codequalityandsecretanddependencyscanningnegativepath a usf:Test ;
+        usf:canonicalName "codequalityandsecretanddependencyscanningnegativepath" ;
+        usf:testsContract sc:codequalityandsecretanddependencyscanning .
+    tst:compliancereportsaccessreviewsevidencepacksnegativepath a usf:Test ;
+        usf:canonicalName "compliancereportsaccessreviewsevidencepacksnegativepath" ;
+        usf:testsContract sc:compliancereportsaccessreviewsevidencepacks .
+    tst:composedproviderreadinessspinenegativepath a usf:Test ;
+        usf:canonicalName "composedproviderreadinessspinenegativepath" ;
+        usf:testsContract sc:composedproviderreadinessspine .
+    tst:configurationregistryandhistorynegativepath a usf:Test ;
+        usf:canonicalName "configurationregistryandhistorynegativepath" ;
+        usf:testsContract sc:configurationregistryandhistory .
+    tst:customdomainsdnsownershiptlscanonicalnegativepath a usf:Test ;
+        usf:canonicalName "customdomainsdnsownershiptlscanonicalnegativepath" ;
+        usf:testsContract sc:customdomainsdnsownershiptlscanonical .
+    tst:datagovernancecataloglineageclassificationpiidsrgdprnegativepath a usf:Test ;
+        usf:canonicalName "datagovernancecataloglineageclassificationpiidsrgdprnegativepath" ;
+        usf:testsContract sc:datagovernancecataloglineageclassificationpiidsrgdpr .
+    tst:delegatedadministrationrolesnegativepath a usf:Test ;
+        usf:canonicalName "delegatedadministrationrolesnegativepath" ;
+        usf:testsContract sc:delegatedadministrationroles .
+    tst:donestategovernancecontroltest a usf:Test ;
+        usf:canonicalName "donestategovernancecontroltest" ;
+        usf:testsControl ctl:donestategovernance .
+    tst:e2econfidenceladderstageawarenegativepath a usf:Test ;
+        usf:canonicalName "e2econfidenceladderstageawarenegativepath" ;
+        usf:testsContract sc:e2econfidenceladderstageaware .
+    tst:enduserprofileandpreferencesselfservicenegativepath a usf:Test ;
+        usf:canonicalName "enduserprofileandpreferencesselfservicenegativepath" ;
+        usf:testsContract sc:enduserprofileandpreferencesselfservice .
+    tst:enterpriseevidencepolicycontroltest a usf:Test ;
+        usf:canonicalName "enterpriseevidencepolicycontroltest" ;
+        usf:testsControl ctl:enterpriseevidencepolicy .
+    tst:enterpriseproofdepthmatricescontroltest a usf:Test ;
+        usf:canonicalName "enterpriseproofdepthmatricescontroltest" ;
+        usf:testsControl ctl:enterpriseproofdepthmatrices .
+    tst:entitlementenginenegativepath a usf:Test ;
+        usf:canonicalName "entitlementenginenegativepath" ;
+        usf:testsContract sc:entitlementengine .
+    tst:environmentregistryandbootstrapnegativepath a usf:Test ;
+        usf:canonicalName "environmentregistryandbootstrapnegativepath" ;
+        usf:testsContract sc:environmentregistryandbootstrap .
+    tst:environmentspecificvssharedservicemodelnegativepath a usf:Test ;
+        usf:canonicalName "environmentspecificvssharedservicemodelnegativepath" ;
+        usf:testsContract sc:environmentspecificvssharedservicemodel .
+    tst:eventbusdurablequeuesdlqredrivenegativepath a usf:Test ;
+        usf:canonicalName "eventbusdurablequeuesdlqredrivenegativepath" ;
+        usf:testsContract sc:eventbusdurablequeuesdlqredrive .
+    tst:historyreadmodelreadonlyprojectionnegativepath a usf:Test ;
+        usf:canonicalName "historyreadmodelreadonlyprojectionnegativepath" ;
+        usf:testsContract sc:historyreadmodelreadonlyprojection .
+    tst:i18nruntimeandvalidationnegativepath a usf:Test ;
+        usf:canonicalName "i18nruntimeandvalidationnegativepath" ;
+        usf:testsContract sc:i18nruntimeandvalidation .
+    tst:incidentvulnerabilitymanagementevidencecontroltest a usf:Test ;
+        usf:canonicalName "incidentvulnerabilitymanagementevidencecontroltest" ;
+        usf:testsControl ctl:incidentvulnerabilitymanagementevidence .
+    tst:internalservicecatalogandreadinessnegativepath a usf:Test ;
+        usf:canonicalName "internalservicecatalogandreadinessnegativepath" ;
+        usf:testsContract sc:internalservicecatalogandreadiness .
+    tst:iso27001alignedauditcontrolmapcontroltest a usf:Test ;
+        usf:canonicalName "iso27001alignedauditcontrolmapcontroltest" ;
+        usf:testsControl ctl:iso27001alignedauditcontrolmap .
+    tst:logsaggregationandtenantscopedsearchnegativepath a usf:Test ;
+        usf:canonicalName "logsaggregationandtenantscopedsearchnegativepath" ;
+        usf:testsContract sc:logsaggregationandtenantscopedsearch .
+    tst:metricsandtracesnegativepath a usf:Test ;
+        usf:canonicalName "metricsandtracesnegativepath" ;
+        usf:testsContract sc:metricsandtraces .
+    tst:mockprovidersdevtestnegativepath a usf:Test ;
+        usf:canonicalName "mockprovidersdevtestnegativepath" ;
+        usf:testsContract sc:mockprovidersdevtest .
+    tst:notificationdeliveryandpreferencesandchannelsnegativepath a usf:Test ;
+        usf:canonicalName "notificationdeliveryandpreferencesandchannelsnegativepath" ;
+        usf:testsContract sc:notificationdeliveryandpreferencesandchannels .
+    tst:objectstorageandtenantprefixesandsignedurlsnegativepath a usf:Test ;
+        usf:canonicalName "objectstorageandtenantprefixesandsignedurlsnegativepath" ;
+        usf:testsContract sc:objectstorageandtenantprefixesandsignedurls .
+    tst:observabilitybuiltinalertingandincidentsnegativepath a usf:Test ;
+        usf:canonicalName "observabilitybuiltinalertingandincidentsnegativepath" ;
+        usf:testsContract sc:observabilitybuiltinalertingandincidents .
+    tst:observabilityevidencestandardcontroltest a usf:Test ;
+        usf:canonicalName "observabilityevidencestandardcontroltest" ;
+        usf:testsControl ctl:observabilityevidencestandard .
+    tst:openapidrifthardgatenegativepath a usf:Test ;
+        usf:canonicalName "openapidrifthardgatenegativepath" ;
+        usf:testsContract sc:openapidrifthardgate .
+    tst:pitrretentionlegalholddataresidencynegativepath a usf:Test ;
+        usf:canonicalName "pitrretentionlegalholddataresidencynegativepath" ;
+        usf:testsContract sc:pitrretentionlegalholddataresidency .
+    tst:privacydataminimisationposturecontroltest a usf:Test ;
+        usf:canonicalName "privacydataminimisationposturecontroltest" ;
+        usf:testsControl ctl:privacydataminimisationposture .
+    tst:productcatalogplanspricesnegativepath a usf:Test ;
+        usf:canonicalName "productcatalogplanspricesnegativepath" ;
+        usf:testsContract sc:productcatalogplansprices .
+    tst:providerconfigurationplanenegativepath a usf:Test ;
+        usf:canonicalName "providerconfigurationplanenegativepath" ;
+        usf:testsContract sc:providerconfigurationplane .
+    tst:providerenvironmentclassificationnegativepath a usf:Test ;
+        usf:canonicalName "providerenvironmentclassificationnegativepath" ;
+        usf:testsContract sc:providerenvironmentclassification .
+    tst:quotaenforcementnegativepath a usf:Test ;
+        usf:canonicalName "quotaenforcementnegativepath" ;
+        usf:testsContract sc:quotaenforcement .
+    tst:ratelimitingapinegativepath a usf:Test ;
+        usf:canonicalName "ratelimitingapinegativepath" ;
+        usf:testsContract sc:ratelimitingapi .
+    tst:rbacrolesandpermissionsnegativepath a usf:Test ;
+        usf:canonicalName "rbacrolesandpermissionsnegativepath" ;
+        usf:testsContract sc:rbacrolesandpermissions .
+    tst:relationalstorageandmigrationsandrlsnegativepath a usf:Test ;
+        usf:canonicalName "relationalstorageandmigrationsandrlsnegativepath" ;
+        usf:testsContract sc:relationalstorageandmigrationsandrls .
+    tst:runtimesecretsmanagementnegativepath a usf:Test ;
+        usf:canonicalName "runtimesecretsmanagementnegativepath" ;
+        usf:testsContract sc:runtimesecretsmanagement .
+    tst:scheduledjobsbuiltinontheeventsubstratenegativepath a usf:Test ;
+        usf:canonicalName "scheduledjobsbuiltinontheeventsubstratenegativepath" ;
+        usf:testsContract sc:scheduledjobsbuiltinontheeventsubstrate .
+    tst:sdkdependencygovernancecontroltest a usf:Test ;
+        usf:canonicalName "sdkdependencygovernancecontroltest" ;
+        usf:testsControl ctl:sdkdependencygovernance .
+    tst:searchandindexingproductsearchnegativepath a usf:Test ;
+        usf:canonicalName "searchandindexingproductsearchnegativepath" ;
+        usf:testsContract sc:searchandindexingproductsearch .
+    tst:serverlessfunctionruntimenegativepath a usf:Test ;
+        usf:canonicalName "serverlessfunctionruntimenegativepath" ;
+        usf:testsContract sc:serverlessfunctionruntime .
+    tst:servicecatalogandproviderintegrationmodelnegativepath a usf:Test ;
+        usf:canonicalName "servicecatalogandproviderintegrationmodelnegativepath" ;
+        usf:testsContract sc:servicecatalogandproviderintegrationmodel .
+    tst:soasupportmappingscontroltest a usf:Test ;
+        usf:canonicalName "soasupportmappingscontroltest" ;
+        usf:testsControl ctl:soasupportmappings .
+    tst:sonarqubezeroissuequalitygateassurancecontroltest a usf:Test ;
+        usf:canonicalName "sonarqubezeroissuequalitygateassurancecontroltest" ;
+        usf:testsControl ctl:sonarqubezeroissuequalitygateassurance .
+    tst:suborganisationsnegativepath a usf:Test ;
+        usf:canonicalName "suborganisationsnegativepath" ;
+        usf:testsContract sc:suborganisations .
+    tst:subscriptionsinvoicespaymentmethodsdunningnegativepath a usf:Test ;
+        usf:canonicalName "subscriptionsinvoicespaymentmethodsdunningnegativepath" ;
+        usf:testsContract sc:subscriptionsinvoicespaymentmethodsdunning .
+    tst:supportmodebreakglassaccessnegativepath a usf:Test ;
+        usf:canonicalName "supportmodebreakglassaccessnegativepath" ;
+        usf:testsContract sc:supportmodebreakglassaccess .
+    tst:supportticketscustomerhealthannouncementsnegativepath a usf:Test ;
+        usf:canonicalName "supportticketscustomerhealthannouncementsnegativepath" ;
+        usf:testsContract sc:supportticketscustomerhealthannouncements .
+    tst:tenantcanonicaldomainsetunsetnegativepath a usf:Test ;
+        usf:canonicalName "tenantcanonicaldomainsetunsetnegativepath" ;
+        usf:testsContract sc:tenantcanonicaldomainsetunset .
+    tst:tenantdataimportexportnegativepath a usf:Test ;
+        usf:canonicalName "tenantdataimportexportnegativepath" ;
+        usf:testsContract sc:tenantdataimportexport .
+    tst:tenantdomainactivationauthclientnegativepath a usf:Test ;
+        usf:canonicalName "tenantdomainactivationauthclientnegativepath" ;
+        usf:testsContract sc:tenantdomainactivationauthclient .
+    tst:tenantgroupsnegativepath a usf:Test ;
+        usf:canonicalName "tenantgroupsnegativepath" ;
+        usf:testsContract sc:tenantgroups .
+    tst:tenanthostidentityresolutionnegativepath a usf:Test ;
+        usf:canonicalName "tenanthostidentityresolutionnegativepath" ;
+        usf:testsContract sc:tenanthostidentityresolution .
+    tst:tenantidentityrecordandfqdnnegativepath a usf:Test ;
+        usf:canonicalName "tenantidentityrecordandfqdnnegativepath" ;
+        usf:testsContract sc:tenantidentityrecordandfqdn .
+    tst:tenantisolationproofnegativepath a usf:Test ;
+        usf:canonicalName "tenantisolationproofnegativepath" ;
+        usf:testsContract sc:tenantisolationproof .
+    tst:tenantlifecycleprovisionsuspenddeleteexportnegativepath a usf:Test ;
+        usf:canonicalName "tenantlifecycleprovisionsuspenddeleteexportnegativepath" ;
+        usf:testsContract sc:tenantlifecycleprovisionsuspenddeleteexport .
+    tst:tenantserviceclickthroughpolicynegativepath a usf:Test ;
+        usf:canonicalName "tenantserviceclickthroughpolicynegativepath" ;
+        usf:testsContract sc:tenantserviceclickthroughpolicy .
+    tst:testcoveragegatecontroltest a usf:Test ;
+        usf:canonicalName "testcoveragegatecontroltest" ;
+        usf:testsControl ctl:testcoveragegate .
+    tst:universalservicefoundationscopeandprinciplesnegativepath a usf:Test ;
+        usf:canonicalName "universalservicefoundationscopeandprinciplesnegativepath" ;
+        usf:testsContract sc:universalservicefoundationscopeandprinciples .
+    tst:usagemeteringandmetereventingestionnegativepath a usf:Test ;
+        usf:canonicalName "usagemeteringandmetereventingestionnegativepath" ;
+        usf:testsContract sc:usagemeteringandmetereventingestion .
+    tst:useridentityandtenantmembershipnegativepath a usf:Test ;
+        usf:canonicalName "useridentityandtenantmembershipnegativepath" ;
+        usf:testsContract sc:useridentityandtenantmembership .
+    tst:webhooksdeveloperfacingnegativepath a usf:Test ;
+        usf:canonicalName "webhooksdeveloperfacingnegativepath" ;
+        usf:testsContract sc:webhooksdeveloperfacing .
+    tst:workflowenginescheduledjobsapprovalsnegativepath a usf:Test ;
+        usf:canonicalName "workflowenginescheduledjobsapprovalsnegativepath" ;
+        usf:testsContract sc:workflowenginescheduledjobsapprovals .
+    tst:writeonlysecretsettingsnegativepath a usf:Test ;
+        usf:canonicalName "writeonlysecretsettingsnegativepath" ;
+        usf:testsContract sc:writeonlysecretsettings .
+}

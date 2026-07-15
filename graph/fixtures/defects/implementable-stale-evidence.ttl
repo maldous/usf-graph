@@ -1,0 +1,14 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix admission: <urn:usf:evidenceadmissionstate:> .
+@prefix freshness: <urn:usf:evidencefreshnessstate:> .
+@prefix integrity: <urn:usf:evidenceintegritystate:> .
+@prefix proofstate: <urn:usf:proofresultstate:> .
+@prefix contractstate: <urn:usf:contractactivationstate:> .
+
+<urn:usf:defect:stalecontract> a usf:SemanticContract ; usf:hasActivationState contractstate:active ; usf:mandatoryProofObligation <urn:usf:defect:staleobligation> ; usf:reliesOnProofResult <urn:usf:defect:staleproof> ; usf:permittedRealisationType usf:Implementation .
+<urn:usf:defect:staleobligation> a usf:ProofObligation ; usf:requiresEvidence <urn:usf:defect:stalerequirement> .
+<urn:usf:defect:stalerequirement> a usf:EvidenceRequirement .
+<urn:usf:defect:staleevidence> a usf:EvidenceResult ; usf:hasAdmissionState admission:admitted ; usf:hasFreshnessState freshness:stale ; usf:hasIntegrityState integrity:valid ; usf:applicableToObligation <urn:usf:defect:staleobligation> ; usf:withinValidityScope true .
+<urn:usf:defect:staleproof> a usf:ProofResult ; usf:proofResultForObligation <urn:usf:defect:staleobligation> ; usf:hasProofResultState proofstate:successful ; usf:usesAdmittedEvidence <urn:usf:defect:staleevidence> ; usf:confidenceBasis <urn:usf:defect:staleevidence> ; usf:evidenceSetDigest "sha256:defect" .
+<urn:usf:defect:staledecision> a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:authorisesRealisationType usf:Implementation ; usf:authorisesSourcePath "census/local-semantic-validation" .
+<urn:usf:defect:stalerealisation> a usf:Realisation ; usf:realisesContract <urn:usf:defect:stalecontract> ; usf:realisationState <urn:usf:realisationstate:implementable> ; usf:authorisedByDecision <urn:usf:defect:staledecision> ; usf:authorisedSourcePath "census/local-semantic-validation" .

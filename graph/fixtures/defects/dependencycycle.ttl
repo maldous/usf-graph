@@ -1,0 +1,9 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+
+# Defect: a two-node service dependency cycle. Integrity rule
+# 'dependencycycle' must return a row for the cycle participants.
+fixt:cycleservicealpha a usf:Service ; usf:canonicalName "cycleservicealpha" ;
+    usf:dependsOnService fixt:cycleservicebeta .
+fixt:cycleservicebeta a usf:Service ; usf:canonicalName "cycleservicebeta" ;
+    usf:dependsOnService fixt:cycleservicealpha .

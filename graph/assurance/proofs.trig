@@ -1,0 +1,1238 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix prf: <urn:usf:proof:> .
+@prefix pex: <urn:usf:proofexecution:> .
+@prefix pres: <urn:usf:proofresult:> .
+@prefix rung: <urn:usf:proofrung:> .
+@prefix pmode: <urn:usf:providermode:> .
+@prefix env: <urn:usf:environment:> .
+@prefix fresh: <urn:usf:freshness:> .
+@prefix rs: <urn:usf:resultstate:> .
+@prefix sc: <urn:usf:semanticcontract:> .
+
+<urn:usf:graph:proofs> {
+    pex:devsmoke a usf:ProofExecution ;
+        usf:canonicalName "devsmoke" ;
+        usf:executesProof prf:devsmoke ;
+        usf:producesResult pres:devsmoke .
+    pex:proofanalyticsclickhouse a usf:ProofExecution ;
+        usf:canonicalName "proofanalyticsclickhouse" ;
+        usf:executesProof prf:proofanalyticsclickhouse ;
+        usf:producesResult pres:proofanalyticsclickhouse .
+    pex:proofapi a usf:ProofExecution ;
+        usf:canonicalName "proofapi" ;
+        usf:executesProof prf:proofapi ;
+        usf:producesResult pres:proofapi .
+    pex:proofapigraphqlgeneratedclient a usf:ProofExecution ;
+        usf:canonicalName "proofapigraphqlgeneratedclient" ;
+        usf:executesProof prf:proofapigraphqlgeneratedclient ;
+        usf:producesResult pres:proofapigraphqlgeneratedclient .
+    pex:proofassurancesonarqube a usf:ProofExecution ;
+        usf:canonicalName "proofassurancesonarqube" ;
+        usf:executesProof prf:proofassurancesonarqube ;
+        usf:producesResult pres:proofassurancesonarqube .
+    pex:proofaudit a usf:ProofExecution ;
+        usf:canonicalName "proofaudit" ;
+        usf:executesProof prf:proofaudit ;
+        usf:producesResult pres:proofaudit .
+    pex:proofauth a usf:ProofExecution ;
+        usf:canonicalName "proofauth" ;
+        usf:executesProof prf:proofauth ;
+        usf:producesResult pres:proofauth .
+    pex:proofauthz a usf:ProofExecution ;
+        usf:canonicalName "proofauthz" ;
+        usf:executesProof prf:proofauthz ;
+        usf:producesResult pres:proofauthz .
+    pex:proofbackupoperations a usf:ProofExecution ;
+        usf:canonicalName "proofbackupoperations" ;
+        usf:executesProof prf:proofbackupoperations ;
+        usf:producesResult pres:proofbackupoperations .
+    pex:proofbackuppgbackrest a usf:ProofExecution ;
+        usf:canonicalName "proofbackuppgbackrest" ;
+        usf:executesProof prf:proofbackuppgbackrest ;
+        usf:producesResult pres:proofbackuppgbackrest .
+    pex:proofbootstrap a usf:ProofExecution ;
+        usf:canonicalName "proofbootstrap" ;
+        usf:executesProof prf:proofbootstrap ;
+        usf:producesResult pres:proofbootstrap .
+    pex:proofbulk a usf:ProofExecution ;
+        usf:canonicalName "proofbulk" ;
+        usf:executesProof prf:proofbulk ;
+        usf:producesResult pres:proofbulk .
+    pex:proofcacheredis a usf:ProofExecution ;
+        usf:canonicalName "proofcacheredis" ;
+        usf:executesProof prf:proofcacheredis ;
+        usf:producesResult pres:proofcacheredis .
+    pex:proofcockpitmachineqa a usf:ProofExecution ;
+        usf:canonicalName "proofcockpitmachineqa" ;
+        usf:executesProof prf:proofcockpitmachineqa ;
+        usf:producesResult pres:proofcockpitmachineqa .
+    pex:proofcockpitpromote a usf:ProofExecution ;
+        usf:canonicalName "proofcockpitpromote" ;
+        usf:executesProof prf:proofcockpitpromote ;
+        usf:producesResult pres:proofcockpitpromote .
+    pex:proofconfig a usf:ProofExecution ;
+        usf:canonicalName "proofconfig" ;
+        usf:executesProof prf:proofconfig ;
+        usf:producesResult pres:proofconfig .
+    pex:proofdb a usf:ProofExecution ;
+        usf:canonicalName "proofdb" ;
+        usf:executesProof prf:proofdb ;
+        usf:producesResult pres:proofdb .
+    pex:proofexternalhttpbehaviour a usf:ProofExecution ;
+        usf:canonicalName "proofexternalhttpbehaviour" ;
+        usf:executesProof prf:proofexternalhttpbehaviour ;
+        usf:producesResult pres:proofexternalhttpbehaviour .
+    pex:proofexternalhttpcache a usf:ProofExecution ;
+        usf:canonicalName "proofexternalhttpcache" ;
+        usf:executesProof prf:proofexternalhttpcache ;
+        usf:producesResult pres:proofexternalhttpcache .
+    pex:proofexternalhttpobservability a usf:ProofExecution ;
+        usf:canonicalName "proofexternalhttpobservability" ;
+        usf:executesProof prf:proofexternalhttpobservability ;
+        usf:producesResult pres:proofexternalhttpobservability .
+    pex:prooffiles a usf:ProofExecution ;
+        usf:canonicalName "prooffiles" ;
+        usf:executesProof prf:prooffiles ;
+        usf:producesResult pres:prooffiles .
+    pex:proofguardrails a usf:ProofExecution ;
+        usf:canonicalName "proofguardrails" ;
+        usf:executesProof prf:proofguardrails ;
+        usf:producesResult pres:proofguardrails .
+    pex:proofjobs a usf:ProofExecution ;
+        usf:canonicalName "proofjobs" ;
+        usf:executesProof prf:proofjobs ;
+        usf:producesResult pres:proofjobs .
+    pex:prooflocalstack a usf:ProofExecution ;
+        usf:canonicalName "prooflocalstack" ;
+        usf:executesProof prf:prooflocalstack ;
+        usf:producesResult pres:prooflocalstack .
+    pex:proofmocksubstrate a usf:ProofExecution ;
+        usf:canonicalName "proofmocksubstrate" ;
+        usf:executesProof prf:proofmocksubstrate ;
+        usf:producesResult pres:proofmocksubstrate .
+    pex:proofnotify a usf:ProofExecution ;
+        usf:canonicalName "proofnotify" ;
+        usf:executesProof prf:proofnotify ;
+        usf:producesResult pres:proofnotify .
+    pex:proofobservability a usf:ProofExecution ;
+        usf:canonicalName "proofobservability" ;
+        usf:executesProof prf:proofobservability ;
+        usf:producesResult pres:proofobservability .
+    pex:proofobservabilitybrowsertelemetry a usf:ProofExecution ;
+        usf:canonicalName "proofobservabilitybrowsertelemetry" ;
+        usf:executesProof prf:proofobservabilitybrowsertelemetry ;
+        usf:producesResult pres:proofobservabilitybrowsertelemetry .
+    pex:proofobservabilityoperationsexecution a usf:ProofExecution ;
+        usf:canonicalName "proofobservabilityoperationsexecution" ;
+        usf:executesProof prf:proofobservabilityoperationsexecution ;
+        usf:producesResult pres:proofobservabilityoperationsexecution .
+    pex:proofobservabilitysentry a usf:ProofExecution ;
+        usf:canonicalName "proofobservabilitysentry" ;
+        usf:executesProof prf:proofobservabilitysentry ;
+        usf:producesResult pres:proofobservabilitysentry .
+    pex:proofoperatoraccess a usf:ProofExecution ;
+        usf:canonicalName "proofoperatoraccess" ;
+        usf:executesProof prf:proofoperatoraccess ;
+        usf:producesResult pres:proofoperatoraccess .
+    pex:proofoperatorlifecycle a usf:ProofExecution ;
+        usf:canonicalName "proofoperatorlifecycle" ;
+        usf:executesProof prf:proofoperatorlifecycle ;
+        usf:producesResult pres:proofoperatorlifecycle .
+    pex:proofprestagingexternalsmoke a usf:ProofExecution ;
+        usf:canonicalName "proofprestagingexternalsmoke" ;
+        usf:executesProof prf:proofprestagingexternalsmoke ;
+        usf:producesResult pres:proofprestagingexternalsmoke .
+    pex:proofproofreviewpublic a usf:ProofExecution ;
+        usf:canonicalName "proofproofreviewpublic" ;
+        usf:executesProof prf:proofproofreviewpublic ;
+        usf:producesResult pres:proofproofreviewpublic .
+    pex:proofproviders a usf:ProofExecution ;
+        usf:canonicalName "proofproviders" ;
+        usf:executesProof prf:proofproviders ;
+        usf:producesResult pres:proofproviders .
+    pex:proofpublicfqdn a usf:ProofExecution ;
+        usf:canonicalName "proofpublicfqdn" ;
+        usf:executesProof prf:proofpublicfqdn ;
+        usf:producesResult pres:proofpublicfqdn .
+    pex:proofpublicorigin a usf:ProofExecution ;
+        usf:canonicalName "proofpublicorigin" ;
+        usf:executesProof prf:proofpublicorigin ;
+        usf:producesResult pres:proofpublicorigin .
+    pex:proofpublicroute a usf:ProofExecution ;
+        usf:canonicalName "proofpublicroute" ;
+        usf:executesProof prf:proofpublicroute ;
+        usf:producesResult pres:proofpublicroute .
+    pex:proofresources a usf:ProofExecution ;
+        usf:canonicalName "proofresources" ;
+        usf:executesProof prf:proofresources ;
+        usf:producesResult pres:proofresources .
+    pex:proofscannerclamav a usf:ProofExecution ;
+        usf:canonicalName "proofscannerclamav" ;
+        usf:executesProof prf:proofscannerclamav ;
+        usf:producesResult pres:proofscannerclamav .
+    pex:proofsearch a usf:ProofExecution ;
+        usf:canonicalName "proofsearch" ;
+        usf:executesProof prf:proofsearch ;
+        usf:producesResult pres:proofsearch .
+    pex:proofsearchmeilisearch a usf:ProofExecution ;
+        usf:canonicalName "proofsearchmeilisearch" ;
+        usf:executesProof prf:proofsearchmeilisearch ;
+        usf:producesResult pres:proofsearchmeilisearch .
+    pex:proofwiremock a usf:ProofExecution ;
+        usf:canonicalName "proofwiremock" ;
+        usf:executesProof prf:proofwiremock ;
+        usf:producesResult pres:proofwiremock .
+    pex:proofworkflowwindmill a usf:ProofExecution ;
+        usf:canonicalName "proofworkflowwindmill" ;
+        usf:executesProof prf:proofworkflowwindmill ;
+        usf:producesResult pres:proofworkflowwindmill .
+    pex:runtimeproof a usf:ProofExecution ;
+        usf:canonicalName "runtimeproof" ;
+        usf:executesProof prf:runtimeproof ;
+        usf:producesResult pres:runtimeproof .
+    pex:runtimeproofcompose a usf:ProofExecution ;
+        usf:canonicalName "runtimeproofcompose" ;
+        usf:executesProof prf:runtimeproofcompose ;
+        usf:producesResult pres:runtimeproofcompose .
+    pex:runtimeproofinmemory a usf:ProofExecution ;
+        usf:canonicalName "runtimeproofinmemory" ;
+        usf:executesProof prf:runtimeproofinmemory ;
+        usf:producesResult pres:runtimeproofinmemory .
+    pex:testreadinesscoverage a usf:ProofExecution ;
+        usf:canonicalName "testreadinesscoverage" ;
+        usf:executesProof prf:testreadinesscoverage ;
+        usf:producesResult pres:testreadinesscoverage .
+    pex:testreadinessfixtures a usf:ProofExecution ;
+        usf:canonicalName "testreadinessfixtures" ;
+        usf:executesProof prf:testreadinessfixtures ;
+        usf:producesResult pres:testreadinessfixtures .
+    pex:testreadinessintegration a usf:ProofExecution ;
+        usf:canonicalName "testreadinessintegration" ;
+        usf:executesProof prf:testreadinessintegration ;
+        usf:producesResult pres:testreadinessintegration .
+    pex:testreadinesssemantic a usf:ProofExecution ;
+        usf:canonicalName "testreadinesssemantic" ;
+        usf:executesProof prf:testreadinesssemantic ;
+        usf:producesResult pres:testreadinesssemantic .
+    pres:devsmoke a usf:ProofResult ;
+        usf:canonicalName "devsmoke" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:devsmoke ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofanalyticsclickhouse a usf:ProofResult ;
+        usf:canonicalName "proofanalyticsclickhouse" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofanalyticsclickhouse ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofapi a usf:ProofResult ;
+        usf:canonicalName "proofapi" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofapi ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofapigraphqlgeneratedclient a usf:ProofResult ;
+        usf:canonicalName "proofapigraphqlgeneratedclient" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofapigraphqlgeneratedclient ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofassurancesonarqube a usf:ProofResult ;
+        usf:canonicalName "proofassurancesonarqube" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofassurancesonarqube ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofaudit a usf:ProofResult ;
+        usf:canonicalName "proofaudit" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofaudit ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofauth a usf:ProofResult ;
+        usf:canonicalName "proofauth" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofauth ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofauthz a usf:ProofResult ;
+        usf:canonicalName "proofauthz" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofauthz ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofbackupoperations a usf:ProofResult ;
+        usf:canonicalName "proofbackupoperations" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofbackupoperations ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofbackuppgbackrest a usf:ProofResult ;
+        usf:canonicalName "proofbackuppgbackrest" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofbackuppgbackrest ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofbootstrap a usf:ProofResult ;
+        usf:canonicalName "proofbootstrap" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofbootstrap ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofbulk a usf:ProofResult ;
+        usf:canonicalName "proofbulk" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofbulk ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofcacheredis a usf:ProofResult ;
+        usf:canonicalName "proofcacheredis" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofcacheredis ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofcockpitmachineqa a usf:ProofResult ;
+        usf:canonicalName "proofcockpitmachineqa" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofcockpitmachineqa ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofcockpitpromote a usf:ProofResult ;
+        usf:canonicalName "proofcockpitpromote" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofcockpitpromote ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofconfig a usf:ProofResult ;
+        usf:canonicalName "proofconfig" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofconfig ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofdb a usf:ProofResult ;
+        usf:canonicalName "proofdb" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofdb ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofexternalhttpbehaviour a usf:ProofResult ;
+        usf:canonicalName "proofexternalhttpbehaviour" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofexternalhttpbehaviour ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofexternalhttpcache a usf:ProofResult ;
+        usf:canonicalName "proofexternalhttpcache" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofexternalhttpcache ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofexternalhttpobservability a usf:ProofResult ;
+        usf:canonicalName "proofexternalhttpobservability" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofexternalhttpobservability ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:prooffiles a usf:ProofResult ;
+        usf:canonicalName "prooffiles" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:prooffiles ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofguardrails a usf:ProofResult ;
+        usf:canonicalName "proofguardrails" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofguardrails ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofjobs a usf:ProofResult ;
+        usf:canonicalName "proofjobs" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofjobs ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:prooflocalstack a usf:ProofResult ;
+        usf:canonicalName "prooflocalstack" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:prooflocalstack ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofmocksubstrate a usf:ProofResult ;
+        usf:canonicalName "proofmocksubstrate" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofmocksubstrate ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofnotify a usf:ProofResult ;
+        usf:canonicalName "proofnotify" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofnotify ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofobservability a usf:ProofResult ;
+        usf:canonicalName "proofobservability" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofobservability ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofobservabilitybrowsertelemetry a usf:ProofResult ;
+        usf:canonicalName "proofobservabilitybrowsertelemetry" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofobservabilitybrowsertelemetry ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofobservabilityoperationsexecution a usf:ProofResult ;
+        usf:canonicalName "proofobservabilityoperationsexecution" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofobservabilityoperationsexecution ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofobservabilitysentry a usf:ProofResult ;
+        usf:canonicalName "proofobservabilitysentry" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofobservabilitysentry ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofoperatoraccess a usf:ProofResult ;
+        usf:canonicalName "proofoperatoraccess" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofoperatoraccess ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofoperatorlifecycle a usf:ProofResult ;
+        usf:canonicalName "proofoperatorlifecycle" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofoperatorlifecycle ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofprestagingexternalsmoke a usf:ProofResult ;
+        usf:canonicalName "proofprestagingexternalsmoke" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofprestagingexternalsmoke ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofproofreviewpublic a usf:ProofResult ;
+        usf:canonicalName "proofproofreviewpublic" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofproofreviewpublic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofproviders a usf:ProofResult ;
+        usf:canonicalName "proofproviders" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofproviders ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofpublicfqdn a usf:ProofResult ;
+        usf:canonicalName "proofpublicfqdn" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofpublicfqdn ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofpublicorigin a usf:ProofResult ;
+        usf:canonicalName "proofpublicorigin" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofpublicorigin ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofpublicroute a usf:ProofResult ;
+        usf:canonicalName "proofpublicroute" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofpublicroute ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofresources a usf:ProofResult ;
+        usf:canonicalName "proofresources" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofresources ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofscannerclamav a usf:ProofResult ;
+        usf:canonicalName "proofscannerclamav" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofscannerclamav ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofsearch a usf:ProofResult ;
+        usf:canonicalName "proofsearch" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofsearch ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofsearchmeilisearch a usf:ProofResult ;
+        usf:canonicalName "proofsearchmeilisearch" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofsearchmeilisearch ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofwiremock a usf:ProofResult ;
+        usf:canonicalName "proofwiremock" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofwiremock ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:proofworkflowwindmill a usf:ProofResult ;
+        usf:canonicalName "proofworkflowwindmill" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:proofworkflowwindmill ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:runtimeproof a usf:ProofResult ;
+        usf:canonicalName "runtimeproof" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:runtimeproof ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:runtimeproofcompose a usf:ProofResult ;
+        usf:canonicalName "runtimeproofcompose" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:runtimeproofcompose ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:runtimeproofinmemory a usf:ProofResult ;
+        usf:canonicalName "runtimeproofinmemory" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:runtimeproofinmemory ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:testreadinesscoverage a usf:ProofResult ;
+        usf:canonicalName "testreadinesscoverage" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:testreadinesscoverage ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:testreadinessfixtures a usf:ProofResult ;
+        usf:canonicalName "testreadinessfixtures" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:testreadinessfixtures ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:testreadinessintegration a usf:ProofResult ;
+        usf:canonicalName "testreadinessintegration" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:testreadinessintegration ;
+        usf:usesProviderMode pmode:hermeticmock .
+    pres:testreadinesssemantic a usf:ProofResult ;
+        usf:canonicalName "testreadinesssemantic" ;
+        usf:resultState rs:unknown ;
+        usf:claimedRung rung:behaviour ;
+        usf:hasFreshness fresh:stale ;
+        usf:inEnvironment env:hermetic ;
+        usf:observedRung rung:behaviour ;
+        usf:resultForProof prf:testreadinesssemantic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:devsmoke a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "devsmoke" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofanalyticsclickhouse a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofanalyticsclickhouse" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofapi a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofapi" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofapigraphqlgeneratedclient a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofapigraphqlgeneratedclient" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofassurancesonarqube a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofassurancesonarqube" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofaudit a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofaudit" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofauth a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofauth" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofauthz a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofauthz" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofbackupoperations a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofbackupoperations" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofbackuppgbackrest a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofbackuppgbackrest" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofbootstrap a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofbootstrap" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofbulk a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofbulk" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofcacheredis a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofcacheredis" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofcockpitmachineqa a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofcockpitmachineqa" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofcockpitpromote a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofcockpitpromote" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofconfig a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofconfig" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofdb a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofdb" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofexternalhttpbehaviour a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofexternalhttpbehaviour" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofexternalhttpcache a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofexternalhttpcache" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofexternalhttpobservability a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofexternalhttpobservability" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:prooffiles a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "prooffiles" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofguardrails a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofguardrails" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofjobs a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofjobs" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:prooflocalstack a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "prooflocalstack" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofmocksubstrate a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofmocksubstrate" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofnotify a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofnotify" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofobservability a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofobservability" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofobservabilitybrowsertelemetry a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofobservabilitybrowsertelemetry" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofobservabilityoperationsexecution a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofobservabilityoperationsexecution" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofobservabilitysentry a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofobservabilitysentry" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofoperatoraccess a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofoperatoraccess" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofoperatorlifecycle a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofoperatorlifecycle" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofprestagingexternalsmoke a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofprestagingexternalsmoke" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofproofreviewpublic a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofproofreviewpublic" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofproviders a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofproviders" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofpublicfqdn a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofpublicfqdn" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofpublicorigin a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofpublicorigin" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofpublicroute a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofpublicroute" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofresources a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofresources" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofscannerclamav a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofscannerclamav" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofsearch a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofsearch" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofsearchmeilisearch a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofsearchmeilisearch" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofwiremock a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofwiremock" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:proofworkflowwindmill a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "proofworkflowwindmill" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:runtimeproof a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "runtimeproof" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:runtimeproofcompose a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "runtimeproofcompose" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:runtimeproofinmemory a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "runtimeproofinmemory" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:testreadinesscoverage a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "testreadinesscoverage" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:testreadinessfixtures a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "testreadinessfixtures" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:testreadinessintegration a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "testreadinessintegration" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+    prf:testreadinesssemantic a usf:Proof ;
+        usf:atRung rung:behaviour ;
+        usf:canonicalName "testreadinesssemantic" ;
+        usf:exercises sc:universalservicefoundationscopeandprinciples ;
+        usf:provesSubject sc:universalservicefoundationscopeandprinciples ;
+        usf:inEnvironment env:hermetic ;
+        usf:usesProviderMode pmode:hermeticmock .
+}
+
+<urn:usf:graph:proofs> {
+ <urn:usf:proofobligation:compilersemantics>
+   usf:obligationFor <urn:usf:semanticcontract:compilersemanticenforcement> ;
+   usf:obligationEffect <urn:usf:obligationeffect:blocking> ;
+   usf:usesAssuranceCell <urn:usf:assurancecell:behaviourhermetichermetic> ;
+   usf:requiresRung <urn:usf:proofrung:behaviour> ;
+   usf:derivedFrom <urn:usf:semanticcontract:compilersemanticenforcement> .
+ <urn:usf:proofobligation:bootstrappacketsemantics>
+   usf:obligationFor <urn:usf:semanticcontract:bootstrappacket> ;
+   usf:obligationEffect <urn:usf:obligationeffect:blocking> ;
+   usf:usesAssuranceCell <urn:usf:assurancecell:behaviourhermetichermetic> ;
+   usf:requiresRung <urn:usf:proofrung:behaviour> ;
+   usf:derivedFrom <urn:usf:semanticcontract:bootstrappacket> .
+ <urn:usf:evidencerequirement:compilersemanticvalidation>
+   usf:obligationFor <urn:usf:semanticcontract:compilersemanticenforcement> ;
+   usf:obligationEffect <urn:usf:obligationeffect:blocking> ;
+   usf:usesAssuranceCell <urn:usf:assurancecell:behaviourhermetichermetic> ;
+   usf:derivedFrom <urn:usf:proofobligation:compilersemantics> ;
+   usf:requiresEnvironmentClass <urn:usf:environmentclass:hermetic> ;
+   usf:requiresEvidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:signed>, <urn:usf:evidencestage:integrityverified> .
+ <urn:usf:evidencerequirement:bootstrappacketvalidation>
+   usf:obligationFor <urn:usf:semanticcontract:bootstrappacket> ;
+   usf:obligationEffect <urn:usf:obligationeffect:blocking> ;
+   usf:usesAssuranceCell <urn:usf:assurancecell:behaviourhermetichermetic> ;
+   usf:derivedFrom <urn:usf:proofobligation:bootstrappacketsemantics> ;
+   usf:requiresEnvironmentClass <urn:usf:environmentclass:hermetic> ;
+   usf:requiresEvidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:signed>, <urn:usf:evidencestage:integrityverified> .
+}
+
+<urn:usf:graph:proofs> {
+ <urn:usf:proofalgorithm:deterministiclifecyclegate> usf:canonicalName "deterministiclifecyclegate" .
+ <urn:usf:proofalgorithmversion:deterministiclifecyclegateone> usf:canonicalName "deterministiclifecyclegateone" .
+ <urn:usf:proofinvalidationcondition:evidenceinvalidated> usf:canonicalName "evidenceinvalidated" .
+ <urn:usf:proofinvalidationcondition:evidencestale> usf:canonicalName "evidencestale" .
+ <urn:usf:proofinvalidationcondition:authoritydigestchanged> usf:canonicalName "authoritydigestchanged" .
+ <urn:usf:proofobligation:compilersemantics> usf:canonicalName "compilersemantics" .
+ <urn:usf:proofobligation:bootstrappacketsemantics> usf:canonicalName "bootstrappacketsemantics" .
+ <urn:usf:evidencerequirement:compilersemanticvalidation> usf:canonicalName "compilersemanticvalidation" ; usf:requiresProviderMode <urn:usf:providermode:hermeticmock> ; usf:requiresEnvironmentClass <urn:usf:environmentclass:hermetic> ; usf:requiresEvidenceKind <urn:usf:evidencekind:validationevidence> ; usf:requiresFreshness <urn:usf:freshness:fresh> .
+ <urn:usf:evidencerequirement:bootstrappacketvalidation> usf:canonicalName "bootstrappacketvalidation" ; usf:requiresProviderMode <urn:usf:providermode:hermeticmock> ; usf:requiresEnvironmentClass <urn:usf:environmentclass:hermetic> ; usf:requiresEvidenceKind <urn:usf:evidencekind:validationevidence> ; usf:requiresFreshness <urn:usf:freshness:fresh> .
+}
+
+@prefix usf: <urn:usf:ontology:> .
+<urn:usf:graph:proofs> {
+ <urn:usf:proofalgorithm:deterministiclifecyclegate> a usf:ProofAlgorithm .
+ <urn:usf:proofalgorithmversion:deterministiclifecyclegateone> a usf:ProofAlgorithmVersion .
+ <urn:usf:proofinvalidationcondition:evidenceinvalidated> a usf:ProofInvalidationCondition .
+ <urn:usf:proofinvalidationcondition:evidencestale> a usf:ProofInvalidationCondition .
+ <urn:usf:proofinvalidationcondition:authoritydigestchanged> a usf:ProofInvalidationCondition .
+ <urn:usf:proofobligation:compilersemantics> a usf:ProofObligation ; usf:requiresEvidence <urn:usf:evidencerequirement:compilersemanticvalidation> .
+ <urn:usf:evidencerequirement:compilersemanticvalidation> a usf:EvidenceRequirement .
+ <urn:usf:proofobligation:bootstrappacketsemantics> a usf:ProofObligation ; usf:requiresEvidence <urn:usf:evidencerequirement:bootstrappacketvalidation> .
+ <urn:usf:evidencerequirement:bootstrappacketvalidation> a usf:EvidenceRequirement .
+}
+@prefix usf: <urn:usf:ontology:> .
+
+<urn:usf:graph:proofs> {
+  <urn:usf:proofalgorithm:crossenginelocalvalidationgate> a usf:ProofAlgorithm ;
+      usf:canonicalName "crossenginelocalvalidationgate" .
+  <urn:usf:proofalgorithmversion:crossenginelocalvalidationgateone> a usf:ProofAlgorithmVersion ;
+      usf:canonicalName "crossenginelocalvalidationgateone" .
+
+  <urn:usf:proofobligation:localsemanticvalidationtoolchain> a usf:ProofObligation ;
+      usf:canonicalName "localsemanticvalidationtoolchain" ;
+      usf:obligationFor <urn:usf:semanticcontract:localsemanticvalidationtoolchain> ;
+      usf:obligationEffect <urn:usf:obligationeffect:blocking> ;
+      usf:usesAssuranceCell <urn:usf:assurancecell:behaviourhermetichermetic> ;
+      usf:requiresRung <urn:usf:proofrung:behaviour> ;
+      usf:derivedFrom <urn:usf:semanticcontract:localsemanticvalidationtoolchain> ;
+      usf:requiresEvidence <urn:usf:evidencerequirement:localsemanticvalidationtoolchain> .
+
+  <urn:usf:evidencerequirement:localsemanticvalidationtoolchain> a usf:EvidenceRequirement ;
+      usf:canonicalName "localsemanticvalidationtoolchain" ;
+      usf:obligationFor <urn:usf:semanticcontract:localsemanticvalidationtoolchain> ;
+      usf:obligationEffect <urn:usf:obligationeffect:blocking> ;
+      usf:usesAssuranceCell <urn:usf:assurancecell:behaviourhermetichermetic> ;
+      usf:derivedFrom <urn:usf:proofobligation:localsemanticvalidationtoolchain> ;
+      usf:requiresEvidenceKind <urn:usf:evidencekind:validationevidence> ;
+      usf:requiresFreshness <urn:usf:freshness:fresh> ;
+      usf:requiresProviderMode <urn:usf:providermode:hermeticmock> ;
+      usf:requiresEnvironmentClass <urn:usf:environmentclass:hermetic> ;
+      usf:requiresEvidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:signed>, <urn:usf:evidencestage:integrityverified> .
+
+  <urn:usf:proof:localsemanticvalidationtoolchain> a usf:Proof ;
+      usf:canonicalName "localsemanticvalidationtoolchain" ;
+      usf:atRung <urn:usf:proofrung:behaviour> ;
+      usf:usesProviderMode <urn:usf:providermode:hermeticmock> ;
+      usf:inEnvironment <urn:usf:environment:localdev> ;
+      usf:exercises <urn:usf:semanticcontract:localsemanticvalidationtoolchain> ;
+      usf:provesSubject <urn:usf:semanticcontract:localsemanticvalidationtoolchain> .
+
+  <urn:usf:proofevaluation:localsemanticvalidationtoolchain> a usf:ProofEvaluation ;
+      usf:canonicalName "localsemanticvalidationtoolchain" ;
+      usf:evaluatesObligation <urn:usf:proofobligation:localsemanticvalidationtoolchain> ;
+      usf:producesProofResult <urn:usf:proofresult:localsemanticvalidationtoolchain> .
+
+  <urn:usf:proofresult:localsemanticvalidationtoolchain> a usf:ProofResult ;
+      usf:canonicalName "localsemanticvalidationtoolchain" ;
+      usf:resultState <urn:usf:resultstate:passed> ;
+      usf:resultForProof <urn:usf:proof:localsemanticvalidationtoolchain> ;
+      usf:claimedRung <urn:usf:proofrung:behaviour> ;
+      usf:observedRung <urn:usf:proofrung:behaviour> ;
+      usf:hasFreshness <urn:usf:freshness:stale> ;
+      usf:usesProviderMode <urn:usf:providermode:hermeticmock> ;
+      usf:inEnvironment <urn:usf:environment:localdev> ;
+      usf:hasProofResultState <urn:usf:proofresultstate:invalidated> ;
+      usf:proofResultForObligation <urn:usf:proofobligation:localsemanticvalidationtoolchain> ;
+      usf:usesAdmittedEvidence <urn:usf:evidenceresult:rdf4jjenasemanticparity> ;
+      usf:evidenceSetDigest "sha256:009dc21754b3c189e1878e263e1e99d65c875555daffc604f7ad2b4b2e406ff9" ;
+      usf:usesProofAlgorithm <urn:usf:proofalgorithm:crossenginelocalvalidationgate> ;
+      usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:crossenginelocalvalidationgateone> ;
+      usf:evaluatedByValidator <urn:usf:validator:rdf4jjenacrossengine> ;
+      usf:proofExecutionEnvironment <urn:usf:environment:localdev> ;
+      usf:confidenceBasis <urn:usf:evidenceresult:rdf4jjenasemanticparity> ;
+      usf:uncertaintyStatement "The primary RDF4J engine evaluates global and lifecycle integrity; Jena independently evaluates derivation and SHACL parity. Local evidence does not prove live semantic publication." ;
+      usf:proofNonclaim <urn:usf:nonclaim:localenginenotsemanticauthority>, <urn:usf:nonclaim:nochrootjavaruntime>, <urn:usf:nonclaim:nolivepublicationfromlocalevidencealone> ;
+      usf:evaluatedAt "2026-07-15T05:44:00.954037171Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> ;
+      usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged> ;
+      usf:warrantsFeature <urn:usf:feature:indexedlocalrdfvalidation>, <urn:usf:feature:independentengineparity> .
+
+  <urn:usf:proof:repositoryexternalartefactmaterialisation> a usf:Proof ;
+      usf:canonicalName "repositoryexternalartefactmaterialisation" ;
+      usf:atRung <urn:usf:proofrung:behaviour> ;
+      usf:usesProviderMode <urn:usf:providermode:hermeticmock> ;
+      usf:inEnvironment <urn:usf:environment:localdev> ;
+      usf:exercises <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> ;
+      usf:provesSubject <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> .
+
+  <urn:usf:proofexecution:repositoryexternalartefactmaterialisation> a usf:ProofExecution ;
+      usf:canonicalName "repositoryexternalartefactmaterialisation" ;
+      usf:executesProof <urn:usf:proof:repositoryexternalartefactmaterialisation> ;
+      usf:producesResult <urn:usf:proofresult:repositoryexternalartefactmaterialisation> .
+
+  <urn:usf:proofevaluation:repositoryexternalartefactmaterialisation> a usf:ProofEvaluation ;
+      usf:canonicalName "repositoryexternalartefactmaterialisation" ;
+      usf:evaluatesObligation <urn:usf:proofobligation:repositoryexternalartefactmaterialisation> ;
+      usf:producesProofResult <urn:usf:proofresult:repositoryexternalartefactmaterialisation> .
+
+  <urn:usf:proofresult:repositoryexternalartefactmaterialisation> a usf:ProofResult ;
+      usf:canonicalName "repositoryexternalartefactmaterialisation" ;
+      usf:resultState <urn:usf:resultstate:passed> ;
+      usf:resultForProof <urn:usf:proof:repositoryexternalartefactmaterialisation> ;
+      usf:claimedRung <urn:usf:proofrung:behaviour> ;
+      usf:observedRung <urn:usf:proofrung:behaviour> ;
+      usf:hasFreshness <urn:usf:freshness:stale> ;
+      usf:usesProviderMode <urn:usf:providermode:hermeticmock> ;
+      usf:inEnvironment <urn:usf:environment:localdev> ;
+      usf:hasProofResultState <urn:usf:proofresultstate:invalidated> ;
+      usf:proofResultForObligation <urn:usf:proofobligation:repositoryexternalartefactmaterialisation> ;
+      usf:usesAdmittedEvidence <urn:usf:evidenceresult:repositoryexternalartefactmaterialisation> ;
+      usf:evidenceSetDigest "sha256:d1d2f10f475fd5881ff0993e8cc8d40b3f7c9d375c135597abbd4aa66862a209" ;
+      usf:usesProofAlgorithm <urn:usf:proofalgorithm:repositoryexternalartefactmaterialisationgate> ;
+      usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:repositoryexternalartefactmaterialisationgateone> ;
+      usf:evaluatedByValidator <urn:usf:validatorrule:validatematerialisationfoundation> ;
+      usf:proofExecutionEnvironment <urn:usf:environment:localdev> ;
+      usf:confidenceBasis <urn:usf:evidenceresult:repositoryexternalartefactmaterialisation> ;
+      usf:uncertaintyStatement "The proof binds the exact proof-blocked authority digest sha256:8e241ad9de09e86f36e1b35ce96ab17901d9e3d325b78d88549fc47c82d28f88 and 29 deterministic representative cases, including 16 negative cases. It does not prove proof-cockpit completion, Java cross-engine parity, a live external provider, or unbounded payload capacity." ;
+      usf:proofNonclaim <urn:usf:nonclaim:externalpayloadissemanticauthority>, <urn:usf:nonclaim:projectionissemanticauthority>, <urn:usf:nonclaim:ticketauthorisesmaterialisation>, <urn:usf:nonclaim:runtimeresultsbelongingit>, <urn:usf:nonclaim:parentrepositorydependency>, <urn:usf:nonclaim:proofcockpitcompletion>, <urn:usf:nonclaim:javacrossengineparity>, <urn:usf:nonclaim:paidobjectstorageselected> ;
+      usf:evaluatedAt "2026-07-15T07:55:35.027912209Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> ;
+      usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged> ;
+      usf:warrantsFeature <urn:usf:feature:standalonesemanticgraph>, <urn:usf:feature:repositorymaterialisation>, <urn:usf:feature:externalpayloadverification>, <urn:usf:feature:transactionalmodelupdate> .
+
+  <urn:usf:proof:repositoryexternalartefactmaterialisationfinal> a usf:Proof ;
+      usf:canonicalName "repositoryexternalartefactmaterialisationfinal" ;
+      usf:atRung <urn:usf:proofrung:behaviour> ;
+      usf:usesProviderMode <urn:usf:providermode:hermeticmock> ;
+      usf:inEnvironment <urn:usf:environment:localdev> ;
+      usf:exercises <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> ;
+      usf:provesSubject <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> .
+
+  <urn:usf:proofexecution:repositoryexternalartefactmaterialisationfinal> a usf:ProofExecution ;
+      usf:canonicalName "repositoryexternalartefactmaterialisationfinal" ;
+      usf:executesProof <urn:usf:proof:repositoryexternalartefactmaterialisationfinal> ;
+      usf:producesResult <urn:usf:proofresult:repositoryexternalartefactmaterialisationfinal> .
+
+  <urn:usf:proofevaluation:repositoryexternalartefactmaterialisationfinal> a usf:ProofEvaluation ;
+      usf:canonicalName "repositoryexternalartefactmaterialisationfinal" ;
+      usf:evaluatesObligation <urn:usf:proofobligation:repositoryexternalartefactmaterialisation> ;
+      usf:producesProofResult <urn:usf:proofresult:repositoryexternalartefactmaterialisationfinal> .
+
+  <urn:usf:proofresult:repositoryexternalartefactmaterialisationfinal> a usf:ProofResult ;
+      usf:canonicalName "repositoryexternalartefactmaterialisationfinal" ;
+      usf:resultState <urn:usf:resultstate:passed> ;
+      usf:resultForProof <urn:usf:proof:repositoryexternalartefactmaterialisationfinal> ;
+      usf:claimedRung <urn:usf:proofrung:behaviour> ;
+      usf:observedRung <urn:usf:proofrung:behaviour> ;
+      usf:hasFreshness <urn:usf:freshness:fresh> ;
+      usf:usesProviderMode <urn:usf:providermode:hermeticmock> ;
+      usf:inEnvironment <urn:usf:environment:localdev> ;
+      usf:hasProofResultState <urn:usf:proofresultstate:successful> ;
+      usf:proofResultForObligation <urn:usf:proofobligation:repositoryexternalartefactmaterialisation> ;
+      usf:usesAdmittedEvidence <urn:usf:evidenceresult:repositoryexternalartefactmaterialisationfinal> ;
+      usf:evidenceSetDigest "sha256:db7cd48895c084eb227e81eb3e50b298bad24160b275012fe760a35e9e93c7a1" ;
+      usf:usesProofAlgorithm <urn:usf:proofalgorithm:repositoryexternalartefactmaterialisationgate> ;
+      usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:repositoryexternalartefactmaterialisationgateone> ;
+      usf:evaluatedByValidator <urn:usf:validatorrule:validatematerialisationfoundation> ;
+      usf:proofExecutionEnvironment <urn:usf:environment:localdev> ;
+      usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted> ;
+      usf:confidenceBasis <urn:usf:evidenceresult:repositoryexternalartefactmaterialisationfinal> ;
+      usf:uncertaintyStatement "The proof binds authority digest sha256:9c9d779b8607790745a633edfb6febdf9e7681ec256a8b525fce9d1940bd1d37 and 32 deterministic representative cases, including six negative cases, executed twice with identical digests inside the standalone chroot. It does not prove proof-cockpit completion, Java cross-engine parity, a live external provider, paid object storage, or unbounded payload capacity." ;
+      usf:proofNonclaim <urn:usf:nonclaim:externalpayloadissemanticauthority>, <urn:usf:nonclaim:projectionissemanticauthority>, <urn:usf:nonclaim:ticketauthorisesmaterialisation>, <urn:usf:nonclaim:runtimeresultsbelongingit>, <urn:usf:nonclaim:parentrepositorydependency>, <urn:usf:nonclaim:proofcockpitcompletion>, <urn:usf:nonclaim:javacrossengineparity>, <urn:usf:nonclaim:paidobjectstorageselected> ;
+      usf:evaluatedAt "2026-07-15T09:58:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> ;
+      usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged> ;
+      usf:warrantsFeature <urn:usf:feature:standalonesemanticgraph>, <urn:usf:feature:repositorymaterialisation>, <urn:usf:feature:externalpayloadverification>, <urn:usf:feature:transactionalmodelupdate> .
+}

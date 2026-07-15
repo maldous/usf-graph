@@ -1,0 +1,40 @@
+@prefix aprofile: <urn:usf:accessibilityprofile:> .
+@prefix areq: <urn:usf:accessibilityrequirement:> .
+@prefix art: <urn:usf:artefact:> .
+@prefix cap: <urn:usf:capability:> .
+@prefix component: <urn:usf:component:> .
+@prefix constraint: <urn:usf:constraint:> .
+@prefix dm: <urn:usf:datamodel:> .
+@prefix error: <urn:usf:errorbinding:> .
+@prefix event: <urn:usf:event:> .
+@prefix field: <urn:usf:formfield:> .
+@prefix form: <urn:usf:form:> .
+@prefix iface: <urn:usf:interface:> .
+@prefix ist: <urn:usf:interactionstate:> .
+@prefix jr: <urn:usf:journey:> .
+@prefix lprofile: <urn:usf:localisationprofile:> .
+@prefix lreq: <urn:usf:localisationrequirement:> .
+@prefix op: <urn:usf:operation:> .
+@prefix path: <urn:usf:pathrule:> .
+@prefix perm: <urn:usf:permission:> .
+@prefix plan: <urn:usf:artefactplan:> .
+@prefix policy: <urn:usf:policy:> .
+@prefix rc: <urn:usf:renderercontract:> .
+@prefix renderer: <urn:usf:renderer:> .
+@prefix repo: <urn:usf:repository:> .
+@prefix route: <urn:usf:route:> .
+@prefix state: <urn:usf:state:> .
+@prefix surf: <urn:usf:surface:> .
+@prefix uim: <urn:usf:uisemanticmodel:> .
+@prefix usf: <urn:usf:ontology:> .
+@prefix validation: <urn:usf:validationbinding:> .
+@prefix vm: <urn:usf:viewmodel:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:usf:graph:renderers> {
+renderer:web a usf:Renderer ; usf:canonicalName "web" .
+    renderer:mobile a usf:Renderer ; usf:canonicalName "mobile" .
+    renderer:preview a usf:Renderer ; usf:canonicalName "preview" .
+    renderer:e2e a usf:Renderer ; usf:canonicalName "e2e" .
+    renderer:documentation a usf:Renderer ; usf:canonicalName "documentation" .
+}
