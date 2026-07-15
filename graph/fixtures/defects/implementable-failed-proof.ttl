@@ -1,0 +1,14 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix contractstate: <urn:usf:contractactivationstate:> .
+@prefix proofstate: <urn:usf:proofresultstate:> .
+
+<urn:usf:defect:failedproofcontract> a usf:SemanticContract ;
+    usf:hasActivationState contractstate:active ;
+    usf:mandatoryProofObligation <urn:usf:defect:failedproofobligation> ;
+    usf:reliesOnProofResult <urn:usf:defect:failedproofresult> ;
+    usf:permittedRealisationType usf:Implementation .
+<urn:usf:defect:failedproofobligation> a usf:ProofObligation ; usf:requiresEvidence <urn:usf:defect:failedproofrequirement> .
+<urn:usf:defect:failedproofrequirement> a usf:EvidenceRequirement .
+<urn:usf:defect:failedproofresult> a usf:ProofResult ; usf:proofResultForObligation <urn:usf:defect:failedproofobligation> ; usf:hasProofResultState proofstate:failed .
+<urn:usf:defect:failedproofdecision> a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:authorisesRealisationType usf:Implementation ; usf:authorisesSourcePath "census/local-semantic-validation" .
+<urn:usf:defect:failedproofrealisation> a usf:Realisation ; usf:realisesContract <urn:usf:defect:failedproofcontract> ; usf:realisationState <urn:usf:realisationstate:implementable> ; usf:authorisedByDecision <urn:usf:defect:failedproofdecision> ; usf:authorisedSourcePath "census/local-semantic-validation" .

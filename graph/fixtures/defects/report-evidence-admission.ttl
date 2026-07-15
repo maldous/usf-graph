@@ -1,0 +1,1 @@
+@prefix usf: <urn:usf:ontology:> . <urn:usf:defect:reportadmissioninversion> a usf:Report ; usf:directlyAdmitsEvidence <urn:usf:defect:evidence> .

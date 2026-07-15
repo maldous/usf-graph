@@ -1,0 +1,76 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix agt: <urn:usf:agent:> .
+@prefix acn: <urn:usf:agentconstraint:> .
+@prefix cnk: <urn:usf:constraintkind:> .
+
+<urn:usf:graph:agents> {
+    acn:agentexecutionprecedence a usf:AgentConstraint ;
+        usf:canonicalName "agentexecutionprecedence" ;
+        usf:constraintKind cnk:duty .
+    acn:artefactcreationgates a usf:AgentConstraint ;
+        usf:canonicalName "artefactcreationgates" ;
+        usf:constraintKind cnk:forbidden .
+    acn:authorityorder a usf:AgentConstraint ;
+        usf:canonicalName "authorityorder" ;
+        usf:constraintKind cnk:duty .
+    acn:bootstrapacknowledgement a usf:AgentConstraint ;
+        usf:canonicalName "bootstrapacknowledgement" ;
+        usf:constraintKind cnk:requiredoutput .
+    acn:commitpolicy a usf:AgentConstraint ;
+        usf:canonicalName "commitpolicy" ;
+        usf:constraintKind cnk:forbidden .
+    acn:currentstaterouting a usf:AgentConstraint ;
+        usf:canonicalName "currentstaterouting" ;
+        usf:constraintKind cnk:duty .
+    acn:externalstandardsposture a usf:AgentConstraint ;
+        usf:canonicalName "externalstandardsposture" ;
+        usf:constraintKind cnk:duty .
+    acn:finalrule a usf:AgentConstraint ;
+        usf:canonicalName "finalrule" ;
+        usf:constraintKind cnk:duty .
+    acn:forbiddenauthorisations a usf:AgentConstraint ;
+        usf:canonicalName "forbiddenauthorisations" ;
+        usf:constraintKind cnk:forbidden .
+    acn:implementationrules a usf:AgentConstraint ;
+        usf:canonicalName "implementationrules" ;
+        usf:constraintKind cnk:forbidden .
+    acn:jsonrules a usf:AgentConstraint ;
+        usf:canonicalName "jsonrules" ;
+        usf:constraintKind cnk:duty .
+    acn:layerseparation a usf:AgentConstraint ;
+        usf:canonicalName "layerseparation" ;
+        usf:constraintKind cnk:duty .
+    acn:linearboundary a usf:AgentConstraint ;
+        usf:canonicalName "linearboundary" ;
+        usf:constraintKind cnk:duty .
+    acn:linearcredentials a usf:AgentConstraint ;
+        usf:canonicalName "linearcredentials" ;
+        usf:constraintKind cnk:forbidden .
+    acn:mandatoryagentbootstrap a usf:AgentConstraint ;
+        usf:canonicalName "mandatoryagentbootstrap" ;
+        usf:constraintKind cnk:duty .
+    acn:modifyingtaskoutput a usf:AgentConstraint ;
+        usf:canonicalName "modifyingtaskoutput" ;
+        usf:constraintKind cnk:requiredoutput .
+    acn:modifyingtaskpreflight a usf:AgentConstraint ;
+        usf:canonicalName "modifyingtaskpreflight" ;
+        usf:constraintKind cnk:duty .
+    acn:namingrules a usf:AgentConstraint ;
+        usf:canonicalName "namingrules" ;
+        usf:constraintKind cnk:forbidden .
+    acn:nonnegotiablestopconditions a usf:AgentConstraint ;
+        usf:canonicalName "nonnegotiablestopconditions" ;
+        usf:constraintKind cnk:stopcondition .
+    acn:providerenvironmentsafety a usf:AgentConstraint ;
+        usf:canonicalName "providerenvironmentsafety" ;
+        usf:constraintKind cnk:duty .
+    acn:usfagentdirective a usf:AgentConstraint ;
+        usf:canonicalName "usfagentdirective" ;
+        usf:constraintKind cnk:duty .
+    acn:validatorfailclosedmandate a usf:AgentConstraint ;
+        usf:canonicalName "validatorfailclosedmandate" ;
+        usf:constraintKind cnk:duty .
+    agt:usfagent a usf:Agent ;
+        usf:canonicalName "usfagent" ;
+        usf:hasConstraint acn:agentexecutionprecedence , acn:artefactcreationgates , acn:authorityorder , acn:bootstrapacknowledgement , acn:commitpolicy , acn:currentstaterouting , acn:externalstandardsposture , acn:finalrule , acn:forbiddenauthorisations , acn:implementationrules , acn:jsonrules , acn:layerseparation , acn:linearboundary , acn:linearcredentials , acn:mandatoryagentbootstrap , acn:modifyingtaskoutput , acn:modifyingtaskpreflight , acn:namingrules , acn:nonnegotiablestopconditions , acn:providerenvironmentsafety , acn:usfagentdirective , acn:validatorfailclosedmandate .
+}

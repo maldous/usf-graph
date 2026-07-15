@@ -1,0 +1,4 @@
+@prefix usf: <urn:usf:ontology:> .
+<urn:usf:defect:typelesscontract> a usf:SemanticContract ; usf:hasActivationState <urn:usf:contractactivationstate:active> ; usf:mandatoryProofObligation <urn:usf:proofobligation:localsemanticvalidationtoolchain> ; usf:reliesOnProofResult <urn:usf:proofresult:localsemanticvalidationtoolchain> .
+<urn:usf:defect:typelessdecision> a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:authorisesSourcePath "census/local-semantic-validation" .
+<urn:usf:defect:typelessrealisation> a usf:Realisation ; usf:realisesContract <urn:usf:defect:typelesscontract> ; usf:realisationState <urn:usf:realisationstate:implementable> ; usf:authorisedByDecision <urn:usf:defect:typelessdecision> ; usf:authorisedSourcePath "census/local-semantic-validation" .

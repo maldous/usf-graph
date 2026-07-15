@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:usf:schema:agent-task-packet:00000001",
+  "title": "USF bounded AI-agent task packet",
+  "$comment": "packetDigest is SHA-256 over JCS-canonical packet fields before packetDigest and serializedBytes are added.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "semanticIdentifiers",
+    "authorityDigest",
+    "contractState",
+    "objective",
+    "claims",
+    "nonclaims",
+    "authorisedActions",
+    "authorisedPaths",
+    "authorisedFormats",
+    "acceptanceObligations",
+    "validationObligations",
+    "resultRequirements",
+    "stopConditions",
+    "bounds",
+    "itemCount",
+    "packetDigest",
+    "serializedBytes"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "semanticIdentifiers": { "$ref": "#/$defs/iris" },
+    "authorityDigest": { "$ref": "#/$defs/digest" },
+    "contractState": {
+      "type": "object",
+      "required": ["lifecycle", "activation", "decision", "proof"],
+      "properties": {
+        "lifecycle": { "type": "string", "pattern": "^urn:usf:" },
+        "activation": { "type": "string", "pattern": "^urn:usf:" },
+        "decision": { "type": "string", "pattern": "^urn:usf:" },
+        "proof": { "type": "string", "pattern": "^urn:usf:" }
+      },
+      "additionalProperties": false
+    },
+    "objective": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "claims": { "$ref": "#/$defs/iris" },
+    "nonclaims": { "$ref": "#/$defs/iris" },
+    "authorisedActions": { "$ref": "#/$defs/strings" },
+    "authorisedPaths": { "$ref": "#/$defs/strings" },
+    "authorisedFormats": { "$ref": "#/$defs/iris" },
+    "acceptanceObligations": { "$ref": "#/$defs/iris" },
+    "validationObligations": { "$ref": "#/$defs/iris" },
+    "resultRequirements": { "$ref": "#/$defs/strings" },
+    "stopConditions": { "$ref": "#/$defs/strings" },
+    "bounds": {
+      "type": "object",
+      "required": ["maximumSerializedBytes", "maximumItems"],
+      "properties": {
+        "maximumSerializedBytes": { "const": 65536 },
+        "maximumItems": { "const": 256 }
+      },
+      "additionalProperties": false
+    },
+    "itemCount": { "type": "integer", "minimum": 1, "maximum": 256 },
+    "packetDigest": { "$ref": "#/$defs/digest" },
+    "serializedBytes": { "type": "integer", "minimum": 1, "maximum": 65536 }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "iris": { "type": "array", "maxItems": 256, "uniqueItems": true, "items": { "type": "string", "pattern": "^urn:usf:" } },
+    "strings": { "type": "array", "maxItems": 256, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 1024 } }
+  },
+  "additionalProperties": false
+}

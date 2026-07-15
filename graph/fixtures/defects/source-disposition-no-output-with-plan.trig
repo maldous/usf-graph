@@ -1,0 +1,39 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix policy: <urn:usf:sourcedispositionpolicy:> .
+@prefix fx: <urn:usf:fixture:sourcedisposition:unexpectedplan:> .
+
+GRAPH <urn:usf:graph:observed:sourceartefacts> {
+  <urn:usf:sourceartefact:s6666666666666666666666666666666666666666666666666666666666666666>
+    a usf:SourceArtefact ;
+    usf:canonicalName "s6666666666666666666666666666666666666666666666666666666666666666" ;
+    usf:sourceIdentityDigest "6666666666666666666666666666666666666666666666666666666666666666" ;
+    usf:hasCurrentSourceObservation fx:offffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff .
+  fx:offffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+    a usf:SourceArtefactObservation ;
+    usf:canonicalName "offffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" ;
+    usf:observesSourceArtefact <urn:usf:sourceartefact:s6666666666666666666666666666666666666666666666666666666666666666> ;
+    usf:observedSourcePath "fixtures/no-output.trig" ;
+    usf:observedContentDigest "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" ;
+    usf:observedFileMode "100644" ;
+    usf:observedUniverse <urn:usf:sourceuniverse:graphauthority> ;
+    usf:observedContentRole <urn:usf:sourcecontentrole:fixture> ;
+    usf:observationSetDigest "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" .
+}
+
+GRAPH <urn:usf:graph:derived:sourcedispositions> {
+  <urn:usf:sourceartefact:s6666666666666666666666666666666666666666666666666666666666666666>
+    usf:hasSourceDisposition fx:dffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff .
+  fx:dffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+    a usf:SourceArtefactDisposition ;
+    usf:canonicalName "dffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" ;
+    usf:dispositionOfSourceArtefact <urn:usf:sourceartefact:s6666666666666666666666666666666666666666666666666666666666666666> ;
+    usf:decidedAgainstObservation fx:offffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff ;
+    usf:derivedFromDispositionPolicy policy:fixture ;
+    usf:hasDispositionKind <urn:usf:dispositionkind:retainasset> ;
+    usf:hasDispositionBasis <urn:usf:dispositionbasis:declaredretainedinput> ;
+    usf:hasDispositionDecisionState <urn:usf:dispositiondecisionstate:accepted> ;
+    usf:hasDispositionOutputMode <urn:usf:dispositionoutputmode:nooutput> ;
+    usf:assignedToArtefactPlan <urn:usf:artefactplan:runtimecompose> ;
+    usf:observationSetDigest "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" ;
+    usf:decisionRationale "No-output disposition deliberately carries an artefact plan." .
+}

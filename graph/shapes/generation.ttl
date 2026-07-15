@@ -1,0 +1,145 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix shp: <urn:usf:shacl:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# Generation, build, integrity, release, and clean-room constraints. Detailed
+# execution invariants are also enforced by the whole-dataset integrity query.
+
+shp:ArtefactShape a sh:NodeShape ; usf:canonicalName "artefactshape" ; sh:targetClass usf:Artefact ;
+  sh:property [ sh:path usf:artefactKind ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ArtefactKind ] ;
+  sh:property [ sh:path usf:canonicalPath ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(?!/)(?!.*(?:^|/)(?:v2|legacy|old|new|temp|transitional|usf)(?:/|$))(?!.*(?:^|/)\\.\\.(?:/|$)).+$" ] ;
+  sh:property [ sh:path usf:governedByPathRule ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:PathRule ] ;
+  sh:property [ sh:path usf:canonicalChecksum ; sh:maxCount 1 ; sh:class usf:Checksum ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "materialisedartefactchecksum: built or bundled artefact requires a canonical checksum" ;
+    sh:select """SELECT $this WHERE {
+      { ?build usf:buildsArtefact $this } UNION { ?bundle usf:bundlesArtefact $this }
+      FILTER NOT EXISTS { $this usf:canonicalChecksum ?checksum }
+    }""" ] .
+
+shp:ArtefactPlanShape a sh:NodeShape ; usf:canonicalName "artefactplanshape" ; sh:targetClass usf:ArtefactPlan ;
+  sh:property [ sh:path usf:ownedByRepository ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Repository ] ;
+  sh:property [ sh:path usf:plansArtefact ; sh:minCount 1 ; sh:class usf:Artefact ] ;
+  sh:property [ sh:path usf:plansSemanticResource ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "plannedartifactgenerator: every planned artifact requires exactly one compiler component" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:plansArtefact ?artefact .
+      { FILTER NOT EXISTS { ?artefact usf:generatedByComponent ?component . ?component a/rdfs:subClassOf* usf:CompilerComponent } }
+      UNION
+      { ?artefact usf:generatedByComponent ?left, ?right . FILTER(?left != ?right) }
+    }""" ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "planspecificsemanticresource: source-specific semantic-contract output requires exactly one planned semantic resource" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:plansArtefact ?artefact .
+      ?artefact usf:generatedByComponent <urn:usf:generator:semanticcontract> .
+      FILTER NOT EXISTS { $this usf:plansSemanticResource ?resource }
+    }""" ] .
+
+shp:AutomationWorkflowContractShape a sh:NodeShape ; usf:canonicalName "automationworkflowcontractshape" ; sh:targetClass usf:AutomationWorkflowContract ;
+  sh:property [ sh:path usf:workflowTemplate ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Template ] ;
+  sh:property [ sh:path usf:requiredWorkflowTrigger ; sh:minCount 1 ; sh:class usf:AutomationTrigger ] ;
+  sh:property [ sh:path usf:requiredAutomationPermission ; sh:minCount 1 ; sh:class usf:AutomationPermission ] ;
+  sh:property [ sh:path usf:requiredValidatorRule ; sh:minCount 1 ; sh:class usf:ValidatorRule ] .
+
+shp:CompilerComponentShape a sh:NodeShape ; usf:canonicalName "compilercomponentshape" ; sh:targetClass usf:CompilerComponent ;
+  sh:property [ sh:path usf:semanticInputQuery ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path usf:outputSchema ; sh:minCount 1 ; sh:class usf:Artefact ] ;
+  sh:property [ sh:path usf:outputPathRule ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:PathRule ] ;
+  sh:property [ sh:path usf:integrityPolicy ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Policy ] ;
+  sh:property [ sh:path usf:normalisationPolicy ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Policy ] ;
+  sh:property [ sh:path usf:missingSemanticsConstraint ; sh:minCount 1 ; sh:class usf:Constraint ] ;
+  sh:property [ sh:path usf:requiresEquivalenceKind ; sh:minCount 1 ; sh:class usf:EquivalenceKind ] .
+
+shp:CompilerPhaseShape a sh:NodeShape ; usf:canonicalName "compilerphaseshape" ; sh:targetClass usf:CompilerPhase ;
+  sh:property [ sh:path usf:phaseKind ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:CompilerPhaseKind ] ;
+  sh:property [ sh:path usf:phaseOrder ; sh:minCount 1 ; sh:maxCount 1 ; sh:minInclusive 0 ;
+    sh:or ( [ sh:datatype xsd:integer ] [ sh:datatype xsd:nonNegativeInteger ] ) ] ;
+  sh:property [ sh:path usf:usesComponent ; sh:minCount 1 ; sh:class usf:CompilerComponent ] .
+
+shp:CompilerRunShape a sh:NodeShape ; usf:canonicalName "compilerrunshape" ; sh:targetClass usf:CompilerRun ;
+  sh:property [ sh:path usf:runOfCompiler ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Compiler ] ;
+  sh:property [ sh:path usf:runMode ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:CompilerRunMode ] ;
+  sh:property [ sh:path usf:runState ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:CompilerRunState ] ;
+  sh:property [ sh:path usf:executesPhase ; sh:minCount 1 ; sh:class usf:CompilerPhase ] .
+
+shp:BuildShape a sh:NodeShape ; usf:canonicalName "buildshape" ; sh:targetClass usf:Build ;
+  sh:property [ sh:path usf:buildOfRun ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:CompilerRun ] ;
+  sh:property [ sh:path usf:buildsArtefact ; sh:minCount 1 ; sh:class usf:Artefact ] ;
+  sh:property [ sh:path usf:hasDependencyLock ; sh:minCount 1 ; sh:class usf:DependencyLock ] .
+
+shp:ReleaseShape a sh:NodeShape ; usf:canonicalName "releaseshape" ; sh:targetClass usf:Release ;
+  sh:property [ sh:path usf:releaseFromBuild ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Build ] ;
+  sh:property [ sh:path usf:releaseBundle ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Bundle ] .
+
+shp:VersionShape a sh:NodeShape ; usf:canonicalName "versionshape" ; sh:targetClass usf:Version ;
+  sh:property [ sh:path usf:versionOf ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Artefact ] ;
+  sh:property [ sh:path usf:versionIdentifier ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[+-][0-9A-Za-z.-]+)?$" ] .
+
+shp:CompatibilityContractShape a sh:NodeShape ; usf:canonicalName "compatibilitycontractshape" ; sh:targetClass usf:CompatibilityContract ;
+  sh:property [ sh:path usf:compatibilitySourceVersion ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Version ] ;
+  sh:property [ sh:path usf:compatibilityTargetVersion ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Version ] ;
+  sh:property [ sh:path usf:compatibilityState ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:CompatibilityState ] .
+
+shp:MigrationVersionShape a sh:NodeShape ; usf:canonicalName "migrationversionshape" ; sh:targetClass usf:Migration ;
+  sh:property [ sh:path usf:migratesFromVersion ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Version ] ;
+  sh:property [ sh:path usf:migratesToVersion ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Version ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "migrationidentity: source and target versions must differ" ; sh:select "SELECT $this WHERE { $this usf:migratesFromVersion ?v ; usf:migratesToVersion ?v . }" ] .
+
+shp:ChecksumShape a sh:NodeShape ; usf:canonicalName "checksumshape" ; sh:targetClass usf:Checksum ;
+  sh:property [ sh:path usf:checksumAlgorithm ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ChecksumAlgorithm ] ;
+  sh:property [ sh:path usf:checksumValue ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(?:[0-9a-f]{64}|[0-9a-f]{128})$" ] .
+
+shp:SignatureShape a sh:NodeShape ; usf:canonicalName "signatureshape" ; sh:targetClass usf:Signature ;
+  sh:property [ sh:path usf:signatureMethod ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:SignatureMethod ] ;
+  sh:property [ sh:path usf:signingPolicy ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Policy ] ;
+  sh:property [ sh:path usf:signedBy ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:SigningIdentity ] ;
+  sh:property [ sh:path usf:signatureValue ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] .
+
+shp:SigningIdentityShape a sh:NodeShape ; usf:canonicalName "signingidentityshape" ; sh:targetClass usf:SigningIdentity ;
+  sh:property [ sh:path usf:signingKeyFingerprint ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{64}$" ] .
+
+shp:AttestationShape a sh:NodeShape ; usf:canonicalName "attestationshape" ; sh:targetClass usf:Attestation ;
+  sh:property [ sh:path usf:attestationKind ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:AttestationKind ] ;
+  sh:property [ sh:path usf:attestsTo ; sh:minCount 1 ; sh:class usf:Artefact ] ;
+  sh:property [ sh:path usf:issuedBy ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:SigningIdentity ] ;
+  sh:property [ sh:path usf:canonicalChecksum ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Checksum ] .
+
+shp:ProvenanceRecordShape a sh:NodeShape ; usf:canonicalName "provenancerecordshape" ; sh:targetClass usf:ProvenanceRecord ;
+  sh:property [ sh:path usf:provenanceSubject ; sh:minCount 1 ; sh:class usf:Artefact ] ;
+  sh:property [ sh:path usf:canonicalChecksum ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Checksum ] .
+
+shp:SoftwareBillOfMaterialsShape a sh:NodeShape ; usf:canonicalName "softwarebillofmaterialsshape" ; sh:targetClass usf:SoftwareBillOfMaterials ;
+  sh:property [ sh:path usf:describesDependency ; sh:minCount 1 ; sh:class usf:Artefact ] ;
+  sh:property [ sh:path usf:canonicalChecksum ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Checksum ] .
+
+shp:DependencyLockShape a sh:NodeShape ; usf:canonicalName "dependencylockshape" ; sh:targetClass usf:DependencyLock ;
+  sh:property [ sh:path usf:locksDependency ; sh:minCount 1 ; sh:class usf:Artefact ] ;
+  sh:property [ sh:path usf:lockedVersion ; sh:minCount 1 ; sh:class usf:Version ] ;
+  sh:property [ sh:path usf:lockChecksum ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Checksum ] .
+
+shp:BundleShape a sh:NodeShape ; usf:canonicalName "bundleshape" ; sh:targetClass usf:Bundle ;
+  sh:property [ sh:path usf:bundleKind ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:BundleKind ] ;
+  sh:property [ sh:path usf:bundlesArtefact ; sh:minCount 1 ; sh:class usf:Artefact ] ;
+  sh:property [ sh:path usf:canonicalChecksum ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Checksum ] .
+
+shp:EquivalenceClaimShape a sh:NodeShape ; usf:canonicalName "equivalenceclaimshape" ; sh:targetClass usf:EquivalenceClaim ;
+  sh:property [ sh:path usf:equivalenceKind ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:EquivalenceKind ] ;
+  sh:property [ sh:path usf:equivalenceResult ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:EquivalenceResult ] ;
+  sh:property [ sh:path usf:equivalenceSubject ; sh:minCount 1 ; sh:class usf:Artefact ] ;
+  sh:property [ sh:path usf:equivalenceOracle ; sh:minCount 1 ; sh:class usf:Artefact ] ;
+  sh:property [ sh:path usf:verifiesRun ; sh:minCount 1 ; sh:class usf:CompilerRun ] .
+
+shp:EquivalenceRuleShape a sh:NodeShape ; usf:canonicalName "equivalenceruleshape" ; sh:targetClass usf:EquivalenceRule ;
+  sh:property [ sh:path usf:equivalenceRuleKind ; sh:minCount 1 ; sh:class usf:EquivalenceKind ] ;
+  sh:property [ sh:path usf:equivalenceRuleComponent ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:CompilerComponent ] ;
+  sh:property [ sh:path usf:equivalenceRuleInputRole ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:GenerationInputRole ] ;
+  sh:property [ sh:path usf:equivalenceRuleComparesPredicate ; sh:minCount 1 ; sh:nodeKind sh:IRI ] ;
+  sh:property [ sh:path usf:equivalenceRuleFailureCode ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[A-Z]+-[A-Z]+-[0-9]{3}$" ] .
+
+shp:CleanRoomGenerationShape a sh:NodeShape ; usf:canonicalName "cleanroomgenerationshape" ; sh:targetClass usf:CleanRoomGeneration ;
+  sh:property [ sh:path usf:cleanRoomInput ; sh:minCount 1 ; sh:class usf:Artefact ] ;
+  sh:property [ sh:path usf:cleanRoomOutput ; sh:minCount 1 ; sh:class usf:Artefact ] ;
+  sh:property [ sh:path usf:cleanRoomEquivalence ; sh:minCount 1 ; sh:class usf:EquivalenceClaim ] ;
+  sh:property [ sh:path usf:sourceIntegrityChecksum ; sh:minCount 1 ; sh:class usf:Checksum ] ;
+  sh:property [ sh:path usf:deterministicOutputChecksum ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Checksum ] .

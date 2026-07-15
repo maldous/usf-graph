@@ -1,0 +1,1 @@
+@prefix usf: <urn:usf:ontology:> . @prefix confidence: <urn:usf:proofconfidencestate:> . <urn:usf:defect:confidencewithoutproof> a usf:ProofResult ; usf:hasConfidenceState confidence:warranted .

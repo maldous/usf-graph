@@ -1,0 +1,188 @@
+PREFIX usf: <urn:usf:ontology:>
+PREFIX oe: <urn:usf:obligationeffect:>
+PREFIX fresh: <urn:usf:freshness:>
+PREFIX rds: <urn:usf:readinessstate:>
+PREFIX rr: <urn:usf:readinessreason:>
+# Replacement rule 1. One deterministic state per capability. Every applicable
+# blocking proof, test, and evidence obligation must be satisfied; partial
+# existential coverage can never produce ready.
+CONSTRUCT {
+  ?readiness a usf:Readiness ; usf:canonicalName ?name ; usf:readinessOf ?capability ;
+      usf:readinessState ?state ; usf:readinessRung ?rung ;
+      usf:readinessReason ?reason ; usf:derivedFrom ?capability .
+}
+WHERE {
+  ?capability a usf:Capability ; usf:hasContract ?subject .
+  BIND(SHA256(STR(?capability)) AS ?digest)
+  BIND(CONCAT("r", ?digest) AS ?name)
+  BIND(IRI(CONCAT("urn:usf:readiness:", ?name)) AS ?readiness)
+  BIND(EXISTS {
+    ?obligation a usf:AssuranceObligation ; usf:obligationFor ?subject ; usf:obligationEffect oe:blocking .
+  } AS ?evaluated)
+  BIND(EXISTS {
+    ?obligation a usf:AssuranceObligation ; usf:obligationFor ?subject ; usf:obligationEffect oe:blocking .
+    VALUES (?obligationClass ?satisfaction) {
+      (usf:ProofObligation usf:satisfiedByProofResult)
+      (usf:TestObligation usf:satisfiedByTestResult)
+      (usf:EvidenceRequirement usf:satisfiedByEvidence)
+    }
+    ?obligation a ?obligationClass .
+    FILTER NOT EXISTS { ?obligation ?satisfaction ?result }
+  } AS ?missingBlocking)
+  BIND(EXISTS {
+    ?requirement a usf:EvidenceRequirement ; usf:obligationFor ?subject .
+    ?evidence a usf:EvidenceResult ; usf:evidenceFor ?subject ; usf:hasFreshness fresh:stale .
+    FILTER NOT EXISTS { ?requirement usf:satisfiedByEvidence ?evidence }
+  } AS ?stale)
+  BIND(EXISTS {
+    ?requirement a usf:EvidenceRequirement ; usf:obligationFor ?subject ; usf:requiresProviderMode ?requiredMode .
+    ?evidence a usf:EvidenceResult ; usf:evidenceFor ?subject ; usf:usesProviderMode ?actualMode .
+    FILTER(?requiredMode != ?actualMode)
+  } AS ?providerMismatch)
+  BIND(EXISTS {
+    ?requirement a usf:EvidenceRequirement ; usf:obligationFor ?subject ; usf:requiresEnvironmentClass ?requiredEnvironment .
+    ?evidence a usf:EvidenceResult ; usf:evidenceFor ?subject ; usf:inEnvironment/usf:hasEnvironmentClass ?actualEnvironment .
+    FILTER(?requiredEnvironment != ?actualEnvironment)
+  } AS ?environmentMismatch)
+  BIND(EXISTS {
+    ?requirement a usf:EvidenceRequirement ; usf:obligationFor ?subject .
+    ?evidence a usf:EvidenceResult ; usf:evidenceFor ?subject .
+    FILTER NOT EXISTS { ?evidence usf:evidenceSignature ?signature }
+  } AS ?unsignedEvidence)
+  BIND(EXISTS {
+    ?requirement a usf:EvidenceRequirement ; usf:obligationFor ?subject .
+    ?evidence a usf:EvidenceResult ; usf:evidenceFor ?subject .
+    FILTER NOT EXISTS {
+      ?evidence usf:integrityVerification ?verification .
+      ?verification usf:verifiesEvidence ?evidence ; usf:verificationState <urn:usf:resultstate:passed> .
+    }
+  } AS ?integrityUnverified)
+  BIND(EXISTS {
+    ?testObligation a usf:TestObligation ; usf:obligationFor ?subject .
+    ?test usf:testsSubject|usf:testsContract|usf:testsControl ?subject .
+    ?testResult a usf:TestResult ; usf:resultForTest ?test ; usf:resultState <urn:usf:resultstate:failed> .
+  } AS ?failedTest)
+  BIND(EXISTS {
+    ?obligation a usf:AssuranceObligation ; usf:obligationFor ?subject ; usf:obligationEffect oe:advisory .
+    VALUES (?obligationClass ?satisfaction) {
+      (usf:ProofObligation usf:satisfiedByProofResult)
+      (usf:TestObligation usf:satisfiedByTestResult)
+      (usf:EvidenceRequirement usf:satisfiedByEvidence)
+    }
+    ?obligation a ?obligationClass .
+    FILTER NOT EXISTS { ?obligation ?satisfaction ?result }
+  } AS ?missingAdvisory)
+  BIND(IF(!?evaluated, rds:unknown,
+       IF(?providerMismatch || ?environmentMismatch, rds:incompatible,
+       IF(?stale, rds:stale,
+       IF(?missingBlocking, rds:notready,
+       IF(?missingAdvisory, rds:degraded, rds:ready))))) AS ?state)
+  BIND(IF(!?evaluated, rr:unknownevaluation,
+       IF(?providerMismatch, rr:incompatibleprovidermode,
+       IF(?environmentMismatch, rr:incompatibleenvironment,
+       IF(?stale, rr:staleevidence,
+       IF(?failedTest, rr:failedtest,
+       IF(?unsignedEvidence, rr:unsignedevidence,
+       IF(?integrityUnverified, rr:integrityunverified,
+       IF(?missingBlocking, rr:missingblockingobligation,
+       IF(?missingAdvisory, rr:degradedadvisory, rr:satisfied))))))))) AS ?reason)
+  BIND(IF(?state IN (rds:ready, rds:degraded), <urn:usf:proofrung:behaviour>, <urn:usf:proofrung:discovery>) AS ?rung)
+}
+#---NEXT---#
+PREFIX usf: <urn:usf:ontology:>
+PREFIX oe: <urn:usf:obligationeffect:>
+PREFIX fresh: <urn:usf:freshness:>
+PREFIX rds: <urn:usf:readinessstate:>
+PREFIX rr: <urn:usf:readinessreason:>
+# Replacement rule 2. Gate state uses the same universal blocking semantics and
+# precedence, ensuring one non-conflicting state for release, artefact,
+# enterprise, UI, and live-Stardog gates.
+CONSTRUCT {
+  ?result a usf:ReadinessGateResult ; usf:canonicalName ?name ; usf:gateResultOf ?gate ;
+      usf:gateReadinessState ?state ; usf:gateReadinessReason ?reason ; usf:derivedFrom ?gate .
+}
+WHERE {
+  ?gate a usf:ReadinessGate .
+  BIND(SHA256(STR(?gate)) AS ?digest)
+  BIND(CONCAT("g", ?digest) AS ?name)
+  BIND(IRI(CONCAT("urn:usf:readinessgateresult:", ?name)) AS ?result)
+  BIND(EXISTS {
+    ?criterion usf:requiredByGate ?gate .
+    ?obligation a usf:AssuranceObligation ; usf:obligationFor ?criterion ; usf:obligationEffect oe:blocking .
+  } AS ?evaluated)
+  BIND(EXISTS {
+    ?criterion usf:requiredByGate ?gate .
+    ?obligation a usf:AssuranceObligation ; usf:obligationFor ?criterion ; usf:obligationEffect oe:blocking .
+    VALUES (?obligationClass ?satisfaction) {
+      (usf:ProofObligation usf:satisfiedByProofResult)
+      (usf:TestObligation usf:satisfiedByTestResult)
+      (usf:EvidenceRequirement usf:satisfiedByEvidence)
+    }
+    ?obligation a ?obligationClass .
+    FILTER NOT EXISTS { ?obligation ?satisfaction ?observation }
+  } AS ?missingBlocking)
+  BIND(EXISTS {
+    ?criterion usf:requiredByGate ?gate .
+    ?requirement a usf:EvidenceRequirement ; usf:obligationFor ?criterion .
+    ?evidence a usf:EvidenceResult ; usf:evidenceFor ?criterion ; usf:hasFreshness fresh:stale .
+    FILTER NOT EXISTS { ?requirement usf:satisfiedByEvidence ?evidence }
+  } AS ?stale)
+  BIND(EXISTS {
+    ?criterion usf:requiredByGate ?gate .
+    ?requirement a usf:EvidenceRequirement ; usf:obligationFor ?criterion ; usf:requiresProviderMode ?requiredMode .
+    ?evidence a usf:EvidenceResult ; usf:evidenceFor ?criterion ; usf:usesProviderMode ?actualMode .
+    FILTER(?requiredMode != ?actualMode)
+  } AS ?providerMismatch)
+  BIND(EXISTS {
+    ?criterion usf:requiredByGate ?gate .
+    ?requirement a usf:EvidenceRequirement ; usf:obligationFor ?criterion ; usf:requiresEnvironmentClass ?requiredEnvironment .
+    ?evidence a usf:EvidenceResult ; usf:evidenceFor ?criterion ; usf:inEnvironment/usf:hasEnvironmentClass ?actualEnvironment .
+    FILTER(?requiredEnvironment != ?actualEnvironment)
+  } AS ?environmentMismatch)
+  BIND(EXISTS {
+    ?criterion usf:requiredByGate ?gate .
+    ?requirement a usf:EvidenceRequirement ; usf:obligationFor ?criterion .
+    ?evidence a usf:EvidenceResult ; usf:evidenceFor ?criterion .
+    FILTER NOT EXISTS { ?evidence usf:evidenceSignature ?signature }
+  } AS ?unsignedEvidence)
+  BIND(EXISTS {
+    ?criterion usf:requiredByGate ?gate .
+    ?requirement a usf:EvidenceRequirement ; usf:obligationFor ?criterion .
+    ?evidence a usf:EvidenceResult ; usf:evidenceFor ?criterion .
+    FILTER NOT EXISTS {
+      ?evidence usf:integrityVerification ?verification .
+      ?verification usf:verifiesEvidence ?evidence ; usf:verificationState <urn:usf:resultstate:passed> .
+    }
+  } AS ?integrityUnverified)
+  BIND(EXISTS {
+    ?criterion usf:requiredByGate ?gate .
+    ?testObligation a usf:TestObligation ; usf:obligationFor ?criterion .
+    ?test usf:testsSubject ?criterion .
+    ?testResult a usf:TestResult ; usf:resultForTest ?test ; usf:resultState <urn:usf:resultstate:failed> .
+  } AS ?failedTest)
+  BIND(EXISTS {
+    ?criterion usf:requiredByGate ?gate .
+    ?obligation a usf:AssuranceObligation ; usf:obligationFor ?criterion ; usf:obligationEffect oe:advisory .
+    VALUES (?obligationClass ?satisfaction) {
+      (usf:ProofObligation usf:satisfiedByProofResult)
+      (usf:TestObligation usf:satisfiedByTestResult)
+      (usf:EvidenceRequirement usf:satisfiedByEvidence)
+    }
+    ?obligation a ?obligationClass .
+    FILTER NOT EXISTS { ?obligation ?satisfaction ?observation }
+  } AS ?missingAdvisory)
+  BIND(IF(!?evaluated, rds:unknown,
+       IF(?providerMismatch || ?environmentMismatch, rds:incompatible,
+       IF(?stale, rds:stale,
+       IF(?missingBlocking, rds:notready,
+       IF(?missingAdvisory, rds:degraded, rds:ready))))) AS ?state)
+  BIND(IF(!?evaluated, rr:unknownevaluation,
+       IF(?providerMismatch, rr:incompatibleprovidermode,
+       IF(?environmentMismatch, rr:incompatibleenvironment,
+       IF(?stale, rr:staleevidence,
+       IF(?failedTest, rr:failedtest,
+       IF(?unsignedEvidence, rr:unsignedevidence,
+       IF(?integrityUnverified, rr:integrityunverified,
+       IF(?missingBlocking, rr:missingblockingobligation,
+       IF(?missingAdvisory, rr:degradedadvisory, rr:satisfied))))))))) AS ?reason)
+}

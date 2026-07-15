@@ -1,0 +1,16 @@
+# conforming
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+@prefix pmode: <urn:usf:providermode:> .
+
+<urn:usf:graph:bindings> {
+    fixt:coherentadapter a usf:Adapter ;
+        usf:canonicalName "coherentadapter" ;
+        usf:implementsPort fixt:portX ;
+        usf:bindsProvider fixt:providerX .
+    fixt:providerX a usf:Provider ;
+        usf:canonicalName "providerx" ;
+        usf:hasProviderMode pmode:hermeticmock ;
+        usf:fulfilsPort fixt:portX .
+    fixt:portX a usf:Port ; usf:canonicalName "portx" .
+}

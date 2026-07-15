@@ -1,0 +1,79 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix shp: <urn:usf:shacl:> .
+
+# Shapes constraining derived graph state. These validate the output of the derivation rules.
+
+shp:ProofObligationShape a sh:NodeShape ;
+    usf:canonicalName "proofobligationshape" ;
+    sh:targetClass usf:ProofObligation ;
+    sh:property [ sh:path usf:obligationFor ; sh:minCount 1 ;
+        sh:message "obligationsubject: proof obligation must name what it is for" ] ;
+    sh:property [ sh:path usf:requiresRung ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ProofRung ;
+        sh:message "obligationrung: proof obligation must require one minimum rung" ] ;
+    sh:property [ sh:path usf:derivedFrom ; sh:minCount 1 ;
+        sh:message "derivedprovenance: derived entity must record its authored source" ] .
+
+shp:TestObligationShape a sh:NodeShape ;
+    usf:canonicalName "testobligationshape" ;
+    sh:targetClass usf:TestObligation ;
+    sh:property [ sh:path usf:obligationFor ; sh:minCount 1 ;
+        sh:message "obligationsubject: test obligation must name what it is for" ] ;
+    sh:property [ sh:path usf:derivedFrom ; sh:minCount 1 ] .
+
+shp:EvidenceRequirementShape a sh:NodeShape ;
+    usf:canonicalName "evidencerequirementshape" ;
+    sh:targetClass usf:EvidenceRequirement ;
+    sh:property [ sh:path usf:requiresEvidenceKind ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:EvidenceKind ] ;
+    sh:property [ sh:path usf:requiresFreshness ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Freshness ] ;
+    sh:property [ sh:path usf:derivedFrom ; sh:minCount 1 ] .
+
+shp:SurfaceShape a sh:NodeShape ;
+    usf:canonicalName "surfaceshape" ;
+    sh:targetClass usf:DerivedSurface ;
+    sh:property [ sh:path usf:surfaceOf ; sh:minCount 1 ;
+        sh:message "surfacesubject: surface must name what it surfaces" ] ;
+    sh:property [ sh:path usf:derivedFrom ; sh:minCount 1 ] .
+
+shp:CoverageShape a sh:NodeShape ;
+    usf:canonicalName "coverageshape" ;
+    sh:targetClass usf:Coverage ;
+    sh:property [ sh:path usf:coverageOf ; sh:minCount 1 ] ;
+    sh:property [ sh:path usf:coverageState ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:CoverageState ] ;
+    sh:property [ sh:path usf:derivedFrom ; sh:minCount 1 ] .
+
+shp:ReadinessShape a sh:NodeShape ;
+    usf:canonicalName "readinessshape" ;
+    sh:targetClass usf:Readiness ;
+    sh:property [ sh:path usf:readinessOf ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Capability ;
+        sh:message "readinesssubject: readiness must be of exactly one capability" ] ;
+    sh:property [ sh:path usf:readinessState ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ReadinessState ] ;
+    sh:property [ sh:path usf:readinessRung ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ProofRung ] ;
+    sh:property [ sh:path usf:derivedFrom ; sh:minCount 1 ;
+        sh:message "derivedprovenance: readiness must record the authored state it was derived from" ] .
+
+# Provider-mode compatibility: an evidence result that satisfies a requirement must use a
+# provider mode the requirement permits (hermetic-mock never satisfies a live requirement).
+shp:EvidenceSatisfactionShape a sh:NodeShape ;
+    usf:canonicalName "evidencesatisfactionshape" ;
+    sh:targetClass usf:EvidenceResult ;
+    sh:sparql [
+        sh:message "providermismatch: evidence provider mode is not permitted by the requirement it satisfies" ;
+        sh:prefixes usf:prefixes ;
+        sh:select """SELECT $this WHERE {
+            $this usf:satisfies ?req .
+            $this usf:usesProviderMode ?pm .
+            ?req usf:requiresProviderMode ?need .
+            FILTER NOT EXISTS { $this usf:usesProviderMode ?need }
+            FILTER(?pm != ?need)
+        }""" ;
+    ] ;
+    sh:sparql [
+        sh:message "staleevidence: stale evidence cannot satisfy a requirement that requires fresh evidence" ;
+        sh:prefixes usf:prefixes ;
+        sh:select """SELECT $this WHERE {
+            $this usf:satisfies ?req .
+            $this usf:hasFreshness ?f . ?f usf:canonicalName "stale" .
+            ?req usf:requiresFreshness ?rf . ?rf usf:canonicalName "fresh" .
+        }""" ;
+    ] .

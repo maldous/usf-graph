@@ -1,0 +1,24 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix fx: <urn:usf:fixture:sourceboundplanorphan:> .
+
+GRAPH <urn:usf:graph:fixture:sourceboundplanorphan> {
+  fx:binding a usf:SourceSemanticBinding ;
+    usf:sourceBindingSource fx:source ;
+    usf:sourceBindingArtefactPlan fx:plan .
+  fx:plan a usf:ArtefactPlan ;
+    usf:ownedByRepository fx:repository ;
+    usf:plansArtefact fx:artefact .
+  fx:repository a usf:Repository .
+  fx:artefact a usf:Artefact ;
+    usf:canonicalPath "generated/orphan-source-binding.json" ;
+    usf:artefactKind <urn:usf:artefactkind:contract> ;
+    usf:governedByPathRule fx:pathrule ;
+    usf:generatedByComponent fx:generator .
+  fx:pathrule usf:pathPattern "generated/orphan-source-binding.json" .
+  fx:generator a usf:CompilerComponent ;
+    usf:semanticInputQuery "SELECT ?resource WHERE { ?resource a <urn:usf:ontology:SemanticContract> . }" ;
+    usf:outputSchema fx:artefact ; usf:outputPathRule fx:pathrule ;
+    usf:integrityPolicy fx:integritypolicy ; usf:normalisationPolicy fx:normalisationpolicy ;
+    usf:missingSemanticsConstraint fx:missingconstraint ;
+    usf:requiresEquivalenceKind <urn:usf:equivalencekind:semantic> .
+}

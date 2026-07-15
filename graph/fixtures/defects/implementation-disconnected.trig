@@ -1,0 +1,7 @@
+# graph: urn:usf:graph:implementations
+# expect: implementationdisconnected
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+
+fixt:disconnectedimplementation a usf:Implementation ;
+    usf:canonicalName "disconnectedimplementation" .

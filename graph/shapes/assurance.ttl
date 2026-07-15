@@ -1,0 +1,201 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix shp: <urn:usf:shacl:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+shp:ProofShape a sh:NodeShape ;
+    usf:canonicalName "proofshape" ;
+    sh:targetClass usf:Proof ;
+    sh:property [ sh:path usf:atRung ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ProofRung ;
+        sh:message "proofrung: proof must state one rung" ] ;
+    sh:property [ sh:path usf:usesProviderMode ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ProviderMode ;
+        sh:message "proofprovidermode: proof must record its provider mode" ] ;
+    sh:property [ sh:path usf:inEnvironment ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Environment ;
+        sh:message "proofenvironment: proof must record its environment" ] ;
+    sh:property [ sh:path usf:exercises ; sh:minCount 1 ; sh:class usf:SemanticContract ;
+        sh:message "proofexercises: proof must exercise at least one semantic contract" ] .
+
+shp:ProofExecutionShape a sh:NodeShape ;
+    usf:canonicalName "proofexecutionshape" ;
+    sh:targetClass usf:ProofExecution ;
+    sh:property [ sh:path usf:executesProof ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Proof ] ;
+    sh:property [ sh:path usf:producesResult ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ProofResult ] .
+
+shp:ProofResultShape a sh:NodeShape ;
+    usf:canonicalName "proofresultshape" ;
+    sh:targetClass usf:ProofResult ;
+    sh:property [ sh:path usf:claimedRung ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ProofRung ] ;
+    sh:property [ sh:path usf:observedRung ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ProofRung ] ;
+    sh:property [ sh:path usf:hasFreshness ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Freshness ] ;
+    sh:sparql [
+        sh:message "readinessoverclaim: claimed rung exceeds observed rung" ;
+        sh:prefixes usf:prefixes ;
+        sh:select """SELECT $this WHERE {
+            $this usf:claimedRung ?c . ?c usf:rungOrder ?co .
+            $this usf:observedRung ?o . ?o usf:rungOrder ?oo .
+            FILTER(?co > ?oo)
+        }""" ;
+    ] .
+
+shp:EvidenceResultShape a sh:NodeShape ;
+    usf:canonicalName "evidenceresultshape" ;
+    sh:targetClass usf:EvidenceResult ;
+    sh:property [ sh:path usf:evidenceKind ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:EvidenceKind ] ;
+    sh:property [ sh:path usf:usesProviderMode ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ProviderMode ;
+        sh:message "evidenceprovidermode: evidence result must record its provider mode" ] ;
+    sh:property [ sh:path usf:inEnvironment ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Environment ] ;
+    sh:property [ sh:path usf:hasFreshness ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Freshness ] ;
+    sh:property [ sh:path usf:evidenceForContract ; sh:minCount 1 ; sh:class usf:SemanticContract ;
+        sh:message "evidencecontract: evidence result must attach to a semantic contract" ] .
+
+shp:ControlShape a sh:NodeShape ;
+    usf:canonicalName "controlshape" ;
+    sh:targetClass usf:Control ;
+    sh:property [ sh:path usf:achievesObjective ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ControlObjective ;
+        sh:message "controlobjective: control must achieve exactly one objective" ] ;
+    sh:property [ sh:path usf:mapsToFrameworkControl ; sh:minCount 1 ; sh:class usf:FrameworkControl ;
+        sh:message "controlframeworkmapping: control must map to declared framework controls" ] ;
+    sh:property [ sh:path usf:mitigates ; sh:minCount 1 ; sh:class usf:Risk ;
+        sh:message "controlrisk: control must mitigate at least one risk" ] ;
+    sh:property [ sh:path usf:hasScopeMapping ; sh:minCount 1 ; sh:class usf:ControlScopeMapping ;
+        sh:message "controlmapping: control must have at least one reason-coded scope mapping" ] ;
+    sh:property [ sh:path usf:hasControlImplementation ; sh:minCount 1 ; sh:class usf:ControlImplementation ;
+        sh:message "controlimplementation: control must have an owned implementation record" ] .
+
+shp:RiskShape a sh:NodeShape ;
+    usf:canonicalName "riskshape" ;
+    sh:targetClass usf:Risk ;
+    sh:property [ sh:path usf:riskSeverity ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:RiskSeverity ] ;
+    sh:property [ sh:path usf:hasRiskAssessment ; sh:minCount 1 ; sh:class usf:RiskAssessment ] ;
+    sh:property [ sh:path usf:hasRiskTreatment ; sh:minCount 1 ; sh:class usf:RiskTreatment ] .
+
+shp:FrameworkEditionShape a sh:NodeShape ;
+    usf:canonicalName "frameworkeditionshape" ;
+    sh:targetClass usf:FrameworkEdition ;
+    sh:property [ sh:path usf:editionOfFramework ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:AssuranceFramework ] ;
+    sh:property [ sh:path usf:frameworkEditionIdentifier ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path usf:frameworkReference ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path usf:hasFrameworkClause ; sh:minCount 1 ; sh:class usf:FrameworkClause ] ;
+    sh:property [ sh:path usf:hasFrameworkControl ; sh:minCount 1 ; sh:class usf:FrameworkControl ] .
+
+shp:FrameworkClauseShape a sh:NodeShape ;
+    usf:canonicalName "frameworkclauseshape" ;
+    sh:targetClass usf:FrameworkClause ;
+    sh:property [ sh:path usf:frameworkReference ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] .
+
+shp:FrameworkControlShape a sh:NodeShape ;
+    usf:canonicalName "frameworkcontrolshape" ;
+    sh:targetClass usf:FrameworkControl ;
+    sh:property [ sh:path usf:frameworkReference ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^A\\.[5-8]\\.[0-9]+$" ] .
+
+shp:ControlScopeMappingShape a sh:NodeShape ;
+    usf:canonicalName "controlscopemappingshape" ;
+    sh:targetClass usf:ControlScopeMapping ;
+    sh:property [ sh:path usf:mappingControl ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Control ] ;
+    sh:property [ sh:path usf:mappingContract ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:SemanticContract ] ;
+    sh:property [ sh:path usf:mappingCapability ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Capability ] ;
+    sh:property [ sh:path usf:mappingReason ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ControlMappingReason ] ;
+    sh:property [ sh:path usf:mappingRationale ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 12 ] .
+
+shp:ControlImplementationShape a sh:NodeShape ;
+    usf:canonicalName "controlimplementationshape" ;
+    sh:targetClass usf:ControlImplementation ;
+    sh:property [ sh:path usf:implementsControl ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Control ] ;
+    sh:property [ sh:path usf:implementationStatus ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ControlStatus ] ;
+    sh:property [ sh:path usf:accountableOwner ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:AssuranceOwnerRole ] .
+
+shp:StatementOfApplicabilityShape a sh:NodeShape ;
+    usf:canonicalName "statementofapplicabilityshape" ;
+    sh:targetClass usf:StatementOfApplicability ;
+    sh:property [ sh:path usf:soaForEdition ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:FrameworkEdition ] ;
+    sh:property [ sh:path usf:soaScope ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 12 ] ;
+    sh:property [ sh:path usf:hasApplicabilityDecision ; sh:minCount 1 ; sh:class usf:ApplicabilityDecision ] ;
+    sh:property [ sh:path usf:approvalState ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ControlStatus ] ;
+    sh:sparql [
+        sh:message "soadecisionparity: SoA must contain exactly one decision for every control in its edition and none outside it" ;
+        sh:prefixes usf:prefixes ;
+        sh:select """SELECT $this WHERE {
+          $this usf:soaForEdition ?edition .
+          { ?edition usf:hasFrameworkControl ?control .
+            FILTER NOT EXISTS { $this usf:hasApplicabilityDecision/usf:decisionForControl ?control } }
+          UNION
+          { $this usf:hasApplicabilityDecision/usf:decisionForControl ?control .
+            FILTER NOT EXISTS { ?edition usf:hasFrameworkControl ?control } }
+          UNION
+          { $this usf:hasApplicabilityDecision ?first, ?second .
+            ?first usf:decisionForControl ?control . ?second usf:decisionForControl ?control .
+            FILTER(STR(?first) < STR(?second)) }
+        }""" ] ;
+    sh:sparql [
+        sh:message "soaapproval: approved SoA cannot contain pending decisions and requires independent review" ;
+        sh:prefixes usf:prefixes ;
+        sh:select """SELECT $this WHERE {
+          $this usf:approvalState <urn:usf:controlstatus:approved> .
+          { FILTER NOT EXISTS { $this usf:soaApprovedByReview ?review } }
+          UNION
+          { $this usf:hasApplicabilityDecision/usf:applicabilityStatus <urn:usf:applicabilitystatus:pendingassessment> }
+        }""" ] .
+
+shp:ApplicabilityDecisionShape a sh:NodeShape ;
+    usf:canonicalName "applicabilitydecisionshape" ;
+    sh:targetClass usf:ApplicabilityDecision ;
+    sh:property [ sh:path usf:decisionForControl ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:FrameworkControl ] ;
+    sh:property [ sh:path usf:applicabilityStatus ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ApplicabilityStatus ] ;
+    sh:property [ sh:path usf:applicabilityRationale ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 12 ] ;
+    sh:sparql [
+        sh:message "applicabilitysupport: applicable decisions require implementation; not-applicable decisions require review" ;
+        sh:prefixes usf:prefixes ;
+        sh:select """SELECT $this WHERE {
+          { $this usf:applicabilityStatus <urn:usf:applicabilitystatus:applicable> .
+            FILTER NOT EXISTS { $this usf:implementedBy ?implementation } }
+          UNION
+          { $this usf:applicabilityStatus <urn:usf:applicabilitystatus:notapplicable> .
+            FILTER NOT EXISTS { $this usf:approvedByReview ?review } }
+        }""" ] .
+
+shp:RiskAssessmentShape a sh:NodeShape ;
+    usf:canonicalName "riskassessmentshape" ;
+    sh:targetClass usf:RiskAssessment ;
+    sh:property [ sh:path usf:assessmentForRisk ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Risk ] ;
+    sh:property [ sh:path usf:inherentLikelihood ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:integer ; sh:minInclusive 1 ; sh:maxInclusive 5 ] ;
+    sh:property [ sh:path usf:inherentImpact ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:integer ; sh:minInclusive 1 ; sh:maxInclusive 5 ] ;
+    sh:property [ sh:path usf:inherentScore ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:integer ; sh:minInclusive 1 ; sh:maxInclusive 25 ] ;
+    sh:property [ sh:path usf:residualLikelihood ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:integer ; sh:minInclusive 1 ; sh:maxInclusive 5 ] ;
+    sh:property [ sh:path usf:residualImpact ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:integer ; sh:minInclusive 1 ; sh:maxInclusive 5 ] ;
+    sh:property [ sh:path usf:residualScore ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:integer ; sh:minInclusive 1 ; sh:maxInclusive 25 ] ;
+    sh:sparql [
+        sh:message "riskscore: scores must equal likelihood times impact and residual cannot exceed inherent" ;
+        sh:prefixes usf:prefixes ;
+        sh:select """SELECT $this WHERE {
+          $this usf:inherentLikelihood ?il ; usf:inherentImpact ?ii ; usf:inherentScore ?is ;
+                usf:residualLikelihood ?rl ; usf:residualImpact ?ri ; usf:residualScore ?rs .
+          FILTER(?is != (?il * ?ii) || ?rs != (?rl * ?ri) || ?rs > ?is)
+        }""" ] .
+
+shp:RiskTreatmentShape a sh:NodeShape ;
+    usf:canonicalName "risktreatmentshape" ;
+    sh:targetClass usf:RiskTreatment ;
+    sh:property [ sh:path usf:treatmentForRisk ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Risk ] ;
+    sh:property [ sh:path usf:treatmentStatus ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:TreatmentStatus ] ;
+    sh:property [ sh:path usf:treatmentUsesControl ; sh:minCount 1 ; sh:class usf:Control ] .
+
+shp:TestShape a sh:NodeShape ;
+    usf:canonicalName "testshape" ;
+    sh:targetClass usf:Test ;
+    sh:or (
+        [ sh:property [ sh:path usf:testsContract ; sh:minCount 1 ] ]
+        [ sh:property [ sh:path usf:testsControl ; sh:minCount 1 ] ]
+    ) ;
+    sh:message "testsubject: test must verify a contract or a control" .
+
+shp:FixtureShape a sh:NodeShape ;
+    usf:canonicalName "fixtureshape" ;
+    sh:targetClass usf:Fixture ;
+    sh:property [ sh:path usf:conforming ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:boolean ;
+        sh:message "fixtureconforming: fixture must state whether it conforms" ] .
+
+shp:DefectShape a sh:NodeShape ;
+    usf:canonicalName "defectshape" ;
+    sh:targetClass usf:Defect ;
+    sh:property [ sh:path [ sh:inversePath usf:detectsDefect ] ; sh:minCount 1 ;
+        sh:message "defectcoverage: every defect must be detected by at least one validator rule" ] .

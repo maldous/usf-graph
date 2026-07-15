@@ -1,0 +1,48 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix policy: <urn:usf:sourcedispositionpolicy:> .
+@prefix fx: <urn:usf:fixture:sourcedisposition:stale:> .
+
+GRAPH <urn:usf:graph:observed:sourceartefacts> {
+  <urn:usf:sourceartefact:s7777777777777777777777777777777777777777777777777777777777777777>
+    a usf:SourceArtefact ;
+    usf:canonicalName "s7777777777777777777777777777777777777777777777777777777777777777" ;
+    usf:sourceIdentityDigest "7777777777777777777777777777777777777777777777777777777777777777" ;
+    usf:hasCurrentSourceObservation fx:o1111111111111111111111111111111111111111111111111111111111111111 .
+  fx:o1111111111111111111111111111111111111111111111111111111111111111
+    a usf:SourceArtefactObservation ;
+    usf:canonicalName "o1111111111111111111111111111111111111111111111111111111111111111" ;
+    usf:observesSourceArtefact <urn:usf:sourceartefact:s7777777777777777777777777777777777777777777777777777777777777777> ;
+    usf:observedSourcePath "fixtures/current.trig" ;
+    usf:observedContentDigest "1111111111111111111111111111111111111111111111111111111111111111" ;
+    usf:observedFileMode "100644" ;
+    usf:observedUniverse <urn:usf:sourceuniverse:graphauthority> ;
+    usf:observedContentRole <urn:usf:sourcecontentrole:fixture> ;
+    usf:observationSetDigest "1111111111111111111111111111111111111111111111111111111111111111" .
+  fx:o2222222222222222222222222222222222222222222222222222222222222222
+    a usf:SourceArtefactObservation ;
+    usf:canonicalName "o2222222222222222222222222222222222222222222222222222222222222222" ;
+    usf:observesSourceArtefact <urn:usf:sourceartefact:s7777777777777777777777777777777777777777777777777777777777777777> ;
+    usf:observedSourcePath "fixtures/previous.trig" ;
+    usf:observedContentDigest "2222222222222222222222222222222222222222222222222222222222222222" ;
+    usf:observedFileMode "100644" ;
+    usf:observedUniverse <urn:usf:sourceuniverse:graphauthority> ;
+    usf:observedContentRole <urn:usf:sourcecontentrole:fixture> ;
+    usf:observationSetDigest "2222222222222222222222222222222222222222222222222222222222222222" .
+}
+
+GRAPH <urn:usf:graph:derived:sourcedispositions> {
+  <urn:usf:sourceartefact:s7777777777777777777777777777777777777777777777777777777777777777>
+    usf:hasSourceDisposition fx:d2222222222222222222222222222222222222222222222222222222222222222 .
+  fx:d2222222222222222222222222222222222222222222222222222222222222222
+    a usf:SourceArtefactDisposition ;
+    usf:canonicalName "d2222222222222222222222222222222222222222222222222222222222222222" ;
+    usf:dispositionOfSourceArtefact <urn:usf:sourceartefact:s7777777777777777777777777777777777777777777777777777777777777777> ;
+    usf:decidedAgainstObservation fx:o2222222222222222222222222222222222222222222222222222222222222222 ;
+    usf:derivedFromDispositionPolicy policy:fixture ;
+    usf:hasDispositionKind <urn:usf:dispositionkind:retainasset> ;
+    usf:hasDispositionBasis <urn:usf:dispositionbasis:declaredretainedinput> ;
+    usf:hasDispositionDecisionState <urn:usf:dispositiondecisionstate:accepted> ;
+    usf:hasDispositionOutputMode <urn:usf:dispositionoutputmode:nooutput> ;
+    usf:observationSetDigest "2222222222222222222222222222222222222222222222222222222222222222" ;
+    usf:decisionRationale "Disposition deliberately cites a previous observation-set digest instead of the current observation." .
+}

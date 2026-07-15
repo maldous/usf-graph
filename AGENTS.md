@@ -9,9 +9,9 @@ demand from Stardog, never preloaded or copied into prompts.
     Semantics establish truth.      (Model)
     Truth demands evidence.         (Evidence)
     Evidence warrants proof.        (Proof)
-    Proof specifies features.       (Contract)
-    Features shape code.            (Toolchain)
-    Code fulfils requirements.      (Validation)
+    Proof warrants constraints.     (Contract)
+    Contracts authorise code.       (Realisation)
+    Code produces evidence.         (Validation)
 
 Reject the build-first inversion:
 
@@ -35,7 +35,8 @@ Model defines semantic truth. Evidence is an admitted observation or produced
 fact satisfying a requirement. Proof deterministically evaluates an exact
 admitted evidence set against an obligation. Contract records warranted
 features and constraints. ADR records historical rationale and is never
-semantic authority. Toolchain is a selected mechanism. Code is a candidate
+semantic authority. Realisation is an authorised approach to satisfying an
+active contract. Toolchain is a selected mechanism. Code is a candidate
 realisation. Validation produces evidence. Report projects evidence and
 results. Ticket tracks work. None of the latter roles independently establish
 or retrospectively override truth.
@@ -56,6 +57,12 @@ read-only SPARQL), `usf_health` (liveness) — not by reading graph files or a
 census. Workers are read-only. Only a coordinator may mutate, transactionally,
 fail-closed with rollback. Mutation SPARQL on the read path is refused.
 Credentials come only from the environment and never appear in output.
+
+## Repository materialisation
+
+Before creating, renaming or deleting any tracked path, or selecting a representation format, retrieve the active repository-materialisation contract and authority digest through the USF gateway. Materialise only paths, actions, formats and storage classes authorised by that current contract.
+
+Generated projections, tickets, ADRs, source files and external payloads do not establish semantic truth. Verify every external artifact against its Stardog-recorded digest before use. Do not commit runtime evidence, proof logs or validation output unless the active contract explicitly requires a tracked representation.
 
 ## Task ledger
 

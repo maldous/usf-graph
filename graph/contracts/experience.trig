@@ -1,0 +1,137 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix jr: <urn:usf:journey:> .
+@prefix ist: <urn:usf:interactionstate:> .
+@prefix acc: <urn:usf:accessibilityrequirement:> .
+@prefix loc: <urn:usf:localisationrequirement:> .
+@prefix cr: <urn:usf:consentrequirement:> .
+@prefix cbasis: <urn:usf:consentbasis:> .
+@prefix cap: <urn:usf:capability:> .
+
+<urn:usf:graph:experience> {
+    acc:commandformapikeyonboardinga11y a usf:AccessibilityRequirement ;
+        usf:canonicalName "commandformapikeyonboardinga11y" .
+    acc:mobilescreendeveloperhomea11y a usf:AccessibilityRequirement ;
+        usf:canonicalName "mobilescreendeveloperhomea11y" .
+    acc:queryviewdeveloperprofiledetaila11y a usf:AccessibilityRequirement ;
+        usf:canonicalName "queryviewdeveloperprofiledetaila11y" .
+    acc:queryviewdeveloperprofilelista11y a usf:AccessibilityRequirement ;
+        usf:canonicalName "queryviewdeveloperprofilelista11y" .
+    acc:uiauthenticationlogina11y a usf:AccessibilityRequirement ;
+        usf:canonicalName "uiauthenticationlogina11y" .
+    acc:webroutedeveloperhomea11y a usf:AccessibilityRequirement ;
+        usf:canonicalName "webroutedeveloperhomea11y" .
+    cr:notificationsurfacedeveloperbannerconsent a usf:ConsentRequirement ;
+        usf:canonicalName "notificationsurfacedeveloperbannerconsent" ;
+        usf:consentBasis cbasis:consent .
+    cr:notificationsurfacedeveloperinboxconsent a usf:ConsentRequirement ;
+        usf:canonicalName "notificationsurfacedeveloperinboxconsent" ;
+        usf:consentBasis cbasis:consent .
+    cr:notificationsurfacedevelopertoastconsent a usf:ConsentRequirement ;
+        usf:canonicalName "notificationsurfacedevelopertoastconsent" ;
+        usf:consentBasis cbasis:consent .
+    ist:authsessiondevidentitychecksdefault a usf:InteractionState ;
+        usf:canonicalName "authsessiondevidentitychecksdefault" .
+    ist:authsessiontenantnegativepathcataloguedefault a usf:InteractionState ;
+        usf:canonicalName "authsessiontenantnegativepathcataloguedefault" .
+    ist:commandformapikeyonboardingidle a usf:InteractionState ;
+        usf:canonicalName "commandformapikeyonboardingidle" .
+    ist:commandformapikeyonboardingsubmitted a usf:InteractionState ;
+        usf:canonicalName "commandformapikeyonboardingsubmitted" .
+    ist:commandformapikeyonboardingvalidationerror a usf:InteractionState ;
+        usf:canonicalName "commandformapikeyonboardingvalidationerror" .
+    ist:mobilescreendeveloperhomedefault a usf:InteractionState ;
+        usf:canonicalName "mobilescreendeveloperhomedefault" .
+    ist:notificationsurfacedeveloperbannerdefault a usf:InteractionState ;
+        usf:canonicalName "notificationsurfacedeveloperbannerdefault" .
+    ist:notificationsurfacedeveloperinboxdefault a usf:InteractionState ;
+        usf:canonicalName "notificationsurfacedeveloperinboxdefault" .
+    ist:notificationsurfacedevelopertoastdefault a usf:InteractionState ;
+        usf:canonicalName "notificationsurfacedevelopertoastdefault" .
+    ist:queryviewdeveloperprofiledetailerror a usf:InteractionState ;
+        usf:canonicalName "queryviewdeveloperprofiledetailerror" .
+    ist:queryviewdeveloperprofiledetailloaded a usf:InteractionState ;
+        usf:canonicalName "queryviewdeveloperprofiledetailloaded" .
+    ist:queryviewdeveloperprofiledetailnotfound a usf:InteractionState ;
+        usf:canonicalName "queryviewdeveloperprofiledetailnotfound" .
+    ist:queryviewdeveloperprofilelistempty a usf:InteractionState ;
+        usf:canonicalName "queryviewdeveloperprofilelistempty" .
+    ist:queryviewdeveloperprofilelisterror a usf:InteractionState ;
+        usf:canonicalName "queryviewdeveloperprofilelisterror" .
+    ist:queryviewdeveloperprofilelistloaded a usf:InteractionState ;
+        usf:canonicalName "queryviewdeveloperprofilelistloaded" .
+    ist:uiauthenticationloginauthenticated a usf:InteractionState ;
+        usf:canonicalName "uiauthenticationloginauthenticated" .
+    ist:uiauthenticationloginauthenticating a usf:InteractionState ;
+        usf:canonicalName "uiauthenticationloginauthenticating" .
+    ist:uiauthenticationloginautherror a usf:InteractionState ;
+        usf:canonicalName "uiauthenticationloginautherror" .
+    ist:uiauthenticationlogindenied a usf:InteractionState ;
+        usf:canonicalName "uiauthenticationlogindenied" .
+    ist:uiauthenticationloginforbidden a usf:InteractionState ;
+        usf:canonicalName "uiauthenticationloginforbidden" .
+    ist:uiauthenticationloginnosession a usf:InteractionState ;
+        usf:canonicalName "uiauthenticationloginnosession" .
+    ist:uiauthenticationloginproviderfailure a usf:InteractionState ;
+        usf:canonicalName "uiauthenticationloginproviderfailure" .
+    ist:uiauthenticationloginunauthenticated a usf:InteractionState ;
+        usf:canonicalName "uiauthenticationloginunauthenticated" .
+    ist:webroutedeveloperhomedefault a usf:InteractionState ;
+        usf:canonicalName "webroutedeveloperhomedefault" .
+    jr:authsessiondevidentitychecks a usf:Journey ;
+        usf:canonicalName "authsessiondevidentitychecks" ;
+        usf:hasInteractionState ist:authsessiondevidentitychecksdefault .
+    jr:authsessiontenantnegativepathcatalogue a usf:Journey ;
+        usf:canonicalName "authsessiontenantnegativepathcatalogue" ;
+        usf:hasInteractionState ist:authsessiontenantnegativepathcataloguedefault .
+    jr:commandformapikeyonboarding a usf:Journey ;
+        usf:canonicalName "commandformapikeyonboarding" ;
+        usf:hasInteractionState ist:commandformapikeyonboardingidle , ist:commandformapikeyonboardingsubmitted , ist:commandformapikeyonboardingvalidationerror ;
+        usf:requiresAccessibility acc:commandformapikeyonboardinga11y ;
+        usf:requiresLocalisation loc:commandformapikeyonboardinglocale .
+    jr:mobilescreendeveloperhome a usf:Journey ;
+        usf:canonicalName "mobilescreendeveloperhome" ;
+        usf:hasInteractionState ist:mobilescreendeveloperhomedefault ;
+        usf:requiresAccessibility acc:mobilescreendeveloperhomea11y ;
+        usf:requiresLocalisation loc:mobilescreendeveloperhomelocale .
+    jr:notificationsurfacedeveloperbanner a usf:Journey ;
+        usf:canonicalName "notificationsurfacedeveloperbanner" ;
+        usf:hasInteractionState ist:notificationsurfacedeveloperbannerdefault ;
+        usf:requiresConsent cr:notificationsurfacedeveloperbannerconsent .
+    jr:notificationsurfacedeveloperinbox a usf:Journey ;
+        usf:canonicalName "notificationsurfacedeveloperinbox" ;
+        usf:hasInteractionState ist:notificationsurfacedeveloperinboxdefault ;
+        usf:requiresConsent cr:notificationsurfacedeveloperinboxconsent .
+    jr:notificationsurfacedevelopertoast a usf:Journey ;
+        usf:canonicalName "notificationsurfacedevelopertoast" ;
+        usf:hasInteractionState ist:notificationsurfacedevelopertoastdefault ;
+        usf:requiresConsent cr:notificationsurfacedevelopertoastconsent .
+    jr:queryviewdeveloperprofiledetail a usf:Journey ;
+        usf:canonicalName "queryviewdeveloperprofiledetail" ;
+        usf:hasInteractionState ist:queryviewdeveloperprofiledetailerror , ist:queryviewdeveloperprofiledetailloaded , ist:queryviewdeveloperprofiledetailnotfound ;
+        usf:requiresAccessibility acc:queryviewdeveloperprofiledetaila11y ;
+        usf:requiresLocalisation loc:queryviewdeveloperprofiledetaillocale .
+    jr:queryviewdeveloperprofilelist a usf:Journey ;
+        usf:canonicalName "queryviewdeveloperprofilelist" ;
+        usf:hasInteractionState ist:queryviewdeveloperprofilelistempty , ist:queryviewdeveloperprofilelisterror , ist:queryviewdeveloperprofilelistloaded ;
+        usf:requiresAccessibility acc:queryviewdeveloperprofilelista11y ;
+        usf:requiresLocalisation loc:queryviewdeveloperprofilelistlocale .
+    jr:uiauthenticationlogin a usf:Journey ;
+        usf:canonicalName "uiauthenticationlogin" ;
+        usf:hasInteractionState ist:uiauthenticationloginauthenticated , ist:uiauthenticationloginauthenticating , ist:uiauthenticationloginautherror , ist:uiauthenticationlogindenied , ist:uiauthenticationloginforbidden , ist:uiauthenticationloginnosession , ist:uiauthenticationloginproviderfailure , ist:uiauthenticationloginunauthenticated ;
+        usf:requiresAccessibility acc:uiauthenticationlogina11y .
+    jr:webroutedeveloperhome a usf:Journey ;
+        usf:canonicalName "webroutedeveloperhome" ;
+        usf:hasInteractionState ist:webroutedeveloperhomedefault ;
+        usf:requiresAccessibility acc:webroutedeveloperhomea11y ;
+        usf:requiresLocalisation loc:webroutedeveloperhomelocale .
+    loc:commandformapikeyonboardinglocale a usf:LocalisationRequirement ;
+        usf:canonicalName "commandformapikeyonboardinglocale" .
+    loc:mobilescreendeveloperhomelocale a usf:LocalisationRequirement ;
+        usf:canonicalName "mobilescreendeveloperhomelocale" .
+    loc:queryviewdeveloperprofiledetaillocale a usf:LocalisationRequirement ;
+        usf:canonicalName "queryviewdeveloperprofiledetaillocale" .
+    loc:queryviewdeveloperprofilelistlocale a usf:LocalisationRequirement ;
+        usf:canonicalName "queryviewdeveloperprofilelistlocale" .
+    loc:webroutedeveloperhomelocale a usf:LocalisationRequirement ;
+        usf:canonicalName "webroutedeveloperhomelocale" .
+}

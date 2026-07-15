@@ -1,0 +1,7 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+
+# Defect: a service declared to depend on itself. Integrity rule
+# 'selfdependency' must return a row for this subject.
+fixt:selfdependentservice a usf:Service ; usf:canonicalName "selfdependentservice" ;
+    usf:dependsOnService fixt:selfdependentservice .

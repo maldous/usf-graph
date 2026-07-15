@@ -1,0 +1,165 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix shp: <urn:usf:shacl:> .
+
+# Shared prefix declaration for SPARQL-based constraints.
+usf:prefixes
+    sh:declare [ sh:prefix "usf" ; sh:namespace "urn:usf:ontology:"^^xsd:anyURI ] ;
+    sh:declare [ sh:prefix "rdf" ; sh:namespace "http://www.w3.org/1999/02/22-rdf-syntax-ns#"^^xsd:anyURI ] ;
+    sh:declare [ sh:prefix "rdfs" ; sh:namespace "http://www.w3.org/2000/01/rdf-schema#"^^xsd:anyURI ] .
+
+########################################################################
+# Canonical naming — every entity and controlled value has one canonical,
+# nonhyphenated local name equal to the last segment of its IRI.
+########################################################################
+
+shp:CanonicalNameShape a sh:NodeShape ;
+    usf:canonicalName "canonicalnameshape" ;
+    sh:targetClass usf:Entity , usf:ControlledValue ;
+    sh:property [
+        sh:path usf:canonicalName ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern "^[a-z][a-z0-9]*$" ;
+        sh:message "canonicalname: missing or non-canonical canonical name (lowercase, nonhyphenated)" ;
+    ] .
+
+shp:IriHyphenShape a sh:NodeShape ;
+    usf:canonicalName "irihyphenshape" ;
+    sh:targetClass usf:Entity , usf:ControlledValue ;
+    sh:not [
+        sh:pattern "^urn:usf:(.*:)?[^:]*[-_][^:]*$" ;
+    ] ;
+    sh:message "hyphenatedidentifier: canonical local name contains a hyphen or underscore" .
+
+shp:IriNameAgreementShape a sh:NodeShape ;
+    usf:canonicalName "irinameagreementshape" ;
+    sh:targetNode <urn:usf:ontology> ;
+    sh:sparql [
+        sh:message "canonicalidentity: canonicalName must equal the IRI local segment" ;
+        sh:prefixes usf:prefixes ;
+        sh:select """SELECT $this WHERE {
+            FILTER EXISTS {
+                {
+                    ?subject rdf:type/rdfs:subClassOf* usf:Entity .
+                }
+                UNION
+                {
+                    ?subject rdf:type/rdfs:subClassOf* usf:ControlledValue .
+                }
+                FILTER(isIRI(?subject) && STRSTARTS(STR(?subject),'urn:usf:'))
+                ?subject usf:canonicalName ?cn .
+                BIND(REPLACE(STR(?subject),'^.*:','') AS ?loc)
+                FILTER(?loc != STR(?cn))
+            }
+        }""" ;
+    ] .
+
+########################################################################
+# Hermetic contamination — no forbidden external metadata in any IRI or
+# literal of an authored node.
+########################################################################
+
+shp:ContaminationShape a sh:NodeShape ;
+    usf:canonicalName "contaminationshape" ;
+    sh:targetNode <urn:usf:ontology> ;
+    sh:sparql [
+        sh:message "forbiddenmetadata: forbidden external metadata pattern in IRI" ;
+        sh:prefixes usf:prefixes ;
+        sh:select """SELECT $this WHERE {
+            FILTER EXISTS {
+                {
+                    ?subject rdf:type/rdfs:subClassOf* usf:Entity .
+                }
+                UNION
+                {
+                    ?subject rdf:type/rdfs:subClassOf* usf:ControlledValue .
+                }
+                FILTER NOT EXISTS { ?subject usf:observedInCensusRun ?run }
+                FILTER(isIRI(?subject))
+                FILTER(REGEX(STR(?subject),'linear[.]app|github[.]com|gitlab[.]com|refs/heads|commitSha|branchName|issueId|projectId|ADR-[0-9]|USF-[0-9]','i'))
+            }
+        }""" ;
+    ] ;
+    sh:sparql [
+        sh:message "forbiddenmetadata: forbidden external metadata pattern in literal value" ;
+        sh:prefixes usf:prefixes ;
+        sh:select """SELECT $this WHERE {
+            FILTER EXISTS {
+                {
+                    ?subject rdf:type/rdfs:subClassOf* usf:Entity .
+                }
+                UNION
+                {
+                    ?subject rdf:type/rdfs:subClassOf* usf:ControlledValue .
+                }
+                FILTER NOT EXISTS { ?subject usf:observedInCensusRun ?run }
+                ?subject ?p ?o .
+                FILTER(isLiteral(?o))
+                FILTER(REGEX(STR(?o),'linear[.]app|github[.]com|gitlab[.]com|refs/heads|commitSha|branchName|issueId|projectId|ADR-[0-9]|USF-[0-9]'))
+            }
+        }""" ;
+    ] .
+
+########################################################################
+# Controlled-value closure — a value used where a controlled class is the
+# range must be a declared member of that class. Enforced per property in
+# the module shapes via sh:class; here the closed controlled classes are
+# marked so integrity can assert closure.
+########################################################################
+
+shp:ProviderModeShape a sh:NodeShape ;
+    usf:canonicalName "providermodeshape" ;
+    sh:targetClass usf:ProviderMode ;
+    sh:property [ sh:path usf:canonicalName ; sh:minCount 1 ] .
+
+########################################################################
+# Default Stardog reasoning schema - the TBox subset is intentionally
+# narrower than the repository's broader definition-graph classification.
+########################################################################
+
+shp:SemanticAuthorityReasoningSchemaShape a sh:NodeShape ;
+    usf:canonicalName "semanticauthorityreasoningschemashape" ;
+    sh:targetClass usf:SemanticAuthority ;
+    sh:property [
+        sh:path usf:defaultReasoningSchemaGraph ;
+        sh:minCount 2 ; sh:maxCount 2 ;
+        sh:nodeKind sh:IRI ;
+        sh:in (
+            <urn:usf:namedgraph:ontology>
+            <urn:usf:namedgraph:taxonomy>
+        ) ;
+        sh:message "reasoningschemagraphs: default reasoning schema contains exactly the ontology and taxonomy named graphs" ;
+    ] ;
+    sh:property [
+        sh:path usf:defaultReasoningSchemaGraph ;
+        sh:hasValue <urn:usf:namedgraph:ontology> ;
+        sh:message "reasoningschemagraphs: ontology graph is required" ;
+    ] ;
+    sh:property [
+        sh:path usf:defaultReasoningSchemaGraph ;
+        sh:hasValue <urn:usf:namedgraph:taxonomy> ;
+        sh:message "reasoningschemagraphs: taxonomy graph is required" ;
+    ] .
+
+########################################################################
+# SemanticContract facet completeness — every contract must declare all ten
+# mandatory facet kinds; missing any is a defect.
+########################################################################
+
+shp:ContractFacetCompletenessShape a sh:NodeShape ;
+    usf:canonicalName "contractfacetcompletenessshape" ;
+    sh:targetObjectsOf usf:hasContract ;
+    sh:sparql [
+        sh:message "missingcontractfacet: semantic contract does not declare all ten mandatory facet kinds" ;
+        sh:prefixes usf:prefixes ;
+        sh:select """SELECT $this WHERE {
+            <urn:usf:ontology> usf:mandatoryFacets/rdf:rest*/rdf:first ?required .
+            FILTER NOT EXISTS {
+                $this usf:declaresFacet ?f . ?f usf:facetKind ?required .
+            }
+        }""" ;
+    ] .

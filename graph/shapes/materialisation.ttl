@@ -1,0 +1,296 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix shp: <urn:usf:shacl:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+shp:ArtefactFamilyMaterialisationShape a sh:NodeShape ;
+  usf:canonicalName "artefactfamilymaterialisationshape" ;
+  sh:targetClass usf:ArtefactFamily ;
+  sh:property [ sh:path usf:usesMaterialisationRule ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:MaterialisationRule ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "materialisation-family-binding: family and rule must bind each other exactly" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:usesMaterialisationRule ?rule .
+      FILTER NOT EXISTS { ?rule usf:governedArtefactFamily $this }
+    }""" ] .
+
+shp:MaterialisationRuleShape a sh:NodeShape ;
+  usf:canonicalName "materialisationruleshape" ;
+  sh:targetClass usf:MaterialisationRule ;
+  sh:property [ sh:path usf:governedArtefactFamily ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ArtefactFamily ] ;
+  sh:property [ sh:path usf:usesStorageClass ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:StorageClass ] ;
+  sh:property [ sh:path usf:usesRepresentationFormat ; sh:minCount 1 ; sh:class usf:RepresentationFormat ] ;
+  sh:property [ sh:path usf:usesNamingRule ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:NamingRule ] ;
+  sh:property [ sh:path usf:usesNumberingScope ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:NumberingScope ] ;
+  sh:property [ sh:path usf:usesGenerationMode ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:GenerationMode ] ;
+  sh:property [ sh:path usf:usesAuthorityClass ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:AuthorityClass ] ;
+  sh:property [ sh:path usf:usesRetentionClass ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:RetentionClass ] ;
+  sh:property [ sh:path usf:usesSupersessionRule ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:SupersessionRule ] ;
+  sh:property [ sh:path usf:materialisationGenerator ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Entity ] ;
+  sh:property [ sh:path usf:materialisationValidator ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Entity ] ;
+  sh:property [ sh:path usf:materialisationConsumer ; sh:minCount 1 ; sh:class usf:Entity ] ;
+  sh:property [ sh:path usf:localRepresentation ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:boolean ] ;
+  sh:property [ sh:path usf:trackedRepresentation ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:boolean ] ;
+  sh:property [ sh:path usf:contentAddressingRequired ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:boolean ] ;
+  sh:property [ sh:path usf:signatureRequired ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:boolean ] ;
+  sh:property [ sh:path usf:maximumInlineBytes ; sh:minCount 1 ; sh:maxCount 1 ; sh:minInclusive 0 ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "materialisation-local-path: local representations require one path role and external representations forbid it" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:localRepresentation ?local .
+      FILTER((?local = true && NOT EXISTS { $this usf:usesPathRole ?role }) ||
+             (?local = false && EXISTS { $this usf:usesPathRole ?role }))
+    }""" ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "materialisation-tracked-local: a tracked representation must be local Git source" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:trackedRepresentation true .
+      FILTER(NOT EXISTS { $this usf:localRepresentation true ; usf:usesStorageClass <urn:usf:storageclass:gittrackedsource> })
+    }""" ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "materialisation-runtime-not-git: runtime or external output must not use Git tracked source" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:usesGenerationMode ?mode ; usf:usesStorageClass <urn:usf:storageclass:gittrackedsource> .
+      FILTER(?mode IN (<urn:usf:generationmode:runtime>, <urn:usf:generationmode:external>))
+    }""" ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "materialisation-external-content-addressing: object, OCI and managed-service payload references require content addressing" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:usesStorageClass ?storage .
+      FILTER(?storage IN (<urn:usf:storageclass:contentaddressedobjectstorage>, <urn:usf:storageclass:ociartifactregistry>, <urn:usf:storageclass:managedservicereference>))
+      FILTER NOT EXISTS { $this usf:contentAddressingRequired true }
+    }""" ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "materialisation-semantic-control: semantic-control authority is exclusive to Stardog and projections cannot claim it" ;
+    sh:select """SELECT $this WHERE {
+      { $this usf:usesAuthorityClass <urn:usf:authorityclass:semanticcontrol> .
+        FILTER NOT EXISTS { $this usf:usesStorageClass <urn:usf:storageclass:stardogsemanticcontrolplane> } }
+      UNION
+      { $this usf:usesStorageClass <urn:usf:storageclass:stardogsemanticcontrolplane> .
+        FILTER NOT EXISTS { $this usf:usesAuthorityClass <urn:usf:authorityclass:semanticcontrol> } }
+      UNION
+      { $this usf:usesAuthorityClass <urn:usf:authorityclass:generatedprojection> ;
+              usf:usesStorageClass <urn:usf:storageclass:stardogsemanticcontrolplane> }
+    }""" ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "materialisation-local-realisation: package and managed-service realisations must not allocate a local source path" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:governedArtefactFamily ?family ; usf:localRepresentation true .
+      FILTER(?family IN (<urn:usf:artefactfamily:packagerealisation>, <urn:usf:artefactfamily:managedservicerealisation>))
+    }""" ] .
+
+shp:RepresentationFormatShape a sh:NodeShape ;
+  usf:canonicalName "representationformatshape" ;
+  sh:targetClass usf:RepresentationFormat ;
+  sh:property [ sh:path usf:canonicalMediaType ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[a-z0-9.+-]+/[a-zA-Z0-9.+-]+$" ] ;
+  sh:property [ sh:path usf:canonicalExtension ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^\\.[a-z0-9.]+$" ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "representation-current-standard: every selected referenced standard must be the retained latest stable edition" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:definedByStandard ?standard .
+      FILTER NOT EXISTS { ?standard a usf:TechnicalStandard ; usf:latestStableEdition true }
+    }""" ] .
+
+shp:TechnicalStandardShape a sh:NodeShape ;
+  usf:canonicalName "technicalstandardshape" ;
+  sh:targetClass usf:TechnicalStandard ;
+  sh:property [ sh:path usf:standardIdentifier ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path usf:standardEdition ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path usf:latestStableEdition ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue true ] .
+
+shp:PathRoleShape a sh:NodeShape ;
+  usf:canonicalName "pathroleshape" ;
+  sh:targetClass usf:PathRole ;
+  sh:property [ sh:path usf:authorisedParentPath ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(?:\\.|[.a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*)$" ] ;
+  sh:property [ sh:path usf:materialisesOnDemand ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue true ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "path-role-portability: traversal and forbidden canonical segments are rejected; tool-required agent-skill paths are the only redundant-name exception" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:authorisedParentPath ?path .
+      FILTER(CONTAINS(CONCAT('/', ?path, '/'), '/../') || STRSTARTS(?path, '/') ||
+        (REGEX(?path, '(^|/)(v2|legacy|old|new|temp|transitional|usf)(/|$)') &&
+         ?path NOT IN ('.claude/skills/usf', '.codex/skills/usf')))
+    }""" ] .
+
+shp:NamingRuleShape a sh:NodeShape ;
+  usf:canonicalName "namingruleshape" ;
+  sh:targetClass usf:NamingRule ;
+  sh:property [ sh:path usf:filenamePattern ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] .
+
+shp:NumberingScopeShape a sh:NodeShape ;
+  usf:canonicalName "numberingscopeshape" ;
+  sh:targetClass usf:NumberingScope ;
+  sh:property [ sh:path usf:ordinalWidth ; sh:maxCount 1 ; sh:minInclusive 1 ] ;
+  sh:property [ sh:path usf:ordinalReuseProhibited ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue true ] ;
+  sh:property [ sh:path usf:renumberingProhibited ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue true ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "numbering-family-width: family ordinal scope is exactly eight digits" ;
+    sh:select """SELECT $this WHERE {
+      FILTER($this = <urn:usf:numberingscope:familyeightdigit>)
+      FILTER NOT EXISTS { $this usf:ordinalWidth 8 }
+    }""" ] .
+
+shp:ExternalPayloadDescriptorShape a sh:NodeShape ;
+  usf:canonicalName "externalpayloaddescriptorshape" ;
+  sh:targetClass usf:ExternalPayloadDescriptor ;
+  sh:property [ sh:path usf:descriptorArtefactFamily ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ArtefactFamily ] ;
+  sh:property [ sh:path usf:descriptorRepresentationFormat ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:RepresentationFormat ] ;
+  sh:property [ sh:path usf:descriptorMediaType ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path usf:descriptorDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+  sh:property [ sh:path usf:descriptorByteSize ; sh:minCount 1 ; sh:maxCount 1 ; sh:minInclusive 0 ] ;
+  sh:property [ sh:path usf:descriptorLocator ; sh:minCount 1 ; sh:datatype xsd:anyURI ] ;
+  sh:property [ sh:path usf:descriptorArtefactType ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:anyURI ] ;
+  sh:property [ sh:path usf:descriptorStorageClass ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:StorageClass ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "descriptor-authorisation: descriptor storage, representation and media type must be authorised by its family rule" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:descriptorArtefactFamily ?family ; usf:descriptorStorageClass ?storage ;
+            usf:descriptorRepresentationFormat ?format ; usf:descriptorMediaType ?media .
+      FILTER NOT EXISTS {
+        ?family usf:usesMaterialisationRule ?rule .
+        ?rule usf:usesStorageClass ?storage ; usf:usesRepresentationFormat ?format .
+        ?format usf:canonicalMediaType ?media .
+      }
+    }""" ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "descriptor-nonauthority: external payload descriptors cannot directly establish truth, admit evidence, establish proof or activate a contract" ;
+    sh:select """SELECT $this WHERE {
+      { $this usf:establishesSemanticTruth ?x } UNION
+      { $this usf:directlyAdmitsEvidence ?x } UNION
+      { $this usf:directlyEstablishesProof ?x } UNION
+      { $this usf:directlyActivatesContract ?x }
+    }""" ] .
+
+shp:GatewayOperationShape a sh:NodeShape ;
+  usf:canonicalName "gatewayoperationshape" ;
+  sh:targetClass usf:GatewayOperation ;
+  sh:property [ sh:path usf:gatewayOperationIdentifier ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^usf\\.[a-z]+(?:\\.[a-z]+)*$" ] ;
+  sh:property [ sh:path usf:mutatesSemanticAuthority ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:boolean ] ;
+  sh:property [ sh:path usf:coordinatorOnly ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:boolean ] ;
+  sh:property [ sh:path usf:maximumInputBytes ; sh:minCount 1 ; sh:maxCount 1 ; sh:minInclusive 0 ] ;
+  sh:property [ sh:path usf:maximumOutputBytes ; sh:minCount 1 ; sh:maxCount 1 ; sh:minInclusive 0 ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "gateway-coordinator-mutation: every semantic-authority mutation is coordinator-only" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:mutatesSemanticAuthority true .
+      FILTER NOT EXISTS { $this usf:coordinatorOnly true }
+    }""" ] .
+
+shp:AgentTaskPacketShape a sh:NodeShape ;
+  usf:canonicalName "agenttaskpacketshape" ;
+  sh:targetClass usf:AgentTaskPacket ;
+  sh:property [ sh:path usf:packetAuthorityDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+  sh:property [ sh:path usf:packetForContract ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:SemanticContract ] ;
+  sh:property [ sh:path usf:packetObjective ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+  sh:property [ sh:path usf:packetClaim ; sh:minCount 1 ; sh:class usf:Claim ] ;
+  sh:property [ sh:path usf:packetNonclaim ; sh:minCount 1 ; sh:class usf:NonClaim ] ;
+  sh:property [ sh:path usf:packetAuthorisedAction ; sh:minCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+  sh:property [ sh:path usf:packetAuthorisedPath ; sh:datatype xsd:string ; sh:minLength 1 ; sh:maxCount 256 ] ;
+  sh:property [ sh:path usf:packetAuthorisedFormat ; sh:class usf:RepresentationFormat ; sh:maxCount 256 ] ;
+  sh:property [ sh:path usf:packetAcceptanceObligation ; sh:minCount 1 ; sh:class usf:Entity ] ;
+  sh:property [ sh:path usf:packetValidationObligation ; sh:minCount 1 ; sh:class usf:ValidationObligation ] ;
+  sh:property [ sh:path usf:packetResultRequirement ; sh:minCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+  sh:property [ sh:path usf:packetStopCondition ; sh:minCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+  sh:property [ sh:path usf:packetMaximumBytes ; sh:minCount 1 ; sh:maxCount 1 ; sh:minInclusive 1 ; sh:maxInclusive 65536 ] ;
+  sh:property [ sh:path usf:packetMaximumItems ; sh:minCount 1 ; sh:maxCount 1 ; sh:minInclusive 1 ; sh:maxInclusive 256 ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "agent-packet-active-authority: an agent packet must project a currently active, evidence-backed contract" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:packetForContract ?contract .
+      FILTER NOT EXISTS {
+        ?contract usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+                  usf:mandatoryProofObligation ?obligation ; usf:reliesOnProofResult ?result .
+        ?result usf:proofResultForObligation ?obligation ;
+                usf:hasProofResultState <urn:usf:proofresultstate:successful> .
+      }
+    }""" ] .
+
+shp:MaterialisationPlanShape a sh:NodeShape ;
+  usf:canonicalName "materialisationplanshape" ;
+  sh:targetClass usf:MaterialisationPlan ;
+  sh:property [ sh:path usf:planForContract ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:SemanticContract ] ;
+  sh:property [ sh:path usf:planAuthorityDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+  sh:property [ sh:path usf:hasMaterialisationOperation ; sh:minCount 1 ; sh:maxCount 256 ; sh:class usf:MaterialisationOperation ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "plan-active-contract: a materialisation plan may only project an active evidence-backed contract" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:planForContract ?contract .
+      FILTER NOT EXISTS {
+        ?contract usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+                  usf:mandatoryProofObligation ?obligation ; usf:reliesOnProofResult ?result .
+        ?result usf:proofResultForObligation ?obligation ;
+                usf:hasProofResultState <urn:usf:proofresultstate:successful> .
+      }
+    }""" ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "plan-operation-order: operation indexes are unique within a plan" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:hasMaterialisationOperation ?left, ?right .
+      ?left usf:operationIndex ?index . ?right usf:operationIndex ?index .
+      FILTER(?left != ?right)
+    }""" ] .
+
+shp:MaterialisationOperationShape a sh:NodeShape ;
+  usf:canonicalName "materialisationoperationshape" ;
+  sh:targetClass usf:MaterialisationOperation ;
+  sh:property [ sh:path usf:operationIndex ; sh:minCount 1 ; sh:maxCount 1 ; sh:minInclusive 0 ] ;
+  sh:property [ sh:path usf:operationAction ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:in ("create-directory" "write-file" "move-path" "delete-path") ] ;
+  sh:property [ sh:path usf:operationPath ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" ] ;
+  sh:property [ sh:path usf:operationPathRole ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:PathRole ] ;
+  sh:property [ sh:path usf:operationSourcePath ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" ] ;
+  sh:property [ sh:path usf:operationSourceDigest ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+  sh:property [ sh:path usf:operationContentDigest ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+  sh:property [ sh:path usf:operationContentLocator ; sh:maxCount 1 ; sh:datatype xsd:anyURI ; sh:pattern "^cas://sha256/[0-9a-f]{64}$" ] ;
+  sh:property [ sh:path usf:operationFileMode ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:in ("0644" "0755") ] ;
+  sh:property [ sh:path usf:operationArtefactFamily ; sh:maxCount 1 ; sh:class usf:ArtefactFamily ] ;
+  sh:property [ sh:path usf:operationRepresentationFormat ; sh:maxCount 1 ; sh:class usf:RepresentationFormat ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "operation-move-source: move-path requires one distinct governed source path and its exact digest" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:operationAction "move-path" ; usf:operationPath ?destination .
+      FILTER(NOT EXISTS { $this usf:operationSourcePath ?source ; usf:operationSourceDigest ?digest . FILTER(?source != ?destination) })
+    }""" ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "operation-delete-source: delete-path requires the exact source digest" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:operationAction "delete-path" .
+      FILTER NOT EXISTS { $this usf:operationSourceDigest ?digest }
+    }""" ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "operation-write-metadata: write-file requires an exact content digest, artefact family and authorised representation" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:operationAction "write-file" .
+      FILTER(
+        NOT EXISTS { $this usf:operationContentDigest ?digest } ||
+        NOT EXISTS { $this usf:operationArtefactFamily ?family } ||
+        NOT EXISTS { $this usf:operationRepresentationFormat ?format } ||
+        NOT EXISTS {
+          $this usf:operationArtefactFamily ?family ; usf:operationRepresentationFormat ?format ; usf:operationPathRole ?role .
+          ?family usf:usesMaterialisationRule ?rule .
+          ?rule usf:usesRepresentationFormat ?format ; usf:usesPathRole ?role .
+        }
+      )
+    }""" ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "operation-write-locator: a CAS content locator must carry the exact operation digest" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:operationContentDigest ?digest ; usf:operationContentLocator ?locator .
+      FILTER(STR(?locator) != CONCAT("cas://sha256/", STRAFTER(?digest, "sha256:")))
+    }""" ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "operation-authorised-parent: operation path must equal or descend from its authorised parent" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:operationPath ?path ; usf:operationPathRole ?role .
+      ?role usf:authorisedParentPath ?parent .
+      FILTER((?parent = '.' && CONTAINS(?path, '/')) ||
+             (?parent != '.' && ?path != ?parent && !STRSTARTS(?path, CONCAT(?parent, '/'))))
+    }""" ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "operation-portable-path: operation paths reject traversal, reserved names and forbidden canonical segments" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:operationPath ?path .
+      FILTER(REGEX(?path, '(^|/)(v2|legacy|old|new|temp|transitional|usf)(/|$)') &&
+             !STRSTARTS(?path, '.claude/skills/usf/') && !STRSTARTS(?path, '.codex/skills/usf/'))
+    }""" ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "operation-filename-rule: write filenames must satisfy their authorised family naming rule" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:operationAction "write-file" ; usf:operationPath ?path ; usf:operationArtefactFamily ?family .
+      ?family usf:usesMaterialisationRule ?rule . ?rule usf:usesNamingRule ?naming . ?naming usf:filenamePattern ?pattern .
+      BIND(REPLACE(?path, '^.*/', '') AS ?filename)
+      FILTER(!REGEX(?filename, ?pattern))
+    }""" ] .
+
+shp:ArtefactMaterialisationActivationShape a sh:NodeShape ;
+  usf:canonicalName "artefactmaterialisationactivationshape" ;
+  sh:targetClass usf:ArtefactMaterialisation ;
+  sh:property [ sh:path usf:materialisationForPlan ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:MaterialisationPlan ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "materialisation-active-plan: no materialisation operation may exist before its plan's contract is active" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:materialisationForPlan ?plan .
+      FILTER NOT EXISTS { ?plan usf:planForContract ?contract . ?contract usf:hasActivationState <urn:usf:contractactivationstate:active> }
+    }""" ] .
+
+shp:LinearProjectionAuthorityShape a sh:NodeShape ;
+  usf:canonicalName "linearprojectionauthorityshape" ;
+  sh:targetNode <urn:usf:materialisationrule:linearissueprojection> ;
+  sh:property [ sh:path usf:usesAuthorityClass ; sh:hasValue <urn:usf:authorityclass:generatedprojection> ] ;
+  sh:property [ sh:path usf:usesProjectionType ; sh:hasValue <urn:usf:projectiontype:linearworkitem> ] ;
+  sh:property [ sh:path usf:trackedRepresentation ; sh:hasValue false ] .

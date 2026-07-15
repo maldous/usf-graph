@@ -1,0 +1,306 @@
+PREFIX usf: <urn:usf:ontology:>
+CONSTRUCT {
+  ?source usf:hasSourceDisposition ?disposition .
+  ?disposition a usf:SourceArtefactDisposition ;
+      usf:canonicalName ?name ; usf:dispositionOfSourceArtefact ?source ;
+      usf:decidedAgainstObservation ?observation ; usf:derivedFromDispositionPolicy ?policy ;
+      usf:hasDispositionKind ?kind ; usf:hasDispositionBasis ?basis ;
+      usf:hasDispositionDecisionState ?state ; usf:hasDispositionOutputMode ?outputMode ;
+      usf:assignedToArtefactPlan ?plan ; usf:permittedGenerationInputRole ?inputRole ;
+      usf:observationSetDigest ?setDigest ; usf:decisionRationale ?rationale .
+}
+WHERE {
+  { SELECT DISTINCT ?source ?observation ?policy WHERE { {
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false ;
+    usf:policyMatchesSourceBinding ?binding .
+  ?binding usf:sourceBindingSource ?source .
+  ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+  ?observation a usf:SourceArtefactObservation .
+}
+UNION
+{
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false ;
+    usf:policyMatchesExactSemanticReference ?selectiveReference .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceBinding ?binding }
+  ?observation a usf:SourceArtefactObservation ;
+    usf:hasExactSemanticReference ?selectiveReference .
+  ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesExactSemanticReference ?required . FILTER NOT EXISTS { ?observation usf:hasExactSemanticReference ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceIdentityDigest ?required . FILTER NOT EXISTS { ?source usf:sourceIdentityDigest ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesUniverse ?required . FILTER NOT EXISTS { ?observation usf:observedUniverse ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesContentRole ?required . FILTER NOT EXISTS { ?observation usf:observedContentRole ?required } }
+}
+UNION
+{
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false ;
+    usf:policyMatchesSourceIdentityDigest ?selectiveDigest .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceBinding ?binding }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesExactSemanticReference ?reference }
+  ?source a usf:SourceArtefact ;
+    usf:sourceIdentityDigest ?selectiveDigest ;
+    usf:hasCurrentSourceObservation ?observation .
+  ?observation a usf:SourceArtefactObservation .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceIdentityDigest ?required . FILTER NOT EXISTS { ?source usf:sourceIdentityDigest ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesUniverse ?required . FILTER NOT EXISTS { ?observation usf:observedUniverse ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesContentRole ?required . FILTER NOT EXISTS { ?observation usf:observedContentRole ?required } }
+}
+UNION
+{
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false ;
+    usf:policyMatchesContentRole ?selectiveRole .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceBinding ?binding }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesExactSemanticReference ?reference }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceIdentityDigest ?digest }
+  ?observation a usf:SourceArtefactObservation ; usf:observedContentRole ?selectiveRole .
+  ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesContentRole ?required . FILTER NOT EXISTS { ?observation usf:observedContentRole ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesUniverse ?required . FILTER NOT EXISTS { ?observation usf:observedUniverse ?required } }
+}
+UNION
+{
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false ;
+    usf:policyMatchesUniverse ?selectiveUniverse .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceBinding ?binding }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesExactSemanticReference ?reference }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceIdentityDigest ?digest }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesContentRole ?role }
+  ?observation a usf:SourceArtefactObservation ; usf:observedUniverse ?selectiveUniverse .
+  ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesUniverse ?required . FILTER NOT EXISTS { ?observation usf:observedUniverse ?required } }
+}
+UNION
+{
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceBinding ?binding }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesExactSemanticReference ?reference }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceIdentityDigest ?digest }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesContentRole ?role }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesUniverse ?universe }
+  ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+  ?observation a usf:SourceArtefactObservation .
+}
+ } }
+  ?source usf:hasCurrentSourceObservation ?observation .
+  ?observation usf:observationSetDigest ?setDigest .
+  ?policy usf:policyDispositionKind ?kind ; usf:policyDispositionBasis ?basis ;
+    usf:policyDecisionState ?state ; usf:policyOutputMode ?outputMode ;
+    usf:policyPrecedence ?selectedPrecedence ; usf:decisionRationale ?rationale .
+  {
+    SELECT ?source ?observation (MAX(?precedence) AS ?maximumPrecedence)
+    WHERE {
+      { SELECT DISTINCT ?source ?observation ?policy WHERE { {
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false ;
+    usf:policyMatchesSourceBinding ?binding .
+  ?binding usf:sourceBindingSource ?source .
+  ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+  ?observation a usf:SourceArtefactObservation .
+}
+UNION
+{
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false ;
+    usf:policyMatchesExactSemanticReference ?selectiveReference .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceBinding ?binding }
+  ?observation a usf:SourceArtefactObservation ;
+    usf:hasExactSemanticReference ?selectiveReference .
+  ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesExactSemanticReference ?required . FILTER NOT EXISTS { ?observation usf:hasExactSemanticReference ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceIdentityDigest ?required . FILTER NOT EXISTS { ?source usf:sourceIdentityDigest ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesUniverse ?required . FILTER NOT EXISTS { ?observation usf:observedUniverse ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesContentRole ?required . FILTER NOT EXISTS { ?observation usf:observedContentRole ?required } }
+}
+UNION
+{
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false ;
+    usf:policyMatchesSourceIdentityDigest ?selectiveDigest .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceBinding ?binding }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesExactSemanticReference ?reference }
+  ?source a usf:SourceArtefact ;
+    usf:sourceIdentityDigest ?selectiveDigest ;
+    usf:hasCurrentSourceObservation ?observation .
+  ?observation a usf:SourceArtefactObservation .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceIdentityDigest ?required . FILTER NOT EXISTS { ?source usf:sourceIdentityDigest ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesUniverse ?required . FILTER NOT EXISTS { ?observation usf:observedUniverse ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesContentRole ?required . FILTER NOT EXISTS { ?observation usf:observedContentRole ?required } }
+}
+UNION
+{
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false ;
+    usf:policyMatchesContentRole ?selectiveRole .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceBinding ?binding }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesExactSemanticReference ?reference }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceIdentityDigest ?digest }
+  ?observation a usf:SourceArtefactObservation ; usf:observedContentRole ?selectiveRole .
+  ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesContentRole ?required . FILTER NOT EXISTS { ?observation usf:observedContentRole ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesUniverse ?required . FILTER NOT EXISTS { ?observation usf:observedUniverse ?required } }
+}
+UNION
+{
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false ;
+    usf:policyMatchesUniverse ?selectiveUniverse .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceBinding ?binding }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesExactSemanticReference ?reference }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceIdentityDigest ?digest }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesContentRole ?role }
+  ?observation a usf:SourceArtefactObservation ; usf:observedUniverse ?selectiveUniverse .
+  ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesUniverse ?required . FILTER NOT EXISTS { ?observation usf:observedUniverse ?required } }
+}
+UNION
+{
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceBinding ?binding }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesExactSemanticReference ?reference }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceIdentityDigest ?digest }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesContentRole ?role }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesUniverse ?universe }
+  ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+  ?observation a usf:SourceArtefactObservation .
+}
+ } }
+      ?policy usf:policyPrecedence ?precedence .
+    }
+    GROUP BY ?source ?observation
+  }
+  FILTER(?selectedPrecedence = ?maximumPrecedence)
+  OPTIONAL { ?policy usf:policyArtefactPlan ?policyPlan }
+  OPTIONAL { ?policy usf:policyGenerationInputRole ?inputRole }
+  OPTIONAL {
+    ?policy usf:policyMatchesSourceBinding ?binding .
+    ?binding usf:sourceBindingSource ?source .
+    OPTIONAL { ?binding usf:sourceBindingArtefactPlan ?bindingPlan }
+  }
+  BIND(COALESCE(?bindingPlan, ?policyPlan) AS ?plan)
+  BIND(SHA256(CONCAT(STR(?source), "|", STR(?observation), "|", STR(?policy))) AS ?digest)
+  BIND(CONCAT("d", ?digest) AS ?name)
+  BIND(IRI(CONCAT("urn:usf:sourceartefactdisposition:", ?name)) AS ?disposition)
+}
+#---NEXT---#
+PREFIX usf: <urn:usf:ontology:>
+CONSTRUCT {
+  ?source usf:hasSourceDisposition ?disposition .
+  ?disposition a usf:SourceArtefactDisposition ; usf:canonicalName ?name ;
+      usf:dispositionOfSourceArtefact ?source ; usf:decidedAgainstObservation ?observation ;
+      usf:derivedFromDispositionPolicy ?defaultPolicy ;
+      usf:hasDispositionKind <urn:usf:dispositionkind:reviewrequired> ;
+      usf:hasDispositionBasis ?basis ;
+      usf:hasDispositionDecisionState <urn:usf:dispositiondecisionstate:reviewrequired> ;
+      usf:hasDispositionOutputMode <urn:usf:dispositionoutputmode:nooutput> ;
+      usf:observationSetDigest ?setDigest ; usf:decisionRationale ?rationale .
+}
+WHERE {
+  ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+  ?observation usf:observationSetDigest ?setDigest .
+  ?defaultPolicy a usf:SourceDispositionPolicy ; usf:isActiveDispositionPolicy true ;
+      usf:isDefaultDispositionPolicy true ; usf:policyDispositionBasis ?basis ;
+      usf:decisionRationale ?rationale .
+  FILTER NOT EXISTS { {
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false ;
+    usf:policyMatchesSourceBinding ?binding .
+  ?binding usf:sourceBindingSource ?source .
+  ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+  ?observation a usf:SourceArtefactObservation .
+}
+UNION
+{
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false ;
+    usf:policyMatchesExactSemanticReference ?selectiveReference .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceBinding ?binding }
+  ?observation a usf:SourceArtefactObservation ;
+    usf:hasExactSemanticReference ?selectiveReference .
+  ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesExactSemanticReference ?required . FILTER NOT EXISTS { ?observation usf:hasExactSemanticReference ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceIdentityDigest ?required . FILTER NOT EXISTS { ?source usf:sourceIdentityDigest ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesUniverse ?required . FILTER NOT EXISTS { ?observation usf:observedUniverse ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesContentRole ?required . FILTER NOT EXISTS { ?observation usf:observedContentRole ?required } }
+}
+UNION
+{
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false ;
+    usf:policyMatchesSourceIdentityDigest ?selectiveDigest .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceBinding ?binding }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesExactSemanticReference ?reference }
+  ?source a usf:SourceArtefact ;
+    usf:sourceIdentityDigest ?selectiveDigest ;
+    usf:hasCurrentSourceObservation ?observation .
+  ?observation a usf:SourceArtefactObservation .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceIdentityDigest ?required . FILTER NOT EXISTS { ?source usf:sourceIdentityDigest ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesUniverse ?required . FILTER NOT EXISTS { ?observation usf:observedUniverse ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesContentRole ?required . FILTER NOT EXISTS { ?observation usf:observedContentRole ?required } }
+}
+UNION
+{
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false ;
+    usf:policyMatchesContentRole ?selectiveRole .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceBinding ?binding }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesExactSemanticReference ?reference }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceIdentityDigest ?digest }
+  ?observation a usf:SourceArtefactObservation ; usf:observedContentRole ?selectiveRole .
+  ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesContentRole ?required . FILTER NOT EXISTS { ?observation usf:observedContentRole ?required } }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesUniverse ?required . FILTER NOT EXISTS { ?observation usf:observedUniverse ?required } }
+}
+UNION
+{
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false ;
+    usf:policyMatchesUniverse ?selectiveUniverse .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceBinding ?binding }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesExactSemanticReference ?reference }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceIdentityDigest ?digest }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesContentRole ?role }
+  ?observation a usf:SourceArtefactObservation ; usf:observedUniverse ?selectiveUniverse .
+  ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesUniverse ?required . FILTER NOT EXISTS { ?observation usf:observedUniverse ?required } }
+}
+UNION
+{
+  ?policy a usf:SourceDispositionPolicy ;
+    usf:isActiveDispositionPolicy true ;
+    usf:isDefaultDispositionPolicy false .
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceBinding ?binding }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesExactSemanticReference ?reference }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesSourceIdentityDigest ?digest }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesContentRole ?role }
+  FILTER NOT EXISTS { ?policy usf:policyMatchesUniverse ?universe }
+  ?source a usf:SourceArtefact ; usf:hasCurrentSourceObservation ?observation .
+  ?observation a usf:SourceArtefactObservation .
+}
+ }
+  BIND(SHA256(CONCAT(STR(?source), "|", STR(?observation), "|", STR(?defaultPolicy))) AS ?digest)
+  BIND(CONCAT("d", ?digest) AS ?name)
+  BIND(IRI(CONCAT("urn:usf:sourceartefactdisposition:", ?name)) AS ?disposition)
+}

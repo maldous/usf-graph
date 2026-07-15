@@ -1,0 +1,15 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+@prefix dom: <urn:usf:capabilitydomain:> .
+@prefix facet: <urn:usf:facetkind:> .
+@prefix rung: <urn:usf:proofrung:> .
+@prefix pmode: <urn:usf:providermode:> .
+@prefix envc: <urn:usf:environmentclass:> .
+@prefix fresh: <urn:usf:freshness:> .
+
+fixt:conformingbinding a usf:Binding ; usf:canonicalName "conformingbinding" ;
+    usf:bindsPort fixt:cbport ; usf:bindsProvider fixt:cbprov ;
+    usf:hasProviderMode pmode:composedreal ; usf:bindingState <urn:usf:bindingstate:composed> .
+fixt:cbport a usf:Port ; usf:canonicalName "cbport" .
+fixt:cbprov a usf:Provider ; usf:canonicalName "cbprov" ; usf:hasProviderMode pmode:composedreal ;
+    usf:fulfilsPort fixt:cbport .

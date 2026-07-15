@@ -1,0 +1,5 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+# expect: DatatypeConstraintComponent
+<urn:usf:defect:quantitydatatypemismatch> a usf:CensusObservationRun ;
+    usf:observedRequiredPrerequisiteDependencyCount "1"^^xsd:nonNegativeInteger .

@@ -1,0 +1,1217 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix aud: <urn:usf:auditevent:> .
+@prefix sig: <urn:usf:observabilitysignal:> .
+@prefix alr: <urn:usf:alert:> .
+@prefix acat: <urn:usf:auditcategory:> .
+@prefix asev: <urn:usf:auditseverity:> .
+@prefix sigk: <urn:usf:signalkind:> .
+@prefix op: <urn:usf:operation:> .
+
+<urn:usf:graph:signals> {
+    alr:auditgap a usf:Alert ;
+        usf:canonicalName "auditgap" ;
+        usf:triggeredBySignal sig:requesttrace .
+    alr:authfailurespike a usf:Alert ;
+        usf:canonicalName "authfailurespike" ;
+        usf:triggeredBySignal sig:requesttrace .
+    alr:backupfailure a usf:Alert ;
+        usf:canonicalName "backupfailure" ;
+        usf:triggeredBySignal sig:requesttrace .
+    alr:errorratehigh a usf:Alert ;
+        usf:canonicalName "errorratehigh" ;
+        usf:triggeredBySignal sig:requesttrace .
+    alr:latencyhigh a usf:Alert ;
+        usf:canonicalName "latencyhigh" ;
+        usf:triggeredBySignal sig:requesttrace .
+    alr:providerunavailable a usf:Alert ;
+        usf:canonicalName "providerunavailable" ;
+        usf:triggeredBySignal sig:requesttrace .
+    alr:quotabreach a usf:Alert ;
+        usf:canonicalName "quotabreach" ;
+        usf:triggeredBySignal sig:requesttrace .
+    alr:tenantisolationbreach a usf:Alert ;
+        usf:canonicalName "tenantisolationbreach" ;
+        usf:triggeredBySignal sig:requesttrace .
+    aud:auditcorrectionrecorded a usf:AuditEvent ;
+        usf:auditCategory acat:auditsystem ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "auditcorrectionrecorded" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:auditeventviewed a usf:AuditEvent ;
+        usf:auditCategory acat:auditsystem ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "auditeventviewed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:auditexportcompleted a usf:AuditEvent ;
+        usf:auditCategory acat:auditsystem ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "auditexportcompleted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:auditexportdenied a usf:AuditEvent ;
+        usf:auditCategory acat:auditsystem ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "auditexportdenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:auditexportrequested a usf:AuditEvent ;
+        usf:auditCategory acat:auditsystem ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "auditexportrequested" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:auditintegrityfailed a usf:AuditEvent ;
+        usf:auditCategory acat:auditsystem ;
+        usf:auditSeverity asev:critical ;
+        usf:canonicalName "auditintegrityfailed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:auditintegrityverified a usf:AuditEvent ;
+        usf:auditCategory acat:auditsystem ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "auditintegrityverified" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:auditquerycompleted a usf:AuditEvent ;
+        usf:auditCategory acat:auditsystem ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "auditquerycompleted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:auditquerydenied a usf:AuditEvent ;
+        usf:auditCategory acat:auditsystem ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "auditquerydenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:auditquerystarted a usf:AuditEvent ;
+        usf:auditCategory acat:auditsystem ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "auditquerystarted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:authenticationbrokeredidentitydenied a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "authenticationbrokeredidentitydenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:authenticationidentitydisabled a usf:AuditEvent ;
+        usf:auditCategory acat:admin ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "authenticationidentitydisabled" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:authenticationidentitylinked a usf:AuditEvent ;
+        usf:auditCategory acat:admin ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "authenticationidentitylinked" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:authenticationidentitysuspended a usf:AuditEvent ;
+        usf:auditCategory acat:admin ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "authenticationidentitysuspended" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:authenticationidentityunlinked a usf:AuditEvent ;
+        usf:auditCategory acat:admin ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "authenticationidentityunlinked" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:authenticationkeycloakdenied a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "authenticationkeycloakdenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:authenticationlogin a usf:AuditEvent ;
+        usf:auditCategory acat:authentication ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "authenticationlogin" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:authenticationloginfailed a usf:AuditEvent ;
+        usf:auditCategory acat:authentication ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "authenticationloginfailed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:authenticationlogout a usf:AuditEvent ;
+        usf:auditCategory acat:authentication ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "authenticationlogout" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:authenticationsessioncreated a usf:AuditEvent ;
+        usf:auditCategory acat:authentication ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "authenticationsessioncreated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:authenticationsessionexpired a usf:AuditEvent ;
+        usf:auditCategory acat:authentication ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "authenticationsessionexpired" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:authenticationsessionrevoked a usf:AuditEvent ;
+        usf:auditCategory acat:authentication ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "authenticationsessionrevoked" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:authenticationtenantselectiondenied a usf:AuditEvent ;
+        usf:auditCategory acat:tenantcontext ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "authenticationtenantselectiondenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:authenticationtokendenied a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "authenticationtokendenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:authloginpostcmd a usf:AuditEvent ;
+        usf:auditCategory acat:datamutation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "authloginpostcmd" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:recordsOperation op:authloginpost .
+    aud:apikeycreatecmd a usf:AuditEvent ;
+        usf:auditCategory acat:datamutation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "apikeycreatecmd" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:recordsOperation op:apikeycreate .
+    aud:authorizationdecision a usf:AuditEvent ;
+        usf:auditCategory acat:authorization ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "authorizationdecision" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:breakglassapproved a usf:AuditEvent ;
+        usf:auditCategory acat:breakglass ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "breakglassapproved" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:breakglassdenied a usf:AuditEvent ;
+        usf:auditCategory acat:breakglass ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "breakglassdenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:breakglassrequested a usf:AuditEvent ;
+        usf:auditCategory acat:breakglass ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "breakglassrequested" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:breakglassused a usf:AuditEvent ;
+        usf:auditCategory acat:breakglass ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "breakglassused" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:bulkoperationapproved a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "bulkoperationapproved" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:bulkoperationcancelled a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "bulkoperationcancelled" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:bulkoperationcompleted a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "bulkoperationcompleted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:bulkoperationcreated a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "bulkoperationcreated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:bulkoperationdenied a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "bulkoperationdenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:bulkoperationfailed a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "bulkoperationfailed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:bulkoperationpreviewed a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "bulkoperationpreviewed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:bulkoperationpurged a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "bulkoperationpurged" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:bulkoperationrolledback a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "bulkoperationrolledback" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:bulkoperationstarted a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "bulkoperationstarted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:bulkoperationvalidated a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "bulkoperationvalidated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:configchanged a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "configchanged" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:configdenied a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "configdenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:configdriftdetected a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "configdriftdetected" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:configoverridecreated a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "configoverridecreated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:configoverrideexpired a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "configoverrideexpired" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:configread a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "configread" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:configurationchanged a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "configurationchanged" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:configvalidationfailed a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "configvalidationfailed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:datacreated a usf:AuditEvent ;
+        usf:auditCategory acat:datamutation ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "datacreated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:datadeleted a usf:AuditEvent ;
+        usf:auditCategory acat:datamutation ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "datadeleted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:datapurged a usf:AuditEvent ;
+        usf:auditCategory acat:datamutation ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "datapurged" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:dataread a usf:AuditEvent ;
+        usf:auditCategory acat:dataaccess ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "dataread" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:datarestored a usf:AuditEvent ;
+        usf:auditCategory acat:datamutation ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "datarestored" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:dataupdated a usf:AuditEvent ;
+        usf:auditCategory acat:datamutation ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "dataupdated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:evidencepackagecreated a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "evidencepackagecreated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:exportcompleted a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "exportcompleted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:exportcreated a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "exportcreated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:exportfailed a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "exportfailed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:exportstarted a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "exportstarted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:featureflagchanged a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "featureflagchanged" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:featureflagevaluated a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:debug ;
+        usf:canonicalName "featureflagevaluated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:filedownloaded a usf:AuditEvent ;
+        usf:auditCategory acat:file ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "filedownloaded" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:filesuploadcmd a usf:AuditEvent ;
+        usf:auditCategory acat:datamutation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "filesuploadcmd" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:recordsOperation op:filesupload .
+    aud:fileuploaded a usf:AuditEvent ;
+        usf:auditCategory acat:file ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "fileuploaded" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:guardrailabusesuspected a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "guardrailabusesuspected" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:guardrailadmissiondenied a usf:AuditEvent ;
+        usf:auditCategory acat:guardrail ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "guardrailadmissiondenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:guardrailbackpressureapplied a usf:AuditEvent ;
+        usf:auditCategory acat:guardrail ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "guardrailbackpressureapplied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:guardraillimitexceeded a usf:AuditEvent ;
+        usf:auditCategory acat:guardrail ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "guardraillimitexceeded" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:guardrailpolicychanged a usf:AuditEvent ;
+        usf:auditCategory acat:guardrail ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "guardrailpolicychanged" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:guardrailpolicycreated a usf:AuditEvent ;
+        usf:auditCategory acat:guardrail ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "guardrailpolicycreated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:guardrailpolicyevaluated a usf:AuditEvent ;
+        usf:auditCategory acat:guardrail ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "guardrailpolicyevaluated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:guardrailpolicyunknowndenied a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "guardrailpolicyunknowndenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:guardrailquotaexceeded a usf:AuditEvent ;
+        usf:auditCategory acat:guardrail ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "guardrailquotaexceeded" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:importcompleted a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "importcompleted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:importcreated a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "importcreated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:importfailed a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "importfailed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:importstarted a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "importstarted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:importvalidated a usf:AuditEvent ;
+        usf:auditCategory acat:bulkoperation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "importvalidated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:jobcancelled a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "jobcancelled" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:jobcompleted a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "jobcompleted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:jobcreated a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "jobcreated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:jobdeadlettered a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "jobdeadlettered" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:jobdenied a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "jobdenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:jobexpired a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "jobexpired" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:jobfailed a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "jobfailed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:jobheartbeatmissed a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "jobheartbeatmissed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:jobleased a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "jobleased" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:jobretrying a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "jobretrying" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:jobscancelcmd a usf:AuditEvent ;
+        usf:auditCategory acat:datamutation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "jobscancelcmd" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:recordsOperation op:jobscancel .
+    aud:jobscheduled a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "jobscheduled" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:jobscreatecmd a usf:AuditEvent ;
+        usf:auditCategory acat:datamutation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "jobscreatecmd" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:recordsOperation op:jobscreate .
+    aud:jobstarted a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "jobstarted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationbulkcompleted a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "notificationbulkcompleted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:notificationbulkfailed a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "notificationbulkfailed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:notificationbulkstarted a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "notificationbulkstarted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:notificationcancelled a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "notificationcancelled" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationcreated a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "notificationcreated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationdeadlettered a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "notificationdeadlettered" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationdelivered a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "notificationdelivered" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:notificationdenied a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "notificationdenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationfailed a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "notificationfailed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationpreferencechanged a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "notificationpreferencechanged" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationproviderchanged a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "notificationproviderchanged" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationqueued a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "notificationqueued" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationread a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "notificationread" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationrendered a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "notificationrendered" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationretrying a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "notificationretrying" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationscancelcmd a usf:AuditEvent ;
+        usf:auditCategory acat:datamutation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "notificationscancelcmd" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:recordsOperation op:notificationscancel .
+    aud:notificationscheduled a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "notificationscheduled" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationscreatecmd a usf:AuditEvent ;
+        usf:auditCategory acat:datamutation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "notificationscreatecmd" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:recordsOperation op:notificationscreate .
+    aud:notificationsent a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "notificationsent" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationssendcmd a usf:AuditEvent ;
+        usf:auditCategory acat:datamutation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "notificationssendcmd" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:recordsOperation op:notificationssend .
+    aud:notificationsuppressed a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "notificationsuppressed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationsuppressionchanged a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "notificationsuppressionchanged" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationtemplateapproved a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "notificationtemplateapproved" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationtemplatechanged a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "notificationtemplatechanged" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationtemplatecreated a usf:AuditEvent ;
+        usf:auditCategory acat:notification ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "notificationtemplatecreated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:notificationtemplatescreatecmd a usf:AuditEvent ;
+        usf:auditCategory acat:datamutation ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "notificationtemplatescreatecmd" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:recordsOperation op:notificationtemplatescreate .
+    aud:observabilityalertconfigurechanged a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "observabilityalertconfigurechanged" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:observabilityconfigurechanged a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "observabilityconfigurechanged" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:observabilityexportrequested a usf:AuditEvent ;
+        usf:auditCategory acat:system ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "observabilityexportrequested" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:observabilityread a usf:AuditEvent ;
+        usf:auditCategory acat:system ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "observabilityread" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:observabilityreadinesschecked a usf:AuditEvent ;
+        usf:auditCategory acat:system ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "observabilityreadinesschecked" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:observabilitysecuritysignalread a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "observabilitysecuritysignalread" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:providercallfailed a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "providercallfailed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:providercallstarted a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "providercallstarted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:providercallsucceeded a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "providercallsucceeded" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:providercircuitclosed a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "providercircuitclosed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:providercircuitopened a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "providercircuitopened" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:providerconfigchanged a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "providerconfigchanged" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:providerconfigured a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "providerconfigured" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:providerdeferred a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "providerdeferred" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:providerdisabled a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "providerdisabled" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:providerdriftdetected a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "providerdriftdetected" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:providerenabled a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "providerenabled" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:providerfailovercompleted a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "providerfailovercompleted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:providerfailoverstarted a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "providerfailoverstarted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:providerhealthchecked a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "providerhealthchecked" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:providermodechanged a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "providermodechanged" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:providerreadinesschecked a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "providerreadinesschecked" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:providerregistered a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "providerregistered" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:providerrevoked a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "providerrevoked" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:providersecretrefused a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "providersecretrefused" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:providersuspended a usf:AuditEvent ;
+        usf:auditCategory acat:integration ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "providersuspended" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:schedulechanged a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "schedulechanged" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:schedulecreated a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "schedulecreated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:scheduledisabled a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "scheduledisabled" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:searchautocompletedenied a usf:AuditEvent ;
+        usf:auditCategory acat:search ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "searchautocompletedenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:searchindexdeleted a usf:AuditEvent ;
+        usf:auditCategory acat:search ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "searchindexdeleted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:searchindexupdated a usf:AuditEvent ;
+        usf:auditCategory acat:search ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "searchindexupdated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:searchproviderdenied a usf:AuditEvent ;
+        usf:auditCategory acat:search ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "searchproviderdenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:searchquerydenied a usf:AuditEvent ;
+        usf:auditCategory acat:search ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "searchquerydenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:searchqueryexecuted a usf:AuditEvent ;
+        usf:auditCategory acat:search ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "searchqueryexecuted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:searchreindexcompleted a usf:AuditEvent ;
+        usf:auditCategory acat:search ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "searchreindexcompleted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:searchreindexfailed a usf:AuditEvent ;
+        usf:auditCategory acat:search ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "searchreindexfailed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:searchreindexstarted a usf:AuditEvent ;
+        usf:auditCategory acat:search ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "searchreindexstarted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:searchresultaccessdenied a usf:AuditEvent ;
+        usf:auditCategory acat:search ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "searchresultaccessdenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:secretaccessed a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "secretaccessed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:secretdenied a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "secretdenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:secretrevoked a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "secretrevoked" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:secretrotated a usf:AuditEvent ;
+        usf:auditCategory acat:configuration ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "secretrotated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:securityauditintegrityfailed a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:critical ;
+        usf:canonicalName "securityauditintegrityfailed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:securitybrokerlinkcollision a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "securitybrokerlinkcollision" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:securitydenied a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "securitydenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:securitydomainclaimconflict a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "securitydomainclaimconflict" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:securityimpossibletenantswitch a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:critical ;
+        usf:canonicalName "securityimpossibletenantswitch" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:securityrepeateddenial a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "securityrepeateddenial" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:securityrevokedmembershipused a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "securityrevokedmembershipused" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:securitystalesessionused a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "securitystalesessionused" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:securitysuspiciousexport a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "securitysuspiciousexport" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:securitytenantmismatch a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "securitytenantmismatch" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:securitytokenreplaysuspected a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:critical ;
+        usf:canonicalName "securitytokenreplaysuspected" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:systemerror a usf:AuditEvent ;
+        usf:auditCategory acat:system ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "systemerror" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:tenantcontextaccepted a usf:AuditEvent ;
+        usf:auditCategory acat:tenantcontext ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "tenantcontextaccepted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:tenantcontextdenied a usf:AuditEvent ;
+        usf:auditCategory acat:tenantcontext ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "tenantcontextdenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:tenantssoactivated a usf:AuditEvent ;
+        usf:auditCategory acat:admin ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "tenantssoactivated" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:tenantssoconfigured a usf:AuditEvent ;
+        usf:auditCategory acat:admin ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "tenantssoconfigured" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:tenantssodenied a usf:AuditEvent ;
+        usf:auditCategory acat:security ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "tenantssodenied" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:tenantssodomainverified a usf:AuditEvent ;
+        usf:auditCategory acat:admin ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "tenantssodomainverified" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:tenantssorequested a usf:AuditEvent ;
+        usf:auditCategory acat:admin ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "tenantssorequested" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:tenantssorevoked a usf:AuditEvent ;
+        usf:auditCategory acat:admin ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "tenantssorevoked" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:tenantssosuspended a usf:AuditEvent ;
+        usf:auditCategory acat:admin ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "tenantssosuspended" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:workflowadminoverride a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:high ;
+        usf:canonicalName "workflowadminoverride" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent true .
+    aud:workflowapprovalapproved a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "workflowapprovalapproved" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:workflowapprovalrejected a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "workflowapprovalrejected" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:workflowapprovalrequested a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "workflowapprovalrequested" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:workflowcancelled a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:notice ;
+        usf:canonicalName "workflowcancelled" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:workflowcompleted a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "workflowcompleted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:workflowfailed a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:warning ;
+        usf:canonicalName "workflowfailed" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:workflowsignalled a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "workflowsignalled" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    aud:workflowstarted a usf:AuditEvent ;
+        usf:auditCategory acat:job ;
+        usf:auditSeverity asev:info ;
+        usf:canonicalName "workflowstarted" ;
+        usf:emitsSignal sig:auditcorrelation ;
+        usf:reservedEvent false .
+    sig:auditcorrelation a usf:ObservabilitySignal ;
+        usf:canonicalName "auditcorrelation" ;
+        usf:correlatesWith aud:authenticationlogin ;
+        usf:signalKind sigk:correlationidentifier .
+    sig:authloginaudit a usf:ObservabilitySignal ;
+        usf:canonicalName "authloginaudit" ;
+        usf:correlatesWith aud:authenticationlogin ;
+        usf:signalKind sigk:log .
+    sig:authloginduration a usf:ObservabilitySignal ;
+        usf:canonicalName "authloginduration" ;
+        usf:correlatesWith aud:authenticationlogin ;
+        usf:signalKind sigk:metric .
+    sig:requesttrace a usf:ObservabilitySignal ;
+        usf:canonicalName "requesttrace" ;
+        usf:correlatesWith aud:authenticationlogin ;
+        usf:signalKind sigk:trace .
+    sig:runtimeproofoutput a usf:ObservabilitySignal ;
+        usf:canonicalName "runtimeproofoutput" ;
+        usf:correlatesWith aud:authenticationlogin ;
+        usf:signalKind sigk:runtimeproofoutput .
+    sig:serviceresourceidentity a usf:ObservabilitySignal ;
+        usf:canonicalName "serviceresourceidentity" ;
+        usf:correlatesWith aud:authenticationlogin ;
+        usf:signalKind sigk:serviceresourceattribute .
+}

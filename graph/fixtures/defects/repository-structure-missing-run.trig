@@ -1,0 +1,4 @@
+@prefix usf: <urn:usf:ontology:> .
+<urn:usf:graph:observed:sourceartefacts> {
+  <urn:usf:workpackagedependencyobservation:d5555555555555555555555555555555555555555555555555555555555555555> a usf:WorkPackageDependencyObservation ; usf:observedInCensusRun <urn:usf:censusobservationrun:r5555555555555555555555555555555555555555555555555555555555555555> .
+}
