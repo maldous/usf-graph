@@ -1,0 +1,111 @@
+{
+  "id": "semantic-contract.quota-enforcement",
+  "title": "Quota Enforcement Semantic Contract",
+  "description": "Source-backed draft semantic contract for the quota enforcement capability, recovered from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage, not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Data Model",
+    "Interface"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facet descriptions are concise source-backed summaries citing verified manifest rows; proof is hermetic/stale, not current readiness. Enrich facet detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "quota-enforcement",
+  "capabilityDomain": "entitlements-billing",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "The quota lifecycle treats no configured quota as opt-in allowed, lets an operator set a quota with audit-before-upsert, evaluates entitlement before quota on each check, aggregates current usage, and returns a within/exceeded/no-entitlement/no-quota decision, throwing a typed denial for disallowed actions. Delta-aware checks include the requested increment (for example upload byte size) so a request that would cross the limit is denied before it is applied.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/quota.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State is a quota record (quota key, entitlement key, meter key, limit, window, deny action, updated-at/updated-by) plus a computed evaluation state of within, exceeded, no-entitlement, or no-quota, together with current usage, an allowed flag, and a projected usage value for delta checks. Usage is derived from the metering aggregate rather than stored independently.",
+      "sourceRefs": [
+        "apps/platform-api/src/ports/quota-repository.ts"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Tenant quota reads are tenant-scoped and operator set/update operations require operator authorization for a specified tenant; evaluation additionally requires the configured entitlement. Cross-tenant quota access is prevented and policy mutation is operator-only.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/quota.test.ts"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The interface is a quota repository port exposing quota read, operator set/update, and an evaluation/assert operation that returns or enforces the allow/deny decision. The contract orders entitlement evaluation before quota comparison and supports projected-usage deltas for operations that add usage.",
+      "sourceRefs": [
+        "apps/platform-api/src/ports/quota-repository.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Operator routes validate tenant identifiers and the set-quota request schema; the use case treats absent quota as opt-in allowed, validates entitlement before any usage comparison, and evaluates deltas for usage-adding operations. The entitlement-before-usage ordering is a load-bearing invariant.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/quota.test.ts"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "An assert operation throws a typed denial once a quota is exceeded or the entitlement is revoked, while evaluation returns explicit denied decisions distinguishing no-entitlement from exceeded; no-quota resolves to allowed. Failures fail closed and do not grant usage on ambiguous provider state.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/quota.test.ts"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Setting a quota emits an audit record before the mutation (audit-before-upsert) carrying the acting operator, and denial decisions are observable for enforcement. The quota resource is identified explicitly in audit metadata.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/quota.test.ts"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness is proven against live storage covering entitlement-before-quota ordering, the exceeded state, typed denial via assert, revoke-driven denial, and the no-quota allow path, with route handlers validated separately. When the quota substrate is unavailable, mutation paths are disabled and readiness degrades explicitly.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/metering-quota-routes-runtime-proof.ts",
+        "apps/platform-api/scripts/quota-enforcement-runtime-proof.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by quota unit tests and runtime proofs validating live entitlement-before-quota ordering, exceeded state, typed denial, revoke denial, and route handlers. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/metering-quota-routes-runtime-proof.ts",
+        "apps/platform-api/scripts/quota-enforcement-runtime-proof.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "No verified UI source path in the manifest yet; author the UI semantic model before generation."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/scripts/metering-quota-routes-runtime-proof.ts",
+    "apps/platform-api/scripts/quota-enforcement-runtime-proof.ts",
+    "apps/platform-api/src/adapters/postgres-quota-repository.ts",
+    "apps/platform-api/src/ports/quota-repository.ts",
+    "apps/platform-api/src/usecases/quota.ts",
+    "apps/platform-api/tests/unit/quota.test.ts",
+    "docs/adr/0057-entitlement-billing-and-quota-architecture.md",
+    "docs/adr/0067-metering-and-quota-enforcement.md",
+    "docs/evidence/platform/phase-2-metering-quota.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

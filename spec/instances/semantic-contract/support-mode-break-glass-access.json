@@ -1,0 +1,104 @@
+{
+  "id": "semantic-contract.support-mode-break-glass-access",
+  "title": "Support Mode And Break Glass Access Semantic Contract",
+  "description": "Source-backed draft semantic contract for the support mode break glass access capability, derived from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage and not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Workflow",
+    "Audit Event"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facets cite verified manifest source rows as lineage; proof is hermetic/stale and not current readiness. Do not treat as implementation authority or fresh proof; respect the hexagonal constraint in ADR 0005.",
+  "capability": "support-mode-break-glass-access",
+  "capabilityDomain": "identity-access",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Support-access lifecycle is request-approval moving an approval workflow to waiting, then approval completing it and creating an audited time-boxed support session scoped to exactly one target tenant; a direct enter-support-mode path creates the same scoped session after validation. The session is deliberately short-lived (one hour).",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/support.ts",
+        "apps/platform-api/tests/unit/support-mode.test.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State is the support approval workflow id and status plus the support session id, a support-mode flag, the effective and target organisation/tenant ids, the access reason, roles, a time-to-live of one hour, and explicitly no tenant-scoped permissions. The session carries break-glass context rather than ordinary tenant membership.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/support.ts"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "The route requires platform admin access and support enter semantics, and the usecase additionally enforces the system-admin role as defence-in-depth and only permits a support-mode system-admin to access the matching effective tenant's FQDN. A support actor without an effective organisation cannot access any tenant.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/support-mode.test.ts"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The operation surface creates a support session and drives the support approval workflow through request and approve operations. Session creation is the gated outcome of the approval flow.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/support.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "A non-system-admin, an empty or whitespace reason, and an empty target organisation are all rejected before audit or session creation, and a support-mode actor lacking an effective organisation cannot access a tenant FQDN. Invalid requests create no session.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/support-mode.test.ts"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Errors include forbidden, reason-required, invalid-target, wrong-tenant FQDN denial, and audit-backend failure that prevents session creation; every path is fail-closed. No session is created when validation or audit fails.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/support-mode.test.ts"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Support session creation emits a support-session-created audit-before-change event, the approval request emits an audit with the requested state and workflow id, and audit failure results in no support session. Audit precedes session creation, and this capability is the producer whose privileged-access audit evidence the audit-of-privileged-access capability depends on.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/support-mode.test.ts"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness is hermetic-domain ready for approval and support-session semantics, with the workflow waiting for an approval signal and completing on approval, and no live external provider is claimed. Degraded mode disables provider-dependent paths while keeping read-only readiness and audit visible.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/support-mode.test.ts",
+        "e2e/support/correlation-core.mjs"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "A unit proof covers the workflow and session state machine and a runtime proof covers the approval flow, demonstrated in source lineage via hermetic local workflow/session state-machine validation. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/support-mode.test.ts",
+        "e2e/support/correlation.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "No verified UI source path in the manifest yet; author the UI semantic model before generation."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/src/usecases/support.ts"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

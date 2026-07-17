@@ -66,9 +66,10 @@ test('cloud: every compiler failure barrier rolls back without graph drift', { .
   const manifest = loadManifest(GRAPH_DIR);
   const result = await proveLiveRollback({ manifest, client });
   assert.equal(result.ok, true);
-  assert.equal(result.faultCount, 15);
+  assert.equal(result.faultCount, 16);
   assert.equal(result.digestsUnchanged, true);
   assert.ok(result.faults.every((fault) => fault.rollbackCount === 1 && fault.activationCount > 0));
-  assert.equal(result.commitOutcomeCoverage.mode, 'pre-dispatch-only');
-  assert.equal(result.commitOutcomeCoverage.ambiguousPostDispatchOutcomeProven, false);
+  assert.equal(result.commitOutcomeCoverage.mode, 'pre-and-post-dispatch-exact-state-reconciliation');
+  assert.equal(result.commitOutcomeCoverage.ambiguousPostDispatchOutcomeProven, true);
+  assert.equal(result.commitOutcomeCoverage.exactCandidateStateReconciliationProven, true);
 });

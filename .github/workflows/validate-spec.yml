@@ -1,0 +1,342 @@
+name: validate-spec
+# Runs the formal USF spec validator (tools/validate-spec/validate-spec.py) as a fail-closed gate.
+# JSON Schema defines shape; this enforces the cross-file governance rules.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      runnerTarget:
+        description: "Runner target for manual validation"
+        required: false
+        default: auto
+        type: choice
+        options:
+          - auto
+          - github-hosted
+          - self-hosted
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-spec-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  validate:
+    runs-on: ${{ fromJSON(((vars.USF_VALIDATE_RUNNER_TARGET == 'github-hosted') || (github.event_name == 'workflow_dispatch' && inputs.runnerTarget == 'github-hosted') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)) && '["ubuntu-latest"]' || (((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.runnerTarget == 'self-hosted') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.runnerTarget == 'auto')) && '["self-hosted","linux","x64","usf","usf-ci","usf-trusted"]' || '["ubuntu-latest"]')) }}
+    steps:
+      - name: Prime local git object mirror (self-hosted transport acceleration only)
+        # Transport acceleration only; runner-local state is not authority (runnerLocalStateAuthority: false).
+        # No-op unless the runner host operator has provisioned vars.USF_GIT_OBJECT_MIRROR. Never fatal.
+        # The mirror is a read-only object alternate consulted during fetch; any missing objects are still
+        # fetched from origin, and correctness is enforced by the event-SHA verification step below.
+        # The workflow never prunes or garbage-collects the mirror.
+        env:
+          USF_GIT_OBJECT_MIRROR: ${{ vars.USF_GIT_OBJECT_MIRROR }}
+        run: |
+          if [ -z "$USF_GIT_OBJECT_MIRROR" ]; then
+            echo "usf-git-object-mirror: not configured; skipping (no-op)"
+            exit 0
+          fi
+          # Mirror location safety (fail closed): a configured object alternate must live on durable
+          # host storage that the runner workspace / runner temp cleanup lifecycle never removes, so
+          # it cannot be deleted mid-run. Reject non-absolute paths and any path under the
+          # cleanup-controlled GITHUB_WORKSPACE or RUNNER_TEMP roots BEFORE exporting the alternate.
+          case "$USF_GIT_OBJECT_MIRROR" in
+            /*) : ;;
+            *)
+              echo "usf-git-object-mirror: USF_GIT_OBJECT_MIRROR must be an absolute host path, got '$USF_GIT_OBJECT_MIRROR'" >&2
+              exit 1
+              ;;
+          esac
+          if [ -n "$GITHUB_WORKSPACE" ]; then
+            case "$USF_GIT_OBJECT_MIRROR" in
+              "$GITHUB_WORKSPACE"|"$GITHUB_WORKSPACE"/*)
+                echo "usf-git-object-mirror: USF_GIT_OBJECT_MIRROR must not live under GITHUB_WORKSPACE (removable by workspace cleanup)" >&2
+                exit 1
+                ;;
+            esac
+          fi
+          if [ -n "$RUNNER_TEMP" ]; then
+            case "$USF_GIT_OBJECT_MIRROR" in
+              "$RUNNER_TEMP"|"$RUNNER_TEMP"/*)
+                echo "usf-git-object-mirror: USF_GIT_OBJECT_MIRROR must not live under RUNNER_TEMP (removable by runner cleanup)" >&2
+                exit 1
+                ;;
+            esac
+          fi
+          if [ ! -d "$USF_GIT_OBJECT_MIRROR/objects" ]; then
+            echo "usf-git-object-mirror: configured path has no objects directory; skipping (no-op)"
+            exit 0
+          fi
+          printf 'GIT_ALTERNATE_OBJECT_DIRECTORIES=%s\n' "$USF_GIT_OBJECT_MIRROR/objects" >> "$GITHUB_ENV"
+          echo "usf-git-object-mirror: enabled read-only object alternate (transport acceleration only)"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 512
+      - name: Verify checkout equals GitHub event SHA
+        # Fail closed if the working tree is not exactly the event SHA. This correctness guarantee is
+        # what makes the optional local git object mirror safe: the mirror can only accelerate object
+        # transport; it can never change which commit is validated.
+        run: |
+          head_sha="$(git rev-parse HEAD)"
+          if [ "$head_sha" != "$GITHUB_SHA" ]; then
+            echo "checkout HEAD $head_sha does not equal event SHA $GITHUB_SHA" >&2
+            exit 1
+          fi
+          echo "checkout verified: HEAD equals event SHA $GITHUB_SHA"
+      - name: Verify runner temp boundary
+        run: |
+          test -n "$RUNNER_TEMP"
+          mkdir -p "$RUNNER_TEMP"
+          test -w "$RUNNER_TEMP"
+      - name: Runner hygiene preflight
+        run: tools/github-runner/cleanup-workspace.sh --scope workflow-pre --json | tee "$RUNNER_TEMP/usf-runner-cleanup-pre.json"
+      - name: Fetch bootstrap marker tag for validators
+        run: git fetch --no-tags --depth=2 origin refs/tags/v2-bootstrap:refs/tags/v2-bootstrap
+      - name: Prepare PR base ref for governance gate
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if git cat-file -e "$BASE_SHA^{commit}"; then
+            git update-ref "refs/remotes/origin/$BASE_REF" "$BASE_SHA"
+          else
+            git fetch --no-tags --depth=512 origin "$BASE_REF:refs/remotes/origin/$BASE_REF"
+          fi
+      - name: Verify PR governance diff refs
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if ! git diff --name-status "origin/$BASE_REF...HEAD" >/dev/null; then
+            git fetch --no-tags --unshallow origin "$BASE_REF:refs/remotes/origin/$BASE_REF"
+            git diff --name-status "origin/$BASE_REF...HEAD" >/dev/null
+          fi
+      - name: Verify bootstrap ancestry for validators
+        env:
+          BOOTSTRAP_START_COMMIT: f80da3919bfeb4e5596ccac95a67d707bae0d3ae
+        run: |
+          if ! git merge-base --is-ancestor "$BOOTSTRAP_START_COMMIT" HEAD; then
+            git fetch --no-tags --deepen=512 origin
+          fi
+          if ! git merge-base --is-ancestor "$BOOTSTRAP_START_COMMIT" HEAD; then
+            git fetch --no-tags --unshallow origin
+          fi
+          git merge-base --is-ancestor "$BOOTSTRAP_START_COMMIT" HEAD
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: corepack enable
+      - name: Verify runner toolchain
+        run: tools/github-runner/verify-toolchain.sh --json | tee "$RUNNER_TEMP/usf-runner-toolchain.json"
+      - name: Record generated timing start
+        id: generated-timing
+        run: |
+          printf 'started_epoch=%s\n' "$(date +%s)" >> "$GITHUB_OUTPUT"
+          printf 'started_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - name: Resolve pnpm store path
+        id: pnpm-store
+        run: printf 'path=%s\n' "$(corepack pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Restore pnpm store cache (PR read-only)
+        id: pnpm-cache-pr
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: usf-v1-pnpm-store-${{ runner.os }}-${{ runner.arch }}-node-24-pnpm-11.9.0-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json', '.npmrc', 'apps/*/package.json', 'packages/*/package.json', 'adapters/*/package.json', 'capabilities/*/package.json', 'tests/*/package.json') }}
+          enableCrossOsArchive: false
+      - name: Restore pnpm store cache (main writable)
+        id: pnpm-cache-main
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: usf-v1-pnpm-store-${{ runner.os }}-${{ runner.arch }}-node-24-pnpm-11.9.0-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json', '.npmrc', 'apps/*/package.json', 'packages/*/package.json', 'adapters/*/package.json', 'capabilities/*/package.json', 'tests/*/package.json') }}
+          enableCrossOsArchive: false
+      - name: Restore pip download cache (PR read-only)
+        id: pip-cache-pr
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/pip
+          key: usf-v1-pip-download-${{ runner.os }}-${{ runner.arch }}-python-3.12-${{ hashFiles('tools/validate-spec/requirements.txt') }}
+          enableCrossOsArchive: false
+      - name: Restore pip download cache (main writable)
+        id: pip-cache-main
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: usf-v1-pip-download-${{ runner.os }}-${{ runner.arch }}-python-3.12-${{ hashFiles('tools/validate-spec/requirements.txt') }}
+          enableCrossOsArchive: false
+      - run: corepack pnpm install --prefer-offline --frozen-lockfile
+      - run: python -m pip install -r tools/validate-spec/requirements.txt
+      - name: Validate spec corpus (also exercises report emission + self-validation)
+        run: python tools/validate-spec/validate-spec.py all --report "$RUNNER_TEMP/usf-validator-report.json"
+      - name: Repository validation aggregate
+        run: corepack pnpm repo:validate
+      - name: Parity validation suite
+        run: corepack pnpm parity
+      - name: Validate foundation substrate closure evidence
+        run: corepack pnpm foundation-substrate-closure:validate
+      - name: Selftest foundation substrate closure validator
+        run: corepack pnpm foundation-substrate-closure:selftest
+      - name: Validate proof cockpit acceptance evidence
+        run: corepack pnpm proof-cockpit:validate
+      - name: Selftest proof cockpit acceptance validator
+        run: corepack pnpm proof-cockpit:selftest
+      - name: PR governance gate
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: python tools/validate-spec/validate-spec.py pr --base "origin/$BASE_REF" --head HEAD --report "$RUNNER_TEMP/usf-pr-validator-report.json"
+      - name: Runner hygiene postflight
+        if: always()
+        run: |
+          if [ -x tools/github-runner/verify-secret-safety.sh ]; then
+            tools/github-runner/verify-secret-safety.sh --json | tee "$RUNNER_TEMP/usf-runner-secret-safety-post.json"
+          else
+            printf '{"result":"skipped","reason":"runner scripts unavailable"}\n' | tee "$RUNNER_TEMP/usf-runner-secret-safety-post.json"
+          fi
+          if [ -x tools/github-runner/cleanup-workspace.sh ]; then
+            tools/github-runner/cleanup-workspace.sh --scope workflow-post --json | tee "$RUNNER_TEMP/usf-runner-cleanup-post.json"
+          else
+            printf '{"result":"skipped","reason":"runner scripts unavailable"}\n' | tee "$RUNNER_TEMP/usf-runner-cleanup-post.json"
+          fi
+      - name: Report generated CI timing boundary
+        if: always()
+        env:
+          STARTED_AT: ${{ steps.generated-timing.outputs.started_at }}
+          STARTED_EPOCH: ${{ steps.generated-timing.outputs.started_epoch }}
+          PNPM_CACHE_HIT_PR: ${{ steps.pnpm-cache-pr.outputs.cache-hit }}
+          PNPM_CACHE_HIT_MAIN: ${{ steps.pnpm-cache-main.outputs.cache-hit }}
+          PIP_CACHE_HIT_PR: ${{ steps.pip-cache-pr.outputs.cache-hit }}
+          PIP_CACHE_HIT_MAIN: ${{ steps.pip-cache-main.outputs.cache-hit }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref }}
+          REPOSITORY: ${{ github.repository }}
+          PR_HEAD_REPOSITORY: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || '' }}
+          WORKFLOW_RUNNER_TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.runnerTarget || 'auto' }}
+          REPOSITORY_RUNNER_TARGET: ${{ vars.USF_VALIDATE_RUNNER_TARGET }}
+        run: |
+          ended_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          ended_epoch="$(date +%s)"
+          if [ -n "$STARTED_EPOCH" ]; then
+            duration_seconds=$((ended_epoch - STARTED_EPOCH))
+          else
+            duration_seconds="unknown"
+          fi
+          if [ "$EVENT_NAME" = "pull_request" ] && [ "$PR_HEAD_REPOSITORY" != "$REPOSITORY" ]; then
+            untrusted_fork_pull_request=true
+            secrets_available_by_policy=false
+          else
+            untrusted_fork_pull_request=false
+            secrets_available_by_policy=true
+          fi
+          runner_cleanup_result="$(jq -r '.result // "unknown"' "$RUNNER_TEMP/usf-runner-cleanup-post.json" 2>/dev/null || printf unknown)"
+          runner_secret_safety_result="$(jq -r '.result // "unknown"' "$RUNNER_TEMP/usf-runner-secret-safety-post.json" 2>/dev/null || printf unknown)"
+          runner_toolchain_ready="$(jq -r '.toolchainReady // "unknown"' "$RUNNER_TEMP/usf-runner-toolchain.json" 2>/dev/null || printf unknown)"
+          cache_hit_value() {
+            case "$1" in
+              true) printf true ;;
+              false) printf false ;;
+              *) printf false ;;
+            esac
+          }
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            pnpm_cache_lookup_attempted=true
+            pnpm_cache_hit_pr="$(cache_hit_value "$PNPM_CACHE_HIT_PR")"
+            pnpm_cache_hit_main="not-applicable"
+            pnpm_cache_hit="$pnpm_cache_hit_pr"
+            pnpm_cache_write_allowed=false
+            pnpm_cache_write_attempted=false
+            pnpm_cache_write_skipped_reason="pull-request-read-only"
+            pip_cache_lookup_attempted=true
+            pip_cache_hit_pr="$(cache_hit_value "$PIP_CACHE_HIT_PR")"
+            pip_cache_hit_main="not-applicable"
+            pip_cache_hit="$pip_cache_hit_pr"
+            pip_cache_write_allowed=false
+            pip_cache_write_attempted=false
+            pip_cache_write_skipped_reason="pull-request-read-only"
+          elif [ "$REF_NAME" = "refs/heads/main" ]; then
+            pnpm_cache_lookup_attempted=true
+            pnpm_cache_hit_pr="not-applicable"
+            pnpm_cache_hit_main="$(cache_hit_value "$PNPM_CACHE_HIT_MAIN")"
+            pnpm_cache_hit="$pnpm_cache_hit_main"
+            pnpm_cache_write_allowed=true
+            if [ "$pnpm_cache_hit" = "true" ]; then
+              pnpm_cache_write_attempted=false
+              pnpm_cache_write_skipped_reason="cache-hit"
+            else
+              pnpm_cache_write_attempted=true
+              pnpm_cache_write_skipped_reason="not-skipped-cache-miss"
+            fi
+            pip_cache_lookup_attempted=true
+            pip_cache_hit_pr="not-applicable"
+            pip_cache_hit_main="$(cache_hit_value "$PIP_CACHE_HIT_MAIN")"
+            pip_cache_hit="$pip_cache_hit_main"
+            pip_cache_write_allowed=true
+            if [ "$pip_cache_hit" = "true" ]; then
+              pip_cache_write_attempted=false
+              pip_cache_write_skipped_reason="cache-hit"
+            else
+              pip_cache_write_attempted=true
+              pip_cache_write_skipped_reason="not-skipped-cache-miss"
+            fi
+          else
+            pnpm_cache_lookup_attempted=false
+            pnpm_cache_hit=false
+            pnpm_cache_hit_pr="not-applicable"
+            pnpm_cache_hit_main="not-applicable"
+            pnpm_cache_write_allowed=false
+            pnpm_cache_write_attempted=false
+            pnpm_cache_write_skipped_reason="non-main-untrusted-ref"
+            pip_cache_lookup_attempted=false
+            pip_cache_hit=false
+            pip_cache_hit_pr="not-applicable"
+            pip_cache_hit_main="not-applicable"
+            pip_cache_write_allowed=false
+            pip_cache_write_attempted=false
+            pip_cache_write_skipped_reason="non-main-untrusted-ref"
+          fi
+          {
+            printf '## USF validate-spec generated timing report\n\n'
+            printf '%s\n' '- authority: generated report only; not semantic authority and not proof readiness'
+            printf '%s %s\n' '- started:' "$STARTED_AT"
+            printf '%s %s\n' '- ended:' "$ended_at"
+            printf '%s %s\n' '- durationSeconds:' "$duration_seconds"
+            printf '%s %s\n' '- runnerName:' "$RUNNER_NAME"
+            printf '%s %s\n' '- runnerOs:' "$RUNNER_OS"
+            printf '%s %s\n' '- runnerArch:' "$RUNNER_ARCH"
+            printf '%s\n' '- runnerRequiredLabels: self-hosted,linux,x64,usf,usf-ci,usf-trusted'
+            printf '%s %s\n' '- workflowRunnerTarget:' "$WORKFLOW_RUNNER_TARGET"
+            printf '%s %s\n' '- repositoryRunnerTarget:' "${REPOSITORY_RUNNER_TARGET:-unset}"
+            printf '%s %s\n' '- untrustedForkPullRequest:' "$untrusted_fork_pull_request"
+            printf '%s %s\n' '- secretsAvailableByPolicy:' "$secrets_available_by_policy"
+            printf '%s %s\n' '- runnerToolchainReady:' "$runner_toolchain_ready"
+            printf '%s %s\n' '- runnerCleanupResult:' "$runner_cleanup_result"
+            printf '%s %s\n' '- runnerSecretSafetyResult:' "$runner_secret_safety_result"
+            printf '%s\n' '- runnerLocalStateAuthority: false'
+            printf '%s %s\n' '- pnpmCacheLookupAttempted:' "$pnpm_cache_lookup_attempted"
+            printf '%s %s\n' '- pnpmCacheHit:' "$pnpm_cache_hit"
+            printf '%s %s\n' '- pnpmCacheHitPr:' "$pnpm_cache_hit_pr"
+            printf '%s %s\n' '- pnpmCacheHitMain:' "$pnpm_cache_hit_main"
+            printf '%s %s\n' '- pnpmCacheWriteAllowed:' "$pnpm_cache_write_allowed"
+            printf '%s %s\n' '- pnpmCacheWriteAttempted:' "$pnpm_cache_write_attempted"
+            printf '%s %s\n' '- pnpmCacheWriteSkippedReason:' "$pnpm_cache_write_skipped_reason"
+            printf '%s %s\n' '- pipCacheLookupAttempted:' "$pip_cache_lookup_attempted"
+            printf '%s %s\n' '- pipCacheHit:' "$pip_cache_hit"
+            printf '%s %s\n' '- pipCacheHitPr:' "$pip_cache_hit_pr"
+            printf '%s %s\n' '- pipCacheHitMain:' "$pip_cache_hit_main"
+            printf '%s %s\n' '- pipCacheWriteAllowed:' "$pip_cache_write_allowed"
+            printf '%s %s\n' '- pipCacheWriteAttempted:' "$pip_cache_write_attempted"
+            printf '%s %s\n' '- pipCacheWriteSkippedReason:' "$pip_cache_write_skipped_reason"
+          } >> "$GITHUB_STEP_SUMMARY"

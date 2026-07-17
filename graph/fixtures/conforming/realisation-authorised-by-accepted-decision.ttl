@@ -1,0 +1,9 @@
+# conforming
+@prefix usf: <urn:usf:ontology:> .
+
+<urn:usf:fixture:authorisedinternalrealisation> a usf:Realisation ;
+    usf:canonicalName "authorisedinternalrealisation" ;
+    usf:realisationState <urn:usf:realisationstate:internal> ;
+    usf:realisesContract <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> ;
+    usf:realisingImplementation <urn:usf:implementation:repositoryexternalartefactmaterialisation> ;
+    usf:authorisedByDecision <urn:usf:realisationdecision:repositoryexternalartefactmaterialisation> .

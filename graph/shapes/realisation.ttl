@@ -27,6 +27,17 @@ shp:RealisationShape a sh:NodeShape ;
           FILTER NOT EXISTS { $this usf:viaService ?service }
           FILTER NOT EXISTS { $this usf:viaAdapter ?adapter }
           FILTER NOT EXISTS { $this usf:viaBinding ?binding }
+        }""" ] ;
+    sh:sparql [ sh:prefixes usf:prefixes ;
+        sh:message "realisationdecision: a completed realisation must be authorised by an accepted decision; contract-only, implementable, deferred, not-claimed and deprecated states are exempt" ;
+        sh:select """SELECT $this WHERE {
+          $this usf:realisationState ?state .
+          FILTER(?state NOT IN (<urn:usf:realisationstate:contractonly>, <urn:usf:realisationstate:implementable>, <urn:usf:realisationstate:deferred>,
+                                <urn:usf:realisationstate:notclaimed>, <urn:usf:realisationstate:deprecated>))
+          FILTER NOT EXISTS {
+            $this usf:authorisedByDecision ?decision .
+            ?decision usf:decisionState <urn:usf:decisionstate:accepted> .
+          }
         }""" ] .
 
 shp:ImplementationShape a sh:NodeShape ;

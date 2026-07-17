@@ -1,0 +1,107 @@
+{
+  "id": "semantic-contract.delegated-administration-roles",
+  "title": "Delegated Administration Roles Semantic Contract",
+  "description": "Coverage-complete semantic contract for the delegated administration roles capability. Semantic information captured as a USF coverage record via the coverage record and equivalence audit; no external source code is imported and the V2 implementation language is an open decision.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Coverage-complete draft grounded in semantic information (USF coverage record only; no source import; language open). Proof is hermetic/stale lineage, not current readiness. Enrich detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "delegated-administration-roles",
+  "capabilityDomain": "identity-access",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Delegation lifecycle is grant to active, with a duplicate active grant short-circuiting to an already-active result and no mutation, revoke to revoked, list of a tenant's delegations for authorised operators, and a self-only active-delegation lookup for non-admin grantees. Active means not revoked and not expired.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State is a delegated-role record carrying id, organisation id, granter and grantee user ids, scope, granted timestamp and grantor, optional expiry, and revoked timestamp and revoker. Activeness is derived from the revoked and expiry fields.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Operator routes require platform delegation read/write permissions, grant is allowed for system-admin or tenant-admin contexts, revoke is system-admin only in current scope, and non-admin self-lookup is limited to the caller's own grantee id. Tenant isolation prevents one organisation's grants from appearing under another.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The operation surface creates and lists a tenant's delegations and deletes a delegation by id. Mutations return typed results, and the server overwrites any client-supplied grantor with the authenticated caller.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Non-admin grant, list, and revoke attempts fail closed, a duplicate active grant short-circuits without mutation, the server overwrites client-supplied grantor with the caller's id, and tenant isolation keeps one organisation's grants from another. Invalid or unauthorised requests change no state.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Typed outcomes include ok, static-permission-denied, delegation-already-active, and not-found, and denied paths log warnings while emitting no audit or mutation; provider failure returns a typed degraded result fail-closed. No partial delegation state is persisted on a denied or duplicate path.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Grant emits a delegation-granted audit-before-change event whose failure prevents persistence, revoke emits a delegation-revoked event after a successful revoke, list emits a delegation-listed event on the authorised path, and no-op denied or not-found paths emit no audit. Grant audit precedes persistence.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness is invariant-ready for the usecase contract, local runtime proof exercises the composition root against in-memory port and audit, and storage behaviour is covered by adapter tests; degraded mode disables store-dependent mutation while keeping read-only listing and audit visible.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Unit proofs cover the delegation state machine and the storage adapter and a runtime proof covers the local composition, demonstrated in source lineage via hermetic state-machine and audit-order validation. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "not-applicable",
+      "description": "No distinct UI capability at the contract level (coverage matrix ui=0); UI is modelled separately and remains a future AI-customised deliverable."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

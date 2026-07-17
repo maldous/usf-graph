@@ -1,0 +1,104 @@
+{
+  "id": "semantic-contract.composed-provider-readiness-spine",
+  "title": "Composed Provider Readiness Spine Semantic Contract",
+  "description": "Source-backed draft semantic contract for the composed provider readiness spine capability, recovered from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage, not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Service",
+    "Configuration"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facet descriptions are concise source-backed summaries citing verified manifest rows; proof is hermetic/stale, not current readiness. Enrich facet detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "composed-provider-readiness-spine",
+  "capabilityDomain": "foundation",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Aggregates readiness across composed providers into a single readiness spine so the platform can report, honestly, whether all composed dependencies are usable; it is neither provider-backed nor database-backed and owns no tenant records. It deploys the V1-proven contract GET /api/admin/providers/readiness and must keep its lifecycle/readiness model unchanged during extraction. Rollback restores the previous contract/config implementation and re-runs proof:composed-provider-readiness before promotion continues.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/composed-providers.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "The state is the derived readiness roll-up over the configured composed providers rather than owned persistent rows: per-provider readiness inputs are read and aggregated into an overall posture. It has no owned database schema, so backup scope is configuration/evidence only and restore cannot create tenant data. The spine is a read/projection over provider-configuration-plane state.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/composed-providers.ts"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "The readiness endpoint is an administrative/operator surface; the spine owns no tenant data, so standard platform security controls apply rather than per-tenant roles. Its tenant impact is indirect, since composed-provider readiness affects shared platform behaviour. It reads provider readiness signals rather than mutating provider state.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/composed-providers.ts"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The interface contract is GET /api/admin/providers/readiness, returning the aggregated readiness of composed providers behind ports/adapters. Configuration is read from the declared provider/config plane and missing or invalid configuration fails closed instead of inventing defaults. The aggregated readiness is the contract that promotion and operations consume.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/composed-providers.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Validation ensures the aggregation faithfully reflects each provider's readiness and never reports the spine as ready when any required composed provider is degraded or unknown. Inputs are the per-provider readiness states, which must resolve before the roll-up is trusted. A stale or unknown provider state must not be counted as pass.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/composed-providers.ts"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Local failure returns a typed platform error or a readiness-degraded state without changing tenant-visible semantics; there is no external provider to fabricate, so unavailable local dependencies fail closed through the readiness model. The risk class is semantic drift or configuration loss, not tenant data loss. A blocked or unavailable spine readiness is an alertable foundation condition.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/composed-providers.ts"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Because it performs no tenant mutation, its audit concern is the integrity of the readiness roll-up: the aggregated posture is observable and the underlying per-provider signals remain visible in degraded mode. The spine preserves an honest, inspectable view rather than emitting a row-level mutation log. Recovery re-runs the readiness proof so the aggregated claim stays evidence-backed.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/composed-providers.ts"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness is this capability's whole purpose: it reports overall composed-provider readiness and degrades explicitly when any required provider or the substrate is unavailable, never upgrading readiness by implication. It fails closed on missing, stale, or unknown inputs. Promotion is gated on proof:composed-provider-readiness passing.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/composed-provider-readiness-runtime-proof.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by proof:composed-provider-readiness, demonstrating that the aggregated readiness honestly reflects the underlying composed providers. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/composed-provider-readiness-runtime-proof.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "No verified UI source path in the manifest yet; author the UI semantic model before generation."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/scripts/composed-provider-readiness-runtime-proof.ts",
+    "apps/platform-api/src/usecases/composed-providers.ts",
+    "docs/adr/0071-composed-provider-readiness.md",
+    "docs/evidence/platform/composed-provider-readiness.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

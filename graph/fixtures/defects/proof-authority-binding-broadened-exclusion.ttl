@@ -1,0 +1,36 @@
+# graph: urn:usf:graph:proofs
+# expect-shacl: nonconforming
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:usf:authoritybindingrule:selfpublicationclosure> a usf:AuthorityBindingRule ;
+    usf:canonicalName "selfpublicationclosure" .
+
+fixt:authoritybindingbroadenedproof a usf:ProofResult ;
+    usf:canonicalName "authoritybindingbroadenedproof" ;
+    usf:claimedRung <urn:usf:proofrung:behaviour> ;
+    usf:observedRung <urn:usf:proofrung:behaviour> ;
+    usf:hasFreshness <urn:usf:freshness:fresh> ;
+    usf:hasAuthorityBinding fixt:authoritybindingbroadened .
+
+fixt:authoritybindingbroadened a usf:ProofAuthorityBinding ;
+    usf:canonicalName "authoritybindingbroadened" ;
+    usf:bindingEvaluatedAuthorityDigest "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" ;
+    usf:bindingDependencySetDigest "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" ;
+    usf:bindingDependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1" ;
+    usf:usesAuthorityBindingRule <urn:usf:authoritybindingrule:selfpublicationclosure> ;
+    usf:requiresPostPublicationReevaluation true ;
+    usf:authorityBindingEvidenceDigest "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" ;
+    usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^xsd:anyURI ;
+    usf:excludedAuthorityGraphIri "urn:usf:graph:derived:coverage"^^xsd:anyURI ;
+    usf:excludedAuthorityGraphIri "urn:usf:graph:derived:evidence"^^xsd:anyURI ;
+    usf:excludedAuthorityGraphIri "urn:usf:graph:derived:obligations"^^xsd:anyURI ;
+    usf:excludedAuthorityGraphIri "urn:usf:graph:derived:readiness"^^xsd:anyURI ;
+    usf:excludedAuthorityGraphIri "urn:usf:graph:derived:repositorystructure"^^xsd:anyURI ;
+    usf:excludedAuthorityGraphIri "urn:usf:graph:derived:sourcedispositions"^^xsd:anyURI ;
+    usf:excludedAuthorityGraphIri "urn:usf:graph:derived:surfaces"^^xsd:anyURI ;
+    usf:excludedAuthorityGraphIri "urn:usf:graph:evidence"^^xsd:anyURI ;
+    usf:excludedAuthorityGraphIri "urn:usf:graph:observed:sourceartefacts"^^xsd:anyURI ;
+    usf:excludedAuthorityGraphIri "urn:usf:graph:proofs"^^xsd:anyURI ;
+    usf:excludedAuthorityGraphIri "urn:usf:graph:ontology"^^xsd:anyURI .

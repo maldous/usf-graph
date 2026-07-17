@@ -6,16 +6,18 @@
 // integrity invariants and readiness. Nothing here duplicates that meaning,
 // and authored graph files are never modified during normal execution.
 
+import { createHash } from 'node:crypto';
 import { readFileSync, statSync, readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
-import { DataFactory, Parser, Store } from 'n3';
+import { DataFactory, Parser, Store, Writer } from 'n3';
+import * as rdfCanonize from 'rdf-canonize';
 import {
   authoredLoadList,
   observedLoadList,
   shapesGraph,
   managedGraphs,
   derivationRules,
-  integrityRule,
+  integrityRules,
   DERIVATION_ORDER,
 } from './manifest.js';
 import { collectObservedEntry } from './source-observer.js';
@@ -62,6 +64,67 @@ const readText = (p) => readFileSync(p, 'utf8');
 const { namedNode } = DataFactory;
 const RDF_TYPE = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
 const USF = 'urn:usf:ontology:';
+const NQUADS = 'application/n-quads';
+const XSD = 'http://www.w3.org/2001/XMLSchema#';
+const XSD_INTEGER_FAMILY = new Set([
+  'nonNegativeInteger', 'positiveInteger', 'nonPositiveInteger', 'negativeInteger',
+  'long', 'int', 'short', 'byte',
+  'unsignedLong', 'unsignedInt', 'unsignedShort', 'unsignedByte',
+].map((name) => XSD + name));
+
+function canonicalLiteralQuad(item) {
+  const object = item.object;
+  if (object.termType !== 'Literal' || !XSD_INTEGER_FAMILY.has(object.datatype.value)) return item;
+  return DataFactory.quad(
+    item.subject,
+    item.predicate,
+    DataFactory.literal(object.value, DataFactory.namedNode(XSD + 'integer')),
+    item.graph,
+  );
+}
+
+export async function canonicalNQuads(nquads) {
+  const quads = new Parser({ format: NQUADS }).parse(nquads).map(canonicalLiteralQuad);
+  return rdfCanonize.canonize(quads, { algorithm: 'RDFC-1.0', format: NQUADS });
+}
+
+export async function canonicalGraphDigest(nquads) {
+  const canonical = await canonicalNQuads(nquads);
+  return {
+    algorithm: 'RDFC-1.0',
+    digestAlgorithm: 'sha256',
+    sha256: createHash('sha256').update(canonical).digest('hex'),
+    triples: canonical.split('\n').filter(Boolean).length,
+  };
+}
+
+function nquadsFor(quads) {
+  return new Promise((resolveOutput, reject) => {
+    const writer = new Writer({ format: 'N-Quads' });
+    writer.addQuads(quads);
+    writer.end((error, output) => error ? reject(error) : resolveOutput(output));
+  });
+}
+
+function candidateGraphStores(manifest) {
+  return new Map(managedGraphs(manifest).map((graph) => [graph, new Store()]));
+}
+
+function addCandidateContent(stores, content, contentType, targetGraph, scope) {
+  const parsed = new Parser({ format: contentType, baseIRI: 'urn:usf:' }).parse(content);
+  const blankNodes = new Map();
+  const scoped = (term) => {
+    if (term.termType !== 'BlankNode') return term;
+    if (!blankNodes.has(term.value)) blankNodes.set(term.value, DataFactory.blankNode(`${scope}_${blankNodes.size}`));
+    return blankNodes.get(term.value);
+  };
+  for (const item of parsed) {
+    const graph = item.graph.termType === 'NamedNode' ? item.graph.value : targetGraph;
+    const store = stores.get(graph);
+    if (!store) throw new Error(`candidate RDF writes outside a managed graph: ${graph ?? '(default)'}`);
+    store.addQuad(DataFactory.quad(scoped(item.subject), item.predicate, scoped(item.object)));
+  }
+}
 
 function registryParityFailures(manifest) {
   const failures = [];
@@ -246,7 +309,7 @@ export function checkLocal(manifest) {
   if (ruleNames.join(',') !== DERIVATION_ORDER.join(',')) {
     fail(`derivation rule order is ${ruleNames.join(',')}, expected ${DERIVATION_ORDER.join(',')}`);
   }
-  if (!integrityRule(manifest)) fail('no integrity rule registered');
+  if (integrityRules(manifest).length === 0) fail('no integrity rule registered');
 
   for (const failure of registryParityFailures(manifest)) fail(failure);
 
@@ -321,14 +384,60 @@ const countInTx = async (client, tx, graph) => {
   return rows.length ? Number(rows[0].c.value) : 0;
 };
 
+async function candidateGraphWitness(stores) {
+  const graphs = [];
+  for (const graph of [...stores.keys()].sort()) {
+    graphs.push({ graph, ...await canonicalGraphDigest(await nquadsFor(
+      stores.get(graph).getQuads(null, null, null, null),
+    )) });
+  }
+  const body = graphs.map(({ graph, sha256, triples }) => `${graph}=${sha256}:${triples}`).join('\n');
+  return {
+    algorithm: 'sha256-rdfc10-managed-graph-inventory-v1',
+    digest: `sha256:${createHash('sha256').update(body).digest('hex')}`,
+    graphs,
+  };
+}
+
+async function liveManagedGraphWitness(manifest, client) {
+  const graphs = [];
+  for (const graph of [...managedGraphs(manifest)].sort()) {
+    const query = `CONSTRUCT { ?s ?p ?o } WHERE { GRAPH <${graph}> { ?s ?p ?o } }`;
+    const content = await client.construct(query, NQUADS);
+    graphs.push({ graph, ...await canonicalGraphDigest(content) });
+  }
+  const body = graphs.map(({ graph, sha256, triples }) => `${graph}=${sha256}:${triples}`).join('\n');
+  return {
+    algorithm: 'sha256-rdfc10-managed-graph-inventory-v1',
+    digest: `sha256:${createHash('sha256').update(body).digest('hex')}`,
+    graphs,
+  };
+}
+
+function rollbackFailure(primaryError, ...rollbackErrors) {
+  return new CompilerError('compiler transaction failed and rollback was not confirmed', {
+    phase: primaryError.phase ?? 'compile',
+    cause: primaryError,
+    errors: [primaryError, ...rollbackErrors],
+    rollbackConfirmed: false,
+  });
+}
+
 export async function compile({ manifest, client, observedCollector = collectObservedEntry }) {
   checkLocal(manifest);
   await client.connectivity();
 
   const shapes = shapeConstraints(manifest);
-  const integrity = integrityRule(manifest);
+  const integrity = integrityRules(manifest);
   const derivedTriples = {};
   const observed = {};
+  const candidateStores = candidateGraphStores(manifest);
+  let candidateScope = 0;
+  const recordCandidate = (content, contentType, graph) => {
+    addCandidateContent(candidateStores, content, contentType, graph, `load${candidateScope}`);
+    candidateScope += 1;
+  };
+  let commitOutcome;
   let tx;
 
   try {
@@ -339,10 +448,14 @@ export async function compile({ manifest, client, observedCollector = collectObs
 
     // Load authored RDF in manifest order, then the SHACL shapes.
     for (const e of authoredLoadList(manifest)) {
-      await client.addData(tx, readText(e.path), e.contentType, e.graph);
+      const content = readText(e.path);
+      await client.addData(tx, content, e.contentType, e.graph);
+      recordCandidate(content, e.contentType, e.graph);
     }
     for (const s of manifest.shapes) {
-      await client.addData(tx, readText(s.path), s.contentType, s.graph);
+      const content = readText(s.path);
+      await client.addData(tx, content, s.contentType, s.graph);
+      recordCandidate(content, s.contentType, s.graph);
     }
 
     // Validate the authored state before deriving.
@@ -356,6 +469,7 @@ export async function compile({ manifest, client, observedCollector = collectObs
     for (const entry of observedLoadList(manifest)) {
       const collection = await observedCollector({ manifest, entry });
       await client.addData(tx, collection.content, collection.contentType, entry.graph);
+      recordCandidate(collection.content, collection.contentType, entry.graph);
       observed[entry.graph] = {
         collector: entry.collector,
         sourceCount: collection.sourceCount,
@@ -376,7 +490,10 @@ export async function compile({ manifest, client, observedCollector = collectObs
       const blocks = readText(rule.path).split('#---NEXT---#').map((b) => b.trim()).filter(Boolean);
       for (const block of blocks) {
         const turtle = await client.constructInTx(tx, block);
-        if (turtle && turtle.trim()) await client.addData(tx, turtle, 'text/turtle', rule.output);
+        if (turtle && turtle.trim()) {
+          await client.addData(tx, turtle, 'text/turtle', rule.output);
+          recordCandidate(turtle, 'text/turtle', rule.output);
+        }
       }
       derivedTriples[rule.output] = await countInTx(client, tx, rule.output);
     }
@@ -387,16 +504,20 @@ export async function compile({ manifest, client, observedCollector = collectObs
       throw new CompilerError('derived state failed SHACL validation', { phase: 'validate:derived', report });
     }
 
-    // Integrity invariants: the authored SELECT must return zero rows.
-    const violations = await client.selectInTx(tx, readText(integrity.path));
-    if (violations.length) {
-      throw new CompilerError('integrity violations present', {
-        phase: 'integrity',
-        violations: violations.slice(0, 20).map((v) => ({
-          rule: v.violation?.value,
-          subject: v.subject?.value,
-        })),
-      });
+    // Every registered integrity SELECT must return zero rows, in manifest
+    // order. No later lifecycle rule may be silently omitted.
+    for (const rule of integrity) {
+      const violations = await client.selectInTx(tx, readText(rule.path));
+      if (violations.length) {
+        throw new CompilerError('integrity violations present', {
+          phase: 'integrity',
+          integrityRule: rule.file,
+          violations: violations.slice(0, 20).map((v) => ({
+            rule: v.violation?.value,
+            subject: v.subject?.value,
+          })),
+        });
+      }
     }
 
     // Contamination: no forbidden markers in any non-shapes graph.
@@ -438,7 +559,91 @@ export async function compile({ manifest, client, observedCollector = collectObs
       }
     }
 
-    await client.commit(tx);
+    const candidateWitness = await candidateGraphWitness(candidateStores);
+    try {
+      await client.commit(tx);
+      tx = null;
+      commitOutcome = {
+        state: 'confirmed-response',
+        exactCandidateStateVerified: true,
+        candidateDigest: candidateWitness.digest,
+      };
+    } catch (commitError) {
+      let rollbackError;
+      try {
+        await client.rollback(tx);
+      } catch (error) {
+        rollbackError = error;
+      }
+      if (!rollbackError) {
+        tx = null;
+        throw commitError;
+      }
+
+      let transactionClosedVerified = false;
+      let probeError;
+      try {
+        await client.selectInTx(tx, 'SELECT * WHERE { } LIMIT 1');
+      } catch (error) {
+        probeError = error;
+        transactionClosedVerified = client.isTransactionClosedError?.(error) === true;
+      }
+      if (!probeError) {
+        let recoveryRollbackError;
+        try {
+          await client.rollback(tx);
+        } catch (error) {
+          recoveryRollbackError = error;
+        }
+        tx = null;
+        if (!recoveryRollbackError) {
+          throw new CompilerError('commit failed; rollback required a verified-open transaction retry', {
+            phase: 'compile:commit',
+            cause: commitError,
+            errors: [commitError, rollbackError],
+            rollbackConfirmed: true,
+          });
+        }
+        throw new CompilerError('commit and rollback outcomes remained unresolved for a verified-open transaction', {
+          phase: 'compile:commit-outcome',
+          cause: commitError,
+          errors: [commitError, rollbackError, recoveryRollbackError],
+          rollbackConfirmed: false,
+          candidateDigest: candidateWitness.digest,
+          observedDigest: null,
+        });
+      }
+      tx = null;
+
+      let liveWitness;
+      let reconciliationError;
+      if (transactionClosedVerified) try {
+        liveWitness = await liveManagedGraphWitness(manifest, client);
+      } catch (error) {
+        reconciliationError = error;
+      }
+      if (transactionClosedVerified && liveWitness?.digest === candidateWitness.digest) {
+        commitOutcome = {
+          state: 'reconciled-committed',
+          exactCandidateStateVerified: true,
+          transactionClosedVerified: true,
+          candidateDigest: candidateWitness.digest,
+          observedDigest: liveWitness.digest,
+          commitResponseLost: true,
+        };
+      } else {
+        const errors = [commitError, rollbackError, ...(probeError ? [probeError] : []), ...(reconciliationError ? [reconciliationError] : [])];
+        throw new CompilerError('commit outcome could not be reconciled to the exact candidate graph state', {
+          phase: 'compile:commit-outcome',
+          cause: commitError,
+          errors,
+          rollbackConfirmed: false,
+          transactionClosedVerified,
+          candidateDigest: candidateWitness.digest,
+          observedDigest: liveWitness?.digest ?? null,
+        });
+      }
+    }
     return {
       ok: true,
       graphsCleared: managedGraphs(manifest).length,
@@ -448,15 +653,41 @@ export async function compile({ manifest, client, observedCollector = collectObs
       shapesLoaded: manifest.shapes.length,
       derived: derivedTriples,
       contaminationCount: 0,
+      commitOutcome,
     };
   } catch (err) {
     if (tx) {
+      let rollbackError;
       try {
         await client.rollback(tx);
-      } catch {
-        // Rollback failure must not mask the original error; the transaction
-        // is abandoned server-side regardless.
+      } catch (error) {
+        rollbackError = error;
       }
+      if (rollbackError) {
+        let probeError;
+        try {
+          await client.selectInTx(tx, 'SELECT * WHERE { } LIMIT 1');
+        } catch (error) {
+          probeError = error;
+        }
+        if (!(probeError && client.isTransactionClosedError?.(probeError) === true)) {
+          if (probeError) {
+            tx = null;
+            throw rollbackFailure(err, rollbackError, probeError);
+          }
+          let recoveryRollbackError;
+          try {
+            await client.rollback(tx);
+          } catch (error) {
+            recoveryRollbackError = error;
+          }
+          if (recoveryRollbackError) {
+            tx = null;
+            throw rollbackFailure(err, rollbackError, recoveryRollbackError);
+          }
+        }
+      }
+      tx = null;
     }
     if (err instanceof CompilerError) throw err;
     throw new CompilerError(err.message, { phase: 'compile' });
@@ -512,9 +743,12 @@ export async function verify({ manifest, client }) {
 
   result.validationConforms = await client.validate(shapeConstraints(manifest));
 
-  const integrity = integrityRule(manifest);
-  const violations = await client.select(readText(integrity.path));
-  result.integrityConforms = violations.length === 0;
+  const integrity = integrityRules(manifest);
+  const violationCounts = [];
+  for (const rule of integrity) {
+    violationCounts.push((await client.select(readText(rule.path))).length);
+  }
+  result.integrityConforms = violationCounts.every((count) => count === 0);
 
   const contam = await client.select(
     `SELECT (COUNT(*) AS ?c) WHERE {

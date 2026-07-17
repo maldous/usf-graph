@@ -1,0 +1,8 @@
+# expect-shacl: nonconforming
+@prefix usf: <urn:usf:ontology:> .
+
+<urn:usf:defect:undecidedinternalrealisation> a usf:Realisation ;
+    usf:canonicalName "undecidedinternalrealisation" ;
+    usf:realisationState <urn:usf:realisationstate:internal> ;
+    usf:realisesContract <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> ;
+    usf:realisingImplementation <urn:usf:implementation:repositoryexternalartefactmaterialisation> .

@@ -1,0 +1,107 @@
+{
+  "id": "semantic-contract.browser-telemetry-grafana-faro-rum-and-browser-to-bff-tracing",
+  "title": "Browser Telemetry Grafana Faro RUM And Browser To BFF Tracing Semantic Contract",
+  "description": "Coverage-complete semantic contract for the browser telemetry grafana faro rum and browser to bff tracing capability. Semantic information captured as a USF coverage record via the coverage record and equivalence audit; no external source code is imported and the V2 implementation language is an open decision.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Coverage-complete draft grounded in semantic information (USF coverage record only; no source import; language open). Proof is hermetic/stale lineage, not current readiness. Enrich detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "browser-telemetry-grafana-faro-rum-and-browser-to-bff-tracing",
+  "capabilityDomain": "observability-ops",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Captures browser real-user-monitoring (RUM) telemetry and propagates distributed tracing from the browser through the backend-for-frontend, so a single user interaction appears as one correlated trace spanning client and server. The browser SDK emits to a collection endpoint that forwards to the trace/log backends; the capability is provider-backed, owns no tenant records, and must keep its lifecycle/readiness model stable across extraction.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "It owns no database schema: RUM events and browser spans are emitted to a collection receiver and forwarded through a collector to the trace and log backends (e.g. Tempo and Loki), with only contract/config and a readiness record held locally. Trace context is propagated from the browser to the BFF so client and server spans join into one trace, and behaviour changes update semantic artefacts rather than introducing owned state.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "The telemetry collection endpoint is treated as a controlled ingress under standard platform security controls; since no tenant rows are owned, isolation is carried as scoped attributes (tenant/request/trace context) on the emitted spans rather than row-level data. Ingestion fails closed on missing or invalid configuration rather than accepting unscoped telemetry as authoritative.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "Exposes a browser telemetry collection contract and OTLP browser-trace propagation to the trace backend behind ports/adapters, so the RUM SDK, collection receiver, and collector are swappable without changing the contract. Trace context propagation across the browser-to-BFF boundary is the load-bearing semantic, and emitted metric/span names follow the stable per-capability convention.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Incoming browser telemetry is validated for shape and required trace/correlation context before forwarding, and missing or invalid configuration fails closed instead of inventing defaults. Span and attribute names are kept within the controlled, OpenTelemetry-informed vocabulary so arbitrary client-supplied names are not accepted as canonical.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Provider or pipeline failure returns a typed degraded/readiness failure and never fabricates a successful collection or trace; repeated typed errors crossing a threshold are an explicit alert condition. The capability owns no tenant data, so the dominant failure risk is semantic drift or configuration loss, and mutation boundaries stay closed under failure.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Configuration and contract changes to the telemetry pipeline are tracked as auditable platform actions correlated to request and trace identifiers, even though no tenant records are mutated. Audit and observability signals must agree with collected proof output when a correlation or readiness claim depends on a given browser-to-BFF trace.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness reflects whether the RUM SDK, collection receiver, collector, and downstream trace/log backends are wired and healthy, degrading explicitly when any stage is unavailable while keeping read-only readiness and audit visible. Emitted readiness, error, and audit signals use the controlled, OpenTelemetry-informed observability vocabulary without claiming OpenTelemetry compliance.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by the cited browser-to-BFF tracing end-to-end proof, which force-flushes a single Tempo trace spanning the browser app and the platform API along the observability-correlation ladder, demonstrating client-to-server trace joining as hermetic/runtime lineage rather than a current-readiness claim. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "not-applicable",
+      "description": "No distinct UI capability at the contract level (coverage matrix ui=0); UI is modelled separately and remains a future AI-customised deliverable."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

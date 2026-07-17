@@ -1,0 +1,108 @@
+{
+  "id": "semantic-contract.workflow-engine-scheduled-jobs-approvals",
+  "title": "Workflow Engine Scheduled Jobs Approvals Semantic Contract",
+  "description": "Coverage-complete semantic contract for the workflow engine scheduled jobs approvals capability. Semantic information captured as a USF coverage record via the coverage record and equivalence audit; no external source code is imported and the V2 implementation language is an open decision.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Coverage-complete draft grounded in semantic information (USF coverage record only; no source import; language open). Proof is hermetic/stale lineage, not current readiness. Enrich detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "workflow-engine-scheduled-jobs-approvals",
+  "capabilityDomain": "events-workflow",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "A workflow starts into running, an approval.requested signal moves it to waiting, approval.granted completes it, approval.denied fails it, and an explicit cancel moves it to cancelled, with provider status read back through the orchestrator. Approval gates therefore drive deterministic state transitions and a denied approval fails the workflow rather than silently proceeding, while scheduled-job dispatch enqueues work onto the event substrate. Provider failure (Temporal or the in-memory orchestrator) degrades readiness and never falls back unsafely.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State comprises workflowId, workflowKey, tenantId, payload, a status of running|waiting|completed|failed|cancelled, a free-form detail field, and provider readiness, governed by a canAccess(workflowId, tenantId) predicate that binds every workflow to its owning tenant. Provider adapters map Temporal or HTTP statuses onto these canonical status values so the state machine is provider-independent. Cross-tenant access is denied by orchestrator semantics rather than by convention.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Admin workflow operations require platform.workflow.* permissions (read for inspection, write for start, signal, and cancel), while exposed tenant read surfaces use tenant.workflow.read. Workflow ids are tenant-bound and the canAccess predicate denies cross-tenant access, so an operator or tenant cannot drive or observe another tenant's workflow. Tenant context, secrets, and provider credentials do not cross the capability boundary except through the declared contract.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The contract surface is GET /api/admin/workflows, GET /api/admin/workflows/readiness, POST /api/admin/workflows/start, GET /api/admin/workflows/:workflowId, POST /api/admin/workflows/:workflowId/signal, and POST /api/admin/workflows/:workflowId/cancel, fronting a WorkflowOrchestratorPort behind the Temporal provider adapter or the in-memory orchestrator. Scheduled-job dispatch and notification requests flow outward as events after readiness checks. The port seam keeps the workflow provider swappable without changing the lifecycle contract.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Starting a workflow requires a workflow key, tenant, and workflow id; signal names drive only explicit, named transitions; a denied approval deterministically fails the workflow; and unknown workflow reads or invalid route ids surface as typed route/use-case errors. Provider adapters validate and normalise upstream status before it reaches the canonical state machine, so malformed provider responses cannot corrupt workflow state.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Errors are fail-closed: an unknown workflow read or invalid id is a typed error, an unavailable provider is a readiness/degraded state rather than a fabricated success, a denied approval yields failed, a cancel yields cancelled, and a cross-tenant access attempt returns false. Degraded mode disables mutation and side-effect paths that depend on the provider adapter while keeping read-only readiness and audit visible.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Workflow transitions emit audit-before-change records including workflow.started, workflow.approved, workflow.external_run, and workflow.completed, and where an approval grants access a support-session audit record is also written; the audit ordering is itself part of the closure and support-approval proofs. This guarantees that an approval-driven access grant is auditable before it takes effect. Audit remains producer-owned and is not inferred by downstream consumers.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness combines hermetic in-memory or local workflow-closure validation, the Temporal provider adapter and its live proof, and a dedicated workflow readiness route; the live provider proof skips honestly when its endpoints are unavailable. Provider failure degrades readiness explicitly and never upgrades hermetic closure to a live-provider claim. Closure is level-3 hermetic state-machine validation; live provider validation is level-4 when the workflow-provider profile is available.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is grounded in workflow-closure, workflow-engine, approval-workflow, workflow-adapters, temporal-workflow-provider, and workflow-provider-live proofs, captured here as informational semantic lineage from the USF coverage record and equivalence audit with no source import and an open implementation language. The proof expectation is the lineage evidence, not a current USF readiness verdict. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "not-applicable",
+      "description": "No distinct UI capability at the contract level (coverage matrix ui=0); UI is modelled separately and remains a future AI-customised deliverable."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md",
+    "docs/adr/0011-workflow-and-job-port-family.md"
+  ]
+}

@@ -1,0 +1,105 @@
+{
+  "id": "semantic-contract.abac-policy-decision-point",
+  "title": "ABAC Policy Decision Point Semantic Contract",
+  "description": "Source-backed draft semantic contract for the abac policy decision point capability, derived from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage and not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Port",
+    "Interface"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facets cite verified manifest source rows as lineage; proof is hermetic/stale and not current readiness. Do not treat as implementation authority or fresh proof; respect the hexagonal constraint in ADR 0005.",
+  "capability": "abac-policy-decision-point",
+  "capabilityDomain": "identity-access",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "The decision point reads the current resource policy, audits, and sets a replacement, while request evaluation is authorization-server-first when a token is present, falls back to a static permission backstop when the resource is unregistered or the server is unavailable, denies fail-closed on policy denial, and requests step-up on insufficient auth level. Policy administration and per-request evaluation are distinct flows over the same guard metadata.",
+      "sourceRefs": [
+        "apps/platform-api/src/server/authorize-resource.ts",
+        "apps/platform-api/tests/unit/authorize-resource.test.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State is each guarded route's resource, scope, and required permission, plus optional resource-policy records and a decision result that is one of granted, policy-denied, insufficient-auth-level, server-unavailable, or resource-not-registered, with a static permission fallback. The decision is derived per request rather than stored.",
+      "sourceRefs": [
+        "apps/platform-api/src/server/authorize-resource.ts"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Routes declare an explicit required permission, resource, and scope consumed as a policy-enforcement point, and resource-policy writes sit behind tenant auth-settings permission with audit-before-adapter mutation. Authorization itself is the permission gate for every protected operation.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/authorize-resource.test.ts"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The operation surface is resource-policy read and replacement plus the per-route resource and scope guard metadata consumed by the request pipeline and the query authorizer. Decisions are returned to callers rather than persisted as contract output.",
+      "sourceRefs": [
+        "apps/platform-api/src/server/authorize-resource.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Unknown or unregistered resources degrade only to the static permission backstop, an absent static permission denies, an injected resource policy may allow without a static permission, and wildcard policy names are accepted. Validation never opens an unregistered resource by default.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/authorize-resource.test.ts"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Policy denial maps to 403, insufficient auth level maps to a step-up-required/401, a missing expected token maps to authentication-required/401, and static fallback without a permission maps to 403; every path is fail-closed by default. Server unavailability is an explicit non-decisive degradation, not an implicit allow.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/authorize-resource.test.ts"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Resource-policy mutations emit an audit-before-change event and audit failure prevents the adapter mutation, while read-only authorization checks are logged or returned rather than audited per request. Audit precedes any policy change.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/authorize-resource.test.ts"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness is invariant-ready for the local policy seam, and authorization-server unavailability and resource-not-registered are explicit degraded, non-decisive states with a static fallback rather than a fake allow. Degraded mode keeps read-only readiness and audit visible.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/entitlement-policy-chain-runtime-proof.ts",
+        "apps/platform-api/tests/unit/authorize-resource.test.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Unit proofs cover the decision logic and resource-policy administration and a runtime proof covers permission-before-entitlement policy ordering, demonstrated in source lineage via hermetic state/policy-chain validation. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/entitlement-policy-chain-runtime-proof.ts",
+        "apps/platform-api/tests/unit/authorize-resource.test.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "No verified UI source path in the manifest yet; author the UI semantic model before generation."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/src/server/authorize-resource.ts"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md",
+    "docs/adr/0010-authorization-policy-decision-point.md"
+  ]
+}

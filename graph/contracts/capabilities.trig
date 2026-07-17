@@ -2548,12 +2548,13 @@
 @prefix usf: <urn:usf:ontology:> .
 @prefix contractstate: <urn:usf:contractactivationstate:> .
 <urn:usf:graph:capabilities> {
- <urn:usf:semanticcontract:compilersemanticenforcement> a usf:SemanticContract ; usf:canonicalName "compilersemanticenforcement" ; usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:planned> ; usf:hasActivationState contractstate:proofblocked ; usf:activationReason "Awaiting admitted validation evidence and successful proof evaluation." ; usf:mandatoryProofObligation <urn:usf:proofobligation:compilersemantics> ; usf:permittedRealisationType usf:Implementation ; usf:asserts <urn:usf:claim:semanticfirstlifecycle> ; usf:disclaims <urn:usf:nonclaim:bootstrapexceptionisimplementationauthority> .
- <urn:usf:semanticcontract:bootstrappacket> a usf:SemanticContract ; usf:canonicalName "bootstrappacket" ; usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:planned> ; usf:hasActivationState contractstate:proofblocked ; usf:activationReason "Awaiting admitted packet validation evidence and successful proof evaluation." ; usf:mandatoryProofObligation <urn:usf:proofobligation:bootstrappacketsemantics> ; usf:permittedRealisationType usf:Implementation ; usf:asserts <urn:usf:claim:semanticfirstlifecycle> ; usf:disclaims <urn:usf:nonclaim:bootstrapexceptionisimplementationauthority> .
+ <urn:usf:semanticcontract:compilersemanticenforcement> a usf:SemanticContract ; usf:canonicalName "compilersemanticenforcement" ; usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:active> ; usf:hasActivationState contractstate:active ; usf:activationReason "Superseding admitted digest-bound compiler validation and runtime-proof evidence proves active and model-incomplete contract projection, rejection of unknown contracts, transactional rollback, 114 compiler tests, 45 annotated fixtures, 20 proof cases, eight negative cases, and authority-bound hermetic release signing." ; usf:mandatoryProofObligation <urn:usf:proofobligation:compilersemantics>, <urn:usf:proofobligation:p10cc239b81b3890d5714e8996d369bd08394965220eae7c34aa7c3ccbfc2467b> ; usf:reliesOnProofResult <urn:usf:proofresult:compilersemanticenforcementmodelprojection>, <urn:usf:proofresult:compilersemanticenforcementmodelprojectionderived> ; usf:requiredValidation <urn:usf:validationobligation:compilersemanticenforcement> ; usf:permittedRealisationType usf:Implementation ; usf:asserts <urn:usf:claim:semanticfirstlifecycle> ; usf:disclaims <urn:usf:nonclaim:bootstrapexceptionisimplementationauthority>, <urn:usf:nonclaim:hermeticevaluationsignatureprovidesproductionauthenticity> ; usf:contractConstraint "The compiler validates registered semantic sources, derivation, SHACL, integrity, contamination, and source observations transactionally and fails closed with rollback." ; usf:contractConstraint "Source-equivalence evaluation enforces the exact predicates selected by the bound equivalence rule; exact source digests, canonical capability identity and facet structure remain mandatory, while historical source lifecycle metadata never overrides current semantic lifecycle authority." ; usf:contractConstraint "A digest-bound model-incomplete or proof-blocked contract projection preserves claims, nonclaims, and obligations while granting no action, path, format, proof, or decision authority." ; usf:contractConstraint "The foundation release signing identity derives from the public hermetic label usf-foundation-release-hermetic-evaluation-key-v1 and provides deterministic integrity and tamper evidence only; it is not a production authenticity credential." .
+ <urn:usf:semanticcontract:bootstrappacket> a usf:SemanticContract ; usf:canonicalName "bootstrappacket" ; usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:active> ; usf:hasActivationState contractstate:active ; usf:activationReason "Admitted digest-bound bootstrap validation and runtime-proof evidence, two exact evidence-set proofs covering explicit and derived behavior obligations, 21 proof cases including six negative cases, 23 annotated fixtures, and 17 focused unit tests warrant activation." ; usf:mandatoryProofObligation <urn:usf:proofobligation:bootstrappacketsemantics>, <urn:usf:proofobligation:pfe4063321882c4c97f6c8d64ac09f2750b9237fca833fb353ac4ad1124512978> ; usf:reliesOnProofResult <urn:usf:proofresult:bootstrappacket>, <urn:usf:proofresult:bootstrappacketderived> ; usf:requiredValidation <urn:usf:validationobligation:bootstrappacket> ; usf:permittedRealisationType usf:Implementation ; usf:asserts <urn:usf:claim:semanticfirstlifecycle> ; usf:disclaims <urn:usf:nonclaim:bootstrapexceptionisimplementationauthority> ; usf:contractConstraint "The bootstrap packet traces model to evidence to proof to contract to realisation to validation, preserves claims and nonclaims, and is bound to a verified live authority digest." ; usf:contractConstraint "Packets are bounded to 8192 canonical JSON bytes, 50 semantic bindings, and traversal depth three; deterministic continuations are invalid after authority drift." ; usf:contractConstraint "A bootstrap packet is a non-authoritative projection and never grants implementation authority or bypasses current contract projection checks." .
  <urn:usf:claim:semanticfirstlifecycle> a usf:Claim ; usf:canonicalName "semanticfirstlifecycle" .
  <urn:usf:nonclaim:bootstrapexceptionisimplementationauthority> a usf:NonClaim ; usf:canonicalName "bootstrapexceptionisimplementationauthority" .
- <urn:usf:realisation:compilersemanticenforcementcontractonly> a usf:Realisation ; usf:realisesContract <urn:usf:semanticcontract:compilersemanticenforcement> ; usf:realisationState <urn:usf:realisationstate:contractonly> .
- <urn:usf:realisation:bootstrappacketcontractonly> a usf:Realisation ; usf:realisesContract <urn:usf:semanticcontract:bootstrappacket> ; usf:realisationState <urn:usf:realisationstate:contractonly> .
+ <urn:usf:nonclaim:hermeticevaluationsignatureprovidesproductionauthenticity> a usf:NonClaim ; usf:canonicalName "hermeticevaluationsignatureprovidesproductionauthenticity" .
+ <urn:usf:realisation:compilersemanticenforcementcontractonly> a usf:Realisation ; usf:realisesContract <urn:usf:semanticcontract:compilersemanticenforcement> ; usf:realisationState <urn:usf:realisationstate:deprecated> .
+ <urn:usf:realisation:bootstrappacketcontractonly> a usf:Realisation ; usf:realisesContract <urn:usf:semanticcontract:bootstrappacket> ; usf:realisationState <urn:usf:realisationstate:deprecated> .
 }
 @prefix usf: <urn:usf:ontology:> .
 
@@ -2639,4 +2640,848 @@
       usf:realisationState <urn:usf:realisationstate:deprecated> ;
       usf:authorisedByDecision <urn:usf:realisationdecision:localvalidationtoolchain> ;
       usf:authorisedSourcePath "census/local-semantic-validation" .
+}
+
+<urn:usf:graph:capabilities> {
+  <urn:usf:validationobligation:compilersemanticenforcement> a usf:ValidationObligation ;
+      usf:canonicalName "compilersemanticenforcement" ;
+      usf:validationForContract <urn:usf:semanticcontract:compilersemanticenforcement> .
+
+  <urn:usf:realisationoption:existingtransactionalcompiler> a usf:RealisationOption ; usf:canonicalName "existingtransactionalcompiler" .
+  <urn:usf:realisationoption:rewritecompiler> a usf:RealisationOption ; usf:canonicalName "rewritecompiler" .
+  <urn:usf:realisationoption:externalcompiler> a usf:RealisationOption ; usf:canonicalName "externalcompiler" .
+  <urn:usf:realisationdecision:compilersemanticenforcement> a usf:RealisationDecision ;
+      usf:canonicalName "compilersemanticenforcement" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ;
+      usf:considersOption <urn:usf:realisationoption:existingtransactionalcompiler>, <urn:usf:realisationoption:rewritecompiler>, <urn:usf:realisationoption:externalcompiler> ;
+      usf:decisionRationale "Retain and harden the existing transactional compiler because current evidence proves its semantic and rollback boundaries; rewrite and external authority options add migration risk without satisfying an unmet obligation." ;
+      usf:authorisesRepository "maldous/usf-graph" ;
+      usf:authorisesSourcePath "tools/compiler", "tools/proof" ;
+      usf:authorisesRealisationType usf:Implementation ;
+      usf:requiresADR <urn:usf:adrrequirement:compilersemanticenforcement> .
+  <urn:usf:adrrequirement:compilersemanticenforcement> a usf:ADRRequirement ; usf:canonicalName "compilersemanticenforcement" .
+  <urn:usf:adrrecord:compilersemanticenforcement> a usf:ADRRecord ;
+      usf:canonicalName "compilersemanticenforcement" ;
+      usf:recordsDecision <urn:usf:realisationdecision:compilersemanticenforcement> .
+  <urn:usf:implementation:compilersemanticenforcement> a usf:Implementation ; usf:canonicalName "compilersemanticenforcement" .
+  <urn:usf:realisation:compilersemanticenforcement> a usf:Realisation ;
+      usf:canonicalName "compilersemanticenforcement" ;
+      usf:realisesContract <urn:usf:semanticcontract:compilersemanticenforcement> ;
+      usf:realisingImplementation <urn:usf:implementation:compilersemanticenforcement> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ;
+      usf:authorisedByDecision <urn:usf:realisationdecision:compilersemanticenforcement> ;
+      usf:authorisedSourcePath "tools/compiler", "tools/proof" .
+}
+
+<urn:usf:graph:capabilities> {
+  <urn:usf:validationobligation:bootstrappacket> a usf:ValidationObligation ; usf:canonicalName "bootstrappacket" ; usf:validationForContract <urn:usf:semanticcontract:bootstrappacket> .
+  <urn:usf:realisationoption:existingboundedbootstrap> a usf:RealisationOption ; usf:canonicalName "existingboundedbootstrap" .
+  <urn:usf:realisationoption:unboundedsemanticpreload> a usf:RealisationOption ; usf:canonicalName "unboundedsemanticpreload" .
+  <urn:usf:realisationoption:staticsnapshotbootstrap> a usf:RealisationOption ; usf:canonicalName "staticsnapshotbootstrap" .
+  <urn:usf:realisationdecision:bootstrappacket> a usf:RealisationDecision ;
+      usf:canonicalName "bootstrappacket" ; usf:decisionState <urn:usf:decisionstate:accepted> ;
+      usf:considersOption <urn:usf:realisationoption:existingboundedbootstrap>, <urn:usf:realisationoption:unboundedsemanticpreload>, <urn:usf:realisationoption:staticsnapshotbootstrap> ;
+      usf:decisionRationale "Retain the existing bounded live bootstrap because evidence proves digest binding, deterministic bounds, category visibility, injection rejection, and non-authoritative behavior; unbounded preload and static snapshots violate boundedness or freshness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "tools/compiler", "tools/proof" ;
+      usf:authorisesRealisationType usf:Implementation ; usf:requiresADR <urn:usf:adrrequirement:bootstrappacket> .
+  <urn:usf:adrrequirement:bootstrappacket> a usf:ADRRequirement ; usf:canonicalName "bootstrappacket" .
+  <urn:usf:adrrecord:bootstrappacket> a usf:ADRRecord ; usf:canonicalName "bootstrappacket" ; usf:recordsDecision <urn:usf:realisationdecision:bootstrappacket> .
+  <urn:usf:implementation:bootstrappacket> a usf:Implementation ; usf:canonicalName "bootstrappacket" .
+  <urn:usf:realisation:bootstrappacket> a usf:Realisation ; usf:canonicalName "bootstrappacket" ;
+      usf:realisesContract <urn:usf:semanticcontract:bootstrappacket> ; usf:realisingImplementation <urn:usf:implementation:bootstrappacket> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:bootstrappacket> ;
+      usf:authorisedSourcePath "tools/compiler", "tools/proof" .
+}
+
+<urn:usf:graph:capabilities> {
+  <urn:usf:realisationoption:sharedhermeticreferencekernel> a usf:RealisationOption ; usf:canonicalName "sharedhermeticreferencekernel" .
+  <urn:usf:realisationoption:packagereferencekernel> a usf:RealisationOption ; usf:canonicalName "packagereferencekernel" .
+  <urn:usf:realisationoption:managedreferencekernel> a usf:RealisationOption ; usf:canonicalName "managedreferencekernel" .
+  <urn:usf:implementation:sharedhermeticreferencekernel> a usf:Implementation ; usf:canonicalName "sharedhermeticreferencekernel" .
+  <urn:usf:semanticcontract:accessibilitya11ygate> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p590f32046007c1b50c36178c886972ed23a62e95751248e02ff7cd94909276dc> ; usf:reliesOnProofResult <urn:usf:proofresult:accessibilitya11ygatewavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:accessibilitya11ygatewavezero> .
+  <urn:usf:validationobligation:accessibilitya11ygatewavezero> a usf:ValidationObligation ; usf:canonicalName "accessibilitya11ygatewavezero" ; usf:validationForContract <urn:usf:semanticcontract:accessibilitya11ygate> .
+  <urn:usf:realisationdecision:accessibilitya11ygatewavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "accessibilitya11ygatewavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:accessibilitya11ygatewavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "accessibilitya11ygatewavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:accessibilitya11ygate> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:accessibilitya11ygatewavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:buildversuscomposedecisionframework> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pb4d952c2153da1d55e5f20d3b4099a02c86414a0fa37cc5ec31b94e57ea0588e> ; usf:reliesOnProofResult <urn:usf:proofresult:buildversuscomposedecisionframeworkwavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:buildversuscomposedecisionframeworkwavezero> .
+  <urn:usf:validationobligation:buildversuscomposedecisionframeworkwavezero> a usf:ValidationObligation ; usf:canonicalName "buildversuscomposedecisionframeworkwavezero" ; usf:validationForContract <urn:usf:semanticcontract:buildversuscomposedecisionframework> .
+  <urn:usf:realisationdecision:buildversuscomposedecisionframeworkwavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "buildversuscomposedecisionframeworkwavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:buildversuscomposedecisionframeworkwavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "buildversuscomposedecisionframeworkwavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:buildversuscomposedecisionframework> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:buildversuscomposedecisionframeworkwavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:codequalityandsecretanddependencyscanning> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pdab84a6dbd940739a8bb61cb225da8bc9888bca214d827cc7c64b189f6c75006> ; usf:reliesOnProofResult <urn:usf:proofresult:codequalityandsecretanddependencyscanningwavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:codequalityandsecretanddependencyscanningwavezero> .
+  <urn:usf:validationobligation:codequalityandsecretanddependencyscanningwavezero> a usf:ValidationObligation ; usf:canonicalName "codequalityandsecretanddependencyscanningwavezero" ; usf:validationForContract <urn:usf:semanticcontract:codequalityandsecretanddependencyscanning> .
+  <urn:usf:realisationdecision:codequalityandsecretanddependencyscanningwavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "codequalityandsecretanddependencyscanningwavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:codequalityandsecretanddependencyscanningwavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "codequalityandsecretanddependencyscanningwavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:codequalityandsecretanddependencyscanning> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:codequalityandsecretanddependencyscanningwavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:datagovernancecataloglineageclassificationpiidsrgdpr> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p722bdd08db9123720263998d5d2f223a4f4e49ca0dfb58acf0606439d3ba2001> ; usf:reliesOnProofResult <urn:usf:proofresult:datagovernancecataloglineageclassificationpiidsrgdprwavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:datagovernancecataloglineageclassificationpiidsrgdprwavezero> .
+  <urn:usf:validationobligation:datagovernancecataloglineageclassificationpiidsrgdprwavezero> a usf:ValidationObligation ; usf:canonicalName "datagovernancecataloglineageclassificationpiidsrgdprwavezero" ; usf:validationForContract <urn:usf:semanticcontract:datagovernancecataloglineageclassificationpiidsrgdpr> .
+  <urn:usf:realisationdecision:datagovernancecataloglineageclassificationpiidsrgdprwavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "datagovernancecataloglineageclassificationpiidsrgdprwavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:datagovernancecataloglineageclassificationpiidsrgdprwavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "datagovernancecataloglineageclassificationpiidsrgdprwavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:datagovernancecataloglineageclassificationpiidsrgdpr> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:datagovernancecataloglineageclassificationpiidsrgdprwavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:delegatedadministrationroles> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p2b43e92ade2fa1fa08144b68ab3949131b37a679b88b82ea3da5f844a04473f8> ; usf:reliesOnProofResult <urn:usf:proofresult:delegatedadministrationroleswavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:delegatedadministrationroleswavezero> .
+  <urn:usf:validationobligation:delegatedadministrationroleswavezero> a usf:ValidationObligation ; usf:canonicalName "delegatedadministrationroleswavezero" ; usf:validationForContract <urn:usf:semanticcontract:delegatedadministrationroles> .
+  <urn:usf:realisationdecision:delegatedadministrationroleswavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "delegatedadministrationroleswavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:delegatedadministrationroleswavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "delegatedadministrationroleswavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:delegatedadministrationroles> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:delegatedadministrationroleswavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:e2econfidenceladderstageaware> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pa4227b4dbe041966f942e2f03b1f040e19b5842c38435cae50257c9bb0b5b557> ; usf:reliesOnProofResult <urn:usf:proofresult:e2econfidenceladderstageawarewavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:e2econfidenceladderstageawarewavezero> .
+  <urn:usf:validationobligation:e2econfidenceladderstageawarewavezero> a usf:ValidationObligation ; usf:canonicalName "e2econfidenceladderstageawarewavezero" ; usf:validationForContract <urn:usf:semanticcontract:e2econfidenceladderstageaware> .
+  <urn:usf:realisationdecision:e2econfidenceladderstageawarewavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "e2econfidenceladderstageawarewavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:e2econfidenceladderstageawarewavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "e2econfidenceladderstageawarewavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:e2econfidenceladderstageaware> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:e2econfidenceladderstageawarewavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:enduserprofileandpreferencesselfservice> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p54230998464d91ede3f717ffd31b6023a1fcdd8dc7d4420a9b537cca641722ca> ; usf:reliesOnProofResult <urn:usf:proofresult:enduserprofileandpreferencesselfservicewavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:enduserprofileandpreferencesselfservicewavezero> .
+  <urn:usf:validationobligation:enduserprofileandpreferencesselfservicewavezero> a usf:ValidationObligation ; usf:canonicalName "enduserprofileandpreferencesselfservicewavezero" ; usf:validationForContract <urn:usf:semanticcontract:enduserprofileandpreferencesselfservice> .
+  <urn:usf:realisationdecision:enduserprofileandpreferencesselfservicewavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "enduserprofileandpreferencesselfservicewavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:enduserprofileandpreferencesselfservicewavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "enduserprofileandpreferencesselfservicewavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:enduserprofileandpreferencesselfservice> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:enduserprofileandpreferencesselfservicewavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:environmentspecificvssharedservicemodel> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pdd2907d69ad901c25156f9b28a9094808ed7a5ef8d1894c30c358791716159bc> ; usf:reliesOnProofResult <urn:usf:proofresult:environmentspecificvssharedservicemodelwavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:environmentspecificvssharedservicemodelwavezero> .
+  <urn:usf:validationobligation:environmentspecificvssharedservicemodelwavezero> a usf:ValidationObligation ; usf:canonicalName "environmentspecificvssharedservicemodelwavezero" ; usf:validationForContract <urn:usf:semanticcontract:environmentspecificvssharedservicemodel> .
+  <urn:usf:realisationdecision:environmentspecificvssharedservicemodelwavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "environmentspecificvssharedservicemodelwavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:environmentspecificvssharedservicemodelwavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "environmentspecificvssharedservicemodelwavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:environmentspecificvssharedservicemodel> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:environmentspecificvssharedservicemodelwavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:i18nruntimeandvalidation> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p381a6aded89dfd9b16bf95499b6ab62396c9c6503ff6245f5c1c07b46d3421e7> ; usf:reliesOnProofResult <urn:usf:proofresult:i18nruntimeandvalidationwavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:i18nruntimeandvalidationwavezero> .
+  <urn:usf:validationobligation:i18nruntimeandvalidationwavezero> a usf:ValidationObligation ; usf:canonicalName "i18nruntimeandvalidationwavezero" ; usf:validationForContract <urn:usf:semanticcontract:i18nruntimeandvalidation> .
+  <urn:usf:realisationdecision:i18nruntimeandvalidationwavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "i18nruntimeandvalidationwavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:i18nruntimeandvalidationwavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "i18nruntimeandvalidationwavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:i18nruntimeandvalidation> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:i18nruntimeandvalidationwavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:logsaggregationandtenantscopedsearch> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p3b2be474271736f092956b01e243294647aece6a528fa872fec4dc132868a20e> ; usf:reliesOnProofResult <urn:usf:proofresult:logsaggregationandtenantscopedsearchwavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:logsaggregationandtenantscopedsearchwavezero> .
+  <urn:usf:validationobligation:logsaggregationandtenantscopedsearchwavezero> a usf:ValidationObligation ; usf:canonicalName "logsaggregationandtenantscopedsearchwavezero" ; usf:validationForContract <urn:usf:semanticcontract:logsaggregationandtenantscopedsearch> .
+  <urn:usf:realisationdecision:logsaggregationandtenantscopedsearchwavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "logsaggregationandtenantscopedsearchwavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:logsaggregationandtenantscopedsearchwavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "logsaggregationandtenantscopedsearchwavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:logsaggregationandtenantscopedsearch> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:logsaggregationandtenantscopedsearchwavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:metricsandtraces> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p80cc21c970d76ab64d7e00f869024c5d5be744f70031fd07611c64e0535f84d3> ; usf:reliesOnProofResult <urn:usf:proofresult:metricsandtraceswavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:metricsandtraceswavezero> .
+  <urn:usf:validationobligation:metricsandtraceswavezero> a usf:ValidationObligation ; usf:canonicalName "metricsandtraceswavezero" ; usf:validationForContract <urn:usf:semanticcontract:metricsandtraces> .
+  <urn:usf:realisationdecision:metricsandtraceswavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "metricsandtraceswavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:metricsandtraceswavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "metricsandtraceswavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:metricsandtraces> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:metricsandtraceswavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:openapidrifthardgate> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p4e44380c911148f0e3c3ce48ff5bceff02ec08d2a2f3557eb594c3c53a95ef1d> ; usf:reliesOnProofResult <urn:usf:proofresult:openapidrifthardgatewavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:openapidrifthardgatewavezero> .
+  <urn:usf:validationobligation:openapidrifthardgatewavezero> a usf:ValidationObligation ; usf:canonicalName "openapidrifthardgatewavezero" ; usf:validationForContract <urn:usf:semanticcontract:openapidrifthardgate> .
+  <urn:usf:realisationdecision:openapidrifthardgatewavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "openapidrifthardgatewavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:openapidrifthardgatewavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "openapidrifthardgatewavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:openapidrifthardgate> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:openapidrifthardgatewavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:productcatalogplansprices> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p05b92ae33829a9230639327d1b80ca10d7d83cc662cb29834828646760aed7b6> ; usf:reliesOnProofResult <urn:usf:proofresult:productcatalogplanspriceswavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:productcatalogplanspriceswavezero> .
+  <urn:usf:validationobligation:productcatalogplanspriceswavezero> a usf:ValidationObligation ; usf:canonicalName "productcatalogplanspriceswavezero" ; usf:validationForContract <urn:usf:semanticcontract:productcatalogplansprices> .
+  <urn:usf:realisationdecision:productcatalogplanspriceswavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "productcatalogplanspriceswavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:productcatalogplanspriceswavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "productcatalogplanspriceswavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:productcatalogplansprices> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:productcatalogplanspriceswavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:providerenvironmentclassification> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p6fdcab8c78bc4d0a1ae49ebd9f1fae6d3ea03eb61c4226889f14d8e05a32ef03> ; usf:reliesOnProofResult <urn:usf:proofresult:providerenvironmentclassificationwavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:providerenvironmentclassificationwavezero> .
+  <urn:usf:validationobligation:providerenvironmentclassificationwavezero> a usf:ValidationObligation ; usf:canonicalName "providerenvironmentclassificationwavezero" ; usf:validationForContract <urn:usf:semanticcontract:providerenvironmentclassification> .
+  <urn:usf:realisationdecision:providerenvironmentclassificationwavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "providerenvironmentclassificationwavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:providerenvironmentclassificationwavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "providerenvironmentclassificationwavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:providerenvironmentclassification> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:providerenvironmentclassificationwavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:relationalstorageandmigrationsandrls> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p849808679bbf1483464f425561fb1357acba310719c7e1b1ae3034a262e46d7a> ; usf:reliesOnProofResult <urn:usf:proofresult:relationalstorageandmigrationsandrlswavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:relationalstorageandmigrationsandrlswavezero> .
+  <urn:usf:validationobligation:relationalstorageandmigrationsandrlswavezero> a usf:ValidationObligation ; usf:canonicalName "relationalstorageandmigrationsandrlswavezero" ; usf:validationForContract <urn:usf:semanticcontract:relationalstorageandmigrationsandrls> .
+  <urn:usf:realisationdecision:relationalstorageandmigrationsandrlswavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "relationalstorageandmigrationsandrlswavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:relationalstorageandmigrationsandrlswavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "relationalstorageandmigrationsandrlswavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:relationalstorageandmigrationsandrls> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:relationalstorageandmigrationsandrlswavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:tenantidentityrecordandfqdn> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p6699cba6c785a8e91861c60a2fb4c1e2023116212e61e0444c3ea43a4105d17b> ; usf:reliesOnProofResult <urn:usf:proofresult:tenantidentityrecordandfqdnwavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:tenantidentityrecordandfqdnwavezero> .
+  <urn:usf:validationobligation:tenantidentityrecordandfqdnwavezero> a usf:ValidationObligation ; usf:canonicalName "tenantidentityrecordandfqdnwavezero" ; usf:validationForContract <urn:usf:semanticcontract:tenantidentityrecordandfqdn> .
+  <urn:usf:realisationdecision:tenantidentityrecordandfqdnwavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "tenantidentityrecordandfqdnwavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:tenantidentityrecordandfqdnwavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "tenantidentityrecordandfqdnwavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:tenantidentityrecordandfqdn> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:tenantidentityrecordandfqdnwavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:universalservicefoundationscopeandprinciples> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed deterministic whole-suite evidence at evaluated authority sha256:459e054825b6d7930d39afa1ac37059b32cbb0012d2e9ed17dde01e7f81bc4ac, non-publication dependency set sha256:203f6616e5fe116e52243275aaaeba53f229cbfa225b739272128f5f915fbc1c, and exact evidence-set proof sha256:9f7cfac89ab1117405e571e8054bc953785602eecdab154ff5d2fc02b52bb265 warrant only the initial-hermetic-local-realisation of the existing internal suite, subject to mandatory postpublication reevaluation; production authenticity/readiness, live-provider readiness, certification, accessibility compliance, human acceptance, launch localisation and UI parity remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pe39d5db9b078dedf4361439cc78387cf4d4a1cb8fb52eabbe8a128de441bef5f> ; usf:reliesOnProofResult <urn:usf:proofresult:universalservicefoundationscopeandprincipleswholesuiteevaluation> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:universalservicefoundationscopeandprincipleswavezero> .
+  <urn:usf:validationobligation:universalservicefoundationscopeandprincipleswavezero> a usf:ValidationObligation ; usf:canonicalName "universalservicefoundationscopeandprincipleswavezero" ; usf:validationForContract <urn:usf:semanticcontract:universalservicefoundationscopeandprinciples> .
+  <urn:usf:realisationdecision:universalservicefoundationscopeandprincipleswavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "universalservicefoundationscopeandprincipleswavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:universalservicefoundationscopeandprincipleswavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "universalservicefoundationscopeandprincipleswavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:universalservicefoundationscopeandprinciples> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:universalservicefoundationscopeandprincipleswavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:useridentityandtenantmembership> <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behavior evidence and an exact evidence-set proof warrant activation for the shared reference-kernel realisation stage; live-provider, production, accessibility, human-acceptance, launch-i18n and UI-parity claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p0551022bd2c0af156816468b66e72a4f2c70e1a25a3fe836a9ce28d1fa71278f> ; usf:reliesOnProofResult <urn:usf:proofresult:useridentityandtenantmembershipwavezeroreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:useridentityandtenantmembershipwavezero> .
+  <urn:usf:validationobligation:useridentityandtenantmembershipwavezero> a usf:ValidationObligation ; usf:canonicalName "useridentityandtenantmembershipwavezero" ; usf:validationForContract <urn:usf:semanticcontract:useridentityandtenantmembership> .
+  <urn:usf:realisationdecision:useridentityandtenantmembershipwavezeroreferencekernel> a usf:RealisationDecision ; usf:canonicalName "useridentityandtenantmembershipwavezeroreferencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select one local hermetic reference kernel because the current obligation explicitly requires hermetic-mock behavior proof and the shared kernel preserves fail-closed configuration, tenant isolation, typed errors, audit visibility and declared UI boundaries without claiming live-provider readiness." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:useridentityandtenantmembershipwavezeroreferencekernel> a usf:Realisation ; usf:canonicalName "useridentityandtenantmembershipwavezeroreferencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:useridentityandtenantmembership> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:useridentityandtenantmembershipwavezeroreferencekernel> ; usf:authorisedSourcePath "realisations" .
+}
+
+<urn:usf:graph:capabilities> {
+  <urn:usf:semanticcontract:browsertelemetrygrafanafarorumandbrowsertobfftracing> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 1; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pc74902725c93fe564c0efb3face9ecd3d7c1c78f695eccbc4ac157a856bc4e26> ; usf:reliesOnProofResult <urn:usf:proofresult:browsertelemetrygrafanafarorumandbrowsertobfftracingdependencywaveonereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:browsertelemetrygrafanafarorumandbrowsertobfftracingwave1> .
+  <urn:usf:validationobligation:browsertelemetrygrafanafarorumandbrowsertobfftracingwave1> a usf:ValidationObligation ; usf:canonicalName "browsertelemetrygrafanafarorumandbrowsertobfftracingwave1" ; usf:validationForContract <urn:usf:semanticcontract:browsertelemetrygrafanafarorumandbrowsertobfftracing> .
+  <urn:usf:realisationdecision:browsertelemetrygrafanafarorumandbrowsertobfftracingwave1referencekernel> a usf:RealisationDecision ; usf:canonicalName "browsertelemetrygrafanafarorumandbrowsertobfftracingwave1referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:browsertelemetrygrafanafarorumandbrowsertobfftracingwave1referencekernel> a usf:Realisation ; usf:canonicalName "browsertelemetrygrafanafarorumandbrowsertobfftracingwave1referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:browsertelemetrygrafanafarorumandbrowsertobfftracing> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:browsertelemetrygrafanafarorumandbrowsertobfftracingwave1referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:customdomainsdnsownershiptlscanonical> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 1; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p9cd5bb61878457874aa6202655651b0a1173adbccba2c936068c212307b640d6> ; usf:reliesOnProofResult <urn:usf:proofresult:customdomainsdnsownershiptlscanonicaldependencywaveonereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:customdomainsdnsownershiptlscanonicalwave1> .
+  <urn:usf:validationobligation:customdomainsdnsownershiptlscanonicalwave1> a usf:ValidationObligation ; usf:canonicalName "customdomainsdnsownershiptlscanonicalwave1" ; usf:validationForContract <urn:usf:semanticcontract:customdomainsdnsownershiptlscanonical> .
+  <urn:usf:realisationdecision:customdomainsdnsownershiptlscanonicalwave1referencekernel> a usf:RealisationDecision ; usf:canonicalName "customdomainsdnsownershiptlscanonicalwave1referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:customdomainsdnsownershiptlscanonicalwave1referencekernel> a usf:Realisation ; usf:canonicalName "customdomainsdnsownershiptlscanonicalwave1referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:customdomainsdnsownershiptlscanonical> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:customdomainsdnsownershiptlscanonicalwave1referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:eventbusdurablequeuesdlqredrive> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 1; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p2ee7171df9886c4cdfcd6d7dde649ae643668377c3983195749847076f6b6f08> ; usf:reliesOnProofResult <urn:usf:proofresult:eventbusdurablequeuesdlqredrivedependencywaveonereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:eventbusdurablequeuesdlqredrivewave1> .
+  <urn:usf:validationobligation:eventbusdurablequeuesdlqredrivewave1> a usf:ValidationObligation ; usf:canonicalName "eventbusdurablequeuesdlqredrivewave1" ; usf:validationForContract <urn:usf:semanticcontract:eventbusdurablequeuesdlqredrive> .
+  <urn:usf:realisationdecision:eventbusdurablequeuesdlqredrivewave1referencekernel> a usf:RealisationDecision ; usf:canonicalName "eventbusdurablequeuesdlqredrivewave1referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:eventbusdurablequeuesdlqredrivewave1referencekernel> a usf:Realisation ; usf:canonicalName "eventbusdurablequeuesdlqredrivewave1referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:eventbusdurablequeuesdlqredrive> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:eventbusdurablequeuesdlqredrivewave1referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:historyreadmodelreadonlyprojection> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 1; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p51bdfed6d243047d88b0e7e12614f6200d5ec614d007485c637de7ccf241a652> ; usf:reliesOnProofResult <urn:usf:proofresult:historyreadmodelreadonlyprojectiondependencywaveonereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:historyreadmodelreadonlyprojectionwave1> .
+  <urn:usf:validationobligation:historyreadmodelreadonlyprojectionwave1> a usf:ValidationObligation ; usf:canonicalName "historyreadmodelreadonlyprojectionwave1" ; usf:validationForContract <urn:usf:semanticcontract:historyreadmodelreadonlyprojection> .
+  <urn:usf:realisationdecision:historyreadmodelreadonlyprojectionwave1referencekernel> a usf:RealisationDecision ; usf:canonicalName "historyreadmodelreadonlyprojectionwave1referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:historyreadmodelreadonlyprojectionwave1referencekernel> a usf:Realisation ; usf:canonicalName "historyreadmodelreadonlyprojectionwave1referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:historyreadmodelreadonlyprojection> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:historyreadmodelreadonlyprojectionwave1referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:rbacrolesandpermissions> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 1; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p845618f4669403509723ebbf4d548d32e9b52c92882c88dc2386ae5f84ef6f3a> ; usf:reliesOnProofResult <urn:usf:proofresult:rbacrolesandpermissionsdependencywaveonereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:rbacrolesandpermissionswave1> .
+  <urn:usf:validationobligation:rbacrolesandpermissionswave1> a usf:ValidationObligation ; usf:canonicalName "rbacrolesandpermissionswave1" ; usf:validationForContract <urn:usf:semanticcontract:rbacrolesandpermissions> .
+  <urn:usf:realisationdecision:rbacrolesandpermissionswave1referencekernel> a usf:RealisationDecision ; usf:canonicalName "rbacrolesandpermissionswave1referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:rbacrolesandpermissionswave1referencekernel> a usf:Realisation ; usf:canonicalName "rbacrolesandpermissionswave1referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:rbacrolesandpermissions> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:rbacrolesandpermissionswave1referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:runtimesecretsmanagement> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 1; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pd8c1747bcd1b1af6d6e234d31844b4477d518b5b5071a996d253044ac5e70fdd> ; usf:reliesOnProofResult <urn:usf:proofresult:runtimesecretsmanagementdependencywaveonereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:runtimesecretsmanagementwave1> .
+  <urn:usf:validationobligation:runtimesecretsmanagementwave1> a usf:ValidationObligation ; usf:canonicalName "runtimesecretsmanagementwave1" ; usf:validationForContract <urn:usf:semanticcontract:runtimesecretsmanagement> .
+  <urn:usf:realisationdecision:runtimesecretsmanagementwave1referencekernel> a usf:RealisationDecision ; usf:canonicalName "runtimesecretsmanagementwave1referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:runtimesecretsmanagementwave1referencekernel> a usf:Realisation ; usf:canonicalName "runtimesecretsmanagementwave1referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:runtimesecretsmanagement> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:runtimesecretsmanagementwave1referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:searchandindexingproductsearch> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 1; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p731114268d5b18c7bafe223e72d580ea039ac856064f54de5e1d3a774f9a2fb4> ; usf:reliesOnProofResult <urn:usf:proofresult:searchandindexingproductsearchdependencywaveonereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:searchandindexingproductsearchwave1> .
+  <urn:usf:validationobligation:searchandindexingproductsearchwave1> a usf:ValidationObligation ; usf:canonicalName "searchandindexingproductsearchwave1" ; usf:validationForContract <urn:usf:semanticcontract:searchandindexingproductsearch> .
+  <urn:usf:realisationdecision:searchandindexingproductsearchwave1referencekernel> a usf:RealisationDecision ; usf:canonicalName "searchandindexingproductsearchwave1referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:searchandindexingproductsearchwave1referencekernel> a usf:Realisation ; usf:canonicalName "searchandindexingproductsearchwave1referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:searchandindexingproductsearch> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:searchandindexingproductsearchwave1referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:suborganisations> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 1; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p570878384a63cf4011c628b6e27b2e324d8d77a57bbbe73529f2e61eea3071cc> ; usf:reliesOnProofResult <urn:usf:proofresult:suborganisationsdependencywaveonereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:suborganisationswave1> .
+  <urn:usf:validationobligation:suborganisationswave1> a usf:ValidationObligation ; usf:canonicalName "suborganisationswave1" ; usf:validationForContract <urn:usf:semanticcontract:suborganisations> .
+  <urn:usf:realisationdecision:suborganisationswave1referencekernel> a usf:RealisationDecision ; usf:canonicalName "suborganisationswave1referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:suborganisationswave1referencekernel> a usf:Realisation ; usf:canonicalName "suborganisationswave1referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:suborganisations> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:suborganisationswave1referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:subscriptionsinvoicespaymentmethodsdunning> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 1; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p2732e402a5cb4b563feb3518cfd8ec22534a107cb492e1a97343f0a6ef639d59> ; usf:reliesOnProofResult <urn:usf:proofresult:subscriptionsinvoicespaymentmethodsdunningdependencywaveonereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:subscriptionsinvoicespaymentmethodsdunningwave1> .
+  <urn:usf:validationobligation:subscriptionsinvoicespaymentmethodsdunningwave1> a usf:ValidationObligation ; usf:canonicalName "subscriptionsinvoicespaymentmethodsdunningwave1" ; usf:validationForContract <urn:usf:semanticcontract:subscriptionsinvoicespaymentmethodsdunning> .
+  <urn:usf:realisationdecision:subscriptionsinvoicespaymentmethodsdunningwave1referencekernel> a usf:RealisationDecision ; usf:canonicalName "subscriptionsinvoicespaymentmethodsdunningwave1referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:subscriptionsinvoicespaymentmethodsdunningwave1referencekernel> a usf:Realisation ; usf:canonicalName "subscriptionsinvoicespaymentmethodsdunningwave1referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:subscriptionsinvoicespaymentmethodsdunning> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:subscriptionsinvoicespaymentmethodsdunningwave1referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:tenantdataimportexport> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 1; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pcf320de906ea887fab17b3a7dd05c14d8113e02d227e6f2918285c8afd670eb1> ; usf:reliesOnProofResult <urn:usf:proofresult:tenantdataimportexportdependencywaveonereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:tenantdataimportexportwave1> .
+  <urn:usf:validationobligation:tenantdataimportexportwave1> a usf:ValidationObligation ; usf:canonicalName "tenantdataimportexportwave1" ; usf:validationForContract <urn:usf:semanticcontract:tenantdataimportexport> .
+  <urn:usf:realisationdecision:tenantdataimportexportwave1referencekernel> a usf:RealisationDecision ; usf:canonicalName "tenantdataimportexportwave1referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:tenantdataimportexportwave1referencekernel> a usf:Realisation ; usf:canonicalName "tenantdataimportexportwave1referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:tenantdataimportexport> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:tenantdataimportexportwave1referencekernel> ; usf:authorisedSourcePath "realisations" .
+}
+
+<urn:usf:graph:capabilities> {
+  <urn:usf:semanticcontract:backgroundworkersjobrunner> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 2; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p98dfb0742759d9026fdff9d263c4dfb0d76d9de99c0738fbb484eb5cc4cd2512> ; usf:reliesOnProofResult <urn:usf:proofresult:backgroundworkersjobrunnerdependencywavetworeferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:backgroundworkersjobrunnerwave2> .
+  <urn:usf:validationobligation:backgroundworkersjobrunnerwave2> a usf:ValidationObligation ; usf:canonicalName "backgroundworkersjobrunnerwave2" ; usf:validationForContract <urn:usf:semanticcontract:backgroundworkersjobrunner> .
+  <urn:usf:realisationdecision:backgroundworkersjobrunnerwave2referencekernel> a usf:RealisationDecision ; usf:canonicalName "backgroundworkersjobrunnerwave2referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:backgroundworkersjobrunnerwave2referencekernel> a usf:Realisation ; usf:canonicalName "backgroundworkersjobrunnerwave2referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:backgroundworkersjobrunner> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:backgroundworkersjobrunnerwave2referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:configurationregistryandhistory> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 2; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p4f29d4a316a05193ee5580038bb399862d4419bd694f8463741b1664cb0b3fb5> ; usf:reliesOnProofResult <urn:usf:proofresult:configurationregistryandhistorydependencywavetworeferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:configurationregistryandhistorywave2> .
+  <urn:usf:validationobligation:configurationregistryandhistorywave2> a usf:ValidationObligation ; usf:canonicalName "configurationregistryandhistorywave2" ; usf:validationForContract <urn:usf:semanticcontract:configurationregistryandhistory> .
+  <urn:usf:realisationdecision:configurationregistryandhistorywave2referencekernel> a usf:RealisationDecision ; usf:canonicalName "configurationregistryandhistorywave2referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:configurationregistryandhistorywave2referencekernel> a usf:Realisation ; usf:canonicalName "configurationregistryandhistorywave2referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:configurationregistryandhistory> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:configurationregistryandhistorywave2referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:entitlementengine> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 2; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pdeaa6b8f4be464b8857eb32e75bf6c4bd7618c7ea706fb58d5f507028e6d848f> ; usf:reliesOnProofResult <urn:usf:proofresult:entitlementenginedependencywavetworeferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:entitlementenginewave2> .
+  <urn:usf:validationobligation:entitlementenginewave2> a usf:ValidationObligation ; usf:canonicalName "entitlementenginewave2" ; usf:validationForContract <urn:usf:semanticcontract:entitlementengine> .
+  <urn:usf:realisationdecision:entitlementenginewave2referencekernel> a usf:RealisationDecision ; usf:canonicalName "entitlementenginewave2referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:entitlementenginewave2referencekernel> a usf:Realisation ; usf:canonicalName "entitlementenginewave2referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:entitlementengine> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:entitlementenginewave2referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:environmentregistryandbootstrap> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 2; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pa1cd6ea964735a2306f079f95907e2b558ad202c7374addd494d858769b818af> ; usf:reliesOnProofResult <urn:usf:proofresult:environmentregistryandbootstrapdependencywavetworeferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:environmentregistryandbootstrapwave2> .
+  <urn:usf:validationobligation:environmentregistryandbootstrapwave2> a usf:ValidationObligation ; usf:canonicalName "environmentregistryandbootstrapwave2" ; usf:validationForContract <urn:usf:semanticcontract:environmentregistryandbootstrap> .
+  <urn:usf:realisationdecision:environmentregistryandbootstrapwave2referencekernel> a usf:RealisationDecision ; usf:canonicalName "environmentregistryandbootstrapwave2referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:environmentregistryandbootstrapwave2referencekernel> a usf:Realisation ; usf:canonicalName "environmentregistryandbootstrapwave2referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:environmentregistryandbootstrap> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:environmentregistryandbootstrapwave2referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:notificationdeliveryandpreferencesandchannels> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 2; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p1874b31e72692fcb908b9d1c13a86f9ca955777ba0b338339d6b5f0adb5c65af> ; usf:reliesOnProofResult <urn:usf:proofresult:notificationdeliveryandpreferencesandchannelsdependencywavetworeferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:notificationdeliveryandpreferencesandchannelswave2> .
+  <urn:usf:validationobligation:notificationdeliveryandpreferencesandchannelswave2> a usf:ValidationObligation ; usf:canonicalName "notificationdeliveryandpreferencesandchannelswave2" ; usf:validationForContract <urn:usf:semanticcontract:notificationdeliveryandpreferencesandchannels> .
+  <urn:usf:realisationdecision:notificationdeliveryandpreferencesandchannelswave2referencekernel> a usf:RealisationDecision ; usf:canonicalName "notificationdeliveryandpreferencesandchannelswave2referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:notificationdeliveryandpreferencesandchannelswave2referencekernel> a usf:Realisation ; usf:canonicalName "notificationdeliveryandpreferencesandchannelswave2referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:notificationdeliveryandpreferencesandchannels> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:notificationdeliveryandpreferencesandchannelswave2referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:providerconfigurationplane> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 2; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f> ; usf:reliesOnProofResult <urn:usf:proofresult:providerconfigurationplanedependencywavetworeferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:providerconfigurationplanewave2> .
+  <urn:usf:validationobligation:providerconfigurationplanewave2> a usf:ValidationObligation ; usf:canonicalName "providerconfigurationplanewave2" ; usf:validationForContract <urn:usf:semanticcontract:providerconfigurationplane> .
+  <urn:usf:realisationdecision:providerconfigurationplanewave2referencekernel> a usf:RealisationDecision ; usf:canonicalName "providerconfigurationplanewave2referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:providerconfigurationplanewave2referencekernel> a usf:Realisation ; usf:canonicalName "providerconfigurationplanewave2referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:providerconfigurationplane> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:providerconfigurationplanewave2referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:scheduledjobsbuiltinontheeventsubstrate> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 2; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p776ac087b89c50df01f7b20de54fde6d0c79003aed150a0acb88de2f8cf31415> ; usf:reliesOnProofResult <urn:usf:proofresult:scheduledjobsbuiltinontheeventsubstratedependencywavetworeferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:scheduledjobsbuiltinontheeventsubstratewave2> .
+  <urn:usf:validationobligation:scheduledjobsbuiltinontheeventsubstratewave2> a usf:ValidationObligation ; usf:canonicalName "scheduledjobsbuiltinontheeventsubstratewave2" ; usf:validationForContract <urn:usf:semanticcontract:scheduledjobsbuiltinontheeventsubstrate> .
+  <urn:usf:realisationdecision:scheduledjobsbuiltinontheeventsubstratewave2referencekernel> a usf:RealisationDecision ; usf:canonicalName "scheduledjobsbuiltinontheeventsubstratewave2referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:scheduledjobsbuiltinontheeventsubstratewave2referencekernel> a usf:Realisation ; usf:canonicalName "scheduledjobsbuiltinontheeventsubstratewave2referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:scheduledjobsbuiltinontheeventsubstrate> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:scheduledjobsbuiltinontheeventsubstratewave2referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:tenantdomainactivationauthclient> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 2; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p65bab1561dfaeaacd2747d692aef7b4c26ac7fbf33cf6807e83a4e7ff2abca3f> ; usf:reliesOnProofResult <urn:usf:proofresult:tenantdomainactivationauthclientdependencywavetworeferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:tenantdomainactivationauthclientwave2> .
+  <urn:usf:validationobligation:tenantdomainactivationauthclientwave2> a usf:ValidationObligation ; usf:canonicalName "tenantdomainactivationauthclientwave2" ; usf:validationForContract <urn:usf:semanticcontract:tenantdomainactivationauthclient> .
+  <urn:usf:realisationdecision:tenantdomainactivationauthclientwave2referencekernel> a usf:RealisationDecision ; usf:canonicalName "tenantdomainactivationauthclientwave2referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:tenantdomainactivationauthclientwave2referencekernel> a usf:Realisation ; usf:canonicalName "tenantdomainactivationauthclientwave2referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:tenantdomainactivationauthclient> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:tenantdomainactivationauthclientwave2referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:tenanthostidentityresolution> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 2; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p02f49c60401f1e862a4bbde6a8abbc47dd3d178d9ca888adffe13b0310c71804> ; usf:reliesOnProofResult <urn:usf:proofresult:tenanthostidentityresolutiondependencywavetworeferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:tenanthostidentityresolutionwave2> .
+  <urn:usf:validationobligation:tenanthostidentityresolutionwave2> a usf:ValidationObligation ; usf:canonicalName "tenanthostidentityresolutionwave2" ; usf:validationForContract <urn:usf:semanticcontract:tenanthostidentityresolution> .
+  <urn:usf:realisationdecision:tenanthostidentityresolutionwave2referencekernel> a usf:RealisationDecision ; usf:canonicalName "tenanthostidentityresolutionwave2referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:tenanthostidentityresolutionwave2referencekernel> a usf:Realisation ; usf:canonicalName "tenanthostidentityresolutionwave2referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:tenanthostidentityresolution> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:tenanthostidentityresolutionwave2referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:tenantlifecycleprovisionsuspenddeleteexport> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 2; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pabdf069e6dd72b834099ad09c59a70b90ac5dd06e271db91b79c27eeb1aeb375> ; usf:reliesOnProofResult <urn:usf:proofresult:tenantlifecycleprovisionsuspenddeleteexportdependencywavetworeferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:tenantlifecycleprovisionsuspenddeleteexportwave2> .
+  <urn:usf:validationobligation:tenantlifecycleprovisionsuspenddeleteexportwave2> a usf:ValidationObligation ; usf:canonicalName "tenantlifecycleprovisionsuspenddeleteexportwave2" ; usf:validationForContract <urn:usf:semanticcontract:tenantlifecycleprovisionsuspenddeleteexport> .
+  <urn:usf:realisationdecision:tenantlifecycleprovisionsuspenddeleteexportwave2referencekernel> a usf:RealisationDecision ; usf:canonicalName "tenantlifecycleprovisionsuspenddeleteexportwave2referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:tenantlifecycleprovisionsuspenddeleteexportwave2referencekernel> a usf:Realisation ; usf:canonicalName "tenantlifecycleprovisionsuspenddeleteexportwave2referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:tenantlifecycleprovisionsuspenddeleteexport> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:tenantlifecycleprovisionsuspenddeleteexportwave2referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:writeonlysecretsettings> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 2; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p507f609dc130507f1191db52cd6020083b6bb3a44af73689a81ba454bfe2a0d7> ; usf:reliesOnProofResult <urn:usf:proofresult:writeonlysecretsettingsdependencywavetworeferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:writeonlysecretsettingswave2> .
+  <urn:usf:validationobligation:writeonlysecretsettingswave2> a usf:ValidationObligation ; usf:canonicalName "writeonlysecretsettingswave2" ; usf:validationForContract <urn:usf:semanticcontract:writeonlysecretsettings> .
+  <urn:usf:realisationdecision:writeonlysecretsettingswave2referencekernel> a usf:RealisationDecision ; usf:canonicalName "writeonlysecretsettingswave2referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:writeonlysecretsettingswave2referencekernel> a usf:Realisation ; usf:canonicalName "writeonlysecretsettingswave2referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:writeonlysecretsettings> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:writeonlysecretsettingswave2referencekernel> ; usf:authorisedSourcePath "realisations" .
+}
+
+<urn:usf:graph:capabilities> {
+  <urn:usf:semanticcontract:apikeyspersonalaccesstokens> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 3; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p8bacb2a6a9e464f1f8ef53ef4d70d01f6a4a7d7ea19036282c338074878c2e2c> ; usf:reliesOnProofResult <urn:usf:proofresult:apikeyspersonalaccesstokensdependencywavethreereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:apikeyspersonalaccesstokenswave3> .
+  <urn:usf:validationobligation:apikeyspersonalaccesstokenswave3> a usf:ValidationObligation ; usf:canonicalName "apikeyspersonalaccesstokenswave3" ; usf:validationForContract <urn:usf:semanticcontract:apikeyspersonalaccesstokens> .
+  <urn:usf:realisationdecision:apikeyspersonalaccesstokenswave3referencekernel> a usf:RealisationDecision ; usf:canonicalName "apikeyspersonalaccesstokenswave3referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:apikeyspersonalaccesstokenswave3referencekernel> a usf:Realisation ; usf:canonicalName "apikeyspersonalaccesstokenswave3referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:apikeyspersonalaccesstokens> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:apikeyspersonalaccesstokenswave3referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:authenticationplatform> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 3; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p14383dcadafb8a07b8e28ffb5ef05729512eaa352424d72c862e502a06128b2f> ; usf:reliesOnProofResult <urn:usf:proofresult:authenticationplatformdependencywavethreereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:authenticationplatformwave3> .
+  <urn:usf:validationobligation:authenticationplatformwave3> a usf:ValidationObligation ; usf:canonicalName "authenticationplatformwave3" ; usf:validationForContract <urn:usf:semanticcontract:authenticationplatform> .
+  <urn:usf:realisationdecision:authenticationplatformwave3referencekernel> a usf:RealisationDecision ; usf:canonicalName "authenticationplatformwave3referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:authenticationplatformwave3referencekernel> a usf:Realisation ; usf:canonicalName "authenticationplatformwave3referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:authenticationplatform> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:authenticationplatformwave3referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:backupandrestore> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 3; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pac1a6022137958d19ef9d029d179fb8d46d67ebac60985f3d9a072f3624aae9c> ; usf:reliesOnProofResult <urn:usf:proofresult:backupandrestoredependencywavethreereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:backupandrestorewave3> .
+  <urn:usf:validationobligation:backupandrestorewave3> a usf:ValidationObligation ; usf:canonicalName "backupandrestorewave3" ; usf:validationForContract <urn:usf:semanticcontract:backupandrestore> .
+  <urn:usf:realisationdecision:backupandrestorewave3referencekernel> a usf:RealisationDecision ; usf:canonicalName "backupandrestorewave3referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:backupandrestorewave3referencekernel> a usf:Realisation ; usf:canonicalName "backupandrestorewave3referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:backupandrestore> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:backupandrestorewave3referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:brandingandtheming> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 3; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p69c6ae3b9b0ea1be29fdc8cda3c589c6834ca449630a605ae9fd44949f5e2287> ; usf:reliesOnProofResult <urn:usf:proofresult:brandingandthemingdependencywavethreereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:brandingandthemingwave3> .
+  <urn:usf:validationobligation:brandingandthemingwave3> a usf:ValidationObligation ; usf:canonicalName "brandingandthemingwave3" ; usf:validationForContract <urn:usf:semanticcontract:brandingandtheming> .
+  <urn:usf:realisationdecision:brandingandthemingwave3referencekernel> a usf:RealisationDecision ; usf:canonicalName "brandingandthemingwave3referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:brandingandthemingwave3referencekernel> a usf:Realisation ; usf:canonicalName "brandingandthemingwave3referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:brandingandtheming> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:brandingandthemingwave3referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:composedproviderreadinessspine> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 3; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p8d346141590a322037e2ec674f6b3e5b02fbced30aced1aec9bbd58366587848> ; usf:reliesOnProofResult <urn:usf:proofresult:composedproviderreadinessspinedependencywavethreereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:composedproviderreadinessspinewave3> .
+  <urn:usf:validationobligation:composedproviderreadinessspinewave3> a usf:ValidationObligation ; usf:canonicalName "composedproviderreadinessspinewave3" ; usf:validationForContract <urn:usf:semanticcontract:composedproviderreadinessspine> .
+  <urn:usf:realisationdecision:composedproviderreadinessspinewave3referencekernel> a usf:RealisationDecision ; usf:canonicalName "composedproviderreadinessspinewave3referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:composedproviderreadinessspinewave3referencekernel> a usf:Realisation ; usf:canonicalName "composedproviderreadinessspinewave3referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:composedproviderreadinessspine> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:composedproviderreadinessspinewave3referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:observabilitybuiltinalertingandincidents> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 3; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p7d5ef2af37c21dcdb8bf175e4bbcd381119368cd1c99ca22cc0baa033bc21cab> ; usf:reliesOnProofResult <urn:usf:proofresult:observabilitybuiltinalertingandincidentsdependencywavethreereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:observabilitybuiltinalertingandincidentswave3> .
+  <urn:usf:validationobligation:observabilitybuiltinalertingandincidentswave3> a usf:ValidationObligation ; usf:canonicalName "observabilitybuiltinalertingandincidentswave3" ; usf:validationForContract <urn:usf:semanticcontract:observabilitybuiltinalertingandincidents> .
+  <urn:usf:realisationdecision:observabilitybuiltinalertingandincidentswave3referencekernel> a usf:RealisationDecision ; usf:canonicalName "observabilitybuiltinalertingandincidentswave3referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:observabilitybuiltinalertingandincidentswave3referencekernel> a usf:Realisation ; usf:canonicalName "observabilitybuiltinalertingandincidentswave3referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:observabilitybuiltinalertingandincidents> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:observabilitybuiltinalertingandincidentswave3referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:ratelimitingapi> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 3; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pa1f1fc312f13d363b88c49501f13a82806adbb0c3e37dde271526432aa68e80e> ; usf:reliesOnProofResult <urn:usf:proofresult:ratelimitingapidependencywavethreereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:ratelimitingapiwave3> .
+  <urn:usf:validationobligation:ratelimitingapiwave3> a usf:ValidationObligation ; usf:canonicalName "ratelimitingapiwave3" ; usf:validationForContract <urn:usf:semanticcontract:ratelimitingapi> .
+  <urn:usf:realisationdecision:ratelimitingapiwave3referencekernel> a usf:RealisationDecision ; usf:canonicalName "ratelimitingapiwave3referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:ratelimitingapiwave3referencekernel> a usf:Realisation ; usf:canonicalName "ratelimitingapiwave3referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:ratelimitingapi> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:ratelimitingapiwave3referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:tenantcanonicaldomainsetunset> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 3; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p7ecbc91cf1177a7272468701b55a0600f3d78bc19983157c8f74f6c328a78b32> ; usf:reliesOnProofResult <urn:usf:proofresult:tenantcanonicaldomainsetunsetdependencywavethreereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:tenantcanonicaldomainsetunsetwave3> .
+  <urn:usf:validationobligation:tenantcanonicaldomainsetunsetwave3> a usf:ValidationObligation ; usf:canonicalName "tenantcanonicaldomainsetunsetwave3" ; usf:validationForContract <urn:usf:semanticcontract:tenantcanonicaldomainsetunset> .
+  <urn:usf:realisationdecision:tenantcanonicaldomainsetunsetwave3referencekernel> a usf:RealisationDecision ; usf:canonicalName "tenantcanonicaldomainsetunsetwave3referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:tenantcanonicaldomainsetunsetwave3referencekernel> a usf:Realisation ; usf:canonicalName "tenantcanonicaldomainsetunsetwave3referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:tenantcanonicaldomainsetunset> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:tenantcanonicaldomainsetunsetwave3referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:usagemeteringandmetereventingestion> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 3; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p95c31c991a0516ccd561199a8eb869d4f3bda4cff99173c2d8111f80fbda8612> ; usf:reliesOnProofResult <urn:usf:proofresult:usagemeteringandmetereventingestiondependencywavethreereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:usagemeteringandmetereventingestionwave3> .
+  <urn:usf:validationobligation:usagemeteringandmetereventingestionwave3> a usf:ValidationObligation ; usf:canonicalName "usagemeteringandmetereventingestionwave3" ; usf:validationForContract <urn:usf:semanticcontract:usagemeteringandmetereventingestion> .
+  <urn:usf:realisationdecision:usagemeteringandmetereventingestionwave3referencekernel> a usf:RealisationDecision ; usf:canonicalName "usagemeteringandmetereventingestionwave3referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:usagemeteringandmetereventingestionwave3referencekernel> a usf:Realisation ; usf:canonicalName "usagemeteringandmetereventingestionwave3referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:usagemeteringandmetereventingestion> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:usagemeteringandmetereventingestionwave3referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:webhooksdeveloperfacing> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 3; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pde0196059eada1f9df5de4e0ed50bf8980fc6d55d376cf9dfbd8fce76b9faba5> ; usf:reliesOnProofResult <urn:usf:proofresult:webhooksdeveloperfacingdependencywavethreereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:webhooksdeveloperfacingwave3> .
+  <urn:usf:validationobligation:webhooksdeveloperfacingwave3> a usf:ValidationObligation ; usf:canonicalName "webhooksdeveloperfacingwave3" ; usf:validationForContract <urn:usf:semanticcontract:webhooksdeveloperfacing> .
+  <urn:usf:realisationdecision:webhooksdeveloperfacingwave3referencekernel> a usf:RealisationDecision ; usf:canonicalName "webhooksdeveloperfacingwave3referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:webhooksdeveloperfacingwave3referencekernel> a usf:Realisation ; usf:canonicalName "webhooksdeveloperfacingwave3referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:webhooksdeveloperfacing> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:webhooksdeveloperfacingwave3referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:workflowenginescheduledjobsapprovals> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 3; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p03e5163808c04b609f64a5509c95bef374a1e15e7f0e70537cf89650fca3e13c> ; usf:reliesOnProofResult <urn:usf:proofresult:workflowenginescheduledjobsapprovalsdependencywavethreereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:workflowenginescheduledjobsapprovalswave3> .
+  <urn:usf:validationobligation:workflowenginescheduledjobsapprovalswave3> a usf:ValidationObligation ; usf:canonicalName "workflowenginescheduledjobsapprovalswave3" ; usf:validationForContract <urn:usf:semanticcontract:workflowenginescheduledjobsapprovals> .
+  <urn:usf:realisationdecision:workflowenginescheduledjobsapprovalswave3referencekernel> a usf:RealisationDecision ; usf:canonicalName "workflowenginescheduledjobsapprovalswave3referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:workflowenginescheduledjobsapprovalswave3referencekernel> a usf:Realisation ; usf:canonicalName "workflowenginescheduledjobsapprovalswave3referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:workflowenginescheduledjobsapprovals> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:workflowenginescheduledjobsapprovalswave3referencekernel> ; usf:authorisedSourcePath "realisations" .
+}
+
+<urn:usf:graph:capabilities> {
+  <urn:usf:semanticcontract:abacpolicydecisionpoint> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 4; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pc538eb634a64ddd0e94f765ab7087c56a46fb69df3ed0c405715ce83a110b0b1> ; usf:reliesOnProofResult <urn:usf:proofresult:abacpolicydecisionpointdependencywavefourreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:abacpolicydecisionpointwave4> .
+  <urn:usf:validationobligation:abacpolicydecisionpointwave4> a usf:ValidationObligation ; usf:canonicalName "abacpolicydecisionpointwave4" ; usf:validationForContract <urn:usf:semanticcontract:abacpolicydecisionpoint> .
+  <urn:usf:realisationdecision:abacpolicydecisionpointwave4referencekernel> a usf:RealisationDecision ; usf:canonicalName "abacpolicydecisionpointwave4referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:abacpolicydecisionpointwave4referencekernel> a usf:Realisation ; usf:canonicalName "abacpolicydecisionpointwave4referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:abacpolicydecisionpoint> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:abacpolicydecisionpointwave4referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:apidocsdeveloperportalsdksratelimits> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 4; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pc529427e9af90badccf5cc1ab81708a654eb3901ca935181a3d675e16044618f> ; usf:reliesOnProofResult <urn:usf:proofresult:apidocsdeveloperportalsdksratelimitsdependencywavefourreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:apidocsdeveloperportalsdksratelimitswave4> .
+  <urn:usf:validationobligation:apidocsdeveloperportalsdksratelimitswave4> a usf:ValidationObligation ; usf:canonicalName "apidocsdeveloperportalsdksratelimitswave4" ; usf:validationForContract <urn:usf:semanticcontract:apidocsdeveloperportalsdksratelimits> .
+  <urn:usf:realisationdecision:apidocsdeveloperportalsdksratelimitswave4referencekernel> a usf:RealisationDecision ; usf:canonicalName "apidocsdeveloperportalsdksratelimitswave4referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:apidocsdeveloperportalsdksratelimitswave4referencekernel> a usf:Realisation ; usf:canonicalName "apidocsdeveloperportalsdksratelimitswave4referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:apidocsdeveloperportalsdksratelimits> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:apidocsdeveloperportalsdksratelimitswave4referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:internalservicecatalogandreadiness> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 4; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pcfafaa4b1b64e1b304c3a9b52b1f3f3f94bcf90c342c95656ad5bdcec72f04fa> ; usf:reliesOnProofResult <urn:usf:proofresult:internalservicecatalogandreadinessdependencywavefourreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:internalservicecatalogandreadinesswave4> .
+  <urn:usf:validationobligation:internalservicecatalogandreadinesswave4> a usf:ValidationObligation ; usf:canonicalName "internalservicecatalogandreadinesswave4" ; usf:validationForContract <urn:usf:semanticcontract:internalservicecatalogandreadiness> .
+  <urn:usf:realisationdecision:internalservicecatalogandreadinesswave4referencekernel> a usf:RealisationDecision ; usf:canonicalName "internalservicecatalogandreadinesswave4referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:internalservicecatalogandreadinesswave4referencekernel> a usf:Realisation ; usf:canonicalName "internalservicecatalogandreadinesswave4referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:internalservicecatalogandreadiness> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:internalservicecatalogandreadinesswave4referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:pitrretentionlegalholddataresidency> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 4; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p762e7c1bd05de54b8ed694b72e8975ba8c153fdad56abd367d53806e1e5bae99> ; usf:reliesOnProofResult <urn:usf:proofresult:pitrretentionlegalholddataresidencydependencywavefourreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:pitrretentionlegalholddataresidencywave4> .
+  <urn:usf:validationobligation:pitrretentionlegalholddataresidencywave4> a usf:ValidationObligation ; usf:canonicalName "pitrretentionlegalholddataresidencywave4" ; usf:validationForContract <urn:usf:semanticcontract:pitrretentionlegalholddataresidency> .
+  <urn:usf:realisationdecision:pitrretentionlegalholddataresidencywave4referencekernel> a usf:RealisationDecision ; usf:canonicalName "pitrretentionlegalholddataresidencywave4referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:pitrretentionlegalholddataresidencywave4referencekernel> a usf:Realisation ; usf:canonicalName "pitrretentionlegalholddataresidencywave4referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:pitrretentionlegalholddataresidency> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:pitrretentionlegalholddataresidencywave4referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:quotaenforcement> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 4; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p6ea3bb03a9bbd75a3b3ac170deff93104846e8f5cb5f893a9b95c115f0e31eaf> ; usf:reliesOnProofResult <urn:usf:proofresult:quotaenforcementdependencywavefourreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:quotaenforcementwave4> .
+  <urn:usf:validationobligation:quotaenforcementwave4> a usf:ValidationObligation ; usf:canonicalName "quotaenforcementwave4" ; usf:validationForContract <urn:usf:semanticcontract:quotaenforcement> .
+  <urn:usf:realisationdecision:quotaenforcementwave4referencekernel> a usf:RealisationDecision ; usf:canonicalName "quotaenforcementwave4referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:quotaenforcementwave4referencekernel> a usf:Realisation ; usf:canonicalName "quotaenforcementwave4referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:quotaenforcement> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:quotaenforcementwave4referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:supportmodebreakglassaccess> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 4; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pb54f0b3026bf7c865320e35f6b236b105fd75ae3bf181538e4546b7b1a24c80e> ; usf:reliesOnProofResult <urn:usf:proofresult:supportmodebreakglassaccessdependencywavefourreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:supportmodebreakglassaccesswave4> .
+  <urn:usf:validationobligation:supportmodebreakglassaccesswave4> a usf:ValidationObligation ; usf:canonicalName "supportmodebreakglassaccesswave4" ; usf:validationForContract <urn:usf:semanticcontract:supportmodebreakglassaccess> .
+  <urn:usf:realisationdecision:supportmodebreakglassaccesswave4referencekernel> a usf:RealisationDecision ; usf:canonicalName "supportmodebreakglassaccesswave4referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:supportmodebreakglassaccesswave4referencekernel> a usf:Realisation ; usf:canonicalName "supportmodebreakglassaccesswave4referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:supportmodebreakglassaccess> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:supportmodebreakglassaccesswave4referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:tenantgroups> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 4; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pb28d09b60fa3099ac265a3dab9cc901c4917f495a8a7bb82ace65467257558c8> ; usf:reliesOnProofResult <urn:usf:proofresult:tenantgroupsdependencywavefourreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:tenantgroupswave4> .
+  <urn:usf:validationobligation:tenantgroupswave4> a usf:ValidationObligation ; usf:canonicalName "tenantgroupswave4" ; usf:validationForContract <urn:usf:semanticcontract:tenantgroups> .
+  <urn:usf:realisationdecision:tenantgroupswave4referencekernel> a usf:RealisationDecision ; usf:canonicalName "tenantgroupswave4referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:tenantgroupswave4referencekernel> a usf:Realisation ; usf:canonicalName "tenantgroupswave4referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:tenantgroups> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:tenantgroupswave4referencekernel> ; usf:authorisedSourcePath "realisations" .
+}
+
+<urn:usf:graph:capabilities> {
+  <urn:usf:semanticcontract:auditofprivilegedaccess> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 5; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p79b592e5db89bd40386287c90a8b54bf101edf943c58bc2d3f76795a4ff28feb> ; usf:reliesOnProofResult <urn:usf:proofresult:auditofprivilegedaccessdependencywavefivereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:auditofprivilegedaccesswave5> .
+  <urn:usf:validationobligation:auditofprivilegedaccesswave5> a usf:ValidationObligation ; usf:canonicalName "auditofprivilegedaccesswave5" ; usf:validationForContract <urn:usf:semanticcontract:auditofprivilegedaccess> .
+  <urn:usf:realisationdecision:auditofprivilegedaccesswave5referencekernel> a usf:RealisationDecision ; usf:canonicalName "auditofprivilegedaccesswave5referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:auditofprivilegedaccesswave5referencekernel> a usf:Realisation ; usf:canonicalName "auditofprivilegedaccesswave5referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:auditofprivilegedaccess> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:auditofprivilegedaccesswave5referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:objectstorageandtenantprefixesandsignedurls> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 5; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:pef604cd75bf3f300cb720c3e768008cc74af492a44ec18810e31a487f668d9d9> ; usf:reliesOnProofResult <urn:usf:proofresult:objectstorageandtenantprefixesandsignedurlsdependencywavefivereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:objectstorageandtenantprefixesandsignedurlswave5> .
+  <urn:usf:validationobligation:objectstorageandtenantprefixesandsignedurlswave5> a usf:ValidationObligation ; usf:canonicalName "objectstorageandtenantprefixesandsignedurlswave5" ; usf:validationForContract <urn:usf:semanticcontract:objectstorageandtenantprefixesandsignedurls> .
+  <urn:usf:realisationdecision:objectstorageandtenantprefixesandsignedurlswave5referencekernel> a usf:RealisationDecision ; usf:canonicalName "objectstorageandtenantprefixesandsignedurlswave5referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:objectstorageandtenantprefixesandsignedurlswave5referencekernel> a usf:Realisation ; usf:canonicalName "objectstorageandtenantprefixesandsignedurlswave5referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:objectstorageandtenantprefixesandsignedurls> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:objectstorageandtenantprefixesandsignedurlswave5referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:supportticketscustomerhealthannouncements> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 5; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p40d19670cb7b936c5d39958c1606f2aa82e3258d50919dcf54ac0e83f3096461> ; usf:reliesOnProofResult <urn:usf:proofresult:supportticketscustomerhealthannouncementsdependencywavefivereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:supportticketscustomerhealthannouncementswave5> .
+  <urn:usf:validationobligation:supportticketscustomerhealthannouncementswave5> a usf:ValidationObligation ; usf:canonicalName "supportticketscustomerhealthannouncementswave5" ; usf:validationForContract <urn:usf:semanticcontract:supportticketscustomerhealthannouncements> .
+  <urn:usf:realisationdecision:supportticketscustomerhealthannouncementswave5referencekernel> a usf:RealisationDecision ; usf:canonicalName "supportticketscustomerhealthannouncementswave5referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:supportticketscustomerhealthannouncementswave5referencekernel> a usf:Realisation ; usf:canonicalName "supportticketscustomerhealthannouncementswave5referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:supportticketscustomerhealthannouncements> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:supportticketscustomerhealthannouncementswave5referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:tenantserviceclickthroughpolicy> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 5; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p5ae56131cda35bd6a5c6a984773249607dc3aac60fa06d3d61cf1539a19e0156> ; usf:reliesOnProofResult <urn:usf:proofresult:tenantserviceclickthroughpolicydependencywavefivereferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:tenantserviceclickthroughpolicywave5> .
+  <urn:usf:validationobligation:tenantserviceclickthroughpolicywave5> a usf:ValidationObligation ; usf:canonicalName "tenantserviceclickthroughpolicywave5" ; usf:validationForContract <urn:usf:semanticcontract:tenantserviceclickthroughpolicy> .
+  <urn:usf:realisationdecision:tenantserviceclickthroughpolicywave5referencekernel> a usf:RealisationDecision ; usf:canonicalName "tenantserviceclickthroughpolicywave5referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:tenantserviceclickthroughpolicywave5referencekernel> a usf:Realisation ; usf:canonicalName "tenantserviceclickthroughpolicywave5referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:tenantserviceclickthroughpolicy> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:tenantserviceclickthroughpolicywave5referencekernel> ; usf:authorisedSourcePath "realisations" .
+}
+
+<urn:usf:graph:capabilities> {
+  <urn:usf:semanticcontract:compliancereportsaccessreviewsevidencepacks> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 6; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p611b8d4728c5f96cfc7a142c45b8ba8a30b77ad1dca83e367dd1fb44213c583d> ; usf:reliesOnProofResult <urn:usf:proofresult:compliancereportsaccessreviewsevidencepacksdependencywavesixreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:compliancereportsaccessreviewsevidencepackswave6> .
+  <urn:usf:validationobligation:compliancereportsaccessreviewsevidencepackswave6> a usf:ValidationObligation ; usf:canonicalName "compliancereportsaccessreviewsevidencepackswave6" ; usf:validationForContract <urn:usf:semanticcontract:compliancereportsaccessreviewsevidencepacks> .
+  <urn:usf:realisationdecision:compliancereportsaccessreviewsevidencepackswave6referencekernel> a usf:RealisationDecision ; usf:canonicalName "compliancereportsaccessreviewsevidencepackswave6referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:compliancereportsaccessreviewsevidencepackswave6referencekernel> a usf:Realisation ; usf:canonicalName "compliancereportsaccessreviewsevidencepackswave6referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:compliancereportsaccessreviewsevidencepacks> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:compliancereportsaccessreviewsevidencepackswave6referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:servicecatalogandproviderintegrationmodel> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 6; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p3d210ec339c9c829e5b031b079ff8a95257db4b539185d8dc88ff58d726a5ecf> ; usf:reliesOnProofResult <urn:usf:proofresult:servicecatalogandproviderintegrationmodeldependencywavesixreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:servicecatalogandproviderintegrationmodelwave6> .
+  <urn:usf:validationobligation:servicecatalogandproviderintegrationmodelwave6> a usf:ValidationObligation ; usf:canonicalName "servicecatalogandproviderintegrationmodelwave6" ; usf:validationForContract <urn:usf:semanticcontract:servicecatalogandproviderintegrationmodel> .
+  <urn:usf:realisationdecision:servicecatalogandproviderintegrationmodelwave6referencekernel> a usf:RealisationDecision ; usf:canonicalName "servicecatalogandproviderintegrationmodelwave6referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:servicecatalogandproviderintegrationmodelwave6referencekernel> a usf:Realisation ; usf:canonicalName "servicecatalogandproviderintegrationmodelwave6referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:servicecatalogandproviderintegrationmodel> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:servicecatalogandproviderintegrationmodelwave6referencekernel> ; usf:authorisedSourcePath "realisations" .
+  <urn:usf:semanticcontract:tenantisolationproof> usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:activationReason "Fresh signed hermetic behaviour evidence and an exact evidence-set proof warrant activation for dependency Wave 6; live-provider, production, human-acceptance and third-party conformance claims remain excluded." ;
+      usf:mandatoryProofObligation <urn:usf:proofobligation:p860cd149d0b0b27e1b5f3bd1346cc1b05baf94629acb5cf79f3d40167746221f> ; usf:reliesOnProofResult <urn:usf:proofresult:tenantisolationproofdependencywavesixreferencekernel> ;
+      usf:permittedRealisationType usf:Implementation ; usf:requiredValidation <urn:usf:validationobligation:tenantisolationproofwave6> .
+  <urn:usf:validationobligation:tenantisolationproofwave6> a usf:ValidationObligation ; usf:canonicalName "tenantisolationproofwave6" ; usf:validationForContract <urn:usf:semanticcontract:tenantisolationproof> .
+  <urn:usf:realisationdecision:tenantisolationproofwave6referencekernel> a usf:RealisationDecision ; usf:canonicalName "tenantisolationproofwave6referencekernel" ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption <urn:usf:realisationoption:sharedhermeticreferencekernel>, <urn:usf:realisationoption:packagereferencekernel>, <urn:usf:realisationoption:managedreferencekernel> ;
+      usf:decisionRationale "Select the shared local hermetic reference kernel because the current blocking obligation requires hermetic-mock behaviour proof while fail-closed state, tenant isolation, typed errors and audit visibility remain explicit." ;
+      usf:authorisesRepository "maldous/usf-graph" ; usf:authorisesSourcePath "realisations" ; usf:authorisesRealisationType usf:Implementation .
+  <urn:usf:realisation:tenantisolationproofwave6referencekernel> a usf:Realisation ; usf:canonicalName "tenantisolationproofwave6referencekernel" ;
+      usf:realisesContract <urn:usf:semanticcontract:tenantisolationproof> ; usf:realisingImplementation <urn:usf:implementation:sharedhermeticreferencekernel> ;
+      usf:realisationState <urn:usf:realisationstate:internal> ; usf:authorisedByDecision <urn:usf:realisationdecision:tenantisolationproofwave6referencekernel> ; usf:authorisedSourcePath "realisations" .
 }

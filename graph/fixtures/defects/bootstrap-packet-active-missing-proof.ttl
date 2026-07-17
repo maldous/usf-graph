@@ -1,0 +1,3 @@
+# expect: activecontractmissingproof
+@prefix usf: <urn:usf:ontology:> .
+<urn:usf:defect:bootstrappacketactivewithoutproof> a usf:SemanticContract ; usf:canonicalName "defectbootstrappacketactivewithoutproof" ; usf:hasActivationState <urn:usf:contractactivationstate:active> .

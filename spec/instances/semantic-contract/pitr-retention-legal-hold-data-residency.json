@@ -1,0 +1,107 @@
+{
+  "id": "semantic-contract.pitr-retention-legal-hold-data-residency",
+  "title": "PITR Retention Legal Hold Data Residency Semantic Contract",
+  "description": "Coverage-complete semantic contract for the pitr retention legal hold data residency capability. Semantic information captured as a USF coverage record via the coverage record and equivalence audit; no external source code is imported and the V2 implementation language is an open decision.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Coverage-complete draft grounded in semantic information (USF coverage record only; no source import; language open). Proof is hermetic/stale lineage, not current readiness. Enrich detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "pitr-retention-legal-hold-data-residency",
+  "capabilityDomain": "data-platform",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Provides point-in-time recovery drills, per-resource retention windows, legal holds that block deletion, and single-region data-residency tagging over tenant data, exposed through administrative data operations. A retention worker periodically evaluates expired candidates and deletes or anonymises them UNLESS an active legal hold protects the resource; legal holds move from active to released and residency tags are owned on the tenant record. The whole capability fails closed where source data or configuration is unavailable so that retention never destroys protected or unverified data.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "Retention policies are tenant-scoped rows naming a target resource class, a time-to-live window, an apply filter (all rows or by status), and an enabled flag; each retention candidate resolves to an outcome of pending, deleted, or held. Legal holds are tenant-scoped records with active or released state plus reason, set-by and released-by actors, and set and released timestamps, where active is defined by an unset release timestamp; the held-row invariant is that an active hold on a resource blocks its retention deletion. Data residency is a single-region tag owned by the tenant/organisation row, and placement enforcement rejects writes targeting a non-home region.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "All four sub-capabilities are tenant-scoped under the canonical row-level-security predicate (tenant isolation plus the dedicated bypass role), so one tenant cannot see or affect another tenant's retention policies, holds, or residency. Setting or releasing a legal hold and managing retention policies are privileged operations attributed to an actor; residency placement is enforced fail-closed against the tenant's home region. The retention worker operates under a system-admin/bypass context to evaluate candidates across the tenant's protected tables.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The capability exposes administrative operations for point-in-time recovery, retention policies, legal holds, and residency. The retention contract guarantees that a hold-guarded resource is never deleted by the retention tick, the legal-hold contract guarantees deletion is blocked while a hold is active, and the residency contract guarantees writes to a non-home region are rejected. Recovery must preserve tenant boundary, audit, and data-subject evidence.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Retention evaluation validates the configured window and filter and, critically, checks for an active legal hold before treating any candidate as deletable. Legal-hold operations validate actor and reason; residency placement validates the target region against the tenant's home tag and rejects mismatches. Point-in-time recovery is validated by a restore drill rather than assumed.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "The model is fail-closed and safety-sensitive: when source data, configuration, or hold state is unavailable, retention does not delete, residency rejects out-of-region writes, and provider failure returns a typed degraded or readiness error with mutation boundaries closed. Tenant data cannot be silently dropped or remapped; an unverified hold or window leaves the candidate in the pending or held outcome rather than deleted. Incident class is tenant-data-or-security with explicit tenant-data-loss risk if retention or restore semantics are bypassed.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Legal holds capture set-by and released-by actors with reason and lifecycle timestamps, providing a durable record of who protected what and why. Retention outcomes (pending, deleted, held) and residency rejections are observable per tenant through tenant-scoped error logs and route/use-case/provider spans that preserve tenant context. Recovery and restore must preserve audit and data-subject evidence alongside the data.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness is gated on the retention worker, legal-hold store, and residency enforcement being reachable and on the restore drill succeeding; the capability degrades explicitly when its adapters or the residency column are unavailable, keeping read-only readiness and audit visible while disabling the deletion path. Readiness being blocked, a failed restore/retention/legal-hold/residency proof during promotion, or a missing isolation or audit signal raise alerts and block promotion.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by point-in-time restore-drill, retention, legal-hold, and data-residency proofs, including the retention tick worker proven to honour active holds. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "not-applicable",
+      "description": "No distinct UI capability at the contract level (coverage matrix ui=0); UI is modelled separately and remains a future AI-customised deliverable."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "id": "semantic-contract.build-versus-compose-decision-framework",
+  "title": "Build Versus Compose Decision Framework Semantic Contract",
+  "description": "Coverage-complete semantic contract for the build versus compose decision framework capability. Semantic information captured as a USF coverage record via the coverage record and equivalence audit; no external source code is imported and the V2 implementation language is an open decision.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Coverage-complete draft grounded in semantic information (USF coverage record only; no source import; language open). Proof is hermetic/stale lineage, not current readiness. Enrich detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "build-versus-compose-decision-framework",
+  "capabilityDomain": "foundation",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Decision/governance framework that classifies each capability as build, compose, adapter, defer, or reject against cost, control, and readiness criteria; its lifecycle is the lifecycle of the decision, not of a running service. It is neither provider-backed nor database-backed, so its operations are authoring, revising, and superseding decisions, each of which must update the semantic artefacts when behaviour changes. Rollback restores the previous decision/config implementation and re-runs the named proof evidence.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "The state is the recorded decision corpus rather than tenant rows: per-capability the chosen disposition (build/compose/adapter/defer/reject) with its rationale, criteria scores, and supersession history. It has no owned database schema; changes are limited to contract/config references and the governing document. It owns no tenant data, so backup is configuration/evidence only and restore cannot create tenant data.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "The framework owns no tenant-scoped data and exposes no tenant-mutating endpoint, so standard platform security controls govern it rather than per-tenant roles. Authority to make or change a decision is governance authority (ADR/decision record), distinct from end-user permissions. Its influence on tenants is indirect, shaping which capabilities are built or composed.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The contract is the decision criteria and the decision schema itself (build vs compose vs adapter vs defer vs reject), with no V1 HTTP contract (n/a). Configuration is read from the declared provider/config plane and missing or invalid input fails closed rather than defaulting silently. Each recorded decision is the interface other capabilities consume when planning their own integration model.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Validation checks that each decision is complete, justified against the stated criteria, and consistent with the authority order and naming rules, and that a decision does not contradict downstream semantic contracts. Drift or configuration loss is the primary failure to guard against. Decisions that would upgrade proof posture or treat composed providers as more proven than evidence allows are rejected.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Local failure returns a typed platform error or a readiness-degraded state without changing tenant-visible semantics; there is no external provider to fabricate, so unavailable local dependencies fail closed through the readiness model. The risk class is semantic drift or configuration loss, not tenant data loss. Blocked readiness, a failing promotion check, or repeated typed errors past threshold are alertable foundation conditions.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "The audit trail is the decision record lineage: every build-versus-compose determination is captured as a reviewable, versioned governance artefact rather than a runtime mutation log. Changes must update the semantic artefacts and re-run the named proof so the rationale stays auditable. This preserves honest lineage of why a capability was built or composed.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness means each in-scope capability has an explicit, current, justified disposition and no capability is silently undecided; unavailable dependencies fail closed through the readiness model. Readiness is demonstrated by re-running the framework document and named proof rather than by a live service heartbeat. Stale or unknown decisions do not count as ready.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Proof is the build-versus-compose decision framework document and its associated checks, demonstrating the criteria are applied consistently across the capability set; it is a foundation-document proof rather than a runtime probe. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "not-applicable",
+      "description": "No distinct UI capability at the contract level (coverage matrix ui=0); UI is modelled separately and remains a future AI-customised deliverable."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

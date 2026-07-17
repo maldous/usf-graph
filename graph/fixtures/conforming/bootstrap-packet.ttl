@@ -1,0 +1,7 @@
+# conforming
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+fixt:bootstrappacketplanned a usf:SemanticContract ; usf:canonicalName "fixturebootstrappacketplanned" ; usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:planned> ; usf:hasActivationState <urn:usf:contractactivationstate:proofblocked> ; usf:mandatoryProofObligation fixt:bootstrappacketobligation ; usf:permittedRealisationType usf:Implementation .
+fixt:bootstrappacketobligation a usf:ProofObligation ; usf:canonicalName "fixturebootstrappacketobligation" ; usf:requiresEvidence fixt:bootstrappacketrequirement .
+fixt:bootstrappacketrequirement a usf:EvidenceRequirement ; usf:canonicalName "fixturebootstrappacketrequirement" .
+fixt:bootstrappacketcontractonly a usf:Realisation ; usf:canonicalName "fixturebootstrappacketcontractonly" ; usf:realisesContract fixt:bootstrappacketplanned ; usf:realisationState <urn:usf:realisationstate:contractonly> .

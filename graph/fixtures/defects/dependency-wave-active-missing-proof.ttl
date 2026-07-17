@@ -1,0 +1,5 @@
+# expect: activecontractmissingproof
+@prefix usf: <urn:usf:ontology:> .
+<urn:usf:defect:dependencywaveactivewithoutproof> a usf:SemanticContract ; usf:canonicalName "defectdependencywaveactivewithoutproof" ; usf:hasActivationState <urn:usf:contractactivationstate:active> ; usf:mandatoryProofObligation <urn:usf:defect:dependencywavemissingobligation> .
+<urn:usf:defect:dependencywavemissingobligation> a usf:ProofObligation ; usf:canonicalName "defectdependencywavemissingobligation" ; usf:requiresEvidence <urn:usf:defect:dependencywavemissingrequirement> .
+<urn:usf:defect:dependencywavemissingrequirement> a usf:EvidenceRequirement ; usf:canonicalName "defectdependencywavemissingrequirement" .

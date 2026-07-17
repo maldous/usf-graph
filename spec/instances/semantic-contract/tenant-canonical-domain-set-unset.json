@@ -1,0 +1,104 @@
+{
+  "id": "semantic-contract.tenant-canonical-domain-set-unset",
+  "title": "Tenant Canonical Domain Set Unset Semantic Contract",
+  "description": "Source-backed draft semantic contract for the tenant canonical domain set unset capability, recovered from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage, not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Configuration",
+    "Interface"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facet descriptions are concise source-backed summaries citing verified manifest rows; proof is hermetic/stale, not current readiness. Enrich facet detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "tenant-canonical-domain-set-unset",
+  "capabilityDomain": "configuration",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Canonical designation is a guarded set/unset: setting is refused when the domain is not verified, the auth client is inactive, or local routing is not proven, and a successful set flips the canonical flag and the redirect policy to redirect-slug-to-canonical. A second set atomically replaces the prior canonical domain, unset clears the flag, and deactivating the domain also clears canonical.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/tenant-domain-lifecycle.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State is a canonical boolean plus a canonical timestamp and the redirect policy, constrained so at most one enabled canonical domain exists per tenant. Canonical is a marker only: it does not upgrade routing status or TLS status, which remain governed by their own lifecycle.",
+      "sourceRefs": [
+        "apps/platform-api/src/ports/tenant-domain-registry.ts"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Canonical set and unset require the tenant-scoped domain-write permission and operate only on the owning tenant's domains. The single-canonical-per-tenant invariant is enforced within that tenant's scope.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/tenant-domain-lifecycle.test.ts"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The contract surface is a canonical set operation and a canonical unset operation backed by set/unset canonical use cases, mediated by the tenant-domain port and auth-client adapter. The semantics are expressed abstractly against the port rather than a concrete provider.",
+      "sourceRefs": [
+        "apps/platform-api/src/ports/tenant-domain-registry.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Setting canonical requires verified ownership, an active auth client, and proven local routing, while unset requires the domain to exist, and a second set preserves the one-canonical invariant by atomically replacing the existing canonical row. These preconditions are checked before any state mutation.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/tenant-domain-lifecycle.test.ts"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Outcomes are typed and fail-closed as ok, not-found, not-verified, auth-client-inactive, or routing-not-proven, so each unmet precondition produces a distinct deterministic result rather than a partial change. The replacement of an existing canonical is atomic so the invariant cannot be transiently violated.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/tenant-domain-lifecycle.test.ts"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Set and unset emit canonical set and unset audit events carrying domain and redirect-policy metadata before the registry mutation. Audit precedes the state change so every canonical transition is recorded ahead of being applied.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/tenant-domain-lifecycle.test.ts"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness covers local canonical cutover only; public DNS and TLS are explicitly deferred, and canonical is treated as a marker that does not imply public routing or TLS readiness. The capability therefore degrades honestly to a local-only posture when external infrastructure is unavailable.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/tenant-domain-canonical-runtime-proof.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by a canonical-domain runtime proof that validates live registry guards, redirect-policy transition, atomic replacement, unset, and clearing on deactivation against a real substrate. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/tenant-domain-canonical-runtime-proof.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "No verified UI source path in the manifest yet; author the UI semantic model before generation."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/src/usecases/tenant-domain-lifecycle.ts",
+    "apps/platform-api/tests/unit/tenant-domain-lifecycle.test.ts",
+    "apps/platform-api/src/ports/tenant-domain-registry.ts",
+    "apps/platform-api/scripts/tenant-domain-canonical-runtime-proof.ts"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

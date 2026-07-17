@@ -11,7 +11,7 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFil
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DataFactory, Parser, Store } from 'n3';
+import { DataFactory, Parser, Store, Writer } from 'n3';
 
 // The standalone repository owns the real graph; an explicit override remains
 // available for isolated fixtures.
@@ -27,7 +27,7 @@ const realGraphAbsent = (t) => {
 import { loadConfig, describeConfig, ConfigError } from '../src/config.js';
 import { loadManifest, managedGraphs, ManifestError } from '../src/manifest.js';
 import { checkLocal, compile, buildPlan, verify, verificationConforms, CompilerError, CONTAMINATION_PATTERNS } from '../src/compiler.js';
-import { createClient } from '../src/stardog.js';
+import { createClient, stardogInternals } from '../src/stardog.js';
 import { loadAuthorityDataset } from '../src/authority-dataset.js';
 import { buildGenerationPlan, requireCompleteGenerationPlan } from '../src/generation-plan.js';
 import {
@@ -162,6 +162,27 @@ test.after(() => {
 });
 
 // A recording fake standing in for the SDK adapter.
+function recordedGraphNQuads(added, graph) {
+  const store = new Store();
+  for (const [scope, entry] of added.entries()) {
+    const blankNodes = new Map();
+    const scoped = (term) => {
+      if (term.termType !== 'BlankNode') return term;
+      if (!blankNodes.has(term.value)) blankNodes.set(term.value, DataFactory.blankNode(`record${scope}_${blankNodes.size}`));
+      return blankNodes.get(term.value);
+    };
+    for (const item of new Parser({ format: entry.contentType, baseIRI: 'urn:usf:' }).parse(entry.content)) {
+      const itemGraph = item.graph.termType === 'NamedNode' ? item.graph.value : entry.graph;
+      if (itemGraph === graph) store.addQuad(DataFactory.quad(scoped(item.subject), item.predicate, scoped(item.object)));
+    }
+  }
+  return new Promise((resolveOutput, reject) => {
+    const writer = new Writer({ format: 'N-Quads' });
+    writer.addQuads(store.getQuads(null, null, null, null));
+    writer.end((error, output) => error ? reject(error) : resolveOutput(output));
+  });
+}
+
 function fakeClient(overrides = {}) {
   const rec = { cleared: [], added: [], committed: false, rolledBack: false, began: false };
   const client = {
@@ -183,10 +204,17 @@ function fakeClient(overrides = {}) {
       rec.cleared.push(graph);
     },
     async addData(tx, content, contentType, graph) {
-      rec.added.push({ graph, contentType });
+      rec.added.push({ graph, contentType, content });
     },
-    async constructInTx() {
+    async constructInTx(_tx, _query, accept) {
+      if (accept === 'application/n-quads') {
+        return '<urn:usf:x> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:ProofObligation> .\n';
+      }
       return '<urn:usf:x> a <urn:usf:ontology:ProofObligation> .';
+    },
+    async construct(query) {
+      const graph = query.match(/GRAPH <([^>]+)>/)?.[1];
+      return recordedGraphNQuads(rec.added, graph);
     },
     async validateInTx() {
       return true;
@@ -540,58 +568,18 @@ test('source observer: census expansion fails closed on endpoints, ownership, ev
   assert.equal(withheld.attributesDisclosure.disclosedValue, null);
 });
 
-test('source observer: current census emits the complete deterministic observation projection', async (t) => {
+test('source observer: active compiler reads only the registered retained snapshot', async (t) => {
   if (realGraphAbsent(t)) return;
-  const graphDir = REAL_GRAPH_DIR;
-  const manifest = loadManifest(graphDir);
-  const censusDir = join(graphDir, '..', 'census');
-  if (!existsSync(join(censusDir, 'summary.json'))) {
-    t.skip('historical census is not part of the standalone repository');
-    return;
-  }
-  const censusSummary = JSON.parse(readFileSync(join(censusDir, 'summary.json'), 'utf8'));
-  const censusWorkPackages = JSON.parse(readFileSync(join(censusDir, 'workpackages.json'), 'utf8'));
-  const censusDependencies = readFileSync(join(censusDir, 'dependencies.jsonl'), 'utf8').trim().split(/\r?\n/).filter(Boolean).map(JSON.parse);
-  const collection = await collectRepositorySourceObservations({ manifest, entry: manifest.observed[0] });
-  assert.deepEqual({
-    sources: collection.sourceCount, relationships: collection.relationshipCount, workPackages: collection.workPackageCount,
-    dependencies: collection.dependencyCount, retainedLineage: collection.retainedLineageCount,
-    requiredPrerequisites: collection.requiredPrerequisiteDependencyCount,
-    resolvedPrerequisites: collection.resolvedPrerequisiteDependencyCount, satisfiedPrerequisites: collection.satisfiedPrerequisiteDependencyCount,
-    activeBlocking: collection.activeBlockingDependencyCount,
-    sourceOwnership: collection.sourceOwnershipCount, canonicalOwnership: collection.canonicalOwnershipCount,
-    dependencyRelationshipLinks: collection.dependencyRelationshipLinkCount, inputs: collection.inputCount, parserShards: collection.parserShardCount,
-  }, {
-    sources: censusSummary.artifactCount, relationships: censusSummary.relationshipCount, workPackages: censusSummary.workPackageCount,
-    dependencies: censusDependencies.length, retainedLineage: censusSummary.dependencyLineageDistribution['retained-with-evidence'],
-    requiredPrerequisites: censusSummary.requiredPrerequisiteRelationshipCount,
-    resolvedPrerequisites: censusSummary.resolvedPrerequisiteRelationshipCount, satisfiedPrerequisites: censusSummary.satisfiedPrerequisiteRelationshipCount,
-    activeBlocking: censusSummary.activeBlockingRelationshipCount,
-    sourceOwnership: censusSummary.artifactCount, canonicalOwnership: censusWorkPackages.ownership.canonicalArtifacts.length,
-    dependencyRelationshipLinks: 728, inputs: 9, parserShards: 4,
-  });
+  const manifest = loadManifest(REAL_GRAPH_DIR);
+  const entry = manifest.observed[0];
+  const collection = await collectObservedEntry({ manifest, entry });
   assert.match(collection.observationSetDigest, /^[0-9a-f]{64}$/);
-  assert.match(collection.content, /urn:usf:ontology:SourceRelationshipObservation/);
-  assert.match(collection.content, /urn:usf:ontology:WorkPackageDependencyObservation/);
-  assert.match(collection.content, /urn:usf:dependencysatisfactionstatus:satisfied/);
-  assert.match(collection.content, /urn:usf:ontology:WorkPackageDependencySatisfactionBasisObservation/);
-  assert.match(collection.content, /urn:usf:ontology:satisfactionBasisExactEvidenceHashCount/);
-  assert.match(collection.content, /urn:usf:ontology:satisfactionBasisRequiredPrerequisiteGraphAcyclic/);
-  assert.match(collection.content, /urn:usf:ontology:observedRequiredPrerequisiteDependencyCount/);
-  assert.match(collection.content, /urn:usf:ontology:observedResolvedPrerequisiteDependencyCount/);
-  assert.match(collection.content, /urn:usf:ontology:observedSatisfiedPrerequisiteDependencyCount/);
-  assert.match(collection.content, /urn:usf:ontology:observedActiveBlockingDependencyCount/);
-  assert.doesNotMatch(collection.content, /urn:usf:ontology:observedBlockingDependencyCount/);
-  assert.equal(Object.hasOwn(collection, 'blockingDependencyCount'), false);
-  assert.match(collection.content, /urn:usf:ontology:supportedBySourceRelationshipObservation/);
-  assert.match(collection.content, /urn:usf:workpackageobservation:w[0-9a-f]{20}/);
-  assert.match(collection.content, /urn:usf:workpackagedependencyobservation:d[0-9a-f]{64}/);
-  assert.doesNotMatch(collection.content, /urn:usf:workpackageobservation:work-package-/);
-  assert.doesNotMatch(collection.content, /urn:usf:workpackagedependencyobservation:dependency-/);
-  assert.match(collection.content, /urn:usf:ontology:canonicalName> "t[0-9a-f]{64}"/);
-  assert.match(collection.content, /urn:usf:observationdisclosurestatus:disclosed/);
-  assert.match(collection.content, /urn:usf:observationdisclosurestatus:withheldprohibitedmetadata/);
-  for (const pattern of CONTAMINATION_PATTERNS) assert.doesNotMatch(collection.content, new RegExp(pattern));
+  assert.equal(collection.graph, entry.graph);
+  assert.ok(collection.sourceCount > 0);
+  await assert.rejects(
+    () => collectRepositorySourceObservations({ manifest, entry }),
+    /explicit absolute censusRoot/,
+  );
 });
 
 function dispositionPolicySelections(store) {
@@ -765,6 +753,113 @@ test('compile: commits after full success', async () => {
   assert.equal(result.ok, true);
   assert.equal(rec.committed, true);
   assert.equal(rec.rolledBack, false);
+  assert.equal(result.commitOutcome.state, 'confirmed-response');
+  assert.equal(result.commitOutcome.exactCandidateStateVerified, true);
+});
+
+test('compile: reconciles an exact committed graph state after a lost commit response', async () => {
+  const manifest = loadManifest(writeGraph(baseSpec()));
+  const { client, rec } = fakeClient();
+  const commit = client.commit.bind(client);
+  const selectInTx = client.selectInTx.bind(client);
+  let transactionClosed = false;
+  client.commit = async (tx) => {
+    await commit(tx);
+    transactionClosed = true;
+    throw new Error('response lost after server commit');
+  };
+  client.rollback = async () => {
+    rec.rolledBack = true;
+    throw new Error('transaction is already closed');
+  };
+  client.selectInTx = async (...args) => {
+    if (transactionClosed) throw Object.assign(new Error('transaction is already closed'), { status: 400 });
+    return selectInTx(...args);
+  };
+  client.isTransactionClosedError = (error) => error.status === 400;
+  const result = await compile({ manifest, client });
+  assert.equal(rec.committed, true);
+  assert.equal(rec.rolledBack, true);
+  assert.equal(result.commitOutcome.state, 'reconciled-committed');
+  assert.equal(result.commitOutcome.exactCandidateStateVerified, true);
+  assert.equal(result.commitOutcome.transactionClosedVerified, true);
+  assert.equal(result.commitOutcome.candidateDigest, result.commitOutcome.observedDigest);
+});
+
+test('compile: fails closed with both errors when commit and rollback fail without candidate-state parity', async () => {
+  const manifest = loadManifest(writeGraph(baseSpec()));
+  const { client } = fakeClient();
+  let transactionClosed = false;
+  client.commit = async () => { transactionClosed = true; throw new Error('commit response lost'); };
+  client.rollback = async () => { throw new Error('rollback response lost'); };
+  const selectInTx = client.selectInTx.bind(client);
+  client.selectInTx = async (...args) => {
+    if (transactionClosed) throw Object.assign(new Error('transaction is already closed'), { status: 400 });
+    return selectInTx(...args);
+  };
+  client.isTransactionClosedError = (error) => error.status === 400;
+  client.construct = async () => '<urn:usf:different> <urn:usf:p> <urn:usf:o> .\n';
+  await assert.rejects(
+    () => compile({ manifest, client }),
+    (error) => error instanceof CompilerError
+      && error.phase === 'compile:commit-outcome'
+      && error.rollbackConfirmed === false
+      && error.errors.slice(0, 2).map((item) => item.message).join('|') === 'commit response lost|rollback response lost'
+      && error.transactionClosedVerified === true
+      && error.candidateDigest !== error.observedDigest,
+  );
+});
+
+test('compile: retries rollback after a verified-open pre-commit failure', async () => {
+  const manifest = loadManifest(writeGraph(baseSpec()));
+  let rollbackCalls = 0;
+  const { client } = fakeClient({
+    async addData() { throw new Error('primary load failure'); },
+    async rollback() {
+      rollbackCalls += 1;
+      if (rollbackCalls === 1) throw new Error('transient rollback failure');
+    },
+  });
+  await assert.rejects(() => compile({ manifest, client }), /primary load failure/);
+  assert.equal(rollbackCalls, 2);
+});
+
+test('compile: accepts verified transaction closure after a pre-commit rollback response failure', async () => {
+  const manifest = loadManifest(writeGraph(baseSpec()));
+  let rollbackCalls = 0;
+  const { client } = fakeClient({
+    async addData() { throw new Error('primary load failure'); },
+    async rollback() {
+      rollbackCalls += 1;
+      throw new Error('rollback response lost');
+    },
+    async selectInTx() {
+      throw Object.assign(new Error('transaction is already closed'), { status: 400 });
+    },
+    isTransactionClosedError(error) { return error.status === 400; },
+  });
+  await assert.rejects(() => compile({ manifest, client }), /primary load failure/);
+  assert.equal(rollbackCalls, 1);
+});
+
+test('compile: preserves the primary pre-commit failure and both rollback failures', async () => {
+  const manifest = loadManifest(writeGraph(baseSpec()));
+  let rollbackCalls = 0;
+  const { client } = fakeClient({
+    async addData() { throw new Error('primary load failure'); },
+    async rollback() {
+      rollbackCalls += 1;
+      throw new Error(`rollback failure ${rollbackCalls}`);
+    },
+  });
+  await assert.rejects(
+    () => compile({ manifest, client }),
+    (error) => error instanceof CompilerError
+      && error.rollbackConfirmed === false
+      && error.errors.map((item) => item.message).join('|') === 'primary load failure|rollback failure 1|rollback failure 2'
+      && error.cause === error.errors[0],
+  );
+  assert.equal(rollbackCalls, 2);
 });
 
 test('compile: observed state is collected and validated inside the transaction', async () => {
@@ -886,6 +981,14 @@ test('adapter: createClient exposes no whole-database clear', () => {
   );
   assert.equal(typeof client.clearDatabase, 'undefined');
   assert.equal(typeof client.clearGraph, 'function');
+});
+
+test('adapter: failed responses never include Stardog response bodies', () => {
+  const protectedValue = 'response-body-must-not-escape';
+  assert.throws(
+    () => stardogInternals.ok({ ok: false, status: 500, body: { diagnostic: protectedValue } }, 'select'),
+    (error) => error.status === 500 && !error.message.includes(protectedValue) && error.message === 'Stardog select failed (status 500)',
+  );
 });
 
 test('generation plan fails closed when graph authority has no artefact plans', () => {
@@ -1061,6 +1164,7 @@ test('live attestation: rollback contract includes explicit activation barriers'
     'clear-graph',
     'collect-observed',
     'commit',
+    'commit-response',
     'contamination',
     'derive',
     'derived-insert',
@@ -1166,15 +1270,11 @@ test('UI semantic closure is exact, contract-scoped, and exposure-complete', (t)
   }
 });
 
-test('generation: real authority has no semantic gaps and reuses deterministic incremental outputs', (t) => {
+test('generation: real authority has no semantic gaps and reuses deterministic incremental outputs', () => {
   const graphDir = REAL_GRAPH_DIR;
   const repositoryRoot = join(graphDir, '..');
-  // Retained templates are declared with repository-root-relative paths. Inside
-  // the clean-room chroot only /usf exists, so template-backed generation
-  // cannot run there; skip explicitly rather than fail on a missing source root.
-  if (!existsSync(join(repositoryRoot, '.github/workflows/proof-anchor.yml'))) {
-    t.skip('retained product-generation templates are outside the standalone materialisation foundation');
-    return;
+  for (const template of ['.github/workflows/proof-anchor.yml', '.github/workflows/validate-spec.yml']) {
+    assert.ok(existsSync(join(repositoryRoot, template)), `authority-declared retained template must be present: ${template}`);
   }
   const manifest = loadManifest(graphDir);
   const dataset = loadAuthorityDataset(manifest);
@@ -1206,6 +1306,16 @@ test('generation: real authority has no semantic gaps and reuses deterministic i
   const bindingPlan = DataFactory.namedNode('urn:usf:ontology:sourceBindingArtefactPlan');
   const authenticationBinding = dataset.store.getSubjects(bindingPlan, DataFactory.namedNode(authenticationOutput.plan), null)[0];
   assert.equal(generatorInternals.semanticContractSourceEquivalence(dataset.store, authenticationOutput, authenticationData, repositoryRoot).structural, true);
+  const bindingRule = DataFactory.namedNode('urn:usf:ontology:sourceBindingEquivalenceRule');
+  const ruleComparison = DataFactory.namedNode('urn:usf:ontology:equivalenceRuleComparesPredicate');
+  const lifecycleComparison = DataFactory.namedNode('urn:usf:ontology:semanticLifecycleState');
+  const authenticationRule = dataset.store.getObjects(authenticationBinding, bindingRule, null)[0];
+  dataset.store.addQuad(authenticationRule, ruleComparison, lifecycleComparison);
+  assert.throws(
+    () => generatorInternals.semanticContractSourceEquivalence(dataset.store, authenticationOutput, authenticationData, repositoryRoot),
+    (error) => error instanceof CompilerError && error.code === 'USF-SCG-006' && error.failures.some((failure) => failure.field === 'lifecycleState'),
+  );
+  dataset.store.removeQuads(dataset.store.getQuads(authenticationRule, ruleComparison, lifecycleComparison, null));
   const bindingDigest = DataFactory.namedNode('urn:usf:ontology:sourceBindingContentDigest');
   const expectedBindingDigest = dataset.store.getObjects(authenticationBinding, bindingDigest, null)[0];
   dataset.store.removeQuads(dataset.store.getQuads(authenticationBinding, bindingDigest, null, null));

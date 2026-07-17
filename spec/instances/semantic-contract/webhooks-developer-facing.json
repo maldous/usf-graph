@@ -1,0 +1,124 @@
+{
+  "id": "semantic-contract.webhooks-developer-facing",
+  "title": "Webhooks Developer Facing Semantic Contract",
+  "description": "Source-backed draft semantic contract for the webhooks developer facing capability, recovered from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage, not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Interface",
+    "Event"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facet descriptions are concise source-backed summaries citing verified manifest rows; proof is hermetic/stale, not current readiness. Enrich facet detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "webhooks-developer-facing",
+  "capabilityDomain": "developer-platform",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "The webhook lifecycle creates a subscription with a reveal-once secret, lists redacted subscriptions, sends a signed test dispatch, fans an event out to enabled subscriptions, processes pending deliveries, retries with bounded backoff, dead-letters after maximum attempts, redrives dead deliveries with a fresh idempotency key, and deletes with cleanup. Delivery and redrive are operated by a worker against a durable delivery queue.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/webhook-worker.ts",
+        "apps/platform-api/src/usecases/webhooks.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State includes the subscription (identifier, URL, subscribed event types, enabled flag, secret hash) and per-delivery state of pending, delivered, failed, or dead with attempt count, next-attempt time, and last-status metrics, plus a redrive-pending reset. Readiness state is classified as no-subscriptions, configured, or has-dead-deliveries, and only the secret hash is stored rather than the plaintext secret.",
+      "sourceRefs": [
+        "apps/platform-api/src/db/migrations/019-tenant-webhooks.sql",
+        "apps/platform-api/src/db/migrations/020-webhook-delivery-queue.sql"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Tenant webhook operations require a tenant webhooks permission and are scoped to the requesting organisation, with redrive and test actions requiring the same tenant context and actor metadata. Cross-tenant delivery rows are hidden by organisation identifier so one tenant cannot see another's deliveries.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/webhook-worker.test.ts",
+        "apps/platform-api/tests/unit/webhooks.test.ts"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The contract surface covers subscription list/create/update/delete/test, delivery listing and metrics, redrive of a single delivery and of all dead deliveries, secret rotation, and a readiness query. Outbound delivery is signed HTTP carrying a platform signature header and an event-type header, and a delivery worker port mediates fan-out and retry.",
+      "sourceRefs": [
+        "apps/platform-api/src/server/webhook-worker-runtime.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Validation proves the signature is an HMAC over timestamp and body, the secret is revealed once and never appears in payload, list, audit, or metrics, only enabled event types are fanned out, retries are scheduled, deliveries dead-letter after maximum attempts, redrive of dead deliveries is idempotent, and disabled/deleted subscriptions are handled. Caller-supplied idempotency keys partition events per organisation.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/webhook-worker.test.ts",
+        "apps/platform-api/tests/unit/webhooks.test.ts"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "A non-2xx receiver response moves a delivery from retry to dead after bounded attempts, an unknown subscription returns not-found with null metrics, no enabled subscriptions reports no-subscriptions, and dead deliveries report a has-dead-deliveries state. An unavailable seeded organisation is skipped honestly in proof rather than reported as success.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/webhook-worker.test.ts",
+        "apps/platform-api/tests/unit/webhooks.test.ts"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Create, rotate-secret, and redrive mutations audit safe metadata only; redrive is audit-first and never records the signing secret; delivery attempts are durable operational records. The signing secret is excluded from every audit and metrics surface.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/webhook-worker.test.ts",
+        "apps/platform-api/tests/unit/webhooks.test.ts"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness classifies no-subscriptions, configured, and has-dead-deliveries, while worker and redrive proofs validate pending/dead/delivered metrics against live relational storage. When the webhook adapter or delivery worker is unavailable, mutation/side-effect paths are disabled and read-only readiness and audit remain visible.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/notification-webhook-transport-runtime-proof.ts",
+        "apps/platform-api/scripts/webhook-redrive-runtime-proof.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by webhook unit tests and runtime proofs validating signed test delivery, fan-out/retry/dead-letter, and dead-letter metrics with redrive against live storage and HTTP delivery. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/notification-webhook-transport-runtime-proof.ts",
+        "apps/platform-api/scripts/webhook-redrive-runtime-proof.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "complete",
+      "description": "UI semantics recovered from cited UI source.",
+      "sourceRefs": [
+        "apps/enterprise-app/src/features/admin-webhooks/AdminWebhooksPage.tsx",
+        "apps/enterprise-app/src/features/admin-webhooks/__tests__/AdminWebhooksPage.test.tsx"
+      ]
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/scripts/notification-webhook-transport-runtime-proof.ts",
+    "apps/platform-api/scripts/webhook-redrive-runtime-proof.ts",
+    "apps/platform-api/scripts/webhook-worker-runtime-proof.ts",
+    "apps/platform-api/scripts/webhooks-runtime-proof.ts",
+    "apps/platform-api/src/adapters/http-webhook-dispatcher.ts",
+    "apps/platform-api/src/adapters/postgres-webhook-store.ts",
+    "apps/platform-api/src/db/migrations/019-tenant-webhooks.sql",
+    "apps/platform-api/src/db/migrations/020-webhook-delivery-queue.sql",
+    "apps/platform-api/src/ports/webhook-store.ts",
+    "apps/platform-api/src/server/webhook-worker-runtime.ts",
+    "apps/platform-api/src/usecases/webhook-worker.ts",
+    "apps/platform-api/src/usecases/webhooks.ts"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "id": "semantic-contract.e2e-confidence-ladder-stage-aware",
+  "title": "E2E Confidence Ladder Stage Aware Semantic Contract",
+  "description": "Coverage-complete semantic contract for the e2e confidence ladder stage aware capability. Semantic information captured as a USF coverage record via the coverage record and equivalence audit; no external source code is imported and the V2 implementation language is an open decision.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Coverage-complete draft grounded in semantic information (USF coverage record only; no source import; language open). Proof is hermetic/stale lineage, not current readiness. Enrich detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "e2e-confidence-ladder-stage-aware",
+  "capabilityDomain": "foundation",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Gate/governance capability that defines a stage-aware end-to-end confidence ladder gating promotion across hermetic, integration, staging, and production-shaped stages without upgrading proof posture by implication; it is neither provider-backed nor database-backed. It deploys the V1-proven e2e registries-plus-validators contract and must keep its lifecycle/readiness model unchanged during extraction, with migrations limited to contract/config references. Recovery re-runs the verify-ladder and aggregate-confidence tests before promotion continues.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "The state is the ladder definition and the aggregated confidence over its stages: the registry of e2e journeys, their required stages, and the per-stage pass/fail roll-up, held as configuration and evidence rather than owned tenant rows. It has no owned database schema, so backup scope is configuration/evidence only and restore cannot create tenant data. Each stage's posture is tracked independently so a higher stage cannot inherit a lower stage's proof.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "The ladder owns no tenant data and exposes no tenant-mutating routes, so standard platform security controls apply; its effect on tenants is indirect via promotion gating. Configuring the ladder and its stages is an operator/governance concern, not an end-user permission. It reads e2e results rather than mutating service state.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The contract is the e2e registries plus the validators that decide whether a stage's confidence threshold is met, defining what each stage requires to pass. Configuration is read from the declared provider/config plane and missing or invalid configuration fails closed instead of inventing defaults. The per-stage gate is the contract that promotion decisions consume.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Validation enforces that each stage's required journeys ran and passed and that confidence is aggregated honestly, never letting a hermetic pass stand in for an integration, staging, or production-shaped pass. Inputs are the e2e results per stage, which must be present and current. Missing, stale, or unknown stage results are treated as not-pass.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Local failure returns a typed platform error or a readiness-degraded state without changing tenant-visible semantics; there is no external provider to fabricate, so unavailable local dependencies fail closed through the readiness model. The risk class is semantic drift or configuration loss, not tenant data loss. A blocked ladder readiness or a failing promotion gate is an alertable foundation condition.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Because it performs no tenant mutation, its audit concern is the integrity of the confidence record: the per-stage results and the aggregated verdict are observable evidence that promotion decisions can be traced to. Readiness and the ladder verdict remain visible in degraded mode. Recovery re-runs the verify-ladder and aggregate-confidence tests so the verdict stays evidence-backed.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness is the stage-aware verdict itself: a capability may advance only when its current stage's confidence threshold is met, and the ladder degrades explicitly rather than upgrading posture by implication. It fails closed on missing, stale, or unknown stage evidence. Promotion is gated on the verify-ladder and aggregate-confidence checks passing.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Proof is the verify-ladder and aggregate-confidence test suites that demonstrate the ladder gates promotion per stage without inflating proof posture. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "not-applicable",
+      "description": "No distinct UI capability at the contract level (coverage matrix ui=0); UI is modelled separately and remains a future AI-customised deliverable."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

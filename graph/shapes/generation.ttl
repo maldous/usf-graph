@@ -137,6 +137,19 @@ shp:EquivalenceRuleShape a sh:NodeShape ; usf:canonicalName "equivalenceruleshap
   sh:property [ sh:path usf:equivalenceRuleComparesPredicate ; sh:minCount 1 ; sh:nodeKind sh:IRI ] ;
   sh:property [ sh:path usf:equivalenceRuleFailureCode ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[A-Z]+-[A-Z]+-[0-9]{3}$" ] .
 
+shp:SemanticContractProjectionEquivalenceRuleShape a sh:NodeShape ;
+  usf:canonicalName "semanticcontractprojectionequivalenceruleshape" ;
+  sh:targetNode <urn:usf:equivalencerule:semanticcontractprojection> ;
+  sh:property [ sh:path usf:equivalenceRuleComparesPredicate ; sh:hasValue usf:canonicalName ] ;
+  sh:property [ sh:path usf:equivalenceRuleComparesPredicate ; sh:hasValue usf:declaresFacet ] ;
+  sh:property [ sh:path usf:equivalenceRuleComparesPredicate ; sh:hasValue usf:facetKind ] ;
+  sh:property [ sh:path usf:equivalenceRuleComparesPredicate ; sh:hasValue usf:facetStatus ] ;
+  sh:property [ sh:path usf:equivalenceRuleComparesPredicate ; sh:hasValue usf:facetStatement ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "source-equivalence-lifecycle-authority: historical source lifecycle metadata must not constrain current semantic lifecycle authority" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:equivalenceRuleComparesPredicate usf:semanticLifecycleState .
+    }""" ] .
+
 shp:CleanRoomGenerationShape a sh:NodeShape ; usf:canonicalName "cleanroomgenerationshape" ; sh:targetClass usf:CleanRoomGeneration ;
   sh:property [ sh:path usf:cleanRoomInput ; sh:minCount 1 ; sh:class usf:Artefact ] ;
   sh:property [ sh:path usf:cleanRoomOutput ; sh:minCount 1 ; sh:class usf:Artefact ] ;

@@ -600,6 +600,7 @@ rr:unsignedevidence          a usf:ReadinessReason ; usf:canonicalName "unsigned
 <urn:usf:artefactfamily:externalpayloaddescriptor> a usf:ArtefactFamily ; usf:canonicalName "externalpayloaddescriptor" .
 <urn:usf:artefactfamily:chroottool> a usf:ArtefactFamily ; usf:canonicalName "chroottool" .
 <urn:usf:artefactfamily:repositorydocumentation> a usf:ArtefactFamily ; usf:canonicalName "repositorydocumentation" .
+<urn:usf:artefactfamily:sourceequivalencesubject> a usf:ArtefactFamily ; usf:canonicalName "sourceequivalencesubject" .
 <urn:usf:artefactfamily:repositoryconfiguration> a usf:ArtefactFamily ; usf:canonicalName "repositoryconfiguration" .
 <urn:usf:artefactfamily:projectionschema> a usf:ArtefactFamily ; usf:canonicalName "projectionschema" .
 <urn:usf:artefactfamily:validationschema> a usf:ArtefactFamily ; usf:canonicalName "validationschema" .
@@ -656,6 +657,7 @@ rr:unsignedevidence          a usf:ReadinessReason ; usf:canonicalName "unsigned
 # Representation formats. Only current stable editions are selected.
 <urn:usf:representationformat:turtlerdf11> a usf:RepresentationFormat ; usf:canonicalName "turtlerdf11" ; usf:canonicalMediaType "text/turtle" ; usf:canonicalExtension ".ttl" ; usf:definedByStandard <urn:usf:standard:rdf11> .
 <urn:usf:representationformat:trigrdf11> a usf:RepresentationFormat ; usf:canonicalName "trigrdf11" ; usf:canonicalMediaType "application/trig" ; usf:canonicalExtension ".trig" ; usf:definedByStandard <urn:usf:standard:rdf11> .
+<urn:usf:representationformat:sparql11query> a usf:RepresentationFormat ; usf:canonicalName "sparql11query" ; usf:canonicalMediaType "application/sparql-query" ; usf:canonicalExtension ".rq" ; usf:definedByStandard <urn:usf:standard:sparql11query> .
 <urn:usf:representationformat:canonicalnquadsrdfc10> a usf:RepresentationFormat ; usf:canonicalName "canonicalnquadsrdfc10" ; usf:canonicalMediaType "application/n-quads" ; usf:canonicalExtension ".nq" ; usf:definedByStandard <urn:usf:standard:rdf11>, <urn:usf:standard:rdfc10> .
 <urn:usf:representationformat:jsonld11> a usf:RepresentationFormat ; usf:canonicalName "jsonld11" ; usf:canonicalMediaType "application/ld+json" ; usf:canonicalExtension ".jsonld" ; usf:definedByStandard <urn:usf:standard:jsonld11> .
 <urn:usf:representationformat:jcsjson> a usf:RepresentationFormat ; usf:canonicalName "jcsjson" ; usf:canonicalMediaType "application/json" ; usf:canonicalExtension ".json" ; usf:definedByStandard <urn:usf:standard:rfc8785> .
@@ -675,6 +677,7 @@ rr:unsignedevidence          a usf:ReadinessReason ; usf:canonicalName "unsigned
 <urn:usf:representationformat:ecosystemnative> a usf:RepresentationFormat ; usf:canonicalName "ecosystemnative" ; usf:canonicalMediaType "application/octet-stream" .
 
 <urn:usf:standard:rdf11> a usf:TechnicalStandard ; usf:canonicalName "rdf11" ; usf:standardIdentifier "W3C RDF 1.1" ; usf:standardEdition "2014-02-25 Recommendation" ; usf:latestStableEdition true .
+<urn:usf:standard:sparql11query> a usf:TechnicalStandard ; usf:canonicalName "sparql11query" ; usf:standardIdentifier "W3C SPARQL 1.1 Query Language" ; usf:standardEdition "2013-03-21 Recommendation" ; usf:latestStableEdition true .
 <urn:usf:standard:rdfc10> a usf:TechnicalStandard ; usf:canonicalName "rdfc10" ; usf:standardIdentifier "W3C RDFC-1.0" ; usf:standardEdition "2024-05-21 Recommendation" ; usf:latestStableEdition true .
 <urn:usf:standard:jsonld11> a usf:TechnicalStandard ; usf:canonicalName "jsonld11" ; usf:standardIdentifier "W3C JSON-LD 1.1" ; usf:standardEdition "2020-07-16 Recommendation" ; usf:latestStableEdition true .
 <urn:usf:standard:rfc8785> a usf:TechnicalStandard ; usf:canonicalName "rfc8785" ; usf:standardIdentifier "RFC 8785" ; usf:standardEdition "2020-06" ; usf:latestStableEdition true .

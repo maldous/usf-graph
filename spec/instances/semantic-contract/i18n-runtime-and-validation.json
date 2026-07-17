@@ -1,0 +1,107 @@
+{
+  "id": "semantic-contract.i18n-runtime-and-validation",
+  "title": "I18N Runtime And Validation Semantic Contract",
+  "description": "Coverage-complete semantic contract for the i18n runtime and validation capability. Semantic information captured as a USF coverage record via the coverage record and equivalence audit; no external source code is imported and the V2 implementation language is an open decision.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Coverage-complete draft grounded in semantic information (USF coverage record only; no source import; language open). Proof is hermetic/stale lineage, not current readiness. Enrich detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "i18n-runtime-and-validation",
+  "capabilityDomain": "foundation",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Provides runtime internationalisation with locale resolution plus a validation gate that ensures required keys exist and raw literals are governed, treating UI strings as contractual; it is database-backed in lineage but owns no tenant records. It deploys the V1-proven packages/i18n-runtime contract and must keep its lifecycle/readiness model unchanged during extraction, with the validation gate run as a build/promotion check. Recovery re-runs the i18n-runtime package and its validation before promotion continues.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State includes the flattened locale key map, the duplicate list, the used-key set, interpolation parameter usage, raw-literal findings, governed/exclude/exception configuration, the strictFailOnRawLiteral flag, and the strict/report-only exit state. Database changes use ordered migrations that must preserve this proven model. The state is the validation corpus over translation keys rather than owned tenant data.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "The i18n runtime and its validation own no tenant data and expose no tenant-mutating routes, so standard platform security controls apply; the gate is an operator/CI concern rather than an end-user permission. Locale resolution serves all users and is not tenant-gated. Governing which literals are exempt is a configuration authority, not an end-user role.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The contract has two faces: the runtime locale-resolution interface that resolves keys to strings for a locale, and the validation interface that asserts required keys exist, no raw literals leak, and interpolation parameters match. Configuration is read from the declared provider/config plane and missing or invalid configuration fails closed instead of inventing defaults. UI strings are contractual, so missing keys are a contract violation rather than a soft fallback.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Validation checks for missing required keys, duplicate keys, unused keys, mismatched interpolation parameters, and ungoverned raw literals, honouring the governed/exclude/exception configuration. In strict mode (strictFailOnRawLiteral) it fails closed and returns a non-zero exit; in report-only mode it surfaces findings without blocking. The used-key set is reconciled against the locale key map so drift is caught at gate time.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Local failure returns a typed platform error or a readiness-degraded state without changing tenant-visible semantics; unavailable local dependencies fail closed through the readiness model. In strict mode a missing key or ungoverned raw literal produces a failing exit state rather than a silent default. The risk class is semantic drift or configuration loss, not tenant data loss.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Because it performs no tenant mutation, its audit concern is the validation record: the duplicate list, raw-literal findings, and strict/report-only exit state form the reviewable evidence of i18n conformance. These findings remain visible so locale governance is inspectable. Recovery re-runs the validation so the conformance claim stays evidence-backed.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness means the locale corpus passes the validation gate (required keys present, interpolation consistent, raw literals governed) for the configured strictness; unavailable dependencies fail closed through the readiness model. Readiness is demonstrated by re-running validate-i18n and the i18n-runtime tests. A report-only pass with outstanding strict findings is not full readiness.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by validate-i18n and the i18n-runtime tests, demonstrating locale resolution and the key/raw-literal/interpolation validation gate. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "not-applicable",
+      "description": "No distinct UI capability at the contract level (coverage matrix ui=0); UI is modelled separately and remains a future AI-customised deliverable."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

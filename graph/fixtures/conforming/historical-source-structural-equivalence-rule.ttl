@@ -1,0 +1,10 @@
+# conforming
+@prefix usf: <urn:usf:ontology:> .
+
+<urn:usf:equivalencerule:fixturehistoricalsourcestructural> a usf:EquivalenceRule ;
+    usf:canonicalName "fixturehistoricalsourcestructural" ;
+    usf:equivalenceRuleKind <urn:usf:equivalencekind:structural> ;
+    usf:equivalenceRuleComponent <urn:usf:generator:semanticcontract> ;
+    usf:equivalenceRuleInputRole <urn:usf:generationinputrole:equivalencesubject> ;
+    usf:equivalenceRuleComparesPredicate usf:canonicalName, usf:declaresFacet, usf:facetKind ;
+    usf:equivalenceRuleFailureCode "USF-SCG-006" .

@@ -1,0 +1,116 @@
+{
+  "id": "semantic-contract.object-storage-and-tenant-prefixes-and-signed-urls",
+  "title": "Object Storage And Tenant Prefixes And Signed Urls Semantic Contract",
+  "description": "Source-backed draft semantic contract for the object storage and tenant prefixes and signed urls capability, recovered from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage, not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Data Model",
+    "Interface"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facet descriptions are concise source-backed summaries citing verified manifest rows; proof is hermetic/stale, not current readiness. Enrich facet detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "object-storage-and-tenant-prefixes-and-signed-urls",
+  "capabilityDomain": "storage",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Provides tenant object storage with per-tenant key prefixes, signed-URL access, and an upload-scan lifecycle, exposed through object, readiness, and probe operations; object bytes live in the object-storage provider while a per-object registry row tracks lifecycle in the relational store. An object moves through scan states from uploaded to clean, quarantined, or rejected, and storage usage is metered. The capability composes an object-storage adapter with a relational object-registry repository.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/tenant-storage.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "Each object is represented by a registry record carrying an object id, tenant/organisation id, object key, content type, size in bytes, scan state (uploaded, quarantined, clean, or rejected), timestamps, and the tenant prefix, with storage usage tracked against a storage-bytes quota meter. Object bytes are held under a tenant-scoped key prefix in the object-storage provider, while the registry row is the relational source of truth for lifecycle and quota. The registry table is tenant-scoped under row-level security.",
+      "sourceRefs": [
+        "packages/adapters-object-storage/README.md",
+        "packages/adapters-object-storage/package.json"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Objects are isolated by tenant prefix and by tenant-scoped registry access, so one tenant cannot enumerate or read another tenant's objects, and access to bytes is mediated by short-lived signed URLs rather than open buckets. The provider is identity-integrated so claim-to-policy mapping governs bucket access, and tenant-scoped registry rows enforce isolation in the database layer. Object operations are security-sensitive and must preserve permission and isolation.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/tenant-storage.test.ts",
+        "packages/adapters-object-storage/tests/.gitkeep"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The contract exposes object operations plus storage readiness and a probe, mediating all access through the storage adapter and the object-registry repository behind ports. Reads and writes of bytes occur via signed URLs scoped to the tenant prefix, and registry mutations record scan state and size for quota. There is a recorded cross-capability interaction with quota enforcement via the storage-bytes meter.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/tenant-storage.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Uploads validate content type and size against quota and place the object under the correct tenant prefix; the scan lifecycle validates an object as clean before it is treated as usable, quarantining or rejecting otherwise. Tenant context is required so registry access and prefixes are correctly scoped. Missing or invalid configuration fails closed rather than defaulting to an open bucket.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/tenant-storage.test.ts",
+        "packages/adapters-object-storage/tests/.gitkeep"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "The model is fail-closed and security-sensitive: an unscanned or quarantined object is not served as clean, provider failure returns a typed degraded or readiness error with mutation boundaries closed, and the capability never fabricates a successful upload or a valid signed URL. Tenant data cannot be silently dropped or remapped, and cross-tenant access is denied by prefix and registry isolation. Incident class is tenant-data-or-security.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/tenant-storage.test.ts",
+        "packages/adapters-object-storage/tests/.gitkeep"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Object lifecycle transitions (upload, scan outcome, quarantine, rejection) are recorded in the tenant-scoped registry, and operations preserve tenant context through spans with typed logs carrying the tenant/organisation identifier. Signed-URL issuance is bounded and attributable, and recovery must preserve tenant boundary, audit, and data-subject evidence. Quota changes are observable through the storage-bytes meter.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/tenant-storage.test.ts",
+        "packages/adapters-object-storage/tests/.gitkeep"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness depends on both the object-storage adapter and the relational object-registry repository being reachable; a probe verifies the provider, and the capability degrades explicitly when either is unavailable, disabling mutating storage paths while keeping read-only readiness and audit visible. Readiness being blocked, a failed tenant-storage-objects proof during promotion, or a missing isolation or audit signal raise alerts and block promotion.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/tenant-storage-runtime-proof.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by the tenant-storage-objects proof plus object-storage adapter and storage-runtime contract tests covering prefix isolation and the scan lifecycle. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/tenant-storage-runtime-proof.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "No verified UI source path in the manifest yet; author the UI semantic model before generation."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/scripts/tenant-storage-runtime-proof.ts",
+    "apps/platform-api/src/usecases/tenant-storage.ts",
+    "apps/platform-api/tests/unit/tenant-storage.test.ts",
+    "docs/adr/0049-tenant-storage-readiness.md",
+    "docs/evidence/operations/tenant-storage-readiness.md",
+    "packages/adapters-object-storage/README.md",
+    "packages/adapters-object-storage/package.json",
+    "packages/adapters-object-storage/src/index.ts",
+    "packages/adapters-object-storage/tests/.gitkeep",
+    "packages/adapters-object-storage/tests/adapters-object-storage.test.ts",
+    "packages/adapters-object-storage/tsconfig.json"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

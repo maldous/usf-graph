@@ -72,6 +72,32 @@ shp:MaterialisationRuleShape a sh:NodeShape ;
       FILTER(?family IN (<urn:usf:artefactfamily:packagerealisation>, <urn:usf:artefactfamily:managedservicerealisation>))
     }""" ] .
 
+shp:SourceEquivalenceSubjectMaterialisationShape a sh:NodeShape ;
+  usf:canonicalName "sourceequivalencesubjectmaterialisationshape" ;
+  sh:targetNode <urn:usf:materialisationrule:sourceequivalencesubject> ;
+  sh:property [ sh:path usf:governedArtefactFamily ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue <urn:usf:artefactfamily:sourceequivalencesubject> ] ;
+  sh:property [ sh:path usf:usesPathRole ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue <urn:usf:pathrole:sourceequivalencesubject> ] ;
+  sh:property [ sh:path usf:usesAuthorityClass ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue <urn:usf:authorityclass:externalpayload> ] ;
+  sh:property [ sh:path usf:usesRetentionClass ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue <urn:usf:retentionclass:policybounded> ] ;
+  sh:property [ sh:path usf:usesSupersessionRule ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue <urn:usf:supersessionrule:expirebyretentionpolicy> ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "source-equivalence-disposition: exact-digest subjects require the active accepted retire-after-equivalence policy and every bound source path must remain beneath the dedicated parent" ;
+    sh:select """SELECT $this WHERE {
+      {
+        FILTER NOT EXISTS {
+          <urn:usf:sourcedispositionpolicy:semanticcontractsource> a usf:SourceDispositionPolicy ;
+            usf:isActiveDispositionPolicy true ;
+            usf:policyDecisionState <urn:usf:dispositiondecisionstate:accepted> ;
+            usf:policyDispositionKind <urn:usf:dispositionkind:retireafterequivalence> ;
+            usf:policyGenerationInputRole <urn:usf:generationinputrole:equivalencesubject> .
+        }
+      }
+      UNION
+      {
+        ?binding a usf:SourceSemanticBinding ; usf:sourceBindingPath ?bindingPath .
+        FILTER(!STRSTARTS(STR(?bindingPath), "spec/instances/semantic-contract/"))
+      }
+    }""" ] .
+
 shp:RepresentationFormatShape a sh:NodeShape ;
   usf:canonicalName "representationformatshape" ;
   sh:targetClass usf:RepresentationFormat ;
@@ -101,6 +127,10 @@ shp:PathRoleShape a sh:NodeShape ;
       FILTER(CONTAINS(CONCAT('/', ?path, '/'), '/../') || STRSTARTS(?path, '/') ||
         (REGEX(?path, '(^|/)(v2|legacy|old|new|temp|transitional|usf)(/|$)') &&
          ?path NOT IN ('.claude/skills/usf', '.codex/skills/usf')))
+    }""" ];
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "path-role-rule-coverage: every authorised path role must be selected by at least one materialisation rule" ;
+    sh:select """SELECT $this WHERE {
+      FILTER NOT EXISTS { ?rule a usf:MaterialisationRule ; usf:usesPathRole $this }
     }""" ] .
 
 shp:NamingRuleShape a sh:NodeShape ;
@@ -140,6 +170,12 @@ shp:ExternalPayloadDescriptorShape a sh:NodeShape ;
         ?rule usf:usesStorageClass ?storage ; usf:usesRepresentationFormat ?format .
         ?format usf:canonicalMediaType ?media .
       }
+    }""" ] ;
+  sh:sparql [ sh:prefixes usf:prefixes ; sh:message "descriptor-evidence-media-parity: a descriptor and evidence result for the same digest must use the same media type" ;
+    sh:select """SELECT $this WHERE {
+      $this usf:descriptorDigest ?digest ; usf:descriptorMediaType ?descriptorMedia .
+      ?evidence a usf:EvidenceResult ; usf:contentDigest ?digest ; usf:mediaType ?evidenceMedia .
+      FILTER(?descriptorMedia != ?evidenceMedia)
     }""" ] ;
   sh:sparql [ sh:prefixes usf:prefixes ; sh:message "descriptor-nonauthority: external payload descriptors cannot directly establish truth, admit evidence, establish proof or activate a contract" ;
     sh:select """SELECT $this WHERE {

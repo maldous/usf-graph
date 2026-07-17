@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import {
-  existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync,
+  existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -232,6 +232,29 @@ const testCount = Number(tests.match(/tests ([0-9]+)/)?.[1] || 0);
 record('compiler-test-suite', 'passed', testCount > 0 && /fail 0/.test(tests) ? 'passed' : 'failed');
 measure.compilerTests = testCount;
 
+const fixtureOutput = execFileSync('npm', ['run', 'verify:fixtures'], { cwd: join(repo, 'tools/compiler'), encoding: 'utf8' });
+const fixtureReport = JSON.parse(fixtureOutput.slice(fixtureOutput.indexOf('{')));
+record('annotated-fixture-suite', 'passed', fixtureReport.ok && fixtureReport.fixtureCount > 0 ? 'passed' : 'failed');
+measure.annotatedFixtures = fixtureReport.fixtureCount;
+
+const trackedPaths = execFileSync('git', ['-C', repo, 'ls-files', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean);
+const protectedPatterns = [
+  /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
+  /\bAKIA[0-9A-Z]{16}\b/,
+  /\bgh[pousr]_[A-Za-z0-9]{36,}\b/,
+  /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/,
+  /STARDOG_(?:TOKEN|PASSWORD)[ \t]*=[ \t]*[^\s"'$][^\s]*/,
+];
+let protectedMatchCount = 0;
+for (const path of trackedPaths) {
+  const absolute = join(repo, path);
+  if (!existsSync(absolute) || !lstatSync(absolute).isFile()) continue;
+  const content = readFileSync(absolute, 'utf8');
+  if (protectedPatterns.some((pattern) => pattern.test(content))) protectedMatchCount += 1;
+}
+record('protected-secret-material', 'absent', protectedMatchCount === 0 ? 'absent' : 'present', true);
+measure.protectedSecretScanFileCount = trackedPaths.length;
+
 if (process.env.USF_INSIDE_CHROOT === '1') {
   record('chroot-runtime-boundary', 'isolated', repo === '/usf' && existsSync('/usf/graph')
     && existsSync('/usf/tools/compiler') && existsSync('/usf/.env')
@@ -252,7 +275,7 @@ if (process.env.USF_INSIDE_CHROOT === '1') {
 }
 let parentReferences = '';
 try {
-  parentReferences = execFileSync('git', ['-C', repo, 'grep', '-n', '-E', '/home/user/src/usf|(\.\./){4}graph', '--', 'tools/compiler/src'], { encoding: 'utf8' });
+  parentReferences = execFileSync('git', ['-C', repo, 'grep', '-n', '-E', '/home/user/src/usf|\\.\\./census|(\\.\\./){4}graph', '--', 'tools/compiler/src'], { encoding: 'utf8' });
 } catch (error) {
   if (error.status !== 1) throw error;
 }

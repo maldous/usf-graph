@@ -1,0 +1,118 @@
+{
+  "id": "semantic-contract.tenant-isolation-proof",
+  "title": "Tenant Isolation Proof Semantic Contract",
+  "description": "Source-backed draft semantic contract for the tenant isolation proof capability, recovered from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage, not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Audit Event",
+    "Validator"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facet descriptions are concise source-backed summaries citing verified manifest rows; proof is hermetic/stale, not current readiness. Enrich facet detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "tenant-isolation-proof",
+  "capabilityDomain": "security-governance",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "The isolation lifecycle resolves host identity, binds the request context to exactly one organisation, enforces tenant-scoped repositories, row-level security, and storage prefixes, rejects cross-tenant reads and writes, and verifies isolation through domain, storage, search, metering, observability, webhook, and secret proofs. Untrusted hosts never acquire a tenant context.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/tenant-storage.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State includes host classifications (apex, slug, reserved, unknown, malformed, custom domain), the resolved tenant context (organisation identifier, slug, host source), the row-level-security tenant setting in the database, the object-storage tenant prefix, and a null tenant context for untrusted hosts. Host source distinguishes slug-resolved from active verified custom-domain resolution.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/tenant-storage.ts"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Permissions are enforced only after tenant resolution; unresolved, apex, or reserved hosts grant no tenant context, tenant actors access only their own organisation's rows and prefixes, and operator bypass requires an explicit bypass/system role. Host identity is read-only and does not by itself grant data access.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/cookie-security.test.ts",
+        "apps/platform-api/tests/unit/tenant-storage.test.ts"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The contract surface is host-identity resolution, tenant-aware route context, storage prefixes, row-level-security-backed repository ports, and readiness proofs for tenant-scoped substrates. Resolution consumes the forwarded host header with defined precedence and binds a single organisation per request.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/tenant-storage.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Validation proves slug and custom-domain resolution, forwarded-host precedence, null outcomes for apex/reserved/unknown/malformed hosts, storage prefix isolation, foreign-key rejection, and cross-tenant row-level-security counts of zero. Inactive, pending, or disabled custom domains are rejected rather than resolved.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/cookie-security.test.ts",
+        "apps/platform-api/tests/unit/tenant-storage.test.ts"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Untrusted hosts resolve to a null tenant context, absent or unverified custom domains are rejected, foreign tenant data is hidden or rejected, and provider failures degrade readiness rather than falling back to an unsafe tenant. The system fails closed to no-tenant rather than guessing a tenant.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/cookie-security.test.ts",
+        "apps/platform-api/tests/unit/tenant-storage.test.ts"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Isolation checks are guard behaviour and do not emit mutation audit directly; audited mutations in tenant-scoped capabilities carry tenant/organisation metadata and fail before any cross-tenant write. The guard prevents the unsafe write before audit-bearing operations run.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/cookie-security.test.ts",
+        "apps/platform-api/tests/unit/tenant-storage.test.ts"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Isolation readiness is proven by live substrate checks for the resolver, row-level security, storage prefixes, and tenant-scoped provider probes, with an unavailable provider treated as degraded/unreachable rather than isolated. Readiness reflects proven isolation, not assumed isolation.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/domain-identity-matrix-runtime-proof.ts",
+        "apps/platform-api/scripts/tenant-storage-runtime-proof.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by domain-identity-matrix and tenant-storage isolation runtime proofs plus live row-level-security isolation checks across metering, search, observability, webhooks, events, and secret-store proofs. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/domain-identity-matrix-runtime-proof.ts",
+        "apps/platform-api/scripts/tenant-storage-runtime-proof.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "No verified UI source path in the manifest yet; author the UI semantic model before generation."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/scripts/domain-identity-matrix-runtime-proof.ts",
+    "apps/platform-api/scripts/tenant-storage-runtime-proof.ts",
+    "apps/platform-api/src/usecases/tenant-storage.ts",
+    "apps/platform-api/tests/unit/cookie-security.test.ts",
+    "apps/platform-api/tests/unit/tenant-storage.test.ts",
+    "docs/adr/0049-tenant-storage-readiness.md",
+    "docs/evidence/operations/tenant-storage-readiness.md",
+    "docs/evidence/platform/domain-identity-capability-permutation-review.md",
+    "e2e/prod/cookie-security.test.ts",
+    "e2e/prod/security-headers.test.ts",
+    "packages/domain-identity/README.md",
+    "packages/domain-identity/package.json"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

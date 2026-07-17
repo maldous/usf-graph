@@ -27,12 +27,7 @@ export class StardogError extends Error {
 function ok(res, op) {
   if (res && res.ok) return res;
   const status = res ? res.status : undefined;
-  let detail = '';
-  if (res && res.body != null) {
-    const text = typeof res.body === 'string' ? res.body : JSON.stringify(res.body);
-    detail = `: ${text.slice(0, 300)}`;
-  }
-  throw new StardogError(`Stardog ${op} failed (status ${status})${detail}`, status);
+  throw new StardogError(`Stardog ${op} failed (status ${status})`, status);
 }
 
 function bindings(res) {
@@ -67,6 +62,9 @@ export function createClient(config) {
     },
     async rollback(tx) {
       ok(await db.transaction.rollback(conn, database, tx), 'transaction.rollback');
+    },
+    isTransactionClosedError(error) {
+      return [400, 404, 410].includes(error?.status);
     },
 
     // Clear exactly one named graph inside a transaction. A missing IRI is a
@@ -153,3 +151,5 @@ export function createClient(config) {
     },
   };
 }
+
+export const stardogInternals = Object.freeze({ ok });

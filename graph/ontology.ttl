@@ -26,6 +26,9 @@ usf:ProofAlgorithm a owl:Class ; rdfs:subClassOf usf:Entity ; rdfs:label "Proof 
 usf:ProofAlgorithmVersion a owl:Class ; rdfs:subClassOf usf:Entity ; rdfs:label "Proof algorithm version" .
 usf:ProofConfidenceState a owl:Class ; rdfs:subClassOf usf:ControlledValue ; rdfs:label "Proof confidence state" .
 usf:ProofInvalidationCondition a owl:Class ; rdfs:subClassOf usf:Entity ; rdfs:label "Proof invalidation condition" .
+usf:ProofAuthorityBinding a owl:Class ; rdfs:subClassOf usf:Entity ; rdfs:label "Proof authority binding" ;
+    rdfs:comment "Binds a proof result to the exact evaluated authority and to a content-sensitive digest of every non-publication authority graph. A narrowly enumerated self-publication closure may survive its own evidence/proof/activation publication only when a post-publication evaluation rechecks the resulting live authority." .
+usf:AuthorityBindingRule a owl:Class ; rdfs:subClassOf usf:ControlledValue ; rdfs:label "Authority binding rule" .
 usf:ContractActivationState a owl:Class ; rdfs:subClassOf usf:ControlledValue ; rdfs:label "Contract activation state" .
 usf:RealisationDecision a owl:Class ; rdfs:subClassOf usf:Entity ; rdfs:label "Realisation decision" .
 usf:RealisationOption a owl:Class ; rdfs:subClassOf usf:Entity ; rdfs:label "Realisation option" .
@@ -79,6 +82,10 @@ usf:usesAdmittedEvidence a owl:ObjectProperty ; rdfs:domain usf:ProofResult ; rd
 usf:evidenceSetDigest a owl:DatatypeProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofResult ; rdfs:range xsd:string .
 usf:usesProofAlgorithm a owl:ObjectProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofResult ; rdfs:range usf:ProofAlgorithm .
 usf:usesAlgorithmVersion a owl:ObjectProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofResult ; rdfs:range usf:ProofAlgorithmVersion .
+usf:proofAlgorithmSourcePath a owl:DatatypeProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofAlgorithm ; rdfs:range xsd:string .
+usf:proofAlgorithmSourceDigest a owl:DatatypeProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofAlgorithm ; rdfs:range xsd:string .
+usf:proofAlgorithmVersionOf a owl:ObjectProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofAlgorithmVersion ; rdfs:range usf:ProofAlgorithm .
+usf:proofAlgorithmVersionIdentifier a owl:DatatypeProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofAlgorithmVersion ; rdfs:range xsd:string .
 usf:evaluatedByValidator a owl:ObjectProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofResult ; rdfs:range usf:ValidatorRule .
 usf:proofExecutionEnvironment a owl:ObjectProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofResult ; rdfs:range usf:Environment .
 usf:hasProofResultState a owl:ObjectProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofResult ; rdfs:range usf:ProofResultState .
@@ -88,6 +95,14 @@ usf:uncertaintyStatement a owl:DatatypeProperty ; rdfs:domain usf:ProofResult ; 
 usf:proofNonclaim a owl:ObjectProperty ; rdfs:domain usf:ProofResult ; rdfs:range usf:NonClaim .
 usf:evaluatedAt a owl:DatatypeProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofResult ; rdfs:range xsd:dateTime .
 usf:hasInvalidationCondition a owl:ObjectProperty ; rdfs:domain usf:ProofResult ; rdfs:range usf:ProofInvalidationCondition .
+usf:hasAuthorityBinding a owl:ObjectProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofResult ; rdfs:range usf:ProofAuthorityBinding .
+usf:bindingEvaluatedAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofAuthorityBinding ; rdfs:range xsd:string .
+usf:bindingDependencySetDigest a owl:DatatypeProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofAuthorityBinding ; rdfs:range xsd:string .
+usf:bindingDependencyDigestAlgorithm a owl:DatatypeProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofAuthorityBinding ; rdfs:range xsd:string .
+usf:usesAuthorityBindingRule a owl:ObjectProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofAuthorityBinding ; rdfs:range usf:AuthorityBindingRule .
+usf:excludedAuthorityGraphIri a owl:DatatypeProperty ; rdfs:domain usf:ProofAuthorityBinding ; rdfs:range xsd:anyURI .
+usf:requiresPostPublicationReevaluation a owl:DatatypeProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofAuthorityBinding ; rdfs:range xsd:boolean .
+usf:authorityBindingEvidenceDigest a owl:DatatypeProperty, owl:FunctionalProperty ; rdfs:domain usf:ProofAuthorityBinding ; rdfs:range xsd:string .
 usf:supersedesProofResult a owl:ObjectProperty ; rdfs:domain usf:ProofResult ; rdfs:range usf:ProofResult .
 usf:hasActivationState a owl:ObjectProperty, owl:FunctionalProperty ; rdfs:domain usf:SemanticContract ; rdfs:range usf:ContractActivationState .
 usf:activationReason a owl:DatatypeProperty, owl:FunctionalProperty ; rdfs:domain usf:SemanticContract ; rdfs:range xsd:string .

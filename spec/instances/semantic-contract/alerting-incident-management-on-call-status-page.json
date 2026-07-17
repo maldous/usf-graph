@@ -1,0 +1,71 @@
+{
+  "id": "semantic-contract.alerting-incident-management-on-call-status-page",
+  "title": "Alerting Incident Management On Call Status Page Semantic Contract",
+  "description": "Deprecated/superseded semantic contract for alerting incident management on call status page. Superseded by semantic-contract.observability-built-in-alerting-and-incidents (the proven canonical alerting/incident capability). Retained as lineage only; do not carry forward or generate from this contract.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "deprecated",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Do not treat this deferred gap contract as implementation authority. Before implementation use, replace gap facets with reviewed source-backed semantic content, source-use row membership, and proof expectations.",
+  "capability": "alerting-incident-management-on-call-status-page",
+  "capabilityDomain": "observability-ops",
+  "facets": {
+    "lifecycle": {
+      "status": "gap",
+      "description": "Superseded: Superseded by semantic-contract.observability-built-in-alerting-and-incidents (the proven canonical alerting/incident capability). Retained as lineage only; do not carry forward or generate from this contract."
+    },
+    "stateModel": {
+      "status": "gap",
+      "description": "Superseded: Superseded by semantic-contract.observability-built-in-alerting-and-incidents (the proven canonical alerting/incident capability). Retained as lineage only; do not carry forward or generate from this contract."
+    },
+    "permissions": {
+      "status": "gap",
+      "description": "Superseded: Superseded by semantic-contract.observability-built-in-alerting-and-incidents (the proven canonical alerting/incident capability). Retained as lineage only; do not carry forward or generate from this contract."
+    },
+    "contracts": {
+      "status": "gap",
+      "description": "Superseded: Superseded by semantic-contract.observability-built-in-alerting-and-incidents (the proven canonical alerting/incident capability). Retained as lineage only; do not carry forward or generate from this contract."
+    },
+    "validation": {
+      "status": "gap",
+      "description": "Superseded: Superseded by semantic-contract.observability-built-in-alerting-and-incidents (the proven canonical alerting/incident capability). Retained as lineage only; do not carry forward or generate from this contract."
+    },
+    "errorModel": {
+      "status": "gap",
+      "description": "Superseded: Superseded by semantic-contract.observability-built-in-alerting-and-incidents (the proven canonical alerting/incident capability). Retained as lineage only; do not carry forward or generate from this contract."
+    },
+    "auditModel": {
+      "status": "gap",
+      "description": "Superseded: Superseded by semantic-contract.observability-built-in-alerting-and-incidents (the proven canonical alerting/incident capability). Retained as lineage only; do not carry forward or generate from this contract."
+    },
+    "readinessModel": {
+      "status": "gap",
+      "description": "Superseded: Superseded by semantic-contract.observability-built-in-alerting-and-incidents (the proven canonical alerting/incident capability). Retained as lineage only; do not carry forward or generate from this contract."
+    },
+    "proof": {
+      "status": "gap",
+      "description": "Superseded: Superseded by semantic-contract.observability-built-in-alerting-and-incidents (the proven canonical alerting/incident capability). Retained as lineage only; do not carry forward or generate from this contract."
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "Superseded: Superseded by semantic-contract.observability-built-in-alerting-and-incidents (the proven canonical alerting/incident capability). Retained as lineage only; do not carry forward or generate from this contract."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

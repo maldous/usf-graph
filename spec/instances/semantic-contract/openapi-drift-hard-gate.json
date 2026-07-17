@@ -1,0 +1,107 @@
+{
+  "id": "semantic-contract.openapi-drift-hard-gate",
+  "title": "Openapi Drift Hard Gate Semantic Contract",
+  "description": "Coverage-complete semantic contract for the openapi drift hard gate capability. Semantic information captured as a USF coverage record via the coverage record and equivalence audit; no external source code is imported and the V2 implementation language is an open decision.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Coverage-complete draft grounded in semantic information (USF coverage record only; no source import; language open). Proof is hermetic/stale lineage, not current readiness. Enrich detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "openapi-drift-hard-gate",
+  "capabilityDomain": "developer-platform",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "The drift-gate lifecycle extracts routes from the route table, loads the OpenAPI document, compares path and method coverage, collects and resolves local references, detects schemaless JSON request/response bodies, reports drift, and fails strict mode when any drift exists. It runs as a repository architecture gate rather than a runtime service, blocking promotion on contract divergence.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State includes the extracted route method/path set, the OpenAPI path/method entries, the missing-route set, the extra-documented-route set, unresolved references, the schemaless-operation list, and a strict versus report-only exit decision. There is no owned database; state is the computed comparison between the live routes and the documented contract.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "The gate is a repository architecture check and not a runtime permission surface; documented runtime permissions remain in route metadata and schemas. Access to change the contract is governed by repository controls, not tenant authorization.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The contract is that the OpenAPI document matches the route table for path and method coverage, that local references resolve, and that JSON request and response bodies have schemas. The OpenAPI document is treated as the authoritative generated client/docs contract.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Validation proves a clean repository exits strict with success, missing and extra routes are detected, unresolved references are detected, schemaless bodies are detected, bodyless status responses are exempted, and the live document has no schemaless bodies or dangling references. Strict mode is the enforced configuration.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "A missing route file or OpenAPI file raises an error; strict mode exits non-zero on any drift; report-only mode exits successfully while warning with explicit drift lists. The hard gate fails closed so undocumented or mismatched routes cannot pass.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Contract changes are audited through version control and architecture-test output rather than runtime audit rows. The gate's pass/fail result is the durable record of contract conformance at each promotion.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness is the strict drift gate passing with zero missing routes, zero extra routes, zero unresolved references, and zero schemaless bodies. Any nonzero drift blocks readiness rather than producing a warning that can be ignored.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by the OpenAPI drift validation tests and the architecture test target asserting strict-mode exit and drift detection. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "not-applicable",
+      "description": "No distinct UI capability at the contract level (coverage matrix ui=0); UI is modelled separately and remains a future AI-customised deliverable."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

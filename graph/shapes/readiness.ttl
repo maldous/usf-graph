@@ -64,11 +64,17 @@ shp:TestResultShape a sh:NodeShape ; usf:canonicalName "testresultshape" ;
 shp:EvidencePipelineShape a sh:NodeShape ; usf:canonicalName "evidencepipelineshape" ;
     sh:targetClass usf:EvidenceResult ;
     sh:property [ sh:path usf:evidenceFor ; sh:minCount 1 ] ;
-    sh:sparql [ sh:message "freshevidencewithoutproofresult: fresh evidence must identify its passing proof result" ;
+    sh:sparql [ sh:message "freshvalidationevidencewithoutpassingvalidation: fresh validation evidence must originate from a passing validation result" ;
         sh:prefixes usf:prefixes ;
         sh:select """SELECT $this WHERE {
-          $this usf:hasFreshness <urn:usf:freshness:fresh> .
-          FILTER NOT EXISTS { $this usf:evidenceFromProofResult ?proofResult }
+          $this a usf:ValidationEvidence ; usf:hasFreshness <urn:usf:freshness:fresh> .
+          FILTER NOT EXISTS {
+            ?validationResult a usf:ValidationResult ;
+              usf:resultState <urn:usf:resultstate:passed> ;
+              usf:entersEvidenceLifecycleAs $this .
+            ?execution a usf:ValidationExecution ;
+              usf:producesValidationResult ?validationResult
+          }
         }""" ] ;
     sh:sparql [ sh:message "admissibleevidencemissingpipeline: satisfying evidence lacks a required stage or pipeline operation" ;
         sh:prefixes usf:prefixes ;

@@ -1,3 +1,4 @@
+# conforming
 @prefix usf: <urn:usf:ontology:> . @prefix admission: <urn:usf:evidenceadmissionstate:> . @prefix freshnessstate: <urn:usf:evidencefreshnessstate:> . @prefix integritystate: <urn:usf:evidenceintegritystate:> . @prefix proofstate: <urn:usf:proofresultstate:> . @prefix confidence: <urn:usf:proofconfidencestate:> . @prefix contractstate: <urn:usf:contractactivationstate:> .
 <urn:usf:fixture:requirement> a usf:EvidenceRequirement .
 <urn:usf:fixture:obligation> a usf:ProofObligation ; usf:requiresEvidence <urn:usf:fixture:requirement> .

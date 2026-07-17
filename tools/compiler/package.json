@@ -20,7 +20,7 @@
     "verify:fixtures": "node src/cli.js verify-fixtures",
     "drift": "node src/cli.js drift-live",
     "mcp": "node src/mcp.js",
-    "test": "node --test test/agent-policy.test.js test/compiler.test.js test/fixture-harness.test.js test/generation-output.test.js test/materialisation.test.js test/mcp.test.js",
+    "test": "node --test test/agent-policy.test.js test/authority-binding.test.js test/compiler.test.js test/fixture-harness.test.js test/generation-output.test.js test/materialisation.test.js test/mcp.test.js",
     "test:cloud": "node --test test/cloud.test.js",
     "validate:materialisation": "node ../validation/validate-materialisation.mjs schemas"
   },

@@ -1,0 +1,116 @@
+{
+  "id": "semantic-contract.rate-limiting-api",
+  "title": "Rate Limiting API Semantic Contract",
+  "description": "Source-backed draft semantic contract for the rate limiting api capability, recovered from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage, not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Interface",
+    "Event"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facet descriptions are concise source-backed summaries citing verified manifest rows; proof is hermetic/stale, not current readiness. Enrich facet detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "rate-limiting-api",
+  "capabilityDomain": "developer-platform",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "The rate-limit lifecycle is explicit: an operator sets a per-tenant policy, evaluation checks entitlement before counting, requests move within a fixed window from allowed below or at the limit to denied above the limit, and live counts reset in a new window bucket. No configured policy means opt-in allow.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/rate-limits.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "Policy state consists of policy key, entitlement key, limit, window seconds, action, and updated-at/updated-by; counter state is per tenant, policy, and window with a used count and an exceeded state once the used count passes the limit. Counters are bucketed by window and reset on a new bucket rather than being decremented.",
+      "sourceRefs": [
+        "apps/platform-api/src/ports/rate-limit-repository.ts"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Tenant developer reads use a tenant developer-read permission, operator policy read/write use platform rate-limit permissions, and policy evaluation additionally requires the configured entitlement. Operator routes validate the tenant identifier and policy mutation is operator-only.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/rate-limits.test.ts",
+        "apps/platform-api/tests/unit/redis-rate-limit-repository.test.ts"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "API contracts are a tenant rate-limit read, an operator per-tenant rate-limit read, and an operator per-tenant rate-limit update, with developer-portal exposure of rate-limit summaries. The interface is a rate-limit port with both a cache adapter and a relational adapter behind it.",
+      "sourceRefs": [
+        "apps/platform-api/src/ports/rate-limit-repository.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Validation proves that no policy is opt-in allow, a missing entitlement denies before counting, configured limits allow below/at the limit and deny above it, and an invalid tenant identifier fails the operator operation. Entitlement is evaluated before the counter is consulted.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/rate-limits.test.ts",
+        "apps/platform-api/tests/unit/redis-rate-limit-repository.test.ts"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "An assert operation throws once the limit is exceeded while an evaluate operation returns denied decisions distinguishing entitlement denial from exceeded state; when the cache provider is unavailable it reports degraded and falls back to relational counting. Decisions fail closed on ambiguous provider state.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/rate-limits.test.ts",
+        "apps/platform-api/tests/unit/redis-rate-limit-repository.test.ts"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Setting a rate-limit policy emits an audit record before the mutation (audit-before-change) with the rate-limit resource identified, so policy changes are attributable. Evaluation decisions are observable for enforcement.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/rate-limits.test.ts",
+        "apps/platform-api/tests/unit/redis-rate-limit-repository.test.ts"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "The relational proof skips honestly when the database is unavailable; the cache provider reports ready on a successful ping and degraded on failure, with relational fallback still valid for counting. Readiness never claims availability beyond what the substrate proves.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/rate-limits-redis-runtime-proof.ts",
+        "apps/platform-api/scripts/rate-limits-runtime-proof.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by rate-limit unit tests and runtime proofs validating live relational and cache counting plus operator route behaviour and degraded fallback. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/rate-limits-redis-runtime-proof.ts",
+        "apps/platform-api/scripts/rate-limits-runtime-proof.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "No verified UI source path in the manifest yet; author the UI semantic model before generation."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/scripts/rate-limits-redis-runtime-proof.ts",
+    "apps/platform-api/scripts/rate-limits-runtime-proof.ts",
+    "apps/platform-api/src/adapters/postgres-rate-limit-repository.ts",
+    "apps/platform-api/src/adapters/redis-rate-limit-repository.ts",
+    "apps/platform-api/src/ports/rate-limit-repository.ts",
+    "apps/platform-api/src/usecases/rate-limits.ts",
+    "apps/platform-api/tests/unit/rate-limits.test.ts",
+    "apps/platform-api/tests/unit/redis-rate-limit-repository.test.ts",
+    "docs/evidence/platform/phase-3-api-keys-rate-limits.md",
+    "docs/evidence/platform/rate-limit-provider-foundation.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

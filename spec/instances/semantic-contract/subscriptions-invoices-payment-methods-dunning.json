@@ -1,0 +1,107 @@
+{
+  "id": "semantic-contract.subscriptions-invoices-payment-methods-dunning",
+  "title": "Subscriptions Invoices Payment Methods Dunning Semantic Contract",
+  "description": "Coverage-complete semantic contract for the subscriptions invoices payment methods dunning capability. Semantic information captured as a USF coverage record via the coverage record and equivalence audit; no external source code is imported and the V2 implementation language is an open decision.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Coverage-complete draft grounded in semantic information (USF coverage record only; no source import; language open). Proof is hermetic/stale lineage, not current readiness. Enrich detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "subscriptions-invoices-payment-methods-dunning",
+  "capabilityDomain": "entitlements-billing",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "The lifecycle manages customer/account records, subscription state transitions, invoice issuance, payment capture and refund, and dunning behind a billing-provider port with both in-memory and external adapters. Provider adapters validate readiness before use, map SDK/HTTP responses into canonical platform DTOs, and preserve idempotency keys for payment and usage operations. An immutable ledger and capture/dunning records keep financial outcomes auditable.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State includes account/customer external account identifier, subscription identifier with status (active, paused, cancelled), associated plan and price, invoice status with open amount and currency, payment charge outcome keyed by an idempotency key, and refund success state. Amount, currency, and status fields are kept explicit and the financial ledger is treated as append-only so prior outcomes are not overwritten.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Subscription, invoice, payment, and dunning operations are scoped to the owning tenant for reads while provider-affecting actions are operator-controlled; cross-tenant access to billing records is prevented. Authorization is enforced server-side before any provider call.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The interface is a billing-provider port abstracting subscription, invoice, payment-method, charge, refund, and dunning operations, with an external provider adapter and an in-memory payment provider behind it. Idempotency keys for payment and usage are part of the contract so retried submissions converge on a single outcome, and responses are normalised into explicit amount/currency/status DTOs.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Adapters validate provider readiness before use, validate and normalise SDK/HTTP responses into canonical DTOs, and require idempotency keys on payment and usage operations to make retries safe. Amount, currency, subscription status, and invoice status are validated as explicit fields rather than free text.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Provider failure returns a typed degraded/readiness failure, keeps mutation boundaries closed, and never fabricates a successful provider result. Duplicate charge submissions resolve to the same outcome via the idempotency key, and a failed capture does not silently advance subscription or invoice state.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Capture, refund, subscription transitions, and dunning steps are recorded with safe metadata so financial actions are attributable, and the immutable ledger preserves the sequence of outcomes. Raw payment secrets are not emitted into audit records.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness reflects billing-provider availability: the in-memory adapter supports hermetic validation while the external adapter classifies live provider availability, degrading explicitly when the provider is unreachable. Degraded mode disables provider-dependent mutation paths while keeping read-only readiness and audit visible.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by billing-provider port tests and external billing-provider adapter tests, including idempotent capture, refund, and live plan synchronisation against the provider. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "not-applicable",
+      "description": "No distinct UI capability at the contract level (coverage matrix ui=0); UI is modelled separately and remains a future AI-customised deliverable."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

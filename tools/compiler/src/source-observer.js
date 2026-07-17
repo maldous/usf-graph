@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { DataFactory, Parser, Store, Writer } from 'n3';
 
@@ -632,11 +632,13 @@ function interleaveQuadsBySubject(quads) {
   return ordered;
 }
 
-export async function collectRepositorySourceObservations({ manifest, entry }) {
-  // census is always a sibling of the graph directory (…/census next to …/graph),
-  // so resolve it relative to the graph root. Both live side by side in the
-  // parent usf repository and are used host-side, outside the chroot.
-  const censusRoot = resolve(manifest.root, '../census');
+export async function collectRepositorySourceObservations({ manifest, entry, censusRoot }) {
+  // Historical lineage parsing is available only to callers that explicitly
+  // supply its absolute input root. The active compiler never invokes this
+  // helper and cannot infer or traverse a sibling/parent repository.
+  if (typeof censusRoot !== 'string' || !isAbsolute(censusRoot)) {
+    throw new Error('historical source observation collection requires an explicit absolute censusRoot');
+  }
   const inputSpecs = [
     ['artifacts.jsonl', 'jsonl'], ['mappings.jsonl', 'jsonl'], ['relationships.jsonl', 'jsonl'],
     ['workpackages.json', 'json'], ['dependencies.jsonl', 'jsonl'], ['dependency-lineage.jsonl', 'jsonl'],

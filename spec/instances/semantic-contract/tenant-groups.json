@@ -1,0 +1,101 @@
+{
+  "id": "semantic-contract.tenant-groups",
+  "title": "Tenant Groups Semantic Contract",
+  "description": "Source-backed draft semantic contract for the tenant groups capability, derived from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage and not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Interface"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facets cite verified manifest source rows as lineage; proof is hermetic/stale and not current readiness. Do not treat as implementation authority or fresh proof; respect the hexagonal constraint in ADR 0005.",
+  "capability": "tenant-groups",
+  "capabilityDomain": "identity-access",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Group lifecycle is list existing groups, create after name validation and a duplicate check, update after existence and conflict checks, and delete after a protected-name guard. Each mutation runs its precondition checks before touching the provider.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/groups.ts",
+        "apps/platform-api/tests/unit/groups.test.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State is a tenant-realm group identified by id, name, and path, with reserved names protected; groups live in the identity provider's realm and are not persisted in the relational store. The group set is scoped to the tenant realm.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/groups.ts"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Routes require the specific group read, create, update, or delete permission, are tenant-scoped, and declare a group resource and matching scopes, resolving the tenant realm credential from context. One tenant cannot manage another tenant's groups.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/groups.test.ts"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The operation surface lists and creates groups and updates or deletes a group by id, backed by the tenant-credential realm admin adapter. Mutations return typed results mapped to standard responses.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/groups.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Group names must be non-empty strings of at most 64 characters with no path separators or control characters, must not be reserved, and must not duplicate an existing name case-insensitively. Invalid names are rejected before any provider write.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/groups.test.ts"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Typed outcomes include invalid-name, conflict, not-found, protected, and ok, mapped fail-closed to 400/409/404/422/201/204, and a missing tenant credential returns a no-credential/503 result; provider failure keeps mutation boundaries closed. No partial group state is left behind.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/groups.test.ts"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Create, update, and delete emit group-created, group-updated, and group-deleted audit-before-change events after precondition checks, and audit failure aborts the provider mutation. Read-only listing is not audited.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/groups.test.ts"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Semantic readiness is invariant-ready, while route execution additionally requires tenant context and the tenant-realm auth-settings credential, and degraded mode disables provider-dependent mutation while keeping read-only readiness visible. A UI semantic harness proves the generation contract without shipping a legacy page.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/groups.test.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "A unit proof covers group lifecycle and validation and a UI semantic harness proves the headless journey, demonstrated in source lineage via hermetic behaviour/state validation plus a semantic harness for future UI generation. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/groups.test.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "No verified UI source path in the manifest yet; the source-lineage headless group journey is lineage only. Author the UI semantic model before generation."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/src/usecases/groups.ts"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

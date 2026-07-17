@@ -53,9 +53,9 @@
       usf:canonicalName "repositoryexternalartefactmaterialisation" ;
       usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:active> ;
       usf:hasActivationState <urn:usf:contractactivationstate:active> ;
-      usf:activationReason "Admitted final deterministic evidence, an exact-evidence-set proof repeated with identical digests inside the standalone chroot, and passing validation warrant the independently usable authority-bound materialisation foundation." ;
+      usf:activationReason "Admitted cycle-repair evidence, an exact 34-case evidence-set proof including the planted circular-proof-evidence fixture and protected scans, and passing rollback-only candidate validation warrant the authority-bound materialisation foundation." ;
       usf:mandatoryProofObligation <urn:usf:proofobligation:repositoryexternalartefactmaterialisation> ;
-      usf:reliesOnProofResult <urn:usf:proofresult:repositoryexternalartefactmaterialisationfinal> ;
+      usf:reliesOnProofResult <urn:usf:proofresult:repositoryexternalartefactmaterialisationcyclerepair> ;
       usf:asserts <urn:usf:claim:standalonesemanticgraphrepository>, <urn:usf:claim:semanticcontrolpayloadseparation>, <urn:usf:claim:authorityboundmaterialisation>, <urn:usf:claim:deterministicmaterialisation>, <urn:usf:claim:boundedagentconsumption>, <urn:usf:claim:transactionalsemanticmodelevolution> ;
       usf:disclaims <urn:usf:nonclaim:externalpayloadissemanticauthority>, <urn:usf:nonclaim:projectionissemanticauthority>, <urn:usf:nonclaim:ticketauthorisesmaterialisation>, <urn:usf:nonclaim:runtimeresultsbelongingit>, <urn:usf:nonclaim:parentrepositorydependency>, <urn:usf:nonclaim:proofcockpitcompletion>, <urn:usf:nonclaim:javacrossengineparity>, <urn:usf:nonclaim:paidobjectstorageselected>, <urn:usf:nonclaim:noaccessibilitycompliance>, <urn:usf:nonclaim:nohumanacceptance>, <urn:usf:nonclaim:nolaunchi18n>, <urn:usf:nonclaim:nouiproductparity> ;
       usf:warrantsFeature <urn:usf:feature:standalonesemanticgraph>, <urn:usf:feature:repositorymaterialisation>, <urn:usf:feature:externalpayloadverification>, <urn:usf:feature:transactionalmodelupdate> ;
@@ -70,6 +70,8 @@
       usf:contractConstraint "Materialisation plans remain bounded: write bytes are either inline or referenced from the configured operator-local CAS by a locator whose digest equals the exact operation content digest; remote and unverified plan content is forbidden." ;
       usf:contractConstraint "Agent packets are at most 65536 canonical JSON bytes and 256 items, contain no credentials or unbounded evidence payloads, and are regenerated whenever their authority digest no longer matches live Stardog state." ;
       usf:contractConstraint "No tracked path, format, storage class, directory or realisation may be created before an active contract and accepted decision authorise it." ;
+      usf:contractConstraint "Retained generation workflow templates are Git-tracked repository configuration under .github/workflows; materialisation requires the dedicated repositoryworkflow path role and exact authority-declared content digests." ;
+      usf:contractConstraint "Source-equivalence subjects under spec/instances/semantic-contract are Git-tracked exact-digest inputs retained only while the active accepted source-disposition policy requires equivalence; they use external-payload authority and never establish semantic authority." ;
       usf:contractConstraint "External payloads are immutable and content-addressed; their small digest, media type, byte size, artifact type and locator envelopes remain in Stardog." ;
       usf:contractConstraint "The default external payload store is an operator-local content-addressed filesystem outside Git. No GCS bucket, cloud billing linkage, or paid managed object-storage realisation is selected; any such backend requires a separate active decision and proof." ;
       usf:contractConstraint "Runtime evidence, proof output, validation output, logs, screenshots, binaries, archives, Parquet data, NativeStore databases and generated contract caches are not Git source." ;
@@ -105,7 +107,7 @@
       usf:decisionState <urn:usf:decisionstate:accepted> ;
       usf:considersOption <urn:usf:realisationoption:stageorientedlayout>, <urn:usf:realisationoption:ownerorientedlayout>, <urn:usf:realisationoption:globalordinal>, <urn:usf:realisationoption:familyordinal> ;
       usf:authorisesRepository "maldous/usf-graph" ;
-      usf:authorisesSourcePath ".", "graph", "tools/compiler", "tools/collectors", "tools/proof", "tools/validation", "schemas/evidence", "schemas/projections", "schemas/validation", "decisions", ".claude/skills/usf", ".codex/skills/usf", "tools/chroot", ".work/materialisation" ;
+      usf:authorisesSourcePath ".", "graph", "tools/compiler", "tools/collectors", "tools/proof", "tools/validation", "schemas/evidence", "schemas/projections", "schemas/validation", "decisions", ".claude/skills/usf", ".codex/skills/usf", ".github/workflows", "spec/instances/semantic-contract", "tools/chroot", ".work/materialisation" ;
       usf:authorisesRealisationType usf:Implementation ;
       usf:requiresADR <urn:usf:adrrequirement:repositoryexternalartefactmaterialisation> ;
       usf:supersedesDecision <urn:usf:realisationdecision:localvalidationtoolchain> .
@@ -130,13 +132,15 @@
       usf:realisingImplementation <urn:usf:implementation:repositoryexternalartefactmaterialisation> ;
       usf:realisationState <urn:usf:realisationstate:internal> ;
       usf:authorisedByDecision <urn:usf:realisationdecision:repositoryexternalartefactmaterialisation> ;
-      usf:authorisedSourcePath "tools/compiler", "tools/collectors", "tools/proof", "tools/validation", "tools/chroot" .
+      usf:authorisedSourcePath "tools/compiler", "tools/collectors", "tools/proof", "tools/validation", "tools/chroot", ".github/workflows", "spec/instances/semantic-contract" .
 
   ######################################################################
   # Candidate path roles. They become authorisations only on activation.
   ######################################################################
 
   path:repositoryroot a usf:PathRole ; usf:canonicalName "repositoryroot" ; usf:authorisedParentPath "." ; usf:materialisesOnDemand true .
+  path:repositoryworkflow a usf:PathRole ; usf:canonicalName "repositoryworkflow" ; usf:authorisedParentPath ".github/workflows" ; usf:materialisesOnDemand true .
+  path:sourceequivalencesubject a usf:PathRole ; usf:canonicalName "sourceequivalencesubject" ; usf:authorisedParentPath "spec/instances/semantic-contract" ; usf:materialisesOnDemand true .
   path:semanticsource a usf:PathRole ; usf:canonicalName "semanticsource" ; usf:authorisedParentPath "graph" ; usf:materialisesOnDemand true .
   path:compilersource a usf:PathRole ; usf:canonicalName "compilersource" ; usf:authorisedParentPath "tools/compiler" ; usf:materialisesOnDemand true .
   path:collectorsource a usf:PathRole ; usf:canonicalName "collectorsource" ; usf:authorisedParentPath "tools/collectors" ; usf:materialisesOnDemand true .
@@ -164,7 +168,7 @@
   ######################################################################
 
   fam:semanticsource usf:usesMaterialisationRule rule:semanticsource .
-  rule:semanticsource a usf:MaterialisationRule ; usf:canonicalName "semanticsource" ; usf:governedArtefactFamily fam:semanticsource ; usf:usesStorageClass storage:gittrackedsource ; usf:usesRepresentationFormat format:turtlerdf11, format:trigrdf11 ; usf:usesPathRole path:semanticsource ; usf:usesNamingRule naming:languagenative ; usf:usesNumberingScope numbering:languagenative ; usf:usesGenerationMode mode:authored ; usf:usesAuthorityClass authority:authoreddefinition ; usf:usesRetentionClass retention:permanenthistory ; usf:usesSupersessionRule supersession:versionedreplacement ; usf:localRepresentation true ; usf:trackedRepresentation true ; usf:contentAddressingRequired false ; usf:signatureRequired false ; usf:maximumInlineBytes 0 ; usf:materialisationGenerator actor:coordinator ; usf:materialisationValidator actor:semanticcompiler ; usf:materialisationConsumer actor:semanticcompiler, actor:agent .
+  rule:semanticsource a usf:MaterialisationRule ; usf:canonicalName "semanticsource" ; usf:governedArtefactFamily fam:semanticsource ; usf:usesStorageClass storage:gittrackedsource ; usf:usesRepresentationFormat format:turtlerdf11, format:trigrdf11, format:sparql11query ; usf:usesPathRole path:semanticsource ; usf:usesNamingRule naming:languagenative ; usf:usesNumberingScope numbering:languagenative ; usf:usesGenerationMode mode:authored ; usf:usesAuthorityClass authority:authoreddefinition ; usf:usesRetentionClass retention:permanenthistory ; usf:usesSupersessionRule supersession:versionedreplacement ; usf:localRepresentation true ; usf:trackedRepresentation true ; usf:contentAddressingRequired false ; usf:signatureRequired false ; usf:maximumInlineBytes 0 ; usf:materialisationGenerator actor:coordinator ; usf:materialisationValidator actor:semanticcompiler ; usf:materialisationConsumer actor:semanticcompiler, actor:agent .
   fam:semanticdigestprojection usf:usesMaterialisationRule rule:semanticdigestprojection .
   rule:semanticdigestprojection a usf:MaterialisationRule ; usf:canonicalName "semanticdigestprojection" ; usf:governedArtefactFamily fam:semanticdigestprojection ; usf:usesStorageClass storage:generateduntrackedoutput ; usf:usesRepresentationFormat format:canonicalnquadsrdfc10 ; usf:usesPathRole path:generatedwork ; usf:usesNamingRule naming:digestidentity ; usf:usesNumberingScope numbering:digestonly ; usf:usesGenerationMode mode:generated ; usf:usesAuthorityClass authority:generatedprojection ; usf:usesRetentionClass retention:ephemeralsession ; usf:usesSupersessionRule supersession:regeneratefromauthority ; usf:usesProjectionType projection:boundedjcsjson ; usf:localRepresentation true ; usf:trackedRepresentation false ; usf:contentAddressingRequired true ; usf:signatureRequired false ; usf:maximumInlineBytes 0 ; usf:materialisationGenerator actor:semanticcompiler ; usf:materialisationValidator actor:materialisationvalidator ; usf:materialisationConsumer actor:semanticcompiler .
   fam:evidencecollector usf:usesMaterialisationRule rule:evidencecollector .
@@ -200,7 +204,7 @@
   fam:agentdirective usf:usesMaterialisationRule rule:agentdirective .
   rule:agentdirective a usf:MaterialisationRule ; usf:canonicalName "agentdirective" ; usf:governedArtefactFamily fam:agentdirective ; usf:usesStorageClass storage:gittrackedsource ; usf:usesRepresentationFormat format:markdown ; usf:usesPathRole path:repositoryroot ; usf:usesNamingRule naming:canonicalfixed ; usf:usesNumberingScope numbering:none ; usf:usesGenerationMode mode:authored ; usf:usesAuthorityClass authority:authoreddefinition ; usf:usesRetentionClass retention:permanenthistory ; usf:usesSupersessionRule supersession:versionedreplacement ; usf:localRepresentation true ; usf:trackedRepresentation true ; usf:contentAddressingRequired false ; usf:signatureRequired false ; usf:maximumInlineBytes 0 ; usf:materialisationGenerator actor:coordinator ; usf:materialisationValidator actor:materialisationvalidator ; usf:materialisationConsumer actor:agent .
   fam:agentskill usf:usesMaterialisationRule rule:agentskill .
-  rule:agentskill a usf:MaterialisationRule ; usf:canonicalName "agentskill" ; usf:governedArtefactFamily fam:agentskill ; usf:usesStorageClass storage:gittrackedsource ; usf:usesRepresentationFormat format:markdown ; usf:usesPathRole path:claudeagentskill ; usf:usesNamingRule naming:canonicalfixed ; usf:usesNumberingScope numbering:none ; usf:usesGenerationMode mode:authored ; usf:usesAuthorityClass authority:authoreddefinition ; usf:usesRetentionClass retention:permanenthistory ; usf:usesSupersessionRule supersession:versionedreplacement ; usf:localRepresentation true ; usf:trackedRepresentation true ; usf:contentAddressingRequired false ; usf:signatureRequired false ; usf:maximumInlineBytes 0 ; usf:materialisationGenerator actor:coordinator ; usf:materialisationValidator actor:materialisationvalidator ; usf:materialisationConsumer actor:agent .
+  rule:agentskill a usf:MaterialisationRule ; usf:canonicalName "agentskill" ; usf:governedArtefactFamily fam:agentskill ; usf:usesStorageClass storage:gittrackedsource ; usf:usesRepresentationFormat format:markdown ; usf:usesPathRole path:claudeagentskill, path:codexagentskill ; usf:usesNamingRule naming:canonicalfixed ; usf:usesNumberingScope numbering:none ; usf:usesGenerationMode mode:authored ; usf:usesAuthorityClass authority:authoreddefinition ; usf:usesRetentionClass retention:permanenthistory ; usf:usesSupersessionRule supersession:versionedreplacement ; usf:localRepresentation true ; usf:trackedRepresentation true ; usf:contentAddressingRequired false ; usf:signatureRequired false ; usf:maximumInlineBytes 0 ; usf:materialisationGenerator actor:coordinator ; usf:materialisationValidator actor:materialisationvalidator ; usf:materialisationConsumer actor:agent .
   fam:compiler usf:usesMaterialisationRule rule:compiler .
   rule:compiler a usf:MaterialisationRule ; usf:canonicalName "compiler" ; usf:governedArtefactFamily fam:compiler ; usf:usesStorageClass storage:gittrackedsource ; usf:usesRepresentationFormat format:ecmascriptmodule, format:ecosystemnative, format:posixshell ; usf:usesPathRole path:compilersource ; usf:usesNamingRule naming:languagenative ; usf:usesNumberingScope numbering:languagenative ; usf:usesGenerationMode mode:authored ; usf:usesAuthorityClass authority:authoreddefinition ; usf:usesRetentionClass retention:permanenthistory ; usf:usesSupersessionRule supersession:versionedreplacement ; usf:localRepresentation true ; usf:trackedRepresentation true ; usf:contentAddressingRequired false ; usf:signatureRequired false ; usf:maximumInlineBytes 0 ; usf:materialisationGenerator actor:coordinator ; usf:materialisationValidator actor:materialisationvalidator ; usf:materialisationConsumer actor:coordinator .
   fam:compilertest usf:usesMaterialisationRule rule:compilertest .
@@ -215,8 +219,10 @@
   rule:chroottool a usf:MaterialisationRule ; usf:canonicalName "chroottool" ; usf:governedArtefactFamily fam:chroottool ; usf:usesStorageClass storage:gittrackedsource ; usf:usesRepresentationFormat format:posixshell ; usf:usesPathRole path:chroottool ; usf:usesNamingRule naming:languagenative ; usf:usesNumberingScope numbering:languagenative ; usf:usesGenerationMode mode:authored ; usf:usesAuthorityClass authority:authoreddefinition ; usf:usesRetentionClass retention:permanenthistory ; usf:usesSupersessionRule supersession:versionedreplacement ; usf:localRepresentation true ; usf:trackedRepresentation true ; usf:contentAddressingRequired false ; usf:signatureRequired false ; usf:maximumInlineBytes 0 ; usf:materialisationGenerator actor:coordinator ; usf:materialisationValidator actor:materialisationvalidator ; usf:materialisationConsumer actor:coordinator .
   fam:repositorydocumentation usf:usesMaterialisationRule rule:repositorydocumentation .
   rule:repositorydocumentation a usf:MaterialisationRule ; usf:canonicalName "repositorydocumentation" ; usf:governedArtefactFamily fam:repositorydocumentation ; usf:usesStorageClass storage:gittrackedsource ; usf:usesRepresentationFormat format:markdown ; usf:usesPathRole path:repositoryroot ; usf:usesNamingRule naming:canonicalfixed ; usf:usesNumberingScope numbering:none ; usf:usesGenerationMode mode:authored ; usf:usesAuthorityClass authority:authoreddefinition ; usf:usesRetentionClass retention:permanenthistory ; usf:usesSupersessionRule supersession:versionedreplacement ; usf:localRepresentation true ; usf:trackedRepresentation true ; usf:contentAddressingRequired false ; usf:signatureRequired false ; usf:maximumInlineBytes 0 ; usf:materialisationGenerator actor:coordinator ; usf:materialisationValidator actor:materialisationvalidator ; usf:materialisationConsumer actor:humanreviewer, actor:agent .
+  fam:sourceequivalencesubject usf:usesMaterialisationRule rule:sourceequivalencesubject .
+  rule:sourceequivalencesubject a usf:MaterialisationRule ; usf:canonicalName "sourceequivalencesubject" ; usf:governedArtefactFamily fam:sourceequivalencesubject ; usf:usesStorageClass storage:gittrackedsource ; usf:usesRepresentationFormat format:ecosystemnative ; usf:usesPathRole path:sourceequivalencesubject ; usf:usesNamingRule naming:languagenative ; usf:usesNumberingScope numbering:languagenative ; usf:usesGenerationMode mode:authored ; usf:usesAuthorityClass authority:externalpayload ; usf:usesRetentionClass retention:policybounded ; usf:usesSupersessionRule supersession:expirebyretentionpolicy ; usf:localRepresentation true ; usf:trackedRepresentation true ; usf:contentAddressingRequired false ; usf:signatureRequired false ; usf:maximumInlineBytes 0 ; usf:materialisationGenerator actor:coordinator ; usf:materialisationValidator actor:materialisationvalidator ; usf:materialisationConsumer actor:semanticcompiler .
   fam:repositoryconfiguration usf:usesMaterialisationRule rule:repositoryconfiguration .
-  rule:repositoryconfiguration a usf:MaterialisationRule ; usf:canonicalName "repositoryconfiguration" ; usf:governedArtefactFamily fam:repositoryconfiguration ; usf:usesStorageClass storage:gittrackedsource ; usf:usesRepresentationFormat format:ecosystemnative, format:jcsjson ; usf:usesPathRole path:repositoryroot ; usf:usesNamingRule naming:canonicalfixed ; usf:usesNumberingScope numbering:none ; usf:usesGenerationMode mode:authored ; usf:usesAuthorityClass authority:authoreddefinition ; usf:usesRetentionClass retention:permanenthistory ; usf:usesSupersessionRule supersession:versionedreplacement ; usf:localRepresentation true ; usf:trackedRepresentation true ; usf:contentAddressingRequired false ; usf:signatureRequired false ; usf:maximumInlineBytes 0 ; usf:materialisationGenerator actor:coordinator ; usf:materialisationValidator actor:materialisationvalidator ; usf:materialisationConsumer actor:coordinator, actor:agent .
+  rule:repositoryconfiguration a usf:MaterialisationRule ; usf:canonicalName "repositoryconfiguration" ; usf:governedArtefactFamily fam:repositoryconfiguration ; usf:usesStorageClass storage:gittrackedsource ; usf:usesRepresentationFormat format:ecosystemnative, format:jcsjson ; usf:usesPathRole path:repositoryroot, path:repositoryworkflow ; usf:usesNamingRule naming:canonicalfixed ; usf:usesNumberingScope numbering:none ; usf:usesGenerationMode mode:authored ; usf:usesAuthorityClass authority:authoreddefinition ; usf:usesRetentionClass retention:permanenthistory ; usf:usesSupersessionRule supersession:versionedreplacement ; usf:localRepresentation true ; usf:trackedRepresentation true ; usf:contentAddressingRequired false ; usf:signatureRequired false ; usf:maximumInlineBytes 0 ; usf:materialisationGenerator actor:coordinator ; usf:materialisationValidator actor:materialisationvalidator ; usf:materialisationConsumer actor:coordinator, actor:agent .
   fam:projectionschema usf:usesMaterialisationRule rule:projectionschema .
   rule:projectionschema a usf:MaterialisationRule ; usf:canonicalName "projectionschema" ; usf:governedArtefactFamily fam:projectionschema ; usf:usesStorageClass storage:gittrackedsource ; usf:usesRepresentationFormat format:jsonschema202012 ; usf:usesPathRole path:projectionschema ; usf:usesNamingRule naming:eightdigitfamilyslug ; usf:usesNumberingScope numbering:familyeightdigit ; usf:usesGenerationMode mode:authored ; usf:usesAuthorityClass authority:authoreddefinition ; usf:usesRetentionClass retention:permanenthistory ; usf:usesSupersessionRule supersession:appendonlylink ; usf:localRepresentation true ; usf:trackedRepresentation true ; usf:contentAddressingRequired false ; usf:signatureRequired false ; usf:maximumInlineBytes 0 ; usf:materialisationGenerator actor:coordinator ; usf:materialisationValidator actor:materialisationvalidator ; usf:materialisationConsumer actor:semanticcompiler, actor:agent .
   fam:validationschema usf:usesMaterialisationRule rule:validationschema .
@@ -238,8 +244,14 @@
   <urn:usf:gatewayoperation:proofevaluate> a usf:GatewayOperation ; usf:canonicalName "proofevaluate" ; usf:gatewayOperationIdentifier "usf.proof.evaluate" ; usf:mutatesSemanticAuthority true ; usf:coordinatorOnly true ; usf:maximumInputBytes 65536 ; usf:maximumOutputBytes 32768 .
   <urn:usf:gatewayoperation:validationrecord> a usf:GatewayOperation ; usf:canonicalName "validationrecord" ; usf:gatewayOperationIdentifier "usf.validation.record" ; usf:mutatesSemanticAuthority true ; usf:coordinatorOnly true ; usf:maximumInputBytes 65536 ; usf:maximumOutputBytes 16384 .
 
-  <urn:usf:proofalgorithm:repositoryexternalartefactmaterialisationgate> a usf:ProofAlgorithm ; usf:canonicalName "repositoryexternalartefactmaterialisationgate" .
-  <urn:usf:proofalgorithmversion:repositoryexternalartefactmaterialisationgateone> a usf:ProofAlgorithmVersion ; usf:canonicalName "repositoryexternalartefactmaterialisationgateone" .
+  <urn:usf:proofalgorithm:repositoryexternalartefactmaterialisationgate> a usf:ProofAlgorithm ;
+      usf:canonicalName "repositoryexternalartefactmaterialisationgate" ;
+      usf:proofAlgorithmSourcePath "tools/proof/materialisation-proof.mjs" ;
+      usf:proofAlgorithmSourceDigest "sha256:23fef7472d489221fa9dc4c9e5ba0f52509ff856761bce22642321f78c24668f" .
+  <urn:usf:proofalgorithmversion:repositoryexternalartefactmaterialisationgateone> a usf:ProofAlgorithmVersion ;
+      usf:canonicalName "repositoryexternalartefactmaterialisationgateone" ;
+      usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:repositoryexternalartefactmaterialisationgate> ;
+      usf:proofAlgorithmVersionIdentifier "1.0.0" .
   <urn:usf:proofobligation:repositoryexternalartefactmaterialisation> a usf:ProofObligation ;
       usf:canonicalName "repositoryexternalartefactmaterialisation" ;
       usf:obligationFor <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> ;
@@ -260,28 +272,6 @@
       usf:requiresEnvironmentClass <urn:usf:environmentclass:hermetic> ;
       usf:requiresEvidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:signed>, <urn:usf:evidencestage:integrityverified> .
 
-  <urn:usf:externalpayloaddescriptor:evidencemanifest20edd968a3d7be6199507204f14f9587cdfd5902749ecb6602bb8c8e3080d860> a usf:ExternalPayloadDescriptor ;
-      usf:canonicalName "evidencemanifest20edd968a3d7be6199507204f14f9587cdfd5902749ecb6602bb8c8e3080d860" ;
-      usf:descriptorArtefactFamily fam:evidencemanifest ;
-      usf:descriptorRepresentationFormat format:jcsjson ;
-      usf:descriptorMediaType "application/json" ;
-      usf:descriptorDigest "sha256:20edd968a3d7be6199507204f14f9587cdfd5902749ecb6602bb8c8e3080d860" ;
-      usf:descriptorByteSize 37891 ;
-      usf:descriptorLocator "cas://sha256/20edd968a3d7be6199507204f14f9587cdfd5902749ecb6602bb8c8e3080d860"^^xsd:anyURI ;
-      usf:descriptorArtefactType "urn:usf:artefacttype:evidencemanifest"^^xsd:anyURI ;
-      usf:descriptorStorageClass storage:contentaddressedobjectstorage .
-
-  <urn:usf:externalpayloaddescriptor:proofattestationcc320d12908293b09853ffd17a1700620b73097ba9db28b48311d4142a8c9b64> a usf:ExternalPayloadDescriptor ;
-      usf:canonicalName "proofattestationcc320d12908293b09853ffd17a1700620b73097ba9db28b48311d4142a8c9b64" ;
-      usf:descriptorArtefactFamily fam:proofexecutionattestation ;
-      usf:descriptorRepresentationFormat format:dsse102 ;
-      usf:descriptorMediaType "application/vnd.in-toto+json" ;
-      usf:descriptorDigest "sha256:cc320d12908293b09853ffd17a1700620b73097ba9db28b48311d4142a8c9b64" ;
-      usf:descriptorByteSize 912 ;
-      usf:descriptorLocator "cas://sha256/cc320d12908293b09853ffd17a1700620b73097ba9db28b48311d4142a8c9b64"^^xsd:anyURI ;
-      usf:descriptorArtefactType "urn:usf:artefacttype:proofexecutionattestation"^^xsd:anyURI ;
-      usf:descriptorStorageClass storage:contentaddressedobjectstorage .
-
   <urn:usf:externalpayloaddescriptor:evidencemanifeste21975692963d01fde0acb19d9aca461427106b494a7a0300b33b76b43604472> a usf:ExternalPayloadDescriptor ;
       usf:canonicalName "evidencemanifeste21975692963d01fde0acb19d9aca461427106b494a7a0300b33b76b43604472" ;
       usf:descriptorArtefactFamily fam:evidencemanifest ;
@@ -301,6 +291,50 @@
       usf:descriptorDigest "sha256:97081d8799af3a307a846b9d363e12e4567d12420b0770efb72375be2e4d8570" ;
       usf:descriptorByteSize 912 ;
       usf:descriptorLocator "cas://sha256/97081d8799af3a307a846b9d363e12e4567d12420b0770efb72375be2e4d8570"^^xsd:anyURI ;
+      usf:descriptorArtefactType "urn:usf:artefacttype:proofexecutionattestation"^^xsd:anyURI ;
+      usf:descriptorStorageClass storage:contentaddressedobjectstorage .
+
+  <urn:usf:externalpayloaddescriptor:evidencemanifesta9a6595e86d6bb33cba20ccdf96d40b40736d0c166a27920a2f99c2560b5300a> a usf:ExternalPayloadDescriptor ;
+      usf:canonicalName "evidencemanifesta9a6595e86d6bb33cba20ccdf96d40b40736d0c166a27920a2f99c2560b5300a" ;
+      usf:descriptorArtefactFamily fam:evidencemanifest ;
+      usf:descriptorRepresentationFormat format:jcsjson ;
+      usf:descriptorMediaType "application/json" ;
+      usf:descriptorDigest "sha256:a9a6595e86d6bb33cba20ccdf96d40b40736d0c166a27920a2f99c2560b5300a" ;
+      usf:descriptorByteSize 6391 ;
+      usf:descriptorLocator "cas://sha256/a9a6595e86d6bb33cba20ccdf96d40b40736d0c166a27920a2f99c2560b5300a"^^xsd:anyURI ;
+      usf:descriptorArtefactType "urn:usf:artefacttype:evidencemanifest"^^xsd:anyURI ;
+      usf:descriptorStorageClass storage:contentaddressedobjectstorage .
+
+  <urn:usf:externalpayloaddescriptor:proofattestationa9f4c7247819521166a4478e9ece5f2eb4fada220b2ca87213b2c15268f5a103> a usf:ExternalPayloadDescriptor ;
+      usf:canonicalName "proofattestationa9f4c7247819521166a4478e9ece5f2eb4fada220b2ca87213b2c15268f5a103" ;
+      usf:descriptorArtefactFamily fam:proofexecutionattestation ;
+      usf:descriptorRepresentationFormat format:dsse102 ;
+      usf:descriptorMediaType "application/vnd.in-toto+json" ;
+      usf:descriptorDigest "sha256:a9f4c7247819521166a4478e9ece5f2eb4fada220b2ca87213b2c15268f5a103" ;
+      usf:descriptorByteSize 912 ;
+      usf:descriptorLocator "cas://sha256/a9f4c7247819521166a4478e9ece5f2eb4fada220b2ca87213b2c15268f5a103"^^xsd:anyURI ;
+      usf:descriptorArtefactType "urn:usf:artefacttype:proofexecutionattestation"^^xsd:anyURI ;
+      usf:descriptorStorageClass storage:contentaddressedobjectstorage .
+
+  <urn:usf:externalpayloaddescriptor:evidencemanifest6f71c0dabc20eb5e41bdbbc2d87ce88a6d2cd476ca7876276fb5d44cbf706870> a usf:ExternalPayloadDescriptor ;
+      usf:canonicalName "evidencemanifest6f71c0dabc20eb5e41bdbbc2d87ce88a6d2cd476ca7876276fb5d44cbf706870" ;
+      usf:descriptorArtefactFamily fam:evidencemanifest ;
+      usf:descriptorRepresentationFormat format:jcsjson ;
+      usf:descriptorMediaType "application/json" ;
+      usf:descriptorDigest "sha256:6f71c0dabc20eb5e41bdbbc2d87ce88a6d2cd476ca7876276fb5d44cbf706870" ;
+      usf:descriptorByteSize 6395 ;
+      usf:descriptorLocator "cas://sha256/6f71c0dabc20eb5e41bdbbc2d87ce88a6d2cd476ca7876276fb5d44cbf706870"^^xsd:anyURI ;
+      usf:descriptorArtefactType "urn:usf:artefacttype:evidencemanifest"^^xsd:anyURI ;
+      usf:descriptorStorageClass storage:contentaddressedobjectstorage .
+
+  <urn:usf:externalpayloaddescriptor:proofattestation3ff1021a1431a6eae89f3e215c2b78f8da9cff620a650c0e0f123e63aa941cc6> a usf:ExternalPayloadDescriptor ;
+      usf:canonicalName "proofattestation3ff1021a1431a6eae89f3e215c2b78f8da9cff620a650c0e0f123e63aa941cc6" ;
+      usf:descriptorArtefactFamily fam:proofexecutionattestation ;
+      usf:descriptorRepresentationFormat format:dsse102 ;
+      usf:descriptorMediaType "application/vnd.in-toto+json" ;
+      usf:descriptorDigest "sha256:3ff1021a1431a6eae89f3e215c2b78f8da9cff620a650c0e0f123e63aa941cc6" ;
+      usf:descriptorByteSize 912 ;
+      usf:descriptorLocator "cas://sha256/3ff1021a1431a6eae89f3e215c2b78f8da9cff620a650c0e0f123e63aa941cc6"^^xsd:anyURI ;
       usf:descriptorArtefactType "urn:usf:artefacttype:proofexecutionattestation"^^xsd:anyURI ;
       usf:descriptorStorageClass storage:contentaddressedobjectstorage .
 }

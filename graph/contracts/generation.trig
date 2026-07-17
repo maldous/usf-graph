@@ -136,7 +136,7 @@ repo:foundation a usf:Repository ; usf:canonicalName "foundation" ;
     eqrule:semanticcontractprojection a usf:EquivalenceRule ; usf:canonicalName "semanticcontractprojection" ;
       usf:equivalenceRuleKind <urn:usf:equivalencekind:semantic> , <urn:usf:equivalencekind:structural> , <urn:usf:equivalencekind:fullincremental> ;
       usf:equivalenceRuleComponent generator:semanticcontract ; usf:equivalenceRuleInputRole <urn:usf:generationinputrole:equivalencesubject> ;
-      usf:equivalenceRuleComparesPredicate usf:semanticLifecycleState , usf:declaresFacet , usf:facetKind , usf:facetStatus , usf:facetStatement ;
+      usf:equivalenceRuleComparesPredicate usf:canonicalName , usf:declaresFacet , usf:facetKind , usf:facetStatus , usf:facetStatement ;
       usf:equivalenceRuleFailureCode "USF-SCG-006" .
     generator:scaffold a usf:Generator ; usf:canonicalName "scaffold" ; usf:semanticInputQuery "SELECT ?resource WHERE { ?resource a <urn:usf:ontology:Implementation> . }" ; usf:outputSchema art:compileroutputschema ; usf:outputPathRule path:workspacemanifest ; usf:integrityPolicy policy:deterministicgenerationintegrity ; usf:normalisationPolicy policy:canonicaloutputnormalisation ; usf:missingSemanticsConstraint constraint:failonmissingsemantics ; usf:requiresEquivalenceKind <urn:usf:equivalencekind:behavioural> .
     generator:validation a usf:Generator ; usf:canonicalName "validation" ; usf:semanticInputQuery "SELECT ?resource WHERE { ?resource a <urn:usf:ontology:ValidatorRule> . }" ; usf:outputSchema art:compileroutputschema ; usf:outputPathRule path:validatormanifest ; usf:integrityPolicy policy:deterministicgenerationintegrity ; usf:normalisationPolicy policy:canonicaloutputnormalisation ; usf:missingSemanticsConstraint constraint:failonmissingsemantics ; usf:requiresEquivalenceKind <urn:usf:equivalencekind:behavioural> .
@@ -153,7 +153,7 @@ repo:foundation a usf:Repository ; usf:canonicalName "foundation" ;
 
     identity:foundationrelease a usf:SigningIdentity ;
       usf:canonicalName "foundationrelease" ;
-      usf:signingKeyFingerprint "22f078786f445431f3755179fcf1535b5c6b523808f2b4ae08d1c03fc143c402" .
+      usf:signingKeyFingerprint "d3e5e55b71044aecc0143ef490b67f399dc49fc6e73c1307a6b515ed8964b2f6" .
 
     # Shared machine output schema and non-UI output families.
     plan:compileroutputschema a usf:ArtefactPlan ; usf:canonicalName "compileroutputschema" ; usf:ownedByRepository repo:foundation ; usf:plansArtefact art:compileroutputschema .

@@ -1,0 +1,112 @@
+{
+  "id": "semantic-contract.end-user-profile-and-preferences-self-service",
+  "title": "End User Profile And Preferences Self Service Semantic Contract",
+  "description": "Source-backed draft semantic contract for the end user profile and preferences self service capability, derived from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage and not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Interface",
+    "Data Model"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facets cite verified manifest source rows as lineage; proof is hermetic/stale and not current readiness. Do not treat as implementation authority or fresh proof; respect the hexagonal constraint in ADR 0005.",
+  "capability": "end-user-profile-and-preferences-self-service",
+  "capabilityDomain": "identity-access",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Profile lifecycle moves from a default to an updated own-profile record, and preference lifecycle moves from default-empty to updated channel/category preferences that are read back; notification dispatch then treats enabled preferences as sent and disabled preferences as suppressed. All operations act only on the authenticated subject's own data.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/profile.ts",
+        "apps/platform-api/tests/unit/profile.test.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State is tenant-and-user-scoped: a profile (display name, locale, timezone), a preference set (channel, category, enabled flag), and a durable dispatch log status of sent, suppressed, or failed. There are no secret-bearing columns in the self-service state.",
+      "sourceRefs": [
+        "apps/platform-api/src/ports/profile-repository.ts",
+        "apps/platform-api/src/adapters/postgres-profile-repository.ts",
+        "apps/platform-api/src/db/migrations/028-profile-notifications.sql"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Reads use a self-read permission and writes use a self-update permission, with the user id always taken from the authenticated session subject and never from a path or body parameter. The separate operator notification test uses platform notification permissions outside this self-service surface, preserving isolation.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/profile.ts",
+        "apps/platform-api/tests/unit/profile.test.ts"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The operation surface is read and update of the caller's own profile and notification preferences, with supporting notification readiness and test operations. Responses return the updated record or a typed validation result.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/profile-self-service-runtime-proof.ts",
+        "apps/platform-api/src/usecases/notifications.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Profile update rejects an empty display name, the route schema rejects invalid profile or preference payloads, dispatch rejects secret-bearing payload fields, and a write without tenant context returns a no-tenant error. Invalid input is rejected before any change.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/profile.test.ts",
+        "apps/platform-api/tests/unit/notifications.test.ts"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Validation failures return safe validation-error responses, no-tenant writes return a 400 no-tenant outcome, and secret-bearing notification payloads raise an explicit not-notifiable error; provider failure returns a typed degraded result fail-closed. No partial profile state is persisted on failure.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/profile.test.ts"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Profile updates emit a profile-updated audit-before-change event, preference updates emit a preference audit, and operator test sends emit a notification-tested event. Audit precedes the change.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/profile.test.ts",
+        "apps/platform-api/tests/unit/notifications.test.ts"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Profile and preferences are always-on once the data substrate is migrated, and degraded mode disables store-dependent writes while keeping read-only access and audit visible. Live proofs skip honestly when the substrate is unavailable and verify no secret columns plus tenant-isolation enforcement.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/profile-self-service-runtime-proof.ts",
+        "apps/platform-api/scripts/notification-preferences-runtime-proof.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Unit proofs cover the profile and notification usecases, and runtime proofs validate live profile self-service, notification preferences, and dispatch against the data substrate with row-level tenant isolation, demonstrated in source lineage via hermetic/runtime validation. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/profile-self-service-runtime-proof.ts",
+        "apps/platform-api/scripts/notification-dispatch-runtime-proof.ts",
+        "apps/platform-api/tests/unit/profile.test.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "No verified UI source path in the manifest yet; author the UI semantic model or import the UI source row before generation."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/src/usecases/profile.ts",
+    "apps/platform-api/src/usecases/notifications.ts"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

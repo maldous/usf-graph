@@ -3,13 +3,14 @@
 // model -> evidence -> proof -> contract -> realisation -> validation trace.
 
 import { createHash } from 'node:crypto';
+import { canonicalGraphDigest } from './live-attestation.js';
 
 const ONT = 'urn:usf:ontology:';
 export const BOOTSTRAP_TRACE = 'model -> evidence -> proof -> contract -> realisation -> validation';
 export const MAX_BOOTSTRAP_BYTES = 8 * 1024;
 export const MAX_BOOTSTRAP_BINDINGS = 50;
 export const MAX_BOOTSTRAP_DEPTH = 3;
-const DIGEST_ALGORITHM = 'sha256-graph-count-inventory-v1';
+const DIGEST_ALGORITHM = 'sha256-rdfc10-graph-inventory-v2';
 const QUERY_IDENTITY = 'usf_bootstrap:contract:evidence-first:v1';
 const ITEM_KEYS = [
   'modelResources', 'claims', 'nonClaims', 'evidenceRequirements', 'evidenceResults',
@@ -23,7 +24,7 @@ export function validContractRef(ref) {
 }
 
 export function authorityDigest(inventory, triples) {
-  const body = inventory.map((g) => `${g.graph}=${g.triples}`).sort().join('\n');
+  const body = inventory.map((g) => `${g.graph}=${g.sha256}:${g.triples}`).sort().join('\n');
   return createHash('sha256').update(`${body}\ntotal=${triples}`).digest('hex');
 }
 
@@ -52,9 +53,15 @@ export function decodeContinuation(token) {
 export async function authorityWitness(client) {
   const [triples, rows] = await Promise.all([
     client.size(),
-    client.select('SELECT ?g (COUNT(*) AS ?triples) WHERE { GRAPH ?g { ?s ?p ?o } } GROUP BY ?g ORDER BY ?g LIMIT 50'),
+    client.select('SELECT DISTINCT ?g WHERE { GRAPH ?g { ?s ?p ?o } } ORDER BY ?g'),
   ]);
-  const inventory = rows.map((row) => ({ graph: val(row, 'g'), triples: Number(val(row, 'triples')) }));
+  const inventory = [];
+  for (const row of rows) {
+    const graph = val(row, 'g');
+    const content = await client.construct(`CONSTRUCT { ?s ?p ?o } WHERE { GRAPH <${graph}> { ?s ?p ?o } }`, 'application/n-quads');
+    const record = await canonicalGraphDigest(content);
+    if (record.triples > 0) inventory.push({ graph, ...record });
+  }
   return { triples, inventory, digest: authorityDigest(inventory, triples) };
 }
 
@@ -129,7 +136,7 @@ export async function bootstrapPacket(ctx, { contract, task, continuation } = {}
     digestAlgorithm: DIGEST_ALGORITHM,
     coveredGraphCount: before.inventory.length,
     triples: before.triples,
-    verificationState: 'verified-stable-diagnostic-count-witness',
+    verificationState: 'verified-stable-content-sensitive-rdfc10-witness',
   };
   if (!contract) {
     const rows = await client.select(`SELECT ?id ?canonicalName WHERE { ?id a <${ONT}SemanticContract> ; <${ONT}canonicalName> ?canonicalName } ORDER BY ?canonicalName LIMIT 50`);
@@ -162,8 +169,8 @@ export async function bootstrapPacket(ctx, { contract, task, continuation } = {}
     client.select(`SELECT DISTINCT ?id ?state ?implementation ?decision ?path WHERE { ?id a <${ONT}Realisation> ; <${ONT}realisesContract> <${iri}> . OPTIONAL { ?id <${ONT}realisationState> ?state } OPTIONAL { ?id <${ONT}realisingImplementation> ?implementation } OPTIONAL { ?id <${ONT}authorisedByDecision> ?decision } OPTIONAL { ?id <${ONT}authorisedSourcePath> ?path } } ORDER BY ?id LIMIT 50`),
     client.select(`SELECT DISTINCT ?id ?state ?path ?type ?repository WHERE { ?realisation <${ONT}realisesContract> <${iri}> ; <${ONT}authorisedByDecision> ?id . OPTIONAL { ?id <${ONT}decisionState> ?state } OPTIONAL { ?id <${ONT}authorisesSourcePath> ?path } OPTIONAL { ?id <${ONT}authorisesRealisationType> ?type } OPTIONAL { ?id <${ONT}authorisesRepository> ?repository } } ORDER BY ?id LIMIT 50`),
     client.select(`SELECT DISTINCT ?id ?canonicalName WHERE { ?id a <${ONT}ValidationObligation> ; <${ONT}validationForContract> <${iri}> . OPTIONAL { ?id <${ONT}canonicalName> ?canonicalName } } ORDER BY ?id LIMIT 50`),
-    client.select(`SELECT DISTINCT ?id ?obligation ?environment WHERE { ?id a <${ONT}ValidationExecution> ; <${ONT}executesValidationObligation> ?obligation . ?obligation <${ONT}validationForContract> <${iri}> . OPTIONAL { ?id <${ONT}validationExecutionEnvironment> ?environment } } ORDER BY ?id LIMIT 50`),
-    client.select(`SELECT DISTINCT ?id ?execution ?state ?evidence WHERE { ?id a <${ONT}ValidationResult> ; <${ONT}resultOfValidationExecution> ?execution . ?execution <${ONT}executesValidationObligation> ?obligation . ?obligation <${ONT}validationForContract> <${iri}> . OPTIONAL { ?id <${ONT}validationResultState> ?state } OPTIONAL { ?id <${ONT}entersEvidenceLifecycleAs> ?evidence } } ORDER BY ?id LIMIT 50`),
+    client.select(`SELECT DISTINCT ?id ?obligation ?environment WHERE { ?id a <${ONT}ValidationExecution> ; <${ONT}executesValidation> ?obligation . ?obligation <${ONT}validationForContract> <${iri}> . OPTIONAL { ?id <${ONT}validationEnvironment> ?environment } } ORDER BY ?id LIMIT 50`),
+    client.select(`SELECT DISTINCT ?id ?execution ?state ?evidence WHERE { ?id a <${ONT}ValidationResult> . ?execution <${ONT}producesValidationResult> ?id ; <${ONT}executesValidation> ?obligation . ?obligation <${ONT}validationForContract> <${iri}> . OPTIONAL { ?id <${ONT}resultState> ?state } OPTIONAL { ?id <${ONT}entersEvidenceLifecycleAs> ?evidence } } ORDER BY ?id LIMIT 50`),
     client.select(`SELECT DISTINCT ?id ?kind ?status ?statement WHERE { <${iri}> <${ONT}declaresFacet> ?id . OPTIONAL { ?id <${ONT}facetKind> ?kind } OPTIONAL { ?id <${ONT}facetStatus> ?status } OPTIONAL { ?id <${ONT}facetStatement> ?statement } } ORDER BY ?id LIMIT 50`),
   ]);
   const mappedRealisations = realisations.map((row) => item(row, [['id', 'id'], ['state', 'state', short], ['implementation', 'implementation'], ['decision', 'decision'], ['authorisedSourcePath', 'path']]));

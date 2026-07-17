@@ -1,0 +1,118 @@
+{
+  "id": "semantic-contract.service-catalog-and-provider-integration-model",
+  "title": "Service Catalog And Provider Integration Model Semantic Contract",
+  "description": "Source-backed draft semantic contract for the service catalog and provider integration model capability, recovered from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage, not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Service",
+    "Configuration"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facet descriptions are concise source-backed summaries citing verified manifest rows; proof is hermetic/stale, not current readiness. Enrich facet detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "service-catalog-and-provider-integration-model",
+  "capabilityDomain": "foundation",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Registers platform services and their provider integration model, governing how each service is built, composed, or adapted and how it is exposed; it is provider-backed, database-backed, and touches tenant data. It deploys the V1-proven contract for platform-services readiness and GET /api/platform/service-catalog (catalog v2) and must keep its lifecycle/readiness model unchanged during extraction. Recovery re-runs proof:platform-services, proof:service-clickthrough-policy, proof:service-catalog-registry, and proof:entitlements-routes before promotion continues.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/platform-services.ts",
+        "apps/platform-api/src/usecases/service-catalog.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State includes each service's key, name, and category; its environment model; visibility (tenant_scoped_safe, global_only, or not_exposed); the integration decision (build, compose, adapter, defer, or reject); the entitlement key; proof references; console-access flags; readiness status; and provider details. Database changes use ordered SQL migrations that must preserve this proven state model, and rollback is forward-fix or guarded restore after migration lineage is verified so tenant data is never silently dropped or remapped. As a tenant-data participant it is subject to tenant backup/export/retention/legal-hold semantics.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/platform-services.ts",
+        "apps/platform-api/src/usecases/service-catalog.ts"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Because it can affect tenant-visible data or access, it must preserve tenant isolation: visibility classifications (tenant_scoped_safe vs global_only vs not_exposed) and entitlement keys gate what each tenant can see and reach. Mutating operations are administrative and must keep mutation boundaries closed on failure. Tenant-scoped reads and clickthrough access are governed by the recorded visibility and entitlement model.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/platform-services.test.ts",
+        "apps/platform-api/tests/unit/service-catalog.test.ts"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The interface contract is the platform-services readiness surface and the service-catalog read API behind ports/adapters, returning catalog entries with their decision, visibility, entitlement, and readiness fields. Configuration is read from the declared provider/config plane and missing or invalid configuration fails closed rather than inventing UI defaults. Provider integration is mediated through ports so adapters can be swapped without changing the catalog contract.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/platform-services.ts",
+        "apps/platform-api/src/usecases/service-catalog.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Validation enforces that each catalog entry has a coherent decision, visibility, entitlement, and readiness state, that tenant-scoped exposure is safe, and that provider details resolve. Inputs are checked before mutation and missing or invalid configuration fails closed. It guards against exposing a service more broadly than its visibility classification permits.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/platform-services.test.ts",
+        "apps/platform-api/tests/unit/service-catalog.test.ts"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Provider failure returns a typed degraded/readiness failure, keeps mutation boundaries closed, and does not fabricate successful provider state; degraded mode disables side-effecting paths that depend on the observability adapters while keeping read-only readiness and audit visible. Tenant data loss is possible only if migration, restore, or export semantics are bypassed, which the error model forbids. A missing tenant isolation or audit signal is an alertable tenant-data-or-security condition.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/platform-services.test.ts",
+        "apps/platform-api/tests/unit/service-catalog.test.ts"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "State-changing catalog and integration actions follow audit-before-mutation behaviour recovered from the source lineage and tests, recording the actor and change so the tenant boundary and DSR/GDPR evidence are preserved. Audit and readiness signals stay visible in degraded mode. Recovery preserves tenant boundary and audit evidence rather than silently overwriting it.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/platform-services.test.ts",
+        "apps/platform-api/tests/unit/service-catalog.test.ts"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness reflects whether each service's providers resolve and its catalog entry is coherent; it degrades explicitly when the underlying substrate (for example the observability adapters) is unavailable rather than reporting false health. Readiness fails closed and remains visible read-only in degraded mode. Promotion is gated on the named platform-services and catalog proofs passing.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/platform-services-runtime-proof.ts",
+        "apps/platform-api/scripts/service-catalog-registry-runtime-proof.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by proof:platform-services, proof:service-clickthrough-policy, proof:service-catalog-registry, and proof:entitlements-routes together with the cited unit tests, demonstrating catalog, visibility, entitlement, and readiness semantics. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/platform-services-runtime-proof.ts",
+        "apps/platform-api/scripts/service-catalog-registry-runtime-proof.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "No verified UI source path in the manifest yet; author the UI semantic model before generation."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/scripts/platform-services-runtime-proof.ts",
+    "apps/platform-api/scripts/service-catalog-registry-runtime-proof.ts",
+    "apps/platform-api/src/usecases/platform-services.ts",
+    "apps/platform-api/src/usecases/service-catalog.ts",
+    "apps/platform-api/tests/unit/platform-services.test.ts",
+    "apps/platform-api/tests/unit/service-catalog.test.ts",
+    "docs/adr/0055-service-catalog-and-provider-integration-model.md",
+    "docs/evidence/platform/phase-1-service-catalog-entitlements-scope.md",
+    "docs/evidence/platform/phase-1-service-catalog-entitlements.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

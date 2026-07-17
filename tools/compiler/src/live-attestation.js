@@ -12,10 +12,18 @@ import {
 } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { DataFactory, Parser, Store, Writer } from 'n3';
-import * as rdfCanonize from 'rdf-canonize';
 
 import { authoredLoadList, managedGraphs } from './manifest.js';
-import { compile, CompilerError, verificationConforms, verify as verifyDatabase } from './compiler.js';
+import {
+  canonicalGraphDigest,
+  canonicalNQuads,
+  compile,
+  CompilerError,
+  verificationConforms,
+  verify as verifyDatabase,
+} from './compiler.js';
+
+export { canonicalGraphDigest };
 
 const { blankNode, defaultGraph, quad } = DataFactory;
 const NQUADS = 'application/n-quads';
@@ -29,6 +37,7 @@ const REQUIRED_ROLLBACK_FAULTS = Object.freeze([
   'clear-graph',
   'collect-observed',
   'commit',
+  'commit-response',
   'contamination',
   'derive',
   'derived-insert',
@@ -55,54 +64,12 @@ function stable(value) {
 
 export const stableJson = (value) => JSON.stringify(stable(value));
 
-const XSD = 'http://www.w3.org/2001/XMLSchema#';
-const XSD_INTEGER_FAMILY = new Set([
-  'nonNegativeInteger', 'positiveInteger', 'nonPositiveInteger', 'negativeInteger',
-  'long', 'int', 'short', 'byte',
-  'unsignedLong', 'unsignedInt', 'unsignedShort', 'unsignedByte',
-].map((name) => XSD + name));
-
-// Stardog stores literals in canonical form: every xsd:integer-derived
-// datatype is normalised to xsd:integer. The digest contract applies the same
-// normalisation so source files and live graphs hash identically.
-function canonicalLiteralQuad(item) {
-  const object = item.object;
-  if (object.termType !== 'Literal' || !XSD_INTEGER_FAMILY.has(object.datatype.value)) return item;
-  return quad(
-    item.subject,
-    item.predicate,
-    DataFactory.literal(object.value, DataFactory.namedNode(XSD + 'integer')),
-    item.graph,
-  );
-}
-
-async function canonicalNQuads(nquads) {
-  // Parse with N3 and canonize the quad array: rdf-canonize's own string
-  // parser is pathologically slow on large literals (hours vs seconds for the
-  // observed graph), while the canonical output is identical either way.
-  const quads = new Parser({ format: NQUADS }).parse(nquads).map(canonicalLiteralQuad);
-  return rdfCanonize.canonize(quads, {
-    algorithm: 'RDFC-1.0',
-    format: NQUADS,
-  });
-}
-
 function nquadsFor(quads) {
   return new Promise((resolveOutput, reject) => {
     const writer = new Writer({ format: 'N-Quads' });
     writer.addQuads(quads);
     writer.end((error, output) => error ? reject(error) : resolveOutput(output));
   });
-}
-
-export async function canonicalGraphDigest(nquads) {
-  const canonical = await canonicalNQuads(nquads);
-  return {
-    algorithm: 'RDFC-1.0',
-    digestAlgorithm: 'sha256',
-    sha256: sha256(canonical),
-    triples: canonical.split('\n').filter(Boolean).length,
-  };
 }
 
 export async function canonicalGraphTrig(graph, nquads) {
@@ -431,6 +398,17 @@ export async function proveLiveRollback({ manifest, client }) {
       overrides: { async commit() { activate(); throw new Error('injected pre-dispatch commit failure'); } },
       injectionPoint: 'before-official-sdk-commit-dispatch',
     })],
+    ['commit-response', (activate) => ({
+      overrides: {
+        async commit(tx) {
+          await client.commit(tx);
+          activate();
+          throw new Error('injected lost response after commit dispatch');
+        },
+      },
+      injectionPoint: 'after-official-sdk-commit-dispatch',
+      expectedOutcome: 'reconciled-committed',
+    })],
     ['rollback-response', (activate) => ({
       overrides: {
         async addData() { throw new Error('injected pre-commit failure'); },
@@ -467,14 +445,19 @@ export async function proveLiveRollback({ manifest, client }) {
       },
     };
     let observedError = null;
+    let compileResult = null;
     try {
-      await compile({ manifest, client: faultClient, ...(injected.compileOptions ?? {}) });
+      compileResult = await compile({ manifest, client: faultClient, ...(injected.compileOptions ?? {}) });
     } catch (error) {
       observedError = error;
     }
-    if (!observedError || rollbacks !== 1 || activationCount < 1) {
+    const outcomeState = observedError ? 'failed-and-rolled-back' : compileResult?.commitOutcome?.state;
+    const expectedObserved = injected.expectedOutcome
+      ? !observedError && outcomeState === injected.expectedOutcome && compileResult?.commitOutcome?.exactCandidateStateVerified === true
+      : Boolean(observedError);
+    if (!expectedObserved || rollbacks !== 1 || activationCount < 1) {
       throw new CompilerError(`rollback fault was not proven: ${name}`, {
-        phase: 'attest:rollback', failures: [{ name, rollbacks, activationCount }],
+        phase: 'attest:rollback', failures: [{ name, rollbacks, activationCount, outcomeState }],
       });
     }
     results.push({
@@ -482,7 +465,8 @@ export async function proveLiveRollback({ manifest, client }) {
       injectionPoint: injected.injectionPoint,
       activationCount,
       rollbackCount: rollbacks,
-      errorPhase: observedError.phase ?? 'compile',
+      errorPhase: observedError?.phase ?? null,
+      outcomeState,
     });
   }
   const after = await liveGraphDigests(manifest, client);
@@ -496,9 +480,10 @@ export async function proveLiveRollback({ manifest, client }) {
     faults: results,
     digestsUnchanged,
     commitOutcomeCoverage: {
-      mode: 'pre-dispatch-only',
-      ambiguousPostDispatchOutcomeProven: false,
-      limitation: 'official SDK commit is a single promise; simulating a lost response after server commit would risk persisting the fault transaction',
+      mode: 'pre-and-post-dispatch-exact-state-reconciliation',
+      ambiguousPostDispatchOutcomeProven: true,
+      exactCandidateStateReconciliationProven: results.some((item) =>
+        item.name === 'commit-response' && item.outcomeState === 'reconciled-committed'),
     },
   };
 }
@@ -606,10 +591,13 @@ export async function verifyLiveAttestation({
     rollback?.faultCount === REQUIRED_ROLLBACK_FAULTS.length &&
     stableJson((rollback?.faults ?? []).map((item) => item.name).sort()) === stableJson(REQUIRED_ROLLBACK_FAULTS) &&
     (rollback?.faults ?? []).every((item) => item.rollbackCount === 1 && item.activationCount > 0 &&
-      typeof item.injectionPoint === 'string' && item.injectionPoint.length > 0 && typeof item.errorPhase === 'string') &&
-    rollback?.commitOutcomeCoverage?.mode === 'pre-dispatch-only' &&
-    rollback?.commitOutcomeCoverage?.ambiguousPostDispatchOutcomeProven === false &&
-    typeof rollback?.commitOutcomeCoverage?.limitation === 'string';
+      typeof item.injectionPoint === 'string' && item.injectionPoint.length > 0 &&
+      (item.name === 'commit-response'
+        ? item.outcomeState === 'reconciled-committed' && item.errorPhase === null
+        : item.outcomeState === 'failed-and-rolled-back' && typeof item.errorPhase === 'string')) &&
+    rollback?.commitOutcomeCoverage?.mode === 'pre-and-post-dispatch-exact-state-reconciliation' &&
+    rollback?.commitOutcomeCoverage?.ambiguousPostDispatchOutcomeProven === true &&
+    rollback?.commitOutcomeCoverage?.exactCandidateStateReconciliationProven === true;
   const ok = signatureVerified && trustVerified && repositoryVerified && sourceVerified &&
     databaseVerified && validationVerified && rollbackVerified && drift.conforms;
   return {

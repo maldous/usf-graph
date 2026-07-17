@@ -27,6 +27,7 @@ shp:ProofResultShape a sh:NodeShape ;
     sh:property [ sh:path usf:claimedRung ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ProofRung ] ;
     sh:property [ sh:path usf:observedRung ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ProofRung ] ;
     sh:property [ sh:path usf:hasFreshness ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:Freshness ] ;
+    sh:property [ sh:path usf:hasAuthorityBinding ; sh:maxCount 1 ; sh:class usf:ProofAuthorityBinding ] ;
     sh:sparql [
         sh:message "readinessoverclaim: claimed rung exceeds observed rung" ;
         sh:prefixes usf:prefixes ;
@@ -34,6 +35,74 @@ shp:ProofResultShape a sh:NodeShape ;
             $this usf:claimedRung ?c . ?c usf:rungOrder ?co .
             $this usf:observedRung ?o . ?o usf:rungOrder ?oo .
             FILTER(?co > ?oo)
+        }""" ;
+    ] .
+
+shp:ProofAuthorityBindingShape a sh:NodeShape ;
+    usf:canonicalName "proofauthoritybindingshape" ;
+    sh:targetClass usf:ProofAuthorityBinding ;
+    sh:property [ sh:path [ sh:inversePath usf:hasAuthorityBinding ] ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ProofResult ;
+        sh:message "proofauthoritybinding: binding must belong to exactly one proof result" ] ;
+    sh:property [ sh:path usf:bindingEvaluatedAuthorityDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+    sh:property [ sh:path usf:bindingDependencySetDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+    sh:property [ sh:path usf:bindingDependencyDigestAlgorithm ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:hasValue "sha256-rdfc10-nonpublication-graph-inventory-v1" ] ;
+    sh:property [ sh:path usf:usesAuthorityBindingRule ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:AuthorityBindingRule ; sh:hasValue <urn:usf:authoritybindingrule:selfpublicationclosure> ] ;
+    sh:property [ sh:path usf:requiresPostPublicationReevaluation ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:boolean ; sh:hasValue true ] ;
+    sh:property [ sh:path usf:authorityBindingEvidenceDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+    sh:property [ sh:path usf:excludedAuthorityGraphIri ; sh:minCount 11 ; sh:maxCount 11 ; sh:datatype xsd:anyURI ] ;
+    sh:sparql [
+        sh:message "proofauthoritybinding: self-publication exclusions must be exactly the three closure graphs, seven deterministic derived graphs, and the observed source projection" ;
+        sh:prefixes usf:prefixes ;
+        sh:select """SELECT $this WHERE {
+            { $this a usf:ProofAuthorityBinding .
+              FILTER NOT EXISTS { $this usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^xsd:anyURI } }
+            UNION
+            { $this a usf:ProofAuthorityBinding .
+              FILTER NOT EXISTS { $this usf:excludedAuthorityGraphIri "urn:usf:graph:derived:coverage"^^xsd:anyURI } }
+            UNION
+            { $this a usf:ProofAuthorityBinding .
+              FILTER NOT EXISTS { $this usf:excludedAuthorityGraphIri "urn:usf:graph:derived:evidence"^^xsd:anyURI } }
+            UNION
+            { $this a usf:ProofAuthorityBinding .
+              FILTER NOT EXISTS { $this usf:excludedAuthorityGraphIri "urn:usf:graph:derived:obligations"^^xsd:anyURI } }
+            UNION
+            { $this a usf:ProofAuthorityBinding .
+              FILTER NOT EXISTS { $this usf:excludedAuthorityGraphIri "urn:usf:graph:derived:readiness"^^xsd:anyURI } }
+            UNION
+            { $this a usf:ProofAuthorityBinding .
+              FILTER NOT EXISTS { $this usf:excludedAuthorityGraphIri "urn:usf:graph:derived:repositorystructure"^^xsd:anyURI } }
+            UNION
+            { $this a usf:ProofAuthorityBinding .
+              FILTER NOT EXISTS { $this usf:excludedAuthorityGraphIri "urn:usf:graph:derived:sourcedispositions"^^xsd:anyURI } }
+            UNION
+            { $this a usf:ProofAuthorityBinding .
+              FILTER NOT EXISTS { $this usf:excludedAuthorityGraphIri "urn:usf:graph:derived:surfaces"^^xsd:anyURI } }
+            UNION
+            { $this a usf:ProofAuthorityBinding .
+              FILTER NOT EXISTS { $this usf:excludedAuthorityGraphIri "urn:usf:graph:evidence"^^xsd:anyURI } }
+            UNION
+            { $this a usf:ProofAuthorityBinding .
+              FILTER NOT EXISTS { $this usf:excludedAuthorityGraphIri "urn:usf:graph:observed:sourceartefacts"^^xsd:anyURI } }
+            UNION
+            { $this a usf:ProofAuthorityBinding .
+              FILTER NOT EXISTS { $this usf:excludedAuthorityGraphIri "urn:usf:graph:proofs"^^xsd:anyURI } }
+            UNION
+            {
+              $this usf:excludedAuthorityGraphIri ?actual .
+              FILTER(?actual NOT IN (
+                "urn:usf:graph:capabilities"^^xsd:anyURI,
+                "urn:usf:graph:derived:coverage"^^xsd:anyURI,
+                "urn:usf:graph:derived:evidence"^^xsd:anyURI,
+                "urn:usf:graph:derived:obligations"^^xsd:anyURI,
+                "urn:usf:graph:derived:readiness"^^xsd:anyURI,
+                "urn:usf:graph:derived:repositorystructure"^^xsd:anyURI,
+                "urn:usf:graph:derived:sourcedispositions"^^xsd:anyURI,
+                "urn:usf:graph:derived:surfaces"^^xsd:anyURI,
+                "urn:usf:graph:evidence"^^xsd:anyURI,
+                "urn:usf:graph:observed:sourceartefacts"^^xsd:anyURI,
+                "urn:usf:graph:proofs"^^xsd:anyURI
+              ))
+            }
         }""" ;
     ] .
 

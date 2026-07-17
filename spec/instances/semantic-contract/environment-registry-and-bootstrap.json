@@ -1,0 +1,107 @@
+{
+  "id": "semantic-contract.environment-registry-and-bootstrap",
+  "title": "Environment Registry And Bootstrap Semantic Contract",
+  "description": "Source-backed draft semantic contract for the environment registry and bootstrap capability, recovered from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage, not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Service",
+    "Configuration"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facet descriptions are concise source-backed summaries citing verified manifest rows; proof is hermetic/stale, not current readiness. Enrich facet detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "environment-registry-and-bootstrap",
+  "capabilityDomain": "foundation",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Registers environments and bootstraps their configuration, turning declared manifests into generated environment configuration; it is provider-backed but owns no tenant records. It deploys the V1-proven contract manifests-to-generated-.env and must keep its lifecycle/readiness model unchanged during extraction, with migrations limited to contract/config references that update semantic artefacts when behaviour changes. Recovery re-runs proof:environment-registry, proof:environment-admin-bootstrap, and proof:environment-operations before promotion continues.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/environment-registry.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State is the environment registry behind a port (environment-registry-repository): the set of registered environments and the manifest-derived configuration each one bootstraps, recovered from the cited migration and usecase source as lineage. The state is configuration/evidence-shaped and owns no tenant data, so restore cannot create tenant records. Bootstrap derives generated environment configuration deterministically from manifests rather than inventing defaults.",
+      "sourceRefs": [
+        "apps/platform-api/src/db/migrations/033-environment-registry.sql"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Environment registration and bootstrap are operator/admin actions; the capability owns no tenant data, so standard platform security controls apply rather than per-tenant roles. Bootstrap reads from the declared provider/config plane and resolves secrets through the secrets boundary rather than embedding them. Mutating the environment registry must keep mutation boundaries closed on failure.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/environment-registry.ts"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The interface contract is the environment-registry repository port plus the bootstrap operation that maps manifests to generated environment configuration. Configuration is read from the declared provider/config plane and missing or invalid configuration fails closed instead of inventing UI defaults. The generated configuration is the contract downstream services consume to start in a given environment.",
+      "sourceRefs": [
+        "apps/platform-api/src/ports/environment-registry-repository.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Validation ensures each registered environment is well-formed and that the manifest-to-configuration mapping is complete, so bootstrap never emits partial or invalid environment configuration. Inputs are validated before generation and missing or invalid manifests fail closed. Bootstrap refuses to fabricate values that the manifest does not declare.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/environment-registry.ts"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Provider failure returns a typed degraded/readiness failure, keeps mutation boundaries closed, and does not fabricate successful provider state; degraded mode disables side-effect paths that depend on the manifest-env adapter while keeping read-only readiness and audit visible. The risk class is semantic drift or configuration loss, not tenant data loss. A failed bootstrap or blocked readiness is an alertable provider-dependency condition.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/environment-registry.ts"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "State-changing environment-registry operations follow audit-before-mutation behaviour recovered from the cited source, recording who registered or bootstrapped an environment. Audit and readiness signals remain visible in degraded mode. This preserves an honest, inspectable history of environment registration and bootstrap.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/environment-registry.ts"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness reflects whether environments are registered and bootstrap can deterministically produce valid configuration; it degrades explicitly when the manifest-env substrate is unavailable rather than reporting false health. Readiness fails closed and stays visible read-only in degraded mode. Promotion is gated on the environment-registry, admin-bootstrap, and operations proofs passing.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/environment-registry-runtime-proof.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by proof:environment-registry, proof:environment-admin-bootstrap, and proof:environment-operations, demonstrating registration, bootstrap, and operational semantics. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/environment-registry-runtime-proof.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "No verified UI source path in the manifest yet; author the UI semantic model before generation."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/scripts/environment-registry-runtime-proof.ts",
+    "apps/platform-api/src/adapters/postgres-environment-registry-repository.ts",
+    "apps/platform-api/src/db/migrations/033-environment-registry.sql",
+    "apps/platform-api/src/ports/environment-registry-repository.ts",
+    "apps/platform-api/src/usecases/environment-registry.ts",
+    "docs/adr/0072-environment-registry-bootstrap-and-operations.md",
+    "docs/evidence/platform/environment-registry-foundation.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

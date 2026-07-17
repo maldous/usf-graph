@@ -6,7 +6,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "c8aa8cd45aa3e7cf9ed8447e24c76ee10a290070a348e22b8f48d11f4cee727b";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/abac-policy-decision-point.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:abacpolicydecisionpoint> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:abacpolicydecisionpoint> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractabacpolicydecisionpoint>.
 <urn:usf:artefactplan:semanticcontractabacpolicydecisionpoint> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractabacpolicydecisionpoint";
@@ -50,7 +50,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is invariant-ready for the local policy seam, and authorization-server unavailability and resource-not-registered are explicit degraded, non-decisive states with a static fallback rather than a fake allow. Degraded mode keeps read-only readiness and audit visible.".
 <urn:usf:sourcesemanticbinding:abacpolicydecisionpointsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:abacpolicydecisionpointproof>.
 <urn:usf:contractfacet:abacpolicydecisionpointproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Unit proofs cover the decision logic and resource-policy administration and a runtime proof covers permission-before-entitlement policy ordering, demonstrated in source lineage via hermetic state/policy-chain validation. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Unit proofs cover the decision logic and resource-policy administration and a runtime proof covers permission-before-entitlement policy ordering, demonstrated in source lineage via hermetic state/policy-chain validation. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:abacpolicydecisionpointsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:abacpolicydecisionpointuisemantics>.
 <urn:usf:contractfacet:abacpolicydecisionpointuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The abacpolicydecisionpoint capability is explicitly API-only; no human-rendered surface, component, action, journey, consent prompt, or renderer input is authorised. Any UI requires a deliberate exposure amendment.".
@@ -62,7 +62,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "0b294ceea849993bc1d39950ae316bc934a65fd27eb7a664b0c4b68aa2591bbc";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/accessibility-a11y-gate.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:accessibilitya11ygate> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:accessibilitya11ygate> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractaccessibilitya11ygate>.
 <urn:usf:artefactplan:semanticcontractaccessibilitya11ygate> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractaccessibilitya11ygate";
@@ -106,7 +106,7 @@
     <urn:usf:ontology:facetStatement> "Readiness means the audited UI surfaces meet the accessibility expectations and the e2e accessibility spec passes; unavailable dependencies fail closed through the readiness model. Readiness is demonstrated by re-running the accessibility spec rather than by a live heartbeat. Missing, stale, or unknown results do not count as ready.".
 <urn:usf:sourcesemanticbinding:accessibilitya11ygatesemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:accessibilitya11ygateproof>.
 <urn:usf:contractfacet:accessibilitya11ygateproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the e2e accessibility spec, demonstrating the landmark, role, ARIA, and axe expectations as a gate over UI capabilities. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the e2e accessibility spec, demonstrating the landmark, role, ARIA, and axe expectations as a gate over UI capabilities. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:accessibilitya11ygatesemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:accessibilitya11ygateuisemantics>.
 <urn:usf:contractfacet:accessibilitya11ygateuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The accessibilitya11ygate capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -158,7 +158,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "6249cda024b5afa06257e85cdbc1e930b58516602ec4e9db6db48e20e92dc9a5";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/api-docs-developer-portal-sdks-rate-limits.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:apidocsdeveloperportalsdksratelimits> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:apidocsdeveloperportalsdksratelimits> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractapidocsdeveloperportalsdksratelimits>.
 <urn:usf:artefactplan:semanticcontractapidocsdeveloperportalsdksratelimits> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractapidocsdeveloperportalsdksratelimits";
@@ -202,7 +202,7 @@
     <urn:usf:ontology:facetStatement> "The developer portal is always-on once built from source contracts, while live relational and cache proofs classify provider availability for API keys and rate limits, with the cache provider degrading to relational counting. Provider unavailability degrades readiness rather than fabricating availability.".
 <urn:usf:sourcesemanticbinding:apidocsdeveloperportalsdksratelimitssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:apidocsdeveloperportalsdksratelimitsproof>.
 <urn:usf:contractfacet:apidocsdeveloperportalsdksratelimitsproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by API-key, API-key-route, and rate-limit runtime proofs plus OpenAPI drift and GraphQL runtime contract checks against live key/rate-limit substrate. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by API-key, API-key-route, and rate-limit runtime proofs plus OpenAPI drift and GraphQL runtime contract checks against live key/rate-limit substrate. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:apidocsdeveloperportalsdksratelimitssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:apidocsdeveloperportalsdksratelimitsuisemantics>.
 <urn:usf:contractfacet:apidocsdeveloperportalsdksratelimitsuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
     <urn:usf:ontology:facetStatement> "The apidocsdeveloperportalsdksratelimits capability has one framework-neutral UI semantic model with explicit surfaces, view models, components, journeys, permissions, accessibility, localisation, and target-specific renderer contracts. This semantic closure disclaims product parity, human acceptance, accessibility compliance, and launch-language readiness.".
@@ -214,7 +214,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "555cb743f4ccdf0ab04f9063e45994eaa5c860450a0bea5e3620e4db7864d030";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/api-keys-personal-access-tokens.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:apikeyspersonalaccesstokens> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:apikeyspersonalaccesstokens> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractapikeyspersonalaccesstokens>.
 <urn:usf:artefactplan:semanticcontractapikeyspersonalaccesstokens> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractapikeyspersonalaccesstokens";
@@ -258,7 +258,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is always-on once the data substrate is migrated, and degraded mode disables store-dependent mutation while keeping read-only readiness and audit visible. Live proofs skip honestly when the substrate is unavailable and never fake-pass.".
 <urn:usf:sourcesemanticbinding:apikeyspersonalaccesstokenssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:apikeyspersonalaccesstokensproof>.
 <urn:usf:contractfacet:apikeyspersonalaccesstokensproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "A unit proof covers key lifecycle and authentication, and runtime proofs validate the live repository, crypto, and row-level isolation plus live route-handler behaviour including entitlement gating, demonstrated in source lineage via hermetic/runtime validation. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "A unit proof covers key lifecycle and authentication, and runtime proofs validate the live repository, crypto, and row-level isolation plus live route-handler behaviour including entitlement gating, demonstrated in source lineage via hermetic/runtime validation. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:apikeyspersonalaccesstokenssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:apikeyspersonalaccesstokensuisemantics>.
 <urn:usf:contractfacet:apikeyspersonalaccesstokensuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
     <urn:usf:ontology:facetStatement> "The apikeyspersonalaccesstokens capability has one framework-neutral UI semantic model with explicit surfaces, view models, components, journeys, permissions, accessibility, localisation, and target-specific renderer contracts. This semantic closure disclaims product parity, human acceptance, accessibility compliance, and launch-language readiness.".
@@ -270,7 +270,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "535ca0ba9ce5aeae053082fb3820f9ea024f4fb455aebcb0a0a26dc60ad3f6a3";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/audit-of-privileged-access.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:auditofprivilegedaccess> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:auditofprivilegedaccess> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractauditofprivilegedaccess>.
 <urn:usf:artefactplan:semanticcontractauditofprivilegedaccess> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractauditofprivilegedaccess";
@@ -314,7 +314,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is invariant-ready for contextual audit reads, and degraded mode keeps read-only projection visible while disabling any dependent mutation. A broader live history proof validates read-only projection, source isolation, secret exclusion, pagination, and absence of mutation against the live data substrate.".
 <urn:usf:sourcesemanticbinding:auditofprivilegedaccesssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:auditofprivilegedaccessproof>.
 <urn:usf:contractfacet:auditofprivilegedaccessproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "A unit proof covers the contextual audit semantics and an adjacent runtime history proof validates live read-only audit/history projection, demonstrated in source lineage via hermetic/runtime validation. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "A unit proof covers the contextual audit semantics and an adjacent runtime history proof validates live read-only audit/history projection, demonstrated in source lineage via hermetic/runtime validation. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:auditofprivilegedaccesssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:auditofprivilegedaccessuisemantics>.
 <urn:usf:contractfacet:auditofprivilegedaccessuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The auditofprivilegedaccess capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -326,7 +326,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "b7777ff9c0945f93fef4ba2ce37447b9f8cbcc6089662de7932ed2a5b3ec836b";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/authentication-platform.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:authenticationplatform> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:authenticationplatform> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractauthenticationplatform>.
 <urn:usf:artefactplan:semanticcontractauthenticationplatform> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractauthenticationplatform";
@@ -370,7 +370,7 @@
     <urn:usf:ontology:facetStatement> "Readiness for the live session path depends on identity-provider, session-store, and configuration availability, with an explicit deterministic fixture mode for tests; administrative readiness is credential-derived and only reports configured/ok when the tenant realm credential can read and mutate policies, otherwise classifying missing-credential, invalid-credential, forbidden-realm-operation, realm-unreachable, or discovery-invalid rather than hiding them. Degraded mode disables provider-dependent mutation paths while keeping read-only readiness and audit visible, and real brokered/interactive IdP login is carried as externally limited rather than fake-passed.".
 <urn:usf:sourcesemanticbinding:authenticationplatformsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:authenticationplatformproof>.
 <urn:usf:contractfacet:authenticationplatformproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Substrate and unit proofs cover login routes, the auth usecase, session fixtures, cookie security, token crypto, role/permission resolution, and audit-first ordering, while runtime proofs validate live identity-provider settings round-trips, IdP CRUD with secret rotation and redaction, OIDC discovery/JWKS/callback/test-connection, MFA and session policy write/read-back/restore, the claim-mapping semantic journey, and custom-domain callback derivation against local substrate. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Substrate and unit proofs cover login routes, the auth usecase, session fixtures, cookie security, token crypto, role/permission resolution, and audit-first ordering, while runtime proofs validate live identity-provider settings round-trips, IdP CRUD with secret rotation and redaction, OIDC discovery/JWKS/callback/test-connection, MFA and session policy write/read-back/restore, the claim-mapping semantic journey, and custom-domain callback derivation against local substrate. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:authenticationplatformsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:authenticationplatformuisemantics>.
 <urn:usf:contractfacet:authenticationplatformuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
     <urn:usf:ontology:facetStatement> "The authenticationplatform capability has one framework-neutral UI semantic model with explicit surfaces, view models, components, journeys, permissions, accessibility, localisation, and target-specific renderer contracts. This semantic closure disclaims product parity, human acceptance, accessibility compliance, and launch-language readiness.".
@@ -382,7 +382,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "ca2d6b90977582bef7a01b24ca5e8b6402b1914f1e19547e2c383b4a5bd32cd5";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/background-workers-job-runner.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:backgroundworkersjobrunner> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:backgroundworkersjobrunner> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractbackgroundworkersjobrunner>.
 <urn:usf:artefactplan:semanticcontractbackgroundworkersjobrunner> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractbackgroundworkersjobrunner";
@@ -426,7 +426,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is worker heartbeat liveness (alive|stale|stopped) together with the event-processing proof; a failure to claim, process, or dead-letter is a proof and readiness failure rather than a silent stall. Readiness degrades explicitly when the substrate is unavailable and never upgrades a production-shaped state to production-live. Liveness states are surfaced rather than masked so stale or stopped workers are visible to operators.".
 <urn:usf:sourcesemanticbinding:backgroundworkersjobrunnersemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:backgroundworkersjobrunnerproof>.
 <urn:usf:contractfacet:backgroundworkersjobrunnerproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is grounded in the event-worker runtime proof, which validates live Postgres claim, process, idempotent skip, retry, dead-letter, and heartbeat (level-4 live substrate validation), captured here as informational semantic lineage from the USF coverage record and equivalence audit with no source import and an open implementation language. The proof expectation is the lineage evidence, not a current USF readiness verdict. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is grounded in the event-worker runtime proof, which validates live Postgres claim, process, idempotent skip, retry, dead-letter, and heartbeat (level-4 live substrate validation), captured here as informational semantic lineage from the USF coverage record and equivalence audit with no source import and an open implementation language. The proof expectation is the lineage evidence, not a current USF readiness verdict. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:backgroundworkersjobrunnersemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:backgroundworkersjobrunneruisemantics>.
 <urn:usf:contractfacet:backgroundworkersjobrunneruisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The backgroundworkersjobrunner capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -438,7 +438,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "ebfd763f507433c58b440570aad7560ca9f5e7757ddcce8fa9b69ff7481cd1cb";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/backup-and-restore.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:backupandrestore> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:backupandrestore> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractbackupandrestore>.
 <urn:usf:artefactplan:semanticcontractbackupandrestore> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractbackupandrestore";
@@ -482,7 +482,7 @@
     <urn:usf:ontology:facetStatement> "Readiness reflects whether the backup path can produce a valid artifact in the current environment under its guard; when the dump or restore tooling is unavailable the capability degrades, disabling the destructive path while keeping read-only readiness visible. Readiness being blocked, a failed backup proof during promotion, or repeated typed errors over threshold raise alerts. Restore is never part of normal readiness flow because it is destructive and confirmation-gated.".
 <urn:usf:sourcesemanticbinding:backupandrestoresemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:backupandrestoreproof>.
 <urn:usf:contractfacet:backupandrestoreproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the local backup proof, which demonstrates the guarded dump path end to end against the canonical store. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the local backup proof, which demonstrates the guarded dump path end to end against the canonical store. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:backupandrestoresemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:backupandrestoreuisemantics>.
 <urn:usf:contractfacet:backupandrestoreuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The backupandrestore capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -494,7 +494,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "4010a27d57aca18660d2df796a7f0f093f8e5560c88a1362443158f8552e5965";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/branding-and-theming.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:brandingandtheming> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:brandingandtheming> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractbrandingandtheming>.
 <urn:usf:artefactplan:semanticcontractbrandingandtheming> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractbrandingandtheming";
@@ -538,7 +538,7 @@
     <urn:usf:ontology:facetStatement> "Theme delivery is degraded-to-default when the tenant settings store or tenant resolution is unavailable, ensuring the shell still styles itself; configuration-managed branding is invariant-ready once the persistence substrate is reachable. Degradation is explicit and bounded to falling back on defaults rather than failing the request.".
 <urn:usf:sourcesemanticbinding:brandingandthemingsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:brandingandthemingproof>.
 <urn:usf:contractfacet:brandingandthemingproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by configuration unit proofs covering branding definitions, override source, validation, and audit-first writes, together with route-level coverage of the theme bootstrap response and its default fallback. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by configuration unit proofs covering branding definitions, override source, validation, and audit-first writes, together with route-level coverage of the theme bootstrap response and its default fallback. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:brandingandthemingsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:brandingandtheminguisemantics>.
 <urn:usf:contractfacet:brandingandtheminguisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The brandingandtheming capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -550,7 +550,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "bfce36cbb0dfc80154189211def0f38b25b09d9c10ba252ac636929b9eb29bbb";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/browser-telemetry-grafana-faro-rum-and-browser-to-bff-tracing.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:browsertelemetrygrafanafarorumandbrowsertobfftracing> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:browsertelemetrygrafanafarorumandbrowsertobfftracing> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractbrowsertelemetrygrafanafarorumandbrowsertobfftracing>.
 <urn:usf:artefactplan:semanticcontractbrowsertelemetrygrafanafarorumandbrowsertobfftracing> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractbrowsertelemetrygrafanafarorumandbrowsertobfftracing";
@@ -594,7 +594,7 @@
     <urn:usf:ontology:facetStatement> "Readiness reflects whether the RUM SDK, collection receiver, collector, and downstream trace/log backends are wired and healthy, degrading explicitly when any stage is unavailable while keeping read-only readiness and audit visible. Emitted readiness, error, and audit signals use the controlled, OpenTelemetry-informed observability vocabulary without claiming OpenTelemetry compliance.".
 <urn:usf:sourcesemanticbinding:browsertelemetrygrafanafarorumandbrowsertobfftracingsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:browsertelemetrygrafanafarorumandbrowsertobfftracingproof>.
 <urn:usf:contractfacet:browsertelemetrygrafanafarorumandbrowsertobfftracingproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the cited browser-to-BFF tracing end-to-end proof, which force-flushes a single Tempo trace spanning the browser app and the platform API along the observability-correlation ladder, demonstrating client-to-server trace joining as hermetic/runtime lineage rather than a current-readiness claim. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the cited browser-to-BFF tracing end-to-end proof, which force-flushes a single Tempo trace spanning the browser app and the platform API along the observability-correlation ladder, demonstrating client-to-server trace joining as hermetic/runtime lineage rather than a current-readiness claim. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:browsertelemetrygrafanafarorumandbrowsertobfftracingsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:browsertelemetrygrafanafarorumandbrowsertobfftracinguisemantics>.
 <urn:usf:contractfacet:browsertelemetrygrafanafarorumandbrowsertobfftracinguisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The browsertelemetrygrafanafarorumandbrowsertobfftracing capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -606,7 +606,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "0735b03691511029fff696b46cfec60b2483de1e2ca5a3e0bccf76ddd1d45d5d";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/build-versus-compose-decision-framework.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:buildversuscomposedecisionframework> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:buildversuscomposedecisionframework> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractbuildversuscomposedecisionframework>.
 <urn:usf:artefactplan:semanticcontractbuildversuscomposedecisionframework> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractbuildversuscomposedecisionframework";
@@ -650,7 +650,7 @@
     <urn:usf:ontology:facetStatement> "Readiness means each in-scope capability has an explicit, current, justified disposition and no capability is silently undecided; unavailable dependencies fail closed through the readiness model. Readiness is demonstrated by re-running the framework document and named proof rather than by a live service heartbeat. Stale or unknown decisions do not count as ready.".
 <urn:usf:sourcesemanticbinding:buildversuscomposedecisionframeworksemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:buildversuscomposedecisionframeworkproof>.
 <urn:usf:contractfacet:buildversuscomposedecisionframeworkproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Proof is the build-versus-compose decision framework document and its associated checks, demonstrating the criteria are applied consistently across the capability set; it is a foundation-document proof rather than a runtime probe. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Proof is the build-versus-compose decision framework document and its associated checks, demonstrating the criteria are applied consistently across the capability set; it is a foundation-document proof rather than a runtime probe. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:buildversuscomposedecisionframeworksemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:buildversuscomposedecisionframeworkuisemantics>.
 <urn:usf:contractfacet:buildversuscomposedecisionframeworkuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The buildversuscomposedecisionframework capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -662,7 +662,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "d3f8d17642f73803de4bb963a777eeb6e9227cf23fabdd11485b0f8d26669a40";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/code-quality-and-secret-and-dependency-scanning.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:codequalityandsecretanddependencyscanning> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:codequalityandsecretanddependencyscanning> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractcodequalityandsecretanddependencyscanning>.
 <urn:usf:artefactplan:semanticcontractcodequalityandsecretanddependencyscanning> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractcodequalityandsecretanddependencyscanning";
@@ -706,7 +706,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is gate success plus optional security-console/service readiness from platform service probes, with missing local tools classified honestly according to each script's mode. Readiness fails closed on missing or stale evidence rather than assuming success.".
 <urn:usf:sourcesemanticbinding:codequalityandsecretanddependencyscanningsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:codequalityandsecretanddependencyscanningproof>.
 <urn:usf:contractfacet:codequalityandsecretanddependencyscanningproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by static-analysis, SBOM verify/policy, code-scanning validate, security-test, and security-control-route checks asserting fail-closed gate state and route registration. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by static-analysis, SBOM verify/policy, code-scanning validate, security-test, and security-control-route checks asserting fail-closed gate state and route registration. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:codequalityandsecretanddependencyscanningsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:codequalityandsecretanddependencyscanninguisemantics>.
 <urn:usf:contractfacet:codequalityandsecretanddependencyscanninguisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The codequalityandsecretanddependencyscanning capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -718,7 +718,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "89e12c04e6d0fa497bcf47dafc783e0620d6e510ac8c9125a227d160f7bec1d7";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/compliance-reports-access-reviews-evidence-packs.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:compliancereportsaccessreviewsevidencepacks> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:compliancereportsaccessreviewsevidencepacks> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractcompliancereportsaccessreviewsevidencepacks>.
 <urn:usf:artefactplan:semanticcontractcompliancereportsaccessreviewsevidencepacks> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractcompliancereportsaccessreviewsevidencepacks";
@@ -762,7 +762,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is assembled from live foundation signals and route registration, with the report's ready flag true only when the required source readiness values satisfy the use case. Composition is deterministic so the same inputs produce the same readiness verdict.".
 <urn:usf:sourcesemanticbinding:compliancereportsaccessreviewsevidencepackssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:compliancereportsaccessreviewsevidencepacksproof>.
 <urn:usf:contractfacet:compliancereportsaccessreviewsevidencepacksproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by a compliance-report composition runtime proof and an admin route-registration proof validating deterministic assembly from foundation sources. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by a compliance-report composition runtime proof and an admin route-registration proof validating deterministic assembly from foundation sources. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:compliancereportsaccessreviewsevidencepackssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:compliancereportsaccessreviewsevidencepacksuisemantics>.
 <urn:usf:contractfacet:compliancereportsaccessreviewsevidencepacksuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The compliancereportsaccessreviewsevidencepacks capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -774,7 +774,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "494499bbb126d9c0b4e1d76011da8544f49e847e0e98e19e35fce230dee5128b";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/composed-provider-readiness-spine.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:composedproviderreadinessspine> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:composedproviderreadinessspine> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractcomposedproviderreadinessspine>.
 <urn:usf:artefactplan:semanticcontractcomposedproviderreadinessspine> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractcomposedproviderreadinessspine";
@@ -818,7 +818,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is this capability's whole purpose: it reports overall composed-provider readiness and degrades explicitly when any required provider or the substrate is unavailable, never upgrading readiness by implication. It fails closed on missing, stale, or unknown inputs. Promotion is gated on proof:composed-provider-readiness passing.".
 <urn:usf:sourcesemanticbinding:composedproviderreadinessspinesemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:composedproviderreadinessspineproof>.
 <urn:usf:contractfacet:composedproviderreadinessspineproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by proof:composed-provider-readiness, demonstrating that the aggregated readiness honestly reflects the underlying composed providers. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by proof:composed-provider-readiness, demonstrating that the aggregated readiness honestly reflects the underlying composed providers. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:composedproviderreadinessspinesemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:composedproviderreadinessspineuisemantics>.
 <urn:usf:contractfacet:composedproviderreadinessspineuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The composedproviderreadinessspine capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -830,7 +830,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "5a9c367c6396401211d127ed24d95aedfce21168054a839b39952e80d819f79c";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/configuration-registry-and-history.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:configurationregistryandhistory> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:configurationregistryandhistory> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractconfigurationregistryandhistory>.
 <urn:usf:artefactplan:semanticcontractconfigurationregistryandhistory> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractconfigurationregistryandhistory";
@@ -874,7 +874,7 @@
     <urn:usf:ontology:facetStatement> "The capability is invariant-ready once the tenant settings store is reachable; the definition registry itself is pure and serialisable and therefore always available, while the history/audit projection of past changes is validated separately. When the persistence substrate is unavailable the capability degrades explicitly rather than silently serving stale or partial values.".
 <urn:usf:sourcesemanticbinding:configurationregistryandhistorysemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:configurationregistryandhistoryproof>.
 <urn:usf:contractfacet:configurationregistryandhistoryproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by unit proofs over the configuration use case and contract validation (definition resolution, override source, validation rules, and audit-first writes) and by an adjacent live history projection proof that validates the audit/history record of configuration changes against a real substrate. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by unit proofs over the configuration use case and contract validation (definition resolution, override source, validation rules, and audit-first writes) and by an adjacent live history projection proof that validates the audit/history record of configuration changes against a real substrate. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:configurationregistryandhistorysemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:configurationregistryandhistoryuisemantics>.
 <urn:usf:contractfacet:configurationregistryandhistoryuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The configurationregistryandhistory capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -886,7 +886,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "9aa5a670d9f8bf8a1b97e83b5fe9f236ad968e38b30ec862a04fdf946b5b4764";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/custom-domains-dns-ownership-tls-canonical.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:customdomainsdnsownershiptlscanonical> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:customdomainsdnsownershiptlscanonical> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractcustomdomainsdnsownershiptlscanonical>.
 <urn:usf:artefactplan:semanticcontractcustomdomainsdnsownershiptlscanonical> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractcustomdomainsdnsownershiptlscanonical";
@@ -930,7 +930,7 @@
     <urn:usf:ontology:facetStatement> "Readiness distinguishes no-domains, pending-DNS, verified, inactive auth-client, locally-routed, deferred public DNS/TLS, and canonical redirect cutover states. Local proofs explicitly decline to claim public DNS or TLS readiness, so the capability degrades honestly to a local-only posture when external infrastructure is absent.".
 <urn:usf:sourcesemanticbinding:customdomainsdnsownershiptlscanonicalsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:customdomainsdnsownershiptlscanonicalproof>.
 <urn:usf:contractfacet:customdomainsdnsownershiptlscanonicalproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by runtime proofs covering domain challenge and verification, local routing, canonical cutover, claim lifecycle, custom-domain resolution, and custom-domain auth origin against a live substrate with injected ports. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by runtime proofs covering domain challenge and verification, local routing, canonical cutover, claim lifecycle, custom-domain resolution, and custom-domain auth origin against a live substrate with injected ports. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:customdomainsdnsownershiptlscanonicalsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:customdomainsdnsownershiptlscanonicaluisemantics>.
 <urn:usf:contractfacet:customdomainsdnsownershiptlscanonicaluisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The customdomainsdnsownershiptlscanonical capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -942,7 +942,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "997ec241bb94ab5f09b09e65f1ec39e5eec3d331e322c539c3c561c1768c0c96";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/data-governance-catalog-lineage-classification-pii-dsr-gdpr.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:datagovernancecataloglineageclassificationpiidsrgdpr> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:datagovernancecataloglineageclassificationpiidsrgdpr> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractdatagovernancecataloglineageclassificationpiidsrgdpr>.
 <urn:usf:artefactplan:semanticcontractdatagovernancecataloglineageclassificationpiidsrgdpr> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractdatagovernancecataloglineageclassificationpiidsrgdpr";
@@ -986,7 +986,7 @@
     <urn:usf:ontology:facetStatement> "Readiness depends on the governance adapter and its store being reachable; the capability degrades explicitly when the adapter is unavailable, disabling mutating governance paths while keeping read-only readiness and audit visible. Readiness being blocked, a failed governance proof during promotion, or a missing isolation or audit signal raise alerts and block promotion.".
 <urn:usf:sourcesemanticbinding:datagovernancecataloglineageclassificationpiidsrgdprsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:datagovernancecataloglineageclassificationpiidsrgdprproof>.
 <urn:usf:contractfacet:datagovernancecataloglineageclassificationpiidsrgdprproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the data-governance proof and governance unit tests covering classification constraints and data-subject-request fulfilment evidence. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the data-governance proof and governance unit tests covering classification constraints and data-subject-request fulfilment evidence. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:datagovernancecataloglineageclassificationpiidsrgdprsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:datagovernancecataloglineageclassificationpiidsrgdpruisemantics>.
 <urn:usf:contractfacet:datagovernancecataloglineageclassificationpiidsrgdpruisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The datagovernancecataloglineageclassificationpiidsrgdpr capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -998,7 +998,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "16243d1d34e20c305534a647c094b2fa36fda5baacf265972be44491d81dc71e";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/delegated-administration-roles.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:delegatedadministrationroles> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:delegatedadministrationroles> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractdelegatedadministrationroles>.
 <urn:usf:artefactplan:semanticcontractdelegatedadministrationroles> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractdelegatedadministrationroles";
@@ -1042,7 +1042,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is invariant-ready for the usecase contract, local runtime proof exercises the composition root against in-memory port and audit, and storage behaviour is covered by adapter tests; degraded mode disables store-dependent mutation while keeping read-only listing and audit visible.".
 <urn:usf:sourcesemanticbinding:delegatedadministrationrolessemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:delegatedadministrationrolesproof>.
 <urn:usf:contractfacet:delegatedadministrationrolesproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Unit proofs cover the delegation state machine and the storage adapter and a runtime proof covers the local composition, demonstrated in source lineage via hermetic state-machine and audit-order validation. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Unit proofs cover the delegation state machine and the storage adapter and a runtime proof covers the local composition, demonstrated in source lineage via hermetic state-machine and audit-order validation. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:delegatedadministrationrolessemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:delegatedadministrationrolesuisemantics>.
 <urn:usf:contractfacet:delegatedadministrationrolesuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The delegatedadministrationroles capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -1054,7 +1054,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "14ebeb83f892629373125642ec1c51758f27de7cf161460d10a82998efa0cd73";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/e2e-confidence-ladder-stage-aware.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:e2econfidenceladderstageaware> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:e2econfidenceladderstageaware> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontracte2econfidenceladderstageaware>.
 <urn:usf:artefactplan:semanticcontracte2econfidenceladderstageaware> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontracte2econfidenceladderstageaware";
@@ -1098,7 +1098,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is the stage-aware verdict itself: a capability may advance only when its current stage's confidence threshold is met, and the ladder degrades explicitly rather than upgrading posture by implication. It fails closed on missing, stale, or unknown stage evidence. Promotion is gated on the verify-ladder and aggregate-confidence checks passing.".
 <urn:usf:sourcesemanticbinding:e2econfidenceladderstageawaresemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:e2econfidenceladderstageawareproof>.
 <urn:usf:contractfacet:e2econfidenceladderstageawareproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Proof is the verify-ladder and aggregate-confidence test suites that demonstrate the ladder gates promotion per stage without inflating proof posture. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Proof is the verify-ladder and aggregate-confidence test suites that demonstrate the ladder gates promotion per stage without inflating proof posture. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:e2econfidenceladderstageawaresemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:e2econfidenceladderstageawareuisemantics>.
 <urn:usf:contractfacet:e2econfidenceladderstageawareuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The e2econfidenceladderstageaware capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -1110,7 +1110,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "3bc7ad5e4498e9eb43c096086b5d2efdaf7fb49f68ad8e2a439469a897ab8fcb";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/end-user-profile-and-preferences-self-service.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:enduserprofileandpreferencesselfservice> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:enduserprofileandpreferencesselfservice> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractenduserprofileandpreferencesselfservice>.
 <urn:usf:artefactplan:semanticcontractenduserprofileandpreferencesselfservice> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractenduserprofileandpreferencesselfservice";
@@ -1154,7 +1154,7 @@
     <urn:usf:ontology:facetStatement> "Profile and preferences are always-on once the data substrate is migrated, and degraded mode disables store-dependent writes while keeping read-only access and audit visible. Live proofs skip honestly when the substrate is unavailable and verify no secret columns plus tenant-isolation enforcement.".
 <urn:usf:sourcesemanticbinding:enduserprofileandpreferencesselfservicesemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:enduserprofileandpreferencesselfserviceproof>.
 <urn:usf:contractfacet:enduserprofileandpreferencesselfserviceproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Unit proofs cover the profile and notification usecases, and runtime proofs validate live profile self-service, notification preferences, and dispatch against the data substrate with row-level tenant isolation, demonstrated in source lineage via hermetic/runtime validation. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Unit proofs cover the profile and notification usecases, and runtime proofs validate live profile self-service, notification preferences, and dispatch against the data substrate with row-level tenant isolation, demonstrated in source lineage via hermetic/runtime validation. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:enduserprofileandpreferencesselfservicesemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:enduserprofileandpreferencesselfserviceuisemantics>.
 <urn:usf:contractfacet:enduserprofileandpreferencesselfserviceuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
     <urn:usf:ontology:facetStatement> "The enduserprofileandpreferencesselfservice capability has one framework-neutral UI semantic model with explicit surfaces, view models, components, journeys, permissions, accessibility, localisation, and target-specific renderer contracts. This semantic closure disclaims product parity, human acceptance, accessibility compliance, and launch-language readiness.".
@@ -1166,7 +1166,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "8531489e92dfaed34850b6b508a71120d44aa0bbb9ade37af4ea13e067dcdb40";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/entitlement-engine.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:entitlementengine> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:entitlementengine> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractentitlementengine>.
 <urn:usf:artefactplan:semanticcontractentitlementengine> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractentitlementengine";
@@ -1210,7 +1210,7 @@
     <urn:usf:ontology:facetStatement> "Entitlement reads are deterministic once the data substrate is migrated, and degraded mode disables store-dependent mutation while keeping read-only reads and audit visible. Live readiness verifies table existence, forced row-level security, no secret columns, tenant isolation, operator bypass, grant/revoke, and audit-before-change.".
 <urn:usf:sourcesemanticbinding:entitlementenginesemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:entitlementengineproof>.
 <urn:usf:contractfacet:entitlementengineproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "A unit proof covers the deny-by-default state machine and runtime proofs cover the entitlement seam, permission-before-entitlement ordering, the live data substrate, and the routes, demonstrated in source lineage via hermetic and live-substrate validation. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "A unit proof covers the deny-by-default state machine and runtime proofs cover the entitlement seam, permission-before-entitlement ordering, the live data substrate, and the routes, demonstrated in source lineage via hermetic and live-substrate validation. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:entitlementenginesemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:entitlementengineuisemantics>.
 <urn:usf:contractfacet:entitlementengineuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The entitlementengine capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -1222,7 +1222,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "589cab779a5194174b29af11bf9db15725fd5eb6ef59053f09eca009e1bdbcbc";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/environment-registry-and-bootstrap.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:environmentregistryandbootstrap> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:environmentregistryandbootstrap> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractenvironmentregistryandbootstrap>.
 <urn:usf:artefactplan:semanticcontractenvironmentregistryandbootstrap> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractenvironmentregistryandbootstrap";
@@ -1266,7 +1266,7 @@
     <urn:usf:ontology:facetStatement> "Readiness reflects whether environments are registered and bootstrap can deterministically produce valid configuration; it degrades explicitly when the manifest-env substrate is unavailable rather than reporting false health. Readiness fails closed and stays visible read-only in degraded mode. Promotion is gated on the environment-registry, admin-bootstrap, and operations proofs passing.".
 <urn:usf:sourcesemanticbinding:environmentregistryandbootstrapsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:environmentregistryandbootstrapproof>.
 <urn:usf:contractfacet:environmentregistryandbootstrapproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by proof:environment-registry, proof:environment-admin-bootstrap, and proof:environment-operations, demonstrating registration, bootstrap, and operational semantics. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by proof:environment-registry, proof:environment-admin-bootstrap, and proof:environment-operations, demonstrating registration, bootstrap, and operational semantics. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:environmentregistryandbootstrapsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:environmentregistryandbootstrapuisemantics>.
 <urn:usf:contractfacet:environmentregistryandbootstrapuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The environmentregistryandbootstrap capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -1278,7 +1278,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "14343524e21dfb29d95cc77bbb280bc5f9b19b68d04f8e6020b929876ffae7a0";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/environment-specific-vs-shared-service-model.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:environmentspecificvssharedservicemodel> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:environmentspecificvssharedservicemodel> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractenvironmentspecificvssharedservicemodel>.
 <urn:usf:artefactplan:semanticcontractenvironmentspecificvssharedservicemodel> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractenvironmentspecificvssharedservicemodel";
@@ -1322,7 +1322,7 @@
     <urn:usf:ontology:facetStatement> "Readiness means every service's environment classification is present, consistent, and enforced, and the routing/isolation it implies resolves; unavailable dependencies fail closed through the readiness model. Readiness is shown by re-running the environment-service-classification document and named proof. Stale or unknown classifications do not count as ready.".
 <urn:usf:sourcesemanticbinding:environmentspecificvssharedservicemodelsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:environmentspecificvssharedservicemodelproof>.
 <urn:usf:contractfacet:environmentspecificvssharedservicemodelproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Proof is the environment-service-classification document and associated checks demonstrating consistent shared-versus-environment-specific classification; it is a foundation-document proof rather than a live runtime probe. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Proof is the environment-service-classification document and associated checks demonstrating consistent shared-versus-environment-specific classification; it is a foundation-document proof rather than a live runtime probe. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:environmentspecificvssharedservicemodelsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:environmentspecificvssharedservicemodeluisemantics>.
 <urn:usf:contractfacet:environmentspecificvssharedservicemodeluisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The environmentspecificvssharedservicemodel capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -1334,7 +1334,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "d3a9bee5d6653b1b53262213f9b1ba5db0d59550575d78ed49c15aeb004d4f4b";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/event-bus-durable-queues-dlq-redrive.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:eventbusdurablequeuesdlqredrive> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:eventbusdurablequeuesdlqredrive> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontracteventbusdurablequeuesdlqredrive>.
 <urn:usf:artefactplan:semanticcontracteventbusdurablequeuesdlqredrive> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontracteventbusdurablequeuesdlqredrive";
@@ -1378,7 +1378,7 @@
     <urn:usf:ontology:facetStatement> "Readiness combines operator visibility of the event and dead-letter queues with worker heartbeat liveness (alive|stale|stopped); it degrades explicitly and disables mutation/side-effect paths that depend on the Postgres adapter while keeping read-only readiness and audit visible. Live proofs fail closed on row-level-security, secret-payload, retry, redrive, or heartbeat regressions and skip honestly when Postgres is unavailable, so production-shaped readiness is never reported as production-live.".
 <urn:usf:sourcesemanticbinding:eventbusdurablequeuesdlqredrivesemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:eventbusdurablequeuesdlqredriveproof>.
 <urn:usf:contractfacet:eventbusdurablequeuesdlqredriveproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by three runtime proofs: event-bus validates live Postgres outbox persistence, row-level security, and secret-payload rejection; event-worker validates processing, retry, dead-letter, and heartbeat; event-redrive validates the live admin routes and requeue, with the corpus describing this as level-4 live substrate and route validation. The proofs are the lineage evidence, not a USF readiness claim. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by three runtime proofs: event-bus validates live Postgres outbox persistence, row-level security, and secret-payload rejection; event-worker validates processing, retry, dead-letter, and heartbeat; event-redrive validates the live admin routes and requeue, with the corpus describing this as level-4 live substrate and route validation. The proofs are the lineage evidence, not a USF readiness claim. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:eventbusdurablequeuesdlqredrivesemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:eventbusdurablequeuesdlqredriveuisemantics>.
 <urn:usf:contractfacet:eventbusdurablequeuesdlqredriveuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The eventbusdurablequeuesdlqredrive capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -1390,7 +1390,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "2f93c3a7e0601376e34b970069195582c12e3a061150e02187fb1111a8933a6e";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/history-read-model-read-only-projection.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:historyreadmodelreadonlyprojection> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:historyreadmodelreadonlyprojection> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontracthistoryreadmodelreadonlyprojection>.
 <urn:usf:artefactplan:semanticcontracthistoryreadmodelreadonlyprojection> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontracthistoryreadmodelreadonlyprojection";
@@ -1434,7 +1434,7 @@
     <urn:usf:ontology:facetStatement> "Readiness depends on the underlying audit/history store being reachable; the capability degrades explicitly when that substrate is unavailable, keeping read-only readiness and audit visible (it has no mutation path to disable). Readiness being blocked, a failed history proof during promotion, or a missing isolation or audit signal raise alerts and block promotion.".
 <urn:usf:sourcesemanticbinding:historyreadmodelreadonlyprojectionsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:historyreadmodelreadonlyprojectionproof>.
 <urn:usf:contractfacet:historyreadmodelreadonlyprojectionproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the history proof against the history repository projection, asserting the safe summarised shape and tenant scoping. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the history proof against the history repository projection, asserting the safe summarised shape and tenant scoping. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:historyreadmodelreadonlyprojectionsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:historyreadmodelreadonlyprojectionuisemantics>.
 <urn:usf:contractfacet:historyreadmodelreadonlyprojectionuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The historyreadmodelreadonlyprojection capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -1446,7 +1446,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "b43bbb1160beea1b2f1c23f2c79cfde9d374c1428d7e96b4cff14a902fbe1a5b";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/i18n-runtime-and-validation.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:i18nruntimeandvalidation> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:i18nruntimeandvalidation> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontracti18nruntimeandvalidation>.
 <urn:usf:artefactplan:semanticcontracti18nruntimeandvalidation> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontracti18nruntimeandvalidation";
@@ -1490,7 +1490,7 @@
     <urn:usf:ontology:facetStatement> "Readiness means the locale corpus passes the validation gate (required keys present, interpolation consistent, raw literals governed) for the configured strictness; unavailable dependencies fail closed through the readiness model. Readiness is demonstrated by re-running validate-i18n and the i18n-runtime tests. A report-only pass with outstanding strict findings is not full readiness.".
 <urn:usf:sourcesemanticbinding:i18nruntimeandvalidationsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:i18nruntimeandvalidationproof>.
 <urn:usf:contractfacet:i18nruntimeandvalidationproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by validate-i18n and the i18n-runtime tests, demonstrating locale resolution and the key/raw-literal/interpolation validation gate. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by validate-i18n and the i18n-runtime tests, demonstrating locale resolution and the key/raw-literal/interpolation validation gate. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:i18nruntimeandvalidationsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:i18nruntimeandvalidationuisemantics>.
 <urn:usf:contractfacet:i18nruntimeandvalidationuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The i18nruntimeandvalidation capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -1502,7 +1502,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "622f9af3e1996bf615240e16815ba83b273a296658b945bb8dbd6b857d819631";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/internal-service-catalog-and-readiness.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:internalservicecatalogandreadiness> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:internalservicecatalogandreadiness> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractinternalservicecatalogandreadiness>.
 <urn:usf:artefactplan:semanticcontractinternalservicecatalogandreadiness> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractinternalservicecatalogandreadiness";
@@ -1546,7 +1546,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is the capability's primary output: it aggregates per-service probes into a tenant-scoped posture that degrades explicitly when a probe, provider, or substrate is unavailable, keeping read-only readiness and audit visible while disabling dependent side-effect paths. Emitted readiness, error, and audit signals use the controlled, OpenTelemetry-informed observability vocabulary.".
 <urn:usf:sourcesemanticbinding:internalservicecatalogandreadinesssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:internalservicecatalogandreadinessproof>.
 <urn:usf:contractfacet:internalservicecatalogandreadinessproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the cited platform-services and service-catalog-registry runtime proofs (and the composed-provider readiness proof), demonstrating catalog aggregation and tenant-scoped readiness reporting as hermetic/runtime lineage rather than a current-readiness claim. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the cited platform-services and service-catalog-registry runtime proofs (and the composed-provider readiness proof), demonstrating catalog aggregation and tenant-scoped readiness reporting as hermetic/runtime lineage rather than a current-readiness claim. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:internalservicecatalogandreadinesssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:internalservicecatalogandreadinessuisemantics>.
 <urn:usf:contractfacet:internalservicecatalogandreadinessuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The internalservicecatalogandreadiness capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -1558,7 +1558,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "af26ff637904731bddbe793af3533697d1788e922aa53bf08bc9d642f0635113";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/logs-aggregation-and-tenant-scoped-search.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:logsaggregationandtenantscopedsearch> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:logsaggregationandtenantscopedsearch> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractlogsaggregationandtenantscopedsearch>.
 <urn:usf:artefactplan:semanticcontractlogsaggregationandtenantscopedsearch> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractlogsaggregationandtenantscopedsearch";
@@ -1602,7 +1602,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is a first-class, queryable posture reporting the discrete sub-states (log ingestion, tenant-scoped query, trace correlation, dashboards, collector, metrics, error capture) and degrades explicitly when the search adapter or substrate is unavailable. In degraded mode mutation/side-effect paths that depend on the search adapter are disabled while read-only readiness and audit visibility are retained; emitted readiness, error, and audit signals use the controlled, OpenTelemetry-informed observability vocabulary.".
 <urn:usf:sourcesemanticbinding:logsaggregationandtenantscopedsearchsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:logsaggregationandtenantscopedsearchproof>.
 <urn:usf:contractfacet:logsaggregationandtenantscopedsearchproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the cited tenant-observability runtime proof plus logs use-case tests, demonstrating tenant-scoped search, readiness reporting, and fail-closed isolation as hermetic/runtime lineage rather than a current-readiness claim. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the cited tenant-observability runtime proof plus logs use-case tests, demonstrating tenant-scoped search, readiness reporting, and fail-closed isolation as hermetic/runtime lineage rather than a current-readiness claim. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:logsaggregationandtenantscopedsearchsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:logsaggregationandtenantscopedsearchuisemantics>.
 <urn:usf:contractfacet:logsaggregationandtenantscopedsearchuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The logsaggregationandtenantscopedsearch capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -1614,7 +1614,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "a2196613c302abffcc670df84e940561f30a422bb4016b29f09c0e8116e3e906";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/metrics-and-traces.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:metricsandtraces> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:metricsandtraces> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractmetricsandtraces>.
 <urn:usf:artefactplan:semanticcontractmetricsandtraces> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractmetricsandtraces";
@@ -1658,7 +1658,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is a queryable posture covering metrics and trace pipelines that degrades explicitly when the metrics provider or OTel collector is unavailable, disabling dependent side-effect paths while keeping read-only readiness and audit visible. Emitted readiness, error, and audit signals use the controlled, OpenTelemetry-informed observability vocabulary without claiming OpenTelemetry compliance.".
 <urn:usf:sourcesemanticbinding:metricsandtracessemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:metricsandtracesproof>.
 <urn:usf:contractfacet:metricsandtracesproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the cited metrics (Prometheus) and dashboards runtime proofs plus observability tests, demonstrating metric exposure, trace correlation, and readiness reporting as hermetic/runtime lineage rather than a current-readiness claim. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the cited metrics (Prometheus) and dashboards runtime proofs plus observability tests, demonstrating metric exposure, trace correlation, and readiness reporting as hermetic/runtime lineage rather than a current-readiness claim. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:metricsandtracessemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:metricsandtracesuisemantics>.
 <urn:usf:contractfacet:metricsandtracesuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The metricsandtraces capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -1726,7 +1726,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "1fdc286d2bb584323a691a3082fcb38694a2e22ac733128fc4f4e5b6cd655ccb";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/notification-delivery-and-preferences-and-channels.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:notificationdeliveryandpreferencesandchannels> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:notificationdeliveryandpreferencesandchannels> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractnotificationdeliveryandpreferencesandchannels>.
 <urn:usf:artefactplan:semanticcontractnotificationdeliveryandpreferencesandchannels> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractnotificationdeliveryandpreferencesandchannels";
@@ -1770,7 +1770,7 @@
     <urn:usf:ontology:facetStatement> "Readiness reports the real availability of the local, SMTP, and webhook transports; the Mailpit and webhook proofs skip honestly when their backing services are absent and never mark a fake send as sent. Because this is a tenant-data capability, readiness must also preserve tenant isolation and audit signals, and a missing isolation or audit signal is an alert condition. Provider failure degrades readiness explicitly rather than upgrading a composed or production-shaped state to production-live.".
 <urn:usf:sourcesemanticbinding:notificationdeliveryandpreferencesandchannelssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:notificationdeliveryandpreferencesandchannelsproof>.
 <urn:usf:contractfacet:notificationdeliveryandpreferencesandchannelsproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the notification-preferences, notification-dispatch, notification-email-transport, notification-webhook-transport, and notification-transport-routes runtime proofs, described in the corpus as level-4 live Postgres, Mailpit, and webhook route validation. The proofs are the lineage evidence, not a USF readiness claim. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the notification-preferences, notification-dispatch, notification-email-transport, notification-webhook-transport, and notification-transport-routes runtime proofs, described in the corpus as level-4 live Postgres, Mailpit, and webhook route validation. The proofs are the lineage evidence, not a USF readiness claim. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:notificationdeliveryandpreferencesandchannelssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:notificationdeliveryandpreferencesandchannelsuisemantics>.
 <urn:usf:contractfacet:notificationdeliveryandpreferencesandchannelsuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
     <urn:usf:ontology:facetStatement> "The notificationdeliveryandpreferencesandchannels capability has one framework-neutral UI semantic model with explicit surfaces, view models, components, journeys, permissions, accessibility, localisation, and target-specific renderer contracts. This semantic closure disclaims product parity, human acceptance, accessibility compliance, and launch-language readiness.".
@@ -1782,7 +1782,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "ae035e4cbe7065b68dc224b8101753798e949313c4eb732219df438817d705d5";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/object-storage-and-tenant-prefixes-and-signed-urls.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:objectstorageandtenantprefixesandsignedurls> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:objectstorageandtenantprefixesandsignedurls> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractobjectstorageandtenantprefixesandsignedurls>.
 <urn:usf:artefactplan:semanticcontractobjectstorageandtenantprefixesandsignedurls> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractobjectstorageandtenantprefixesandsignedurls";
@@ -1826,7 +1826,7 @@
     <urn:usf:ontology:facetStatement> "Readiness depends on both the object-storage adapter and the relational object-registry repository being reachable; a probe verifies the provider, and the capability degrades explicitly when either is unavailable, disabling mutating storage paths while keeping read-only readiness and audit visible. Readiness being blocked, a failed tenant-storage-objects proof during promotion, or a missing isolation or audit signal raise alerts and block promotion.".
 <urn:usf:sourcesemanticbinding:objectstorageandtenantprefixesandsignedurlssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:objectstorageandtenantprefixesandsignedurlsproof>.
 <urn:usf:contractfacet:objectstorageandtenantprefixesandsignedurlsproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the tenant-storage-objects proof plus object-storage adapter and storage-runtime contract tests covering prefix isolation and the scan lifecycle. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the tenant-storage-objects proof plus object-storage adapter and storage-runtime contract tests covering prefix isolation and the scan lifecycle. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:objectstorageandtenantprefixesandsignedurlssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:objectstorageandtenantprefixesandsignedurlsuisemantics>.
 <urn:usf:contractfacet:objectstorageandtenantprefixesandsignedurlsuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The objectstorageandtenantprefixesandsignedurls capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -1838,7 +1838,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "1f6dbe9a2a29dd9e058b2819908bbc60becd525cbe22ea663f90fa56782d8cf8";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/observability-built-in-alerting-and-incidents.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:observabilitybuiltinalertingandincidents> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:observabilitybuiltinalertingandincidents> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractobservabilitybuiltinalertingandincidents>.
 <urn:usf:artefactplan:semanticcontractobservabilitybuiltinalertingandincidents> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractobservabilitybuiltinalertingandincidents";
@@ -1882,7 +1882,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is a queryable posture spanning signal ingestion, alert evaluation, and incident/notification wiring that degrades explicitly when the underlying providers are unavailable, disabling dependent side-effect paths while keeping read-only readiness and audit visible. Emitted readiness, error, and audit signals use the controlled, OpenTelemetry-informed observability vocabulary.".
 <urn:usf:sourcesemanticbinding:observabilitybuiltinalertingandincidentssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:observabilitybuiltinalertingandincidentsproof>.
 <urn:usf:contractfacet:observabilitybuiltinalertingandincidentsproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the cited observability-signals, alerting, incident-foundation, and alert-notification-bridge runtime proofs plus alerting tests, demonstrating rule evaluation, incident transitions, and notification bridging as hermetic/runtime lineage rather than a current-readiness claim. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the cited observability-signals, alerting, incident-foundation, and alert-notification-bridge runtime proofs plus alerting tests, demonstrating rule evaluation, incident transitions, and notification bridging as hermetic/runtime lineage rather than a current-readiness claim. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:observabilitybuiltinalertingandincidentssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:observabilitybuiltinalertingandincidentsuisemantics>.
 <urn:usf:contractfacet:observabilitybuiltinalertingandincidentsuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The observabilitybuiltinalertingandincidents capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -1894,7 +1894,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "0b9ba890339efbe4c066f17af0b495bca161c48cd790e24e5801c47e27ce3057";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/openapi-drift-hard-gate.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:openapidrifthardgate> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:openapidrifthardgate> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractopenapidrifthardgate>.
 <urn:usf:artefactplan:semanticcontractopenapidrifthardgate> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractopenapidrifthardgate";
@@ -1938,7 +1938,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is the strict drift gate passing with zero missing routes, zero extra routes, zero unresolved references, and zero schemaless bodies. Any nonzero drift blocks readiness rather than producing a warning that can be ignored.".
 <urn:usf:sourcesemanticbinding:openapidrifthardgatesemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:openapidrifthardgateproof>.
 <urn:usf:contractfacet:openapidrifthardgateproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the OpenAPI drift validation tests and the architecture test target asserting strict-mode exit and drift detection. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the OpenAPI drift validation tests and the architecture test target asserting strict-mode exit and drift detection. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:openapidrifthardgatesemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:openapidrifthardgateuisemantics>.
 <urn:usf:contractfacet:openapidrifthardgateuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The openapidrifthardgate capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -1950,7 +1950,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "7ed3daf7be4a2aaec90a8d4b8ecdf5f9d9d6b030991f360a6cbf62ea1dce1f39";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/pitr-retention-legal-hold-data-residency.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:pitrretentionlegalholddataresidency> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:pitrretentionlegalholddataresidency> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractpitrretentionlegalholddataresidency>.
 <urn:usf:artefactplan:semanticcontractpitrretentionlegalholddataresidency> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractpitrretentionlegalholddataresidency";
@@ -1994,7 +1994,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is gated on the retention worker, legal-hold store, and residency enforcement being reachable and on the restore drill succeeding; the capability degrades explicitly when its adapters or the residency column are unavailable, keeping read-only readiness and audit visible while disabling the deletion path. Readiness being blocked, a failed restore/retention/legal-hold/residency proof during promotion, or a missing isolation or audit signal raise alerts and block promotion.".
 <urn:usf:sourcesemanticbinding:pitrretentionlegalholddataresidencysemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:pitrretentionlegalholddataresidencyproof>.
 <urn:usf:contractfacet:pitrretentionlegalholddataresidencyproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by point-in-time restore-drill, retention, legal-hold, and data-residency proofs, including the retention tick worker proven to honour active holds. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by point-in-time restore-drill, retention, legal-hold, and data-residency proofs, including the retention tick worker proven to honour active holds. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:pitrretentionlegalholddataresidencysemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:pitrretentionlegalholddataresidencyuisemantics>.
 <urn:usf:contractfacet:pitrretentionlegalholddataresidencyuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The pitrretentionlegalholddataresidency capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2006,7 +2006,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "33b15e0265b918b7fc545939642ff06660dd4fb72dcc7ae9a019ce4e326e3c2c";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/product-catalog-plans-prices.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:productcatalogplansprices> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:productcatalogplansprices> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractproductcatalogplansprices>.
 <urn:usf:artefactplan:semanticcontractproductcatalogplansprices> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractproductcatalogplansprices";
@@ -2050,7 +2050,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is migration- and catalog-seed-backed: route-registration evidence validates the exposed surface and unit behaviour validates in-process catalog operations, while live provider billing readiness is tracked as a separate capability. When the catalog adapter is unavailable, mutation paths are disabled and only read-only readiness and audit remain visible.".
 <urn:usf:sourcesemanticbinding:productcatalogplanspricessemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:productcatalogplanspricesproof>.
 <urn:usf:contractfacet:productcatalogplanspricesproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by catalog unit tests and a catalog route-registration runtime proof, with live HTTP-backed plan synchronisation validated separately through the external billing provider adapter. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by catalog unit tests and a catalog route-registration runtime proof, with live HTTP-backed plan synchronisation validated separately through the external billing provider adapter. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:productcatalogplanspricessemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:productcatalogplanspricesuisemantics>.
 <urn:usf:contractfacet:productcatalogplanspricesuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The productcatalogplansprices capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2062,7 +2062,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "cb2432289569d594dfe66b16325a799d8b3b545ab7b9157e1d0d88cd34edde74";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/provider-configuration-plane.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:providerconfigurationplane> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:providerconfigurationplane> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractproviderconfigurationplane>.
 <urn:usf:artefactplan:semanticcontractproviderconfigurationplane> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractproviderconfigurationplane";
@@ -2106,7 +2106,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is encoded directly in lifecycleState: a provider is ready only after it is configured, credentialed where required, and health-probed, and it degrades explicitly when the probe or substrate is unavailable. Readiness fails closed and stays visible read-only in degraded mode. Promotion is gated on proof:provider-config and proof:provider-readiness-contract passing.".
 <urn:usf:sourcesemanticbinding:providerconfigurationplanesemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:providerconfigurationplaneproof>.
 <urn:usf:contractfacet:providerconfigurationplaneproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by proof:provider-config and proof:provider-readiness-contract together with the cited auth-provider-config unit tests, demonstrating configuration, credential, lifecycle, and readiness semantics. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by proof:provider-config and proof:provider-readiness-contract together with the cited auth-provider-config unit tests, demonstrating configuration, credential, lifecycle, and readiness semantics. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:providerconfigurationplanesemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:providerconfigurationplaneuisemantics>.
 <urn:usf:contractfacet:providerconfigurationplaneuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The providerconfigurationplane capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2118,7 +2118,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "853c7c5827894583fb391db706fd22628dccf472c8c70a672956d4c4868020fa";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/provider-environment-classification.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:providerenvironmentclassification> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:providerenvironmentclassification> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractproviderenvironmentclassification>.
 <urn:usf:artefactplan:semanticcontractproviderenvironmentclassification> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractproviderenvironmentclassification";
@@ -2162,7 +2162,7 @@
     <urn:usf:ontology:facetStatement> "Readiness means every relevant provider has an explicit, consistent environment classification with provider mode and environment kept separate; unavailable dependencies fail closed through the readiness model. Readiness is shown by re-running proof:provider-environment-classification rather than a live heartbeat. Stale or unknown classifications do not count as ready.".
 <urn:usf:sourcesemanticbinding:providerenvironmentclassificationsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:providerenvironmentclassificationproof>.
 <urn:usf:contractfacet:providerenvironmentclassificationproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Proof is proof:provider-environment-classification, demonstrating that the matrix keeps provider mode and environment as separate, honestly classified dimensions. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Proof is proof:provider-environment-classification, demonstrating that the matrix keeps provider mode and environment as separate, honestly classified dimensions. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:providerenvironmentclassificationsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:providerenvironmentclassificationuisemantics>.
 <urn:usf:contractfacet:providerenvironmentclassificationuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The providerenvironmentclassification capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2174,7 +2174,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "c90a7acd5cdc40bb9144ef7c6db4b2f27ff05a7c3871d06a3e2be56be19b4524";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/quota-enforcement.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:quotaenforcement> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:quotaenforcement> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractquotaenforcement>.
 <urn:usf:artefactplan:semanticcontractquotaenforcement> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractquotaenforcement";
@@ -2218,7 +2218,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is proven against live storage covering entitlement-before-quota ordering, the exceeded state, typed denial via assert, revoke-driven denial, and the no-quota allow path, with route handlers validated separately. When the quota substrate is unavailable, mutation paths are disabled and readiness degrades explicitly.".
 <urn:usf:sourcesemanticbinding:quotaenforcementsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:quotaenforcementproof>.
 <urn:usf:contractfacet:quotaenforcementproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by quota unit tests and runtime proofs validating live entitlement-before-quota ordering, exceeded state, typed denial, revoke denial, and route handlers. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by quota unit tests and runtime proofs validating live entitlement-before-quota ordering, exceeded state, typed denial, revoke denial, and route handlers. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:quotaenforcementsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:quotaenforcementuisemantics>.
 <urn:usf:contractfacet:quotaenforcementuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The quotaenforcement capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2230,7 +2230,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "7fc925b3760c95c3a917cd3c964cdb1f7a0bf0d677801b82bd6ea42a825bc379";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/rate-limiting-api.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:ratelimitingapi> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:ratelimitingapi> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractratelimitingapi>.
 <urn:usf:artefactplan:semanticcontractratelimitingapi> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractratelimitingapi";
@@ -2274,7 +2274,7 @@
     <urn:usf:ontology:facetStatement> "The relational proof skips honestly when the database is unavailable; the cache provider reports ready on a successful ping and degraded on failure, with relational fallback still valid for counting. Readiness never claims availability beyond what the substrate proves.".
 <urn:usf:sourcesemanticbinding:ratelimitingapisemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:ratelimitingapiproof>.
 <urn:usf:contractfacet:ratelimitingapiproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by rate-limit unit tests and runtime proofs validating live relational and cache counting plus operator route behaviour and degraded fallback. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by rate-limit unit tests and runtime proofs validating live relational and cache counting plus operator route behaviour and degraded fallback. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:ratelimitingapisemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:ratelimitingapiuisemantics>.
 <urn:usf:contractfacet:ratelimitingapiuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The ratelimitingapi capability is explicitly API-only; no human-rendered surface, component, action, journey, consent prompt, or renderer input is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2286,7 +2286,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "4ccdc641a623c4ef2f8a1a7559a0ead71d28e9f56727a2510ed1ddcc882c0210";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/rbac-roles-and-permissions.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:rbacrolesandpermissions> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:rbacrolesandpermissions> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractrbacrolesandpermissions>.
 <urn:usf:artefactplan:semanticcontractrbacrolesandpermissions> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractrbacrolesandpermissions";
@@ -2330,7 +2330,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is invariant-ready because permission resolution is a pure, fully-tested function and route enforcement is exercised through pipeline permission tests; degraded mode disables store-dependent mutation while keeping read-only resolution available. There is no external provider dependency for resolution itself.".
 <urn:usf:sourcesemanticbinding:rbacrolesandpermissionssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:rbacrolesandpermissionsproof>.
 <urn:usf:contractfacet:rbacrolesandpermissionsproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Unit proofs cover the role/permission domain, member role mutations, and contract drift between the domain vocabulary and the admin contract, demonstrated in source lineage via hermetic role/permission state validation. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Unit proofs cover the role/permission domain, member role mutations, and contract drift between the domain vocabulary and the admin contract, demonstrated in source lineage via hermetic role/permission state validation. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:rbacrolesandpermissionssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:rbacrolesandpermissionsuisemantics>.
 <urn:usf:contractfacet:rbacrolesandpermissionsuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The rbacrolesandpermissions capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2342,7 +2342,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "cb1ec9c8ad91811336900ecff45c96a63d4e44fc3e3af43abf5dd8f58d52e9e4";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/relational-storage-and-migrations-and-rls.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:relationalstorageandmigrationsandrls> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:relationalstorageandmigrationsandrls> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractrelationalstorageandmigrationsandrls>.
 <urn:usf:artefactplan:semanticcontractrelationalstorageandmigrationsandrls> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractrelationalstorageandmigrationsandrls";
@@ -2386,7 +2386,7 @@
     <urn:usf:ontology:facetStatement> "Readiness depends on the substrate being reachable and fully migrated; the migrated check (a non-empty migration ledger) and the cross-tenant isolation live-proof (an unfiltered count under a foreign tenant context returning zero) are the acceptance gates. When the substrate is unavailable the capability degrades explicitly, disabling mutation and side-effect paths while keeping read-only readiness and audit visible rather than failing silently. Promotion is blocked when readiness is unavailable or when the isolation or audit signal is missing.".
 <urn:usf:sourcesemanticbinding:relationalstorageandmigrationsandrlssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:relationalstorageandmigrationsandrlsproof>.
 <urn:usf:contractfacet:relationalstorageandmigrationsandrlsproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by repository substrate tests and live isolation proofs that assert RLS denies cross-tenant reads and that the checksum and migrated-state gates hold; these caught a real naive-predicate leak before promotion. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by repository substrate tests and live isolation proofs that assert RLS denies cross-tenant reads and that the checksum and migrated-state gates hold; these caught a real naive-predicate leak before promotion. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:relationalstorageandmigrationsandrlssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:relationalstorageandmigrationsandrlsuisemantics>.
 <urn:usf:contractfacet:relationalstorageandmigrationsandrlsuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The relationalstorageandmigrationsandrls capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2398,7 +2398,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "e6e5906a203418bc2cabfb762bb9e75d6248db939c6a2f2d231b36c4e0f51146";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/runtime-secrets-management.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:runtimesecretsmanagement> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:runtimesecretsmanagement> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractruntimesecretsmanagement>.
 <urn:usf:artefactplan:semanticcontractruntimesecretsmanagement> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractruntimesecretsmanagement";
@@ -2442,7 +2442,7 @@
     <urn:usf:ontology:facetStatement> "Readiness distinguishes built-in Postgres ready, OpenBao ready, and OpenBao degraded or unreachable, and emits secret-free readiness payloads; the built-in check is a Postgres SELECT 1 and the OpenBao check is its sys/health endpoint, and an OpenBao outage yields degraded rather than a fabricated ready. No silent fallback upgrades provider readiness, so a hermetic or composed state is never reported as a live-external-provider state.".
 <urn:usf:sourcesemanticbinding:runtimesecretsmanagementsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:runtimesecretsmanagementproof>.
 <urn:usf:contractfacet:runtimesecretsmanagementproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by three runtime proofs: secret-store-contract validates the live Postgres store contract, encryption, row-level security, and audit; secrets-openbao validates the live OpenBao provider; and provider-secrets-readiness validates the ready versus degraded classification, described in the corpus as level-4 live provider and storage validation. The proofs are the lineage evidence, not a USF readiness claim. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by three runtime proofs: secret-store-contract validates the live Postgres store contract, encryption, row-level security, and audit; secrets-openbao validates the live OpenBao provider; and provider-secrets-readiness validates the ready versus degraded classification, described in the corpus as level-4 live provider and storage validation. The proofs are the lineage evidence, not a USF readiness claim. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:runtimesecretsmanagementsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:runtimesecretsmanagementuisemantics>.
 <urn:usf:contractfacet:runtimesecretsmanagementuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The runtimesecretsmanagement capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2454,7 +2454,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "4dffb8a483146dc8c9009eefbc96176f09d5e55acc73cda02e600086442d12dd";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/scheduled-jobs-built-in-on-the-event-substrate.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:scheduledjobsbuiltinontheeventsubstrate> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:scheduledjobsbuiltinontheeventsubstrate> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractscheduledjobsbuiltinontheeventsubstrate>.
 <urn:usf:artefactplan:semanticcontractscheduledjobsbuiltinontheeventsubstrate> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractscheduledjobsbuiltinontheeventsubstrate";
@@ -2498,7 +2498,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is that the due tick is invocable and the routes are accessible, even though the continuous daemon loop is not claimed; the live proof validates the table schema, row-level-security isolation, due/run-now enqueue behaviour, and the route handlers, and degrades explicitly when the substrate is unavailable. Because dispatch rides the event substrate, scheduled-job readiness inherits the event-bus degraded posture and never reports production-shaped behaviour as production-live.".
 <urn:usf:sourcesemanticbinding:scheduledjobsbuiltinontheeventsubstratesemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:scheduledjobsbuiltinontheeventsubstrateproof>.
 <urn:usf:contractfacet:scheduledjobsbuiltinontheeventsubstrateproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by two runtime proofs: scheduled-jobs validates live Postgres schedule persistence, due and run-now enqueue, row-level security, and the no-secret schema, and scheduled-job-routes validates the route handlers and access metadata, described in the corpus as level-4 live substrate and route validation. The proofs are the lineage evidence, not a USF readiness claim. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by two runtime proofs: scheduled-jobs validates live Postgres schedule persistence, due and run-now enqueue, row-level security, and the no-secret schema, and scheduled-job-routes validates the route handlers and access metadata, described in the corpus as level-4 live substrate and route validation. The proofs are the lineage evidence, not a USF readiness claim. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:scheduledjobsbuiltinontheeventsubstratesemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:scheduledjobsbuiltinontheeventsubstrateuisemantics>.
 <urn:usf:contractfacet:scheduledjobsbuiltinontheeventsubstrateuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The scheduledjobsbuiltinontheeventsubstrate capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2510,7 +2510,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "fcc4e6af05975516ae183478fe05cb11e577797e0546db712412fc3846610e6e";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/search-and-indexing-product-search.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:searchandindexingproductsearch> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:searchandindexingproductsearch> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractsearchandindexingproductsearch>.
 <urn:usf:artefactplan:semanticcontractsearchandindexingproductsearch> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractsearchandindexingproductsearch";
@@ -2554,7 +2554,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is reported by the full-text engine probe as ready, degraded, or blocked, and is verified by isolation and route proofs; the capability degrades explicitly when the search adapter is unavailable, disabling index mutation while keeping read-only readiness and audit visible. Readiness being blocked, a failed search/search-isolation/search-routes proof during promotion, or a missing isolation or audit signal raise alerts and block promotion.".
 <urn:usf:sourcesemanticbinding:searchandindexingproductsearchsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:searchandindexingproductsearchproof>.
 <urn:usf:contractfacet:searchandindexingproductsearchproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the search, search-isolation, and search-routes proofs, including a cross-tenant isolation assertion that a foreign-tenant query returns zero rows. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the search, search-isolation, and search-routes proofs, including a cross-tenant isolation assertion that a foreign-tenant query returns zero rows. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:searchandindexingproductsearchsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:searchandindexingproductsearchuisemantics>.
 <urn:usf:contractfacet:searchandindexingproductsearchuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The searchandindexingproductsearch capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2622,7 +2622,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "8fd09a45b22427dfbebac359f268893fc2a4bd1d5870a2aa745dcf6bd45e5a7e";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/service-catalog-and-provider-integration-model.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:servicecatalogandproviderintegrationmodel> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:servicecatalogandproviderintegrationmodel> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractservicecatalogandproviderintegrationmodel>.
 <urn:usf:artefactplan:semanticcontractservicecatalogandproviderintegrationmodel> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractservicecatalogandproviderintegrationmodel";
@@ -2666,7 +2666,7 @@
     <urn:usf:ontology:facetStatement> "Readiness reflects whether each service's providers resolve and its catalog entry is coherent; it degrades explicitly when the underlying substrate (for example the observability adapters) is unavailable rather than reporting false health. Readiness fails closed and remains visible read-only in degraded mode. Promotion is gated on the named platform-services and catalog proofs passing.".
 <urn:usf:sourcesemanticbinding:servicecatalogandproviderintegrationmodelsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:servicecatalogandproviderintegrationmodelproof>.
 <urn:usf:contractfacet:servicecatalogandproviderintegrationmodelproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by proof:platform-services, proof:service-clickthrough-policy, proof:service-catalog-registry, and proof:entitlements-routes together with the cited unit tests, demonstrating catalog, visibility, entitlement, and readiness semantics. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by proof:platform-services, proof:service-clickthrough-policy, proof:service-catalog-registry, and proof:entitlements-routes together with the cited unit tests, demonstrating catalog, visibility, entitlement, and readiness semantics. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:servicecatalogandproviderintegrationmodelsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:servicecatalogandproviderintegrationmodeluisemantics>.
 <urn:usf:contractfacet:servicecatalogandproviderintegrationmodeluisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The servicecatalogandproviderintegrationmodel capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2678,7 +2678,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "57ad51316e293c4f38c893fca8d1717052bc13621d561f35a68a9d78ca1df8e5";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/sub-organisations.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:suborganisations> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:suborganisations> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractsuborganisations>.
 <urn:usf:artefactplan:semanticcontractsuborganisations> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractsuborganisations";
@@ -2722,7 +2722,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is invariant-ready once the organisations table is available; because that table has no row-level security, every query explicitly filters by the parent id from the resolved tenant context, and degraded mode disables store-dependent mutation while keeping read-only listing visible.".
 <urn:usf:sourcesemanticbinding:suborganisationssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:suborganisationsproof>.
 <urn:usf:contractfacet:suborganisationsproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "A unit proof covers the state machine and validation and a UI semantic harness proves the headless journey, demonstrated in source lineage via hermetic state/validation proof plus a semantic harness for future UI generation. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "A unit proof covers the state machine and validation and a UI semantic harness proves the headless journey, demonstrated in source lineage via hermetic state/validation proof plus a semantic harness for future UI generation. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:suborganisationssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:suborganisationsuisemantics>.
 <urn:usf:contractfacet:suborganisationsuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The suborganisations capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2734,7 +2734,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "4c95360b42048a609fc1d02b87372c8ea061ba2f5fb55cf44ba74e6acbc22ae0";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/subscriptions-invoices-payment-methods-dunning.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:subscriptionsinvoicespaymentmethodsdunning> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:subscriptionsinvoicespaymentmethodsdunning> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractsubscriptionsinvoicespaymentmethodsdunning>.
 <urn:usf:artefactplan:semanticcontractsubscriptionsinvoicespaymentmethodsdunning> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractsubscriptionsinvoicespaymentmethodsdunning";
@@ -2778,7 +2778,7 @@
     <urn:usf:ontology:facetStatement> "Readiness reflects billing-provider availability: the in-memory adapter supports hermetic validation while the external adapter classifies live provider availability, degrading explicitly when the provider is unreachable. Degraded mode disables provider-dependent mutation paths while keeping read-only readiness and audit visible.".
 <urn:usf:sourcesemanticbinding:subscriptionsinvoicespaymentmethodsdunningsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:subscriptionsinvoicespaymentmethodsdunningproof>.
 <urn:usf:contractfacet:subscriptionsinvoicespaymentmethodsdunningproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by billing-provider port tests and external billing-provider adapter tests, including idempotent capture, refund, and live plan synchronisation against the provider. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by billing-provider port tests and external billing-provider adapter tests, including idempotent capture, refund, and live plan synchronisation against the provider. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:subscriptionsinvoicespaymentmethodsdunningsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:subscriptionsinvoicespaymentmethodsdunninguisemantics>.
 <urn:usf:contractfacet:subscriptionsinvoicespaymentmethodsdunninguisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The subscriptionsinvoicespaymentmethodsdunning capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2790,7 +2790,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "97f0b7843d213677d04914be43da508b21e9bc55255f5b662b8b2827f2c9a0fa";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/support-mode-break-glass-access.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:supportmodebreakglassaccess> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:supportmodebreakglassaccess> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractsupportmodebreakglassaccess>.
 <urn:usf:artefactplan:semanticcontractsupportmodebreakglassaccess> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractsupportmodebreakglassaccess";
@@ -2834,7 +2834,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is hermetic-domain ready for approval and support-session semantics, with the workflow waiting for an approval signal and completing on approval, and no live external provider is claimed. Degraded mode disables provider-dependent paths while keeping read-only readiness and audit visible.".
 <urn:usf:sourcesemanticbinding:supportmodebreakglassaccesssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:supportmodebreakglassaccessproof>.
 <urn:usf:contractfacet:supportmodebreakglassaccessproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "A unit proof covers the workflow and session state machine and a runtime proof covers the approval flow, demonstrated in source lineage via hermetic local workflow/session state-machine validation. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "A unit proof covers the workflow and session state machine and a runtime proof covers the approval flow, demonstrated in source lineage via hermetic local workflow/session state-machine validation. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:supportmodebreakglassaccesssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:supportmodebreakglassaccessuisemantics>.
 <urn:usf:contractfacet:supportmodebreakglassaccessuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The supportmodebreakglassaccess capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2846,7 +2846,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "d342005a12c0e2633b9234f269cdb9baada94ad762d87b79a2a39c174908f702";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/support-tickets-customer-health-announcements.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:supportticketscustomerhealthannouncements> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:supportticketscustomerhealthannouncements> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractsupportticketscustomerhealthannouncements>.
 <urn:usf:artefactplan:semanticcontractsupportticketscustomerhealthannouncements> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractsupportticketscustomerhealthannouncements";
@@ -2890,7 +2890,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is live route/use-case availability over relational support tables and metering-derived health signals, with the support-approval proof validating the workflow boundary state rather than assuming support access. Degraded mode disables mutation paths while keeping read-only readiness and audit visible.".
 <urn:usf:sourcesemanticbinding:supportticketscustomerhealthannouncementssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:supportticketscustomerhealthannouncementsproof>.
 <urn:usf:contractfacet:supportticketscustomerhealthannouncementsproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by support-ticket and announcement unit tests plus a support-approval runtime proof validating the approval waiting/completed workflow and the support-session audit lifecycle. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by support-ticket and announcement unit tests plus a support-approval runtime proof validating the approval waiting/completed workflow and the support-session audit lifecycle. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:supportticketscustomerhealthannouncementssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:supportticketscustomerhealthannouncementsuisemantics>.
 <urn:usf:contractfacet:supportticketscustomerhealthannouncementsuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The supportticketscustomerhealthannouncements capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2902,7 +2902,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "8e5e8c7da3b815dec6f96d5b8614939b881a17f77fdb836b4ce97cd911ce2119";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/tenant-canonical-domain-set-unset.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:tenantcanonicaldomainsetunset> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:tenantcanonicaldomainsetunset> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontracttenantcanonicaldomainsetunset>.
 <urn:usf:artefactplan:semanticcontracttenantcanonicaldomainsetunset> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontracttenantcanonicaldomainsetunset";
@@ -2946,7 +2946,7 @@
     <urn:usf:ontology:facetStatement> "Readiness covers local canonical cutover only; public DNS and TLS are explicitly deferred, and canonical is treated as a marker that does not imply public routing or TLS readiness. The capability therefore degrades honestly to a local-only posture when external infrastructure is unavailable.".
 <urn:usf:sourcesemanticbinding:tenantcanonicaldomainsetunsetsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenantcanonicaldomainsetunsetproof>.
 <urn:usf:contractfacet:tenantcanonicaldomainsetunsetproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by a canonical-domain runtime proof that validates live registry guards, redirect-policy transition, atomic replacement, unset, and clearing on deactivation against a real substrate. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by a canonical-domain runtime proof that validates live registry guards, redirect-policy transition, atomic replacement, unset, and clearing on deactivation against a real substrate. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:tenantcanonicaldomainsetunsetsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenantcanonicaldomainsetunsetuisemantics>.
 <urn:usf:contractfacet:tenantcanonicaldomainsetunsetuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The tenantcanonicaldomainsetunset capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -2958,7 +2958,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "5f321069f1463ec7bdd020f9d697de61c0a14901f29660754c7b24cb4edc553e";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/tenant-data-import-export.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:tenantdataimportexport> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:tenantdataimportexport> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontracttenantdataimportexport>.
 <urn:usf:artefactplan:semanticcontracttenantdataimportexport> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontracttenantdataimportexport";
@@ -3002,7 +3002,7 @@
     <urn:usf:ontology:facetStatement> "Readiness depends on the archive builder and the Postgres import applier being available; the capability degrades explicitly when those adapters are unavailable, disabling the transfer path while keeping read-only readiness and audit visible. Readiness being blocked, a failed portability proof during promotion, or a missing isolation or audit signal raise alerts and block promotion.".
 <urn:usf:sourcesemanticbinding:tenantdataimportexportsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenantdataimportexportproof>.
 <urn:usf:contractfacet:tenantdataimportexportproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the data-portability proof and portability unit tests covering resumable, idempotent import progress and no-silent-loss semantics. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the data-portability proof and portability unit tests covering resumable, idempotent import progress and no-silent-loss semantics. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:tenantdataimportexportsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenantdataimportexportuisemantics>.
 <urn:usf:contractfacet:tenantdataimportexportuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The tenantdataimportexport capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -3014,7 +3014,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "04fe877f0d549362449f23bd2455f844ed1d6e68eabe4f38fdeea6437abb4a58";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/tenant-domain-activation-auth-client.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:tenantdomainactivationauthclient> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:tenantdomainactivationauthclient> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontracttenantdomainactivationauthclient>.
 <urn:usf:artefactplan:semanticcontracttenantdomainactivationauthclient> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontracttenantdomainactivationauthclient";
@@ -3058,7 +3058,7 @@
     <urn:usf:ontology:facetStatement> "The capability is invariant-ready once ownership is verified and the auth-client mutation has succeeded, but activation explicitly does not imply routing or TLS readiness. Readiness is therefore scoped to the auth-client dimension and degrades to inactive when the external mutation cannot complete.".
 <urn:usf:sourcesemanticbinding:tenantdomainactivationauthclientsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenantdomainactivationauthclientproof>.
 <urn:usf:contractfacet:tenantdomainactivationauthclientproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by unit proofs over the domain lifecycle guards and by a canonical-domain runtime proof that validates live registry behaviour with an injected auth-client port. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by unit proofs over the domain lifecycle guards and by a canonical-domain runtime proof that validates live registry behaviour with an injected auth-client port. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:tenantdomainactivationauthclientsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenantdomainactivationauthclientuisemantics>.
 <urn:usf:contractfacet:tenantdomainactivationauthclientuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The tenantdomainactivationauthclient capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -3070,7 +3070,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "91738fe4c95d7483ea38c993588202e11d6376569157e3feede410c49531e752";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/tenant-groups.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:tenantgroups> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:tenantgroups> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontracttenantgroups>.
 <urn:usf:artefactplan:semanticcontracttenantgroups> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontracttenantgroups";
@@ -3114,7 +3114,7 @@
     <urn:usf:ontology:facetStatement> "Semantic readiness is invariant-ready, while route execution additionally requires tenant context and the tenant-realm auth-settings credential, and degraded mode disables provider-dependent mutation while keeping read-only readiness visible. A UI semantic harness proves the generation contract without shipping a legacy page.".
 <urn:usf:sourcesemanticbinding:tenantgroupssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenantgroupsproof>.
 <urn:usf:contractfacet:tenantgroupsproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "A unit proof covers group lifecycle and validation and a UI semantic harness proves the headless journey, demonstrated in source lineage via hermetic behaviour/state validation plus a semantic harness for future UI generation. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "A unit proof covers group lifecycle and validation and a UI semantic harness proves the headless journey, demonstrated in source lineage via hermetic behaviour/state validation plus a semantic harness for future UI generation. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:tenantgroupssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenantgroupsuisemantics>.
 <urn:usf:contractfacet:tenantgroupsuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The tenantgroups capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -3126,7 +3126,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "131ab3dfe55ad6c8a1963f34f020848049d926e1fe64faa318cc218f429c550e";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/tenant-host-identity-resolution.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:tenanthostidentityresolution> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:tenanthostidentityresolution> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontracttenanthostidentityresolution>.
 <urn:usf:artefactplan:semanticcontracttenanthostidentityresolution> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontracttenanthostidentityresolution";
@@ -3170,7 +3170,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is invariant-ready when resolver code and the domain registry are available, and degraded mode disables registry-dependent paths while keeping read-only resolution visible. Runtime proof needs local substrate for live resolution and skips honestly when no seeded organisation exists.".
 <urn:usf:sourcesemanticbinding:tenanthostidentityresolutionsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenanthostidentityresolutionproof>.
 <urn:usf:contractfacet:tenanthostidentityresolutionproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Runtime domain-identity matrix and custom-domain resolution proofs validate live local resolver behaviour across all host classes, demonstrated in source lineage via hermetic/runtime substrate validation. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Runtime domain-identity matrix and custom-domain resolution proofs validate live local resolver behaviour across all host classes, demonstrated in source lineage via hermetic/runtime substrate validation. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:tenanthostidentityresolutionsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenanthostidentityresolutionuisemantics>.
 <urn:usf:contractfacet:tenanthostidentityresolutionuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The tenanthostidentityresolution capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -3182,7 +3182,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "92fca4000814fa192c144a303a5d0f05f327bb678f19a10e3082f6f6d724b696";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/tenant-identity-record-and-fqdn.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:tenantidentityrecordandfqdn> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:tenantidentityrecordandfqdn> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontracttenantidentityrecordandfqdn>.
 <urn:usf:artefactplan:semanticcontracttenantidentityrecordandfqdn> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontracttenantidentityrecordandfqdn";
@@ -3226,7 +3226,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is invariant-ready once the resolver and domain registry are available, and degraded mode disables registry-dependent mutation while keeping read-only resolution and audit visible. Live proofs skip honestly when seeded local substrate is absent rather than faking tenant resolution.".
 <urn:usf:sourcesemanticbinding:tenantidentityrecordandfqdnsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenantidentityrecordandfqdnproof>.
 <urn:usf:contractfacet:tenantidentityrecordandfqdnproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "A runtime domain-identity matrix proof validates host classification plus live slug resolution, and a custom-domain resolution proof validates live registry resolution with rejection of inactive, pending, and disabled domains and a unique-enabled-domain guard. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "A runtime domain-identity matrix proof validates host classification plus live slug resolution, and a custom-domain resolution proof validates live registry resolution with rejection of inactive, pending, and disabled domains and a unique-enabled-domain guard. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:tenantidentityrecordandfqdnsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenantidentityrecordandfqdnuisemantics>.
 <urn:usf:contractfacet:tenantidentityrecordandfqdnuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The tenantidentityrecordandfqdn capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -3238,7 +3238,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "a3ea493f7f5c1553ba419811c8a40be4614f7efdc42e5fa7d999ebadaf4376ae";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/tenant-isolation-proof.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:tenantisolationproof> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:tenantisolationproof> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontracttenantisolationproof>.
 <urn:usf:artefactplan:semanticcontracttenantisolationproof> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontracttenantisolationproof";
@@ -3282,7 +3282,7 @@
     <urn:usf:ontology:facetStatement> "Isolation readiness is proven by live substrate checks for the resolver, row-level security, storage prefixes, and tenant-scoped provider probes, with an unavailable provider treated as degraded/unreachable rather than isolated. Readiness reflects proven isolation, not assumed isolation.".
 <urn:usf:sourcesemanticbinding:tenantisolationproofsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenantisolationproofproof>.
 <urn:usf:contractfacet:tenantisolationproofproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by domain-identity-matrix and tenant-storage isolation runtime proofs plus live row-level-security isolation checks across metering, search, observability, webhooks, events, and secret-store proofs. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by domain-identity-matrix and tenant-storage isolation runtime proofs plus live row-level-security isolation checks across metering, search, observability, webhooks, events, and secret-store proofs. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:tenantisolationproofsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenantisolationproofuisemantics>.
 <urn:usf:contractfacet:tenantisolationproofuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The tenantisolationproof capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -3294,7 +3294,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "b1843a581c640759622fd2081e5ffd162e87fc8b895ab50dc6a3d25ad333533f";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/tenant-lifecycle-provision-suspend-delete-export.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:tenantlifecycleprovisionsuspenddeleteexport> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:tenantlifecycleprovisionsuspenddeleteexport> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontracttenantlifecycleprovisionsuspenddeleteexport>.
 <urn:usf:artefactplan:semanticcontracttenantlifecycleprovisionsuspenddeleteexport> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontracttenantlifecycleprovisionsuspenddeleteexport";
@@ -3338,7 +3338,7 @@
     <urn:usf:ontology:facetStatement> "Runtime readiness is the tenant-lifecycle proof, which validates audit-first behaviour and the subsystem coordination order for suspend and delete. Readiness degrades explicitly when the lifecycle coordinator substrate is unavailable.".
 <urn:usf:sourcesemanticbinding:tenantlifecycleprovisionsuspenddeleteexportsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenantlifecycleprovisionsuspenddeleteexportproof>.
 <urn:usf:contractfacet:tenantlifecycleprovisionsuspenddeleteexportproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by tenant-lifecycle unit tests and a runtime proof asserting audit-first invocation and ordered subsystem coordination with export-before-delete. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by tenant-lifecycle unit tests and a runtime proof asserting audit-first invocation and ordered subsystem coordination with export-before-delete. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:tenantlifecycleprovisionsuspenddeleteexportsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenantlifecycleprovisionsuspenddeleteexportuisemantics>.
 <urn:usf:contractfacet:tenantlifecycleprovisionsuspenddeleteexportuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The tenantlifecycleprovisionsuspenddeleteexport capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -3350,7 +3350,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "4f509f24230d3a91447a58e6f2e107e8228cfda58a88258000004e4d5021f130";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/tenant-service-clickthrough-policy.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:tenantserviceclickthroughpolicy> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:tenantserviceclickthroughpolicy> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontracttenantserviceclickthroughpolicy>.
 <urn:usf:artefactplan:semanticcontracttenantserviceclickthroughpolicy> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontracttenantserviceclickthroughpolicy";
@@ -3394,7 +3394,7 @@
     <urn:usf:ontology:facetStatement> "Readiness reflects whether policy derivation and proxy reconciliation are healthy and degrades explicitly when the reconciler or substrate is unavailable, disabling reconciliation side-effects while keeping read-only readiness and audit visible. Emitted readiness, error, and audit signals use the controlled, OpenTelemetry-informed observability vocabulary.".
 <urn:usf:sourcesemanticbinding:tenantserviceclickthroughpolicysemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenantserviceclickthroughpolicyproof>.
 <urn:usf:contractfacet:tenantserviceclickthroughpolicyproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the cited service-clickthrough-policy and clickthrough runtime proofs plus service-clickthrough tests, demonstrating per-tenant access decisions and forward-auth/reconciliation derivation as hermetic/runtime lineage rather than a current-readiness claim. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by the cited service-clickthrough-policy and clickthrough runtime proofs plus service-clickthrough tests, demonstrating per-tenant access decisions and forward-auth/reconciliation derivation as hermetic/runtime lineage rather than a current-readiness claim. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:tenantserviceclickthroughpolicysemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:tenantserviceclickthroughpolicyuisemantics>.
 <urn:usf:contractfacet:tenantserviceclickthroughpolicyuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The tenantserviceclickthroughpolicy capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -3406,7 +3406,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "5094ed17eb904556dc914272604e91ce77e1c86a0b59b4d28ef6b0ced82fc58c";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/universal-service-foundation-scope-and-principles.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:universalservicefoundationscopeandprinciples> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:universalservicefoundationscopeandprinciples> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractuniversalservicefoundationscopeandprinciples>.
 <urn:usf:artefactplan:semanticcontractuniversalservicefoundationscopeandprinciples> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractuniversalservicefoundationscopeandprinciples";
@@ -3450,7 +3450,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is the aggregate honesty of the foundation: a capability is ready only when its V1-proven contract, migration lineage, and proof inventory are intact and the matrix/registry/validation checks pass. Readiness fails closed when evidence is missing, stale, or unknown, and degraded mode keeps read-only readiness and audit visible. Promotion is gated on re-running the foundation matrix, registry, and validation after any fix.".
 <urn:usf:sourcesemanticbinding:universalservicefoundationscopeandprinciplessemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:universalservicefoundationscopeandprinciplesproof>.
 <urn:usf:contractfacet:universalservicefoundationscopeandprinciplesproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Proof for this capability is the foundation matrix plus the registry and validation test that demonstrate the corpus is internally consistent and that each capability's claims are backed by evidence, not assertion. Historical demonstration is via that hermetic foundation tooling rather than live external runtime. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Proof for this capability is the foundation matrix plus the registry and validation test that demonstrate the corpus is internally consistent and that each capability's claims are backed by evidence, not assertion. Historical demonstration is via that hermetic foundation tooling rather than live external runtime. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:universalservicefoundationscopeandprinciplessemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:universalservicefoundationscopeandprinciplesuisemantics>.
 <urn:usf:contractfacet:universalservicefoundationscopeandprinciplesuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The universalservicefoundationscopeandprinciples capability is explicitly internal; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -3461,7 +3461,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "ce32b87876350de3ef487e1fa459c8fc33440ee3e5a304c0388e9f076b302e75";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/usage-metering-and-meter-event-ingestion.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:usagemeteringandmetereventingestion> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:usagemeteringandmetereventingestion> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractusagemeteringandmetereventingestion>.
 <urn:usf:artefactplan:semanticcontractusagemeteringandmetereventingestion> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractusagemeteringandmetereventingestion";
@@ -3505,7 +3505,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is proven against live relational storage covering idempotent insertion, the entitlement gate, aggregation, and row-level tenant isolation with no secret columns; route handlers and access-control metadata are validated separately. When the metering substrate is unavailable, mutation paths are disabled and readiness degrades explicitly.".
 <urn:usf:sourcesemanticbinding:usagemeteringandmetereventingestionsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:usagemeteringandmetereventingestionproof>.
 <urn:usf:contractfacet:usagemeteringandmetereventingestionproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by metering unit tests and runtime proofs validating live idempotency, the entitlement gate, aggregation, isolation, and route handlers. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by metering unit tests and runtime proofs validating live idempotency, the entitlement gate, aggregation, isolation, and route handlers. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:usagemeteringandmetereventingestionsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:usagemeteringandmetereventingestionuisemantics>.
 <urn:usf:contractfacet:usagemeteringandmetereventingestionuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The usagemeteringandmetereventingestion capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -3517,7 +3517,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "d5557cf281387e10179124c37cdae81c8f9dd3016e4880241109ba2f21ac5549";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/user-identity-and-tenant-membership.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:useridentityandtenantmembership> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:useridentityandtenantmembership> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractuseridentityandtenantmembership>.
 <urn:usf:artefactplan:semanticcontractuseridentityandtenantmembership> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractuseridentityandtenantmembership";
@@ -3561,7 +3561,7 @@
     <urn:usf:ontology:facetStatement> "Readiness is invariant-ready once tenant context and the identity store are available, with an admin-count readiness signal, and degraded mode disables store-dependent mutation while keeping read-only listing and audit visible. Pending-invitation queries always filter by organisation id.".
 <urn:usf:sourcesemanticbinding:useridentityandtenantmembershipsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:useridentityandtenantmembershipproof>.
 <urn:usf:contractfacet:useridentityandtenantmembershipproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Unit and substrate proofs cover the membership usecase and its v2 variant, the identity domain, the identity repository, and organisation profile and member route coverage, demonstrated in source lineage via hermetic state-machine and permission validation. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Unit and substrate proofs cover the membership usecase and its v2 variant, the identity domain, the identity repository, and organisation profile and member route coverage, demonstrated in source lineage via hermetic state-machine and permission validation. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:useridentityandtenantmembershipsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:useridentityandtenantmembershipuisemantics>.
 <urn:usf:contractfacet:useridentityandtenantmembershipuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The useridentityandtenantmembership capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -3573,7 +3573,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "069acc47b19841b7bd2e3c5cc1e8bf14165fc35df02fd59cdb2a62dd24ec73bc";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/webhooks-developer-facing.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:webhooksdeveloperfacing> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:webhooksdeveloperfacing> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractwebhooksdeveloperfacing>.
 <urn:usf:artefactplan:semanticcontractwebhooksdeveloperfacing> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractwebhooksdeveloperfacing";
@@ -3617,7 +3617,7 @@
     <urn:usf:ontology:facetStatement> "Readiness classifies no-subscriptions, configured, and has-dead-deliveries, while worker and redrive proofs validate pending/dead/delivered metrics against live relational storage. When the webhook adapter or delivery worker is unavailable, mutation/side-effect paths are disabled and read-only readiness and audit remain visible.".
 <urn:usf:sourcesemanticbinding:webhooksdeveloperfacingsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:webhooksdeveloperfacingproof>.
 <urn:usf:contractfacet:webhooksdeveloperfacingproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by webhook unit tests and runtime proofs validating signed test delivery, fan-out/retry/dead-letter, and dead-letter metrics with redrive against live storage and HTTP delivery. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by webhook unit tests and runtime proofs validating signed test delivery, fan-out/retry/dead-letter, and dead-letter metrics with redrive against live storage and HTTP delivery. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:webhooksdeveloperfacingsemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:webhooksdeveloperfacinguisemantics>.
 <urn:usf:contractfacet:webhooksdeveloperfacinguisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The webhooksdeveloperfacing capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -3629,7 +3629,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "9920a1641ce8a0c5c499324b785b37d62a560231a9c408e5da86f749a2a35588";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/workflow-engine-scheduled-jobs-approvals.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:workflowenginescheduledjobsapprovals> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:workflowenginescheduledjobsapprovals> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractworkflowenginescheduledjobsapprovals>.
 <urn:usf:artefactplan:semanticcontractworkflowenginescheduledjobsapprovals> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractworkflowenginescheduledjobsapprovals";
@@ -3673,7 +3673,7 @@
     <urn:usf:ontology:facetStatement> "Readiness combines hermetic in-memory or local workflow-closure validation, the Temporal provider adapter and its live proof, and a dedicated workflow readiness route; the live provider proof skips honestly when its endpoints are unavailable. Provider failure degrades readiness explicitly and never upgrades hermetic closure to a live-provider claim. Closure is level-3 hermetic state-machine validation; live provider validation is level-4 when the workflow-provider profile is available.".
 <urn:usf:sourcesemanticbinding:workflowenginescheduledjobsapprovalssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:workflowenginescheduledjobsapprovalsproof>.
 <urn:usf:contractfacet:workflowenginescheduledjobsapprovalsproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is grounded in workflow-closure, workflow-engine, approval-workflow, workflow-adapters, temporal-workflow-provider, and workflow-provider-live proofs, captured here as informational semantic lineage from the USF coverage record and equivalence audit with no source import and an open implementation language. The proof expectation is the lineage evidence, not a current USF readiness verdict. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is grounded in workflow-closure, workflow-engine, approval-workflow, workflow-adapters, temporal-workflow-provider, and workflow-provider-live proofs, captured here as informational semantic lineage from the USF coverage record and equivalence audit with no source import and an open implementation language. The proof expectation is the lineage evidence, not a current USF readiness verdict. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:workflowenginescheduledjobsapprovalssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:workflowenginescheduledjobsapprovalsuisemantics>.
 <urn:usf:contractfacet:workflowenginescheduledjobsapprovalsuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The workflowenginescheduledjobsapprovals capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".
@@ -3685,7 +3685,7 @@
     <urn:usf:ontology:sourceBindingContentDigest> "e95fddbb4f8e3f6d93d3868d02648c41ef2ae677146607e9eba60bb04a6a4f6f";
     <urn:usf:ontology:sourceBindingPath> "spec/instances/semantic-contract/write-only-secret-settings.json";
     <urn:usf:ontology:sourceBindingEquivalenceKind> <urn:usf:equivalencekind:structural>.
-<urn:usf:semanticcontract:writeonlysecretsettings> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:draft>.
+<urn:usf:semanticcontract:writeonlysecretsettings> <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active>.
 <urn:usf:repository:foundation> <urn:usf:ontology:hasArtefactPlan> <urn:usf:artefactplan:semanticcontractwriteonlysecretsettings>.
 <urn:usf:artefactplan:semanticcontractwriteonlysecretsettings> a <urn:usf:ontology:ArtefactPlan>;
     <urn:usf:ontology:canonicalName> "semanticcontractwriteonlysecretsettings";
@@ -3729,7 +3729,7 @@
     <urn:usf:ontology:facetStatement> "Readiness reports configured, missing, invalid, forbidden, unreachable, or provider-unavailable states without exposing any secret material, and provider-backed secret stores require live substrate validation to be considered ready. The capability degrades to an explicit not-ready classification rather than assuming availability.".
 <urn:usf:sourcesemanticbinding:writeonlysecretsettingssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:writeonlysecretsettingsproof>.
 <urn:usf:contractfacet:writeonlysecretsettingsproof> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:complete>;
-    <urn:usf:ontology:facetStatement> "Behaviour is exercised by unit proofs over token cryptography and audit-redaction plus runtime proofs of the secret-store contract and a provider-backed secret store against a live substrate, validating that only metadata is exposed and audited. Proof is hermetic/runtime lineage; fresh proof remains pending.".
+    <urn:usf:ontology:facetStatement> "Behaviour is exercised by unit proofs over token cryptography and audit-redaction plus runtime proofs of the secret-store contract and a provider-backed secret store against a live substrate, validating that only metadata is exposed and audited. Proof is hermetic/runtime lineage; current activation evidence is recorded by the contract proof result and remains subject to freshness and invalidation.".
 <urn:usf:sourcesemanticbinding:writeonlysecretsettingssemanticsource> <urn:usf:ontology:sourceBindingTarget> <urn:usf:contractfacet:writeonlysecretsettingsuisemantics>.
 <urn:usf:contractfacet:writeonlysecretsettingsuisemantics> <urn:usf:ontology:facetStatus> <urn:usf:facetstatus:notapplicable>;
     <urn:usf:ontology:facetStatement> "The writeonlysecretsettings capability is explicitly not exposed; no product or operator UI is authorised. Any UI requires a deliberate exposure amendment.".

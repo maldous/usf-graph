@@ -200,6 +200,6 @@ export function managedGraphs(manifest) {
 export function derivationRules(manifest) {
   return manifest.rules.filter((r) => r.kind === 'derivation');
 }
-export function integrityRule(manifest) {
-  return manifest.rules.find((r) => r.kind === 'integrity') || null;
+export function integrityRules(manifest) {
+  return manifest.rules.filter((r) => r.kind === 'integrity');
 }

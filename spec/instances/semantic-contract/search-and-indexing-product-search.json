@@ -1,0 +1,122 @@
+{
+  "id": "semantic-contract.search-and-indexing-product-search",
+  "title": "Search And Indexing Product Search Semantic Contract",
+  "description": "Source-backed draft semantic contract for the search and indexing product search capability, recovered from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage, not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Interface",
+    "Data Model"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facet descriptions are concise source-backed summaries citing verified manifest rows; proof is hermetic/stale, not current readiness. Enrich facet detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "search-and-indexing-product-search",
+  "capabilityDomain": "search",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Provides tenant product search backed by full-text indexing with a reindex path and a readiness probe, exposed through tenant search and admin search readiness and reindex operations; documents are indexed into a tenant-scoped relational full-text store and queried with permission gating. Indexed documents are kept in sync with their sources and can be rebuilt via reindex. The search engine is a full-text-search adapter behind a port, with alternative engines available as future provider adapters.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/search.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "Each indexed document carries a tenant/organisation id, document id, document type, title, a full-text search vector with an associated index, a URL, non-secret metadata, and an optional permission key, with uniqueness on tenant plus type plus document id. Readiness is reported as a full-text-search engine with status ready, degraded, or blocked. The index store is a tenant-scoped relational table under row-level security and excludes secret fields from indexed metadata.",
+      "sourceRefs": [
+        "apps/platform-api/src/db/migrations/026-search-documents.sql"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Search results are isolated by tenant under the canonical row-level-security predicate and further gated by an optional per-document permission key so a user only sees documents they are entitled to, never another tenant's documents. Admin readiness and reindex are operator-scoped privileged operations. Indexed metadata deliberately omits secret fields so the search surface cannot leak sensitive values.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/search.test.ts",
+        "apps/enterprise-app/src/features/admin-search/__tests__/AdminSearchPage.test.tsx"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The contract exposes a tenant search query plus admin search readiness and reindex, all mediated through the search repository/query port and full-text adapter. The query contract enforces tenant isolation and permission-key gating, and the index contract maintains the document shape (search vector, metadata without secrets, optional permission key) with its uniqueness constraint. Reindex rebuilds the tenant-scoped index from sources.",
+      "sourceRefs": [
+        "apps/platform-api/src/ports/search-repository.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Queries are validated and scoped to the tenant and, where present, the permission key, so unscoped or cross-tenant queries are rejected; indexing validates the document shape and uniqueness on tenant/type/document id. Readiness is validated by a probe reporting ready, degraded, or blocked. Missing or invalid configuration fails closed rather than returning unscoped results.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/search.test.ts",
+        "apps/enterprise-app/src/features/admin-search/__tests__/AdminSearchPage.test.tsx"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "The model is fail-closed: a query under one tenant context must return zero rows from another tenant, an unready engine reports degraded or blocked rather than serving stale or unscoped results, and provider failure returns a typed degraded or readiness error with mutation boundaries closed. The search surface never fabricates results or exposes secret metadata. Tenant data cannot be silently dropped or remapped.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/search.test.ts",
+        "apps/enterprise-app/src/features/admin-search/__tests__/AdminSearchPage.test.tsx"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Search and reindex operations preserve tenant context through route/use-case/provider spans, with typed error logs carrying the tenant/organisation identifier when tenant-scoped, and readiness transitions are observable as a signal. Indexed metadata excludes secrets so audit and logs do not surface sensitive content. Recovery must preserve tenant boundary and audit.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/search.test.ts",
+        "apps/enterprise-app/src/features/admin-search/__tests__/AdminSearchPage.test.tsx"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness is reported by the full-text engine probe as ready, degraded, or blocked, and is verified by isolation and route proofs; the capability degrades explicitly when the search adapter is unavailable, disabling index mutation while keeping read-only readiness and audit visible. Readiness being blocked, a failed search/search-isolation/search-routes proof during promotion, or a missing isolation or audit signal raise alerts and block promotion.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/search-isolation-runtime-proof.ts",
+        "apps/platform-api/scripts/search-routes-runtime-proof.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by the search, search-isolation, and search-routes proofs, including a cross-tenant isolation assertion that a foreign-tenant query returns zero rows. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/search-isolation-runtime-proof.ts",
+        "apps/platform-api/scripts/search-routes-runtime-proof.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "complete",
+      "description": "UI semantics recovered from cited UI source.",
+      "sourceRefs": [
+        "apps/enterprise-app/src/features/admin-logs/use-log-search.ts",
+        "apps/enterprise-app/src/features/admin-search/AdminSearchPage.tsx"
+      ]
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/scripts/search-isolation-runtime-proof.ts",
+    "apps/platform-api/scripts/search-routes-runtime-proof.ts",
+    "apps/platform-api/scripts/search-runtime-proof.ts",
+    "apps/platform-api/src/adapters/postgres-search-repository.ts",
+    "apps/platform-api/src/db/migrations/026-search-documents.sql",
+    "apps/platform-api/src/ports/search-repository.ts",
+    "apps/platform-api/src/usecases/search.ts",
+    "apps/platform-api/tests/unit/search.test.ts",
+    "apps/enterprise-app/src/features/admin-logs/use-log-search.ts",
+    "apps/enterprise-app/src/features/admin-search/AdminSearchPage.tsx",
+    "apps/enterprise-app/src/features/admin-search/__tests__/AdminSearchPage.test.tsx",
+    "apps/enterprise-app/src/features/admin-search/admin-search-client.ts"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

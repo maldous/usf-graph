@@ -1,0 +1,110 @@
+{
+  "id": "semantic-contract.api-keys-personal-access-tokens",
+  "title": "API Keys And Personal Access Tokens Semantic Contract",
+  "description": "Source-backed draft semantic contract for the api keys personal access tokens capability, derived from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage and not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Interface",
+    "Port",
+    "Adapter"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facets cite verified manifest source rows as lineage; proof is hermetic/stale and not current readiness. Do not treat as implementation authority or fresh proof; respect the hexagonal constraint in ADR 0005.",
+  "capability": "api-keys-personal-access-tokens",
+  "capabilityDomain": "identity-access",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "API key lifecycle is explicit: creation returns a plaintext secret exactly once, listing exposes metadata only, authentication validates a live non-revoked secret, and revocation sets a revoked timestamp after which authentication returns no actor. The plaintext secret is never persisted or re-shown.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/api-keys.ts",
+        "apps/platform-api/tests/unit/api-keys.test.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State is active versus revoked, with creation and last-used timestamps, an optional expiry, a revoked timestamp, a key prefix, scopes, and hash/salt storage fields. The plaintext secret is explicitly not part of persisted state.",
+      "sourceRefs": [
+        "apps/platform-api/src/ports/api-key-repository.ts",
+        "apps/platform-api/src/adapters/postgres-api-key-repository.ts",
+        "apps/platform-api/src/usecases/api-key-crypto.ts"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Tenant operations require tenant API-key read/write permissions and operator read requires the platform API-key read permission, and creation additionally requires an API-access entitlement that is deny-by-default. Tenant isolation prevents one tenant from listing another tenant's keys.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/api-keys.test.ts",
+        "apps/platform-api/src/usecases/api-keys.ts"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The operation surface lists, creates, and deletes tenant keys, reads developer context, and provides an operator read of a given tenant's keys. Creation returns the one-time secret; all other reads return metadata only.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/api-key-routes-runtime-proof.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Creation is rejected for tenants without the API-access entitlement, invalid key identifiers are rejected at the route, and garbage, wrong, hash-presented, or expired secrets never authenticate. Cross-tenant listing is prevented.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/api-keys.test.ts"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Usecase results include a not-entitled and an ok variant, invalid route identifiers return 400, and revoked or malformed secrets authenticate as no actor; provider failure returns a typed degraded result fail-closed. Authentication failures never leak whether a key existed.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/api-keys.test.ts"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Creation and revocation emit key-created and key-revoked audit-before-change events, and a failing audit aborts creation before the key is stored. Metadata reads are not audited as mutations.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/api-keys.test.ts"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness is always-on once the data substrate is migrated, and degraded mode disables store-dependent mutation while keeping read-only readiness and audit visible. Live proofs skip honestly when the substrate is unavailable and never fake-pass.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/api-keys-runtime-proof.ts",
+        "apps/platform-api/scripts/api-key-routes-runtime-proof.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "A unit proof covers key lifecycle and authentication, and runtime proofs validate the live repository, crypto, and row-level isolation plus live route-handler behaviour including entitlement gating, demonstrated in source lineage via hermetic/runtime validation. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/api-keys-runtime-proof.ts",
+        "apps/platform-api/scripts/api-key-routes-runtime-proof.ts",
+        "apps/platform-api/tests/unit/api-keys.test.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "No verified UI source path in the manifest yet; author the UI semantic model or import the UI source row before generation."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/src/usecases/api-keys.ts",
+    "apps/platform-api/src/usecases/api-key-crypto.ts"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

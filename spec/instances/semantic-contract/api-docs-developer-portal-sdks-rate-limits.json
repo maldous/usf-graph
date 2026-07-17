@@ -1,0 +1,107 @@
+{
+  "id": "semantic-contract.api-docs-developer-portal-sdks-rate-limits",
+  "title": "API Docs Developer Portal Sdks Rate Limits Semantic Contract",
+  "description": "Coverage-complete semantic contract for the api docs developer portal sdks rate limits capability. Semantic information captured as a USF coverage record via the coverage record and equivalence audit; no external source code is imported and the V2 implementation language is an open decision.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Coverage-complete draft grounded in semantic information (USF coverage record only; no source import; language open). Proof is hermetic/stale lineage, not current readiness. Enrich detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "api-docs-developer-portal-sdks-rate-limits",
+  "capabilityDomain": "developer-platform",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "The developer-platform lifecycle exposes the OpenAPI and GraphQL contracts, creates an API key with a reveal-once secret, lists redacted keys, authenticates requests, revokes keys, shows a developer portal summary, and evaluates configured rate limits. The portal is built from the source API contracts and surfaces SDK/docs material alongside rate-limit visibility, gated by contract-drift checks.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State includes API keys in active or revoked state with prefix, scopes, and created/revoked metadata and no plaintext secret, developer portal summaries, the OpenAPI route contract and GraphQL contract, and rate-limit policy plus per-window count and exceeded state. Only a key prefix and hash are retained, never the raw secret.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "The tenant developer portal requires a tenant developer-read permission; API key list/create/revoke require tenant API-key read/write permissions; operator key and rate-limit operations require platform-level permissions. API key creation is additionally gated by an API-access entitlement that is deny-by-default.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "Contracts include the OpenAPI document, the GraphQL schema/runtime, the developer portal read operation, tenant API-key list/create/delete operations, operator tenant API-key reads, and tenant/operator rate-limit operations. The OpenAPI document is the generated client/docs contract and is held to a drift gate.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Validation proves entitlement-gated key creation, the secret is returned exactly once, list and operator responses omit the secret/hash/salt, a valid secret authenticates while the stored hash cannot, a revoked key is denied, and route metadata matches declared scopes. OpenAPI drift failing the architecture gate is part of validation.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Missing tenant context fails with a client error, missing API-access entitlement returns not-entitled, a revoked or invalid key authenticates to null, an invalid tenant identifier fails the operator rate-limit operation, and OpenAPI drift fails the architecture gates. Errors fail closed and never leak the secret or hash.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "API key creation/revocation and rate-limit policy changes carry actor metadata and audit safe metadata before the change; secrets and hashes are never emitted into audit. Read-only portal/docs access is not a mutation audit.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "The developer portal is always-on once built from source contracts, while live relational and cache proofs classify provider availability for API keys and rate limits, with the cache provider degrading to relational counting. Provider unavailability degrades readiness rather than fabricating availability.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by API-key, API-key-route, and rate-limit runtime proofs plus OpenAPI drift and GraphQL runtime contract checks against live key/rate-limit substrate. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "not-applicable",
+      "description": "No distinct UI capability at the contract level (coverage matrix ui=0); UI is modelled separately and remains a future AI-customised deliverable."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

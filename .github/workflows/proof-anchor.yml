@@ -1,0 +1,64 @@
+name: proof-anchor
+
+# Proof-freshness anchor publication (ADR 0006 carrier, ADR 0007 CI signer).
+# On merge to the default branch this runs the hermetic proof harness against the
+# merge commit, verifies the deterministic anchor payload (invariants + trust root),
+# attests it with the repository CI identity (keyless, sigstore), verifies the
+# attestation, and publishes the anchor as an annotated tag on the merge commit.
+# It does not import source code, does not start USF-39, and makes no live-external
+# or production-live claim. See docs/runbooks/proof-anchor-publication.md.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: proof-anchor-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  publish-anchor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install validator dependency
+        run: pip install -r tools/validate-spec/requirements.txt
+      - name: Emit deterministic anchor payload for the merge commit
+        run: |
+          python3 tools/validate-bootstrap/validate-bootstrap.py proof-authentication-slice \
+            --emit-anchor-payload \
+            --signer "ci-github-actions:maldous/usf:proof-anchor" > anchor-payload.json
+          cat anchor-payload.json
+      - name: Verify anchor payload invariants and trust root
+        run: |
+          python3 tools/validate-spec/validate-spec.py anchor \
+            --anchor-file anchor-payload.json --head "${GITHUB_SHA}" --json
+      - name: Attest the anchor payload with the CI signer identity
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: anchor-payload.json
+      - name: Verify the attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh attestation verify anchor-payload.json --repo "${GITHUB_REPOSITORY}"
+      - name: Publish the anchor as an annotated tag on the merge commit
+        run: |
+          tag="proof-anchor-$(git rev-parse --short HEAD)"
+          if git ls-remote --tags origin "refs/tags/${tag}" | grep -q "${tag}"; then
+            echo "tag ${tag} already exists; skipping publish"
+          else
+            git config user.name "usf-ci"
+            git config user.email "ci@users.noreply.github.com"
+            git tag -a "${tag}" -F anchor-payload.json
+            git push origin "${tag}"
+          fi

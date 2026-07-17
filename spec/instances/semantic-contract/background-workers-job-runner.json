@@ -1,0 +1,108 @@
+{
+  "id": "semantic-contract.background-workers-job-runner",
+  "title": "Background Workers Job Runner Semantic Contract",
+  "description": "Coverage-complete semantic contract for the background workers job runner capability. Semantic information captured as a USF coverage record via the coverage record and equivalence audit; no external source code is imported and the V2 implementation language is an open decision.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Coverage-complete draft grounded in semantic information (USF coverage record only; no source import; language open). Proof is hermetic/stale lineage, not current readiness. Enrich detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "background-workers-job-runner",
+  "capabilityDomain": "compute-runtime",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "A worker emits a heartbeat to mark itself alive, claims a pending event from the event substrate, runs its registered handler, marks the event processed, idempotently skips events already processed, retries a failing handler, dead-letters the event once maxAttempts is reached, and exposes its liveness. The runner consumes the durable-queue records produced by the event bus and applies retry, dead-letter, and redrive-compatible semantics so deferred work executes exactly-effectively once. Provider failure degrades readiness and keeps mutation boundaries closed rather than processing unsafely.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State comprises workerId, workerKind, a heartbeat timestamp, liveness in alive|stale|stopped, the status of the claimed event, a retry count, and the dead-letter transition; the runner does not own tenant records and reads pending and dead-letter queues from the event-bus state model. Idempotency is anchored on the event's processed status so a re-delivered or reclaimed event is not processed twice. Liveness is derived from heartbeat age rather than stored as a separate authoritative flag.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "The only external surface, GET /api/admin/workers, is global and requires platform.workers.read; event processing itself is server-internal and is not callable by tenant UI. Workers therefore expose operational liveness to operators only and never offer direct tenant-triggered job execution. Tenant context on processed events is preserved through the event records the worker claims.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The external contract is GET /api/admin/workers, backed by an internal processNext handler registry and the JobRunnerPort with its PostgresJobAdapter; the event bus supplies the pending and dead-letter queues the runner consumes. Processing is expressed as claiming and completing event-bus records, so the worker contract composes with the event-bus contract rather than defining its own delivery semantics. The port seam keeps the job-execution provider swappable.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Worker processing only claims pending events, never reclaims an already-processed event, honours maxAttempts before dead-lettering, and records a heartbeat for the supplied worker id and kind. Idempotent skip of processed events is the core invariant that prevents duplicate side effects under retry or redelivery. These behaviours are exercised by the event-worker runtime proof.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Outcomes are deterministic and fail closed: a handler error becomes a retry or, at maxAttempts, a dead-letter; an unavailable Postgres substrate causes an honest proof skip or readiness failure; and stale or stopped workers are explicit liveness states rather than hidden errors. Degraded mode disables the processing paths that depend on the Postgres adapter while keeping read-only readiness visible, and no path fabricates a processed result.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Heartbeats are operational telemetry and are not audit events; the auditable actions in this domain (operator redrive and related operations) are emitted by the event capability rather than by the worker. This keeps the worker's high-frequency liveness signal out of the privileged-action audit trail while still leaving redrive and operator actions auditable upstream.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness is worker heartbeat liveness (alive|stale|stopped) together with the event-processing proof; a failure to claim, process, or dead-letter is a proof and readiness failure rather than a silent stall. Readiness degrades explicitly when the substrate is unavailable and never upgrades a production-shaped state to production-live. Liveness states are surfaced rather than masked so stale or stopped workers are visible to operators.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is grounded in the event-worker runtime proof, which validates live Postgres claim, process, idempotent skip, retry, dead-letter, and heartbeat (level-4 live substrate validation), captured here as informational semantic lineage from the USF coverage record and equivalence audit with no source import and an open implementation language. The proof expectation is the lineage evidence, not a current USF readiness verdict. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "not-applicable",
+      "description": "No distinct UI capability at the contract level (coverage matrix ui=0); UI is modelled separately and remains a future AI-customised deliverable."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md",
+    "docs/adr/0011-workflow-and-job-port-family.md"
+  ]
+}

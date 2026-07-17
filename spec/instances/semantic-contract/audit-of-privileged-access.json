@@ -1,0 +1,110 @@
+{
+  "id": "semantic-contract.audit-of-privileged-access",
+  "title": "Audit Of Privileged Access Semantic Contract",
+  "description": "Source-backed draft semantic contract for the audit of privileged access capability, derived from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage and not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Audit Event",
+    "Interface"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facets cite verified manifest source rows as lineage; proof is hermetic/stale and not current readiness. Do not treat as implementation authority or fresh proof; respect the hexagonal constraint in ADR 0005.",
+  "capability": "audit-of-privileged-access",
+  "capabilityDomain": "identity-access",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "The privileged-audit lifecycle is a read-only contextual query over durable audit rows: choose a logical resource, map it to the stored resource and per-context permission, query tenant-scoped audit events, redact secret metadata, and return a bounded result. It consumes the audit evidence produced by privileged operations such as support/break-glass access.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/audit.ts",
+        "apps/platform-api/tests/unit/audit.test.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State is an audit-event projection carrying id, action, actor id, resource, resource id, timestamp, and redacted metadata, where logical resources map to member, config, feature, and auth-settings contexts. The capability projects existing durable rows rather than owning new mutable state.",
+      "sourceRefs": [
+        "packages/audit-events/src/index.ts",
+        "apps/platform-api/src/usecases/audit.ts"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "The route requires a coarse tenant audit-read permission and the usecase additionally enforces a per-context permission such as member, config, feature, or auth-settings read. The tenant id comes from the resolved session, never from the client, preserving tenant isolation.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/audit.test.ts"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The operation surface is a single tenant-scoped audit query accepting resource, resource id, action, actor, from/to, and limit parameters. It returns a bounded, redacted projection.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/audit.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Unknown logical resources are invalid, a missing per-context permission is forbidden, the limit is clamped to a bounded range, and resource-id, action, actor, and date filters are optional. Invalid queries return no rows.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/audit.test.ts"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Typed outcomes are ok, forbidden, and invalid, mapped fail-closed to 200, 403, and 400; provider failure returns a typed degraded result. The query never returns cross-tenant or unauthorised rows.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/audit.test.ts"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "The capability reads existing audit events and is not itself a mutation audit, redacting secret-like metadata keys and not exposing client IP or user agent. It is the consumer side of the privileged-access audit dependency, failing closed when producer evidence is unavailable.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/audit.ts",
+        "packages/audit-events/tests/audit-events.test.ts"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness is invariant-ready for contextual audit reads, and degraded mode keeps read-only projection visible while disabling any dependent mutation. A broader live history proof validates read-only projection, source isolation, secret exclusion, pagination, and absence of mutation against the live data substrate.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/audit.test.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "A unit proof covers the contextual audit semantics and an adjacent runtime history proof validates live read-only audit/history projection, demonstrated in source lineage via hermetic/runtime validation. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/audit.test.ts",
+        "packages/audit-events/tests/audit-events.test.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "complete",
+      "description": "Audit panels with logical-resource, action, actor, and time filters, pagination, forbidden/invalid states, and redacted metadata.",
+      "sourceRefs": [
+        "apps/enterprise-app/src/features/admin/audit-client.ts",
+        "apps/enterprise-app/src/features/admin/use-audit.ts"
+      ]
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/src/usecases/audit.ts",
+    "packages/audit-events/src/index.ts"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

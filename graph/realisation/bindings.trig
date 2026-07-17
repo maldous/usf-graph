@@ -472,7 +472,7 @@
         usf:hasProviderMode pmode:composedreal .
     rz:semanticcontractabacpolicydecisionpoint a usf:Realisation ;
         usf:canonicalName "semanticcontractabacpolicydecisionpoint" ;
-        usf:realisationState rst:routerealised ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:abacpolicydecisionpoint ;
         usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilitytenant .
     rz:semanticcontractaccessibilitya11ygate a usf:Realisation ;
@@ -481,7 +481,7 @@
         usf:realisesContract sc:accessibilitya11ygate .
     rz:semanticcontractalertingincidentmanagementoncallstatuspage a usf:Realisation ;
         usf:canonicalName "semanticcontractalertingincidentmanagementoncallstatuspage" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:alertingincidentmanagementoncallstatuspage ;
         usf:viaService svc:alertmanager .
     rz:semanticcontractapidocsdeveloperportalsdksratelimits a usf:Realisation ;
@@ -490,27 +490,27 @@
         usf:realisesContract sc:apidocsdeveloperportalsdksratelimits .
     rz:semanticcontractapikeyspersonalaccesstokens a usf:Realisation ;
         usf:canonicalName "semanticcontractapikeyspersonalaccesstokens" ;
-        usf:realisationState rst:routerealised ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:apikeyspersonalaccesstokens ;
         usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilityauth .
     rz:semanticcontractauditofprivilegedaccess a usf:Realisation ;
         usf:canonicalName "semanticcontractauditofprivilegedaccess" ;
-        usf:realisationState rst:routerealised ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:auditofprivilegedaccess ;
         usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilityaudit .
     rz:semanticcontractauthenticationplatform a usf:Realisation ;
         usf:canonicalName "semanticcontractauthenticationplatform" ;
-        usf:realisationState rst:routerealised ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:authenticationplatform ;
         usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilityauth .
     rz:semanticcontractbackgroundworkersjobrunner a usf:Realisation ;
         usf:canonicalName "semanticcontractbackgroundworkersjobrunner" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:backgroundworkersjobrunner ;
         usf:realisingImplementation impl:foundationadapterwf , impl:foundationcapabilityjobs .
     rz:semanticcontractbackupandrestore a usf:Realisation ;
         usf:canonicalName "semanticcontractbackupandrestore" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:backupandrestore ;
         usf:realisingImplementation impl:foundationproof ;
         usf:viaService svc:pgbackrest .
@@ -528,7 +528,7 @@
         usf:realisesContract sc:buildversuscomposedecisionframework .
     rz:semanticcontractcodequalityandsecretanddependencyscanning a usf:Realisation ;
         usf:canonicalName "semanticcontractcodequalityandsecretanddependencyscanning" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:codequalityandsecretanddependencyscanning ;
         usf:realisingImplementation impl:foundationadapterassurance ;
         usf:viaService svc:sonarqube .
@@ -538,12 +538,12 @@
         usf:realisesContract sc:compliancereportsaccessreviewsevidencepacks .
     rz:semanticcontractcomposedproviderreadinessspine a usf:Realisation ;
         usf:canonicalName "semanticcontractcomposedproviderreadinessspine" ;
-        usf:realisationState rst:routerealised ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:composedproviderreadinessspine ;
         usf:realisingImplementation impl:foundationappapi .
     rz:semanticcontractconfigurationregistryandhistory a usf:Realisation ;
         usf:canonicalName "semanticcontractconfigurationregistryandhistory" ;
-        usf:realisationState rst:routerealised ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:configurationregistryandhistory ;
         usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilityconfig .
     rz:semanticcontractcustomdomainsdnsownershiptlscanonical a usf:Realisation ;
@@ -564,7 +564,7 @@
         usf:realisesContract sc:e2econfidenceladderstageaware .
     rz:semanticcontractenduserprofileandpreferencesselfservice a usf:Realisation ;
         usf:canonicalName "semanticcontractenduserprofileandpreferencesselfservice" ;
-        usf:realisationState rst:routerealised ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:enduserprofileandpreferencesselfservice ;
         usf:realisingImplementation impl:foundationappapi .
     rz:semanticcontractentitlementengine a usf:Realisation ;
@@ -581,7 +581,7 @@
         usf:realisesContract sc:environmentspecificvssharedservicemodel .
     rz:semanticcontracteventbusdurablequeuesdlqredrive a usf:Realisation ;
         usf:canonicalName "semanticcontracteventbusdurablequeuesdlqredrive" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:eventbusdurablequeuesdlqredrive ;
         usf:realisingImplementation impl:foundationadapterbus ;
         usf:viaService svc:nats .
@@ -591,49 +591,49 @@
         usf:realisesContract sc:historyreadmodelreadonlyprojection .
     rz:semanticcontracti18nruntimeandvalidation a usf:Realisation ;
         usf:canonicalName "semanticcontracti18nruntimeandvalidation" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:i18nruntimeandvalidation ;
         usf:realisingImplementation impl:foundationappsurface .
     rz:semanticcontractinternalservicecatalogandreadiness a usf:Realisation ;
         usf:canonicalName "semanticcontractinternalservicecatalogandreadiness" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:internalservicecatalogandreadiness ;
         usf:realisingImplementation impl:foundationcore .
     rz:semanticcontractlogsaggregationandtenantscopedsearch a usf:Realisation ;
         usf:canonicalName "semanticcontractlogsaggregationandtenantscopedsearch" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:logsaggregationandtenantscopedsearch ;
         usf:realisingImplementation impl:foundationadapterobs ;
         usf:viaService svc:loki .
     rz:semanticcontractmetricsandtraces a usf:Realisation ;
         usf:canonicalName "semanticcontractmetricsandtraces" ;
-        usf:realisationState rst:routerealised ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:metricsandtraces ;
         usf:realisingImplementation impl:foundationadapterobs , impl:foundationappapi .
     rz:semanticcontractmockprovidersdevtest a usf:Realisation ;
         usf:canonicalName "semanticcontractmockprovidersdevtest" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deferred ;
         usf:realisesContract sc:mockprovidersdevtest ;
         usf:viaService svc:localstack , svc:mockoidc , svc:wiremock .
     rz:semanticcontractnotificationdeliveryandpreferencesandchannels a usf:Realisation ;
         usf:canonicalName "semanticcontractnotificationdeliveryandpreferencesandchannels" ;
-        usf:realisationState rst:routerealised ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:notificationdeliveryandpreferencesandchannels ;
         usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilitynotify .
     rz:semanticcontractobjectstorageandtenantprefixesandsignedurls a usf:Realisation ;
         usf:canonicalName "semanticcontractobjectstorageandtenantprefixesandsignedurls" ;
-        usf:realisationState rst:routerealised ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:objectstorageandtenantprefixesandsignedurls ;
         usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilityfiles .
     rz:semanticcontractobservabilitybuiltinalertingandincidents a usf:Realisation ;
         usf:canonicalName "semanticcontractobservabilitybuiltinalertingandincidents" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:observabilitybuiltinalertingandincidents ;
         usf:realisingImplementation impl:foundationadapterobs ;
         usf:viaService svc:alertmanager , svc:grafana .
     rz:semanticcontractopenapidrifthardgate a usf:Realisation ;
         usf:canonicalName "semanticcontractopenapidrifthardgate" ;
-        usf:realisationState rst:routerealised ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:openapidrifthardgate ;
         usf:realisingImplementation impl:foundationappapi , impl:foundationopenapi .
     rz:semanticcontractpitrretentionlegalholddataresidency a usf:Realisation ;
@@ -646,12 +646,12 @@
         usf:realisesContract sc:productcatalogplansprices .
     rz:semanticcontractproviderconfigurationplane a usf:Realisation ;
         usf:canonicalName "semanticcontractproviderconfigurationplane" ;
-        usf:realisationState rst:routerealised ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:providerconfigurationplane ;
         usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilityconfig .
     rz:semanticcontractproviderenvironmentclassification a usf:Realisation ;
         usf:canonicalName "semanticcontractproviderenvironmentclassification" ;
-        usf:realisationState rst:routerealised ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:providerenvironmentclassification ;
         usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilityconfig .
     rz:semanticcontractquotaenforcement a usf:Realisation ;
@@ -664,29 +664,29 @@
         usf:realisesContract sc:ratelimitingapi .
     rz:semanticcontractrbacrolesandpermissions a usf:Realisation ;
         usf:canonicalName "semanticcontractrbacrolesandpermissions" ;
-        usf:realisationState rst:routerealised ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:rbacrolesandpermissions ;
         usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilitytenant .
     rz:semanticcontractrelationalstorageandmigrationsandrls a usf:Realisation ;
         usf:canonicalName "semanticcontractrelationalstorageandmigrationsandrls" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:relationalstorageandmigrationsandrls ;
         usf:realisingImplementation impl:foundationadapterdb ;
         usf:viaService svc:postgres .
     rz:semanticcontractruntimesecretsmanagement a usf:Realisation ;
         usf:canonicalName "semanticcontractruntimesecretsmanagement" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:runtimesecretsmanagement ;
         usf:realisingImplementation impl:foundationadaptersecrets ;
         usf:viaService svc:openbao .
     rz:semanticcontractscheduledjobsbuiltinontheeventsubstrate a usf:Realisation ;
         usf:canonicalName "semanticcontractscheduledjobsbuiltinontheeventsubstrate" ;
-        usf:realisationState rst:routerealised ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:scheduledjobsbuiltinontheeventsubstrate ;
         usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilityjobs .
     rz:semanticcontractsearchandindexingproductsearch a usf:Realisation ;
         usf:canonicalName "semanticcontractsearchandindexingproductsearch" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:searchandindexingproductsearch ;
         usf:realisingImplementation impl:foundationadaptersearch ;
         usf:viaService svc:meilisearch .
@@ -708,7 +708,7 @@
         usf:realisesContract sc:subscriptionsinvoicespaymentmethodsdunning .
     rz:semanticcontractsupportmodebreakglassaccess a usf:Realisation ;
         usf:canonicalName "semanticcontractsupportmodebreakglassaccess" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:supportmodebreakglassaccess ;
         usf:realisingImplementation impl:foundationcapabilitytenant .
     rz:semanticcontractsupportticketscustomerhealthannouncements a usf:Realisation ;
@@ -721,7 +721,7 @@
         usf:realisesContract sc:tenantcanonicaldomainsetunset .
     rz:semanticcontracttenantdataimportexport a usf:Realisation ;
         usf:canonicalName "semanticcontracttenantdataimportexport" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:tenantdataimportexport ;
         usf:realisingImplementation impl:foundationcapabilitybulk .
     rz:semanticcontracttenantdomainactivationauthclient a usf:Realisation ;
@@ -734,7 +734,7 @@
         usf:realisesContract sc:tenantgroups .
     rz:semanticcontracttenanthostidentityresolution a usf:Realisation ;
         usf:canonicalName "semanticcontracttenanthostidentityresolution" ;
-        usf:realisationState rst:routerealised ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:tenanthostidentityresolution ;
         usf:realisingImplementation impl:foundationappapi , impl:foundationcapabilitytenant .
     rz:semanticcontracttenantidentityrecordandfqdn a usf:Realisation ;
@@ -743,7 +743,7 @@
         usf:realisesContract sc:tenantidentityrecordandfqdn .
     rz:semanticcontracttenantisolationproof a usf:Realisation ;
         usf:canonicalName "semanticcontracttenantisolationproof" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:tenantisolationproof ;
         usf:realisingImplementation impl:foundationproof .
     rz:semanticcontracttenantlifecycleprovisionsuspenddeleteexport a usf:Realisation ;
@@ -760,13 +760,13 @@
         usf:realisesContract sc:universalservicefoundationscopeandprinciples .
     rz:semanticcontractusagemeteringandmetereventingestion a usf:Realisation ;
         usf:canonicalName "semanticcontractusagemeteringandmetereventingestion" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:usagemeteringandmetereventingestion ;
         usf:realisingImplementation impl:foundationadapterbus ;
         usf:viaService svc:clickhouse .
     rz:semanticcontractuseridentityandtenantmembership a usf:Realisation ;
         usf:canonicalName "semanticcontractuseridentityandtenantmembership" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:useridentityandtenantmembership ;
         usf:realisingImplementation impl:foundationadapteridp , impl:foundationcapabilitytenant ;
         usf:viaService svc:keycloak .
@@ -776,13 +776,13 @@
         usf:realisesContract sc:webhooksdeveloperfacing .
     rz:semanticcontractworkflowenginescheduledjobsapprovals a usf:Realisation ;
         usf:canonicalName "semanticcontractworkflowenginescheduledjobsapprovals" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:workflowenginescheduledjobsapprovals ;
         usf:realisingImplementation impl:foundationadapterwf ;
         usf:viaService svc:temporal .
     rz:semanticcontractwriteonlysecretsettings a usf:Realisation ;
         usf:canonicalName "semanticcontractwriteonlysecretsettings" ;
-        usf:realisationState rst:internal ;
+        usf:realisationState rst:deprecated ;
         usf:realisesContract sc:writeonlysecretsettings ;
         usf:realisingImplementation impl:foundationadaptersecrets .
 }

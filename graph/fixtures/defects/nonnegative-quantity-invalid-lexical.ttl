@@ -1,5 +1,5 @@
 @prefix usf: <urn:usf:ontology:> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-# expect: DatatypeConstraintComponent
+# expect-load: rejected
 <urn:usf:defect:quantityinvalidlexical> a usf:CensusObservationRun ;
     usf:observedRequiredPrerequisiteDependencyCount "not-a-number"^^xsd:integer .

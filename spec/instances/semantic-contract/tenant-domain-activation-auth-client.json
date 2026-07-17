@@ -1,0 +1,109 @@
+{
+  "id": "semantic-contract.tenant-domain-activation-auth-client",
+  "title": "Tenant Domain Activation Auth Client Semantic Contract",
+  "description": "Source-backed draft semantic contract for the tenant domain activation auth client capability, recovered from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage, not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Configuration",
+    "Interface"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facet descriptions are concise source-backed summaries citing verified manifest rows; proof is hermetic/stale, not current readiness. Enrich facet detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "tenant-domain-activation-auth-client",
+  "capabilityDomain": "configuration",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Auth-client activation transitions a domain from inactive to active only after ownership is verified, the activation audit is emitted, and the auth-client port successfully adds the redirect origin; deactivation transitions active back to inactive, removes the origin, and clears canonical and routing state. The external auth-client mutation is the final, gating step so the registry only reflects activation that actually took effect.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/tenant-domain-lifecycle.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State is the domain's auth-client status (inactive or active) together with an activation timestamp, the canonical flag, routing status, and a disabled guard. If the auth-client port throws during activation the active marker is never written, so registry state cannot drift ahead of the external configuration.",
+      "sourceRefs": [
+        "apps/platform-api/src/db/migrations/021-tenant-domains-registry.sql"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Activation and deactivation require the tenant-scoped domain-write permission, and the domain-only operation no longer requires the broader auth-settings write permission. Operations are tenant-isolated to the owning tenant's domains.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/tenant-domain-lifecycle.test.ts"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The contract surface is an activate operation and a corresponding deactivate operation backed by activate/deactivate auth-client use cases, mediated by the tenant-domain port and an auth-client adapter. The semantics are expressed against the port so activation is independent of the specific identity-provider implementation.",
+      "sourceRefs": [
+        "apps/platform-api/src/ports/tenant-domain-registry.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Activation refuses not-found, not-verified, and already-active before any audit or external mutation, and deactivation refuses not-found and not-active. These guards run ahead of side effects so an invalid request never reaches the auth-client port.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/tenant-domain-lifecycle.test.ts"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Outcomes are typed and fail-closed as ok, not-found, not-verified, already-active, or not-active; a thrown auth-client port error leaves the registry inactive because the active marker is only written after the port call succeeds. Error handling therefore preserves the invariant that registry state matches external state.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/tenant-domain-lifecycle.test.ts"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Activation and deactivation emit auth-client activated and deactivated audit events with safe, domain-only metadata before the auth-client port mutation. Audit precedes the external change, so the attempt is always recorded even if the provider call later fails.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/tenant-domain-lifecycle.test.ts"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "The capability is invariant-ready once ownership is verified and the auth-client mutation has succeeded, but activation explicitly does not imply routing or TLS readiness. Readiness is therefore scoped to the auth-client dimension and degrades to inactive when the external mutation cannot complete.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/tenant-domain-canonical-runtime-proof.ts",
+        "apps/platform-api/scripts/tenant-domain-claim-lifecycle-runtime-proof.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by unit proofs over the domain lifecycle guards and by a canonical-domain runtime proof that validates live registry behaviour with an injected auth-client port. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/tenant-domain-canonical-runtime-proof.ts",
+        "apps/platform-api/scripts/tenant-domain-claim-lifecycle-runtime-proof.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "No verified UI source path in the manifest yet; author the UI semantic model before generation."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/src/usecases/tenant-domain-lifecycle.ts",
+    "apps/platform-api/tests/unit/tenant-domain-lifecycle.test.ts",
+    "apps/platform-api/src/ports/tenant-domain-registry.ts",
+    "apps/platform-api/src/adapters/postgres-tenant-domain-registry.ts",
+    "apps/platform-api/src/db/migrations/021-tenant-domains-registry.sql",
+    "apps/platform-api/scripts/tenant-domain-canonical-runtime-proof.ts",
+    "apps/platform-api/scripts/tenant-domain-claim-lifecycle-runtime-proof.ts"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

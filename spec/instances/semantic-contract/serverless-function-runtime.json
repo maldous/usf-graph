@@ -1,0 +1,71 @@
+{
+  "id": "semantic-contract.serverless-function-runtime",
+  "title": "Serverless Function Runtime Semantic Contract",
+  "description": "Not-applicable-final semantic contract for serverless function runtime. Excluded from V2 implementation scope; retained as lineage. A later semantic decision is required to change applicability.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "deferred",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Do not implement or generate this target from historical source. It is recorded to preserve no-loss lineage and to make the exclusion validator-readable; a later accepted semantic decision is required to change applicability.",
+  "capability": "serverless-function-runtime",
+  "capabilityDomain": "compute-runtime",
+  "facets": {
+    "lifecycle": {
+      "status": "not-applicable",
+      "description": "Excluded as not-applicable-final (capability matrix); retained as lineage only, not an implementation extraction target."
+    },
+    "stateModel": {
+      "status": "not-applicable",
+      "description": "Excluded as not-applicable-final (capability matrix); retained as lineage only, not an implementation extraction target."
+    },
+    "permissions": {
+      "status": "not-applicable",
+      "description": "Excluded as not-applicable-final (capability matrix); retained as lineage only, not an implementation extraction target."
+    },
+    "contracts": {
+      "status": "not-applicable",
+      "description": "Excluded as not-applicable-final (capability matrix); retained as lineage only, not an implementation extraction target."
+    },
+    "validation": {
+      "status": "not-applicable",
+      "description": "Excluded as not-applicable-final (capability matrix); retained as lineage only, not an implementation extraction target."
+    },
+    "errorModel": {
+      "status": "not-applicable",
+      "description": "Excluded as not-applicable-final (capability matrix); retained as lineage only, not an implementation extraction target."
+    },
+    "auditModel": {
+      "status": "not-applicable",
+      "description": "Excluded as not-applicable-final (capability matrix); retained as lineage only, not an implementation extraction target."
+    },
+    "readinessModel": {
+      "status": "not-applicable",
+      "description": "Excluded as not-applicable-final (capability matrix); retained as lineage only, not an implementation extraction target."
+    },
+    "proof": {
+      "status": "not-applicable",
+      "description": "Excluded as not-applicable-final (capability matrix); retained as lineage only, not an implementation extraction target."
+    },
+    "uiSemanticDefinition": {
+      "status": "not-applicable",
+      "description": "Excluded as not-applicable-final (capability matrix); retained as lineage only, not an implementation extraction target."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "id": "semantic-contract.backup-and-restore",
+  "title": "Backup And Restore Semantic Contract",
+  "description": "Source-backed draft semantic contract for the backup and restore capability, recovered from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage, not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Data Model",
+    "Migration"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facet descriptions are concise source-backed summaries citing verified manifest rows; proof is hermetic/stale, not current readiness. Enrich facet detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "backup-and-restore",
+  "capabilityDomain": "data-platform",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Backup and restore are operational scripts, not an owned schema: backup dumps the canonical relational database and compresses it to an owner-only, version-control-ignored local artifact, while restore destructively overwrites a target database from such an archive. Scope is the canonical relational store only; rebuildable cache, the analytical mirror, and object storage have no platform backup script because they are not canonical state and recover via provider-native lifecycle. The capability owns no tenant records, so its backup scope is configuration and evidence and a restore cannot itself create tenant data.",
+      "sourceRefs": [
+        "scripts/backup/postgres-backup.sh",
+        "scripts/backup/postgres-restore.sh"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "There is no owned database schema; the durable artifact is the compressed dump file written with a restrictive umask and owner-only file permissions to a git-ignored local artifacts location. Restore consumes one such archive and replaces the target database wholesale. Recovery posture for non-canonical stores is explicit: cache is rebuildable, the analytical store is a mirror, and object data is provider-managed, so none participate in this script's state.",
+      "sourceRefs": [
+        "scripts/backup/postgres-backup.sh",
+        "scripts/backup/postgres-restore.sh"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Both operations are guarded environment-gated operator actions. Backup refuses to run outside development or test environments unless an explicit allow-environment override names the target, so a shared database is never quietly dumped. Restore refuses unless the environment is development or test AND a confirmation token matching the exact environment is supplied, making the destructive overwrite intentionally hard to trigger by accident.",
+      "sourceRefs": [
+        "scripts/backup/postgres-backup.sh",
+        "scripts/backup/postgres-restore.sh"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The contract is a pair of operations: produce a timestamped compressed dump of the canonical database, and restore a named compressed dump over a target database, each subject to its environment guard. Backup owns no tenant data and restore cannot fabricate tenant data; for higher environments disaster recovery uses a stage-equivalent managed snapshot rather than these local scripts. These scripts already encode the destructive-operation controls the platform requires and are intended to be reused unchanged.",
+      "sourceRefs": [
+        "scripts/backup/postgres-backup.sh",
+        "scripts/backup/postgres-restore.sh"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Backup validates the environment guard (refusing non-dev/test environments absent the explicit allow override) before dumping; restore validates both the dev/test environment constraint and the exact confirmation token before overwriting. The stage-level destructive-allowed and data-preservation settings from the environment registry further gate whether destructive operations may run at all in a given stage.",
+      "sourceRefs": [
+        "scripts/backup/postgres-backup.sh",
+        "scripts/backup/postgres-restore.sh"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "The operations fail closed: a missing or non-matching environment override or confirmation token aborts before any destructive action, and a script failure leaves the target database untouched rather than partially applied. There is no owned tenant data, so the dominant risk is semantic drift or configuration loss rather than tenant-row loss; provider (dump/restore tooling) failure surfaces a typed degraded or readiness failure without fabricating success.",
+      "sourceRefs": [
+        "scripts/backup/postgres-backup.sh",
+        "scripts/backup/postgres-restore.sh"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Backup artifacts are written with owner-only permissions to a controlled, git-ignored location so dumps are not inadvertently exposed or committed. Operator actions are environment-gated and explicit, leaving the override or confirmation token as the human-attributable signal that a destructive operation was deliberately authorised. Promotion and readiness proof logs record that the backup proof executed.",
+      "sourceRefs": [
+        "scripts/backup/postgres-backup.sh",
+        "scripts/backup/postgres-restore.sh"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness reflects whether the backup path can produce a valid artifact in the current environment under its guard; when the dump or restore tooling is unavailable the capability degrades, disabling the destructive path while keeping read-only readiness visible. Readiness being blocked, a failed backup proof during promotion, or repeated typed errors over threshold raise alerts. Restore is never part of normal readiness flow because it is destructive and confirmation-gated.",
+      "sourceRefs": [
+        "scripts/backup/postgres-backup.sh",
+        "scripts/backup/postgres-restore.sh"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by the local backup proof, which demonstrates the guarded dump path end to end against the canonical store. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "scripts/backup/postgres-backup.sh",
+        "scripts/backup/postgres-restore.sh"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "No verified UI source path in the manifest yet; author the UI semantic model before generation."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "scripts/backup/postgres-backup.sh",
+    "scripts/backup/postgres-restore.sh",
+    "apps/platform-api/scripts/backup-local-runtime-proof.ts"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

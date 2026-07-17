@@ -1,0 +1,107 @@
+{
+  "id": "semantic-contract.compliance-reports-access-reviews-evidence-packs",
+  "title": "Compliance Reports Access Reviews Evidence Packs Semantic Contract",
+  "description": "Coverage-complete semantic contract for the compliance reports access reviews evidence packs capability. Semantic information captured as a USF coverage record via the coverage record and equivalence audit; no external source code is imported and the V2 implementation language is an open decision.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Coverage-complete draft grounded in semantic information (USF coverage record only; no source import; language open). Proof is hermetic/stale lineage, not current readiness. Enrich detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "compliance-reports-access-reviews-evidence-packs",
+  "capabilityDomain": "security-governance",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "The compliance lifecycle collects tenant foundation signals, aggregates metrics, open incidents, legal holds, retention policies, and storage readiness, derives a ready boolean, stamps a generated-at time, and exposes the operator report route with an evidence export. The report is read-only and composed from live foundation sources rather than authored independently.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "State includes the organisation identifier, generated-at timestamp, metrics signals, open-incident count, legal-hold count, retention-policy count, storage readiness fields, and a ready boolean. Counts and readiness fields are computed from injected foundation sources at generation time.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "The report route is operator/admin-scoped through platform data/compliance permissions, and tenant data is selected explicitly by the authorised admin context. There is no tenant self-service access to the operator compliance report.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "The contract is the operator compliance-report read operation plus the report use case's input ports for metrics, incidents, legal holds, retention, and storage. The report aggregates these injected sources into a single deterministic document with an evidence export hook.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Validation proves counts are composed from injected foundation sources, storage configured/isolation fields contribute to readiness, the generated-at time is stamped, and the route operation/resource/permission are registered. The report does not invent policy values when a source is unavailable.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Missing or unhealthy source data makes the ready flag false or fails the route/use case rather than producing a falsely-ready report. The report fails closed on absent sources and does not fabricate compliance posture.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Report reads are not mutation audits; review and compliance-completion actions are audited by their owning workflows and source audit rows. The report composes existing audited signals rather than emitting new mutation audit.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness is assembled from live foundation signals and route registration, with the report's ready flag true only when the required source readiness values satisfy the use case. Composition is deterministic so the same inputs produce the same readiness verdict.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by a compliance-report composition runtime proof and an admin route-registration proof validating deterministic assembly from foundation sources. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "docs/architecture/capability-source-coverage-matrix.md",
+        "docs/architecture/foundation-completeness-audit.md"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "not-applicable",
+      "description": "No distinct UI capability at the contract level (coverage matrix ui=0); UI is modelled separately and remains a future AI-customised deliverable."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

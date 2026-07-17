@@ -1,5 +1,6 @@
 @prefix usf: <urn:usf:ontology:> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix admission: <urn:usf:evidenceadmissionstate:> .
 @prefix freshnessstate: <urn:usf:evidencefreshnessstate:> .
 @prefix integritystate: <urn:usf:evidenceintegritystate:> .
@@ -43,4 +44,12 @@ SELECT $this WHERE {
   }
 }""" ] .
 <urn:usf:shape:validationevidenceentry> a sh:NodeShape ; sh:targetClass usf:ValidationResult ; sh:property [ sh:path usf:entersEvidenceLifecycleAs ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ValidationEvidence ] .
+<urn:usf:shape:proofalgorithmsource> a sh:NodeShape ;
+  sh:targetClass usf:ProofAlgorithm ;
+  sh:property [ sh:path usf:proofAlgorithmSourcePath ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(?:graph/rules|tools/(?:proof|validation))/[A-Za-z0-9._/-]+$" ] ;
+  sh:property [ sh:path usf:proofAlgorithmSourceDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] .
+<urn:usf:shape:proofalgorithmversionidentity> a sh:NodeShape ;
+  sh:targetClass usf:ProofAlgorithmVersion ;
+  sh:property [ sh:path usf:proofAlgorithmVersionOf ; sh:minCount 1 ; sh:maxCount 1 ; sh:class usf:ProofAlgorithm ] ;
+  sh:property [ sh:path usf:proofAlgorithmVersionIdentifier ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9]+[.][0-9]+[.][0-9]+$" ] .
 <urn:usf:shape:forbiddenshortcuts> a sh:NodeShape ; sh:targetSubjectsOf usf:establishesSemanticTruth, usf:directlyActivatesContract, usf:directlyAdmitsEvidence, usf:directlyEstablishesProof ; sh:sparql [ sh:message "ADR, ticket, report and test authority inversions are forbidden." ; sh:select """PREFIX usf: <urn:usf:ontology:>\nPREFIX admission: <urn:usf:evidenceadmissionstate:>\nPREFIX freshnessstate: <urn:usf:evidencefreshnessstate:>\nPREFIX integritystate: <urn:usf:evidenceintegritystate:>\nPREFIX proofstate: <urn:usf:proofresultstate:>\nPREFIX contractstate: <urn:usf:contractactivationstate:>\nSELECT $this WHERE { {$this a usf:ADRRecord ; usf:establishesSemanticTruth ?x} UNION {$this a usf:Ticket ; usf:directlyActivatesContract ?x} UNION {$this a usf:Report ; usf:directlyAdmitsEvidence ?x} UNION {$this a usf:Test ; usf:directlyEstablishesProof ?x} }""" ] .

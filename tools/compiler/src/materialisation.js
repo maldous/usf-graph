@@ -5,11 +5,12 @@ import {
 } from 'node:fs';
 import { basename, dirname, relative, resolve, sep } from 'node:path';
 
-import { authorityWitness, bootstrapPacket, validContractRef } from './bootstrap.js';
+import { authorityWitness, validContractRef } from './bootstrap.js';
 
 const CONTRACT = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation';
 const ACTIVE = 'urn:usf:contractactivationstate:active';
 const SUCCESSFUL = 'urn:usf:proofresultstate:successful';
+const ACCEPTED = 'urn:usf:decisionstate:accepted';
 const MAX_PLAN_BYTES = 65_536;
 const MAX_OPERATIONS = 256;
 const MAX_PACKET_BYTES = 65_536;
@@ -52,6 +53,37 @@ function inside(root, relativePath) {
   return target;
 }
 
+function containedBy(root, target) {
+  const rel = relative(root, target);
+  return rel !== '' && rel !== '..' && !rel.startsWith(`..${sep}`);
+}
+
+function assertNoSymlinkSegments(root, target, label) {
+  if (!containedBy(root, target)) throw new Error(`${label} escapes configured root`);
+  let cursor = root;
+  for (const segment of relative(root, target).split(sep)) {
+    cursor = resolve(cursor, segment);
+    if (existsSync(cursor) && lstatSync(cursor).isSymbolicLink()) {
+      throw new Error(`${label} traverses a symbolic link`);
+    }
+  }
+}
+
+function rethrowWithRollback(primaryError, rollback) {
+  const rollbackErrors = [];
+  for (const undo of rollback.reverse()) {
+    try { undo(); } catch (error) { rollbackErrors.push(error); }
+  }
+  if (rollbackErrors.length) {
+    throw new AggregateError(
+      [primaryError, ...rollbackErrors],
+      'materialisation failed and rollback was not fully completed',
+      { cause: primaryError },
+    );
+  }
+  throw primaryError;
+}
+
 async function hashFile(path) {
   const hash = createHash('sha256');
   for await (const chunk of createReadStream(path)) hash.update(chunk);
@@ -87,19 +119,40 @@ export async function layoutContext(ctx, args = {}) {
   const [witness, contractRows, roleRows, ruleRows] = await Promise.all([
     authorityWitness(ctx.client),
     ctx.client.select(`SELECT ?canonicalName ?lifecycle ?activation ?proof ?proofState ?decision ?decisionState ?authorisedPath WHERE {
-      <${contract}> <urn:usf:ontology:canonicalName> ?canonicalName ; <urn:usf:ontology:semanticLifecycleState> ?lifecycle ; <urn:usf:ontology:hasActivationState> ?activation ; <urn:usf:ontology:reliesOnProofResult> ?proof .
-      ?proof <urn:usf:ontology:hasProofResultState> ?proofState .
+      <${contract}> <urn:usf:ontology:canonicalName> ?canonicalName .
+      OPTIONAL { <${contract}> <urn:usf:ontology:semanticLifecycleState> ?lifecycle }
+      OPTIONAL { <${contract}> <urn:usf:ontology:hasActivationState> ?activation }
+      OPTIONAL { <${contract}> <urn:usf:ontology:reliesOnProofResult> ?proof . ?proof <urn:usf:ontology:hasProofResultState> ?proofState . }
       OPTIONAL { ?realisation <urn:usf:ontology:realisesContract> <${contract}> ; <urn:usf:ontology:authorisedByDecision> ?decision . ?decision <urn:usf:ontology:decisionState> ?decisionState . OPTIONAL { ?decision <urn:usf:ontology:authorisesSourcePath> ?authorisedPath } }
     } ORDER BY ?authorisedPath LIMIT 256`),
     ctx.client.select('SELECT ?role ?canonicalName ?parent ?onDemand WHERE { ?role a <urn:usf:ontology:PathRole> ; <urn:usf:ontology:canonicalName> ?canonicalName ; <urn:usf:ontology:authorisedParentPath> ?parent ; <urn:usf:ontology:materialisesOnDemand> ?onDemand } ORDER BY ?canonicalName LIMIT 256'),
     ctx.client.select('SELECT ?family ?familyName ?storage ?pathRole ?format ?namingPattern WHERE { ?family a <urn:usf:ontology:ArtefactFamily> ; <urn:usf:ontology:canonicalName> ?familyName ; <urn:usf:ontology:usesMaterialisationRule> ?rule . ?rule <urn:usf:ontology:usesStorageClass> ?storage ; <urn:usf:ontology:usesRepresentationFormat> ?format ; <urn:usf:ontology:usesNamingRule> ?naming . ?naming <urn:usf:ontology:filenamePattern> ?namingPattern . OPTIONAL { ?rule <urn:usf:ontology:usesPathRole> ?pathRole } } ORDER BY ?familyName ?format LIMIT 256'),
   ]);
-  if (contractRows.length === 0) throw new Error('contract has no active proof trace');
+  if (contractRows.length === 0) throw new Error('contract does not exist in live authority');
   const head = contractRows[0];
-  const paths = [...new Set(contractRows.map((row) => value(row, 'authorisedPath')).filter(Boolean))].sort();
+  const decisions = new Map();
+  for (const row of contractRows) {
+    const id = value(row, 'decision');
+    if (!id) continue;
+    const state = value(row, 'decisionState');
+    const existing = decisions.get(id) || { id, state, authorisedPaths: new Set() };
+    if (existing.state !== state) throw new Error('realisation decision has inconsistent state');
+    const path = value(row, 'authorisedPath');
+    if (path) existing.authorisedPaths.add(path);
+    decisions.set(id, existing);
+  }
+  const acceptedDecisions = [...decisions.values()].filter((decision) => decision.state === ACCEPTED);
+  const acceptedDecision = acceptedDecisions.length === 1 ? acceptedDecisions[0] : null;
+  const paths = acceptedDecision ? [...acceptedDecision.authorisedPaths].sort() : [];
   return {
     schemaVersion: 1,
     authorityDigest: `sha256:${witness.digest}`,
+    authorityDigestAlgorithm: 'sha256-rdfc10-graph-inventory-v2',
+    authorityGraphInventory: witness.inventory.map((record) => ({
+      graph: record.graph,
+      sha256: `sha256:${record.sha256}`,
+      triples: record.triples,
+    })),
     contract: {
       id: contract,
       canonicalName: value(head, 'canonicalName'),
@@ -107,13 +160,19 @@ export async function layoutContext(ctx, args = {}) {
       activationState: value(head, 'activation'),
       proofResult: value(head, 'proof'),
       proofResultState: value(head, 'proofState'),
-      decision: value(head, 'decision'),
-      decisionState: value(head, 'decisionState'),
+      decision: acceptedDecision?.id ?? null,
+      decisionState: acceptedDecision?.state ?? null,
     },
+    realisationDecisionCount: decisions.size,
+    acceptedDecisionCount: acceptedDecisions.length,
     authorisedPaths: paths,
     pathRoles: roleRows.map((row) => ({ id: value(row, 'role'), canonicalName: value(row, 'canonicalName'), parent: value(row, 'parent'), onDemand: value(row, 'onDemand') === 'true' })),
     rules: ruleRows.map((row) => ({ family: value(row, 'family'), familyName: value(row, 'familyName'), storageClass: value(row, 'storage'), pathRole: value(row, 'pathRole'), representationFormat: value(row, 'format'), namingPattern: value(row, 'namingPattern') })),
   };
+}
+
+function decisionAuthorisesPath(path, authorisedPaths) {
+  return authorisedPaths.some((authorised) => authorised === '.' ? !path.includes('/') : path === authorised || path.startsWith(`${authorised}/`));
 }
 
 function validateOperation(operation, index, context) {
@@ -122,13 +181,17 @@ function validateOperation(operation, index, context) {
   if (!ACTIONS.has(operation?.action)) failures.push('operation-action');
   let path;
   try { path = safeRelativePath(operation?.path); } catch { failures.push('operation-path'); }
+  if (path && !decisionAuthorisesPath(path, context.authorisedPaths)) failures.push('operation-decision-path');
   const role = context.pathRoles.find((item) => item.id === operation?.pathRole);
   if (!role) failures.push('operation-path-role');
   if (path && role && role.parent !== '.' && path !== role.parent && !path.startsWith(`${role.parent}/`)) failures.push('operation-unauthorised-parent');
   if (path && role?.parent === '.' && path.includes('/')) failures.push('operation-root-descendant');
   if (operation?.sourceDigest !== undefined && !SHA256.test(operation.sourceDigest)) failures.push('operation-source-digest');
   if (operation?.action === 'move-path') {
-    try { safeRelativePath(operation.sourcePath, 'sourcePath'); } catch { failures.push('operation-move-source'); }
+    try {
+      const sourcePath = safeRelativePath(operation.sourcePath, 'sourcePath');
+      if (!decisionAuthorisesPath(sourcePath, context.authorisedPaths)) failures.push('operation-move-source-decision-path');
+    } catch { failures.push('operation-move-source'); }
     if (operation?.sourceDigest === undefined) failures.push('operation-source-digest');
   }
   if (operation?.action === 'delete-path' && operation?.sourceDigest === undefined) failures.push('operation-source-digest');
@@ -157,12 +220,13 @@ export async function validateLayoutPlan(ctx, plan) {
   if (plan?.schemaVersion !== 1) failures.push({ code: 'plan-schema-version' });
   if (plan?.authorityDigest !== context.authorityDigest) failures.push({ code: 'plan-authority-digest' });
   if (context.contract.activationState !== ACTIVE || context.contract.proofResultState !== SUCCESSFUL) failures.push({ code: 'plan-contract-not-active-proven' });
+  if (context.acceptedDecisionCount !== 1) failures.push({ code: 'plan-decision-not-uniquely-accepted' });
   if (!Array.isArray(plan?.operations) || plan.operations.length < 1 || plan.operations.length > MAX_OPERATIONS) failures.push({ code: 'plan-operation-bound' });
   else plan.operations.forEach((operation, index) => failures.push(...validateOperation(operation, index, context)));
   const unsigned = { ...plan };
   delete unsigned.planDigest;
   const expectedDigest = digest(jcs(unsigned));
-  if (plan?.planDigest && plan.planDigest !== expectedDigest) failures.push({ code: 'plan-digest' });
+  if (plan?.planDigest !== expectedDigest) failures.push({ code: 'plan-digest' });
   return { ok: failures.length === 0, authorityDigest: context.authorityDigest, expectedPlanDigest: expectedDigest, operationCount: plan?.operations?.length ?? 0, failures };
 }
 
@@ -189,6 +253,7 @@ export async function applyLayoutPlan(ctx, args = {}) {
   try {
     for (const operation of plan.operations) {
       const target = inside(root, operation.path);
+      assertNoSymlinkSegments(root, target, `materialisation target ${operation.path}`);
       if (operation.action === 'create-directory') {
         const existed = existsSync(target);
         mkdirSync(target, { recursive: true });
@@ -200,8 +265,12 @@ export async function applyLayoutPlan(ctx, args = {}) {
           const casRoot = realpathSync(ctx.casRoot);
           const hex = operation.contentDigest.slice(7);
           const located = resolve(casRoot, 'sha256', hex.slice(0, 2), hex);
-          if (relative(casRoot, located).startsWith('..') || !existsSync(located)) throw new Error(`plan content not found: ${operation.path}`);
-          if (statSync(located).size > MAX_TRACKED_WRITE_BYTES) throw new Error(`tracked write exceeds ${MAX_TRACKED_WRITE_BYTES} bytes: ${operation.path}`);
+          if (!containedBy(casRoot, located) || !existsSync(located)) throw new Error(`plan content not found: ${operation.path}`);
+          const locatedStat = lstatSync(located);
+          if (locatedStat.isSymbolicLink() || !locatedStat.isFile() || !containedBy(casRoot, realpathSync(located))) {
+            throw new Error(`plan content is not a regular CAS object: ${operation.path}`);
+          }
+          if (locatedStat.size > MAX_TRACKED_WRITE_BYTES) throw new Error(`tracked write exceeds ${MAX_TRACKED_WRITE_BYTES} bytes: ${operation.path}`);
           bytes = readFileSync(located);
           if (digest(bytes) !== operation.contentDigest) throw new Error(`plan content digest mismatch: ${operation.path}`);
         } else {
@@ -227,6 +296,7 @@ export async function applyLayoutPlan(ctx, args = {}) {
         });
       } else if (operation.action === 'move-path') {
         const source = inside(root, operation.sourcePath);
+        assertNoSymlinkSegments(root, source, `materialisation source ${operation.sourcePath}`);
         if (!existsSync(source)) {
           if (!existsSync(target) || sourceDigest(target) !== operation.sourceDigest) throw new Error(`move source missing: ${operation.sourcePath}`);
           results.push({ index: operation.index, action: operation.action, path: operation.path, state: 'already-applied' });
@@ -244,17 +314,20 @@ export async function applyLayoutPlan(ctx, args = {}) {
         }
         if (sourceDigest(target) !== operation.sourceDigest) throw new Error(`delete source digest mismatch: ${operation.path}`);
         const stat = lstatSync(target);
-        const prior = stat.isDirectory() ? null : readFileSync(target);
+        const priorType = stat.isDirectory() ? 'directory' : 'file';
+        const prior = priorType === 'directory' ? null : readFileSync(target);
+        const priorMode = stat.mode & 0o7777;
         if (stat.isDirectory()) rmdirSync(target); else unlinkSync(target);
-        rollback.push(() => { if (prior === null) mkdirSync(target); else writeFileSync(target, prior, { flag: 'wx' }); });
+        rollback.push(() => {
+          if (priorType === 'directory') mkdirSync(target, { mode: priorMode });
+          else writeFileSync(target, prior, { flag: 'wx', mode: priorMode });
+          chmodSync(target, priorMode);
+        });
       }
       results.push({ index: operation.index, action: operation.action, path: operation.path, state: 'applied' });
     }
   } catch (error) {
-    for (const undo of rollback.reverse()) {
-      try { undo(); } catch { /* preserve the primary failure; final proof exercises rollback */ }
-    }
-    throw error;
+    rethrowWithRollback(error, rollback);
   }
   return { applied: true, validation, operations: results };
 }
@@ -275,9 +348,12 @@ export async function verifyArtifact(ctx, args = {}) {
   const casRoot = realpathSync(ctx.casRoot);
   const hex = descriptor.digest.slice(7);
   const path = resolve(casRoot, 'sha256', hex.slice(0, 2), hex);
-  if (relative(casRoot, path).startsWith('..')) throw new Error('CAS path escaped configured root');
+  if (!containedBy(casRoot, path)) throw new Error('CAS path escaped configured root');
   if (!existsSync(path)) return { verified: false, descriptor, code: 'artifact-not-found' };
-  const stat = statSync(path);
+  const stat = lstatSync(path);
+  if (stat.isSymbolicLink() || !stat.isFile() || !containedBy(casRoot, realpathSync(path))) {
+    return { verified: false, descriptor, code: 'artifact-not-regular-file' };
+  }
   const observedDigest = await hashFile(path);
   const verified = stat.isFile() && stat.size === descriptor.byteSize && observedDigest === descriptor.digest;
   return { verified, descriptor, observed: { byteSize: stat.size, digest: observedDigest } };
@@ -285,20 +361,33 @@ export async function verifyArtifact(ctx, args = {}) {
 
 export async function projectContract(ctx, args = {}) {
   const contract = args.contract || CONTRACT;
-  const [bootstrap, context] = await Promise.all([bootstrapPacket(ctx, { contract }), layoutContext(ctx, { contract })]);
+  const context = await layoutContext(ctx, { contract });
+  const [assertions, requirements, obligations, validations] = await Promise.all([
+    ctx.client.select(`SELECT ?relation ?id WHERE { <${context.contract.id}> ?relation ?id . FILTER(?relation IN (<urn:usf:ontology:asserts>, <urn:usf:ontology:disclaims>)) } ORDER BY ?relation ?id LIMIT 256`),
+    ctx.client.select(`SELECT DISTINCT ?id WHERE { { ?id a <urn:usf:ontology:EvidenceRequirement> ; <urn:usf:ontology:obligationFor> <${context.contract.id}> } UNION { ?obligation <urn:usf:ontology:obligationFor> <${context.contract.id}> ; <urn:usf:ontology:requiresEvidence> ?id . ?id a <urn:usf:ontology:EvidenceRequirement> } } ORDER BY ?id LIMIT 256`),
+    ctx.client.select(`SELECT DISTINCT ?id WHERE { ?id a <urn:usf:ontology:ProofObligation> ; <urn:usf:ontology:obligationFor> <${context.contract.id}> } ORDER BY ?id LIMIT 256`),
+    ctx.client.select(`SELECT DISTINCT ?id WHERE { ?id a <urn:usf:ontology:ValidationObligation> ; <urn:usf:ontology:validationForContract> <${context.contract.id}> } ORDER BY ?id LIMIT 256`),
+  ]);
+  const after = await authorityWitness(ctx.client);
+  if (context.authorityDigest !== `sha256:${after.digest}`) throw new Error('live authority changed while building agent task packet');
+  const ids = (rows) => [...new Set(rows.map((row) => value(row, 'id')).filter(Boolean))].sort();
+  const validationIds = ids(validations);
+  const authorised = context.contract.activationState === ACTIVE
+    && context.contract.proofResultState === SUCCESSFUL
+    && context.acceptedDecisionCount === 1;
   const packet = {
     schemaVersion: 1,
-    semanticIdentifiers: [context.contract.id, context.contract.proofResult, context.contract.decision, ...bootstrap.validationObligations.map((item) => item.id)].filter(Boolean),
+    semanticIdentifiers: [context.contract.id, context.contract.proofResult, context.contract.decision, ...validationIds].filter(Boolean),
     authorityDigest: context.authorityDigest,
     contractState: { lifecycle: context.contract.lifecycleState, activation: context.contract.activationState, decision: context.contract.decisionState, proof: context.contract.proofResultState },
     objective: args.objective || `Realise and validate ${context.contract.canonicalName} from current semantic authority.`,
-    claims: bootstrap.claims.map((item) => item.id),
-    nonclaims: bootstrap.nonClaims.map((item) => item.id),
-    authorisedActions: [...ACTIONS],
-    authorisedPaths: context.authorisedPaths,
-    authorisedFormats: [...new Set(context.rules.map((item) => item.representationFormat))].sort(),
-    acceptanceObligations: [...bootstrap.evidenceRequirements, ...bootstrap.proofObligations].map((item) => item.id),
-    validationObligations: bootstrap.validationObligations.map((item) => item.id),
+    claims: ids(assertions.filter((row) => value(row, 'relation') === 'urn:usf:ontology:asserts')),
+    nonclaims: ids(assertions.filter((row) => value(row, 'relation') === 'urn:usf:ontology:disclaims')),
+    authorisedActions: authorised ? [...ACTIONS] : [],
+    authorisedPaths: authorised ? context.authorisedPaths : [],
+    authorisedFormats: authorised ? [...new Set(context.rules.map((item) => item.representationFormat))].sort() : [],
+    acceptanceObligations: [...new Set([...ids(requirements), ...ids(obligations)])].sort(),
+    validationObligations: validationIds,
     resultRequirements: ['return changed paths and their digests', 'return every validation result and stable result code', 'return explicit nonclaims and residual risk'],
     stopConditions: ['authority digest changed', 'contract or decision is not active', 'path, format, action, or storage class is not authorised', 'required evidence is missing, stale, invalid, or unknown', 'payload digest or signature verification fails'],
     bounds: { maximumSerializedBytes: MAX_PACKET_BYTES, maximumItems: MAX_PACKET_ITEMS },
@@ -331,3 +420,4 @@ export function refuseLifecycleMutation(operation) {
 }
 
 export const materialisationConstants = Object.freeze({ CONTRACT, MAX_PLAN_BYTES, MAX_OPERATIONS, MAX_PACKET_BYTES, MAX_PACKET_ITEMS, MAX_TRACKED_WRITE_BYTES });
+export const materialisationInternals = Object.freeze({ assertNoSymlinkSegments, containedBy, rethrowWithRollback });

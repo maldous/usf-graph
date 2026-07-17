@@ -134,7 +134,34 @@ function semanticContractSourceEquivalence(store, output, data, sourceRoot) {
   const binding = bindings[0];
   const sourcePath = literalValue(oneObject(store, binding, namedNode(`${USF}sourceBindingPath`)));
   const expectedDigest = literalValue(oneObject(store, binding, namedNode(`${USF}sourceBindingContentDigest`)));
-  const kinds = store.getObjects(binding, namedNode(`${USF}sourceBindingEquivalenceKind`), null).map((term) => term.value.split(':').at(-1)).sort();
+  const kinds = [...new Set(store.getObjects(binding, namedNode(`${USF}sourceBindingEquivalenceKind`), null).map((term) => term.value.split(':').at(-1)))].sort();
+  const rules = store.getObjects(binding, namedNode(`${USF}sourceBindingEquivalenceRule`), null);
+  if (rules.length !== 1) throw new CompilerError('semantic contract binding requires exactly one equivalence rule', {
+    phase: 'generate:equivalence', code: 'USF-SCG-002', binding: binding.value, observed: rules.length,
+  });
+  const rule = rules[0];
+  const ruleKinds = new Set(store.getObjects(rule, namedNode(`${USF}equivalenceRuleKind`), null).map((term) => term.value.split(':').at(-1)));
+  const compares = new Set(store.getObjects(rule, namedNode(`${USF}equivalenceRuleComparesPredicate`), null).map((term) => term.value));
+  const failureCodes = store.getObjects(rule, namedNode(`${USF}equivalenceRuleFailureCode`), null).map((term) => term.value);
+  const failureCode = failureCodes.length === 1 && /^[A-Z]+-[A-Z]+-[0-9]{3}$/.test(failureCodes[0]) ? failureCodes[0] : 'USF-SCG-006';
+  const configurationFailures = [];
+  if (failureCodes.length !== 1 || failureCode !== failureCodes[0]) configurationFailures.push({ field: 'equivalenceRuleFailureCode', expected: 'one stable failure code', observed: failureCodes });
+  const components = store.getObjects(rule, namedNode(`${USF}equivalenceRuleComponent`), null).map((term) => term.value);
+  if (components.length !== 1 || components[0] !== output.component) configurationFailures.push({ field: 'equivalenceRuleComponent', expected: output.component, observed: components });
+  const roles = store.getObjects(rule, namedNode(`${USF}equivalenceRuleInputRole`), null).map((term) => term.value);
+  if (roles.length !== 1 || roles[0] !== 'urn:usf:generationinputrole:equivalencesubject') configurationFailures.push({ field: 'equivalenceRuleInputRole', expected: 'urn:usf:generationinputrole:equivalencesubject', observed: roles });
+  const unsupportedKinds = kinds.filter((kind) => !ruleKinds.has(kind));
+  if (unsupportedKinds.length) configurationFailures.push({ field: 'equivalenceRuleKind', unsupported: unsupportedKinds });
+  const requiredPredicates = new Set([`${USF}canonicalName`, `${USF}declaresFacet`, `${USF}facetKind`]);
+  if (kinds.includes('semantic')) {
+    requiredPredicates.add(`${USF}facetStatus`);
+    requiredPredicates.add(`${USF}facetStatement`);
+  }
+  const missingPredicates = [...requiredPredicates].filter((predicate) => !compares.has(predicate)).sort();
+  if (missingPredicates.length) configurationFailures.push({ field: 'equivalenceRuleComparesPredicate', missing: missingPredicates });
+  if (configurationFailures.length) throw new CompilerError('semantic contract equivalence rule is incomplete or incompatible', {
+    phase: 'generate:equivalence', code: failureCode, binding: binding.value, rule: rule.value, failures: configurationFailures,
+  });
   const root = resolve(sourceRoot);
   const path = resolve(root, sourcePath ?? '');
   if (!sourcePath || (path !== root && !path.startsWith(`${root}/`))) throw new CompilerError('semantic contract equivalence path escapes the declared source root', {
@@ -154,26 +181,26 @@ function semanticContractSourceEquivalence(store, output, data, sourceRoot) {
     phase: 'generate:equivalence', code: 'USF-SCG-005', binding: binding.value, sourcePath, cause: error.message,
   }); }
   const failures = [];
-  if (canonical(source.capability ?? '') !== data.canonicalName) failures.push({ field: 'capability', expected: data.canonicalName, observed: source.capability });
-  if (source.lifecycleState !== data.lifecycleState) failures.push({ field: 'lifecycleState', expected: data.lifecycleState, observed: source.lifecycleState });
+  if (compares.has(`${USF}canonicalName`) && canonical(source.capability ?? '') !== data.canonicalName) failures.push({ field: 'capability', expected: data.canonicalName, observed: source.capability });
+  if (compares.has(`${USF}semanticLifecycleState`) && source.lifecycleState !== data.lifecycleState) failures.push({ field: 'lifecycleState', expected: data.lifecycleState, observed: source.lifecycleState });
   const sourceFacets = new Map(Object.entries(source.facets ?? {}).map(([kind, facet]) => [kind === 'uiSemanticDefinition' ? 'uisemantics' : canonical(kind), facet]));
   const outputFacets = new Map(data.facets.map((facet) => [facet.kind.split(':').at(-1), facet]));
-  if (sourceFacets.size !== 10 || outputFacets.size !== 10 || [...sourceFacets.keys()].some((kind) => !outputFacets.has(kind))) {
+  if (compares.has(`${USF}declaresFacet`) && compares.has(`${USF}facetKind`) &&
+      (sourceFacets.size !== 10 || outputFacets.size !== 10 || [...sourceFacets.keys()].some((kind) => !outputFacets.has(kind)))) {
     failures.push({ field: 'facets', expectedKinds: [...outputFacets.keys()].sort(), observedKinds: [...sourceFacets.keys()].sort() });
   }
   if (kinds.includes('semantic')) for (const [kind, sourceFacet] of sourceFacets) {
     const generated = outputFacets.get(kind);
     const statement = String(sourceFacet?.description ?? '').replace(/fresh USF proof pending USF-[0-9]+(?:\/USF-[0-9]+)*/gi, 'fresh proof remains pending').trim();
-    if (!generated || generated.status !== canonical(sourceFacet?.status ?? '') || generated.statement !== statement) {
-      failures.push({ field: `facets.${kind}`, expected: generated, observed: { status: sourceFacet?.status, statement } });
-    }
+    const statusMismatch = compares.has(`${USF}facetStatus`) && generated?.status !== canonical(sourceFacet?.status ?? '');
+    const statementMismatch = compares.has(`${USF}facetStatement`) && generated?.statement !== statement;
+    if (!generated || statusMismatch || statementMismatch) failures.push({ field: `facets.${kind}`, expected: generated, observed: { status: sourceFacet?.status, statement } });
   }
   if (!kinds.includes('structural') || failures.length) throw new CompilerError('semantic contract source equivalence failed', {
-    phase: 'generate:equivalence', code: 'USF-SCG-006', binding: binding.value, sourcePath, kinds, failures,
+    phase: 'generate:equivalence', code: failureCode, binding: binding.value, rule: rule.value, sourcePath, kinds, failures,
   });
   return { binding: binding.value, sourcePath, sourceSha256: observedDigest, kinds, structural: true, semantic: kinds.includes('semantic') };
 }
-
 function releaseAuthority(store, output) {
   const component = namedNode(output.component);
   const identities = store.getObjects(component, namedNode(`${USF}authorisedSigningIdentity`), null);

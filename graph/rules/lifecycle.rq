@@ -18,5 +18,6 @@ SELECT DISTINCT ?violation ?subject WHERE {
  {?subject a usf:ADRRecord ; usf:establishesSemanticTruth ?x . BIND("adrauthorityinversion" AS ?violation)} UNION
  {?subject a usf:Ticket ; usf:directlyActivatesContract ?x . BIND("ticketactivationinversion" AS ?violation)} UNION
  {?subject a usf:Report ; usf:directlyAdmitsEvidence ?x . BIND("reportadmissioninversion" AS ?violation)} UNION
- {?subject a usf:Test ; usf:directlyEstablishesProof ?x . BIND("testproofinversion" AS ?violation)}
+ {?subject a usf:Test ; usf:directlyEstablishesProof ?x . BIND("testproofinversion" AS ?violation)} UNION
+ {?subject a usf:ProofResult ; usf:confidenceBasis ?evidence . ?evidence usf:evidenceFromProofResult ?subject . BIND("circularproofevidence" AS ?violation)}
 }

@@ -1,0 +1,110 @@
+{
+  "id": "semantic-contract.tenant-service-clickthrough-policy",
+  "title": "Tenant Service Clickthrough Policy Semantic Contract",
+  "description": "Source-backed draft semantic contract for the tenant service clickthrough policy capability, recovered from historical source-lineage evidence as lineage. Facets cite verified source-import manifest rows; proof is hermetic/runtime lineage, not fresh USF proof.",
+  "authorityLevel": "semantic-definition",
+  "lifecycleState": "draft",
+  "ontologyConcepts": [
+    "Semantic Contract",
+    "Capability",
+    "Observability Signal",
+    "Interface"
+  ],
+  "taxonomyRefs": [
+    "semantic-architecture-classification"
+  ],
+  "vocabularyRefs": [
+    "authority-levels",
+    "lifecycle-states",
+    "capability-domains"
+  ],
+  "aiGuidance": "Source-backed draft. Facet descriptions are concise source-backed summaries citing verified manifest rows; proof is hermetic/stale, not current readiness. Enrich facet detail and publish fresh proof before generation; respect the hexagonal constraint in ADR 0005.",
+  "capability": "tenant-service-clickthrough-policy",
+  "capabilityDomain": "observability-ops",
+  "facets": {
+    "lifecycle": {
+      "status": "complete",
+      "description": "Decides, per tenant and per service, whether a user may click through to an internal/composed service and derives the forward-auth allow sets plus the reverse-proxy (Caddyfile) reconciliation that enforce that decision at the edge. The capability is provider- and database-backed and owns tenant-affecting access policy, so its lifecycle/readiness model must be preserved and reconciliation kept consistent with the policy.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/service-clickthrough.ts",
+        "apps/platform-api/src/usecases/clickthrough-services.ts"
+      ]
+    },
+    "stateModel": {
+      "status": "complete",
+      "description": "Persisted state includes per-service descriptors (id, resource, apex path, tenant path, classification), a landing path, a dev-only flag, and the system-admin and tenant-admin resource sets, from which an access decision (granted plus reason) and a clickthrough URL are derived. State evolves through ordered, forward-only migrations that preserve the proven policy/decision model and cannot silently drop or remap tenant access rules.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/service-clickthrough.ts",
+        "apps/platform-api/src/usecases/clickthrough-services.ts"
+      ]
+    },
+    "permissions": {
+      "status": "complete",
+      "description": "Clickthrough decisions are the permission model: access is computed from system-admin and tenant-admin resource sets and the service classification, and the resulting forward-auth sets gate edge access per tenant. This is a security-sensitive surface where permission, audit, and fail-closed behaviour must be preserved; a service not explicitly granted is denied, and dev-only services are excluded outside the appropriate context.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/service-clickthrough.test.ts"
+      ]
+    },
+    "contracts": {
+      "status": "complete",
+      "description": "Exposes an access-decision operation that returns granted/denied with a reason and a clickthrough URL, behind ports/adapters so the reverse-proxy reconciler is swappable without changing the policy contract. The derived forward-auth sets and reconciled proxy configuration are the contract's side effects, kept deterministic so the edge enforcement always matches the computed policy.",
+      "sourceRefs": [
+        "apps/platform-api/src/usecases/service-clickthrough.ts",
+        "apps/platform-api/src/usecases/clickthrough-services.ts"
+      ]
+    },
+    "validation": {
+      "status": "complete",
+      "description": "Service descriptors, classification, and resource-set membership are validated before a decision is derived, and missing or invalid configuration fails closed rather than granting access by default. The dev-only flag and tenant/path bindings are checked so a malformed or out-of-context request cannot produce an over-broad clickthrough URL.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/service-clickthrough.test.ts"
+      ]
+    },
+    "errorModel": {
+      "status": "complete",
+      "description": "Provider or reconciler failure returns a typed degraded/readiness failure and keeps mutation boundaries closed, never fabricating a granted decision or a successful reconciliation. Because access is tenant-affecting, a denied or indeterminate decision defaults to no access, and tenant data/policy loss is possible only if migration/restore semantics are bypassed.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/service-clickthrough.test.ts"
+      ]
+    },
+    "auditModel": {
+      "status": "complete",
+      "description": "Access decisions and policy/reconciliation changes are recorded as auditable events before edge configuration is applied, preserving tenant boundary, the decision reason, and DSR/GDPR evidence. A missing tenant-isolation or audit signal on a clickthrough decision is an explicit alert condition.",
+      "sourceRefs": [
+        "apps/platform-api/tests/unit/service-clickthrough.test.ts"
+      ]
+    },
+    "readinessModel": {
+      "status": "complete",
+      "description": "Readiness reflects whether policy derivation and proxy reconciliation are healthy and degrades explicitly when the reconciler or substrate is unavailable, disabling reconciliation side-effects while keeping read-only readiness and audit visible. Emitted readiness, error, and audit signals use the controlled, OpenTelemetry-informed observability vocabulary.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/service-clickthrough-policy-runtime-proof.ts",
+        "apps/platform-api/scripts/clickthrough-services-runtime-proof.ts"
+      ]
+    },
+    "proof": {
+      "status": "complete",
+      "description": "Behaviour is exercised by the cited service-clickthrough-policy and clickthrough runtime proofs plus service-clickthrough tests, demonstrating per-tenant access decisions and forward-auth/reconciliation derivation as hermetic/runtime lineage rather than a current-readiness claim. Proof is hermetic/runtime lineage; fresh USF proof pending USF-101/USF-59.",
+      "sourceRefs": [
+        "apps/platform-api/scripts/service-clickthrough-policy-runtime-proof.ts",
+        "apps/platform-api/scripts/clickthrough-services-runtime-proof.ts"
+      ]
+    },
+    "uiSemanticDefinition": {
+      "status": "gap",
+      "description": "No verified UI source path in the manifest yet; author the UI semantic model before generation."
+    }
+  },
+  "sourceRefs": [
+    "docs/architecture/capability-source-coverage-matrix.md",
+    "docs/architecture/foundation-completeness-audit.md",
+    "apps/platform-api/scripts/service-clickthrough-policy-runtime-proof.ts",
+    "apps/platform-api/scripts/clickthrough-services-runtime-proof.ts",
+    "apps/platform-api/src/usecases/service-clickthrough.ts",
+    "apps/platform-api/src/usecases/clickthrough-services.ts",
+    "apps/platform-api/tests/unit/service-clickthrough.test.ts"
+  ],
+  "adrRefs": [
+    "docs/adr/0005-hexagonal-architecture.md"
+  ]
+}

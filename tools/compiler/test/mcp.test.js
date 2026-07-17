@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { classifySparql } from '../src/sparql-guard.js';
 import { makeRedactor, callTool, cappedSelect, TOOLS } from '../src/mcp.js';
-import { BOOTSTRAP_TRACE, MAX_BOOTSTRAP_BINDINGS, MAX_BOOTSTRAP_BYTES, MAX_BOOTSTRAP_DEPTH, validContractRef, authorityDigest, bootstrapPacket } from '../src/bootstrap.js';
+import { BOOTSTRAP_TRACE, MAX_BOOTSTRAP_BINDINGS, MAX_BOOTSTRAP_BYTES, MAX_BOOTSTRAP_DEPTH, validContractRef, authorityDigest, authorityWitness, bootstrapPacket } from '../src/bootstrap.js';
 
 test('read-only query forms are accepted', () => {
   assert.equal(classifySparql('SELECT ?s WHERE { ?s ?p ?o }').form, 'SELECT');
@@ -124,17 +124,34 @@ test('contract references are validated (blocks SPARQL injection)', () => {
 });
 
 test('authority digest is deterministic and order-independent', () => {
-  const a = authorityDigest([{ graph: 'g:a', triples: 1 }, { graph: 'g:b', triples: 2 }], 3);
-  const b = authorityDigest([{ graph: 'g:b', triples: 2 }, { graph: 'g:a', triples: 1 }], 3);
+  const a = authorityDigest([{ graph: 'g:a', sha256: 'a', triples: 1 }, { graph: 'g:b', sha256: 'b', triples: 2 }], 3);
+  const b = authorityDigest([{ graph: 'g:b', sha256: 'b', triples: 2 }, { graph: 'g:a', sha256: 'a', triples: 1 }], 3);
   assert.equal(a, b);
-  assert.notEqual(a, authorityDigest([{ graph: 'g:a', triples: 9 }], 9));
+  assert.notEqual(a, authorityDigest([{ graph: 'g:a', sha256: 'a', triples: 9 }], 9));
+  assert.notEqual(a, authorityDigest([{ graph: 'g:a', sha256: 'changed', triples: 1 }, { graph: 'g:b', sha256: 'b', triples: 2 }], 3));
+});
+
+test('authority witness changes after an equal-cardinality semantic substitution', async () => {
+  let object = 'first';
+  const client = {
+    size: async () => 1,
+    select: async () => [{ g: { value: 'urn:g' } }],
+    construct: async () => `<urn:s> <urn:p> "${object}" .\n`,
+  };
+  const first = await authorityWitness(client);
+  object = 'second';
+  const second = await authorityWitness(client);
+  assert.equal(first.triples, second.triples);
+  assert.equal(first.inventory[0].triples, second.inventory[0].triples);
+  assert.notEqual(first.digest, second.digest);
 });
 
 test('bootstrap contract packet assembles the traceability chain', async () => {
   const client = {
     size: async () => 3,
+    construct: async () => '<urn:s> <urn:p> "first" .\n',
     select: async (q) => {
-      if (q.includes('COUNT(*) AS ?triples')) return [{ g: { value: 'urn:g' }, triples: { value: '3' } }];
+      if (q.includes('SELECT DISTINCT ?g')) return [{ g: { value: 'urn:g' } }];
       if (q.includes('SELECT ?c ?cn')) return [{ c: { value: 'urn:usf:contract:x' }, cn: { value: 'x' }, state: { value: 'urn:usf:contractactivationstate:active' } }];
       if (q.includes('?relation ?id')) return [
         { relation: { value: 'urn:usf:ontology:asserts' }, id: { value: 'urn:usf:claim:c1' }, canonicalName: { value: 'c1' } },
@@ -175,8 +192,9 @@ test('bootstrap continuation is deterministic and invalidates after digest chang
   const claims = Array.from({ length: 80 }, (_, index) => ({ relation: { value: 'urn:usf:ontology:asserts' }, id: { value: `urn:usf:claim:c${index}` }, canonicalName: { value: `c${index}` } }));
   const client = {
     size: async () => triples,
+    construct: async () => `<urn:s> <urn:p> "${triples}" .\n`,
     select: async (q) => {
-      if (q.includes('COUNT(*) AS ?triples')) return [{ g: { value: 'urn:g' }, triples: { value: String(triples) } }];
+      if (q.includes('SELECT DISTINCT ?g')) return [{ g: { value: 'urn:g' } }];
       if (q.includes('SELECT ?c ?cn')) return [{ c: { value: 'urn:usf:contract:x' }, cn: { value: 'x' }, state: { value: 'urn:usf:contractactivationstate:active' } }];
       if (q.includes('?relation ?id')) return claims;
       return [];
