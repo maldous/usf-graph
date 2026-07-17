@@ -1,27 +1,29 @@
-# GOAL.md — Complete Initial USF Realisation Programme
+# GOAL.md — Complete Executable USF Suite Delivery Programme
 
 ## 1. Purpose
 
-This file directs a long-running, restartable and predominantly unattended programme to deliver the first complete realisation and integrated evaluation of the Universal Service Foundation suite.
+This file directs a long-running, restartable and predominantly unattended programme to deliver a complete, executable, repository-local realisation of the Universal Service Foundation suite.
 
-The programme must continue until every semantic item within the live USF scope has a defensible terminal classification and every in-scope actionable contract has been modelled, evidenced, proved, activated where warranted, realised, validated and re-evaluated against live semantic authority.
+The programme is not complete when it has only produced semantic contracts, JSON specifications, graph resources, generated packets, reports, reference-kernel demonstrations, adapters that do not execute the required behaviour, or references to code in another repository.
 
-This file is an authored agent directive. It is not semantic authority. It cannot activate a contract, authorise a path, establish evidence, prove a claim, select a realisation or declare readiness. Validated live semantic state remains authoritative.
+Completion requires a standalone clone of `maldous/usf-graph` to contain all source code, configuration, migrations, seeds, Compose definitions, test assets, proof assets and operational scripts necessary to build and run the complete in-scope suite in development, test and staging modes without access to the original or parent repository.
 
-The required lifecycle is:
+The required lifecycle remains strictly semantic-first:
 
 ```text
 Model
   → Evidence
   → Proof
   → Contract
-  → Realisation
+  → Realisation decision
+  → Repository-local implementation
+  → Environment deployment
   → Validation
   → newly admitted Evidence
   → re-evaluated Proof and Contract state
 ```
 
-The programme is not complete merely because code exists, tests pass, a report says ready, a ticket is closed, or an earlier implementation appears suitable.
+Semantics establish what must be true. Executable repository content must then fulfil it.
 
 ## 2. Terminal outcomes
 
@@ -32,13 +34,38 @@ USF_INITIAL_SUITE_REALISATION_COMPLETE
 USF_INITIAL_SUITE_REALISATION_BLOCKED_IRRECOVERABLY
 ```
 
-`USF_INITIAL_SUITE_REALISATION_COMPLETE` is permitted only when every completion gate in this file passes.
+`USF_INITIAL_SUITE_REALISATION_COMPLETE` is permitted only when every completion gate in this file passes for the executable dev/test/staging delivery.
 
-`USF_INITIAL_SUITE_REALISATION_BLOCKED_IRRECOVERABLY` is permitted only when further progress requires an unavailable credential, explicit human/legal acceptance, paid or irreversible external action not already authorised, inaccessible mandatory external evidence, an unexplained authority conflict, or an infrastructure limit that cannot be removed through an authorised self-healing or authority-migration path.
+`USF_INITIAL_SUITE_REALISATION_BLOCKED_IRRECOVERABLY` is permitted only when further progress requires an unavailable credential, explicit human or legal acceptance, a paid or irreversible external action not already authorised, inaccessible mandatory external evidence, an unexplained authority conflict, or an infrastructure limit that cannot be removed through an authorised self-healing or authority-migration path.
 
-Routine ambiguity, test failures, missing code, incomplete semantics, missing evidence collectors, proof failures, Stardog query failures, transaction rollback, stale evidence, missing Linear issues, or architectural decisions are not irrecoverable blockers. Resolve them and continue.
+Routine ambiguity, missing code, missing Compose services, incomplete semantics, test failures, proof failures, stale evidence, missing collectors, Stardog failures, transaction rollback, dependency conflicts, architectural decisions, absent Linear issues, performance defects or incomplete environments are not irrecoverable blockers. Resolve them and continue.
 
-## 3. Instruction precedence and authority
+## 3. Prior completion is reopened
+
+Any earlier `USF_INITIAL_SUITE_REALISATION_COMPLETE` verdict predating this directive is not sufficient for this programme.
+
+The previous programme state may be reused only as verified input. Reopen every contract whose claimed realisation is any of:
+
+```text
+specification-only
+JSON-only
+RDF-only
+generated-packet-only
+reference-kernel-only
+placeholder or stub
+legacy-source reference
+parent-repository reference
+external local-path reference
+missing implementation path
+unexecuted adapter
+unverified package or service binding
+```
+
+A prior zero-row `usf_work_plan`, completed checkpoint, successful proof, active contract, accepted decision or clean Git state does not prevent reopening when the executable-delivery requirements are not met.
+
+Preserve valid semantic, evidence, proof and implementation work. Do not redo work whose content, authority binding, repository locality and validation remain current.
+
+## 4. Instruction precedence and authority
 
 Read and obey, in this order:
 
@@ -48,24 +75,24 @@ Read and obey, in this order:
 4. The loaded USF skill.
 5. This `GOAL.md`.
 6. Current digest-bound contract packets and focused live queries.
-7. Repository source, tests, ADRs, reports and Linear tickets as non-authoritative inputs.
+7. Repository source, tests, ADRs, reports, caches, the original repository and Linear tickets as non-authoritative inputs.
 
-Where prose conflicts with live semantic authority, stop the conflicting action, repair or clarify the semantic model through the authorised lifecycle, and continue only from the new validated authority.
+Validated live semantic state remains authoritative for requirements, claims, nonclaims and allowed realisation decisions.
 
-Never infer semantic truth from graph source files. Graph source is the registered materialisation used to update authority through the compiler transaction.
+Where prose or existing implementation conflicts with live authority, repair or clarify the semantic model through the authorised lifecycle, then implement against the new validated authority.
 
-## 4. Execution mode for this programme
+Graph source files are registered materialisations used to update authority. Their presence alone does not establish semantic truth or implementation completion.
 
-This programme deliberately uses one repository checkout on `main`.
+## 5. Execution mode
 
-Required execution model:
+Use one repository checkout on `main`.
 
 ```text
 branch:                 main
-Git worktrees:          no new worktrees
+new Git worktrees:      prohibited
 modifying subagents:    prohibited
 repository writer:      top-level coordinator only
-Stardog writer:         top-level coordinator only
+semantic-store writer:  top-level coordinator only
 read-only subagents:    permitted
 intermediate commits:   prohibited
 final commit:           only after every completion gate passes
@@ -73,733 +100,536 @@ push or pull request:   prohibited unless separately authorised
 Git stash:              prohibited
 ```
 
-This does not conflict with the modifying-worker worktree rule because no worker may modify files. Workers inspect, query, test, challenge and return compact findings or proposed patches. The coordinator applies every repository change sequentially in the primary checkout.
-
 Do not reset, clean, discard, overwrite or delete unknown or user-owned work.
 
-Temporary clean-room evaluation copies may be created under `/tmp`. They must not be Git worktrees and must contain no credentials, `.git` directory, `.work` state or CAS payloads unless a test explicitly requires a bounded verified payload.
+Read-only subagents may inspect, query, run isolated tests, attack assumptions and return compact proposed patches. The coordinator applies repository and semantic changes sequentially.
 
-## 5. Unattended-operation rule
+Temporary clean-room copies may be created under `/tmp`. They must not be Git worktrees and must not depend on untracked source from the primary checkout.
 
-Do not ask the user to make routine implementation, architecture, ordering, test, naming, remediation or retry decisions.
+## 6. Unattended-operation rule
 
-Resolve decisions by:
+Do not ask the user to make routine implementation, architecture, ordering, dependency, naming, remediation, testing or retry decisions.
 
-1. querying current authority;
-2. collecting relevant evidence;
-3. evaluating credible options;
-4. recording claims and nonclaims;
-5. creating and evaluating the required proof;
-6. authoring an accepted decision only when warranted;
-7. validating the resulting realisation.
+Resolve decisions through:
 
-Do not pause after creating a Linear issue. Issue creation records work; it does not complete it. Continue the work unless the issue represents a genuinely irrecoverable external or human dependency.
+1. current live authority;
+2. admitted evidence;
+3. credible option evaluation;
+4. explicit claims and nonclaims;
+5. proof of the selected option;
+6. an accepted realisation decision;
+7. repository-local implementation and validation.
 
-Do not emit “standing by”, “waiting for the lock”, “will continue later”, or equivalent output while a safe recovery action remains available.
+Do not stop after creating a Linear issue, specification, contract, ADR, plan, report, checkpoint or generated packet. Continue implementation unless a genuinely irrecoverable external or human dependency exists.
 
-## 6. Restartable programme state
+Do not emit “standing by”, “waiting”, “continue later” or equivalent output while a safe recovery or implementation action remains.
 
-Maintain an atomic, JCS-canonical programme ledger at:
+## 7. Definition of a complete realisation
 
-```text
-.work/materialisation/goal/goal-state.json
-```
+A semantic contract is realised only when all applicable behaviour is executable from files tracked in this repository.
 
-The ledger is generated, untracked and non-authoritative. It must contain at least:
+A complete realisation must have:
 
 ```text
-schemaVersion
-goalFileDigest
-initialRepositoryHead
-initialWorkingTreeDigest
-initialAuthorityDigest
-currentAuthorityDigest
-currentPhase
-currentWave
-currentWorkItem
-suiteInventoryDigest
-contractLedger
-capabilityLedger
-evidenceLedger
-proofLedger
-realisationLedger
-validationLedger
-adversarialFindingLedger
-linearIssueMap
-attemptLedger
-publicationLedger
-checkpointLedger
-lastSafeCheckpoint
-terminalState
+an accepted authority-bound realisation decision
+repository-local source or a repository-local adapter for an external dependency
+all referenced implementation paths present inside the repository
+locked and reproducible dependencies
+configuration schema and safe examples
+required database migrations and seed data
+required commands, APIs, workers, events and scheduled jobs
+positive, negative, error and recovery behaviour
+environment wiring for dev, test and staging
+health and readiness checks
+unit, contract, integration and end-to-end tests
+semantic traceability from contract to implementation and tests
+validation evidence admitted into the lifecycle
 ```
 
-Write updates atomically through a temporary file and rename. Never leave partially written state.
-
-Before every live authority publication, create a pre-publication recovery checkpoint containing the exact intended registered-source patch, changed-file digests, previous authority witness and expected post-publication graph/digest changes. Verify this checkpoint before opening a transaction.
-
-At each safe checkpoint, preserve outside Git:
+The following do not count as implementation:
 
 ```text
-current authority witness and digest
-canonical inventory summary
-JCS programme ledger
-binary-capable Git diff or equivalent working-tree patch
-patch digest
-changed-file digest manifest
-relevant CAS payload descriptors
-test and validation result manifest
-owned Stardog transaction/query inventory
+a semantic-contract JSON file
+a path string naming code elsewhere
+a source digest without the source bytes
+a generated interface with no working behaviour
+a mock used as the only staging implementation when the contract requires real behaviour
+a test double with no production-shaped implementation
+a package declaration that is never integrated and exercised
+a Compose service that starts but does not fulfil its contract
+a report asserting that implementation exists
 ```
 
-Store checkpoint payloads in the operator-local CAS where suitable. The small descriptor, digest and locator may enter Stardog only through the evidence lifecycle when required.
+## 8. Repository-locality and independence
 
-On restart:
+The original repository, parent repository and local caches may be inspected read-only as migration evidence. They are not runtime, build, test or staging dependencies.
 
-1. read `GOAL.md` and compute its digest;
-2. inspect the working tree without modifying it;
-3. load the ledger when present;
-4. verify ledger, patch and authority digests;
-5. reconcile only changes proven to belong to this programme;
-6. resume from the last safe checkpoint;
-7. never duplicate an admitted evidence result, proof result, Linear issue or completed realisation.
+Before completion, eliminate every dependency on code outside this repository, including:
 
-A changed `GOAL.md` digest requires a compatibility review of existing programme state before resumption.
+```text
+relative paths escaping the repository
+absolute host source paths
+file: dependencies targeting another checkout
+symlinks into another repository
+Git submodules used to supply required suite code
+volume mounts of original-repository source
+commands that execute tools from the parent repository
+specification fields that identify an external local source path as the implementation
+implicit reliance on files available only in an agent cache or CAS
+```
 
-## 7. Initial preflight
+Third-party packages, container images and external services are permitted only when selected by an accepted semantic decision, version or digest locked, licence and supply-chain constraints satisfied, and integrated through repository-local code and configuration.
+
+When an external service is selected:
+
+1. implement the repository-local client, adapter, schemas and failure handling;
+2. provide a hermetic substitute or emulator for deterministic development and test execution where the contract permits it;
+3. provide staging configuration and validation for the production-shaped integration;
+4. preserve explicit nonclaims for unavailable live-provider evidence.
+
+When original code is suitable, copy or adapt the necessary source into this repository, preserve applicable provenance and licence information, remove the external path dependency, and validate it against current semantics. Do not merely point to it.
+
+Every implementation, test, proof-algorithm and operational path referenced by semantic or JSON resources must:
+
+```text
+resolve beneath the repository root
+exist in the final Git tree
+have the expected representation
+have a current content digest when the model requires one
+be included in clean-room validation
+```
+
+## 9. Required delivered repository
+
+The final Git tree must contain the complete tracked source of the suite, including the applicable equivalent of:
+
+```text
+apps/ or services/               executable applications and services
+packages/ or capabilities/       shared and capability implementation modules
+adapters/                         external-system and provider adapters
+migrations/                       schema and data migrations
+seeds/ or fixtures/               deterministic environment seed data
+config/                           validated configuration definitions and examples
+compose.yml                       common production-shaped topology
+compose.dev.yml                   development overrides
+compose.test.yml                  isolated deterministic test topology
+compose.staging.yml               staging topology and controls
+scripts/ or tools/                bootstrap, validation, migration, backup and operations
+proof/ and validation assets      executable semantic compliance evidence
+unit, contract, integration and e2e tests
+CI workflows                      clean build and validation gates
+operator documentation            exact commands and bounded troubleshooting
+```
+
+Equivalent names are allowed only when live layout authority selects them. Missing authorised path rules must be modelled, proved and published before files are created.
+
+Source realisations and environment definitions must be tracked in Git. Runtime logs, large evidence payloads, caches, secrets and volatile outputs remain outside Git in their authorised locations.
+
+No `TODO`, `FIXME`, deliberate no-op, `not implemented`, unconditional success, skipped mandatory test, empty handler or placeholder may remain in an in-scope executable path.
+
+## 10. Required environments
+
+Deliver three complete environments from the same versioned application source and images. Environment differences must be configuration, policy and infrastructure differences, not separate behavioural implementations.
+
+### 10.1 Development
+
+Development must provide:
+
+```text
+one-command build and start
+local deterministic dependencies
+safe defaults and example configuration
+seeded representative tenants and users
+fast feedback and optional hot reload
+health, readiness and diagnostic endpoints
+repeatable reset and teardown
+```
+
+### 10.2 Test
+
+Test must provide:
+
+```text
+isolated deterministic execution
+fresh data stores or proven rollback between runs
+hermetic provider substitutes where permitted
+parallel-safe test isolation
+failure injection
+machine-readable test and evidence output
+complete teardown with no leaked state
+```
+
+### 10.3 Staging
+
+Staging must be production-shaped while retaining explicit nonclaims that it is not production-live.
+
+It must provide:
+
+```text
+built immutable application images
+production-equivalent process model
+persistent data services and migrations
+reverse proxy or ingress where required
+TLS or a documented local staging trust boundary where required
+secrets injected outside source
+health and readiness gates
+restart and recovery behaviour
+backup and restore validation
+observability wiring
+resource limits
+upgrade and rollback procedure
+no development-only code paths
+```
+
+A local or controlled staging deployment is acceptable when live cloud infrastructure is not authorised, provided it exercises the production-shaped topology and does not overclaim live-provider readiness.
+
+## 11. Initial preflight and compatibility audit
 
 Before modification:
 
-1. Confirm the repository is `maldous/usf-graph`.
-2. Confirm the branch is `main`.
-3. Record HEAD and upstream state.
-4. Inspect status, ignored state, stashes, branches and worktrees.
-5. Explain every pre-existing modification or untracked path.
-6. Treat `GOAL.md` as user-owned input.
-7. Confirm no other process is modifying this checkout.
-8. Confirm required environment variables are present without printing their values.
-9. Confirm the operator-local CAS is outside Git and writable.
-10. Load the USF skill.
-11. Call `usf_health`.
-12. Call `usf_bootstrap` exactly once with the task:
+1. Confirm the repository is `maldous/usf-graph` and branch is `main`.
+2. Record HEAD, upstream state and the new `GOAL.md` digest.
+3. Inspect status, ignored state, stashes, branches and worktrees.
+4. Attribute every pre-existing modification or untracked path.
+5. Confirm no other process is modifying the checkout.
+6. Confirm required environment variables without printing secret values.
+7. Confirm the operator-local CAS is outside Git and writable.
+8. Load the USF skill.
+9. Call `usf_health`.
+10. Load the latest programme checkpoint and verify all available digests.
+11. Treat the earlier terminal verdict as reopened under Section 3.
+12. Reuse the previous bootstrap orientation when authority has not changed; otherwise obtain the minimum fresh authority witness and focused context required.
+
+Do not call broad bootstrap or inventory tools repeatedly. One valid orientation plus focused queries is sufficient until authority changes.
+
+## 12. Executable realisation audit
+
+Before selecting new work, build a deterministic, paginated and digest-bound audit of every in-scope contract and every implementation reference.
+
+For each contract record:
 
 ```text
-Complete the first end-to-end realisation and adversarial evaluation of the entire live USF suite.
+contract IRI and lifecycle state
+required capabilities and behaviour
+accepted realisation decision
+implementation type
+all declared source, adapter, schema, migration, command and test paths
+whether each path exists inside this repository
+whether any path depends on the original repository
+whether executable behaviour is present
+which environments run it
+which tests exercise it
+which evidence and proof results bind it
+current executable-delivery classification
 ```
 
-Reuse that bootstrap orientation throughout the programme. After authority changes, do not call bootstrap again; invalidate stale packets and obtain fresh authority witnesses, focused queries, layout context and contract projections.
-
-If the working tree contains unexplained state, do not modify it. Attempt to attribute it from programme checkpoints and repository history. Stop only when ownership cannot safely be determined.
-
-Fetch remote metadata without merging. If `origin/main` advances during the programme, stop repository writes and evaluate the change in a clean temporary clone. Continue only when the remote change is proven disjoint and can be integrated without discarding, stashing or ambiguously rewriting programme/user work. Otherwise classify it as an unexplained repository-authority conflict and use the blocked outcome.
-
-## 8. Validate this directive as a materialisation
-
-Using live layout context, classify `GOAL.md` as an authorised root Markdown agent directive or repository document.
-
-Validate its exact path, representation format and content digest through a bounded materialisation plan and dry run. Do not rewrite the file during this validation.
-
-If the current semantic model cannot authorise `GOAL.md`:
-
-1. record the missing materialisation rule as the first semantic gap;
-2. define the minimum nonduplicative semantic rule for this root directive;
-3. add shapes and planted defects;
-4. collect evidence and evaluate proof;
-5. publish through the compiler transaction;
-6. regenerate the layout context;
-7. validate `GOAL.md` again;
-8. continue only after the path and representation are live-authorised.
-
-The presence of this human-created file does not retroactively make its materialisation authoritative.
-
-## 9. Establish the complete live suite inventory
-
-Do not limit the programme to the first actionable contract or to gaps returned by `usf_work_plan`.
-
-Build a complete, paginated and digest-bound inventory of at least:
+Classify each contract into exactly one state:
 
 ```text
-capabilities and capability domains
-semantic contracts and facets
-claims and nonclaims
-policies and constraints
-interfaces, operations, commands, events and workflows
-data contracts and controlled values
-provider modes, services, bindings and environments
-permissions, tenancy and privacy boundaries
-controls, risks and enterprise obligations
-UI exposure, journeys and interaction semantics
-evidence requirements, results, admissions and payload descriptors
-proof obligations, algorithms, executions, evaluations and results
-contract activation and supersession states
-realisation options, decisions, implementations and realisations
-validation obligations, validators, executions and results
-artifact families, representation formats, path roles and materialisation rules
-derivation, integrity, contamination and readiness resources
-```
-
-Use deterministic pagination and focused queries until the complete result set is accounted for. Bounded gateway output is a transport constraint, not permission to omit the remainder.
-
-For every resource, record:
-
-```text
-semantic identifier
-canonical name
-owning contract or capability
-lifecycle state
-blocking dependencies
-claims and nonclaims affected
-required evidence and proof
-current realisation state
-required validation
-current gap classification
-```
-
-Classify every contract into exactly one current state:
-
-```text
-ACTIVE_REALISATION_VALIDATED
-ACTIVE_REALISATION_MISSING
-ACTIVE_REALISATION_INVALID
-ELIGIBLE_NOT_ACTIVE
-PROOF_BLOCKED
-EVIDENCE_BLOCKED
+EXECUTABLE_VALIDATED_ALL_ENVIRONMENTS
+EXECUTABLE_MISSING_ENVIRONMENT
+EXECUTABLE_VALIDATION_MISSING
+IMPLEMENTATION_INCOMPLETE
+SPECIFICATION_ONLY
+LEGACY_REFERENCE_ONLY
+EXTERNAL_ADAPTER_MISSING
+IMPLEMENTATION_PATH_MISSING
+REALISATION_DECISION_MISSING
 MODEL_INCOMPLETE
+EVIDENCE_BLOCKED
+PROOF_BLOCKED
+EXPLICITLY_DEFERRED_BY_AUTHORITY
+EXTERNAL_OR_HUMAN_BLOCKED
 SUPERSEDED
 RETIRED
-EXPLICITLY_OUT_OF_SCOPE
-EXTERNAL_OR_HUMAN_BLOCKED
 ```
 
-No contract or capability may remain unclassified at completion. `EXPLICITLY_OUT_OF_SCOPE`, `SUPERSEDED` and `RETIRED` classifications require explicit live semantic state or a current contract nonclaim; the coordinator may not use them merely to reduce work.
+Only `EXECUTABLE_VALIDATED_ALL_ENVIRONMENTS`, explicitly authority-deferred, external/human-blocked, superseded or retired contracts are terminal classifications.
 
-The programme scope is the transitive closure of the live USF suite at the initial authority digest plus semantic resources necessarily introduced to satisfy its existing obligations. Do not add unrelated capabilities or speculative product scope. Any deliberate scope expansion requires an explicit model, claim/nonclaim boundary, evidence, proof and contract decision.
+A contract classified as `SPECIFICATION_ONLY`, `LEGACY_REFERENCE_ONLY`, `IMPLEMENTATION_PATH_MISSING`, `EXTERNAL_ADAPTER_MISSING`, `IMPLEMENTATION_INCOMPLETE`, `EXECUTABLE_MISSING_ENVIRONMENT` or `EXECUTABLE_VALIDATION_MISSING` is actionable regardless of `usf_work_plan` output.
 
-Compute and retain a canonical suite inventory digest.
+Compute a canonical executable-realisation inventory digest and retain it in the programme ledger.
 
-## 10. Build the closure graph
+## 13. Dependency closure and delivery waves
 
-Construct a dependency graph from live semantic relationships rather than ticket order or file order.
+Construct the dependency graph from live semantic relationships plus implementation and environment dependencies.
 
-Include dependencies involving:
+Include:
 
 ```text
-model definitions and controlled values
-evidence requirements and collectors
+model and controlled values
+evidence collectors and payload formats
 proof algorithms and prerequisite proofs
 contract activation
 realisation decisions
+source, package and service dependencies
 path and representation authorisation
-provider/environment availability
-implementation dependencies
+data models and migrations
+cross-service interfaces and events
+identity, tenancy, permission and privacy boundaries
+environment topology
 validation obligations
-readiness and release gates
+release and recovery gates
 ```
 
-Detect and resolve:
+Plan topological delivery waves. Prefer vertical, executable slices that close several tightly coupled contracts and can be demonstrated through Compose, rather than producing another broad layer of specifications without runnable behaviour.
+
+Within a wave:
+
+1. repair missing semantics only as required;
+2. make or verify the accepted realisation decision;
+3. create the repository-local code and environment wiring;
+4. run focused tests immediately;
+5. publish and admit evidence;
+6. re-evaluate proof and contract state;
+7. checkpoint compactly;
+8. continue to the next dependency-blocking gap.
+
+## 14. Contract closure state machine
+
+For each actionable contract, retrieve a current digest-bound contract projection with the exact contract IRI and objective. Regenerate it only after authority changes affecting that contract.
+
+### 14.1 Model
+
+Verify the model defines applicable:
 
 ```text
-cycles
-orphan requirements
-orphan obligations
-contracts without capabilities
-capabilities without contracts
-active contracts without proof
-active contracts without realisations
-realisations without accepted decisions
-validations without evidence admission
-readiness inferred from partial or existential satisfaction
-```
-
-Plan work in topological waves. A wave may contain many read-only investigations in parallel, but repository and authority writes remain sequential and coordinator-owned.
-
-Always select the next work item by semantic dependency and blocking impact. Do not select by apparent ease alone.
-
-## 11. Contract closure state machine
-
-For each in-scope contract, call `usf_contract_project` with the exact contract IRI and current objective before implementation or validation. Verify the packet authority digest and stop conditions. Regenerate it after every authority change. Then execute the following state machine until the contract reaches a valid terminal classification.
-
-### 11.1 Model
-
-Verify that the model defines, where applicable:
-
-```text
-semantic subject and ownership
-claims and nonclaims
-features and constraints
-states and transitions
-permissions and boundaries
-interfaces and operations
-data and error semantics
+subject, ownership, claims and nonclaims
+features, constraints, states and transitions
+permissions, tenancy and privacy boundaries
+interfaces, commands, events and workflows
+data, validation and error semantics
 provider and environment scope
-positive, negative and failure behaviour
-required evidence
-proof obligations and minimum rungs
-permitted realisation types
-required validation
+positive, negative, timeout, retry and failure behaviour
+required evidence and proof obligations
+permitted realisation types and repository containment
+required environment and validation obligations
 readiness and invalidation consequences
 ```
 
-Do not infer missing product behaviour from old code, tickets or convention.
+Do not infer missing product behaviour solely from old code, tickets or convention. Old code may provide evidence and candidate behaviour, but current authority must define the requirement.
 
-When semantics are missing but can be derived from existing authoritative relationships and admitted evidence, add the minimum coherent definitions, shapes, rules and fixtures.
+Every semantic change requires positive fixtures and planted defects.
 
-When semantics require a genuine product, legal or human-policy decision that cannot be derived, create or update a Linear issue and classify the contract as externally blocked. Do not invent the decision.
+### 14.2 Evidence and proof
 
-Every semantic change requires positive fixtures and adversarial planted defects.
+Implement missing collectors and versioned proof algorithms under authorised repository paths.
 
-### 11.2 Evidence
+Evidence must be deterministic, integrity-valid, applicable and bound to its environment and provider mode. Store large payloads and raw logs in CAS, retain compact descriptors and exact digests, and admit results only through the authorised lifecycle.
 
-For every evidence requirement:
+Proof results must bind the exact admitted evidence set, algorithm version, source digests, environment, confidence basis, uncertainty and nonclaims. Failed or stale results remain in lineage and cannot activate contracts.
 
-1. identify the exact subject, claim and obligation;
-2. implement or select a collector when absent;
-3. collect in the required environment and provider mode;
-4. normalise deterministically;
-5. store large or binary payloads in the operator-local CAS;
-6. use Parquet for large tabular evidence where authorised;
-7. produce a JCS-canonical evidence manifest;
-8. produce an evidence envelope containing digest, media type, size, locator, producer, environment, collection time, expiry, applicability, admission, freshness, integrity, retention and supersession;
-9. verify payload bytes against the descriptor;
-10. admit only fresh, integrity-valid and applicable evidence.
+### 14.3 Realisation decision
 
-A filename, report, test result or Linear attachment never establishes evidence by itself.
+Evaluate credible options using admitted evidence for semantic fit, security, maintenance, licence, portability, performance, supply-chain risk, provider compatibility, validation feasibility and exit cost.
 
-Do not store unbounded payloads in Stardog or Git.
-
-### 11.3 Proof
-
-For every proof obligation:
-
-1. identify or implement a versioned proof algorithm under an authorised path;
-2. bind it to an exact admitted evidence set;
-3. compute the evidence-set digest;
-4. run it in the required environment/provider scope;
-5. record algorithm version, validator, environment, result, confidence basis, uncertainty, nonclaims, evaluation time and invalidation conditions;
-6. emit a JCS evidence/result manifest;
-7. emit an in-toto Statement and DSSE envelope when required;
-8. store raw logs and attestations in CAS;
-9. create the authoritative proof result in registered semantic source;
-10. publish transactionally;
-11. verify the result from live authority.
-
-Confidence must be warranted by a successful proof against the exact admitted evidence set. Never author confidence as an analyst or AI opinion.
-
-A failed proof blocks activation. Repair the model, evidence, algorithm or implementation; then rerun with a new result. Do not edit a failed result into success.
-
-### 11.4 Contract
-
-A contract may become active only when all mandatory obligations have current successful proof results and no blocking finding remains.
-
-The contract must explicitly record:
+The selected option must still result in complete repository-local executable delivery:
 
 ```text
-claims and nonclaims
-features and constraints
-proof results relied upon
-confidence and uncertainty basis
-permitted realisation types
-required validation
-activation state and reason
-suspension and invalidation conditions
-supersession lineage
+new or adapted local implementation; or
+repository-local integration and adapter for a locked third-party component; or
+repository-local adapter, emulator and staging binding for an authorised external service.
 ```
 
-Generate bounded contract projections for consumers. Projections are cacheable inputs, never authority, and become stale when the authority digest changes.
+An option that leaves required source in another local repository is invalid.
 
-### 11.5 Realisation decision
+### 14.4 Implementation
 
-For each active contract without a valid realisation, evaluate credible options rather than defaulting to new code:
-
-```text
-retain or adapt existing local code
-consolidate existing code
-maintained package
-managed service
-external product
-composed solution
-new local code
-no local code where the contract requires only a binding or decision
-```
-
-Evaluate options using admitted evidence for:
-
-```text
-semantic fit
-security
-maintainability
-licensing
-operational cost
-portability
-performance
-resource limits
-supply-chain risk
-provider and environment compatibility
-validation feasibility
-exit and migration cost
-```
-
-Record rejected alternatives and nonclaims. Author an accepted decision only when evidence and proof warrant it.
-
-Before materialising a path or selecting a format, retrieve current layout context and use an authority-bound materialisation plan.
-
-Create `realisations/` only when a specific accepted decision selects a local-code realisation and authorises its containment model.
-
-### 11.6 Implementation
-
-Implement the minimum complete realisation satisfying the active contract.
+Implement the minimum complete behaviour satisfying the active contract, but do not confuse “minimum” with a stub or demonstration.
 
 Requirements:
 
 ```text
 no guessed domain behaviour
 no unauthorised paths or formats
+no external local-source dependency
 no hidden paid services
 no secret material in source or output
-no broad compatibility layer without a contract requirement
 no speculative future features
-no test-only implementation shortcuts
+no test-only shortcut standing in for required behaviour
 no report-derived truth
+no unconditional or hard-coded success
+no skipped negative or failure paths
 ```
 
-Generate or implement tests and proof assets in the order required by the contract. Existing code has no automatic priority.
+Integrate implementation into dev, test and staging before classifying it complete.
 
-Use ecosystem-native filenames inside an authorised local-code boundary. Governance artifacts use the selected eight-digit family-scoped naming model. Content-addressed payloads use their digest.
+### 14.5 Validation
 
-### 11.7 Validation
-
-Run all contract-required validation, including applicable:
+Run applicable:
 
 ```text
-static checks and type checks
+format, lint, static and type checks
 unit tests
-contract tests
-integration tests
-state-transition and permission tests
-negative and adversarial tests
-SHACL and integrity checks
-contamination checks
-derivation parity and determinism
-rollback and failure injection
-security and dependency checks
-provider-mode and environment checks
-accessibility and localisation checks
-performance and resource bounds
-backup, restore and migration checks
-clean-room or isolated execution
+semantic contract tests
+API, command, event and data-contract tests
+integration and cross-service tests
+state-transition, permission, tenancy and privacy tests
+negative, adversarial and failure-injection tests
+SHACL, integrity and contamination checks
+derivation parity and determinism checks
+migration, backup and restore tests
+restart, retry, timeout and rollback tests
+security, licence and dependency checks
+resource-bound and performance checks
+Compose build, config and health checks
+clean-room dev/test/staging deployment
+end-to-end user and automation journeys
 ```
 
-Each execution produces a `ValidationResult` that enters the evidence lifecycle. A passing local test does not by itself activate, prove or validate a live claim.
+Every required validation produces a `ValidationResult` that enters the evidence lifecycle. Passing tests without evidence admission and proof re-evaluation do not close the contract.
 
-After validation evidence is admitted, re-evaluate dependent proofs and contract states.
+## 15. Environment orchestration and acceptance commands
 
-## 12. Stardog mutation and self-healing protocol
-
-All semantic mutations are coordinator-only and occur through registered authored graph source plus:
+Create and maintain repository-local commands equivalent to:
 
 ```text
-tools/compiler/bin/publish-authority.sh
+validate repository structure and semantic path closure
+build all application and service artifacts
+start development environment
+run complete deterministic test environment
+start production-shaped staging environment
+wait for health and readiness
+apply and verify migrations
+seed representative data
+run smoke and end-to-end suites
+exercise failure and recovery paths
+verify semantic compliance and source/live drift
+stop environments and remove only authorised ephemeral state
 ```
 
-Never issue direct mutation SPARQL through MCP, raw HTTP, Stardog CLI or an ad hoc script.
+Document exact commands in the repository. A fresh operator must not need conversational context or the original repository.
 
-Before every publication:
+The final clean-room acceptance must begin from a standalone fresh clone and empty authorised runtime state. It must not use pre-existing `node_modules`, virtual environments, local build output, copied original-repository source, unverified CAS source payloads or agent caches.
 
-```text
-verify repository and source preconditions
-verify current live authority witness
-verify no unexplained drift
-verify owned open transactions and queries
-run local checks and compiler tests
-run local RDF/SHACL/integrity validation where available
-build the exact intended semantic delta
-invalidate stale materialisation plans and packets
-```
+## 16. Stardog mutation and self-healing
 
-After every successful publication:
+All semantic mutations are coordinator-only and occur through registered authored graph source and the authorised compiler publication path.
 
-```text
-record the new authority digest
-verify SHACL, integrity, contamination and derivations
-verify source/live drift is zero
-verify expected graph inventory
-invalidate every old packet and plan
-regenerate focused contract packets
-update the programme ledger and Linear issues
-create a safe checkpoint
-```
+Never issue direct mutation SPARQL through MCP, raw HTTP, CLI or ad hoc scripts.
 
-### 12.1 Failure classification
+Before publication, verify repository preconditions, current authority, owned transactions, local validation, exact semantic delta and invalidation of stale packets.
 
-Classify each failure before acting:
+After publication, record the new authority digest, verify SHACL, integrity, contamination, derivations, graph inventory and source/live drift, then invalidate stale packets and update the compact programme state.
 
-```text
-TRANSIENT_TRANSPORT
-RATE_OR_QUOTA_LIMIT
-QUERY_TIMEOUT
-TRANSACTION_CONFLICT
-TRANSACTION_TIMEOUT
-AMBIGUOUS_COMMIT
-STALE_PACKET_OR_PLAN
-SOURCE_LIVE_DRIFT
-SHACL_VIOLATION
-INTEGRITY_VIOLATION
-CONTAMINATION
-DERIVATION_MISMATCH
-MODEL_GAP
-EVIDENCE_GAP
-PROOF_FAILURE
-IMPLEMENTATION_DEFECT
-VALIDATION_DEFECT
-CAS_INTEGRITY_FAILURE
-EXTERNAL_PROVIDER_FAILURE
-CREDENTIAL_OR_PERMISSION_FAILURE
-RESOURCE_EXHAUSTION
-UNKNOWN
-```
+Classify failures before acting. Use bounded retries for transient failures, never replay ambiguous mutations, never alter another owner’s transaction, minimise failing fixtures, preserve state and continue through safe recovery.
 
-### 12.2 Recovery rules
+Resource limits must be addressed through bounded queries, indexing, batching, projections, external payload storage or an authorised semantic-store migration. Never weaken semantic completeness or implementation requirements to fit a service tier.
 
-#### Transient transport, rate and service failures
+## 17. Linear work projection
 
-Use at most five retries with increasing delay and jitter, respecting any server `Retry-After` signal. Recheck health before every retry. Record each attempt. Do not replay a mutation whose outcome may already have committed. Exhausting these retries triggers diagnosis and an alternative recovery path, not blind repetition.
+Linear tracks actions and history; it never establishes semantic or implementation truth.
 
-#### Query timeout
+Search before creating issues. Update an existing issue representing the same semantic resource and executable gap. Mark Done only after the repository-local implementation exists, required environments execute it, validation evidence is admitted and live authority no longer reports the gap.
 
-Cancel only an owned query where supported. Reduce query scope, add selective bindings, inspect the query plan, precompute safe intermediate data locally, or rewrite the query with proven semantic equivalence. Never weaken a constraint merely to finish faster.
+Issue creation is followed by implementation in the same programme unless the issue records an irrecoverable external or human dependency.
 
-#### Transaction conflict or timeout
-
-Rollback the exact owned transaction when its outcome is known. Verify closure and unchanged live state. Rebuild the delta against the current authority digest before a new attempt.
-
-#### Ambiguous commit
-
-Do not call commit again. Determine the result through read-only graph counts, canonical digests, authority witness and transaction visibility. Classify as committed, rolled back or irrecoverably ambiguous before proceeding.
-
-#### Unknown transaction or lock
-
-Never rollback, kill or alter another owner’s transaction or query. Stop only when the unknown state cannot be safely attributed or allowed to expire without risking authority.
-
-#### SHACL, integrity, contamination or derivation failure
-
-Capture a bounded normalized finding. Reproduce locally with a minimized fixture. Determine whether the defect belongs to model, data, shape, rule or implementation. Repair the semantic cause, add a planted defect, rerun all affected validations and republish.
-
-#### Stale evidence or proof
-
-Collect new evidence, retain supersession lineage, create a new proof evaluation/result, and allow dependent contracts to suspend until reevaluation succeeds.
-
-#### CAS integrity failure
-
-Quarantine the invalid local bytes. Never overwrite an object at an existing digest. Regenerate from the authoritative producer, verify bytes, create a new descriptor when content changes, and invalidate dependent evidence.
-
-#### Resource exhaustion
-
-Clean only authorised ephemeral state. Preserve admitted evidence and retained CAS payloads. Optimise indexes, batching, projections and query plans. Externalise large data rather than deleting semantic envelopes or weakening proof.
-
-#### Stardog Cloud tier exhaustion
-
-First attempt, with proof:
-
-```text
-minimal graph deltas
-precomputed derived outputs
-bounded validation queries
-external CAS payloads
-query optimisation
-transaction reduction
-retention/supersession cleanup permitted by policy
-```
-
-If the tier still prevents the required suite from completing, initiate a semantic store portability and authority-migration workstream. Evaluate at least RDF4J NativeStore plus ShaclSail as the primary local candidate and Jena as an independent oracle. Prove named-graph, canonical-digest, SPARQL, SHACL, transaction, rollback, derivation, integrity, backup and gateway parity. Stardog remains authority until a migration contract is active and cutover is validated. Never create split-brain authority.
-
-#### External-provider failure
-
-Use hermetic, sandbox or composed evidence only where the obligation permits it. Never infer live readiness from hermetic evidence. If mandatory live evidence cannot be obtained, create/update the exact Linear blocker and use the blocked terminal outcome.
-
-#### Unknown failure
-
-Preserve state, minimize reproduction, obtain independent read-only diagnosis, and continue only after the failure is classified. Do not blindly retry.
-
-## 13. Linear work projection
-
-Linear tracks work and never establishes truth.
-
-At baseline and after every semantic publication:
-
-1. run `usf_work_plan` for relevant contracts;
-2. run broader focused semantic-gap queries because `usf_work_plan` is not an exhaustive suite auditor;
-3. search Linear before creating an issue;
-4. update the existing issue when it represents the same semantic resource and gap;
-5. create an issue only when no current issue represents the gap;
-6. cancel superseded ticket-driven work;
-7. mark Done only after the live semantic gap is closed and required validation is admitted;
-8. keep human/external blockers visible without treating them as authority.
-
-Each issue must include:
-
-```text
-current authority digest
-semantic resource identifiers
-gap classification
-why the gap is actionable
-claims and nonclaims affected
-authorised paths and formats
-required evidence and proof
-acceptance and validation obligations
-stop conditions
-link back to current contract projection or retrieval instruction
-```
-
-Never paste the entire contract as permanent ticket truth. Direct the next agent to retrieve current authority.
-
-Issue creation is followed by execution in the same programme unless the issue represents an irrecoverable blocker.
-
-## 14. Parallelism and authentic independent review
+## 18. Parallelism and independent review
 
 Use at most eight active agents and delegation depth at most two.
 
-All subagents are read-only. They may run tests in isolated temporary copies, inspect live authority, evaluate options and return proposed patches, but they may not modify the primary checkout, create branches/worktrees, commit, push, mutate Linear or mutate Stardog.
+All subagents remain read-only. Use them for focused semantic inspection, implementation review, test attacks, dependency analysis and independent reconstruction of counts or digests.
 
-Use compact digest-bound packets.
+At least two independent final review rounds are mandatory. The second final reviewer must not receive the first reviewer’s conclusion before reporting.
 
-For major waves, commission independent roles such as:
+Every critical, high or claim-affecting medium finding reopens the affected lifecycle stage.
 
-```text
-semantic authority and inversion auditor
-evidence admission and proof-fraud auditor
-contract completeness and overclaim auditor
-implementation security and reliability auditor
-test quality, determinism and rollback auditor
-repository/CAS/materialisation auditor
-operations, Linear and Git hygiene auditor
-user-surface and integration coverage auditor
-```
+## 19. Mandatory adversarial attacks
 
-Authenticity requirements:
-
-1. A reviewer must not rely solely on reports generated by the implementation under review.
-2. At least one reviewer must reconstruct critical counts, digests and closure independently.
-3. Reviewers receive live identifiers and requirements, not the coordinator’s conclusion.
-4. At least one final reviewer must not receive the prior final-review report before submitting findings.
-5. Findings include evidence, affected semantic resources, severity and a falsifiable remediation criterion.
-6. Every critical, high or claim-affecting medium finding reopens the relevant lifecycle stage.
-7. “No finding” is accepted only when the reviewer states what was tested and what remains a nonclaim.
-
-## 15. Mandatory adversarial attack catalogue
-
-Actively attempt to prove the programme incomplete or unsound.
-
-At minimum test for:
+Actively attempt to prove the delivery incomplete or unsound, including:
 
 ```text
-a ticket, report, ADR, source file or test treated as authority
-authored evidence, proof, readiness or validation outcomes
-active contracts without all mandatory current proofs
-proof results bound to stale, inadmissible or inapplicable evidence
-confidence without an exact successful evidence-bound proof
-contract activation from existential rather than universal satisfaction
-realisation without an accepted decision
-code or paths materialised before authorisation
-package/service decisions that unnecessarily create local code
-hidden parent-repository or census dependency
-cross-graph authority violations
-undefined or unused unexplained terms
-shape, rule, registry and manifest disagreement
-stale derived output or nondeterministic generation
-positive-only tests that fail to detect planted defects
-rollback that leaves partial filesystem or semantic mutations
-ambiguous transaction replay
-credentials or raw provider errors in output
-CAS locator, size or digest mismatch
-unbounded payload in Git or Stardog
-live-readiness claims from hermetic evidence
-accessibility, localisation, privacy or security overclaims
-provider, environment or tenant mismatch
-unhandled state, error or negative path
-release without provenance, SBOM or signature where required
-Linear status used as completion evidence
-stale contract packets surviving an authority change
-resource limits silently weakening assurance
-```
-
-Seed representative defects after implementation and require the appropriate validator to reject each one exclusively.
-
-## 16. Testing cadence
-
-Run focused validation after every change.
-
-Run an integrated wave gate after every dependency wave:
-
-```text
-compiler check
-compiler test suite
-schema validation
-fixture suite
-SHACL
-integrity
-contamination
-derivation determinism
-materialisation tests
-CAS verification
-affected proof algorithms
-affected contract projections
+specification or report treated as implementation
+semantic path referring outside the repository
+missing source behind a recorded digest
+standalone clone requiring parent-repository files
+Compose service present but behaviour absent
+dev-only implementation passed off as staging
+mock-only implementation overclaiming real provider readiness
+active contract lacking executable behaviour
+active contract lacking all-environment wiring
+package declared but not integrated
+adapter omitting errors, retries or security boundaries
+placeholder, no-op or unconditional success
+positive-only tests
+cross-service interface disagreement
+migration or seed nondeterminism
+stale evidence or proof binding
 source/live drift
+CAS digest or locator mismatch
+secret leakage
+supply-chain or licence violation
+rollback leaving partial filesystem, database or semantic mutation
+clean-room build using hidden cache or host state
+staging upgrade or recovery failure
+unimplemented user, API or automation journey
 ```
 
-Run a complete suite gate before final review.
+Seed representative defects and require the intended validator to reject them exclusively.
 
-Run the complete suite twice from clean temporary copies and the same authority digest. Require identical canonical semantic outputs, materialisation plans, evidence-set digests and attestations except for explicitly modelled volatile fields. Volatile values must be excluded from semantic digesting or normalised according to a proven rule.
+## 20. Token-minimisation and context discipline
 
-Flaky tests are defects. Identify and remove nondeterminism; do not rerun until green and call it passed.
+Token minimisation is mandatory and must not weaken delivery.
 
-## 17. Whole-suite first evaluation
+Treat conversation as temporary memory. Treat Git, live semantic authority, CAS, Linear and the compact programme ledger as durable state.
 
-After every contract is closed or validly classified, perform the first integrated evaluation of the realised USF suite.
-
-Evaluate at least:
+Maintain the atomic JCS-canonical ledger at:
 
 ```text
-repository bootstrap and standalone operation
-semantic gateway and bounded agent packets
-complete capability-to-contract coverage
-model/evidence/proof/contract/realisation/validation traceability
-all local-code, package and service realisations
-cross-realisation interfaces and data contracts
-provider and environment matrices
-permissions, tenancy, privacy and security boundaries
-error, retry, timeout and failure behaviour
-proof and evidence lifecycle
-CAS retention and verification
-materialisation and rollback
-compiler publication and live drift
-clean-room reproducibility
-build and test orchestration
-release, provenance, SBOM and signature obligations
-UI/API/automation exposure classifications
-enterprise/control claims and explicit nonclaims
-operational resource limits
-Linear projection and zero-gap reconciliation
+.work/materialisation/goal/goal-state.json
 ```
 
-The evaluation must produce:
+After the first complete read of this file, retain its digest and section index. Retrieve only the exact sections needed for the current operation.
+
+After each contract or tightly coupled wave:
+
+1. persist all durable semantic, implementation, evidence, proof, validation and work state in its authorised system;
+2. write one atomic digest-bound checkpoint;
+3. retain only identifiers, states, changed-path digests, result digests, unresolved findings and the next exact action;
+4. remove raw packets, query output, logs, diffs, worker transcripts and duplicated explanations from active context once their verified descriptors are stored;
+5. invalidate stale contract packets after authority changes;
+6. retrieve only exact identifiers, predicates, files and line ranges needed next;
+7. do not repeat broad inventory, bootstrap, census or foundational analysis unless a relevant digest changed;
+8. use scripts and machine-readable summaries for counts, path checks and comparisons instead of model narration;
+9. send workers compact, contract-specific, digest-bound packets;
+10. require workers to return structured findings, proposed changed paths, digests, result codes and residual risks, not narrative transcripts;
+11. retain one normalised signature for repeated failures rather than duplicate stack traces;
+12. checkpoint before context pressure becomes material and resume from the exact next action;
+13. never restate completed work in subsequent prompts;
+14. do not spend tokens describing a plan when an authorised implementation action can be executed.
+
+A checkpoint must contain at least:
 
 ```text
-a JCS-canonical suite evidence manifest
-an exact suite evidence-set digest
-an in-toto Statement
-an applicable DSSE signature
-a machine-readable contract/realisation/validation inventory
-a bounded human-readable evaluation projection
-a normalized adversarial finding report
-all external payload descriptors
+goal digest
+repository HEAD and working-tree digest
+current authority digest
+executable-realisation inventory digest
+completed and reopened contract IRIs
+changed repository paths and content digests
+admitted evidence and proof-result identifiers
+validation result identifiers
+current environment status
+unresolved blockers and findings
+next exact contract or command
+Git, worktree, stash, CAS and transaction state
 ```
 
-Store large outputs in CAS. Admit the required envelopes and results into Stardog. Do not commit runtime evaluation output unless a live contract explicitly authorises a tracked representation.
+The checkpoint must allow a fresh invocation to resume without replaying two days of analysis.
 
-## 18. Completion gates
+## 21. Testing cadence
 
-All of the following must pass before the complete verdict.
+Run focused validation after every change and an integrated gate after every dependency wave.
 
-### Authority and semantic closure
+Before final review, run the complete suite twice from independent clean temporary clones against the same authority digest. Require identical canonical outputs, source inventories, materialisation plans, evidence-set digests and attestations except for explicitly normalised volatile fields.
+
+Flaky tests are defects. Find and remove nondeterminism rather than rerunning until green.
+
+## 22. Completion gates
+
+All gates must pass before the complete verdict.
+
+### 22.1 Authority and semantic closure
 
 ```text
 live authority health verified
@@ -814,43 +644,73 @@ unclassified capabilities = 0
 unclassified contracts = 0
 ```
 
-### Evidence and proof
+### 22.2 Executable repository closure
+
+```text
+all in-scope active contracts have repository-local executable realisations
+all declared implementation paths resolve beneath repository root
+all declared implementation, adapter, migration, command and test paths exist
+external local-repository references = 0
+parent-repository runtime/build/test dependencies = 0
+specification-only active realisations = 0
+legacy-reference-only active realisations = 0
+missing implementation paths = 0
+placeholder or no-op in-scope implementations = 0
+all required source is tracked in final Git tree
+standalone clone requires no untracked source or agent cache
+```
+
+### 22.3 Environment closure
+
+```text
+dev environment builds, starts, becomes healthy and exercises required journeys
+test environment is isolated, deterministic and complete
+staging environment is production-shaped, starts healthy and has no dev-only shortcuts
+all migrations and seed operations pass from empty state
+all required services, workers and scheduled jobs execute
+cross-service APIs, events and data contracts pass
+backup, restore, restart, upgrade and rollback tests pass
+environment teardown leaves no unauthorised residue
+```
+
+### 22.4 Evidence and proof
 
 ```text
 all mandatory evidence admitted, fresh, integrity-valid and applicable
 all mandatory proof obligations have current successful results
-all successful results bind exact evidence-set digests
+all successful results bind exact evidence-set and implementation-source digests
 all confidence is warranted and current
-all failed/stale results retain lineage and cannot activate contracts
+all failed or stale results retain lineage and cannot activate contracts
 all referenced CAS payloads verify
 ```
 
-### Contracts and realisations
+### 22.5 Contracts and realisations
 
 ```text
 all in-scope warranted contracts are active
 all active contracts have accepted realisation decisions
-all required active contracts have valid realisations
+all required active contracts have valid executable realisations
 all paths, formats, packages and services are authorised
 all contract claims are supported
 all nonclaims are preserved
-no local-code directory exists for a non-local realisation
+all external dependencies have repository-local integration and required substitutes
 ```
 
-### Validation and integration
+### 22.6 Validation and integration
 
 ```text
 all required ValidationResults pass and are admitted
 all planted defects are rejected by the intended gate
-all integration and cross-realisation tests pass
-rollback and recovery tests pass
+all unit, contract, integration and end-to-end tests pass
+all user, API and automation journeys required by authority pass
+all rollback and recovery tests pass
 clean-room runs pass twice
 canonical outputs and digests are deterministic
-security and dependency gates pass
-release/provenance/signature gates pass where required
+security, licence and dependency gates pass
+release, provenance, SBOM and signature gates pass where required
 ```
 
-### Adversarial review
+### 22.7 Independent adversarial review
 
 ```text
 at least two independent final review rounds completed
@@ -861,142 +721,108 @@ claim-affecting unresolved medium findings = 0
 all resolved findings have regression tests or semantic constraints
 ```
 
-### Work and repository state
+### 22.8 Work and repository state
 
 ```text
-current semantic work projection has zero in-scope actionable gaps
+executable-realisation audit has zero actionable in-scope gaps
+broader semantic audit has zero actionable in-scope gaps
 no duplicate or stale Linear issue remains actionable
 main contains only intended programme changes
-no new branch or worktree exists
+one worktree exists
 no stash exists
 no temporary repository artifact remains
-all checkpoint and runtime output is outside Git
+all checkpoint and volatile runtime output is outside Git
 ```
 
-### Final evidence
+### 22.9 Final evidence
 
 ```text
 final suite evidence manifest verified
 final exact evidence-set digest recorded
+final repository-source inventory digest recorded
+final dev/test/staging deployment evidence verified
 final DSSE/in-toto attestation verified
 post-publication proof rerun against final authority passes
 final contract packets regenerate from final authority
 ```
 
-## 19. Finalisation and commit
+## 23. Forbidden completion shortcuts
+
+Never claim completion by:
+
+```text
+landing semantic-contract JSON without executable code
+pointing implementation paths at the original repository
+stopping when usf_work_plan returns no rows
+calling a reference kernel the entire suite
+using a local cache as the only source of implementation bytes
+creating Compose files without exercising complete behaviour
+using tests as proof without evidence admission
+using hermetic evidence as live-provider evidence
+closing Linear tickets without closing repository gaps
+creating a report instead of an authoritative result
+leaving active contracts without implementations
+leaving implementations outside environment deployment
+leaving validation outside the evidence lifecycle
+skipping negative cases or adversarial review
+accepting nondeterministic output
+committing partial progress and declaring a milestone complete
+weakening semantics, security or tests to finish faster
+```
+
+## 24. Finalisation and commit
 
 Only after every completion gate passes:
 
 1. archive final runtime evidence in CAS;
 2. publish final evidence, proof, contract, realisation and validation metadata through the compiler transaction;
-3. verify final authority and drift;
-4. rerun the post-publication proof and final adversarial checks;
-5. remove authorised ephemeral state that is no longer required while preserving the final ledger and checkpoint outside Git;
-6. inspect the complete Git diff;
-7. verify no unrelated user change is included;
-8. create the final commit on `main` with the final authority digest and suite evidence-set digest in the commit body;
+3. verify final authority and source/live drift;
+4. rerun post-publication proof and final adversarial checks;
+5. run two standalone-clone dev/test/staging acceptance passes;
+6. remove authorised ephemeral state while preserving the compact ledger and checkpoint outside Git;
+7. inspect the complete Git diff and verify no unrelated user change is included;
+8. create the final commit on `main` with the final authority digest, suite evidence-set digest and repository-source inventory digest in the commit body;
 9. do not push unless separately authorised;
 10. report the exact commit and final live authority digest.
 
-Do not create intermediate commits merely for convenience.
+If the final commit cannot be created safely, retain the validated working tree and checkpoint, classify the programme as blocked and do not discard completed work.
 
-If the final commit cannot be created safely, retain the validated working tree and checkpoint, classify the programme as blocked, and do not discard completed work.
+## 25. Final report
 
-## 20. Final report
-
-Return a compact structured report containing:
+Return one compact structured report containing:
 
 ```text
 initial and final repository HEAD
 initial and final authority digests
 GOAL.md digest
-suite inventory count and digest
-contracts by terminal classification
+executable-realisation inventory count and digest
+contracts by executable-delivery classification
 capabilities by terminal classification
 semantic changes published
+repository-local source and environment paths created
+legacy and external-local references removed
 realisations selected and delivered
-paths and formats materialised
+dev/test/staging topology and acceptance results
+migrations, seeds and operational commands delivered
 evidence manifest and payload digests
 proof algorithms and result digests
 validation executions and results
 Stardog failures and self-healing actions
-store-migration activity, if any
-Linear issues created, updated, completed or canceled
+Linear issues created, updated, completed or cancelled
 adversarial review rounds and findings
 complete test and clean-room results
 final suite evidence-set digest
+final repository-source inventory digest
 final attestation digest
 final commit
 remaining explicit nonclaims
 final Git, worktree, stash, CAS and transaction state
 ```
 
-Do not paste unbounded logs or payloads. Report their digests and verified locators.
+Do not paste unbounded logs or payloads. Report verified digests and locators.
 
-## 21. Forbidden completion shortcuts
+## 26. Success condition
 
-Never claim completion by doing any of the following:
+The programme succeeds only when the entire current semantic suite has been traversed and the repository itself contains the complete executable implementation required to run and demonstrate that suite in development, test and staging environments.
 
-```text
-implementing only the first actionable contract
-stopping when usf_work_plan returns no rows
-assuming bounded bootstrap output is the whole suite
-closing Linear tickets without closing semantic gaps
-marking draft or proof-blocked work out of scope without authority
-using tests as proof without evidence admission
-using local validation as live-provider evidence
-weakening SHACL or integrity to obtain conformance
-skipping negative cases or adversarial review
-accepting nondeterministic output
-leaving active contracts without realisations
-leaving realisations without validation
-leaving validation outside the evidence lifecycle
-creating a report instead of an authoritative result
-storing large payloads in Stardog or Git
-introducing paid/cloud infrastructure without a separate accepted decision
-silently abandoning work after a timeout, rollback or quota limit
-committing partial progress and declaring a milestone complete
-```
-
-## 22. Token efficiency policy
-
-Apply the following token-efficiency policy:
-
-Treat conversational history as temporary working memory. Treat Stardog, Git, the CAS, Linear, and the programme ledger as persistent state.
-
-After completing each contract or tightly coupled contract group:
-
-1. Publish or record all durable semantic, implementation, evidence, proof, validation, and work-tracking state in its authorised system.
-2. Write an atomic, digest-bound checkpoint containing only:
-   - current authority digest;
-   - completed contract IRIs and final states;
-   - changed paths and content digests;
-   - admitted evidence and proof-result identifiers;
-   - validation results;
-   - unresolved blockers;
-   - next actionable contract or selection query;
-   - repository status.
-3. Remove raw contract packets, long query outputs, test logs, diffs, reports, and worker transcripts from the active task ledger once their durable digests and locations are recorded.
-4. Do not restate completed work in subsequent prompts or worker packets.
-5. Before starting the next contract, regenerate its current "usf_contract_project" packet from live authority. Do not reuse a packet whose authority digest predates any publication.
-6. Retrieve only exact identifiers, predicates, files, and line ranges needed for the current contract.
-7. Send workers only compact contract-specific packets. Workers must return structured findings, changed paths, digests, result codes, and residual risks, never narrative transcripts.
-8. Store large logs, reports, manifests, attestations, and diagnostic payloads in the CAS. Keep only their descriptors and digests in active context.
-9. Prefer machine-readable summaries over pasted command output. On successful commands, retain only the command, exit state, result digest, counts, and timing.
-10. On repeated failures, retain one normalized failure signature and the latest materially different evidence. Do not carry duplicate stack traces or repeated diagnostic output.
-11. Re-query current state rather than relying on old conversational descriptions.
-12. Do not rerun exhaustive inventory or foundational analysis unless the authority digest or affected semantic dependencies changed.
-13. Maintain a compact rolling programme ledger under the authorised generated-work path. Replace it atomically rather than appending an unbounded diary.
-14. Before context pressure becomes material, finish the current atomic unit, persist the checkpoint, and return a continuation-ready status rather than beginning another contract with incomplete context capacity.
-
-The checkpoint must be sufficient for a fresh Codex invocation to continue using only:
-
-Read AGENTS.md, CODEX.md, GOAL.md, and the latest programme checkpoint.  Verify its authority and repository digests.  Continue GOAL.md from the recorded next action.
-
-Do not assume MCP output is token-free. Every packet and query result must earn its place in active context.
-
-Optimisation must not weaken semantic completeness, proof depth, validation, adversarial review, or fail-closed behavior.
-
-## Note
-
-The programme succeeds only when the entire current semantic suite has been traversed, every in-scope gap has been closed through the lifecycle, the integrated suite has been independently attacked and revalidated, and the final authority itself warrants the completion claim.
+The final authority must warrant the completion claim, and two standalone clean clones must independently prove it without the original repository, parent checkout, untracked source, hidden agent cache or conversational history.
