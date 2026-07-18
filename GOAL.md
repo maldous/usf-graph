@@ -45,6 +45,7 @@ This bounded snapshot records durable orientation, not mutable execution state. 
 ```text
 checkout:                       /usf, branch main
 verified baseline HEAD:         a5bec725952d6b9e6b634782ce8687530251acff
+semantic/compiler milestone:    352b376f0e9b268af13b64604465bf554f6570b4, pushed to origin/main
 authority digest:               sha256:d24b641a3136cb73d73b354b11bcb839d4714d38c8c4ba905128039547575b8f
 published managed candidate:    sha256:6220e75969e28cee9a35aa5d6e78b7d2754a0fcbcdefb6fbdf42c73b6bd7ba2d
 checkpoint path:                .work/programme/checkpoint.json
@@ -72,7 +73,7 @@ Verified complete work:
 Verified partially complete work:
 
 - the independently derived repository architecture and naming decision is accepted, the repository-materialisation contract is active with current proof, the exact foundational plan has materialised, and the canonical compiler/gateway is proven; transitional duplicate implementation authority still requires ownership-proven cutover, and the implementation is not yet proven across development, deterministic test and production-shaped staging;
-- the corrected semantic source, validators, proof algorithm and derived snapshots are present only in the current dirty working tree and have not yet been committed to Git;
+- the corrected semantic source, validators, proof algorithm and derived snapshots are tracked from semantic/compiler milestone commit `352b376f0e9b268af13b64604465bf554f6570b4`; exact current Git and patch state remains checkpoint-owned;
 - proof, evidence, validation and readiness results remain non-current where they bind historical source, a simulator, a rejected layout or an environment scope broader than their evidence.
 - repository-local development, deterministic-test and production-shaped-staging implementations remain undelivered against the corrected authority.
 
@@ -83,7 +84,7 @@ Superseded work:
 
 Unpublished work:
 
-- all current Git working-tree edits and deletions, including the source bytes whose exact published semantics are present in Stardog and the refreshed derived snapshots;
+- none at the recorded semantic/compiler milestone; any later uncommitted delta is described only by the verified atomic checkpoint;
 - no current Stardog mutation or publication transaction is owned or left open.
 
 Invalidated or rejected as completion evidence:
@@ -94,7 +95,7 @@ Invalidated or rejected as completion evidence:
 
 Unverified or ambiguous work:
 
-- the working tree contains extensive programme changes that are not yet committed; all exact path and content digests therefore belong in the atomic checkpoint, not this prose snapshot;
+- no programme-owned repository path was ambiguous at the recorded milestone; all later exact path and content digests belong in the atomic checkpoint, not this prose snapshot;
 - no corrected repository-local development, deterministic-test or production-shaped-staging implementation exists at the recorded HEAD; no current environment result can therefore be treated as executable-delivery evidence;
 - exact CAS, working-tree, publication and validation state must be re-read from the latest verified checkpoint because it may advance after this directive is written.
 
