@@ -15,7 +15,7 @@ import { DataFactory } from 'n3';
 import { canonicalResource, literalValue, oneObject, subjectsOfType, USF } from './authority-dataset.js';
 import { requireCompleteGenerationPlan } from './generation-plan.js';
 import { CompilerError } from './compiler.js';
-import { validateGeneratedOutput } from './validators/index.js';
+import { GENERATED_RELEASE_ROOT, validateGeneratedOutput } from './validators/index.js';
 
 const { namedNode } = DataFactory;
 const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
@@ -122,85 +122,6 @@ function projection(store, output, sourceDigest) {
   };
 }
 
-function semanticContractSourceEquivalence(store, output, data, sourceRoot) {
-  if (!sourceRoot) throw new CompilerError('semantic contract equivalence requires an explicit source root', {
-    phase: 'generate:equivalence', code: 'USF-SCG-001', plan: output.plan,
-  });
-  const plan = namedNode(output.plan);
-  const bindings = store.getSubjects(namedNode(`${USF}sourceBindingArtefactPlan`), plan, null);
-  if (bindings.length !== 1) throw new CompilerError('semantic contract plan requires exactly one source binding', {
-    phase: 'generate:equivalence', code: 'USF-SCG-002', plan: output.plan, observed: bindings.length,
-  });
-  const binding = bindings[0];
-  const sourcePath = literalValue(oneObject(store, binding, namedNode(`${USF}sourceBindingPath`)));
-  const expectedDigest = literalValue(oneObject(store, binding, namedNode(`${USF}sourceBindingContentDigest`)));
-  const kinds = [...new Set(store.getObjects(binding, namedNode(`${USF}sourceBindingEquivalenceKind`), null).map((term) => term.value.split(':').at(-1)))].sort();
-  const rules = store.getObjects(binding, namedNode(`${USF}sourceBindingEquivalenceRule`), null);
-  if (rules.length !== 1) throw new CompilerError('semantic contract binding requires exactly one equivalence rule', {
-    phase: 'generate:equivalence', code: 'USF-SCG-002', binding: binding.value, observed: rules.length,
-  });
-  const rule = rules[0];
-  const ruleKinds = new Set(store.getObjects(rule, namedNode(`${USF}equivalenceRuleKind`), null).map((term) => term.value.split(':').at(-1)));
-  const compares = new Set(store.getObjects(rule, namedNode(`${USF}equivalenceRuleComparesPredicate`), null).map((term) => term.value));
-  const failureCodes = store.getObjects(rule, namedNode(`${USF}equivalenceRuleFailureCode`), null).map((term) => term.value);
-  const failureCode = failureCodes.length === 1 && /^[A-Z]+-[A-Z]+-[0-9]{3}$/.test(failureCodes[0]) ? failureCodes[0] : 'USF-SCG-006';
-  const configurationFailures = [];
-  if (failureCodes.length !== 1 || failureCode !== failureCodes[0]) configurationFailures.push({ field: 'equivalenceRuleFailureCode', expected: 'one stable failure code', observed: failureCodes });
-  const components = store.getObjects(rule, namedNode(`${USF}equivalenceRuleComponent`), null).map((term) => term.value);
-  if (components.length !== 1 || components[0] !== output.component) configurationFailures.push({ field: 'equivalenceRuleComponent', expected: output.component, observed: components });
-  const roles = store.getObjects(rule, namedNode(`${USF}equivalenceRuleInputRole`), null).map((term) => term.value);
-  if (roles.length !== 1 || roles[0] !== 'urn:usf:generationinputrole:equivalencesubject') configurationFailures.push({ field: 'equivalenceRuleInputRole', expected: 'urn:usf:generationinputrole:equivalencesubject', observed: roles });
-  const unsupportedKinds = kinds.filter((kind) => !ruleKinds.has(kind));
-  if (unsupportedKinds.length) configurationFailures.push({ field: 'equivalenceRuleKind', unsupported: unsupportedKinds });
-  const requiredPredicates = new Set([`${USF}canonicalName`, `${USF}declaresFacet`, `${USF}facetKind`]);
-  if (kinds.includes('semantic')) {
-    requiredPredicates.add(`${USF}facetStatus`);
-    requiredPredicates.add(`${USF}facetStatement`);
-  }
-  const missingPredicates = [...requiredPredicates].filter((predicate) => !compares.has(predicate)).sort();
-  if (missingPredicates.length) configurationFailures.push({ field: 'equivalenceRuleComparesPredicate', missing: missingPredicates });
-  if (configurationFailures.length) throw new CompilerError('semantic contract equivalence rule is incomplete or incompatible', {
-    phase: 'generate:equivalence', code: failureCode, binding: binding.value, rule: rule.value, failures: configurationFailures,
-  });
-  const root = resolve(sourceRoot);
-  const path = resolve(root, sourcePath ?? '');
-  if (!sourcePath || (path !== root && !path.startsWith(`${root}/`))) throw new CompilerError('semantic contract equivalence path escapes the declared source root', {
-    phase: 'generate:equivalence', code: 'USF-SCG-003', binding: binding.value, sourcePath,
-  });
-  if (!existsSync(path)) throw new CompilerError('semantic contract equivalence subject is missing', {
-    phase: 'generate:equivalence', code: 'USF-SCG-004', binding: binding.value, sourcePath,
-  });
-  const bytes = readFileSync(path);
-  const observedDigest = sha256(bytes);
-  if (observedDigest !== expectedDigest) throw new CompilerError('semantic contract equivalence subject digest changed', {
-    phase: 'generate:equivalence', code: 'USF-SCG-005', binding: binding.value, sourcePath, expectedDigest, observedDigest,
-  });
-  let source;
-  try { source = JSON.parse(bytes); }
-  catch (error) { throw new CompilerError('semantic contract equivalence subject is not strict JSON', {
-    phase: 'generate:equivalence', code: 'USF-SCG-005', binding: binding.value, sourcePath, cause: error.message,
-  }); }
-  const failures = [];
-  if (compares.has(`${USF}canonicalName`) && canonical(source.capability ?? '') !== data.canonicalName) failures.push({ field: 'capability', expected: data.canonicalName, observed: source.capability });
-  if (compares.has(`${USF}semanticLifecycleState`) && source.lifecycleState !== data.lifecycleState) failures.push({ field: 'lifecycleState', expected: data.lifecycleState, observed: source.lifecycleState });
-  const sourceFacets = new Map(Object.entries(source.facets ?? {}).map(([kind, facet]) => [kind === 'uiSemanticDefinition' ? 'uisemantics' : canonical(kind), facet]));
-  const outputFacets = new Map(data.facets.map((facet) => [facet.kind.split(':').at(-1), facet]));
-  if (compares.has(`${USF}declaresFacet`) && compares.has(`${USF}facetKind`) &&
-      (sourceFacets.size !== 10 || outputFacets.size !== 10 || [...sourceFacets.keys()].some((kind) => !outputFacets.has(kind)))) {
-    failures.push({ field: 'facets', expectedKinds: [...outputFacets.keys()].sort(), observedKinds: [...sourceFacets.keys()].sort() });
-  }
-  if (kinds.includes('semantic')) for (const [kind, sourceFacet] of sourceFacets) {
-    const generated = outputFacets.get(kind);
-    const statement = String(sourceFacet?.description ?? '').replace(/fresh USF proof pending USF-[0-9]+(?:\/USF-[0-9]+)*/gi, 'fresh proof remains pending').trim();
-    const statusMismatch = compares.has(`${USF}facetStatus`) && generated?.status !== canonical(sourceFacet?.status ?? '');
-    const statementMismatch = compares.has(`${USF}facetStatement`) && generated?.statement !== statement;
-    if (!generated || statusMismatch || statementMismatch) failures.push({ field: `facets.${kind}`, expected: generated, observed: { status: sourceFacet?.status, statement } });
-  }
-  if (!kinds.includes('structural') || failures.length) throw new CompilerError('semantic contract source equivalence failed', {
-    phase: 'generate:equivalence', code: failureCode, binding: binding.value, rule: rule.value, sourcePath, kinds, failures,
-  });
-  return { binding: binding.value, sourcePath, sourceSha256: observedDigest, kinds, structural: true, semantic: kinds.includes('semantic') };
-}
 function releaseAuthority(store, output) {
   const component = namedNode(output.component);
   const identities = store.getObjects(component, namedNode(`${USF}authorisedSigningIdentity`), null);
@@ -225,7 +146,7 @@ function releaseAuthority(store, output) {
 }
 
 function render(output, data) {
-  if (output.path === 'contracts/schemas/compiler-output.schema.json') {
+  if (output.path.endsWith('/contracts/schemas/compiler-output.schema.json')) {
     return stableJson({
       $schema: 'https://json-schema.org/draft/2020-12/schema',
       $id: 'urn:usf:generated:schema:compiler-output',
@@ -239,26 +160,23 @@ function render(output, data) {
       additionalProperties: true,
     });
   }
-  if (output.path === 'contracts/schemas/semantic-contract.schema.json') {
+  if (output.path.endsWith('/contracts/schemas/semantic-contract.schema.json')) {
     return stableJson({
       $schema: 'https://json-schema.org/draft/2020-12/schema',
       $id: 'urn:usf:generated:schema:semantic-contract',
       title: 'USF generated semantic contract', type: 'object',
-      required: ['schemaVersion', 'authorityDigest', 'id', 'canonicalName', 'lifecycleState', 'facets', 'sourceEquivalence', 'nonClaims'],
+      required: ['schemaVersion', 'authorityDigest', 'id', 'canonicalName', 'lifecycleState', 'facets', 'nonClaims'],
       properties: {
         schemaVersion: { const: 1 }, authorityDigest: { type: 'string', pattern: '^[0-9a-f]{64}$' },
         id: { type: 'string', pattern: '^urn:usf:semanticcontract:[a-z0-9]+$' }, canonicalName: { type: 'string', pattern: '^[a-z0-9]+$' },
         lifecycleState: { enum: ['proposed', 'planned', 'draft', 'active', 'deferred'] },
         facets: { type: 'array', minItems: 10, maxItems: 10, items: { type: 'object', required: ['id', 'kind', 'status', 'statement'],
           properties: { id: { type: 'string' }, kind: { type: 'string' }, status: { enum: ['complete', 'notapplicable'] }, statement: { type: 'string', minLength: 1 } }, additionalProperties: false } },
-        sourceEquivalence: { type: 'object', required: ['binding', 'sourcePath', 'sourceSha256', 'kinds', 'structural', 'semantic'],
-          properties: { binding: { type: 'string' }, sourcePath: { type: 'string' }, sourceSha256: { type: 'string', pattern: '^[0-9a-f]{64}$' },
-            kinds: { type: 'array', contains: { const: 'structural' } }, structural: { const: true }, semantic: { type: 'boolean' } }, additionalProperties: false },
         nonClaims: { type: 'array', items: { type: 'string' } },
       }, additionalProperties: false,
     });
   }
-  if (output.path === 'ui/schemas/rendererinput.schema.json') {
+  if (output.path.endsWith('/interface-models/schemas/rendererinput.schema.json')) {
     return stableJson({
       $schema: 'https://json-schema.org/draft/2020-12/schema',
       $id: 'urn:usf:generated:schema:renderer-input',
@@ -276,31 +194,26 @@ function render(output, data) {
       additionalProperties: false,
     });
   }
-  if (output.path === 'contracts/openapi/foundation.openapi.json') {
+  if (output.path.endsWith('/contracts/openapi/openapi.json')) {
     return stableJson({ openapi: '3.1.0', info: { title: 'USF generated foundation contract projection', version: '0.1.0' }, paths: {},
       'x-usf-authority-digest': data.authorityDigest, 'x-usf-semantic-resources': data.resources,
       'x-usf-nonclaims': ['no HTTP path is emitted without authored HTTP method and route semantics'] });
   }
-  if (output.path === 'workspace/package.json') {
-    return stableJson({ name: 'usf-generated-foundation', version: '0.1.0', private: true, type: 'module',
-      scripts: { test: 'node --test test/generated.test.mjs', validate: 'node ../proof/evidence-pipeline.mjs verify', proof: 'node ../proof/evidence-pipeline.mjs collect' } });
+  if (output.path.endsWith('/source/package.json')) {
+    return stableJson({ name: 'semantic-projection', version: '0.1.0', private: true, type: 'module',
+      scripts: { test: 'node --test ../assurance/tests/generated.test.mjs', validate: 'node ../assurance/proof/evidence-pipeline.mjs verify', proof: 'node ../assurance/proof/evidence-pipeline.mjs collect' } });
   }
-  if (output.path === 'workspace/src/implementation-obligations.mjs') {
+  if (output.path.endsWith('/source/implementation-obligations.mjs')) {
     return `// Generated obligations only; no domain behaviour is invented.\nexport default ${JSON.stringify(data.resources, null, 2)};\n`;
   }
-  if (output.path === 'workspace/test/generated.test.mjs') {
-    return `import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport obligations from '../src/implementation-obligations.mjs';\ntest('generated obligations are explicit',()=>assert.ok(Array.isArray(obligations)&&obligations.length>0));\n`;
+  if (output.path.endsWith('/assurance/tests/generated.test.mjs')) {
+    return `import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport obligations from '../../source/implementation-obligations.mjs';\ntest('generated obligations are explicit',()=>assert.ok(Array.isArray(obligations)&&obligations.length>0));\n`;
   }
-  if (output.path === 'proof/evidence-pipeline.mjs') {
-    return `import fs from 'node:fs';\nimport crypto from 'node:crypto';\nconst mode=process.argv[2];\nconst manifest=JSON.parse(fs.readFileSync(new URL('../release/manifest.json',import.meta.url)));\nconst digest=(p)=>crypto.createHash('sha256').update(fs.readFileSync(new URL('../'+p,import.meta.url))).digest('hex');\nconst failures=manifest.files.filter(f=>digest(f.path)!==f.sha256);\nif(failures.length){console.error(JSON.stringify({status:'fail',failures}));process.exit(1)}\nconsole.log(JSON.stringify({status:'pass',mode,checked:manifest.files.length}));\n`;
+  if (output.path.endsWith('/assurance/proof/evidence-pipeline.mjs')) {
+    return `import fs from 'node:fs';\nimport crypto from 'node:crypto';\nconst mode=process.argv[2];\nconst manifest=JSON.parse(fs.readFileSync(new URL('../../release/manifest.json',import.meta.url)));\nconst digest=(p)=>crypto.createHash('sha256').update(fs.readFileSync(new URL('../../../../'+p,import.meta.url))).digest('hex');\nconst failures=manifest.files.filter(f=>digest(f.path)!==f.sha256);\nif(failures.length){console.error(JSON.stringify({status:'fail',failures}));process.exit(1)}\nconsole.log(JSON.stringify({status:'pass',mode,checked:manifest.files.length}));\n`;
   }
-  if (output.path === '.github/workflows/validate.yml') {
-    return `name: generated-foundation-validation\non:\n  push:\npermissions:\n  contents: read\nconcurrency:\n  group: generated-foundation-\${{ github.sha }}\n  cancel-in-progress: false\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '22'\n      - run: cd workspace && npm test\n`;
-  }
-  if (output.path === 'runtime/compose.json') {
-    return stableJson({ name: 'usf-generated-foundation', services: {}, 'x-usf-authority-digest': data.authorityDigest,
-      'x-usf-service-obligations': data.resources,
-      'x-usf-nonclaims': ['no runnable service is emitted without authored image or build semantics'] });
+  if (/\/automation\/(?:proof-anchor|validate-spec)\.yaml$/.test(output.path)) {
+    return `name: semantic-projection-validation\non:\n  push:\npermissions:\n  contents: read\nconcurrency:\n  group: semantic-projection-\${{ github.sha }}\n  cancel-in-progress: false\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '22'\n      - run: npm test --prefix tools/compiler\n`;
   }
   if (output.path.endsWith('.graphql')) {
     return `# Generated framework-neutral contract projection.\nscalar USFSemanticResource\ntype Query { semanticResources: [USFSemanticResource!]! }\n`;
@@ -325,28 +238,7 @@ function write(root, relativePath, content, reuseRoot = null) {
   return { path: relativePath, bytes: Buffer.byteLength(content), sha256: digest, reused: false };
 }
 
-function materialiseTemplate(output, sourceRoot) {
-  if (!sourceRoot) throw new CompilerError('template-backed generation requires an explicit source root', {
-    phase: 'generate:template', component: output.component, template: output.template?.artefact,
-  });
-  const root = resolve(sourceRoot);
-  const source = resolve(root, output.template.path);
-  if (source !== root && !source.startsWith(`${root}/`)) throw new CompilerError('template path escapes the declared source root', {
-    phase: 'generate:template', template: output.template.artefact, path: output.template.path,
-  });
-  if (!existsSync(source)) throw new CompilerError('declared template is missing', {
-    phase: 'generate:template', template: output.template.artefact, path: output.template.path,
-  });
-  const content = readFileSync(source);
-  const observed = sha256(content);
-  if (observed !== output.template.sha256) throw new CompilerError('declared template checksum does not match source bytes', {
-    phase: 'generate:template-integrity', template: output.template.artefact, path: output.template.path,
-    expected: output.template.sha256, observed,
-  });
-  return content;
-}
-
-export function generateAuthority({ store, outputDir, mode = 'full', signingKeyPath, sourceRoot = null }) {
+export function generateAuthority({ store, outputDir, mode = 'full', signingKeyPath }) {
   if (!['full', 'incremental'].includes(mode)) throw new CompilerError(`unsupported generation mode: ${mode}`, { phase: 'generate:configuration' });
   const target = resolve(outputDir);
   if (mode === 'full' && existsSync(target)) throw new CompilerError('full generation requires an absent output directory', { phase: 'generate:clean-room', outputDir: target });
@@ -356,14 +248,13 @@ export function generateAuthority({ store, outputDir, mode = 'full', signingKeyP
   const old = mode === 'incremental' && existsSync(target) ? verifyOutput(target, false) : null;
   const reuseRoot = old ? target : null;
   const staging = mkdtempSync(join(dirname(target) || tmpdir(), '.usf-generation-'));
-  const ordinary = plan.outputs.filter((item) => !item.path.startsWith('release/'));
-  const release = plan.outputs.filter((item) => item.path.startsWith('release/'));
+  const release = plan.outputs.filter((item) => item.component === 'urn:usf:generator:release');
+  const ordinary = plan.outputs.filter((item) => item.component !== 'urn:usf:generator:release');
   const files = [];
   try {
     for (const output of ordinary) {
       const data = projection(store, output, sourceDigest);
-      if (output.component === 'urn:usf:generator:semanticcontract') data.sourceEquivalence = semanticContractSourceEquivalence(store, output, data, sourceRoot);
-      const content = output.template ? materialiseTemplate(output, sourceRoot) : render(output, data);
+      const content = render(output, data);
       files.push(write(staging, output.path, content, reuseRoot));
     }
     const generatedRelease = release.filter((item) => !/(?:manifest|checksums|signature|attestation)\.json$/.test(item.path));
@@ -423,7 +314,7 @@ export function generateAuthority({ store, outputDir, mode = 'full', signingKeyP
 
 export function verifyOutput(outputDir, required = true, expectedPublicKeyFingerprint = null) {
   const root = resolve(outputDir);
-  const manifestPath = join(root, 'release/manifest.json');
+  const manifestPath = join(root, GENERATED_RELEASE_ROOT, 'manifest.json');
   if (!existsSync(manifestPath)) {
     if (!required) return null;
     throw new CompilerError('generated release manifest is missing', { phase: 'verify-output' });
@@ -436,25 +327,27 @@ export function verifyOutput(outputDir, required = true, expectedPublicKeyFinger
     else if (sha256(readFileSync(target)) !== record.sha256) failures.push({ path: record.path, reason: 'digest-mismatch' });
   }
   const manifestContent = readFileSync(manifestPath);
-  const signaturePath = join(root, 'release/signature.json');
-  const attestationPath = join(root, 'release/attestation.json');
-  if (!existsSync(signaturePath)) failures.push({ path: 'release/signature.json', reason: 'missing' });
-  if (!existsSync(attestationPath)) failures.push({ path: 'release/attestation.json', reason: 'missing' });
+  const signatureRelativePath = `${GENERATED_RELEASE_ROOT}/signature.json`;
+  const attestationRelativePath = `${GENERATED_RELEASE_ROOT}/attestation.json`;
+  const signaturePath = join(root, signatureRelativePath);
+  const attestationPath = join(root, attestationRelativePath);
+  if (!existsSync(signaturePath)) failures.push({ path: signatureRelativePath, reason: 'missing' });
+  if (!existsSync(attestationPath)) failures.push({ path: attestationRelativePath, reason: 'missing' });
   if (existsSync(signaturePath)) {
     try {
       const signature = JSON.parse(readFileSync(signaturePath, 'utf8'));
       const fingerprint = sha256(createPublicKey(signature.publicKey).export({ type: 'spki', format: 'der' }));
-      if (signature.algorithm !== 'Ed25519' || signature.signedSha256 !== sha256(manifestContent)) failures.push({ path: 'release/signature.json', reason: 'signature-metadata-mismatch' });
-      if (signature.publicKeyFingerprint !== fingerprint) failures.push({ path: 'release/signature.json', reason: 'public-key-fingerprint-mismatch' });
-      if (expectedPublicKeyFingerprint && fingerprint !== expectedPublicKeyFingerprint) failures.push({ path: 'release/signature.json', reason: 'unexpected-signing-identity' });
-      if (!verify(null, manifestContent, createPublicKey(signature.publicKey), Buffer.from(signature.signature, 'base64'))) failures.push({ path: 'release/signature.json', reason: 'signature-invalid' });
-    } catch (error) { failures.push({ path: 'release/signature.json', reason: `invalid:${error.message}` }); }
+      if (signature.algorithm !== 'Ed25519' || signature.signedPath !== `${GENERATED_RELEASE_ROOT}/manifest.json` || signature.signedSha256 !== sha256(manifestContent)) failures.push({ path: signatureRelativePath, reason: 'signature-metadata-mismatch' });
+      if (signature.publicKeyFingerprint !== fingerprint) failures.push({ path: signatureRelativePath, reason: 'public-key-fingerprint-mismatch' });
+      if (expectedPublicKeyFingerprint && fingerprint !== expectedPublicKeyFingerprint) failures.push({ path: signatureRelativePath, reason: 'unexpected-signing-identity' });
+      if (!verify(null, manifestContent, createPublicKey(signature.publicKey), Buffer.from(signature.signature, 'base64'))) failures.push({ path: signatureRelativePath, reason: 'signature-invalid' });
+    } catch (error) { failures.push({ path: signatureRelativePath, reason: `invalid:${error.message}` }); }
   }
   if (existsSync(attestationPath)) {
     try {
       const attestation = JSON.parse(readFileSync(attestationPath, 'utf8'));
       if (attestation.manifestSha256 !== sha256(manifestContent) || attestation.authorityDigest !== manifest.authorityDigest || attestation.verificationRequired !== true) failures.push({ path: 'release/attestation.json', reason: 'attestation-mismatch' });
-    } catch (error) { failures.push({ path: 'release/attestation.json', reason: `invalid:${error.message}` }); }
+    } catch (error) { failures.push({ path: attestationRelativePath, reason: `invalid:${error.message}` }); }
   }
   if (failures.length) throw new CompilerError('generated output verification failed', { phase: 'verify-output', failures });
   const independent = validateGeneratedOutput(root, { expectedPublicKeyFingerprint });
@@ -464,4 +357,4 @@ export function verifyOutput(outputDir, required = true, expectedPublicKeyFinger
   return { ok: true, manifest, checked: manifest.files.length, independent };
 }
 
-export const generatorInternals = { componentQuery, projection, semanticContractSourceEquivalence };
+export const generatorInternals = { componentQuery, projection };

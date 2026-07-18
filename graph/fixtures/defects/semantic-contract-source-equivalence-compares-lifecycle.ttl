@@ -1,5 +1,0 @@
-# expect-shacl: nonconforming
-@prefix usf: <urn:usf:ontology:> .
-
-<urn:usf:equivalencerule:semanticcontractprojection>
-    usf:equivalenceRuleComparesPredicate usf:semanticLifecycleState .

@@ -8,45 +8,48 @@ import { GeneratedOutputValidationError } from './validation-error.js';
 const HEX_256 = /^[0-9a-f]{64}$/;
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 const finding = (code, path, message, details = {}) => ({ code, path, message, ...details });
+export const GENERATED_OUTPUT_ROOT = '.work/generated';
+export const GENERATED_RELEASE_ROOT = `${GENERATED_OUTPUT_ROOT}/release`;
+const releasePath = (name) => `${GENERATED_RELEASE_ROOT}/${name}`;
+const logicalPath = (path) => path.startsWith(`${GENERATED_OUTPUT_ROOT}/`) ? path.slice(GENERATED_OUTPUT_ROOT.length + 1) : path;
 
 export const REQUIRED_OUTPUT_FAMILIES = Object.freeze([
-  ['authority', (path) => path.startsWith('authority/')],
-  ['json-schema', (path) => path.startsWith('contracts/schemas/') && path.endsWith('.schema.json')],
-  ['openapi', (path) => path.startsWith('contracts/openapi/') && path.endsWith('.openapi.json')],
-  ['graphql', (path) => path.startsWith('contracts/graphql/') && path.endsWith('.graphql')],
-  ['documentation', (path) => path.startsWith('docs/')],
-  ['assurance', (path) => path.startsWith('assurance/')],
-  ['proof', (path) => path.startsWith('proof/')],
-  ['runtime', (path) => path.startsWith('runtime/')],
-  ['ui', (path) => path.startsWith('ui/')],
-  ['generated-tests', (path) => path.startsWith('tests/') || path.startsWith('workspace/test/')],
-  ['validators', (path) => path.startsWith('validation/')],
-  ['workspace-package', (path) => path === 'workspace/package.json'],
-  ['workspace-source', (path) => path.startsWith('workspace/src/')],
-  ['workflow', (path) => /^\.github\/workflows\/.*\.ya?ml$/.test(path)],
-  ['sbom', (path) => path === 'release/sbom.json'],
-  ['provenance', (path) => path === 'release/provenance.json'],
-  ['checksums', (path) => path === 'release/checksums.json'],
+  ['semantic-authority', (path) => logicalPath(path).startsWith('semantic-authority/')],
+  ['semantic-contracts', (path) => logicalPath(path).startsWith('semantic-contracts/')],
+  ['json-schema', (path) => logicalPath(path).startsWith('contracts/schemas/') && path.endsWith('.schema.json')],
+  ['openapi', (path) => logicalPath(path) === 'contracts/openapi/openapi.json'],
+  ['graphql', (path) => logicalPath(path).startsWith('contracts/graphql/') && path.endsWith('.graphql')],
+  ['documentation', (path) => logicalPath(path).startsWith('documentation/')],
+  ['assurance', (path) => logicalPath(path).startsWith('assurance/')],
+  ['interface-models', (path) => logicalPath(path).startsWith('interface-models/')],
+  ['generated-tests', (path) => logicalPath(path).startsWith('assurance/tests/')],
+  ['validators', (path) => logicalPath(path).startsWith('assurance/validation/')],
+  ['projection-package', (path) => logicalPath(path) === 'source/package.json'],
+  ['projection-source', (path) => logicalPath(path).startsWith('source/')],
+  ['automation', (path) => /^automation\/(?!templates\/).*\.ya?ml$/.test(logicalPath(path))],
+  ['sbom', (path) => path === releasePath('sbom.json')],
+  ['provenance', (path) => path === releasePath('provenance.json')],
+  ['checksums', (path) => path === releasePath('checksums.json')],
 ]);
 
 function validateManifestSchema(manifest, findings) {
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
-    findings.push(finding('invalid-manifest-schema', 'release/manifest.json', 'manifest root must be an object'));
+    findings.push(finding('invalid-manifest-schema', releasePath('manifest.json'), 'manifest root must be an object'));
     return false;
   }
-  if (manifest.schemaVersion !== 1) findings.push(finding('invalid-manifest-schema', 'release/manifest.json', 'schemaVersion must equal 1'));
-  if (typeof manifest.compilerVersion !== 'string' || !/^\d+\.\d+\.\d+([+-][0-9A-Za-z.-]+)?$/.test(manifest.compilerVersion)) findings.push(finding('invalid-manifest-schema', 'release/manifest.json', 'compilerVersion must be SemVer-shaped'));
-  if (typeof manifest.releaseVersion !== 'string' || !/^\d+\.\d+\.\d+([+-][0-9A-Za-z.-]+)?$/.test(manifest.releaseVersion)) findings.push(finding('invalid-manifest-schema', 'release/manifest.json', 'releaseVersion must be SemVer-shaped'));
-  if (typeof manifest.releaseVersionResource !== 'string' || !manifest.releaseVersionResource.startsWith('urn:usf:version:')) findings.push(finding('invalid-manifest-schema', 'release/manifest.json', 'releaseVersionResource must identify the governed graph version'));
-  if (typeof manifest.authorityDigest !== 'string' || !HEX_256.test(manifest.authorityDigest)) findings.push(finding('invalid-manifest-schema', 'release/manifest.json', 'authorityDigest must be a lowercase SHA-256 digest'));
+  if (manifest.schemaVersion !== 1) findings.push(finding('invalid-manifest-schema', releasePath('manifest.json'), 'schemaVersion must equal 1'));
+  if (typeof manifest.compilerVersion !== 'string' || !/^\d+\.\d+\.\d+([+-][0-9A-Za-z.-]+)?$/.test(manifest.compilerVersion)) findings.push(finding('invalid-manifest-schema', releasePath('manifest.json'), 'compilerVersion must be SemVer-shaped'));
+  if (typeof manifest.releaseVersion !== 'string' || !/^\d+\.\d+\.\d+([+-][0-9A-Za-z.-]+)?$/.test(manifest.releaseVersion)) findings.push(finding('invalid-manifest-schema', releasePath('manifest.json'), 'releaseVersion must be SemVer-shaped'));
+  if (typeof manifest.releaseVersionResource !== 'string' || !manifest.releaseVersionResource.startsWith('urn:usf:version:')) findings.push(finding('invalid-manifest-schema', releasePath('manifest.json'), 'releaseVersionResource must identify the governed graph version'));
+  if (typeof manifest.authorityDigest !== 'string' || !HEX_256.test(manifest.authorityDigest)) findings.push(finding('invalid-manifest-schema', releasePath('manifest.json'), 'authorityDigest must be a lowercase SHA-256 digest'));
   if (!Array.isArray(manifest.files) || manifest.files.length === 0) {
-    findings.push(finding('invalid-manifest-schema', 'release/manifest.json', 'files must be a non-empty array'));
+    findings.push(finding('invalid-manifest-schema', releasePath('manifest.json'), 'files must be a non-empty array'));
     return false;
   }
   const seen = new Set();
   let previous = '';
   for (const [index, record] of manifest.files.entries()) {
-    const recordPath = `release/manifest.json#/files/${index}`;
+    const recordPath = `${releasePath('manifest.json')}#/files/${index}`;
     if (!record || typeof record !== 'object' || Array.isArray(record)) {
       findings.push(finding('invalid-manifest-schema', recordPath, 'file record must be an object'));
       continue;
@@ -69,7 +72,7 @@ function validateLinkMap({ manifest, document, path, collection, nameField, hash
     findings.push(finding(code, path, `${collection} must be an array`));
     return;
   }
-  const expected = manifest.files.filter((record) => !record.path.startsWith('release/'));
+  const expected = manifest.files.filter((record) => !record.path.startsWith(`${GENERATED_RELEASE_ROOT}/`));
   const linked = new Map();
   for (const item of document[collection]) {
     const itemPath = item?.[nameField];
@@ -89,7 +92,7 @@ function validateLinkMap({ manifest, document, path, collection, nameField, hash
 }
 
 function validateSbom(root, manifest, findings) {
-  const path = 'release/sbom.json';
+  const path = releasePath('sbom.json');
   const resolved = resolveContainedPath(root, path);
   if (!resolved.ok || !existsSync(resolved.target)) return;
   const parsed = parseJsonDocument(readFileSync(resolved.target, 'utf8'), path, 'invalid-sbom');
@@ -100,7 +103,7 @@ function validateSbom(root, manifest, findings) {
 }
 
 function validateProvenance(root, manifest, findings) {
-  const path = 'release/provenance.json';
+  const path = releasePath('provenance.json');
   const resolved = resolveContainedPath(root, path);
   if (!resolved.ok || !existsSync(resolved.target)) return;
   const parsed = parseJsonDocument(readFileSync(resolved.target, 'utf8'), path, 'invalid-provenance');
@@ -111,7 +114,7 @@ function validateProvenance(root, manifest, findings) {
 }
 
 function validateChecksums(root, manifest, findings) {
-  const path = 'release/checksums.json';
+  const path = releasePath('checksums.json');
   const resolved = resolveContainedPath(root, path);
   if (!resolved.ok || !existsSync(resolved.target)) return;
   const parsed = parseJsonDocument(readFileSync(resolved.target, 'utf8'), path, 'invalid-checksums');
@@ -133,7 +136,7 @@ function validateChecksums(root, manifest, findings) {
 }
 
 function validateSignature(root, manifest, manifestBytes, findings, expectedPublicKeyFingerprint) {
-  const path = 'release/signature.json';
+  const path = releasePath('signature.json');
   const resolved = resolveContainedPath(root, path);
   if (!resolved.ok || !existsSync(resolved.target)) {
     findings.push(finding('missing-release-signature', path, 'release signature is required and must remain external to the signed manifest'));
@@ -143,7 +146,7 @@ function validateSignature(root, manifest, manifestBytes, findings, expectedPubl
   findings.push(...parsed.findings);
   const signature = parsed.value;
   if (!signature) return;
-  if (signature.algorithm !== 'Ed25519' || signature.signedPath !== 'release/manifest.json' || typeof signature.publicKey !== 'string' || typeof signature.publicKeyFingerprint !== 'string' || typeof signature.signingIdentity !== 'string' || !signature.signingIdentity.startsWith('urn:usf:signingidentity:') || typeof signature.signature !== 'string') {
+  if (signature.algorithm !== 'Ed25519' || signature.signedPath !== releasePath('manifest.json') || typeof signature.publicKey !== 'string' || typeof signature.publicKeyFingerprint !== 'string' || typeof signature.signingIdentity !== 'string' || !signature.signingIdentity.startsWith('urn:usf:signingidentity:') || typeof signature.signature !== 'string') {
     findings.push(finding('invalid-release-signature', path, 'signature must declare Ed25519, release manifest path, public key, governed signing identity, fingerprint, and base64 signature'));
     return;
   }
@@ -166,7 +169,7 @@ function validateSignature(root, manifest, manifestBytes, findings, expectedPubl
   } catch (error) {
     findings.push(finding('invalid-release-signature', path, error.message));
   }
-  const attestationPath = 'release/attestation.json';
+  const attestationPath = releasePath('attestation.json');
   const attestationResolved = resolveContainedPath(root, attestationPath);
   if (!attestationResolved.ok || !existsSync(attestationResolved.target)) {
     findings.push(finding('missing-release-attestation', attestationPath, 'signed release attestation is required'));
@@ -176,7 +179,7 @@ function validateSignature(root, manifest, manifestBytes, findings, expectedPubl
   findings.push(...attestation.findings);
   if (!attestation.value) return;
   const value = attestation.value;
-  if (value.schemaVersion !== 1 || value.kind !== 'cleanroomgeneration' || value.authorityDigest !== manifest.authorityDigest || value.manifestPath !== 'release/manifest.json' || value.manifestSha256 !== manifestDigest || value.signaturePath !== path || value.signingIdentity !== signature.signingIdentity || value.signingIdentityFingerprint !== fingerprint || value.releaseVersion !== manifest.releaseVersion || value.verificationRequired !== true) {
+  if (value.schemaVersion !== 1 || value.kind !== 'cleanroomgeneration' || value.authorityDigest !== manifest.authorityDigest || value.manifestPath !== releasePath('manifest.json') || value.manifestSha256 !== manifestDigest || value.signaturePath !== path || value.signingIdentity !== signature.signingIdentity || value.signingIdentityFingerprint !== fingerprint || value.releaseVersion !== manifest.releaseVersion || value.verificationRequired !== true) {
     findings.push(finding('invalid-release-attestation', attestationPath, 'attestation is not consistently bound to authority, manifest, signature, and signing identity'));
   }
 }
@@ -184,13 +187,14 @@ function validateSignature(root, manifest, manifestBytes, findings, expectedPubl
 export function validateGeneratedOutput(outputDir, { requiredFamilies = REQUIRED_OUTPUT_FAMILIES, expectedPublicKeyFingerprint = null } = {}) {
   const root = resolve(outputDir);
   const findings = [];
-  const manifestPath = resolveContainedPath(root, 'release/manifest.json');
+  const manifestRelativePath = releasePath('manifest.json');
+  const manifestPath = resolveContainedPath(root, manifestRelativePath);
   if (!manifestPath.ok || !existsSync(manifestPath.target)) {
-    findings.push(finding('missing-release-manifest', 'release/manifest.json', manifestPath.reason ?? 'release manifest is missing'));
+    findings.push(finding('missing-release-manifest', manifestRelativePath, manifestPath.reason ?? 'release manifest is missing'));
     return { ok: false, outputDir: root, checked: 0, findings };
   }
   const manifestBytes = readFileSync(manifestPath.target);
-  const parsed = parseJsonDocument(manifestBytes.toString('utf8'), 'release/manifest.json', 'invalid-manifest-json');
+  const parsed = parseJsonDocument(manifestBytes.toString('utf8'), manifestRelativePath, 'invalid-manifest-json');
   findings.push(...parsed.findings);
   const manifest = parsed.value;
   if (!manifest || !validateManifestSchema(manifest, findings) || !Array.isArray(manifest.files)) return { ok: false, outputDir: root, checked: 0, findings };
@@ -216,7 +220,7 @@ export function validateGeneratedOutput(outputDir, { requiredFamilies = REQUIRED
   }
 
   for (const [family, matches] of requiredFamilies) {
-    if (!paths.some(matches)) findings.push(finding('missing-output-family', 'release/manifest.json', `required output family is absent: ${family}`, { family }));
+    if (!paths.some(matches)) findings.push(finding('missing-output-family', manifestRelativePath, `required output family is absent: ${family}`, { family }));
   }
   validateSbom(root, manifest, findings);
   validateProvenance(root, manifest, findings);

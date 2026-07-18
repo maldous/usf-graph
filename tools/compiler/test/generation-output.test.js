@@ -12,10 +12,18 @@ import {
 } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
-import { assertGeneratedOutput, GeneratedOutputValidationError, validateGeneratedOutput } from '../src/validators/index.js';
+import {
+  assertGeneratedOutput,
+  GENERATED_OUTPUT_ROOT,
+  GENERATED_RELEASE_ROOT,
+  GeneratedOutputValidationError,
+  validateGeneratedOutput,
+} from '../src/validators/index.js';
 
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
+const generated = (path) => `${GENERATED_OUTPUT_ROOT}/${path}`;
+const release = (path) => `${GENERATED_RELEASE_ROOT}/${path}`;
 
 function write(root, path, content) {
   const target = join(root, path);
@@ -41,27 +49,27 @@ function records(root, paths) {
 }
 
 function signManifest(root, keys, mutate = (value) => value) {
-  const manifestPath = join(root, 'release/manifest.json');
+  const manifestPath = join(root, release('manifest.json'));
   const manifest = mutate(JSON.parse(readFileSync(manifestPath, 'utf8')));
   const bytes = Buffer.from(json(manifest));
   writeFileSync(manifestPath, bytes);
   const signature = {
     algorithm: 'Ed25519',
-    signedPath: 'release/manifest.json',
+    signedPath: release('manifest.json'),
     signedSha256: sha256(bytes),
     publicKey: keys.publicKey.export({ type: 'spki', format: 'pem' }),
     publicKeyFingerprint: sha256(keys.publicKey.export({ type: 'spki', format: 'der' })),
     signingIdentity: 'urn:usf:signingidentity:test',
     signature: sign(null, bytes, keys.privateKey).toString('base64'),
   };
-  writeFileSync(join(root, 'release/signature.json'), json(signature));
-  writeFileSync(join(root, 'release/attestation.json'), json({
+  writeFileSync(join(root, release('signature.json')), json(signature));
+  writeFileSync(join(root, release('attestation.json')), json({
     schemaVersion: 1,
     kind: 'cleanroomgeneration',
     authorityDigest: manifest.authorityDigest,
-    manifestPath: 'release/manifest.json',
+    manifestPath: release('manifest.json'),
     manifestSha256: sha256(bytes),
-    signaturePath: 'release/signature.json',
+    signaturePath: release('signature.json'),
     signingIdentity: signature.signingIdentity,
     signingIdentityFingerprint: signature.publicKeyFingerprint,
     releaseVersion: manifest.releaseVersion,
@@ -70,9 +78,9 @@ function signManifest(root, keys, mutate = (value) => value) {
 }
 
 function refreshManifest(root, keys) {
-  const checksumPaths = filesUnder(root).filter((path) => !['release/manifest.json', 'release/signature.json', 'release/attestation.json', 'release/checksums.json'].includes(path));
-  write(root, 'release/checksums.json', json({ algorithm: 'sha256', files: records(root, checksumPaths) }));
-  const paths = filesUnder(root).filter((path) => !['release/manifest.json', 'release/signature.json', 'release/attestation.json'].includes(path));
+  const checksumPaths = filesUnder(root).filter((path) => ![release('manifest.json'), release('signature.json'), release('attestation.json'), release('checksums.json')].includes(path));
+  write(root, release('checksums.json'), json({ algorithm: 'sha256', files: records(root, checksumPaths) }));
+  const paths = filesUnder(root).filter((path) => ![release('manifest.json'), release('signature.json'), release('attestation.json')].includes(path));
   const manifest = {
     schemaVersion: 1,
     compilerVersion: '0.1.0',
@@ -81,19 +89,19 @@ function refreshManifest(root, keys) {
     authorityDigest: 'a'.repeat(64),
     files: records(root, paths),
   };
-  writeFileSync(join(root, 'release/manifest.json'), json(manifest));
+  writeFileSync(join(root, release('manifest.json')), json(manifest));
   signManifest(root, keys);
 }
 
 function refreshLinkDocuments(root, keys) {
-  const ordinary = records(root, filesUnder(root).filter((path) => !path.startsWith('release/')));
-  write(root, 'release/sbom.json', json({
+  const ordinary = records(root, filesUnder(root).filter((path) => !path.startsWith(`${GENERATED_RELEASE_ROOT}/`)));
+  write(root, release('sbom.json'), json({
     bomFormat: 'CycloneDX',
     specVersion: '1.5',
     version: 1,
     components: ordinary.map((record) => ({ type: 'file', name: record.path, hashes: [{ alg: 'SHA-256', content: record.sha256 }] })),
   }));
-  write(root, 'release/provenance.json', json({
+  write(root, release('provenance.json'), json({
     schemaVersion: 1,
     authorityDigest: 'a'.repeat(64),
     materials: ordinary.map(({ path, sha256: digest }) => ({ path, sha256: digest })),
@@ -104,21 +112,21 @@ function refreshLinkDocuments(root, keys) {
 function validBundle() {
   const root = mkdtempSync(join(tmpdir(), 'usf-generated-output-'));
   const keys = generateKeyPairSync('ed25519');
-  write(root, 'authority/index.json', json({ schemaVersion: 1 }));
-  write(root, 'contracts/schemas/output.schema.json', json({ $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object', required: [] }));
-  write(root, 'contracts/openapi/foundation.openapi.json', json({ openapi: '3.1.0', info: { title: 'Generated foundation', version: '0.1.0' }, paths: {} }));
-  write(root, 'contracts/graphql/foundation.graphql', 'scalar USFSemanticResource\ntype Query { semanticResources: [USFSemanticResource!]! }\n');
-  write(root, 'docs/architecture/index.md', '# Generated architecture\n');
-  write(root, 'assurance/statement-of-applicability.json', json({ approvalState: 'draft' }));
-  write(root, 'proof/evidence-pipeline.mjs', 'export const verify = () => true;\n');
-  write(root, 'runtime/compose.json', json({ services: {} }));
-  write(root, 'ui/models/index.json', json({ models: [] }));
-  write(root, 'tests/e2e/uijourneys/index.json', json({ journeys: [] }));
-  write(root, 'validation/validators.json', json({ validators: [] }));
-  write(root, 'workspace/package.json', json({ name: 'generated-foundation', version: '0.1.0', private: true, scripts: { test: 'node --test', validate: 'node validate.mjs', proof: 'node proof.mjs' } }));
-  write(root, 'workspace/src/index.mjs', 'export default [];\n');
-  write(root, 'workspace/test/generated.test.mjs', 'import test from "node:test"; test("generated", () => {});\n');
-  write(root, '.github/workflows/validate.yml', 'name: generated-validation\non:\n  push:\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test\n');
+  write(root, generated('semantic-authority/authority.json'), json({ schemaVersion: 1 }));
+  write(root, generated('semantic-contracts/test.json'), json({ schemaVersion: 1 }));
+  write(root, generated('contracts/schemas/output.schema.json'), json({ $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object', required: [] }));
+  write(root, generated('contracts/openapi/openapi.json'), json({ openapi: '3.1.0', info: { title: 'Semantic projection', version: '0.1.0' }, paths: {} }));
+  write(root, generated('contracts/graphql/schema.graphql'), 'scalar USFSemanticResource\ntype Query { semanticResources: [USFSemanticResource!]! }\n');
+  write(root, generated('documentation/architecture.md'), '# Generated architecture\n');
+  write(root, generated('assurance/reports/statement-of-applicability.json'), json({ approvalState: 'draft' }));
+  write(root, generated('assurance/proof/evidence-pipeline.mjs'), 'export const verify = () => true;\n');
+  write(root, generated('interface-models/models/index.json'), json({ models: [] }));
+  write(root, generated('assurance/end-to-end/uijourneys/index.json'), json({ journeys: [] }));
+  write(root, generated('assurance/validation/validators.json'), json({ validators: [] }));
+  write(root, generated('source/package.json'), json({ name: 'semantic-projection', version: '0.1.0', private: true, scripts: { test: 'node --test', validate: 'node validate.mjs', proof: 'node proof.mjs' } }));
+  write(root, generated('source/index.mjs'), 'export default [];\n');
+  write(root, generated('assurance/tests/generated.test.mjs'), 'import test from "node:test"; test("generated", () => {});\n');
+  write(root, generated('automation/validate-spec.yaml'), 'name: semantic-projection-validation\non:\n  push:\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test\n');
   refreshLinkDocuments(root, keys);
   return { root, keys };
 }
@@ -154,23 +162,23 @@ test('planted defect: parent path in the manifest is rejected before reading it'
 }));
 
 test('planted defect: modified output produces a digest mismatch', () => withBundle(({ root }) => {
-  write(root, 'authority/index.json', json({ tampered: true }));
+  write(root, generated('semantic-authority/authority.json'), json({ tampered: true }));
   assert.ok(codes(validateGeneratedOutput(root)).has('digest-mismatch'));
 }));
 
 test('planted defect: missing required output family is explicit', () => withBundle(({ root, keys }) => {
-  unlinkSync(join(root, 'ui/models/index.json'));
+  unlinkSync(join(root, generated('interface-models/models/index.json')));
   refreshLinkDocuments(root, keys);
   const report = validateGeneratedOutput(root);
-  assert.ok(report.findings.some((item) => item.code === 'missing-output-family' && item.family === 'ui'));
+  assert.ok(report.findings.some((item) => item.code === 'missing-output-family' && item.family === 'interface-models'));
 }));
 
 for (const [name, path, invalid, expected] of [
-  ['OpenAPI', 'contracts/openapi/foundation.openapi.json', json({ resources: [] }), 'invalid-openapi'],
-  ['GraphQL', 'contracts/graphql/foundation.graphql', 'type Query { broken: String\n', 'invalid-graphql'],
-  ['renderer JSON Schema', 'contracts/schemas/output.schema.json', json({ resources: [] }), 'invalid-json-schema'],
-  ['package', 'workspace/package.json', json({ name: 'generated-foundation', version: 'not-semver', private: false, scripts: {} }), 'invalid-package'],
-  ['workflow', '.github/workflows/validate.yml', 'name: invalid\njobs: [\n', 'invalid-workflow'],
+  ['OpenAPI', generated('contracts/openapi/openapi.json'), json({ resources: [] }), 'invalid-openapi'],
+  ['GraphQL', generated('contracts/graphql/schema.graphql'), 'type Query { broken: String\n', 'invalid-graphql'],
+  ['renderer JSON Schema', generated('contracts/schemas/output.schema.json'), json({ resources: [] }), 'invalid-json-schema'],
+  ['package', generated('source/package.json'), json({ name: 'semantic-projection', version: 'not-semver', private: false, scripts: {} }), 'invalid-package'],
+  ['workflow', generated('automation/validate-spec.yaml'), 'name: invalid\njobs: [\n', 'invalid-workflow'],
 ]) {
   test(`planted defect: generated ${name} syntax or structure is rejected`, () => withBundle(({ root, keys }) => {
     write(root, path, invalid);
@@ -180,7 +188,7 @@ for (const [name, path, invalid, expected] of [
 }
 
 test('planted defect: SBOM digest linkage must cover generated non-release outputs', () => withBundle(({ root, keys }) => {
-  const path = join(root, 'release/sbom.json');
+  const path = join(root, release('sbom.json'));
   const sbom = JSON.parse(readFileSync(path, 'utf8'));
   sbom.components[0].hashes[0].content = '0'.repeat(64);
   writeFileSync(path, json(sbom));
@@ -189,7 +197,7 @@ test('planted defect: SBOM digest linkage must cover generated non-release outpu
 }));
 
 test('planted defect: provenance digest linkage must match generated inputs', () => withBundle(({ root, keys }) => {
-  const path = join(root, 'release/provenance.json');
+  const path = join(root, release('provenance.json'));
   const provenance = JSON.parse(readFileSync(path, 'utf8'));
   provenance.materials[0].sha256 = '0'.repeat(64);
   writeFileSync(path, json(provenance));
@@ -198,12 +206,12 @@ test('planted defect: provenance digest linkage must match generated inputs', ()
 }));
 
 test('planted defect: missing release signature fails closed', () => withBundle(({ root }) => {
-  unlinkSync(join(root, 'release/signature.json'));
+  unlinkSync(join(root, release('signature.json')));
   assert.ok(codes(validateGeneratedOutput(root)).has('missing-release-signature'));
 }));
 
 test('planted defect: invalid release signature fails cryptographic verification', () => withBundle(({ root }) => {
-  const path = join(root, 'release/signature.json');
+  const path = join(root, release('signature.json'));
   const signature = JSON.parse(readFileSync(path, 'utf8'));
   signature.signature = Buffer.alloc(64).toString('base64');
   writeFileSync(path, json(signature));
@@ -216,7 +224,7 @@ test('planted defect: unexpected release signing identity fails trust verificati
 }));
 
 test('assertion API exposes structured findings without compiler coupling', () => withBundle(({ root }) => {
-  unlinkSync(join(root, 'release/signature.json'));
+  unlinkSync(join(root, release('signature.json')));
   assert.throws(() => assertGeneratedOutput(root), (error) => {
     assert.ok(error instanceof GeneratedOutputValidationError);
     assert.equal(error.phase, 'verify-output:independent');

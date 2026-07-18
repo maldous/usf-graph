@@ -165,7 +165,20 @@ test('bootstrap contract packet assembles the traceability chain', async () => {
       if (q.includes('a <urn:usf:ontology:Realisation>')) return [{ id: { value: 'urn:usf:realisation:r1' }, state: { value: 'urn:usf:realisationstate:implementable' }, decision: { value: 'urn:usf:decision:d1' }, path: { value: 'census/local-semantic-validation' } }];
       if (q.includes('authorisedByDecision')) return [{ id: { value: 'urn:usf:decision:d1' }, state: { value: 'urn:usf:decisionstate:accepted' }, path: { value: 'census/local-semantic-validation' }, type: { value: 'urn:usf:ontology:Implementation' } }];
       if (q.includes('a <urn:usf:ontology:ValidationObligation>')) return [{ id: { value: 'urn:usf:validationobligation:v1' } }];
-      if (q.includes('a <urn:usf:ontology:ValidationExecution>') || q.includes('a <urn:usf:ontology:ValidationResult>')) return [];
+      if (q.includes('a <urn:usf:ontology:ValidationExecution>')) return [];
+      if (q.includes('a <urn:usf:ontology:ValidationResult>')) return [{
+        id: { value: 'urn:usf:validationresult:v1' },
+        execution: { value: 'urn:usf:validationexecution:v1' },
+        state: { value: 'urn:usf:resultstate:passed' },
+        evidence: { value: 'urn:usf:evidenceresult:v1' },
+        evidenceType: { value: 'urn:usf:ontology:ValidationEvidence' },
+        admission: { value: 'urn:usf:evidenceadmissionstate:admitted' },
+        freshness: { value: 'urn:usf:evidencefreshnessstate:fresh' },
+        integrity: { value: 'urn:usf:evidenceintegritystate:valid' },
+        within: { value: 'true' },
+        applicable: { value: 'urn:usf:validationobligation:v1' },
+        obligation: { value: 'urn:usf:validationobligation:v1' },
+      }];
       if (q.includes('declaresFacet')) return [{ id: { value: 'urn:usf:facet:f1' }, kind: { value: 'urn:usf:facetkind:security' }, statement: { value: 'must encrypt' } }];
       return [];
     },
@@ -182,6 +195,7 @@ test('bootstrap contract packet assembles the traceability chain', async () => {
   assert.equal(packet.evidenceResults[0].admissionState, 'admitted');
   assert.equal(packet.proofResults[0].evidenceSetDigest, 'sha256:e1');
   assert.equal(packet.validationObligations[0].id, 'urn:usf:validationobligation:v1');
+  assert.equal(packet.validationResults[0].current, true);
   assert.equal(packet.bounds.maximumTraversalDepth, MAX_BOOTSTRAP_DEPTH);
   assert.ok(packet.serializedBytes <= MAX_BOOTSTRAP_BYTES);
   assert.ok(packet.bindingCount <= MAX_BOOTSTRAP_BINDINGS);

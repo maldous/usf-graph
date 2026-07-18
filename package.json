@@ -1,0 +1,21 @@
+{
+  "name": "usf",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22.23.1",
+    "npm": "10.9.8"
+  },
+  "packageManager": "npm@10.9.8",
+  "scripts": {
+    "test": "node assurance/semantic-model-compilation/test-runner.mjs all",
+    "test:semantic-assurance": "node assurance/semantic-model-compilation/test-runner.mjs semantic-assurance"
+  },
+  "dependencies": {
+    "n3": "2.1.1",
+    "rdf-canonize": "5.0.0",
+    "stardog": "10.0.1",
+    "yaml": "2.9.0"
+  }
+}

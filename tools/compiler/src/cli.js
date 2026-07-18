@@ -9,7 +9,6 @@
 
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { writeFileSync } from 'node:fs';
 import { loadConfig, describeConfig } from './config.js';
 import { loadManifest } from './manifest.js';
 import { createClient } from './stardog.js';
@@ -17,7 +16,6 @@ import { checkLocal, compile, verify, verificationConforms, CompilerError } from
 import { verifyFixtures } from './fixture-harness.js';
 import { loadAuthorityDataset } from './authority-dataset.js';
 import { buildGenerationPlan } from './generation-plan.js';
-import { collectObservedEntry } from './source-observer.js';
 import { generateAuthority, verifyOutput } from './generate.js';
 import {
   createLiveAttestation,
@@ -55,20 +53,6 @@ async function main() {
     return plan.complete ? 0 : 1;
   }
 
-  if (command === 'snapshot-observed') {
-    const manifest = loadManifest(GRAPH_DIR);
-    checkLocal(manifest);
-    const snapshots = [];
-    for (const entry of manifest.observed) {
-      if (!entry.path) throw new CompilerError(`observed collector has no snapshot path: ${entry.collector}`, { phase: 'snapshot-observed' });
-      const collection = await collectObservedEntry({ manifest, entry });
-      writeFileSync(entry.path, collection.content, 'utf8');
-      snapshots.push({ graph: entry.graph, file: entry.file, sources: collection.sourceCount, triples: collection.tripleCount, observationSetDigest: collection.observationSetDigest, excludedCarrierPaths: collection.excludedCarrierPaths });
-    }
-    emit({ command, snapshots });
-    return 0;
-  }
-
   if (command === 'generate') {
     const outputAt = process.argv.indexOf('--output');
     const modeAt = process.argv.indexOf('--mode');
@@ -90,11 +74,15 @@ async function main() {
     return 0;
   }
 
-  if (command === 'compile') {
+  if (command === 'compile' || command === 'validate-candidate') {
     const config = loadConfig();
     const manifest = loadManifest(GRAPH_DIR);
     const client = createClient(config);
-    const result = await compile({ manifest, client });
+    const result = await compile({
+      manifest,
+      client,
+      publicationMode: command === 'validate-candidate' ? 'validate' : 'commit',
+    });
     emit({ command, target: describeConfig(config), ...result });
     return 0;
   }
@@ -185,7 +173,7 @@ async function main() {
     return 0;
   }
 
-  process.stderr.write('usage: cli.js <check|plan|snapshot-observed|snapshot-derived|generate|verify-output|compile|verify|verify-fixtures|drift-live|attest-live|verify-live-attestation|mcp>\n');
+  process.stderr.write('usage: cli.js <check|plan|snapshot-derived|generate|verify-output|validate-candidate|compile|verify|verify-fixtures|drift-live|attest-live|verify-live-attestation|mcp>\n');
   return 2;
 }
 
@@ -193,8 +181,8 @@ main()
   .then((code) => process.exit(code))
   .catch((err) => {
     if (err instanceof CompilerError) {
-      const { name, message, phase, failures, violations, count, obligations, report } = err;
-      emit({ ok: false, error: name, phase, message, failures, violations, count, obligations, report });
+      const { name, message, phase, file, graph, failures, violations, count, obligations, report } = err;
+      emit({ ok: false, error: name, phase, file, graph, message, failures, violations, count, obligations, report });
     } else {
       // Config and adapter errors are already credential-free by construction.
       emit({ ok: false, error: err.name || 'Error', message: err.message });

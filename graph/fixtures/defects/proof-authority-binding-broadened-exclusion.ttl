@@ -27,10 +27,7 @@ fixt:authoritybindingbroadened a usf:ProofAuthorityBinding ;
     usf:excludedAuthorityGraphIri "urn:usf:graph:derived:evidence"^^xsd:anyURI ;
     usf:excludedAuthorityGraphIri "urn:usf:graph:derived:obligations"^^xsd:anyURI ;
     usf:excludedAuthorityGraphIri "urn:usf:graph:derived:readiness"^^xsd:anyURI ;
-    usf:excludedAuthorityGraphIri "urn:usf:graph:derived:repositorystructure"^^xsd:anyURI ;
-    usf:excludedAuthorityGraphIri "urn:usf:graph:derived:sourcedispositions"^^xsd:anyURI ;
     usf:excludedAuthorityGraphIri "urn:usf:graph:derived:surfaces"^^xsd:anyURI ;
     usf:excludedAuthorityGraphIri "urn:usf:graph:evidence"^^xsd:anyURI ;
-    usf:excludedAuthorityGraphIri "urn:usf:graph:observed:sourceartefacts"^^xsd:anyURI ;
     usf:excludedAuthorityGraphIri "urn:usf:graph:proofs"^^xsd:anyURI ;
     usf:excludedAuthorityGraphIri "urn:usf:graph:ontology"^^xsd:anyURI .

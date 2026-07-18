@@ -12,6 +12,7 @@ const { namedNode } = DataFactory;
 const p = (local) => namedNode(`${USF}${local}`);
 const RDF_TYPE = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
 const RDFS_SUBCLASS_OF = namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf');
+const RETAINED = 'urn:usf:semanticadequacydisposition:independentlywarrantedretained';
 
 const FORBIDDEN_SEGMENTS = new Set(['v2', 'legacy', 'old', 'new', 'temp', 'transitional', 'usf']);
 
@@ -45,33 +46,21 @@ function hasType(store, subject, classIri) {
   return objects(store, subject, RDF_TYPE).some((candidate) => classDescendsFrom(store, candidate, expected));
 }
 
+function isSemanticallyCurrent(store, subject) {
+  const dispositions = objects(store, subject, p('semanticAdequacyDisposition'));
+  return dispositions.length === 0 || dispositions.some((candidate) => candidate.value === RETAINED);
+}
+
+function currentSubjectsOfType(store, classIri) {
+  return subjectsOfType(store, classIri).filter((subject) => isSemanticallyCurrent(store, subject));
+}
+
 export function buildGenerationPlan(store) {
   const obligations = [];
   const outputs = [];
   const validatedComponents = new Set();
-  const plans = subjectsOfType(store, `${USF}ArtefactPlan`).sort((a, b) => a.value.localeCompare(b.value));
-  const planIris = new Set(plans.map((plan) => plan.value));
+  const plans = currentSubjectsOfType(store, `${USF}ArtefactPlan`).sort((a, b) => a.value.localeCompare(b.value));
   if (!plans.length) obligations.push({ subject: 'urn:usf:repository:foundation', predicate: `${USF}hasArtefactPlan`, expected: 'one-or-more', observed: 0, kind: 'missing-artefact-plans' });
-
-  for (const binding of subjectsOfType(store, `${USF}SourceSemanticBinding`)) {
-    const boundPlans = objects(store, binding, p('sourceBindingArtefactPlan'));
-    if (boundPlans.length > 1) obligations.push({ subject: binding.value, predicate: `${USF}sourceBindingArtefactPlan`, expected: 'zero-or-one', observed: boundPlans.length, kind: 'source-bound-plan-cardinality' });
-    for (const plan of boundPlans) {
-      if (!planIris.has(plan.value)) obligations.push({ subject: binding.value, predicate: `${USF}sourceBindingArtefactPlan`, expected: 'registered-artefact-plan', observed: plan.value, kind: 'orphan-source-bound-plan' });
-    }
-  }
-
-  for (const disposition of subjectsOfType(store, `${USF}SourceArtefactDisposition`)) {
-    const modes = objects(store, disposition, p('hasDispositionOutputMode'));
-    const assignedPlans = objects(store, disposition, p('assignedToArtefactPlan'));
-    if (modes.length !== 1) obligations.push({ subject: disposition.value, predicate: `${USF}hasDispositionOutputMode`, expected: 'exactly-one', observed: modes.length, kind: 'disposition-output-mode-cardinality' });
-    const mode = iriValue(modes[0]);
-    if (mode === 'urn:usf:dispositionoutputmode:canonicaloutput' && assignedPlans.length !== 1) obligations.push({ subject: disposition.value, predicate: `${USF}assignedToArtefactPlan`, expected: 'exactly-one', observed: assignedPlans.length, kind: 'output-disposition-plan-cardinality' });
-    if (mode === 'urn:usf:dispositionoutputmode:nooutput' && assignedPlans.length !== 0) obligations.push({ subject: disposition.value, predicate: `${USF}assignedToArtefactPlan`, expected: 'zero', observed: assignedPlans.length, kind: 'no-output-disposition-has-plan' });
-    for (const plan of assignedPlans) {
-      if (!planIris.has(plan.value)) obligations.push({ subject: disposition.value, predicate: `${USF}assignedToArtefactPlan`, expected: 'registered-artefact-plan', observed: plan.value, kind: 'unknown-disposition-plan' });
-    }
-  }
 
   for (const plan of plans) {
     const owners = objects(store, plan, p('ownedByRepository'));
@@ -89,7 +78,6 @@ export function buildGenerationPlan(store) {
       const pathRule = requiredOne(store, artefact, p('governedByPathRule'), 'missing-path-rule', obligations);
       const component = requiredOne(store, artefact, p('generatedByComponent'), 'missing-generator-owner', obligations);
       const path = literalValue(pathTerm);
-      let template = null;
       validatePath(path, artefact.value, obligations);
       if (pathRule) requiredOne(store, pathRule, p('pathPattern'), 'missing-path-pattern', obligations);
       if (component) {
@@ -109,21 +97,8 @@ export function buildGenerationPlan(store) {
           }
           validatedComponents.add(component.value);
         }
-        const templates = objects(store, component, p('usesTemplate'));
-        if (templates.length > 1) obligations.push({ subject: component.value, predicate: `${USF}usesTemplate`, expected: 'zero-or-one', observed: templates.length, kind: 'ambiguous-template-input' });
-        if (templates.length === 1) {
-          const templatePath = literalValue(requiredOne(store, templates[0], p('canonicalPath'), 'missing-template-path', obligations));
-          const checksum = requiredOne(store, templates[0], p('canonicalChecksum'), 'missing-template-checksum', obligations);
-          const role = requiredOne(store, templates[0], p('generationInputRole'), 'missing-template-role', obligations);
-          const algorithm = checksum ? requiredOne(store, checksum, p('checksumAlgorithm'), 'missing-template-checksum-algorithm', obligations) : null;
-          const digest = checksum ? literalValue(requiredOne(store, checksum, p('checksumValue'), 'missing-template-checksum-value', obligations)) : null;
-          if (iriValue(role) !== 'urn:usf:generationinputrole:template') obligations.push({ subject: templates[0].value, predicate: `${USF}generationInputRole`, expected: 'urn:usf:generationinputrole:template', observed: iriValue(role), kind: 'invalid-template-role' });
-          if (iriValue(algorithm) !== 'urn:usf:checksumalgorithm:sha256') obligations.push({ subject: checksum?.value ?? templates[0].value, predicate: `${USF}checksumAlgorithm`, expected: 'urn:usf:checksumalgorithm:sha256', observed: iriValue(algorithm), kind: 'unsupported-template-checksum' });
-          if (!digest || !/^[0-9a-f]{64}$/.test(digest)) obligations.push({ subject: checksum?.value ?? templates[0].value, predicate: `${USF}checksumValue`, expected: 'lowercase-sha256', observed: digest, kind: 'invalid-template-checksum' });
-          if (templatePath && digest) template = { artefact: templates[0].value, path: templatePath, sha256: digest };
-        }
       }
-      if (path && kindTerm && component) outputs.push({ plan: plan.value, artefact: artefact.value, path, artefactKind: iriValue(kindTerm), component: component.value, semanticResources: semanticResources.map(iriValue).filter(Boolean), ...(template ? { template } : {}) });
+      if (path && kindTerm && component) outputs.push({ plan: plan.value, artefact: artefact.value, path, artefactKind: iriValue(kindTerm), component: component.value, semanticResources: semanticResources.map(iriValue).filter(Boolean) });
     }
   }
   const byPath = new Map();

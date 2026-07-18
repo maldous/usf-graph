@@ -6,7 +6,7 @@ import test from 'node:test';
 
 import {
   applyLayoutPlan, createLayoutPlan, digest, layoutContext, materialisationInternals, refuseLifecycleMutation,
-  projectContract, sourceDigest, validateLayoutPlan, verifyArtifact,
+  planWork, projectContract, sourceDigest, validateLayoutPlan, verifyArtifact,
 } from '../src/materialisation.js';
 
 const contract = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation';
@@ -32,6 +32,7 @@ function fakeClient({ descriptor, contractRows = defaultContractRows() } = {}) {
     size: async () => 10,
     construct: async () => '<urn:s> <urn:p> "materialisation" .\n',
     select: async (query) => {
+      if (query.includes('COUNT(*) AS ?count')) return [{ count: binding('1') }];
       if (query.includes('SELECT DISTINCT ?g')) return [{ g: binding('urn:g') }];
       if (query.includes('?canonicalName ?lifecycle')) return contractRows;
       if (query.includes('a <urn:usf:ontology:PathRole>')) return [{ role: binding(role), canonicalName: binding('compilersource'), parent: binding('tools/compiler'), onDemand: binding('true') }];
@@ -56,6 +57,15 @@ test('layout context is live-digest-bound and exposes active proof and authorise
   assert.equal(context.contract.proofResultState, 'urn:usf:proofresultstate:successful');
   assert.equal(context.acceptedDecisionCount, 1);
   assert.deepEqual(context.authorisedPaths, ['tools/compiler']);
+});
+
+test('layout context rejects a truncated materialisation-rule projection', async () => {
+  const client = fakeClient();
+  const select = client.select;
+  client.select = async (query) => query.includes('COUNT(*) AS ?count')
+    ? [{ count: binding('2') }]
+    : select(query);
+  await assert.rejects(() => layoutContext({ client }), /rule projection is incomplete/);
 });
 
 test('plans require one accepted decision, its authorised paths, and an exact plan digest', async () => {
@@ -102,6 +112,26 @@ test('contract projection includes focused validation obligations beyond bootstr
   const packet = await projectContract({ client }, { contract });
   assert.deepEqual(packet.validationObligations, ['urn:usf:validationobligation:v1']);
   assert.ok(packet.semanticIdentifiers.includes('urn:usf:validationobligation:v1'));
+});
+
+test('work planning accepts only passing validation backed by current applicable evidence', async () => {
+  let workQuery;
+  const client = fakeClient();
+  const originalSelect = client.select;
+  client.select = async (query) => {
+    if (query.includes('SELECT ?gap ?subject')) {
+      workQuery = query;
+      return [{ gap: binding('missing-current-passing-validation'), subject: binding('urn:usf:validationobligation:v1') }];
+    }
+    return originalSelect(query);
+  };
+  const result = await planWork({ client }, { contract });
+  assert.equal(result.gaps[0].type, 'missing-current-passing-validation');
+  for (const required of [
+    'entersEvidenceLifecycleAs', 'ValidationEvidence', 'evidenceadmissionstate:admitted',
+    'evidencefreshnessstate:fresh', 'evidenceintegritystate:valid', 'withinValidityScope',
+    'applicableToObligation',
+  ]) assert.match(workQuery, new RegExp(required));
 });
 
 test("proof-blocked contract projection is available but grants no materialisation authority", async () => {
@@ -273,6 +303,7 @@ test('plans reject root-role descendants, forbidden segments and family naming v
   const client = fakeClient();
   const originalSelect = client.select;
   client.select = async (query) => {
+    if (query.includes('COUNT(*) AS ?count')) return [{ count: binding('1') }];
     if (query.includes('a <urn:usf:ontology:PathRole>')) return [{ role: binding(rootRole), canonicalName: binding('repositoryroot'), parent: binding('.'), onDemand: binding('true') }];
     if (query.includes('a <urn:usf:ontology:ArtefactFamily>')) return [{ family: binding(rootFamily), familyName: binding('repositorydocumentation'), storage: binding('urn:usf:storageclass:gittrackedsource'), pathRole: binding(rootRole), format: binding(rootFormat), namingPattern: binding('^[A-Za-z0-9._-]+$') }];
     return originalSelect(query);

@@ -10,6 +10,7 @@ npm run check
 npm test
 npm run provision:db
 npm run compile
+npm run snapshot:derived
 npm run verify
 npm run drift
 echo "publish-authority: validated transaction committed and live drift check passed"

@@ -1,7 +1,9 @@
 # CODEX.md — Codex execution shim
 
-Read `AGENTS.md` first; it is the shared policy. This file adds only
-Codex-specific orchestration and restates no semantic policy.
+Read `AGENTS.md`, this shim, `GOAL.md`, the USF skill and the latest verified
+programme checkpoint before acting. This file adds only Codex-specific
+orchestration and restates no semantic policy. It cannot override `GOAL.md` or
+validated live semantic authority.
 
 - Load the `usf` skill before acting.
 - Semantic context comes from the `usf` MCP server (`usf_bootstrap`,
@@ -11,6 +13,7 @@ Codex-specific orchestration and restates no semantic policy.
   specialist only when it materially reduces total work. Never exceed eight.
 - Workers are read-only and get a compact packet (objective, identifiers,
   read/write scope, invariants, acceptance, validation) — never a transcript.
-- Every modifying worker uses its own branch and worktree; write scopes are
-  disjoint; only the coordinator mutates Stardog and integrates via Git.
+- Workers are read-only unless a direct current instruction explicitly permits
+  modifying workers. When permitted, each uses a disjoint branch, worktree and
+  write scope. Only the coordinator mutates Stardog and integrates via Git.
 - Stop and report on any stop condition in `AGENTS.md`.

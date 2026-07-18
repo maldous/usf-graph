@@ -27,27 +27,21 @@ export { canonicalGraphDigest };
 
 const { blankNode, defaultGraph, quad } = DataFactory;
 const NQUADS = 'application/n-quads';
-const REPOSITORY_BINDING_EXCLUSIONS = Object.freeze([
-  'v2/usf/census/audit.json',
-  'v2/usf/census/closure.json',
-]);
+const REPOSITORY_BINDING_EXCLUSIONS = Object.freeze(['.work/']);
 const isRepositoryBindingExcluded = (item) =>
-  REPOSITORY_BINDING_EXCLUSIONS.includes(item) || item.startsWith('v2/usf/.work/');
+  REPOSITORY_BINDING_EXCLUSIONS.some((prefix) => item.startsWith(prefix));
 const REQUIRED_ROLLBACK_FAULTS = Object.freeze([
   'clear-graph',
-  'collect-observed',
   'commit',
   'commit-response',
   'contamination',
   'derive',
   'derived-insert',
   'integrity',
-  'invalid-observed-rdf',
   'load',
   'rollback-response',
   'validate-authored',
   'validate-derived',
-  'validate-observed',
   'verify-counts',
   'wrong-rule-output',
 ]);
@@ -98,7 +92,7 @@ function scopeBlankNodes(parsed, scope) {
 }
 
 function graphEntries(manifest) {
-  return [...authoredLoadList(manifest), ...manifest.observed, ...manifest.shapes, ...manifest.derived];
+  return [...authoredLoadList(manifest), ...manifest.shapes, ...manifest.derived];
 }
 
 export async function localGraphDigests(manifest) {
@@ -233,7 +227,7 @@ export function repositoryState(repoRoot) {
     contentRootSha256: accumulator.digest('hex'),
     statusSha256: sha256(status),
     clean: status.length === 0,
-    excludedPaths: [...REPOSITORY_BINDING_EXCLUSIONS, 'v2/usf/.work/'],
+    excludedPaths: [...REPOSITORY_BINDING_EXCLUSIONS],
   };
 }
 
@@ -302,41 +296,11 @@ export async function proveLiveRollback({ manifest, client }) {
       overrides: { async addData() { activate(); throw new Error('injected authored-load failure'); } },
       injectionPoint: 'authored-add-data',
     })],
-    ['collect-observed', (activate) => ({
-      compileOptions: {
-        observedCollector: async () => { activate(); throw new Error('injected observed collection failure'); },
-      },
-      injectionPoint: 'observed-collector',
-    })],
-    ['invalid-observed-rdf', (activate) => ({
-      compileOptions: {
-        observedCollector: async ({ entry }) => {
-          activate();
-          return {
-            graph: entry.graph,
-            contentType: 'text/turtle',
-            content: '<urn:usf:invalid',
-            sourceCount: 1,
-            tripleCount: 1,
-            observationSetDigest: '0'.repeat(64),
-            excludedCarrierPaths: [],
-          };
-        },
-      },
-      injectionPoint: 'observed-invalid-rdf',
-    })],
     ['validate-authored', (activate) => {
       let calls = 0;
       return {
         overrides: { async validateInTx(...args) { calls += 1; if (calls === 1) { activate(); return false; } return client.validateInTx(...args); } },
         injectionPoint: 'authored-validation-result',
-      };
-    }],
-    ['validate-observed', (activate) => {
-      let calls = 0;
-      return {
-        overrides: { async validateInTx(...args) { calls += 1; if (calls === 2) { activate(); return false; } return client.validateInTx(...args); } },
-        injectionPoint: 'observed-validation-result',
       };
     }],
     ['derive', (activate) => ({
@@ -359,7 +323,7 @@ export async function proveLiveRollback({ manifest, client }) {
     ['validate-derived', (activate) => {
       let calls = 0;
       return {
-        overrides: { async validateInTx(...args) { calls += 1; if (calls === 3) { activate(); return false; } return client.validateInTx(...args); } },
+        overrides: { async validateInTx(...args) { calls += 1; if (calls === 2) { activate(); return false; } return client.validateInTx(...args); } },
         injectionPoint: 'derived-validation-result',
       };
     }],

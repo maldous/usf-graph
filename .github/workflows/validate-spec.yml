@@ -95,8 +95,6 @@ jobs:
           test -w "$RUNNER_TEMP"
       - name: Runner hygiene preflight
         run: tools/github-runner/cleanup-workspace.sh --scope workflow-pre --json | tee "$RUNNER_TEMP/usf-runner-cleanup-pre.json"
-      - name: Fetch bootstrap marker tag for validators
-        run: git fetch --no-tags --depth=2 origin refs/tags/v2-bootstrap:refs/tags/v2-bootstrap
       - name: Prepare PR base ref for governance gate
         if: github.event_name == 'pull_request'
         env:
@@ -117,17 +115,6 @@ jobs:
             git fetch --no-tags --unshallow origin "$BASE_REF:refs/remotes/origin/$BASE_REF"
             git diff --name-status "origin/$BASE_REF...HEAD" >/dev/null
           fi
-      - name: Verify bootstrap ancestry for validators
-        env:
-          BOOTSTRAP_START_COMMIT: f80da3919bfeb4e5596ccac95a67d707bae0d3ae
-        run: |
-          if ! git merge-base --is-ancestor "$BOOTSTRAP_START_COMMIT" HEAD; then
-            git fetch --no-tags --deepen=512 origin
-          fi
-          if ! git merge-base --is-ancestor "$BOOTSTRAP_START_COMMIT" HEAD; then
-            git fetch --no-tags --unshallow origin
-          fi
-          git merge-base --is-ancestor "$BOOTSTRAP_START_COMMIT" HEAD
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

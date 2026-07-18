@@ -1,6 +1,0 @@
-# conforming
-@prefix usf: <urn:usf:ontology:> .
-<urn:usf:fixture:wave3kernelvalidationobligation> a usf:ValidationObligation ; usf:canonicalName "fixturewave3kernelvalidationobligation" ; usf:validationForContract <urn:usf:fixture:wave3kernelcontract> .
-<urn:usf:fixture:wave3kernelvalidationexecution> a usf:ValidationExecution ; usf:canonicalName "fixturewave3kernelvalidationexecution" ; usf:executesValidation <urn:usf:fixture:wave3kernelvalidationobligation> ; usf:producesValidationResult <urn:usf:fixture:wave3kernelvalidationresult> .
-<urn:usf:fixture:wave3kernelvalidationresult> a usf:ValidationResult ; usf:canonicalName "fixturewave3kernelvalidationresult" ; usf:resultState <urn:usf:resultstate:passed> ; usf:entersEvidenceLifecycleAs <urn:usf:fixture:wave3kernelvalidationevidence> .
-<urn:usf:fixture:wave3kernelvalidationevidence> a usf:EvidenceResult, usf:ValidationEvidence ; usf:canonicalName "fixturewave3kernelvalidationevidence" ; usf:evidenceFor <urn:usf:fixture:wave3kernelcontract> ; usf:hasFreshness <urn:usf:freshness:fresh> .

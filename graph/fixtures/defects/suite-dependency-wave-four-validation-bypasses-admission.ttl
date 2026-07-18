@@ -1,3 +1,0 @@
-# expect: validationbypassesevidenceadmission
-@prefix usf: <urn:usf:ontology:> .
-<urn:usf:defect:wave4kernelvalidationbypass> a usf:ValidationResult .

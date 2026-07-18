@@ -1,5 +1,0 @@
-@prefix usf: <urn:usf:ontology:> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-# expect-shacl: nonconforming
-<urn:usf:defect:negativequantity> a usf:CensusObservationRun ;
-    usf:observedRequiredPrerequisiteDependencyCount "-1"^^xsd:integer .

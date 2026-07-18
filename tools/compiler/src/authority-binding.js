@@ -8,11 +8,8 @@ export const SELF_PUBLICATION_EXCLUDED_GRAPHS = Object.freeze([
   'urn:usf:graph:derived:evidence',
   'urn:usf:graph:derived:obligations',
   'urn:usf:graph:derived:readiness',
-  'urn:usf:graph:derived:repositorystructure',
-  'urn:usf:graph:derived:sourcedispositions',
   'urn:usf:graph:derived:surfaces',
   'urn:usf:graph:evidence',
-  'urn:usf:graph:observed:sourceartefacts',
   'urn:usf:graph:proofs',
 ]);
 

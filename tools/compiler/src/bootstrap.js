@@ -170,12 +170,22 @@ export async function bootstrapPacket(ctx, { contract, task, continuation } = {}
     client.select(`SELECT DISTINCT ?id ?state ?path ?type ?repository WHERE { ?realisation <${ONT}realisesContract> <${iri}> ; <${ONT}authorisedByDecision> ?id . OPTIONAL { ?id <${ONT}decisionState> ?state } OPTIONAL { ?id <${ONT}authorisesSourcePath> ?path } OPTIONAL { ?id <${ONT}authorisesRealisationType> ?type } OPTIONAL { ?id <${ONT}authorisesRepository> ?repository } } ORDER BY ?id LIMIT 50`),
     client.select(`SELECT DISTINCT ?id ?canonicalName WHERE { ?id a <${ONT}ValidationObligation> ; <${ONT}validationForContract> <${iri}> . OPTIONAL { ?id <${ONT}canonicalName> ?canonicalName } } ORDER BY ?id LIMIT 50`),
     client.select(`SELECT DISTINCT ?id ?obligation ?environment WHERE { ?id a <${ONT}ValidationExecution> ; <${ONT}executesValidation> ?obligation . ?obligation <${ONT}validationForContract> <${iri}> . OPTIONAL { ?id <${ONT}validationEnvironment> ?environment } } ORDER BY ?id LIMIT 50`),
-    client.select(`SELECT DISTINCT ?id ?execution ?state ?evidence WHERE { ?id a <${ONT}ValidationResult> . ?execution <${ONT}producesValidationResult> ?id ; <${ONT}executesValidation> ?obligation . ?obligation <${ONT}validationForContract> <${iri}> . OPTIONAL { ?id <${ONT}resultState> ?state } OPTIONAL { ?id <${ONT}entersEvidenceLifecycleAs> ?evidence } } ORDER BY ?id LIMIT 50`),
+    client.select(`SELECT DISTINCT ?id ?execution ?obligation ?state ?evidence ?evidenceType ?admission ?freshness ?integrity ?within ?applicable WHERE { ?id a <${ONT}ValidationResult> . ?execution <${ONT}producesValidationResult> ?id ; <${ONT}executesValidation> ?obligation . ?obligation <${ONT}validationForContract> <${iri}> . OPTIONAL { ?id <${ONT}resultState> ?state } OPTIONAL { ?id <${ONT}entersEvidenceLifecycleAs> ?evidence . OPTIONAL { ?evidence a ?evidenceType } OPTIONAL { ?evidence <${ONT}hasAdmissionState> ?admission } OPTIONAL { ?evidence <${ONT}hasFreshnessState> ?freshness } OPTIONAL { ?evidence <${ONT}hasIntegrityState> ?integrity } OPTIONAL { ?evidence <${ONT}withinValidityScope> ?within } OPTIONAL { ?evidence <${ONT}applicableToObligation> ?applicable } } } ORDER BY ?id LIMIT 50`),
     client.select(`SELECT DISTINCT ?id ?kind ?status ?statement WHERE { <${iri}> <${ONT}declaresFacet> ?id . OPTIONAL { ?id <${ONT}facetKind> ?kind } OPTIONAL { ?id <${ONT}facetStatus> ?status } OPTIONAL { ?id <${ONT}facetStatement> ?statement } } ORDER BY ?id LIMIT 50`),
   ]);
   const mappedRealisations = realisations.map((row) => item(row, [['id', 'id'], ['state', 'state', short], ['implementation', 'implementation'], ['decision', 'decision'], ['authorisedSourcePath', 'path']]));
   const mappedEvidence = evidence.map((row) => item(row, [['id', 'id'], ['canonicalName', 'canonicalName'], ['admissionState', 'admission', short], ['freshnessState', 'freshness', short], ['integrityState', 'integrity', short], ['applicableToObligation', 'obligation'], ['contentDigest', 'digest'], ['provenance', 'provenance']]));
   const mappedResults = results.map((row) => item(row, [['id', 'id'], ['obligation', 'obligation'], ['state', 'state', short], ['evidenceSetDigest', 'evidenceSetDigest'], ['confidenceState', 'confidence', short], ['confidenceBasis', 'confidenceBasis'], ['uncertainty', 'uncertainty', clip]]));
+  const mappedValidationResults = validationResults.map((row) => ({
+    ...item(row, [['id', 'id'], ['execution', 'execution'], ['state', 'state', short], ['evidence', 'evidence'], ['evidenceType', 'evidenceType'], ['admissionState', 'admission', short], ['freshnessState', 'freshness', short], ['integrityState', 'integrity', short], ['withinValidityScope', 'within'], ['applicableToObligation', 'applicable']]),
+    current: val(row, 'state') === 'urn:usf:resultstate:passed'
+      && val(row, 'evidenceType') === `${ONT}ValidationEvidence`
+      && val(row, 'admission') === 'urn:usf:evidenceadmissionstate:admitted'
+      && val(row, 'freshness') === 'urn:usf:evidencefreshnessstate:fresh'
+      && val(row, 'integrity') === 'urn:usf:evidenceintegritystate:valid'
+      && val(row, 'within') === 'true'
+      && val(row, 'applicable') === val(row, 'obligation'),
+  }));
   const contractState = short(val(core[0], 'state'));
   const source = {
     found: true, traceability: BOOTSTRAP_TRACE, authority,
@@ -192,14 +202,14 @@ export async function bootstrapPacket(ctx, { contract, task, continuation } = {}
     realisationDecisions: decisions.map((row) => item(row, [['id', 'id'], ['state', 'state', short], ['authorisedSourcePath', 'path'], ['authorisedRealisationType', 'type'], ['authorisedRepository', 'repository']])),
     validationObligations: validationObligations.map((row) => item(row, [['id', 'id'], ['canonicalName', 'canonicalName']])),
     validationExecutions: validationExecutions.map((row) => item(row, [['id', 'id'], ['obligation', 'obligation'], ['environment', 'environment']])),
-    validationResults: validationResults.map((row) => item(row, [['id', 'id'], ['execution', 'execution'], ['state', 'state', short], ['evidence', 'evidence']])),
+    validationResults: mappedValidationResults,
     supportingFacets: facets.map((row) => item(row, [['id', 'id'], ['kind', 'kind', short], ['status', 'status', short], ['statement', 'statement', clip]])),
     openGaps: [
       ...(contractState === 'proofblocked' ? [{ id: iri, code: 'contract-proof-blocked' }] : []),
       ...(mappedEvidence.length === 0 ? [{ id: iri, code: 'evidence-unavailable' }] : []),
       ...(mappedResults.length === 0 ? [{ id: iri, code: 'proof-result-unavailable' }] : []),
       ...(!mappedRealisations.some((value) => value.state === 'implementable') ? [{ id: iri, code: 'realisation-not-implementable' }] : []),
-      ...(validationResults.length === 0 ? [{ id: iri, code: 'validation-result-unavailable' }] : []),
+      ...(!mappedValidationResults.some((result) => result.current) ? [{ id: iri, code: 'current-validation-result-unavailable' }] : []),
     ],
     task: clip(task || null),
   };

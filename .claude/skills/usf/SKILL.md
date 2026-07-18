@@ -49,7 +49,7 @@ ranges only after querying.
   objective, claims/nonclaims, authorised actions/paths/formats, acceptance and
   validation obligations, result requirements and stop conditions.
 - `usf_work_plan { contract? }` — bounded semantic gaps for work projection;
-  it creates no ticket and grants no authority.
+  it creates no external work record and grants no authority.
 
 Workers are always read-only.
 
@@ -76,7 +76,7 @@ or assume the model.
 ## Compact worker packets
 
 Realisation and validation agents consume the current `usf_contract_project`
-packet, not copied prose or a ticket body. They must stop if its digest is stale,
+packet, not copied prose or an external request body. They must stop if its digest is stale,
 its contract/decision/proof state is not actionable, or a requested path,
 format, action, storage class or evidence item is absent. Never send a
 transcript or the full model. An agent returns changed paths and digests,
@@ -86,5 +86,5 @@ validation results and stable codes, explicit nonclaims, and remaining risk.
 
 A task is complete only when its contract obligations are satisfied with real
 evidence and the applicable validators pass — not because tests, reports,
-tickets, or existing code say so. Report an explicit readiness verdict and any
+external work records, or existing code say so. Report an explicit readiness verdict and any
 residual gap. Do not overclaim.

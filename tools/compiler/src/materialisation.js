@@ -20,6 +20,19 @@ const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const ACTIONS = new Set(['create-directory', 'write-file', 'move-path', 'delete-path']);
 
 const value = (row, key) => row[key]?.value ?? null;
+const MATERIALISATION_RULE_WHERE = `
+  ?family a <urn:usf:ontology:ArtefactFamily> ;
+          <urn:usf:ontology:canonicalName> ?familyName ;
+          <urn:usf:ontology:usesMaterialisationRule> ?rule .
+  ?rule <urn:usf:ontology:usesStorageClass> ?storage ;
+        <urn:usf:ontology:usesRepresentationFormat> ?format ;
+        <urn:usf:ontology:usesNamingRule> ?naming .
+  ?naming <urn:usf:ontology:filenamePattern> ?namingPattern .
+  OPTIONAL { ?rule <urn:usf:ontology:usesPathRole> ?pathRole }
+  FILTER NOT EXISTS { ?family <urn:usf:ontology:semanticAdequacyDisposition> ?familyDisposition . FILTER(?familyDisposition != <urn:usf:semanticadequacydisposition:independentlywarrantedretained>) }
+  FILTER NOT EXISTS { ?rule <urn:usf:ontology:semanticAdequacyDisposition> ?ruleDisposition . FILTER(?ruleDisposition != <urn:usf:semanticadequacydisposition:independentlywarrantedretained>) }
+  FILTER NOT EXISTS { ?naming <urn:usf:ontology:semanticAdequacyDisposition> ?namingDisposition . FILTER(?namingDisposition != <urn:usf:semanticadequacydisposition:independentlywarrantedretained>) }
+`;
 export const stable = (input) => Array.isArray(input)
   ? input.map(stable)
   : input && typeof input === 'object'
@@ -116,7 +129,7 @@ async function resolveContract(client, reference = CONTRACT) {
 
 export async function layoutContext(ctx, args = {}) {
   const contract = await resolveContract(ctx.client, args.contract || CONTRACT);
-  const [witness, contractRows, roleRows, ruleRows] = await Promise.all([
+  const [witness, contractRows, roleRows, ruleRows, ruleCountRows] = await Promise.all([
     authorityWitness(ctx.client),
     ctx.client.select(`SELECT ?canonicalName ?lifecycle ?activation ?proof ?proofState ?decision ?decisionState ?authorisedPath WHERE {
       <${contract}> <urn:usf:ontology:canonicalName> ?canonicalName .
@@ -125,10 +138,15 @@ export async function layoutContext(ctx, args = {}) {
       OPTIONAL { <${contract}> <urn:usf:ontology:reliesOnProofResult> ?proof . ?proof <urn:usf:ontology:hasProofResultState> ?proofState . }
       OPTIONAL { ?realisation <urn:usf:ontology:realisesContract> <${contract}> ; <urn:usf:ontology:authorisedByDecision> ?decision . ?decision <urn:usf:ontology:decisionState> ?decisionState . OPTIONAL { ?decision <urn:usf:ontology:authorisesSourcePath> ?authorisedPath } }
     } ORDER BY ?authorisedPath LIMIT 256`),
-    ctx.client.select('SELECT ?role ?canonicalName ?parent ?onDemand WHERE { ?role a <urn:usf:ontology:PathRole> ; <urn:usf:ontology:canonicalName> ?canonicalName ; <urn:usf:ontology:authorisedParentPath> ?parent ; <urn:usf:ontology:materialisesOnDemand> ?onDemand } ORDER BY ?canonicalName LIMIT 256'),
-    ctx.client.select('SELECT ?family ?familyName ?storage ?pathRole ?format ?namingPattern WHERE { ?family a <urn:usf:ontology:ArtefactFamily> ; <urn:usf:ontology:canonicalName> ?familyName ; <urn:usf:ontology:usesMaterialisationRule> ?rule . ?rule <urn:usf:ontology:usesStorageClass> ?storage ; <urn:usf:ontology:usesRepresentationFormat> ?format ; <urn:usf:ontology:usesNamingRule> ?naming . ?naming <urn:usf:ontology:filenamePattern> ?namingPattern . OPTIONAL { ?rule <urn:usf:ontology:usesPathRole> ?pathRole } } ORDER BY ?familyName ?format LIMIT 256'),
+    ctx.client.select('SELECT ?role ?canonicalName ?parent ?onDemand WHERE { ?role a <urn:usf:ontology:PathRole> ; <urn:usf:ontology:canonicalName> ?canonicalName ; <urn:usf:ontology:authorisedParentPath> ?parent ; <urn:usf:ontology:materialisesOnDemand> ?onDemand . FILTER NOT EXISTS { ?role <urn:usf:ontology:semanticAdequacyDisposition> ?disposition . FILTER(?disposition != <urn:usf:semanticadequacydisposition:independentlywarrantedretained>) } } ORDER BY ?canonicalName LIMIT 256'),
+    ctx.client.select(`SELECT ?family ?familyName ?storage ?pathRole ?format ?namingPattern WHERE { ${MATERIALISATION_RULE_WHERE} } ORDER BY ?familyName ?format LIMIT 512`),
+    ctx.client.select(`SELECT (COUNT(*) AS ?count) WHERE { ${MATERIALISATION_RULE_WHERE} }`),
   ]);
   if (contractRows.length === 0) throw new Error('contract does not exist in live authority');
+  const expectedRuleCount = Number(value(ruleCountRows[0], 'count'));
+  if (ruleCountRows.length !== 1 || !Number.isSafeInteger(expectedRuleCount) || expectedRuleCount !== ruleRows.length) {
+    throw new Error('materialisation rule projection is incomplete');
+  }
   const head = contractRows[0];
   const decisions = new Map();
   for (const row of contractRows) {
@@ -167,6 +185,7 @@ export async function layoutContext(ctx, args = {}) {
     acceptedDecisionCount: acceptedDecisions.length,
     authorisedPaths: paths,
     pathRoles: roleRows.map((row) => ({ id: value(row, 'role'), canonicalName: value(row, 'canonicalName'), parent: value(row, 'parent'), onDemand: value(row, 'onDemand') === 'true' })),
+    materialisationRuleCount: expectedRuleCount,
     rules: ruleRows.map((row) => ({ family: value(row, 'family'), familyName: value(row, 'familyName'), storageClass: value(row, 'storage'), pathRole: value(row, 'pathRole'), representationFormat: value(row, 'format'), namingPattern: value(row, 'namingPattern') })),
   };
 }
@@ -409,7 +428,16 @@ export async function planWork(ctx, args = {}) {
   const contract = await resolveContract(ctx.client, args.contract || CONTRACT);
   const rows = await ctx.client.select(`SELECT ?gap ?subject WHERE {
     { <${contract}> <urn:usf:ontology:mandatoryProofObligation> ?subject . FILTER NOT EXISTS { <${contract}> <urn:usf:ontology:reliesOnProofResult> ?result . ?result <urn:usf:ontology:proofResultForObligation> ?subject ; <urn:usf:ontology:hasProofResultState> <urn:usf:proofresultstate:successful> } BIND("missing-successful-proof" AS ?gap) }
-    UNION { <${contract}> <urn:usf:ontology:requiredValidation> ?subject . FILTER NOT EXISTS { ?execution <urn:usf:ontology:executesValidation> ?subject ; <urn:usf:ontology:producesValidationResult> ?result . ?result <urn:usf:ontology:resultState> <urn:usf:resultstate:passed> } BIND("missing-passing-validation" AS ?gap) }
+    UNION { <${contract}> <urn:usf:ontology:requiredValidation> ?subject . FILTER NOT EXISTS {
+      ?execution <urn:usf:ontology:executesValidation> ?subject ; <urn:usf:ontology:producesValidationResult> ?result .
+      ?result <urn:usf:ontology:resultState> <urn:usf:resultstate:passed> ; <urn:usf:ontology:entersEvidenceLifecycleAs> ?evidence .
+      ?evidence a <urn:usf:ontology:ValidationEvidence> ;
+        <urn:usf:ontology:hasAdmissionState> <urn:usf:evidenceadmissionstate:admitted> ;
+        <urn:usf:ontology:hasFreshnessState> <urn:usf:evidencefreshnessstate:fresh> ;
+        <urn:usf:ontology:hasIntegrityState> <urn:usf:evidenceintegritystate:valid> ;
+        <urn:usf:ontology:withinValidityScope> true ;
+        <urn:usf:ontology:applicableToObligation> ?subject .
+    } BIND("missing-current-passing-validation" AS ?gap) }
   } ORDER BY ?gap ?subject LIMIT 50`);
   const witness = await authorityWitness(ctx.client);
   return { schemaVersion: 1, authorityDigest: `sha256:${witness.digest}`, contract, gaps: rows.map((row) => ({ type: value(row, 'gap'), subject: value(row, 'subject') })), issueProjectionAuthority: false };

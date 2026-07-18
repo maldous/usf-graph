@@ -1,7 +1,6 @@
 // Manifest loading for the USF semantic compiler.
 //
-// graph/manifest.yaml (parent usf repository, host-side) is the
-// sole loading registry and is semantic
+// graph/manifest.yaml in this repository is the sole loading registry and is semantic
 // authority: this module reads it but never writes it. Every registered entry
 // is resolved to { file, graph, contentType, role, order }. contentType and
 // role are DERIVED deterministically from the manifest section and file path,
@@ -27,19 +26,14 @@ export const ROLES = Object.freeze([
   'assurance',
   'realisation',
   'execution',
-  'observed',
   'shapes',
   'rules',
   'derived',
 ]);
 
-// The one required derivation order. Repository structure is promoted from
-// validated observations first, source dispositions are then classified, and
-// obligations → evidence → surfaces → coverage → readiness follow; whole-
-// dataset integrity is checked last.
+// The one required derivation order. Obligations → evidence → surfaces →
+// coverage → readiness. Whole-dataset integrity is checked last.
 export const DERIVATION_ORDER = Object.freeze([
-  'repository-structure',
-  'source-dispositions',
   'obligations',
   'evidence',
   'surfaces',
@@ -73,8 +67,6 @@ function roleFor(section, file) {
       return 'rules';
     case 'derived':
       return 'derived';
-    case 'observed':
-      return 'observed';
     case 'definition':
       if (base === 'ontology.ttl') return 'ontology';
       if (base === 'vocabulary.ttl' || base === 'taxonomy.ttl') return 'vocabulary';
@@ -110,7 +102,7 @@ function entry(section, raw, graphDir, order) {
   if (!raw || (typeof raw.file !== 'string' && typeof raw.collector !== 'string')) {
     throw new ManifestError(`Malformed ${section} entry: missing file or collector`);
   }
-  if (raw.file && raw.collector && section !== 'observed') throw new ManifestError(`Malformed ${section} entry: file and collector are mutually exclusive`);
+  if (raw.file && raw.collector) throw new ManifestError(`Malformed ${section} entry: file and collector are mutually exclusive`);
   const file = raw.file || null;
   return Object.freeze({
     file,
@@ -126,6 +118,16 @@ function entry(section, raw, graphDir, order) {
   });
 }
 
+function retiredGraph(raw) {
+  if (!raw || typeof raw.graph !== 'string' || !raw.graph.startsWith('urn:usf:graph:') || /[\s<>]/.test(raw.graph)) {
+    throw new ManifestError('Malformed retired graph entry: exact graph IRI is required');
+  }
+  if (typeof raw.supersededBy !== 'string' || !raw.supersededBy.startsWith('urn:usf:semanticcorrectiondecision:') || /[\s<>]/.test(raw.supersededBy)) {
+    throw new ManifestError(`Malformed retired graph entry for ${raw.graph}: semantic correction decision is required`);
+  }
+  return Object.freeze({ graph: raw.graph, supersededBy: raw.supersededBy });
+}
+
 export function loadManifest(graphDir) {
   const root = normalize(isAbsolute(graphDir) ? graphDir : join(process.cwd(), graphDir));
   const text = readFileSync(join(root, 'manifest.yaml'), 'utf8');
@@ -136,10 +138,13 @@ export function loadManifest(graphDir) {
     entry('definition', r, root, r.loadOrder)
   );
   const authored = (doc.authoredGraphs || []).map((r) => entry('authored', r, root, r.loadOrder));
-  const observed = (doc.observedGraphs || []).map((r) => entry('observed', r, root, r.loadOrder));
+  if (Array.isArray(doc.observedGraphs) && doc.observedGraphs.length > 0) {
+    throw new ManifestError('observedGraphs is retired; current evidence enters through registered authored resources');
+  }
   const shapes = (doc.shapeGraphs || []).map((r, i) => entry('shapes', r, root, r.loadOrder ?? 1000 + i));
   const rules = (doc.rules || []).map((r, i) => entry('rules', r, root, i));
   const derived = (doc.derivedGraphs || []).map((r, i) => entry('derived', r, root, r.loadOrder ?? 2000 + i));
+  const retired = (doc.retiredGraphs || []).map(retiredGraph);
 
   const fixtures = doc.fixtures
     ? Object.freeze({
@@ -156,10 +161,10 @@ export function loadManifest(graphDir) {
     baseIri: doc.baseIri,
     definitions: Object.freeze(definitions),
     authored: Object.freeze(authored),
-    observed: Object.freeze(observed),
     shapes: Object.freeze(shapes),
     rules: Object.freeze(rules),
     derived: Object.freeze(derived),
+    retired: Object.freeze(retired),
     fixtures,
   });
 }
@@ -169,10 +174,6 @@ export function loadManifest(graphDir) {
 // part of this list.
 export function authoredLoadList(manifest) {
   return [...manifest.definitions, ...manifest.authored].sort((a, b) => a.order - b.order);
-}
-
-export function observedLoadList(manifest) {
-  return [...manifest.observed].sort((a, b) => a.order - b.order);
 }
 
 // The single shapes graph IRI (all shape files register into one graph).
@@ -189,11 +190,17 @@ export function shapesGraph(manifest) {
 export function managedGraphs(manifest) {
   const set = new Set();
   for (const e of authoredLoadList(manifest)) set.add(e.graph);
-  for (const e of observedLoadList(manifest)) set.add(e.graph);
   set.add(shapesGraph(manifest));
   for (const d of manifest.derived) set.add(d.graph);
   for (const r of manifest.rules) if (r.output) set.add(r.output);
   return [...set];
+}
+
+// Exact historical graphs cleared during the same transaction but excluded
+// from the current authority witness. This prevents removed derivations from
+// silently surviving a manifest change while keeping the clear boundary closed.
+export function clearableGraphs(manifest) {
+  return [...new Set([...managedGraphs(manifest), ...manifest.retired.map((entry) => entry.graph)])];
 }
 
 // Derivation rules in required execution order; integrity checked separately.

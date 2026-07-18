@@ -15,14 +15,14 @@ demand from Stardog, never preloaded or copied into prompts.
 
 Reject the build-first inversion:
 
-    Requirements establish code.    (Ticket)
+    Requests establish code.        (External work record)
     Code demands features.          (Toolchain)
     Features warrant proof.         (Testing)
     Proof specifies evidence.       (Reports)
     Evidence shapes truth.          (Review)
     Truth fulfils semantics.        (Documentation)
 
-Tickets track requested work. Source code is a candidate realisation. Tests
+External work records track requested work. Source code is a candidate realisation. Tests
 produce evidence. Reports describe outcomes. None establish semantic truth.
 
 ## Authority and roles
@@ -38,7 +38,7 @@ features and constraints. ADR records historical rationale and is never
 semantic authority. Realisation is an authorised approach to satisfying an
 active contract. Toolchain is a selected mechanism. Code is a candidate
 realisation. Validation produces evidence. Report projects evidence and
-results. Ticket tracks work. None of the latter roles independently establish
+results. External work records track work. None of the latter roles independently establish
 or retrospectively override truth.
 
 Never claim done, proven, complete, or production-ready beyond what evidence
@@ -62,7 +62,7 @@ Credentials come only from the environment and never appear in output.
 
 Before creating, renaming or deleting any tracked path, or selecting a representation format, retrieve the active repository-materialisation contract and authority digest through the USF gateway. Materialise only paths, actions, formats and storage classes authorised by that current contract.
 
-Generated projections, tickets, ADRs, source files and external payloads do not establish semantic truth. Verify every external artifact against its Stardog-recorded digest before use. Do not commit runtime evidence, proof logs or validation output unless the active contract explicitly requires a tracked representation.
+Generated projections, external work records, ADRs, source files and external payloads do not establish semantic truth. Verify every external artifact against its Stardog-recorded digest before use. Do not commit runtime evidence, proof logs or validation output unless the active contract explicitly requires a tracked representation.
 
 ## Task ledger
 

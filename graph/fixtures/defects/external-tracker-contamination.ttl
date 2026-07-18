@@ -1,0 +1,12 @@
+@prefix usf: <urn:usf:ontology:> .
+@prefix fixt: <urn:usf:fixturenode:> .
+@prefix dom: <urn:usf:capabilitydomain:> .
+@prefix facet: <urn:usf:facetkind:> .
+@prefix rung: <urn:usf:proofrung:> .
+@prefix pmode: <urn:usf:providermode:> .
+@prefix envc: <urn:usf:environmentclass:> .
+@prefix fresh: <urn:usf:freshness:> .
+
+fixt:externaltrackercontamination a usf:Capability ;
+    usf:canonicalName "externaltrackercontamination" ; usf:inDomain dom:foundation ; usf:hasContract fixt:x ;
+    usf:definition "tracked at https://linear.app/maldous/issue/USF-1088 projectId 5cc2abcd" .

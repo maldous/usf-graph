@@ -25,7 +25,7 @@ const realGraphAbsent = (t) => {
 
 
 import { loadConfig, describeConfig, ConfigError } from '../src/config.js';
-import { loadManifest, managedGraphs, ManifestError } from '../src/manifest.js';
+import { loadManifest, managedGraphs, clearableGraphs, ManifestError } from '../src/manifest.js';
 import { checkLocal, compile, buildPlan, verify, verificationConforms, CompilerError, CONTAMINATION_PATTERNS } from '../src/compiler.js';
 import { createClient, stardogInternals } from '../src/stardog.js';
 import { loadAuthorityDataset } from '../src/authority-dataset.js';
@@ -37,7 +37,6 @@ import {
   liveAttestationInternals,
 } from '../src/live-attestation.js';
 import { generateAuthority, generatorInternals, verifyOutput } from '../src/generate.js';
-import { collectObservedEntry, collectRepositorySourceObservations, sourceObserverInternals } from '../src/source-observer.js';
 
 // --- Fixtures --------------------------------------------------------------
 
@@ -57,8 +56,6 @@ authoredGraphs:
 shapeGraphs:
   - { file: shapes.ttl, graph: "urn:usf:graph:shapes", loadOrder: 4, validationOrder: 4 }
 rules:
-  - { file: rules/repository-structure.rq, output: "urn:usf:graph:derived:repositorystructure", kind: derivation }
-  - { file: rules/source-dispositions.rq, output: "urn:usf:graph:derived:sourcedispositions", kind: derivation }
   - { file: rules/obligations.rq, output: "urn:usf:graph:derived:obligations", kind: derivation }
   - { file: rules/evidence.rq, output: "urn:usf:graph:derived:evidence", kind: derivation }
   - { file: rules/surfaces.rq, output: "urn:usf:graph:derived:surfaces", kind: derivation }
@@ -66,13 +63,13 @@ rules:
   - { file: rules/readiness.rq, output: "urn:usf:graph:derived:readiness", kind: derivation }
   - { file: rules/integrity.rq, kind: integrity }
 derivedGraphs:
-  - { file: derived/repository-structure.trig, graph: "urn:usf:graph:derived:repositorystructure", loadOrder: 9, validationOrder: 9 }
-  - { file: derived/source-dispositions.trig, graph: "urn:usf:graph:derived:sourcedispositions", loadOrder: 10, validationOrder: 10 }
   - { file: derived/obligations.trig, graph: "urn:usf:graph:derived:obligations", loadOrder: 11, validationOrder: 11 }
   - { file: derived/evidence.trig, graph: "urn:usf:graph:derived:evidence", loadOrder: 12, validationOrder: 12 }
   - { file: derived/surfaces.trig, graph: "urn:usf:graph:derived:surfaces", loadOrder: 13, validationOrder: 13 }
   - { file: derived/coverage.trig, graph: "urn:usf:graph:derived:coverage", loadOrder: 14, validationOrder: 14 }
   - { file: derived/readiness.trig, graph: "urn:usf:graph:derived:readiness", loadOrder: 15, validationOrder: 15 }
+retiredGraphs:
+  - { graph: "urn:usf:graph:derived:retiredfixture", supersededBy: "urn:usf:semanticcorrectiondecision:test" }
 fixtures:
   conforming: fixtures/conforming
   defects: fixtures/defects
@@ -85,15 +82,11 @@ ng:o a usf:NamedGraph ; usf:canonicalName "ontology" ; usf:graphIri "urn:usf:gra
 ng:r a usf:NamedGraph ; usf:canonicalName "registry" ; usf:graphIri "urn:usf:graph:registry" ; usf:graphClass gcl:definitiongraph ; usf:loadOrder 2 ; usf:graphValidationOrder 2 .
 ng:p a usf:NamedGraph ; usf:canonicalName "providers" ; usf:graphIri "urn:usf:graph:providers" ; usf:graphClass gcl:authoredgraph ; usf:loadOrder 3 ; usf:graphValidationOrder 3 .
 ng:s a usf:NamedGraph ; usf:canonicalName "shapes" ; usf:graphIri "urn:usf:graph:shapes" ; usf:graphClass gcl:shapegraph ; usf:loadOrder 4 ; usf:graphValidationOrder 4 .
-ng:dr a usf:NamedGraph ; usf:canonicalName "dr" ; usf:graphIri "urn:usf:graph:derived:repositorystructure" ; usf:graphClass gcl:derivedgraph ; usf:loadOrder 9 ; usf:graphValidationOrder 9 .
-ng:d0 a usf:NamedGraph ; usf:canonicalName "d0" ; usf:graphIri "urn:usf:graph:derived:sourcedispositions" ; usf:graphClass gcl:derivedgraph ; usf:loadOrder 10 ; usf:graphValidationOrder 10 .
 ng:d1 a usf:NamedGraph ; usf:canonicalName "d1" ; usf:graphIri "urn:usf:graph:derived:obligations" ; usf:graphClass gcl:derivedgraph ; usf:loadOrder 11 ; usf:graphValidationOrder 11 .
 ng:d2 a usf:NamedGraph ; usf:canonicalName "d2" ; usf:graphIri "urn:usf:graph:derived:evidence" ; usf:graphClass gcl:derivedgraph ; usf:loadOrder 12 ; usf:graphValidationOrder 12 .
 ng:d3 a usf:NamedGraph ; usf:canonicalName "d3" ; usf:graphIri "urn:usf:graph:derived:surfaces" ; usf:graphClass gcl:derivedgraph ; usf:loadOrder 13 ; usf:graphValidationOrder 13 .
 ng:d4 a usf:NamedGraph ; usf:canonicalName "d4" ; usf:graphIri "urn:usf:graph:derived:coverage" ; usf:graphClass gcl:derivedgraph ; usf:loadOrder 14 ; usf:graphValidationOrder 14 .
 ng:d5 a usf:NamedGraph ; usf:canonicalName "d5" ; usf:graphIri "urn:usf:graph:derived:readiness" ; usf:graphClass gcl:derivedgraph ; usf:loadOrder 15 ; usf:graphValidationOrder 15 .
-rl:rr a usf:DerivationRule ; usf:canonicalName "repositorystructure" ; usf:inNamedGraph ng:dr .
-rl:r0 a usf:DerivationRule ; usf:canonicalName "sourcedispositions" ; usf:inNamedGraph ng:d0 .
 rl:r1 a usf:DerivationRule ; usf:canonicalName "obligations" ; usf:inNamedGraph ng:d1 .
 rl:r2 a usf:DerivationRule ; usf:canonicalName "evidence" ; usf:inNamedGraph ng:d2 .
 rl:r3 a usf:DerivationRule ; usf:canonicalName "surfaces" ; usf:inNamedGraph ng:d3 .
@@ -102,9 +95,7 @@ rl:r5 a usf:DerivationRule ; usf:canonicalName "readiness" ; usf:inNamedGraph ng
 `,
     'providers.ttl': '@prefix usf: <urn:usf:> .\nusf:providers:acme a usf:ontology:Thing .\n',
     'shapes.ttl':
-      '# SHACL detectors legitimately mention forbidden markers: github.com USF-1 commitSha\n@prefix sh: <http://www.w3.org/ns/shacl#> .\n',
-    'rules/repository-structure.rq': rule('RepositoryWorkPackage'),
-    'rules/source-dispositions.rq': rule('SourceArtefactDisposition'),
+      '# SHACL detectors encode prohibited markers without embedding a match\n@prefix sh: <http://www.w3.org/ns/shacl#> .\n',
     'rules/obligations.rq': rule('ProofObligation'),
     'rules/evidence.rq': rule('EvidenceRequirement'),
     'rules/surfaces.rq': rule('Surface'),
@@ -112,8 +103,6 @@ rl:r5 a usf:DerivationRule ; usf:canonicalName "readiness" ; usf:inNamedGraph ng
     'rules/readiness.rq': rule('Readiness'),
     'rules/integrity.rq':
       'SELECT ?violation ?subject WHERE { ?subject a ?t . BIND("x" AS ?violation) FILTER(false) }\n',
-    'derived/repository-structure.trig': 'GRAPH <urn:usf:graph:derived:repositorystructure> { <urn:usf:x> a <urn:usf:ontology:RepositoryWorkPackage> . }\n',
-    'derived/source-dispositions.trig': 'GRAPH <urn:usf:graph:derived:sourcedispositions> { <urn:usf:x> a <urn:usf:ontology:SourceArtefactDisposition> . }\n',
     'derived/obligations.trig': '@prefix usf: <urn:usf:ontology:> .\nGRAPH <urn:usf:graph:derived:obligations> { usf:x a usf:ProofObligation }\n',
     'derived/evidence.trig': 'GRAPH <urn:usf:graph:derived:evidence> { <urn:usf:x> a <urn:usf:ontology:EvidenceRequirement> . }\n',
     'derived/surfaces.trig': 'GRAPH <urn:usf:graph:derived:surfaces> { <urn:usf:x> a <urn:usf:ontology:Surface> . }\n',
@@ -139,24 +128,6 @@ function writeGraph(spec) {
   return dir;
 }
 
-function observedSpec() {
-  const spec = baseSpec();
-  spec['manifest.yaml'] = spec['manifest.yaml'].replace(
-    'shapeGraphs:',
-    'observedGraphs:\n  - { collector: repositorysourceobserver, graph: "urn:usf:graph:observed:sourceartefacts", loadOrder: 5, validationOrder: 5 }\nshapeGraphs:'
-  );
-  spec['registry.ttl'] += 'ng:obs a usf:NamedGraph ; usf:canonicalName "sourceobservations" ; usf:graphIri "urn:usf:graph:observed:sourceartefacts" ; usf:graphClass gcl:observedgraph ; usf:loadOrder 5 ; usf:graphValidationOrder 5 .\n';
-  return spec;
-}
-
-const observedCollector = async ({ entry }) => ({
-  graph: entry.graph,
-  contentType: 'text/turtle',
-  content: '<urn:usf:source:s> <urn:usf:ontology:observedSourcePath> "x" .',
-  sourceCount: 1,
-  tripleCount: 1,
-  observationSetDigest: 'a'.repeat(64),
-});
 test.after(() => {
   for (const d of dirs) rmSync(d, { recursive: true, force: true });
 });
@@ -310,349 +281,6 @@ test('checkLocal: the base graph passes', () => {
   assert.equal(checkLocal(m).ok, true);
 });
 
-test('manifest: observed collector is registered separately from authority', () => {
-  const manifest = loadManifest(writeGraph(observedSpec()));
-  assert.equal(manifest.observed.length, 1);
-  assert.equal(manifest.observed[0].collector, 'repositorysourceobserver');
-  assert.equal(manifest.observed[0].path, null);
-  assert.ok(managedGraphs(manifest).includes('urn:usf:graph:observed:sourceartefacts'));
-});
-
-test('source observer: progressive fixtures receive a non-accepting equivalence role', () => {
-  const manifest = { fixtures: { conforming: 'fixtures/conforming', defects: 'fixtures/defects' } };
-  const progressive = sourceObserverInternals.rolesFor({
-    path: 'tools/validate-spec/provider-planted-defects/001.json',
-    artifactFamily: 'repository-governance',
-    universe: 'repository-output',
-  }, new Map(), manifest);
-  assert.deepEqual(progressive, ['equivalencefixture', 'repositorygovernance']);
-  const graphFixture = sourceObserverInternals.rolesFor({
-    path: 'v2/usf/graph/fixtures/defects/sample.trig',
-    artifactFamily: 'machine-semantics',
-    universe: 'v2-graph-authority',
-  }, new Map(), { fixtures: { conforming: 'fixtures/conforming', defects: 'fixtures/defects' } });
-  assert.deepEqual(graphFixture, ['fixture', 'machinesemantics']);
-  assert.equal(sourceObserverInternals.isEquivalenceFixture({
-    path: 'docs/fixture-governance.md', artifactFamily: 'documentation-assets', universe: 'repository-output',
-  }), false);
-});
-
-test('source observer: TriG quad ordering is deterministic and avoids deep same-subject compaction', () => {
-  const { namedNode, quad } = DataFactory;
-  const graph = namedNode('urn:test:graph');
-  const predicate = namedNode('urn:test:predicate');
-  const dense = namedNode('urn:test:dense');
-  const input = [];
-  for (let index = 0; index < 40; index += 1) {
-    input.push(quad(dense, predicate, namedNode(`urn:test:dense-object:${String(index).padStart(2, '0')}`), graph));
-    input.push(quad(namedNode(`urn:test:subject:${String(index).padStart(2, '0')}`), predicate, namedNode(`urn:test:object:${index}`), graph));
-  }
-  const ordered = sourceObserverInternals.interleaveQuadsBySubject(input);
-  assert.equal(ordered.length, input.length);
-  for (let index = 1; index < ordered.length; index += 1) assert.notEqual(ordered[index - 1].subject.value, ordered[index].subject.value);
-  assert.deepEqual(
-    new Store(ordered).getQuads(null, null, null, null).map((item) => item.id).sort(),
-    new Store(input).getQuads(null, null, null, null).map((item) => item.id).sort(),
-  );
-  assert.deepEqual(
-    sourceObserverInternals.interleaveQuadsBySubject(input).map((item) => item.id),
-    ordered.map((item) => item.id),
-  );
-});
-
-test('source observer: standalone compiler refuses historical external collection modes', async () => {
-  const prior = process.env.USF_OBSERVED_COLLECTION_MODE;
-  process.env.USF_OBSERVED_COLLECTION_MODE = 'census';
-  try {
-    await assert.rejects(
-      () => collectObservedEntry({ manifest: {}, entry: { collector: 'repositorysourceobserver' } }),
-      /only retained observed-source collection/,
-    );
-  } finally {
-    if (prior === undefined) delete process.env.USF_OBSERVED_COLLECTION_MODE;
-    else process.env.USF_OBSERVED_COLLECTION_MODE = prior;
-  }
-});
-
-function censusObserverFixture() {
-  const sourceKey = 'a'.repeat(64);
-  const targetKey = 'b'.repeat(64);
-  const sourcePackage = `work-package-${'1'.repeat(20)}`;
-  const targetPackage = `work-package-${'2'.repeat(20)}`;
-  const canonicalArtefact = 'urn:usf:artefact:fixture';
-  const row = (artifactKey, path) => ({
-    artifactKey, path, contentDigest: 'c'.repeat(64), fileMode: '100644', parserImplementation: 'fixture-parser',
-    syntaxKind: 'fixture', formatKind: 'fixture', universe: 'canonicalrepository', roles: ['implementation'], semanticReferences: [],
-  });
-  const relationship = {
-    source: 'src/a.js', target: 'src/b.js', relationshipType: 'imports', targetKind: 'artifact', resolved: true,
-    evidenceKind: 'structurally-proven', extractionMethod: 'fixture-parser', reasonCodes: ['structural-parser-evidence'],
-    attributes: { importKind: 'static' }, confidence: { level: 'high', reasons: ['structural-parser-evidence'], score: 1 },
-  };
-  const relationshipEvidence = sourceObserverInternals.relationshipEvidenceDigest(relationship);
-  const workPackage = (key, artifactKeys, canonicalArtifactKeys = []) => ({
-    key, title: key, outcomeClass: `fixture:${key}`, artifactKeys, canonicalArtifactKeys,
-    primaryOwnership: { artifactKeys, canonicalArtifactKeys },
-  });
-  const workPackageDocument = {
-    ownership: {
-      artifacts: [
-        { ownedKey: sourceKey, primaryWorkPackage: sourcePackage },
-        { ownedKey: targetKey, primaryWorkPackage: targetPackage },
-      ],
-      canonicalArtifacts: [{ ownedKey: canonicalArtefact, primaryWorkPackage: sourcePackage }],
-    },
-    workPackages: [workPackage(sourcePackage, [sourceKey], [canonicalArtefact]), workPackage(targetPackage, [targetKey])],
-  };
-  const dependency = {
-    dependencyKey: `dependency-${'d'.repeat(64)}`, source: sourcePackage, prerequisite: targetPackage,
-    dependencyType: 'canonical-artifact-input', status: 'required-prerequisite', reasonCode: 'canonical-artifact-input',
-    resolutionStatus: 'resolved-retained', reviewStatus: 'machine-reviewed',
-    satisfactionStatus: 'satisfied',
-    satisfactionBasis: {
-      exactEvidenceHashCount: 1, currentRelationshipHashCount: 1, structurallyProvenRelationshipHashCount: 1,
-      directionMatchedRelationshipHashCount: 1, currentPrerequisiteArtifactHashCount: 1, currentPrerequisiteArtifactCount: 1,
-      sourceEndpointExists: true, prerequisiteEndpointExists: true, edgeSurvivedTransitiveReduction: true, requiredPrerequisiteGraphAcyclic: true,
-    },
-    semanticEvidence: [], artifactEvidence: [], repositoryRelationshipEvidence: [relationshipEvidence], proofEquivalenceEvidence: [], migrationEvidence: [],
-    confidence: { level: 'high', reasons: ['machine-observed-direct-evidence'], score: 1 },
-    resolutionBasis: {
-      evidenceCounts: { semantic: 0, artifact: 0, 'repository-relationship': 1, 'proof-equivalence': 0, migration: 0 },
-      evidenceFamilies: ['repository-relationship'], cycleCheck: 'required-prerequisite-dag-verified', direction: 'source-requires-prerequisite',
-      endpointOwnership: 'primary-work-package', reviewBasis: 'machine-reviewed', transitiveReduction: 'retained-direct-edge',
-    },
-  };
-  const lineage = {
-    baselinePrerequisite: 'baseline-prerequisite', baselineSource: 'baseline-source', disposition: 'retained-with-evidence',
-    reason: 'successor direct edge has architectural evidence', successorSources: [sourcePackage], successorPrerequisites: [targetPackage],
-  };
-  const digest = 'e'.repeat(64);
-  return {
-    rows: [row(sourceKey, 'src/a.js'), row(targetKey, 'src/b.js')], relationships: [relationship], workPackageDocument,
-    dependencies: [dependency], dependencyLineage: [lineage], parserManifest: { formatVersion: 1 },
-    summary: {
-      artifactCount: 2, relationshipCount: 1, workPackageCount: 2, requiredPrerequisiteRelationshipCount: 1,
-      resolvedPrerequisiteRelationshipCount: 1, satisfiedPrerequisiteRelationshipCount: 1,
-      blockingRelationshipCount: 0, activeBlockingRelationshipCount: 0, coordinationRelationshipCount: 0,
-      universeCounts: { 'repository-output': 2 }, repositoryUniverseDigest: digest, v2CompilerUniverseDigest: digest,
-      v2GraphUniverseDigest: digest, v2SupportUniverseDigest: digest, dependencyLineageDistribution: { 'retained-with-evidence': 1 },
-    },
-    universes: {
-      universeCounts: { 'repository-output': 2 }, repositoryUniverseDigest: digest, v2CompilerUniverseDigest: digest,
-      v2GraphUniverseDigest: digest, v2SupportUniverseDigest: digest,
-    },
-    inputs: [{ path: 'b.json', contentDigest: digest, byteCount: 2, recordCount: null }, { path: 'a.jsonl', contentDigest: digest, byteCount: 1, recordCount: 2 }],
-    parserShards: [{ path: 'parser-results/b.gz', universe: 'repository-output' }, { path: 'parser-results/a.gz', universe: 'repository-output' }],
-    authoredArtefacts: new Set([canonicalArtefact]),
-  };
-}
-
-test('source observer: census expansion is deterministic and preserves exact relationship evidence', () => {
-  const fixture = censusObserverFixture();
-  assert.deepEqual(sourceObserverInternals.OBSERVATION_CONTAMINATION_PATTERNS, CONTAMINATION_PATTERNS);
-  const left = sourceObserverInternals.censusObservationModel(fixture);
-  const reordered = structuredClone(fixture);
-  reordered.authoredArtefacts = new Set(fixture.authoredArtefacts);
-  for (const field of ['rows', 'relationships', 'dependencies', 'dependencyLineage', 'inputs', 'parserShards']) reordered[field].reverse();
-  reordered.workPackageDocument.workPackages.reverse();
-  reordered.workPackageDocument.ownership.artifacts.reverse();
-  const right = sourceObserverInternals.censusObservationModel(reordered);
-  assert.equal(left.setDigest, right.setDigest);
-  assert.equal(left.relationshipRecords.length, 1);
-  assert.equal(left.relationshipRecords[0].fullDigest, sourceObserverInternals.recordDigest(fixture.relationships[0]));
-  assert.equal(left.relationshipRecords[0].evidenceDigest, fixture.dependencies[0].repositoryRelationshipEvidence[0]);
-  assert.deepEqual(left.dependencyRecords[0].relationshipMatches, [left.relationshipRecords[0].fullDigest]);
-  assert.equal(sourceObserverInternals.workPackageObservationName(fixture.workPackageDocument.workPackages[0].key), `w${'1'.repeat(20)}`);
-  assert.equal(sourceObserverInternals.workPackageDependencyObservationName(fixture.dependencies[0].dependencyKey), `d${'d'.repeat(64)}`);
-  const digestRecord = structuredClone(fixture.dependencies[0]);
-  digestRecord.repositoryRelationshipEvidence = ['f'.repeat(64), '0'.repeat(64)];
-  const expectedBasisDigest = createHash('sha256').update(sourceObserverInternals.stableJson({
-    dependencyKey: digestRecord.dependencyKey,
-    satisfactionStatus: digestRecord.satisfactionStatus,
-    satisfactionBasis: digestRecord.satisfactionBasis,
-    repositoryRelationshipEvidence: [...digestRecord.repositoryRelationshipEvidence].sort(),
-  })).digest('hex');
-  assert.equal(sourceObserverInternals.dependencySatisfactionBasisDigest(digestRecord), expectedBasisDigest);
-  digestRecord.repositoryRelationshipEvidence.reverse();
-  assert.equal(sourceObserverInternals.dependencySatisfactionBasisDigest(digestRecord), expectedBasisDigest);
-  const prohibited = 'origin github.com/example/repository refs/heads/main';
-  const withheld = sourceObserverInternals.observationDisclosure(prohibited);
-  assert.deepEqual(withheld, sourceObserverInternals.observationDisclosure(prohibited));
-  assert.equal(withheld.digest, createHash('sha256').update(prohibited).digest('hex'));
-  assert.equal(withheld.status, 'urn:usf:observationdisclosurestatus:withheldprohibitedmetadata');
-  assert.equal(withheld.disclosedValue, null);
-  assert.equal(sourceObserverInternals.observationDisclosure('safe-target').status, 'urn:usf:observationdisclosurestatus:disclosed');
-  for (const mutate of [
-    (copy) => { copy.relationships[0].attributes.importKind = 'dynamic'; },
-    (copy) => { copy.workPackageDocument.workPackages[0].title += ' changed'; },
-    (copy) => { copy.dependencies[0].reasonCode += '-changed'; },
-    (copy) => { copy.dependencyLineage[0].reason += ' changed'; },
-    (copy) => { copy.inputs[0].contentDigest = 'f'.repeat(64); },
-    (copy) => { copy.parserShards[0].path += '.changed'; },
-  ]) {
-    const copy = structuredClone(fixture);
-    copy.authoredArtefacts = new Set(fixture.authoredArtefacts);
-    mutate(copy);
-    assert.notEqual(sourceObserverInternals.censusObservationModel(copy).setDigest, left.setDigest);
-  }
-});
-
-test('source observer: census expansion fails closed on endpoints, ownership, evidence, and counts', () => {
-  const legacyBlockingStatus = censusObserverFixture();
-  legacyBlockingStatus.dependencies[0].status = 'blocking';
-  assert.throws(() => sourceObserverInternals.censusObservationModel(legacyBlockingStatus), /invalid dependency status/);
-  const missingEndpoint = censusObserverFixture();
-  missingEndpoint.relationships[0].target = 'src/missing.js';
-  assert.throws(() => sourceObserverInternals.censusObservationModel(missingEndpoint), /target endpoint is missing/);
-  const wrongOwnership = censusObserverFixture();
-  wrongOwnership.workPackageDocument.ownership.artifacts[0].primaryWorkPackage = wrongOwnership.workPackageDocument.workPackages[1].key;
-  assert.throws(() => sourceObserverInternals.censusObservationModel(wrongOwnership), /ownership index mismatch/);
-  const missingEvidence = censusObserverFixture();
-  missingEvidence.dependencies[0].repositoryRelationshipEvidence = ['f'.repeat(64)];
-  assert.throws(() => sourceObserverInternals.censusObservationModel(missingEvidence), /relationship evidence must resolve exactly once/);
-  const wrongCount = censusObserverFixture();
-  wrongCount.summary.relationshipCount = 2;
-  assert.throws(() => sourceObserverInternals.censusObservationModel(wrongCount), /relationship count mismatch/);
-  const contradictorySatisfaction = censusObserverFixture();
-  contradictorySatisfaction.dependencies[0].satisfactionStatus = 'unsatisfied';
-  assert.throws(() => sourceObserverInternals.censusObservationModel(contradictorySatisfaction), /satisfaction status contradicts basis/);
-  const incompleteBasis = censusObserverFixture();
-  delete incompleteBasis.dependencies[0].satisfactionBasis.requiredPrerequisiteGraphAcyclic;
-  assert.throws(() => sourceObserverInternals.censusObservationModel(incompleteBasis), /satisfaction basis fields differ/);
-  const coordinationClaim = censusObserverFixture();
-  coordinationClaim.dependencies[0].status = 'coordination';
-  coordinationClaim.summary.requiredPrerequisiteRelationshipCount = 0;
-  coordinationClaim.summary.coordinationRelationshipCount = 1;
-  coordinationClaim.summary.resolvedPrerequisiteRelationshipCount = 0;
-  coordinationClaim.summary.satisfiedPrerequisiteRelationshipCount = 0;
-  assert.throws(() => sourceObserverInternals.censusObservationModel(coordinationClaim), /coordination dependency must not claim satisfaction/);
-  const wrongSatisfactionCount = censusObserverFixture();
-  wrongSatisfactionCount.summary.satisfiedPrerequisiteRelationshipCount = 0;
-  wrongSatisfactionCount.summary.activeBlockingRelationshipCount = 1;
-  assert.throws(() => sourceObserverInternals.censusObservationModel(wrongSatisfactionCount), /satisfied prerequisite dependency count does not match summary/);
-  const activeBlocker = censusObserverFixture();
-  activeBlocker.dependencies[0].satisfactionStatus = 'unsatisfied';
-  activeBlocker.dependencies[0].satisfactionBasis.edgeSurvivedTransitiveReduction = false;
-  activeBlocker.dependencies[0].resolutionBasis.transitiveReduction = 'not-retained-direct-edge';
-  activeBlocker.summary.satisfiedPrerequisiteRelationshipCount = 0;
-  activeBlocker.summary.activeBlockingRelationshipCount = 1;
-  assert.throws(() => sourceObserverInternals.censusObservationModel(activeBlocker), /active blocking dependency remains/);
-  const duplicateSatisfactionEvidence = censusObserverFixture();
-  duplicateSatisfactionEvidence.dependencies[0].repositoryRelationshipEvidence.push(duplicateSatisfactionEvidence.dependencies[0].repositoryRelationshipEvidence[0]);
-  duplicateSatisfactionEvidence.dependencies[0].resolutionBasis.evidenceCounts['repository-relationship'] = 2;
-  for (const field of ['exactEvidenceHashCount', 'currentRelationshipHashCount', 'structurallyProvenRelationshipHashCount', 'directionMatchedRelationshipHashCount', 'currentPrerequisiteArtifactHashCount']) duplicateSatisfactionEvidence.dependencies[0].satisfactionBasis[field] = 2;
-  assert.throws(() => sourceObserverInternals.censusObservationModel(duplicateSatisfactionEvidence), /duplicate relationship evidence/);
-  const stalePrerequisite = censusObserverFixture();
-  stalePrerequisite.rows[1].contentDigest = 'stale';
-  assert.throws(() => sourceObserverInternals.censusObservationModel(stalePrerequisite), /prerequisite artifact has no current digest/);
-  const wrongDependencyDirection = censusObserverFixture();
-  [wrongDependencyDirection.dependencies[0].source, wrongDependencyDirection.dependencies[0].prerequisite] = [wrongDependencyDirection.dependencies[0].prerequisite, wrongDependencyDirection.dependencies[0].source];
-  assert.throws(() => sourceObserverInternals.censusObservationModel(wrongDependencyDirection), /source ownership mismatch/);
-  const prohibited = censusObserverFixture();
-  prohibited.relationships[0].target = 'github.com/example/repository';
-  prohibited.relationships[0].targetKind = 'external-resource';
-  prohibited.relationships[0].attributes = { commitSha: 'abc123' };
-  prohibited.dependencies[0].repositoryRelationshipEvidence = [sourceObserverInternals.relationshipEvidenceDigest(prohibited.relationships[0])];
-  prohibited.dependencies[0].status = 'coordination';
-  prohibited.dependencies[0].resolutionBasis.cycleCheck = 'not-applicable-coordination';
-  delete prohibited.dependencies[0].satisfactionStatus;
-  delete prohibited.dependencies[0].satisfactionBasis;
-  prohibited.summary.requiredPrerequisiteRelationshipCount = 0;
-  prohibited.summary.coordinationRelationshipCount = 1;
-  prohibited.summary.resolvedPrerequisiteRelationshipCount = 0;
-  prohibited.summary.satisfiedPrerequisiteRelationshipCount = 0;
-  const withheld = sourceObserverInternals.censusObservationModel(prohibited).relationshipRecords[0];
-  assert.equal(withheld.targetDisclosure.status, 'urn:usf:observationdisclosurestatus:withheldprohibitedmetadata');
-  assert.equal(withheld.attributesDisclosure.status, 'urn:usf:observationdisclosurestatus:withheldprohibitedmetadata');
-  assert.equal(withheld.targetDisclosure.disclosedValue, null);
-  assert.equal(withheld.attributesDisclosure.disclosedValue, null);
-});
-
-test('source observer: active compiler reads only the registered retained snapshot', async (t) => {
-  if (realGraphAbsent(t)) return;
-  const manifest = loadManifest(REAL_GRAPH_DIR);
-  const entry = manifest.observed[0];
-  const collection = await collectObservedEntry({ manifest, entry });
-  assert.match(collection.observationSetDigest, /^[0-9a-f]{64}$/);
-  assert.equal(collection.graph, entry.graph);
-  assert.ok(collection.sourceCount > 0);
-  await assert.rejects(
-    () => collectRepositorySourceObservations({ manifest, entry }),
-    /explicit absolute censusRoot/,
-  );
-});
-
-function dispositionPolicySelections(store) {
-  const rdfType = DataFactory.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
-  const usf = (local) => DataFactory.namedNode(`urn:usf:ontology:${local}`);
-  const objects = (subject, local) => store.getObjects(subject, usf(local), null);
-  const typed = (local) => store.getSubjects(rdfType, usf(local), null);
-  const truth = (subject, local) => objects(subject, local).some((value) => value.value === 'true');
-  const matches = (policy, source, observation) => {
-    const bindings = objects(policy, 'policyMatchesSourceBinding');
-    if (bindings.length) return bindings.some((binding) => objects(binding, 'sourceBindingSource').some((candidate) => candidate.equals(source)));
-    for (const [selector, node, property] of [
-      ['policyMatchesSourceIdentityDigest', source, 'sourceIdentityDigest'],
-      ['policyMatchesUniverse', observation, 'observedUniverse'],
-      ['policyMatchesContentRole', observation, 'observedContentRole'],
-      ['policyMatchesExactSemanticReference', observation, 'hasExactSemanticReference'],
-    ]) {
-      for (const required of objects(policy, selector)) {
-        if (!objects(node, property).some((actual) => actual.equals(required))) return false;
-      }
-    }
-    return true;
-  };
-  const policies = typed('SourceDispositionPolicy');
-  const candidates = policies.filter((policy) => truth(policy, 'isActiveDispositionPolicy') && !truth(policy, 'isDefaultDispositionPolicy'));
-  const defaults = policies.filter((policy) => truth(policy, 'isActiveDispositionPolicy') && truth(policy, 'isDefaultDispositionPolicy'));
-  return typed('SourceArtefact').map((source) => {
-    const observation = objects(source, 'hasCurrentSourceObservation')[0];
-    const matching = candidates.filter((policy) => matches(policy, source, observation));
-    if (!matching.length) return { source: source.value, selected: defaults.map((policy) => policy.value), kind: 'default' };
-    const maximum = Math.max(...matching.map((policy) => Number(objects(policy, 'policyPrecedence')[0]?.value)));
-    const selected = matching.filter((policy) => Number(objects(policy, 'policyPrecedence')[0]?.value) === maximum);
-    return { source: source.value, selected: selected.map((policy) => policy.value).sort(), kind: objects(selected[0], 'policyMatchesSourceBinding').length ? 'binding' : 'structural' };
-  });
-}
-
-test('source disposition rule selects one highest-precedence policy for every current observation', (t) => {
-  if (realGraphAbsent(t)) return;
-  const graphDir = REAL_GRAPH_DIR;
-  const manifest = loadManifest(graphDir);
-  const dataset = loadAuthorityDataset(manifest);
-  const observed = manifest.observed[0];
-  dataset.store.addQuads(new Parser({ format: observed.contentType }).parse(readFileSync(observed.path, 'utf8')));
-  const selections = dispositionPolicySelections(dataset.store);
-  assert.ok(selections.length > 3000);
-  assert.ok(selections.some((row) => row.kind === 'binding'));
-  assert.ok(selections.some((row) => row.kind === 'structural'));
-  assert.ok(selections.every((row) => row.selected.length === 1));
-  const rule = readFileSync(join(graphDir, 'rules/source-dispositions.rq'), 'utf8');
-  assert.match(rule, /MAX\s*\(\s*\?precedence\s*\)\s+AS\s+\?maximumPrecedence/i);
-  assert.match(rule, /FILTER\s*\(\s*\?selectedPrecedence\s*=\s*\?maximumPrecedence\s*\)/i);
-  assert.doesNotMatch(rule, /\?higherPrecedence\s*>\s*\?selectedPrecedence/);
-  assert.match(rule, /SELECT DISTINCT \?source \?observation \?policy/i);
-});
-
-test('source disposition selector prefers binding/high precedence, preserves equal ties, and falls back to default', () => {
-  const store = generationStore(`
-<urn:usf:source:a> a usf:SourceArtefact ; usf:sourceIdentityDigest "${'a'.repeat(64)}" ; usf:hasCurrentSourceObservation <urn:usf:observation:a> .
-<urn:usf:observation:a> a usf:SourceArtefactObservation ; usf:observedUniverse <urn:usf:sourceuniverse:test> ; usf:observedContentRole <urn:usf:sourcecontentrole:test> .
-<urn:usf:policy:default> a usf:SourceDispositionPolicy ; usf:isActiveDispositionPolicy true ; usf:isDefaultDispositionPolicy true ; usf:policyPrecedence 0 .
-<urn:usf:policy:structural> a usf:SourceDispositionPolicy ; usf:isActiveDispositionPolicy true ; usf:isDefaultDispositionPolicy false ; usf:policyPrecedence 10 ; usf:policyMatchesContentRole <urn:usf:sourcecontentrole:test> .
-<urn:usf:policy:binding> a usf:SourceDispositionPolicy ; usf:isActiveDispositionPolicy true ; usf:isDefaultDispositionPolicy false ; usf:policyPrecedence 20 ; usf:policyMatchesSourceBinding <urn:usf:binding:a> .
-<urn:usf:binding:a> usf:sourceBindingSource <urn:usf:source:a> .
-`);
-  assert.deepEqual(dispositionPolicySelections(store)[0].selected, ['urn:usf:policy:binding']);
-  store.addQuad(DataFactory.namedNode('urn:usf:policy:structural'), DataFactory.namedNode('urn:usf:ontology:policyPrecedence'), DataFactory.literal('20', DataFactory.namedNode('http://www.w3.org/2001/XMLSchema#integer')));
-  store.removeQuad(store.getQuads(DataFactory.namedNode('urn:usf:policy:structural'), DataFactory.namedNode('urn:usf:ontology:policyPrecedence'), null, null).find((quad) => quad.object.value === '10'));
-  assert.equal(dispositionPolicySelections(store)[0].selected.length, 2);
-  store.removeQuads(store.getQuads(DataFactory.namedNode('urn:usf:policy:structural'), DataFactory.namedNode('urn:usf:ontology:isActiveDispositionPolicy'), null, null));
-  store.removeQuads(store.getQuads(DataFactory.namedNode('urn:usf:policy:binding'), DataFactory.namedNode('urn:usf:ontology:isActiveDispositionPolicy'), null, null));
-  assert.deepEqual(dispositionPolicySelections(store)[0].selected, ['urn:usf:policy:default']);
-});
-
 test('checkLocal: a duplicate authored graph IRI fails', () => {
   const spec = baseSpec();
   spec['manifest.yaml'] = spec['manifest.yaml'].replace(
@@ -726,21 +354,23 @@ test('checkLocal: forbidden contamination in an authored file fails', () => {
   assert.throws(() => checkLocal(loadManifest(dir)), hasFailure('forbidden content'));
 });
 
-test('checkLocal: the same markers inside the shapes file are allowed', () => {
+test('checkLocal: encoded detector expressions inside shapes are allowed', () => {
   const spec = baseSpec();
-  spec['shapes.ttl'] = '@prefix sh: <http://www.w3.org/ns/shacl#> .\n# detects github.com and USF-1 and commitSha\nsh:x a sh:NodeShape .\n';
+  spec['shapes.ttl'] = '@prefix sh: <http://www.w3.org/ns/shacl#> .\n# detector forms: git[h]ub\\.com and U[S]F-[0-9]+ and commit[S]ha\nsh:x a sh:NodeShape .\n';
   const dir = writeGraph(spec);
   assert.equal(checkLocal(loadManifest(dir)).ok, true);
 });
 
 // --- compile (mocked SDK) --------------------------------------------------
 
-test('compile: only manifest-registered graphs are cleared, and never the whole database', async () => {
+test('compile: only current and exact retired manifest graphs are cleared, and never the whole database', async () => {
   const dir = writeGraph(baseSpec());
   const m = loadManifest(dir);
   const { client, rec } = fakeClient();
   await compile({ manifest: m, client });
-  assert.deepEqual([...rec.cleared].sort(), [...managedGraphs(m)].sort());
+  assert.deepEqual([...rec.cleared].sort(), [...clearableGraphs(m)].sort());
+  assert.equal(managedGraphs(m).includes('urn:usf:graph:derived:retiredfixture'), false);
+  assert.equal(clearableGraphs(m).includes('urn:usf:graph:derived:retiredfixture'), true);
   // The adapter exposes no whole-database clear operation.
   assert.equal(typeof client.clearDatabase, 'undefined');
 });
@@ -755,6 +385,31 @@ test('compile: commits after full success', async () => {
   assert.equal(rec.rolledBack, false);
   assert.equal(result.commitOutcome.state, 'confirmed-response');
   assert.equal(result.commitOutcome.exactCandidateStateVerified, true);
+});
+
+test('compile: validates the exact candidate and rolls back without publication', async () => {
+  const dir = writeGraph(baseSpec());
+  const m = loadManifest(dir);
+  const { client, rec } = fakeClient();
+  const result = await compile({ manifest: m, client, publicationMode: 'validate' });
+  assert.equal(result.ok, true);
+  assert.equal(rec.committed, false);
+  assert.equal(rec.rolledBack, true);
+  assert.equal(result.commitOutcome.state, 'validated-rolled-back');
+  assert.equal(result.commitOutcome.exactCandidateStateVerified, true);
+  assert.match(result.commitOutcome.candidateDigest, /^sha256:[0-9a-f]{64}$/);
+  assert.ok(result.commitOutcome.candidateGraphs.length > 0);
+});
+
+test('compile: rejects an unknown publication mode before opening a transaction', async () => {
+  const dir = writeGraph(baseSpec());
+  const m = loadManifest(dir);
+  const { client, rec } = fakeClient();
+  await assert.rejects(
+    () => compile({ manifest: m, client, publicationMode: 'preview' }),
+    (error) => error instanceof CompilerError && error.phase === 'compile:configuration',
+  );
+  assert.equal(rec.began, false);
 });
 
 test('compile: reconciles an exact committed graph state after a lost commit response', async () => {
@@ -862,40 +517,6 @@ test('compile: preserves the primary pre-commit failure and both rollback failur
   assert.equal(rollbackCalls, 2);
 });
 
-test('compile: observed state is collected and validated inside the transaction', async () => {
-  const manifest = loadManifest(writeGraph(observedSpec()));
-  const { client, rec } = fakeClient();
-  const result = await compile({ manifest, client, observedCollector });
-  assert.equal(result.observedLoaded, 1);
-  assert.equal(result.observed['urn:usf:graph:observed:sourceartefacts'].sourceCount, 1);
-  assert.ok(rec.cleared.includes('urn:usf:graph:observed:sourceartefacts'));
-  assert.ok(rec.added.some((entry) => entry.graph === 'urn:usf:graph:observed:sourceartefacts'));
-  assert.equal(rec.committed, true);
-});
-
-test('compile: observed collection failure rolls back', async () => {
-  const manifest = loadManifest(writeGraph(observedSpec()));
-  const { client, rec } = fakeClient();
-  await assert.rejects(
-    compile({ manifest, client, observedCollector: async () => { throw new Error('collector failed'); } }),
-    (error) => error instanceof CompilerError && error.phase === 'compile'
-  );
-  assert.equal(rec.rolledBack, true);
-  assert.equal(rec.committed, false);
-});
-
-test('compile: observed validation failure rolls back', async () => {
-  const manifest = loadManifest(writeGraph(observedSpec()));
-  let validations = 0;
-  const { client, rec } = fakeClient({ validateInTx: async () => (++validations) !== 2 });
-  await assert.rejects(
-    compile({ manifest, client, observedCollector }),
-    (error) => error instanceof CompilerError && error.phase === 'validate:observed'
-  );
-  assert.equal(rec.rolledBack, true);
-  assert.equal(rec.committed, false);
-});
-
 test('compile: rolls back after a load failure', async () => {
   const dir = writeGraph(baseSpec());
   const m = loadManifest(dir);
@@ -991,6 +612,16 @@ test('adapter: failed responses never include Stardog response bodies', () => {
   );
 });
 
+test('adapter: resolves only one explicit SHACL validation report conformance value', () => {
+  const report = (conforms) => ({
+    '@graph': [{ '@type': 'sh:ValidationReport', 'sh:conforms': { '@value': conforms } }],
+  });
+  assert.equal(stardogInternals.reportConforms(report(true)), true);
+  assert.equal(stardogInternals.reportConforms(report(false)), false);
+  assert.equal(stardogInternals.reportConforms({ '@graph': [] }), null);
+  assert.equal(stardogInternals.reportConforms({ '@graph': [report(true)['@graph'][0], report(true)['@graph'][0]] }), null);
+});
+
 test('generation plan fails closed when graph authority has no artefact plans', () => {
   const dir = writeGraph(baseSpec());
   const dataset = loadAuthorityDataset(loadManifest(dir));
@@ -1018,29 +649,6 @@ const completeGenerator = (name = 'complete') => `
   usf:requiresEquivalenceKind <urn:usf:equivalencekind:semantic> .
 <urn:usf:pathrule:${name}> usf:pathPattern "generated/${name}.json" .
 `;
-
-test('generation plan rejects missing/multiple output plans, no-output plans, and orphan source-bound plans', () => {
-  const store = generationStore(`
-<urn:usf:repository:foundation> a usf:Repository .
-<urn:usf:artefactplan:a> a usf:ArtefactPlan ; usf:ownedByRepository <urn:usf:repository:foundation> ; usf:plansArtefact <urn:usf:artefact:a> .
-<urn:usf:artefactplan:b> a usf:ArtefactPlan ; usf:ownedByRepository <urn:usf:repository:foundation> ; usf:plansArtefact <urn:usf:artefact:b> .
-<urn:usf:artefact:a> a usf:Artefact ; usf:canonicalPath "generated/a.json" ; usf:artefactKind <urn:usf:artefactkind:contract> ; usf:governedByPathRule <urn:usf:pathrule:a> ; usf:generatedByComponent <urn:usf:generator:complete> .
-<urn:usf:artefact:b> a usf:Artefact ; usf:canonicalPath "generated/b.json" ; usf:artefactKind <urn:usf:artefactkind:contract> ; usf:governedByPathRule <urn:usf:pathrule:b> ; usf:generatedByComponent <urn:usf:generator:complete> .
-<urn:usf:pathrule:a> usf:pathPattern "generated/a.json" .
-<urn:usf:pathrule:b> usf:pathPattern "generated/b.json" .
-${completeGenerator()}
-<urn:usf:disposition:missing> a usf:SourceArtefactDisposition ; usf:hasDispositionOutputMode <urn:usf:dispositionoutputmode:canonicaloutput> .
-<urn:usf:disposition:multiple> a usf:SourceArtefactDisposition ; usf:hasDispositionOutputMode <urn:usf:dispositionoutputmode:canonicaloutput> ; usf:assignedToArtefactPlan <urn:usf:artefactplan:a>, <urn:usf:artefactplan:b> .
-<urn:usf:disposition:nooutput> a usf:SourceArtefactDisposition ; usf:hasDispositionOutputMode <urn:usf:dispositionoutputmode:nooutput> ; usf:assignedToArtefactPlan <urn:usf:artefactplan:a> .
-<urn:usf:binding:orphan> a usf:SourceSemanticBinding ; usf:sourceBindingArtefactPlan <urn:usf:artefactplan:orphan> .
-`);
-  const plan = buildGenerationPlan(store);
-  assert.equal(plan.complete, false);
-  assert.ok(plan.obligations.some((item) => item.kind === 'output-disposition-plan-cardinality' && item.observed === 0));
-  assert.ok(plan.obligations.some((item) => item.kind === 'output-disposition-plan-cardinality' && item.observed === 2));
-  assert.ok(plan.obligations.some((item) => item.kind === 'no-output-disposition-has-plan' && item.observed === 1));
-  assert.ok(plan.obligations.some((item) => item.kind === 'orphan-source-bound-plan'));
-});
 
 test('generation plan rejects zero/multiple plan owners and output paths', () => {
   const store = generationStore(`
@@ -1162,19 +770,16 @@ test('live attestation: census-facing totals are explicitly registered-USF scope
 test('live attestation: rollback contract includes explicit activation barriers', () => {
   assert.deepEqual(liveAttestationInternals.requiredRollbackFaults, [
     'clear-graph',
-    'collect-observed',
     'commit',
     'commit-response',
     'contamination',
     'derive',
     'derived-insert',
     'integrity',
-    'invalid-observed-rdf',
     'load',
     'rollback-response',
     'validate-authored',
     'validate-derived',
-    'validate-observed',
     'verify-counts',
     'wrong-rule-output',
   ]);
@@ -1203,12 +808,6 @@ test('UI semantic closure is exact, contract-scoped, and exposure-complete', (t)
   const complete = facets.filter((facet) => objects(facet, usf('facetStatus')).includes('urn:usf:facetstatus:complete'));
   const notApplicable = facets.filter((facet) => objects(facet, usf('facetStatus')).includes('urn:usf:facetstatus:notapplicable'));
   const gaps = facets.filter((facet) => objects(facet, usf('facetStatus')).includes('urn:usf:facetstatus:gap'));
-  const requiredNonclaims = [
-    'urn:usf:nonclaim:noaccessibilitycompliance',
-    'urn:usf:nonclaim:nohumanacceptance',
-    'urn:usf:nonclaim:nolaunchi18n',
-    'urn:usf:nonclaim:nouiproductparity',
-  ];
   const expectedBindings = new Map([
     ['urn:usf:uisemanticmodel:authenticationplatform', {
       operations: ['urn:usf:operation:authloginpost'], permissions: ['urn:usf:permission:authlogin'],
@@ -1227,21 +826,20 @@ test('UI semantic closure is exact, contract-scoped, and exposure-complete', (t)
     }],
   ]);
 
-  assert.equal(facets.length, 68);
+  assert.equal(facets.length, 64);
   assert.equal(complete.length, 5);
-  assert.equal(notApplicable.length, 63);
+  assert.equal(notApplicable.length, 59);
   assert.equal(gaps.length, 0);
   assert.deepEqual(models, [...expectedBindings.keys()].sort());
   assert.equal(notApplicable.filter((facet) => {
     const contract = subjects(usf('declaresFacet'), iri(facet))[0];
     return !objects(contract, usf('semanticLifecycleState')).includes('urn:usf:semanticlifecyclestate:deprecated');
-  }).length, 62);
+  }).length, 59);
 
   for (const facet of facets) {
     const contracts = subjects(usf('declaresFacet'), iri(facet));
     assert.equal(contracts.length, 1, `${facet} must have one owning contract`);
     const contract = contracts[0];
-    assert.deepEqual(objects(contract, usf('disclaims')).filter((value) => requiredNonclaims.includes(value)), requiredNonclaims);
     const capabilities = subjects(usf('hasContract'), iri(contract));
     assert.equal(capabilities.length, 1, `${contract} must have one owning capability`);
     const capability = capabilities[0];
@@ -1273,11 +871,10 @@ test('UI semantic closure is exact, contract-scoped, and exposure-complete', (t)
 test('generation: real authority has no semantic gaps and reuses deterministic incremental outputs', () => {
   const graphDir = REAL_GRAPH_DIR;
   const repositoryRoot = join(graphDir, '..');
-  for (const template of ['.github/workflows/proof-anchor.yml', '.github/workflows/validate-spec.yml']) {
-    assert.ok(existsSync(join(repositoryRoot, template)), `authority-declared retained template must be present: ${template}`);
-  }
   const manifest = loadManifest(graphDir);
   const dataset = loadAuthorityDataset(manifest);
+  const currentGenerationPlan = requireCompleteGenerationPlan(dataset.store);
+  assert.ok(currentGenerationPlan.outputs.every((output) => !output.template));
   const webQuery = generatorInternals.componentQuery(dataset.store, 'urn:usf:generator:webui');
   const mobileQuery = generatorInternals.componentQuery(dataset.store, 'urn:usf:generator:mobileui');
   assert.deepEqual(webQuery.constraints, [
@@ -1294,44 +891,9 @@ test('generation: real authority has no semantic gaps and reuses deterministic i
   const facetStatus = DataFactory.namedNode('urn:usf:ontology:facetStatus');
   assert.equal(dataset.store.getQuads(null, facetStatus, gapStatus, null).length, 0);
   assert.throws(
-    () => generateAuthority({ store: dataset.store, outputDir: join(incompleteOutput, 'output'), mode: 'full', sourceRoot: repositoryRoot }),
+    () => generateAuthority({ store: dataset.store, outputDir: join(incompleteOutput, 'output'), mode: 'full' }),
     (error) => error instanceof CompilerError && error.phase === 'generate:signing',
   );
-  const semanticKind = DataFactory.namedNode('urn:usf:equivalencekind:semantic');
-  const bindingEquivalenceKind = DataFactory.namedNode('urn:usf:ontology:sourceBindingEquivalenceKind');
-  dataset.store.removeQuads(dataset.store.getQuads(null, bindingEquivalenceKind, semanticKind, null));
-  const generationPlan = requireCompleteGenerationPlan(dataset.store);
-  const authenticationOutput = generationPlan.outputs.find((output) => output.path === 'contracts/semantic/authenticationplatform.json');
-  const authenticationData = generatorInternals.projection(dataset.store, authenticationOutput, 'a'.repeat(64));
-  const bindingPlan = DataFactory.namedNode('urn:usf:ontology:sourceBindingArtefactPlan');
-  const authenticationBinding = dataset.store.getSubjects(bindingPlan, DataFactory.namedNode(authenticationOutput.plan), null)[0];
-  assert.equal(generatorInternals.semanticContractSourceEquivalence(dataset.store, authenticationOutput, authenticationData, repositoryRoot).structural, true);
-  const bindingRule = DataFactory.namedNode('urn:usf:ontology:sourceBindingEquivalenceRule');
-  const ruleComparison = DataFactory.namedNode('urn:usf:ontology:equivalenceRuleComparesPredicate');
-  const lifecycleComparison = DataFactory.namedNode('urn:usf:ontology:semanticLifecycleState');
-  const authenticationRule = dataset.store.getObjects(authenticationBinding, bindingRule, null)[0];
-  dataset.store.addQuad(authenticationRule, ruleComparison, lifecycleComparison);
-  assert.throws(
-    () => generatorInternals.semanticContractSourceEquivalence(dataset.store, authenticationOutput, authenticationData, repositoryRoot),
-    (error) => error instanceof CompilerError && error.code === 'USF-SCG-006' && error.failures.some((failure) => failure.field === 'lifecycleState'),
-  );
-  dataset.store.removeQuads(dataset.store.getQuads(authenticationRule, ruleComparison, lifecycleComparison, null));
-  const bindingDigest = DataFactory.namedNode('urn:usf:ontology:sourceBindingContentDigest');
-  const expectedBindingDigest = dataset.store.getObjects(authenticationBinding, bindingDigest, null)[0];
-  dataset.store.removeQuads(dataset.store.getQuads(authenticationBinding, bindingDigest, null, null));
-  dataset.store.addQuad(authenticationBinding, bindingDigest, DataFactory.literal('0'.repeat(64)));
-  assert.throws(
-    () => generatorInternals.semanticContractSourceEquivalence(dataset.store, authenticationOutput, authenticationData, repositoryRoot),
-    (error) => error instanceof CompilerError && error.code === 'USF-SCG-005',
-  );
-  dataset.store.removeQuads(dataset.store.getQuads(authenticationBinding, bindingDigest, null, null));
-  dataset.store.addQuad(authenticationBinding, bindingDigest, expectedBindingDigest);
-  dataset.store.addQuad(authenticationBinding, bindingEquivalenceKind, semanticKind);
-  assert.throws(
-    () => generatorInternals.semanticContractSourceEquivalence(dataset.store, authenticationOutput, authenticationData, repositoryRoot),
-    (error) => error instanceof CompilerError && error.code === 'USF-SCG-006' && error.failures.length > 0,
-  );
-  dataset.store.removeQuads(dataset.store.getQuads(authenticationBinding, bindingEquivalenceKind, semanticKind, null));
   const keys = generateKeyPairSync('ed25519');
   const fingerprint = createHash('sha256').update(keys.publicKey.export({ type: 'spki', format: 'der' })).digest('hex');
   const identity = DataFactory.namedNode('urn:usf:signingidentity:foundationrelease');
@@ -1342,41 +904,31 @@ test('generation: real authority has no semantic gaps and reuses deterministic i
   dirs.push(root);
   const keyPath = join(root, 'signing-key.pem');
   writeFileSync(keyPath, keys.privateKey.export({ type: 'pkcs8', format: 'pem' }), { mode: 0o600 });
-  const templateChecksum = DataFactory.namedNode('urn:usf:checksum:proofanchorworkflowchecksum');
-  const checksumValue = DataFactory.namedNode('urn:usf:ontology:checksumValue');
-  const expectedChecksum = dataset.store.getObjects(templateChecksum, checksumValue, null)[0];
-  dataset.store.removeQuads(dataset.store.getQuads(templateChecksum, checksumValue, null, null));
-  dataset.store.addQuad(templateChecksum, checksumValue, DataFactory.literal('0'.repeat(64)));
-  assert.throws(
-    () => generateAuthority({ store: dataset.store, outputDir: join(root, 'rejected-output'), mode: 'full', signingKeyPath: keyPath, sourceRoot: repositoryRoot }),
-    (error) => error instanceof CompilerError && error.phase === 'generate:template-integrity',
-  );
-  dataset.store.removeQuads(dataset.store.getQuads(templateChecksum, checksumValue, null, null));
-  dataset.store.addQuad(templateChecksum, checksumValue, expectedChecksum);
   const outputDir = join(root, 'output');
-  const full = generateAuthority({ store: dataset.store, outputDir, mode: 'full', signingKeyPath: keyPath, sourceRoot: repositoryRoot });
+  const full = generateAuthority({ store: dataset.store, outputDir, mode: 'full', signingKeyPath: keyPath });
   assert.ok(full.outputCount > 0);
-  const semanticContractFiles = readdirSync(join(outputDir, 'contracts/semantic')).sort();
-  assert.equal(semanticContractFiles.length, 66);
-  const generatedContract = JSON.parse(readFileSync(join(outputDir, 'contracts/semantic/authenticationplatform.json'), 'utf8'));
+  const semanticContractFiles = readdirSync(join(outputDir, '.work/generated/semantic-contracts')).sort();
+  assert.equal(semanticContractFiles.length, currentGenerationPlan.outputs.filter((output) => output.component === 'urn:usf:generator:semanticcontract').length);
+  const generatedContract = JSON.parse(readFileSync(join(outputDir, '.work/generated/semantic-contracts/authenticationplatform.json'), 'utf8'));
   assert.equal(generatedContract.id, 'urn:usf:semanticcontract:authenticationplatform');
   assert.equal(generatedContract.facets.length, 10);
   assert.ok(generatedContract.facets.every((facet) => facet.status === 'complete' || facet.status === 'notapplicable'));
-  assert.equal(generatedContract.sourceEquivalence.structural, true);
-  assert.deepEqual(readFileSync(join(outputDir, '.github/workflows/proof-anchor.yml')), readFileSync(join(repositoryRoot, '.github/workflows/proof-anchor.yml')));
-  assert.deepEqual(readFileSync(join(outputDir, '.github/workflows/validate-spec.yml')), readFileSync(join(repositoryRoot, '.github/workflows/validate-spec.yml')));
+  assert.equal(generatedContract.authorityDigest.length, 64);
+  assert.equal('sourceEquivalence' in generatedContract, false);
+  assert.equal(existsSync(join(outputDir, '.work/generated/automation/proof-anchor.yaml')), true);
+  assert.equal(existsSync(join(outputDir, '.work/generated/automation/validate-spec.yaml')), true);
   assert.equal(verifyOutput(outputDir, true, fingerprint).independent.signingIdentityTrusted, true);
 
   const wrong = generateKeyPairSync('ed25519');
   const wrongPath = join(root, 'wrong-key.pem');
   writeFileSync(wrongPath, wrong.privateKey.export({ type: 'pkcs8', format: 'pem' }), { mode: 0o600 });
   assert.throws(
-    () => generateAuthority({ store: dataset.store, outputDir, mode: 'incremental', signingKeyPath: wrongPath, sourceRoot: repositoryRoot }),
+    () => generateAuthority({ store: dataset.store, outputDir, mode: 'incremental', signingKeyPath: wrongPath }),
     (error) => error instanceof CompilerError && error.phase === 'generate:signing-authority',
   );
   assert.equal(verifyOutput(outputDir, true, fingerprint).ok, true);
 
-  const incremental = generateAuthority({ store: dataset.store, outputDir, mode: 'incremental', signingKeyPath: keyPath, sourceRoot: repositoryRoot });
+  const incremental = generateAuthority({ store: dataset.store, outputDir, mode: 'incremental', signingKeyPath: keyPath });
   assert.equal(incremental.aggregateDigest, full.aggregateDigest);
   assert.equal(incremental.changed, 0);
   assert.ok(incremental.reused > 0);

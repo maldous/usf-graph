@@ -88,11 +88,11 @@ function validateWorkflow(content, path) {
 
 export function validateApplicableFormat(path, content) {
   if (path.endsWith('.graphql')) return validateGraphql(content, path);
-  if (/^\.github\/workflows\/.*\.ya?ml$/.test(path)) return validateWorkflow(content, path);
+  if (/^(?:\.github\/workflows|\.work\/generated\/automation)\/(?!templates\/).*\.ya?ml$/.test(path)) return validateWorkflow(content, path);
   if (!path.endsWith('.json')) return [];
   const parsed = parseJsonDocument(content, path);
   if (parsed.findings.length) return parsed.findings;
-  if (path.endsWith('.openapi.json')) return validateOpenApi(parsed.value, path);
+  if (path.endsWith('.openapi.json') || path.endsWith('/contracts/openapi/openapi.json')) return validateOpenApi(parsed.value, path);
   if (path.endsWith('.schema.json')) return validateJsonSchema(parsed.value, path);
   if (path.endsWith('/package.json') || path === 'package.json') return validatePackage(parsed.value, path);
   return [];

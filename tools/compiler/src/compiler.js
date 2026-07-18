@@ -1,7 +1,6 @@
 // The USF semantic compiler.
 //
-// JavaScript owns orchestration only. The graph (parent-repo graph/, used
-// host-side outside the chroot) owns all
+// JavaScript owns orchestration only. The repository-local graph owns all
 // meaning: ontology, vocabulary, SHACL constraints, derivation rules,
 // integrity invariants and readiness. Nothing here duplicates that meaning,
 // and authored graph files are never modified during normal execution.
@@ -13,14 +12,14 @@ import { DataFactory, Parser, Store, Writer } from 'n3';
 import * as rdfCanonize from 'rdf-canonize';
 import {
   authoredLoadList,
-  observedLoadList,
   shapesGraph,
   managedGraphs,
+  clearableGraphs,
   derivationRules,
   integrityRules,
   DERIVATION_ORDER,
 } from './manifest.js';
-import { collectObservedEntry } from './source-observer.js';
+import { EXTERNAL_ORIGIN_PATTERNS, validateOriginIndependence } from './origin-independence.js';
 
 export class CompilerError extends Error {
   constructor(message, details = {}) {
@@ -43,20 +42,17 @@ export function verificationConforms(report) {
 // these strings as its own SHACL detectors, so it is always excluded from
 // contamination scans.
 export const CONTAMINATION_PATTERNS = Object.freeze([
-  'linear\\.app',
   'github\\.com',
   'gitlab\\.com',
-  'USF-[0-9]',
   'ADR-[0-9]',
-  'issueId',
-  'projectId',
   'branchName',
   'commitSha',
   'refs/heads',
+  ...EXTERNAL_ORIGIN_PATTERNS,
 ]);
 const CONTAMINATION_RE = new RegExp(CONTAMINATION_PATTERNS.join('|'));
-// Backslashes must be doubled so the SPARQL string literal yields the intended
-// regex (e.g. `linear\.app`) rather than an invalid `\.` string escape.
+// Backslashes must be doubled so the SPARQL string literal yields each
+// intended detector rather than an invalid string escape.
 const SPARQL_CONTAMINATION = CONTAMINATION_PATTERNS.join('|').replace(/\\/g, '\\\\');
 const SHAPES_GRAPH_MARKER = 'urn:usf:graph:shapes';
 
@@ -113,6 +109,7 @@ function candidateGraphStores(manifest) {
 function addCandidateContent(stores, content, contentType, targetGraph, scope) {
   const parsed = new Parser({ format: contentType, baseIRI: 'urn:usf:' }).parse(content);
   const blankNodes = new Map();
+  const transport = [];
   const scoped = (term) => {
     if (term.termType !== 'BlankNode') return term;
     if (!blankNodes.has(term.value)) blankNodes.set(term.value, DataFactory.blankNode(`${scope}_${blankNodes.size}`));
@@ -122,8 +119,12 @@ function addCandidateContent(stores, content, contentType, targetGraph, scope) {
     const graph = item.graph.termType === 'NamedNode' ? item.graph.value : targetGraph;
     const store = stores.get(graph);
     if (!store) throw new Error(`candidate RDF writes outside a managed graph: ${graph ?? '(default)'}`);
-    store.addQuad(DataFactory.quad(scoped(item.subject), item.predicate, scoped(item.object)));
+    const subject = scoped(item.subject);
+    const object = scoped(item.object);
+    store.addQuad(DataFactory.quad(subject, item.predicate, object));
+    transport.push(DataFactory.quad(subject, item.predicate, object, namedNode(graph)));
   }
+  return transport;
 }
 
 function registryParityFailures(manifest) {
@@ -166,7 +167,6 @@ function registryParityFailures(manifest) {
   add(manifest.definitions, 'definitiongraph');
   add(manifest.authored, 'authoredgraph');
   add(manifest.shapes, 'shapegraph');
-  add(manifest.observed, 'observedgraph');
   add(manifest.derived, 'derivedgraph');
   for (const graph of expected.keys()) if (!registryRows.has(graph)) failures.push(`manifest graph absent from RDF registry: ${graph}`);
   for (const graph of registryRows.keys()) if (!expected.has(graph)) failures.push(`RDF registry graph absent from manifest: ${graph}`);
@@ -216,11 +216,13 @@ function listLoadable(root) {
 export function checkLocal(manifest) {
   const failures = [];
   const fail = (m) => failures.push(m);
+  const originRoot = manifest.root.endsWith(`${sep}graph`) ? join(manifest.root, '..') : manifest.root;
+  const originResult = validateOriginIndependence(originRoot);
+  for (const finding of originResult.findings) fail(`origin independence ${finding.code}: ${finding.path}:${finding.line}`);
 
   const all = [
     ...manifest.definitions,
     ...manifest.authored,
-    ...manifest.observed,
     ...manifest.shapes,
     ...manifest.rules,
     ...manifest.derived,
@@ -283,20 +285,20 @@ export function checkLocal(manifest) {
   for (const g of authoredGraphs) {
     if (derivedGraphs.includes(g)) fail(`graph IRI used as both authored and derived: ${g}`);
   }
-  const observedGraphs = observedLoadList(manifest).map((e) => e.graph);
-  const duplicateObserved = observedGraphs.filter((g, i) => observedGraphs.indexOf(g) !== i);
-  if (duplicateObserved.length) fail(`duplicate observed graph IRI: ${[...new Set(duplicateObserved)].join(', ')}`);
-  for (const graph of observedGraphs) {
-    if (authoredGraphs.includes(graph) || derivedGraphs.includes(graph)) fail(`observed graph IRI overlaps authored or derived graph: ${graph}`);
+  const retiredGraphs = manifest.retired.map((entry) => entry.graph);
+  const duplicateRetired = retiredGraphs.filter((graph, index) => retiredGraphs.indexOf(graph) !== index);
+  if (duplicateRetired.length) fail(`duplicate retired graph IRI: ${[...new Set(duplicateRetired)].join(', ')}`);
+  const currentGraphs = new Set([...authoredGraphs, ...derivedGraphs, shapesGraph(manifest)]);
+  for (const graph of retiredGraphs) {
+    if (currentGraphs.has(graph)) fail(`retired graph IRI remains current: ${graph}`);
   }
 
   // Named-graph load order is deterministic across definitions, authored,
-  // shapes, observations and derived snapshots. Multiple shape files share one
+  // shapes and derived snapshots. Multiple shape files share one
   // graph and therefore one order.
   const orderedGraphEntries = [
     ...authoredLoadList(manifest),
     manifest.shapes[0],
-    ...observedLoadList(manifest),
     ...manifest.derived,
   ].filter(Boolean);
   const orders = orderedGraphEntries.map((e) => e.order);
@@ -341,7 +343,8 @@ export function checkLocal(manifest) {
     files: all.length,
     authoredGraphs: authoredGraphs.length,
     derivedGraphs: derivedGraphs.length,
-    observedGraphs: observedGraphs.length,
+    originIndependenceDigest: originResult.resultDigest,
+    originIndependenceScannedFiles: originResult.scannedFileCount,
   };
 }
 
@@ -352,13 +355,11 @@ export function checkLocal(manifest) {
 // basis of idempotence.
 export function buildPlan(manifest) {
   const plan = [];
-  for (const g of managedGraphs(manifest)) plan.push({ op: 'clear', graph: g });
+  for (const g of clearableGraphs(manifest)) plan.push({ op: 'clear', graph: g });
   for (const e of authoredLoadList(manifest)) plan.push({ op: 'load', graph: e.graph, file: e.file });
   const sg = shapesGraph(manifest);
   for (const s of manifest.shapes) plan.push({ op: 'loadShapes', graph: sg, file: s.file });
   plan.push({ op: 'validate', state: 'authored' });
-  for (const e of observedLoadList(manifest)) plan.push({ op: 'collectObserved', graph: e.graph, collector: e.collector });
-  plan.push({ op: 'validate', state: 'observed' });
   for (const r of derivationRules(manifest)) plan.push({ op: 'derive', rule: r.file, graph: r.output });
   plan.push({ op: 'validate', state: 'derived' });
   plan.push({ op: 'integrity' });
@@ -370,10 +371,23 @@ export function buildPlan(manifest) {
 
 // --- Compile ---------------------------------------------------------------
 
-// Concatenate every shape file into a single constraints document used for
-// SHACL validation.
+// Preserve module boundaries so the Stardog adapter can validate bounded
+// documents. A single concatenated request exceeds the managed service's
+// accepted SHACL payload even though every module is valid Turtle.
 function shapeConstraints(manifest) {
-  return manifest.shapes.map((s) => readText(s.path)).join('\n');
+  const documents = manifest.shapes.map((shape) => ({ file: shape.file, content: readText(shape.path) }));
+  const base = documents.find((document) => document.file === 'shapes.ttl');
+  if (!base) throw new CompilerError('base shapes document is not registered', {
+    phase: 'shapes:prefixes',
+  });
+  if (documents.length === 1) return documents;
+  const firstShape = /(?:^|\n)shp:[A-Za-z0-9_-]+\s+a\s+sh:NodeShape\b/m.exec(base.content);
+  const boundary = firstShape?.index ?? base.content.length;
+  const sharedDeclarations = base.content.slice(0, boundary);
+  return documents.map((document) => document === base ? document : {
+    ...document,
+    content: `${sharedDeclarations}\n${document.content}`,
+  });
 }
 
 const countInTx = async (client, tx, graph) => {
@@ -423,19 +437,29 @@ function rollbackFailure(primaryError, ...rollbackErrors) {
   });
 }
 
-export async function compile({ manifest, client, observedCollector = collectObservedEntry }) {
+export async function compile({
+  manifest,
+  client,
+  publicationMode = 'commit',
+}) {
+  if (!['commit', 'validate'].includes(publicationMode)) {
+    throw new CompilerError('unsupported compiler publication mode', {
+      phase: 'compile:configuration',
+      publicationMode,
+    });
+  }
   checkLocal(manifest);
   await client.connectivity();
 
   const shapes = shapeConstraints(manifest);
   const integrity = integrityRules(manifest);
   const derivedTriples = {};
-  const observed = {};
   const candidateStores = candidateGraphStores(manifest);
   let candidateScope = 0;
   const recordCandidate = (content, contentType, graph) => {
-    addCandidateContent(candidateStores, content, contentType, graph, `load${candidateScope}`);
+    const transport = addCandidateContent(candidateStores, content, contentType, graph, `load${candidateScope}`);
     candidateScope += 1;
+    return transport;
   };
   let commitOutcome;
   let tx;
@@ -443,19 +467,36 @@ export async function compile({ manifest, client, observedCollector = collectObs
   try {
     tx = await client.begin();
 
-    // Clear only registered named graphs — never the whole database.
-    for (const g of managedGraphs(manifest)) await client.clearGraph(tx, g);
+    // Clear only registered named graphs — never the whole database. Preserve
+    // the current constraint graph until the candidate authored state has been
+    // checked: Stardog resolves SHACL prefix declarations from that graph and
+    // rejects a partially rebuilt constraint graph eagerly.
+    const constraintGraph = shapesGraph(manifest);
+    const initiallyClearedGraphs = clearableGraphs(manifest).filter((graph) => graph !== constraintGraph);
+    if (typeof client.clearGraphs === 'function') await client.clearGraphs(tx, initiallyClearedGraphs);
+    else for (const graph of initiallyClearedGraphs) await client.clearGraph(tx, graph);
 
-    // Load authored RDF in manifest order, then the SHACL shapes.
+    // Load authored RDF in manifest order. Validate it with the exact supplied
+    // shape bytes before publishing those shapes into Stardog's configured
+    // constraint graph; otherwise an existing ICV configuration can reject the
+    // shape upload itself before the compiler can produce a bounded report.
+    const authoredTransport = [];
     for (const e of authoredLoadList(manifest)) {
       const content = readText(e.path);
-      await client.addData(tx, content, e.contentType, e.graph);
-      recordCandidate(content, e.contentType, e.graph);
+      try {
+        authoredTransport.push(...recordCandidate(content, e.contentType, e.graph));
+      } catch (error) {
+        throw new CompilerError(error.message, { phase: 'load:authored-prepare', file: e.file, graph: e.graph });
+      }
     }
-    for (const s of manifest.shapes) {
-      const content = readText(s.path);
-      await client.addData(tx, content, s.contentType, s.graph);
-      recordCandidate(content, s.contentType, s.graph);
+    try {
+      await client.addData(tx, await nquadsFor(authoredTransport), NQUADS, null);
+    } catch (error) {
+      throw new CompilerError(error.message, {
+        phase: 'load:authored',
+        file: authoredLoadList(manifest).map((entry) => entry.file).join(','),
+        graph: 'registered-authored-graphs',
+      });
     }
 
     // Validate the authored state before deriving.
@@ -464,23 +505,22 @@ export async function compile({ manifest, client, observedCollector = collectObs
       throw new CompilerError('authored state failed SHACL validation', { phase: 'validate:authored', report });
     }
 
-    // Collect non-authoritative repository observations after authored state
-    // validates, then load and validate them inside the same transaction.
-    for (const entry of observedLoadList(manifest)) {
-      const collection = await observedCollector({ manifest, entry });
-      await client.addData(tx, collection.content, collection.contentType, entry.graph);
-      recordCandidate(collection.content, collection.contentType, entry.graph);
-      observed[entry.graph] = {
-        collector: entry.collector,
-        sourceCount: collection.sourceCount,
-        tripleCount: collection.tripleCount,
-        observationSetDigest: collection.observationSetDigest,
-        excludedCarrierPaths: collection.excludedCarrierPaths,
-      };
+    // Replace the configured constraint graph in one complete upload. Loading
+    // modules one at a time exposes an invalid partial constraints graph to
+    // Stardog's eager ICV enforcement.
+    await client.clearGraph(tx, constraintGraph);
+    const shapeTransport = [];
+    for (const shape of manifest.shapes) {
+      shapeTransport.push(...recordCandidate(readText(shape.path), shape.contentType, shape.graph));
     }
-    if (!(await client.validateInTx(tx, shapes))) {
-      const report = await client.reportInTx(tx, shapes);
-      throw new CompilerError('observed state failed SHACL validation', { phase: 'validate:observed', report });
+    try {
+      await client.addData(tx, await nquadsFor(shapeTransport), NQUADS, null);
+    } catch (error) {
+      throw new CompilerError(error.message, {
+        phase: 'load:shapes',
+        file: manifest.shapes.map((shape) => shape.file).join(','),
+        graph: constraintGraph,
+      });
     }
 
     // Execute derivation rules in the required order. Rule text is used
@@ -553,14 +593,17 @@ export async function compile({ manifest, client, observedCollector = collectObs
         });
       }
     }
-    for (const entry of observedLoadList(manifest)) {
-      if ((await countInTx(client, tx, entry.graph)) === 0) {
-        throw new CompilerError(`observed graph is empty after collection: ${entry.graph}`, { phase: 'verifyCounts' });
-      }
-    }
-
     const candidateWitness = await candidateGraphWitness(candidateStores);
-    try {
+    if (publicationMode === 'validate') {
+      await client.rollback(tx);
+      tx = null;
+      commitOutcome = {
+        state: 'validated-rolled-back',
+        exactCandidateStateVerified: true,
+        candidateDigest: candidateWitness.digest,
+        candidateGraphs: candidateWitness.graphs,
+      };
+    } else try {
       await client.commit(tx);
       tx = null;
       commitOutcome = {
@@ -646,10 +689,8 @@ export async function compile({ manifest, client, observedCollector = collectObs
     }
     return {
       ok: true,
-      graphsCleared: managedGraphs(manifest).length,
+      graphsCleared: clearableGraphs(manifest).length,
       authoredLoaded: authoredLoadList(manifest).length,
-      observedLoaded: observedLoadList(manifest).length,
-      observed,
       shapesLoaded: manifest.shapes.length,
       derived: derivedTriples,
       contaminationCount: 0,

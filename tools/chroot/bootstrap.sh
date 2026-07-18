@@ -97,8 +97,8 @@ codex --version
 log "Agent shell, git and MCP wiring (token-free; credentials live in /usf/.env)"
 cat > /root/.bashrc <<'EOF'
 # USF chroot shell environment: load token-free profile.d wiring, which sources
-# /usf/.env (git-ignored credentials). Makes STARDOG_*, GITHUB_PERSONAL_ACCESS_TOKEN,
-# LINEAR_API_KEY and OPENAI_API_KEY available to claude/codex and the MCP servers.
+# /usf/.env (git-ignored credentials). Makes required Stardog and agent-runtime
+# credentials available without making an external work tracker a dependency.
 for f in /etc/profile.d/*.sh; do [ -r "$f" ] && . "$f"; done
 cd /usf 2>/dev/null || true
 EOF
@@ -128,7 +128,7 @@ EOF
     "/usf": {
       "hasTrustDialogAccepted": true,
       "hasCompletedProjectOnboarding": true,
-      "enabledMcpjsonServers": ["usf", "github", "linear"]
+      "enabledMcpjsonServers": ["usf", "github"]
     }
   }
 }
@@ -137,26 +137,24 @@ echo "shell/git/mcp wiring present"
 
 log "Codex MCP registration and skill wiring (token-free)"
 # Codex does not read the project .mcp.json: it discovers MCP servers only via
-# $CODEX_HOME/config.toml. Register the same three servers claude gets, field-level
+# $CODEX_HOME/config.toml. Register the required USF server and optional GitHub
 # through the codex CLI (idempotent: re-adding a name rewrites the same table).
 # Token-free: usf launches via a wrapper that sources the git-ignored /usf/.env;
-# github/linear read their bearer tokens from the environment at connect time.
+# GitHub reads its bearer token from the environment at connect time.
 CODEX_CFG=/root/.codex/config.toml
 codex mcp add usf -- bash -c 'set -a; [ -f /usf/.env ] && . /usf/.env; set +a; exec /usr/local/bin/node /usf/tools/compiler/src/mcp.js'
 codex mcp add github --url https://api.githubcopilot.com/mcp/ --bearer-token-env-var GITHUB_PERSONAL_ACCESS_TOKEN
-codex mcp add linear --url https://mcp.linear.app/mcp --bearer-token-env-var LINEAR_API_KEY
 # Tool-approval posture (headless `codex exec` auto-denies prompted calls):
 #   usf    -> approve: the gateway is read-only and fail-closed server-side, so
 #             approval prompts add no safety.
-#   github/linear -> writes: reads run unprompted; mutations still prompt (and
-#             are therefore denied in headless runs) per AGENTS.md Linear rules.
+#   github -> writes: reads run unprompted; mutations still prompt and are
+#             therefore denied in headless runs.
 set_approval_mode(){ # <server> <mode>
   awk -v s="$1" 'index($0,"[mcp_servers."s"]")==1{f=1;next} /^\[/{f=0} f&&/^default_tools_approval_mode/{ok=1} END{exit !ok}' "$CODEX_CFG" ||
     sed -i "/^\[mcp_servers\.$1\]$/a default_tools_approval_mode = \"$2\"" "$CODEX_CFG"
 }
 set_approval_mode usf approve
 set_approval_mode github writes
-set_approval_mode linear writes
 # Pre-trust /usf so Codex loads AGENTS.md and the project-level skills
 # (/usf/.codex/skills — the tracked symlink to the canonical .claude/skills/usf).
 grep -qF '[projects."/usf"]' "$CODEX_CFG" || printf '\n[projects."/usf"]\ntrust_level = "trusted"\n' >> "$CODEX_CFG"
@@ -169,7 +167,7 @@ log "readiness"
 [ -d /usf/tools/compiler/node_modules/stardog ] || { echo "MISSING official Stardog SDK" >&2; exit 1; }
 [ -x /usr/local/bin/claude ] || { echo "MISSING claude CLI" >&2; exit 1; }
 [ -x /usr/local/bin/codex ] || { echo "MISSING codex CLI" >&2; exit 1; }
-for s in usf github linear; do
+for s in usf github; do
   grep -qF "[mcp_servers.$s]" /root/.codex/config.toml || { echo "MISSING codex $s MCP registration" >&2; exit 1; }
 done
 [ -f /usf/.codex/skills/usf/SKILL.md ] || { echo "MISSING codex usf skill (broken /usf/.codex/skills/usf link?)" >&2; exit 1; }
