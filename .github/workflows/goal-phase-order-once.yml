@@ -1,0 +1,156 @@
+name: Apply GOAL macro-phase ordering once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/goal-phase-order-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update-goal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Preserve post-permutation delivery gates
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("GOAL.md")
+          text = path.read_text(encoding="utf-8")
+
+          old_terminal = (
+              "This intermediate verdict never substitutes for the overall terminal outcome. "
+              "After permutation closure, continue executable-suite delivery unless the entire programme is complete."
+          )
+          new_terminal = (
+              "This intermediate verdict never substitutes for the overall terminal outcome. "
+              "The mandatory remaining macro-phase sequence is "
+              "`PERMUTATION_CLOSURE_COMPLETE` → `EXECUTABLE_ENVIRONMENT_DELIVERY` → "
+              "`BIDIRECTIONAL_TRACEABILITY_CLOSURE` → `FINAL_HERMETIC_SYSTEM_GATES` → "
+              "overall terminal-verdict evaluation. None of those three post-permutation nodes may be "
+              "removed, collapsed into permutation work, inferred complete from existing assets or skipped."
+          )
+          if old_terminal not in text and new_terminal not in text:
+              raise SystemExit("expected terminal-outcome sequence anchor not found")
+          text = text.replace(old_terminal, new_terminal, 1)
+
+          old_dependency = (
+              "The semantic-exhaustiveness and permission-closure work is now a mandatory critical-path node "
+              "before any permission, role, token, operation-catalogue or access-control implementation can be "
+              "considered complete. Unaffected executable-environment work may proceed in parallel when its "
+              "semantics and write scopes do not overlap."
+          )
+          new_dependency = (
+              "The semantic-exhaustiveness and permission-closure work is now the mandatory current critical-path "
+              "node before any permission, role, token, operation-catalogue or access-control implementation can be "
+              "considered complete. Non-overlapping preparatory environment work may proceed in parallel only when "
+              "it does not slow permutation closure, depend on unresolved permutation semantics or claim phase "
+              "completion. `EXECUTABLE_ENVIRONMENT_DELIVERY` itself remains a distinct later node and cannot complete "
+              "until `PERMUTATION_CLOSURE_COMPLETE` is recorded."
+          )
+          if old_dependency not in text and new_dependency not in text:
+              raise SystemExit("expected dependency-closure anchor not found")
+          text = text.replace(old_dependency, new_dependency, 1)
+
+          marker = "### 30.1 Authoritative remaining macro-phase order"
+          anchor = "## 31. Stardog mutation and self-healing"
+          if marker not in text:
+              if anchor not in text:
+                  raise SystemExit("Stardog section anchor not found")
+              section = r'''### 30.1 Authoritative remaining macro-phase order
+
+At publication of this directive, the following macro-nodes remain open. Their dependency order is mandatory. The verified checkpoint may advance execution within a node, but no agent, report, test result, existing repository asset or authority projection may reorder, merge, collapse, silently satisfy or skip a node.
+
+```text
+PERMUTATION_CLOSURE_COMPLETE
+  → EXECUTABLE_ENVIRONMENT_DELIVERY
+  → BIDIRECTIONAL_TRACEABILITY_CLOSURE
+  → FINAL_HERMETIC_SYSTEM_GATES
+  → overall terminal-verdict evaluation
+```
+
+1. `PERMUTATION_CLOSURE_COMPLETE`
+   - current macro objective: complete Sections 11–29 and pass Section 34.2;
+   - completion requires the finite candidate universe, exact cell dispositions, complete operation catalogue, permission atoms, role/principal reachability, fine-grained token scopes, coverage, fixtures, generated tests, formal proof, accepted publication, post-publication proof and zero source/live drift;
+   - it is an intermediate verdict only and does not claim executable environment, traceability or whole-system completion;
+   - next mandatory node: `EXECUTABLE_ENVIRONMENT_DELIVERY`.
+
+2. `EXECUTABLE_ENVIRONMENT_DELIVERY`
+   - status at publication of this directive: not yet completed;
+   - prerequisite: `PERMUTATION_CLOSURE_COMPLETE` recorded against the current authority and repository source;
+   - deliver development, deterministic-test and production-shaped-staging orchestration from repository-local declared inputs, including configuration and secret interfaces, migrations, representative seeds, health/readiness, services, workers, scheduled jobs, failure injection, backup, restore, restart, upgrade, rollback and teardown;
+   - execute every semantically required user, API, operator and automation journey across the applicable environments and provider modes;
+   - existing environment files or earlier partial execution are inputs only and never silently satisfy this node;
+   - completion condition: Section 34.4 passes with admitted evidence and current proof bindings;
+   - next mandatory node: `BIDIRECTIONAL_TRACEABILITY_CLOSURE`.
+
+3. `BIDIRECTIONAL_TRACEABILITY_CLOSURE`
+   - status at publication of this directive: not yet completed;
+   - prerequisite: the environment artefact and execution-evidence set from `EXECUTABLE_ENVIRONMENT_DELIVERY` is stable;
+   - regenerate semantic-to-artefact and artefact-to-semantic projections for every current obligation, permutation cell, operation, permission atom, token scope, implementation path, environment resource, test, evidence collector, proof algorithm and validation result;
+   - reject semantic obligations without delivered realisations, delivered artefacts without exactly one current semantic owner, generated outputs without generator/input/output-digest lineage and runtime behaviour without a current operation/permission/condition derivation;
+   - completion condition: both traceability directions have zero gaps, all bindings use current authority and source digests, and the results are admitted and proved;
+   - next mandatory node: `FINAL_HERMETIC_SYSTEM_GATES`.
+
+4. `FINAL_HERMETIC_SYSTEM_GATES`
+   - status at publication of this directive: not yet completed;
+   - prerequisites: `PERMUTATION_CLOSURE_COMPLETE`, `EXECUTABLE_ENVIRONMENT_DELIVERY` and `BIDIRECTIONAL_TRACEABILITY_CLOSURE` are all current and complete;
+   - run two independent empty-cache clean clones, network-isolated rebuild and test, poisoned-state execution, deterministic comparison, complete dev/test/staging journeys, recovery and rollback, final security/supply-chain/provenance checks and two independent adversarial reviews;
+   - publish the final current evidence, proof, readiness, contract, validation and completion metadata through the authorised transaction, then rerun post-publication proofs and source/live drift;
+   - completion condition: every applicable Section 34 gate passes and the overall terminal verdict is warranted.
+
+Preparatory work from a later node may run early only when it is independent, uses a disjoint write scope, does not consume critical-path capacity, does not rely on unresolved semantics and is not represented as completion. Closure, evidence admission and readiness claims remain strictly ordered as above.
+'''
+              text = text.replace(anchor, section + "\n\n" + anchor, 1)
+
+          completion_anchor = (
+              "## 34. Completion gates\n\n"
+              "All applicable gates must pass before overall completion."
+          )
+          completion_block = r'''## 34. Completion gates
+
+All applicable gates must pass before overall completion.
+
+### 34.0 Mandatory macro-phase order and non-collapse
+
+```text
+PERMUTATION_CLOSURE_COMPLETE is current and recorded
+EXECUTABLE_ENVIRONMENT_DELIVERY completed only after permutation closure
+BIDIRECTIONAL_TRACEABILITY_CLOSURE completed only after environment delivery
+FINAL_HERMETIC_SYSTEM_GATES completed only after all three predecessors
+post-permutation nodes skipped, merged or inferred complete = 0
+overall terminal verdict evaluated before all four macro-nodes complete = 0
+```
+
+A later node may invalidate and reopen an earlier node when its authority, evidence, proof, implementation or environment dependencies change. Reopening preserves this dependency order; it never authorises skipping a gate.
+'''
+          if "### 34.0 Mandatory macro-phase order and non-collapse" not in text:
+              if completion_anchor not in text:
+                  raise SystemExit("completion-gates anchor not found")
+              text = text.replace(completion_anchor, completion_block, 1)
+
+          report_old = "terminal and permutation-closure verdicts"
+          report_new = "terminal and permutation-closure verdicts, plus exact status of all four ordered macro-nodes"
+          if report_old in text and report_new not in text:
+              text = text.replace(report_old, report_new, 1)
+
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          rm .github/workflows/goal-phase-order-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A GOAL.md .github/workflows/goal-phase-order-once.yml
+          git diff --cached --check
+          git commit -m "Order remaining delivery gates after permutation closure"
+          git push origin HEAD:main
