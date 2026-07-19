@@ -147,9 +147,11 @@ function repositoryProcesses() {
 const recordedAt = new Date().toISOString();
 const priorCheckpointBytes = existsSync(checkpointPath)
   ? readFileSync(checkpointPath)
-  : readFileSync(legacyCheckpointPath);
-const priorCheckpointDigest = sha256(priorCheckpointBytes);
-if (existsSync(checkpointPath)) {
+  : existsSync(legacyCheckpointPath)
+    ? readFileSync(legacyCheckpointPath)
+    : null;
+const priorCheckpointDigest = priorCheckpointBytes ? sha256(priorCheckpointBytes) : null;
+if (existsSync(checkpointPath) && priorCheckpointBytes) {
   atomicWrite(join(stateRoot, 'history', `${priorCheckpointDigest.slice(7)}.json`), priorCheckpointBytes);
 }
 const head = gitText(['rev-parse', 'HEAD']);
@@ -172,57 +174,57 @@ for (const path of untrackedPaths) {
 }
 changes.sort((left, right) => (left.currentPath ?? left.previousPath).localeCompare(right.currentPath ?? right.previousPath, 'en'));
 const nextExactAction = {
-  action: 'Implement and locally validate the bounded realisation-option evaluation semantic correction before constructing authority-bound bytes.',
-  authorityDigest: 'sha256:d24b641a3136cb73d73b354b11bcb839d4714d38c8c4ba905128039547575b8f',
-  command: 'npm --prefix tools/compiler run check',
-  dependencySetDigest: 'sha256:1b7147be19433f3c0420c0d08559554b7a90e30d02b73cb12f508211916f588c',
+  action: 'Deliver the development, deterministic-test and production-shaped-staging environments from repository-local declared inputs.',
+  authorityDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
+  command: 'npm run authority:drift && npm test',
   preconditions: [
-    'authority digest remains exact and both source mirrors retain zero live drift',
+    'authority digest remains exact and the semantic-model source retains zero live drift',
     'no authority mutation transaction or modifying worker is active',
-    'every removed duplicate has ownership and replacement proof before deletion',
-    'repository-materialisation rules authorise the exact cutover plan',
+    'the compiler proof refresh binds the relocated canonical implementation sources before proof-dependent claims',
   ],
   semanticIdentifiers: [
-    'REALISATION_OPTION_EVALUATION_CLOSURE',
-    'urn:usf:ontology:RealisationDecision',
-    'urn:usf:semanticcontract:compilersemanticenforcement',
+    'EXECUTABLE_ENVIRONMENT_DELIVERY',
+    'urn:usf:semanticcontract:environmentregistryandbootstrap',
+    'urn:usf:semanticcontract:deterministicdevelopmentandtestsubstitutes',
   ],
 };
 
 const dependencyNodes = [
-  { blockerCode: 'SEMANTIC_CORRECTION_REQUIRED', id: 'REALISATION_OPTION_EVALUATION_CLOSURE', prerequisites: [], state: 'IN_PROGRESS_LOCAL' },
-  { blockerCode: 'LOCAL_IMPLEMENTATION', id: 'CANONICAL_COMPILER_DEPENDENCY_CLOSURE', prerequisites: ['REALISATION_OPTION_EVALUATION_CLOSURE'], state: 'BLOCKED_BY_SEMANTIC_CLOSURE' },
-  { blockerCode: 'LOCAL_IMPLEMENTATION', id: 'CANONICAL_COMPILER_ENTRYPOINT_CUTOVER', prerequisites: ['CANONICAL_COMPILER_DEPENDENCY_CLOSURE'], state: 'BLOCKED_BY_PREDECESSOR' },
-  { blockerCode: 'LOCAL_VALIDATION', id: 'DUPLICATE_COMPILER_RETIREMENT', prerequisites: ['CANONICAL_COMPILER_ENTRYPOINT_CUTOVER'], state: 'BLOCKED_BY_PREDECESSOR' },
-  { blockerCode: 'LOCAL_IMPLEMENTATION', id: 'EXECUTABLE_ENVIRONMENT_DELIVERY', prerequisites: [], state: 'PARTIALLY_UNBLOCKED' },
+  { blockerCode: 'NONE', id: 'REALISATION_OPTION_EVALUATION_CLOSURE', prerequisites: [], state: 'COMPLETE' },
+  { blockerCode: 'NONE', id: 'CANONICAL_COMPILER_DEPENDENCY_CLOSURE', prerequisites: ['REALISATION_OPTION_EVALUATION_CLOSURE'], state: 'COMPLETE' },
+  { blockerCode: 'NONE', id: 'CANONICAL_COMPILER_ENTRYPOINT_CUTOVER', prerequisites: ['CANONICAL_COMPILER_DEPENDENCY_CLOSURE'], state: 'COMPLETE' },
+  { blockerCode: 'NONE', id: 'DUPLICATE_COMPILER_RETIREMENT', prerequisites: ['CANONICAL_COMPILER_ENTRYPOINT_CUTOVER'], state: 'COMPLETE' },
+  { blockerCode: 'LOCAL_IMPLEMENTATION', id: 'EXECUTABLE_ENVIRONMENT_DELIVERY', prerequisites: [], state: 'UNBLOCKED' },
   { blockerCode: 'LOCAL_VALIDATION', id: 'BIDIRECTIONAL_TRACEABILITY_CLOSURE', prerequisites: ['EXECUTABLE_ENVIRONMENT_DELIVERY'], state: 'BLOCKED_BY_DELIVERY' },
-  { blockerCode: 'LOCAL_VALIDATION_THEN_AUTHORITY_PUBLICATION_REQUIRED', id: 'FINAL_HERMETIC_SYSTEM_GATES', prerequisites: ['DUPLICATE_COMPILER_RETIREMENT', 'BIDIRECTIONAL_TRACEABILITY_CLOSURE'], state: 'BLOCKED_BY_DELIVERY' },
+  { blockerCode: 'LOCAL_VALIDATION_THEN_AUTHORITY_PUBLICATION_REQUIRED', id: 'FINAL_HERMETIC_SYSTEM_GATES', prerequisites: ['BIDIRECTIONAL_TRACEABILITY_CLOSURE'], state: 'BLOCKED_BY_DELIVERY' },
 ];
 
 const stateClassifications = {
   EXTERNAL_OR_HUMAN_BLOCKED: [],
-  PARTIALLY_DELIVERED: ['CANONICAL_COMPILER_SOLE_PATH', 'COMPILER_PROOF_PREVIOUS_IMPLEMENTATION_BINDING', 'HERMETIC_EXECUTABLE_SUITE'],
-  REMAINING_ACTIONABLE: dependencyNodes.map(({ id }) => id),
+  PARTIALLY_DELIVERED: ['COMPILER_PROOF_PREVIOUS_IMPLEMENTATION_BINDING', 'HERMETIC_EXECUTABLE_SUITE'],
+  REMAINING_ACTIONABLE: dependencyNodes.filter(({ state }) => state !== 'COMPLETE').map(({ id }) => id),
   SUPERSEDED_OR_INVALIDATED: ['REJECTED_EXECUTABLE_REALISATION', 'STALE_MIXED_SCOPE_COMPILER_PROOF', 'REFERENCE_OR_HISTORICAL_SOURCE_COMPLETION'],
-  VERIFIED_CURRENT: ['SEMANTIC_ADEQUACY_AND_CONTAMINATION', 'DELIVERABLE_AND_LAYOUT_AUTHORITY', 'SOURCE_LIVE_PARITY', 'MILESTONE_GIT_PUBLICATION'],
+  VERIFIED_CURRENT: ['SEMANTIC_ADEQUACY_AND_CONTAMINATION', 'DELIVERABLE_AND_LAYOUT_AUTHORITY', 'SOURCE_LIVE_PARITY', 'MILESTONE_GIT_PUBLICATION', 'REALISATION_OPTION_EVALUATION_CLOSURE', 'CANONICAL_COMPILER_SOLE_PATH'],
 };
 
 const gateSummary = [
   { id: 'SEMANTIC_ADEQUACY', state: 'VERIFIED_CURRENT' },
   { id: 'DELIVERABLE_AND_LAYOUT_AUTHORITY', state: 'VERIFIED_CURRENT' },
-  { id: 'REALISATION_OPTION_EVALUATION_CLOSURE', state: 'REMAINING_ACTIONABLE' },
+  { id: 'REALISATION_OPTION_EVALUATION_CLOSURE', state: 'VERIFIED_CURRENT' },
   { id: 'COMPILER_PROOF_ADMISSION', state: 'PARTIALLY_DELIVERED_REOPENED_IMPLEMENTATION_BINDING' },
-  { id: 'CANONICAL_COMPILER_SOLE_PATH', state: 'PARTIALLY_DELIVERED' },
+  { id: 'CANONICAL_COMPILER_SOLE_PATH', state: 'VERIFIED_CURRENT' },
   { id: 'EXECUTABLE_ENVIRONMENTS', state: 'REMAINING_ACTIONABLE' },
   { id: 'FINAL_HERMETIC_CLOSURE', state: 'REMAINING_ACTIONABLE' },
 ];
 
 const dependencyReviewPath = join(stateRoot, 'compiler-cutover-dependency-review.json');
-const dependencyReviewDigest = sha256(readFileSync(dependencyReviewPath));
-atomicWrite(
-  `${dependencyReviewPath}.sha256`,
-  Buffer.from(`${dependencyReviewDigest.slice(7)}  compiler-cutover-dependency-review.json\n`),
-);
+const dependencyReviewDigest = existsSync(dependencyReviewPath) ? sha256(readFileSync(dependencyReviewPath)) : null;
+if (dependencyReviewDigest) {
+  atomicWrite(
+    `${dependencyReviewPath}.sha256`,
+    Buffer.from(`${dependencyReviewDigest.slice(7)}  compiler-cutover-dependency-review.json\n`),
+  );
+}
 const observedProcesses = repositoryProcesses();
 
 const changedPathsRecord = {
@@ -256,10 +258,10 @@ const ledger = {
   dependencyNodes,
   gateSummary,
   currentItem: {
-    id: 'REALISATION_OPTION_EVALUATION_CLOSURE',
-    state: 'LOCAL_SEMANTIC_CANDIDATE_DEFINITION',
+    id: 'EXECUTABLE_ENVIRONMENT_DELIVERY',
+    state: 'UNBLOCKED',
   },
-  currentPhase: 'SEMANTIC_ASSURANCE_REALISATION_OPTION_EVALUATION_CLOSURE',
+  currentPhase: 'EXECUTABLE_DELIVERY_ENVIRONMENTS',
   goalDigest,
   git: {
     branch: gitText(['branch', '--show-current']),
@@ -328,8 +330,8 @@ const checkpoint = {
     productionShapedStaging: 'NOT_DELIVERED',
   },
   currentItem: {
-    id: 'REALISATION_OPTION_EVALUATION_CLOSURE',
-    state: 'LOCAL_SEMANTIC_CANDIDATE_DEFINITION',
+    id: 'EXECUTABLE_ENVIRONMENT_DELIVERY',
+    state: 'UNBLOCKED',
   },
   git: {
     branch: gitText(['branch', '--show-current']),
@@ -378,7 +380,7 @@ const checkpoint = {
   nextExactAction,
   ownedQueries: [],
   ownedTransactions: [],
-  phase: 'SEMANTIC_ASSURANCE_REALISATION_OPTION_EVALUATION_CLOSURE',
+  phase: 'EXECUTABLE_DELIVERY_ENVIRONMENTS',
   previousCheckpointDigest: priorCheckpointDigest,
   programmeLedger: {
     digest: ledgerDigest,
@@ -407,11 +409,11 @@ const checkpoint = {
     ownedAuthorityMutationProcessIds: [],
   },
   sidecars: [
-    {
+    ...(dependencyReviewDigest ? [{
       digest: dependencyReviewDigest,
       path: '.work/programme/compiler-cutover-dependency-review.json',
       schema: 'USF_COMPILER_CUTOVER_DEPENDENCY_REVIEW/v1',
-    },
+    }] : []),
     {
       digest: changedPathsDigest,
       path: '.work/programme/changed-paths.json',

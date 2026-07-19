@@ -50,7 +50,7 @@ this file is programme authority subordinate only to live semantic authority.
 current committed HEAD:          resolved through the verified checkpoint (parent milestone 9670309d0d217eb7388ca7d76796c183b3ffc2f3)
 current live authority:          sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd
 current managed candidate:       sha256:7d260e5f743d35ff3bf460f133ceb6e1218d0c3615806d84d8e7d2c6266d0082
-checkpoint:                      .work/programme/checkpoint.json(.sha256); offline copy /var/lib/usf-programme
+checkpoint:                      .work/programme/checkpoint.json(.sha256); regenerated from nothing by node operations/programme/update-checkpoint.mjs
 programme ledger:                .work/programme/programme-ledger.json(.sha256)
 contamination inventory:         6,458 rows; sha256:0bf10686bc1c93058091ab27c705ece083f9c2309bd00686bfb175d36bc07892
 deliverable inventory:           452 rows; sha256:b8146982fc99b9ff343cc5e6ed6fc097fe1578e33eda52720826999fb450b3cc
