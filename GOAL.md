@@ -40,66 +40,150 @@ This history explains why the programme is open. It is not semantic authority an
 
 ## Current Verified Programme State
 
-This bounded snapshot records durable orientation, not mutable execution state. The atomic checkpoint is the source of exact current execution state and must be verified before reuse.
+This is durable orientation, not volatile execution state. Exact GOAL, checkpoint,
+ledger, patch, process and transaction digests are resolved through the verified
+sidecars at `.work/programme/*.sha256`; embedding those changing digests here
+would create a circular or stale directive. The checkpoint is execution state;
+this file is programme authority subordinate only to live semantic authority.
 
 ```text
-checkout:                       /usf, branch main
-verified baseline HEAD:         a5bec725952d6b9e6b634782ce8687530251acff
-semantic/compiler milestone:    352b376f0e9b268af13b64604465bf554f6570b4, pushed to origin/main
-authority digest:               sha256:d24b641a3136cb73d73b354b11bcb839d4714d38c8c4ba905128039547575b8f
-published managed candidate:    sha256:6220e75969e28cee9a35aa5d6e78b7d2754a0fcbcdefb6fbdf42c73b6bd7ba2d
-checkpoint path:                .work/programme/checkpoint.json
-canonical disposition rows:     6,458
-canonical deliverable rows:     452
-rejected-removal plan digest:   sha256:b37a2e69bf3e2c9bd223566343f849eb0d8504988edcef54b48644b1217c0962
-user-reported milestone usage:  500,000,000 tokens in one session; operational observation only
+current committed HEAD:          resolved through the verified checkpoint (parent milestone 9670309d0d217eb7388ca7d76796c183b3ffc2f3)
+current live authority:          sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd
+current managed candidate:       sha256:7d260e5f743d35ff3bf460f133ceb6e1218d0c3615806d84d8e7d2c6266d0082
+checkpoint:                      .work/programme/checkpoint.json(.sha256); offline copy /var/lib/usf-programme
+programme ledger:                .work/programme/programme-ledger.json(.sha256)
+contamination inventory:         6,458 rows; sha256:0bf10686bc1c93058091ab27c705ece083f9c2309bd00686bfb175d36bc07892
+deliverable inventory:           452 rows; sha256:b8146982fc99b9ff343cc5e6ed6fc097fe1578e33eda52720826999fb450b3cc
+source/live drift:               0 mismatched graphs of 36 (npm run authority:drift)
+current phase:                   EXECUTABLE_DELIVERY_ENVIRONMENTS
+next exact command:              npm run authority:drift && npm test
 ```
 
-Verified complete work:
+No overall percentage is asserted. The boundary gates are recorded without
+collapsing unlike evidence into a progress percentage: semantic adequacy,
+deliverable/layout authority, realisation-option evaluation closure and the
+canonical compiler sole path (dependency closure, entrypoint cutover and
+duplicate retirement) are `VERIFIED_CURRENT`; compiler proof admission is
+reopened pending a proof refresh against the relocated canonical
+implementation sources; executable environments and final hermetic closure are
+`REMAINING_ACTIONABLE`. Any future percentage must record its metric name,
+numerator, denominator, weighting algorithm, state source and calculation
+digest. A remaining-executable-delivery metric must never be labelled overall
+programme completion.
 
-- the rejected executable realisation was stopped, ownership-proven, removed or recoverably quarantined without reset, clean, stash or history rewriting;
-- its unpublished semantic edits were reverted, its evidence and completion claims are inadmissible, and live Stardog contains no published resource for that rejected design;
-- every imported item in the bounded 6,458-row inventory has one explicit disposition; its file, internal and independent-review digests are `sha256:0bf10686bc1c93058091ab27c705ece083f9c2309bd00686bfb175d36bc07892`, `sha256:8008ce6eebb6f854543df7dbf4833eb8d067be11d80581bd3bab5f9e627f19e2` and `sha256:081b775881fac9c72fd0eb3bef6e7a8bdc23e2bbd009c6ad60d888dcdf4b7427`;
-- the accepted semantic adequacy proof and attestation digests are `sha256:21d505b0f01e180be7db9acb59fba7009a9084ec7500568cc73568bed9975a27` and `sha256:446789c2531e29e74798a6fde1b9ddc365a2bc39d4d62aa0836f725659ed4828`; the required post-publication authority-binding validation passed in self-publication-closure mode with file digest `sha256:d8e4b8cd0917d9bb31b407843c4ea5ebb29127da7203b6288fdb2053e75c398e`;
-- the published semantic encapsulation defines 64 active contracts and capabilities, 35 operations, 16 interfaces, 40 ports, 15 data models, 12 configuration keys, seven workflows, 55 events, four messages, six process boundaries and three environment topologies;
-- every one of the 64 capabilities has exactly one accountable process boundary, explicit participation, and a runtime, operator-control or assurance boundary classification;
-- the digest-bound 452-row deliverable inventory has file and internal digests `sha256:b8146982fc99b9ff343cc5e6ed6fc097fe1578e33eda52720826999fb450b3cc` and `sha256:de3b112fdb7fcad7fdcbc9ba3bf4d656b3b0551e7137b07d2971b2fab7ba13a4`; its independent review file and review digests are `sha256:496c669a90665ee292ad3f48a437affd65197b0b78e60d3be945af1b8dc5c860` and `sha256:953cf68731cde48b1246bd096edc2ea19faa72d8688ab07ae09fe01729d712c4`, with every orphan, contradictory-boundary, hidden-worker, hidden-scheduler, cross-boundary-interface and assurance-as-runtime counter at zero;
-- the corrected authority is current at `sha256:d24b641a3136cb73d73b354b11bcb839d4714d38c8c4ba905128039547575b8f`; all 36 registered live graphs and 61,704 triples validate, integrity and contamination gates pass, readiness projects 64 records, and both governed source mirrors have zero source/live drift;
-- compiler proof admission is complete with separately typed `HERMETIC_SUBSTITUTE` and `LIVE_AUTHORITY_CONTROL` evidence, non-self-referential implementation-source digest `sha256:05323e8c4b7e6b21d16e5e679c30cd80154b0bbb12907dcf05944b4cc2c00e4a`, proof-algorithm digest `sha256:1d2db0368372a56356717073eaa4c40def2a256df0d95b01d5daa460b7aed024`, proof attestation `sha256:a7148e9b618f5dda16b588e45739742e0aa6ea0ae34dd5639daa41a6eed8224d` and independently recomputed dependency-set digest `sha256:1b7147be19433f3c0420c0d08559554b7a90e30d02b73cb12f508211916f588c`; the compiler contract and activation are active and the accepted realisation is implementable;
-- the repository-materialisation control-plane proof passed 29 cases including eight negative paths and binds implementation source-set digest `sha256:8b655d71f40ef32f6b41e17e37aeb63dda1b4d6c3d7f6925e2bd32e196c6e47c`; its evidence manifest and proof attestation are verified in CAS at `sha256:6ce202809d6a1a85f8fe252458cd186f6e9135622c829231b5ce3ebb60c7a0c5` and `sha256:bdec0e81ae9c53c930377f6c606505dcbf58f49c1a028bfbfcc16128bdf2493f`, the post-publication dependency binding passed, and the repository-materialisation contract is active with a successful current proof;
-- foundational materialisation plan `sha256:f2a1c37ab71ecee0136db640a45d89068e2ae4f52a8b80e311ccd2c1b28bb481` was created and validated once against the exact live authority digest with zero findings; its four digest-bound writes established the independently named repository-external-artefact-materialisation capability cell and thin semantic-assurance process assembly, whose nine focused tests pass;
-- ownership was proven for 67 rejected tracked contract projections and one obsolete proof workflow; the authority-bound 68-operation removal plan validated with zero failures and those paths are now absent from the working tree.
+### VERIFIED_CURRENT
 
-Verified partially complete work:
+| identifier | classification | current binding | evidence or state digest | remaining condition |
+| --- | --- | --- | --- | --- |
+| `SEMANTIC_ADEQUACY_AND_CONTAMINATION` | `VERIFIED_CURRENT` | authority `d24b641a…`; 6,458 dispositions | inventory `sha256:0bf10686bc1c93058091ab27c705ece083f9c2309bd00686bfb175d36bc07892`; review `sha256:081b775881fac9c72fd0eb3bef6e7a8bdc23e2bbd009c6ad60d888dcdf4b7427` | none while relevant authority dependencies remain unchanged |
+| `DELIVERABLE_AND_LAYOUT_AUTHORITY` | `VERIFIED_CURRENT` | authority `d24b641a…`; 452 deliverables; foundational layout materialised | inventory `sha256:b8146982fc99b9ff343cc5e6ed6fc097fe1578e33eda52720826999fb450b3cc`; plan `sha256:f2a1c37ab71ecee0136db640a45d89068e2ae4f52a8b80e311ccd2c1b28bb481` | none while relevant authority dependencies remain unchanged |
+| `COMPILER_PROOF_ADMISSION` | `VERIFIED_CURRENT` | authority `d24b641a…`; active contract; accepted realisation; three successful proof results | implementation `sha256:05323e8c4b7e6b21d16e5e679c30cd80154b0bbb12907dcf05944b4cc2c00e4a`; evidence set `sha256:2049d80e0725b70c02a6f269d6819a3a36b4cb19745fcc2c5cb0015c52b5b737`; attestation `sha256:a7148e9b618f5dda16b588e45739742e0aa6ea0ae34dd5639daa41a6eed8224d` | reopen only if an exact authority, implementation, proof-algorithm, test-set or evidence dependency changes |
+| `SOURCE_LIVE_PARITY` | `VERIFIED_CURRENT` | 36 graphs and 61,704 triples at authority `d24b641a…` | dependency set `sha256:1b7147be19433f3c0420c0d08559554b7a90e30d02b73cb12f508211916f588c` | zero drift must be reconfirmed after the next authority transaction |
+| `MILESTONE_GIT_PUBLICATION` | `VERIFIED_CURRENT` | `main` and `origin/main` at `9670309d0d217eb7388ca7d76796c183b3ffc2f3` | Git commit identity `9670309d0d217eb7388ca7d76796c183b3ffc2f3` | later local work remains checkpoint-owned until its coherent wave is committed |
 
-- the independently derived repository architecture and naming decision is accepted, the repository-materialisation contract is active with current proof, the exact foundational plan has materialised, and the canonical compiler/gateway is proven; transitional duplicate implementation authority still requires ownership-proven cutover, and the implementation is not yet proven across development, deterministic test and production-shaped staging;
-- the corrected semantic source, validators, proof algorithm and derived snapshots are tracked from semantic/compiler milestone commit `352b376f0e9b268af13b64604465bf554f6570b4`; exact current Git and patch state remains checkpoint-owned;
-- proof, evidence, validation and readiness results remain non-current where they bind historical source, a simulator, a rejected layout or an environment scope broader than their evidence.
-- repository-local development, deterministic-test and production-shaped-staging implementations remain undelivered against the corrected authority.
+### PARTIALLY_DELIVERED
 
-Superseded work:
+| identifier | classification | current binding | evidence or state digest | remaining condition |
+| --- | --- | --- | --- | --- |
+| `CANONICAL_COMPILER_SOLE_PATH` | `PARTIALLY_DELIVERED` | authority `d24b641a…`; canonical capability/process/configuration/provider surfaces exist at HEAD `9670309…` | dependency review `sha256:9c737137f12b38f51227b971d5d2d8b7da0e9965c01793836dcdf91e74f34dc2` | close canonical dependencies, switch all active entrypoints, prove ownership, then retire duplicate compiler authority |
+| `HERMETIC_EXECUTABLE_SUITE` | `PARTIALLY_DELIVERED` | accepted semantic and layout boundaries at authority `d24b641a…`; executable environment delivery not yet closed | deliverable inventory `sha256:b8146982fc99b9ff343cc5e6ed6fc097fe1578e33eda52720826999fb450b3cc` | deliver development, deterministic-test and production-shaped-staging boundaries plus final system evidence |
 
-- the quarantined executable attempt, root orchestration drafts, copied reference-evaluator design, generated implementation packets and all completion classifications based on them;
-- the earlier inventory, plan and checkpoint classifications that treated a reference implementation or specification delivery as executable completion.
+### REMAINING_ACTIONABLE
 
-Unpublished work:
+The following dependency DAG is authoritative only while its authority and
+review digests remain unchanged. The detailed machine-readable record is the
+cutover dependency review named above.
 
-- none at the recorded semantic/compiler milestone; any later uncommitted delta is described only by the verified atomic checkpoint;
-- no current Stardog mutation or publication transaction is owned or left open.
+1. `REALISATION_OPTION_EVALUATION_CLOSURE`
+   - classification/blocker: `REMAINING_ACTIONABLE` / `SEMANTIC_CORRECTION_REQUIRED`
+   - semantic owner: current decision, realisation, evidence, supply-chain and readiness authority; the correction must publish one independently derived final owner
+   - binding/state digest: authority `d24b641a…`; candidate and publication digests remain checkpoint-owned until created
+   - prerequisites: preserve current authority lineage; retain the already materialised compiler containment work only within its previously proven scope
+   - local work: model single and composed options, complete criterion/evidence assessments, credible candidate or proven-sole-candidate closure, selected/rejected outcomes, component integrity, composition coverage proof, invalidation, SHACL, integrity, derivation, readiness and exact positive/negative fixtures; migrate every accepted decision
+   - authority mutation required: yes, one validate-and-rollback followed by one accepted publication after all local gates pass
+   - focused acceptance command: `npm run test:semantic-assurance && npm --prefix tools/compiler run check && npm --prefix tools/compiler test`
+   - completion condition: the `REALISATION_OPTION_EVALUATION_CLOSURE` zero-counter gate passes and no evaluation-incomplete decision authorises implementation expansion
+   - next unblocked node: `CANONICAL_COMPILER_DEPENDENCY_CLOSURE`
 
-Invalidated or rejected as completion evidence:
+2. `CANONICAL_COMPILER_DEPENDENCY_CLOSURE`
+   - classification/blocker: `REMAINING_ACTIONABLE` / `LOCAL_IMPLEMENTATION`
+   - semantic owner: `urn:usf:semanticcontract:compilersemanticenforcement`
+   - binding/state digest: authority `d24b641a…`; dependency review `sha256:9c737137f12b38f51227b971d5d2d8b7da0e9965c01793836dcdf91e74f34dc2`
+   - prerequisites: `REALISATION_OPTION_EVALUATION_CLOSURE`; current layout authority remains current; no modifying worker or authority transaction
+   - local work: close canonical witness/configuration/proof inputs and contain the SHACL harness under its authorised assurance boundary
+   - authority mutation required: no for implementation; later proof refresh only after implementation-source bytes change
+   - focused acceptance command: `npm run test:semantic-assurance`
+   - completion condition: no proof-governing input resolves through `tools/compiler` or an unauthorised tools path; all focused controls pass
+   - next unblocked node: `CANONICAL_COMPILER_ENTRYPOINT_CUTOVER`
 
-- evidence, proofs and validations bound only to a reference implementation, fixture, simulator, historical source or rejected executable layout;
-- whole-suite evaluation based on zero projected gaps, accepted historical realisations or reference-implementation tests;
-- any local-dev or hermetic-mock proof used to imply production-shaped staging or live-provider readiness.
+3. `CANONICAL_COMPILER_ENTRYPOINT_CUTOVER`
+   - classification/blocker: `REMAINING_ACTIONABLE` / `LOCAL_IMPLEMENTATION`
+   - semantic owner: `urn:usf:semanticcontract:compilersemanticenforcement`
+   - binding/state digest: authority `d24b641a…`; dependency review `sha256:9c737137f12b38f51227b971d5d2d8b7da0e9965c01793836dcdf91e74f34dc2`
+   - prerequisites: dependency closure
+   - local work: switch MCP, operator, chroot and CI wiring to canonical Node `22.23.1` command surfaces
+   - authority mutation required: only if the current path/representation authority proves insufficient
+   - focused acceptance command: `npm test && bash tools/chroot/verify-isolation.sh && bash tools/chroot/verify-agents.sh`
+   - completion condition: discovered and executed tests match; all active entrypoints use canonical paths; directives and CI agree on Node `22.23.1`
+   - next unblocked node: `DUPLICATE_COMPILER_RETIREMENT`
 
-Unverified or ambiguous work:
+4. `DUPLICATE_COMPILER_RETIREMENT`
+   - classification/blocker: `REMAINING_ACTIONABLE` / `LOCAL_VALIDATION`
+   - semantic owner: `urn:usf:realisationdecision:semanticmodelcompilationrealisation`
+   - binding/state digest: authority `d24b641a…`; dependency review `sha256:9c737137f12b38f51227b971d5d2d8b7da0e9965c01793836dcdf91e74f34dc2`
+   - prerequisites: canonical entrypoint parity and ownership/supersession proof for every candidate path
+   - local work: remove only proven duplicate implementation authority and block historical proof admission
+   - authority mutation required: only if a semantic realisation or path-authority decision must be superseded
+   - focused acceptance command: `rg -n 'tools/compiler/(src|bin)|cd /usf/tools/compiler|npm .*tools/compiler' .mcp.json package.json .github tools/chroot processes/semantic-assurance tools/proof`
+   - completion condition: active duplicate compiler references are zero and no removed path lacks a current replacement
+   - next unblocked node: `EXECUTABLE_ENVIRONMENT_DELIVERY`
 
-- no programme-owned repository path was ambiguous at the recorded milestone; all later exact path and content digests belong in the atomic checkpoint, not this prose snapshot;
-- no corrected repository-local development, deterministic-test or production-shaped-staging implementation exists at the recorded HEAD; no current environment result can therefore be treated as executable-delivery evidence;
-- exact CAS, working-tree, publication and validation state must be re-read from the latest verified checkpoint because it may advance after this directive is written.
+5. `EXECUTABLE_ENVIRONMENT_DELIVERY`
+   - classification/blocker: `REMAINING_ACTIONABLE` / `LOCAL_IMPLEMENTATION`
+   - semantic owner: current environment, persistence, recovery and operator contracts in authority `d24b641a…`
+   - binding/state digest: deliverable inventory `sha256:b8146982fc99b9ff343cc5e6ed6fc097fe1578e33eda52720826999fb450b3cc`
+   - prerequisites: canonical compiler command surface; unaffected environment assets may proceed earlier when exact layout plans validate
+   - local work: development, deterministic-test and production-shaped-staging orchestration; configuration/secrets; migrations, representative seeds, health, readiness, backup, restore, upgrade and rollback
+   - authority mutation required: only for a genuine semantic omission; batch one correction set if needed
+   - focused acceptance command: `npm test`
+   - completion condition: all three environments execute their semantic journeys and recovery controls from repository-local declared inputs
+   - next unblocked node: `BIDIRECTIONAL_TRACEABILITY_CLOSURE`
 
-Remaining required work begins with the exact next action in the checkpoint: complete the ownership-proven transitional compiler cutover so the canonical capability, process and provider paths are the sole live implementation authority, then execute the next unblocked environment-acquisition and operator-workflow boundaries through development, deterministic test, production-shaped staging and final hermetic gates.
+6. `BIDIRECTIONAL_TRACEABILITY_CLOSURE`
+   - classification/blocker: `REMAINING_ACTIONABLE` / `LOCAL_VALIDATION`
+   - semantic owner: current materialisation, evidence and validation contracts
+   - binding/state digest: deliverable inventory review `sha256:953cf68731cde48b1246bd096edc2ea19faa72d8688ab07ae09fe01729d712c4`
+   - prerequisites: environment artefact set stable
+   - local work: regenerate semantic-to-artefact and artefact-to-semantic projections and reject every gap
+   - authority mutation required: no unless a genuine model omission is found
+   - focused acceptance command: `npm test`
+   - completion condition: obligations without realisation and artefacts without semantic derivation are both zero
+   - next unblocked node: `FINAL_HERMETIC_SYSTEM_GATES`
+
+7. `FINAL_HERMETIC_SYSTEM_GATES`
+   - classification/blocker: `REMAINING_ACTIONABLE` / `LOCAL_VALIDATION_THEN_AUTHORITY_PUBLICATION_REQUIRED`
+   - semantic owner: current whole-suite completion, proof and readiness contracts
+   - binding/state digest: authority `d24b641a…`; final digest is created only from the completed implementation
+   - prerequisites: all preceding nodes complete
+   - local work: two independent clean clones, empty-cache and poisoned-state runs, isolated declared-input rebuild, deterministic comparison and two independent adversarial reviews
+   - authority mutation required: yes, once, for current final evidence/proof/readiness/contract closure
+   - focused acceptance command: the final-gate commands specified by sections 21 and 22 of this directive
+   - completion condition: every terminal gate passes and final source/live parity is zero
+   - next unblocked node: terminal verdict evaluation
+
+### SUPERSEDED_OR_INVALIDATED
+
+| identifier | classification | current binding | evidence or state digest | remaining condition |
+| --- | --- | --- | --- | --- |
+| `REJECTED_EXECUTABLE_REALISATION` | `SUPERSEDED_OR_INVALIDATED` | inactive historical lineage only | removal plan `sha256:b37a2e69bf3e2c9bd223566343f849eb0d8504988edcef54b48644b1217c0962` | must never satisfy a current obligation |
+| `STALE_MIXED_SCOPE_COMPILER_PROOF` | `SUPERSEDED_OR_INVALIDATED` | inactive CAS history only | evidence `sha256:c976ca68a8656dba2aec13b703a44378997996e11cbfd52ad8382f50254be9cc`; attestation `sha256:dac9ecbd1c3c20a35bb6e2008275a904baaf0d24ab2de9cd7de86ef0727a274f` | must never satisfy the compiler contract |
+| `REFERENCE_OR_HISTORICAL_SOURCE_COMPLETION` | `SUPERSEDED_OR_INVALIDATED` | provenance only, outside current delivery | semantic adequacy attestation `sha256:446789c2531e29e74798a6fde1b9ddc365a2bc39d4d62aa0836f725659ed4828` | preserve lineage without admitting completion evidence |
+
+### EXTERNAL_OR_HUMAN_BLOCKED
+
+| identifier | classification | current binding | evidence or state digest | remaining condition |
+| --- | --- | --- | --- | --- |
+| `NONE` | `EXTERNAL_OR_HUMAN_BLOCKED` | no genuine external blocker is current at authority `d24b641a…` | checkpoint digest descriptor `.work/programme/checkpoint.json.sha256` | none; all current nodes are locally actionable or normal authority-bound work |
 
 ## 2. Terminal outcomes
 
@@ -831,20 +915,23 @@ A checkpoint must contain at least:
 
 ```text
 goal digest
-repository HEAD and working-tree digest
-current authority digest
-current phase and semantic item or executable wave
+repository HEAD, working-tree digest and patch digests
+current authority and managed-candidate digests
+checkpoint, ledger and detailed-sidecar paths and digests
+current phase and active semantic item or executable node
 semantic-adequacy, contamination, deliverable and executable-realisation inventory digests
-verified complete, partial, superseded, invalidated and ambiguous items
-completed and reopened semantic identifiers
+VERIFIED_CURRENT, PARTIALLY_DELIVERED, REMAINING_ACTIONABLE,
+SUPERSEDED_OR_INVALIDATED and EXTERNAL_OR_HUMAN_BLOCKED identifiers
+completed and reopened identifiers, with the exact dependency change that caused every reopening
 changed repository paths and content digests
 published semantic resources and publication transaction outcome
 admitted evidence and proof-result identifiers
 validation result identifiers
-current environment status
+current development, deterministic-test and production-shaped-staging state
 unresolved blockers and findings
+running process identifiers and ownership
 next exact action, semantic identifier and command
-Git, worktree, stash, CAS and transaction state
+Git, worktree, stash, CAS and transaction ownership/closure state
 owned queries and transactions
 ```
 
@@ -858,7 +945,7 @@ Every future agent must:
 2. load the latest checkpoint and programme ledger;
 3. verify their goal, Git, authority, patch, inventory and state digests;
 4. inspect the working tree and process state without modifying them;
-5. reconcile verified complete, partial, superseded, invalidated and ambiguous work;
+5. reconcile `VERIFIED_CURRENT`, `PARTIALLY_DELIVERED`, `REMAINING_ACTIONABLE`, `SUPERSEDED_OR_INVALIDATED` and `EXTERNAL_OR_HUMAN_BLOCKED` work;
 6. verify that no other process is modifying the checkout and that no unowned transaction is active;
 7. resume from the checkpoint's next exact action;
 8. avoid repeating bootstrap, broad inventory, contamination review or analysis whose relevant digest is unchanged;
@@ -877,10 +964,11 @@ Before a limit prevents safe continuation:
 2. do not begin a publication, materialisation or other non-atomic operation that cannot be completed and reconciled;
 3. run the smallest focused validation required for the completed operation;
 4. write the atomic programme ledger and recovery checkpoint;
-5. record the exact next command and semantic identifier;
-6. verify the new checkpoint digest, Git/worktree/stash state, CAS descriptors and transaction closure;
-7. leave no ambiguous mutation or unowned process;
-8. return a compact continuation status rather than a terminal verdict.
+5. write or update every required machine-readable detailed-state sidecar;
+6. record the exact next command and semantic identifier;
+7. verify every new digest and the Git, working-tree, patch, stash, CAS, process and transaction state;
+8. leave no ambiguous mutation, lock, unowned process or transaction;
+9. return a compact continuation status rather than a terminal verdict.
 
 ## Directive and Validator Harmonisation
 
@@ -923,7 +1011,43 @@ proof-to-current-implementation mismatches = 0
 directive and validator policy conflicts = 0
 ```
 
-### 22.2 Executable repository closure
+### 22.2 Realisation Option Evaluation Closure
+
+`REALISATION_OPTION_EVALUATION_CLOSURE` is an ongoing and final gate. It runs
+before accepting or materialising a decision, after relevant option,
+component, version, authority or criterion changes, at each integrated wave,
+and at final completion. Decision state alone never warrants an implementable
+realisation. Closure requires an accepted decision, an explicit selected
+option, complete current evidence-backed evaluation, current supply-chain
+evidence, and a successful whole-composition proof where applicable.
+
+```text
+active contracts requiring technology selection without evaluated candidates = 0
+accepted decisions without multiple credible candidates or a valid sole-candidate proof = 0
+accepted decisions without exactly one selected option = 0
+applicable candidate/criterion assessments missing = 0
+applicable component/criterion assessments missing = 0
+criterion assessments without admitted current evidence = 0
+credible rejected candidates without evidence-backed rejection reasons = 0
+selected packages or images without exact version and integrity binding = 0
+selected components without kind-specific closure = 0
+selected third-party components without licence assessment = 0
+selected third-party components without vulnerability and supply-chain assessment = 0
+selected compositions without complete component responsibility mapping = 0
+selected compositions without current whole-composition coverage proof = 0
+composition permutations left unclassified = 0
+provider choices without required development, deterministic-test and production-shaped-staging bindings = 0
+selected options without concrete realisation mappings = 0
+legacy selections retained solely because of previous use = 0
+```
+
+No present or future decision is grandfathered. Stale or incomplete evaluation
+prevents new implementation expansion but preserves independently validated
+unaffected behaviour within its exact proven scope. Detailed matrices and
+evidence remain in governed semantic resources and digest-bound sidecars, not
+in this directive.
+
+### 22.3 Executable repository closure
 
 ```text
 all in-scope active contracts have repository-local executable realisations
@@ -947,7 +1071,7 @@ all required source is tracked in final Git tree
 standalone clone requires no untracked source or agent cache
 ```
 
-### 22.3 Environment closure
+### 22.4 Environment closure
 
 ```text
 dev environment builds, starts, becomes healthy and exercises required journeys
@@ -962,7 +1086,7 @@ network-isolated rebuild and test succeeds from verified acquired inputs
 clean-clone hermetic rebuild failures = 0
 ```
 
-### 22.4 Evidence and proof
+### 22.5 Evidence and proof
 
 ```text
 all mandatory evidence admitted, fresh, integrity-valid and applicable
@@ -974,7 +1098,7 @@ all failed or stale results retain lineage and cannot activate contracts
 all referenced CAS payloads verify
 ```
 
-### 22.5 Contracts and realisations
+### 22.6 Contracts and realisations
 
 ```text
 all in-scope warranted contracts are active
@@ -986,7 +1110,7 @@ all independently warranted nonclaims are preserved and every inherited nonclaim
 all external dependencies have repository-local integration and required substitutes
 ```
 
-### 22.6 Validation and integration
+### 22.7 Validation and integration
 
 ```text
 all required ValidationResults pass and are admitted
@@ -1000,7 +1124,7 @@ security, licence and dependency gates pass
 release, provenance, SBOM and signature gates pass where required
 ```
 
-### 22.7 Independent adversarial review
+### 22.8 Independent adversarial review
 
 ```text
 at least two independent final review rounds completed
@@ -1011,7 +1135,7 @@ claim-affecting unresolved medium findings = 0
 all resolved findings have regression tests or semantic constraints
 ```
 
-### 22.8 Work and repository state
+### 22.9 Work and repository state
 
 ```text
 executable-realisation audit has zero actionable in-scope gaps
@@ -1024,7 +1148,7 @@ no temporary repository artifact remains
 all checkpoint and volatile runtime output is outside Git
 ```
 
-### 22.9 Final evidence
+### 22.10 Final evidence
 
 ```text
 final suite evidence manifest verified

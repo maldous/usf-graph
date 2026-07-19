@@ -1,9 +1,17 @@
 import { resolveLiveSemanticAuthorityConfiguration } from '../../configuration/semantic-assurance/semantic-authority.mjs';
+import { createHash } from 'node:crypto';
 
 const TURTLE = 'text/turtle';
 const NQUADS = 'application/n-quads';
 const SPARQL_JSON = 'application/sparql-results+json';
 const GRAPH_IRI = /^[A-Za-z][A-Za-z0-9+.-]*:[^<>"{}\\\s]+$/;
+const stable = (value) => Array.isArray(value)
+  ? value.map(stable)
+  : value && typeof value === 'object'
+    ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])]))
+    : value;
+const canonicalJson = (value) => JSON.stringify(stable(value));
+const sha256 = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
 
 export class StardogSemanticAuthorityError extends Error {
   constructor(message, status) {
@@ -58,6 +66,42 @@ export function createStardogSemanticAuthorityClient({ sdk, configuration, resol
     ? { endpoint: resolved.endpoint, token: resolved.auth.token }
     : { endpoint: resolved.endpoint, username: resolved.auth.username, password: resolved.auth.password });
   const database = resolved.database;
+  const validateInTransactionWithReceipt = async (transaction, shapes) => {
+    const inputs = [];
+    const observations = [];
+    for (const document of shapeDocuments(shapes)) {
+      const input = {
+        path: `semantic-model/${document.file}`,
+        digest: sha256(document.content),
+      };
+      inputs.push(input);
+      const response = successful(await db.icv.validateInTx(connection, database, transaction, document.content, { contentType: TURTLE }), `validate ${document.file}`);
+      let conforms = response.body === true;
+      let reportDigest = null;
+      if (!conforms) {
+        const report = successful(await db.icv.reportInTx(connection, database, transaction, document.content, { contentType: TURTLE }), `report ${document.file}`);
+        conforms = reportConforms(report.body);
+        reportDigest = sha256(canonicalJson(report.body));
+        if (conforms === null) throw new StardogSemanticAuthorityError(`Stardog report ${document.file} did not contain one explicit SHACL conformance result`);
+      }
+      observations.push({
+        ...input,
+        conforms,
+        validationResponseDigest: sha256(canonicalJson(response.body)),
+        reportDigest,
+      });
+      if (!conforms) break;
+    }
+    inputs.sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
+    observations.sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
+    const receiptCore = {
+      conforms: observations.length === inputs.length && observations.every(({ conforms: item }) => item === true),
+      validatedDocumentCount: observations.length,
+      validatedDocumentSetDigest: sha256(canonicalJson(inputs)),
+      observationSetDigest: sha256(canonicalJson(observations)),
+    };
+    return Object.freeze({ ...receiptCore, receiptDigest: sha256(canonicalJson(receiptCore)) });
+  };
 
   return Object.freeze({
     expectedAuthorityDigest: resolved.expectedAuthorityDigest,
@@ -105,16 +149,10 @@ export function createStardogSemanticAuthorityClient({ sdk, configuration, resol
     },
 
     async validateInTransaction(transaction, shapes) {
-      for (const document of shapeDocuments(shapes)) {
-        const response = successful(await db.icv.validateInTx(connection, database, transaction, document.content, { contentType: TURTLE }), `validate ${document.file}`);
-        if (response.body === true) continue;
-        const report = successful(await db.icv.reportInTx(connection, database, transaction, document.content, { contentType: TURTLE }), `report ${document.file}`);
-        const conforms = reportConforms(report.body);
-        if (conforms === null) throw new StardogSemanticAuthorityError(`Stardog report ${document.file} did not contain one explicit SHACL conformance result`);
-        if (!conforms) return false;
-      }
-      return true;
+      return (await validateInTransactionWithReceipt(transaction, shapes)).conforms;
     },
+
+    validateInTransactionWithReceipt,
 
     async reportInTransaction(transaction, shapes) {
       const reports = [];

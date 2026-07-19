@@ -38,6 +38,13 @@
 @prefix es: <urn:usf:evidencestage:>.
 @prefix gk: <urn:usf:readinessgatekind:>.
 @prefix rr: <urn:usf:readinessreason:>.
+@prefix closure: <urn:usf:evaluationclosurestate:>.
+@prefix assessment: <urn:usf:assessmentresult:>.
+@prefix criterionapp: <urn:usf:criterionapplicability:>.
+@prefix credibility: <urn:usf:candidatecredibilitystate:>.
+@prefix rejectionduration: <urn:usf:rejectionduration:>.
+@prefix componentrole: <urn:usf:componentrole:>.
+@prefix permutation: <urn:usf:permutationdisposition:>.
 
 dom:authentication a usf:CapabilityDomain;
     usf:canonicalName "authentication".
@@ -333,6 +340,8 @@ rpt:unknown a usf:ReportStatus;
     usf:canonicalName "unknown".
 bst:external a usf:BindingState;
     usf:canonicalName "external".
+bst:available a usf:BindingState;
+    usf:canonicalName "available".
 bst:disabled a usf:BindingState;
     usf:canonicalName "disabled".
 bst:unavailable a usf:BindingState;
@@ -721,6 +730,8 @@ gk:ui a usf:ReadinessGateKind;
     usf:canonicalName "ui".
 gk:livestardog a usf:ReadinessGateKind;
     usf:canonicalName "livestardog".
+gk:realisationoptionevaluationclosure a usf:ReadinessGateKind;
+    usf:canonicalName "realisationoptionevaluationclosure".
 rr:satisfied a usf:ReadinessReason;
     usf:canonicalName "satisfied".
 rr:missingblockingobligation a usf:ReadinessReason;
@@ -735,6 +746,8 @@ rr:degradedadvisory a usf:ReadinessReason;
     usf:canonicalName "degradedadvisory".
 rr:unknownevaluation a usf:ReadinessReason;
     usf:canonicalName "unknownevaluation".
+rr:optionevaluationincomplete a usf:ReadinessReason;
+    usf:canonicalName "optionevaluationincomplete".
 rr:failedtest a usf:ReadinessReason;
     usf:canonicalName "failedtest".
 rr:unsignedevidence a usf:ReadinessReason;
@@ -1079,3 +1092,186 @@ evk:semanticreviewevidence a usf:EvidenceKind;
     usf:canonicalName "reservedfuturescope".
 <urn:usf:termusagestate:zeroinstancebydesign> a usf:TermUsageState;
     usf:canonicalName "zeroinstancebydesign".
+closure:complete a usf:EvaluationClosureState;
+    usf:canonicalName "complete".
+closure:incomplete a usf:EvaluationClosureState;
+    usf:canonicalName "incomplete".
+closure:invalidated a usf:EvaluationClosureState;
+    usf:canonicalName "invalidated".
+assessment:satisfies a usf:AssessmentResult;
+    usf:canonicalName "satisfies".
+assessment:partiallysatisfies a usf:AssessmentResult;
+    usf:canonicalName "partiallysatisfies".
+assessment:doesnotsatisfy a usf:AssessmentResult;
+    usf:canonicalName "doesnotsatisfy".
+assessment:notapplicablewithjustification a usf:AssessmentResult;
+    usf:canonicalName "notapplicablewithjustification".
+assessment:insufficientevidence a usf:AssessmentResult;
+    usf:canonicalName "insufficientevidence".
+criterionapp:applicable a usf:CriterionApplicability;
+    usf:canonicalName "applicable".
+criterionapp:notapplicable a usf:CriterionApplicability;
+    usf:canonicalName "notapplicable".
+credibility:credible a usf:CandidateCredibilityState;
+    usf:canonicalName "credible".
+credibility:excluded a usf:CandidateCredibilityState;
+    usf:canonicalName "excluded".
+rejectionduration:permanent a usf:RejectionDuration;
+    usf:canonicalName "permanent".
+rejectionduration:conditional a usf:RejectionDuration;
+    usf:canonicalName "conditional".
+componentrole:runtime a usf:ComponentRole;
+    usf:canonicalName "runtime".
+componentrole:provider a usf:ComponentRole;
+    usf:canonicalName "provider".
+componentrole:adapter a usf:ComponentRole;
+    usf:canonicalName "adapter".
+componentrole:clientlibrary a usf:ComponentRole;
+    usf:canonicalName "clientlibrary".
+componentrole:database a usf:ComponentRole;
+    usf:canonicalName "database".
+componentrole:migrationmechanism a usf:ComponentRole;
+    usf:canonicalName "migrationmechanism".
+componentrole:connectionpool a usf:ComponentRole;
+    usf:canonicalName "connectionpool".
+componentrole:queue a usf:ComponentRole;
+    usf:canonicalName "queue".
+componentrole:scheduler a usf:ComponentRole;
+    usf:canonicalName "scheduler".
+componentrole:identityprovider a usf:ComponentRole;
+    usf:canonicalName "identityprovider".
+componentrole:policyengine a usf:ComponentRole;
+    usf:canonicalName "policyengine".
+componentrole:backupmechanism a usf:ComponentRole;
+    usf:canonicalName "backupmechanism".
+componentrole:scanner a usf:ComponentRole;
+    usf:canonicalName "scanner".
+componentrole:observabilitycollector a usf:ComponentRole;
+    usf:canonicalName "observabilitycollector".
+componentrole:compiler a usf:ComponentRole;
+    usf:canonicalName "compiler".
+componentrole:canonicaliser a usf:ComponentRole;
+    usf:canonicalName "canonicaliser".
+componentrole:configurationparser a usf:ComponentRole;
+    usf:canonicalName "configurationparser".
+componentrole:authorityexport a usf:ComponentRole;
+    usf:canonicalName "authorityexport".
+componentrole:capabilitycontainment a usf:ComponentRole;
+    usf:canonicalName "capabilitycontainment".
+componentrole:processassembly a usf:ComponentRole;
+    usf:canonicalName "processassembly".
+permutation:requiredandvalidated a usf:PermutationDisposition;
+    usf:canonicalName "requiredandvalidated".
+permutation:validandcoveredbyequivalenceproof a usf:PermutationDisposition;
+    usf:canonicalName "validandcoveredbyequivalenceproof".
+permutation:invalidandrejected a usf:PermutationDisposition;
+    usf:canonicalName "invalidandrejected".
+permutation:unsupportedexplicitnonclaim a usf:PermutationDisposition;
+    usf:canonicalName "unsupportedexplicitnonclaim".
+permutation:notapplicablewithprovenconstraint a usf:PermutationDisposition;
+    usf:canonicalName "notapplicablewithprovenconstraint".
+<urn:usf:evaluationcriterion:semanticcontractfit> a usf:EvaluationCriterion; usf:canonicalName "semanticcontractfit".
+<urn:usf:evaluationcriterion:behaviourcoverage> a usf:EvaluationCriterion; usf:canonicalName "behaviourcoverage".
+<urn:usf:evaluationcriterion:negativeerrorandrecoverybehaviour> a usf:EvaluationCriterion; usf:canonicalName "negativeerrorandrecoverybehaviour".
+<urn:usf:evaluationcriterion:securityarchitecture> a usf:EvaluationCriterion; usf:canonicalName "securityarchitecture".
+<urn:usf:evaluationcriterion:identitypermissiontenancyandprivacy> a usf:EvaluationCriterion; usf:canonicalName "identitypermissiontenancyandprivacy".
+<urn:usf:evaluationcriterion:dataownershipandtransactions> a usf:EvaluationCriterion; usf:canonicalName "dataownershipandtransactions".
+<urn:usf:evaluationcriterion:reliabilityandfailurehandling> a usf:EvaluationCriterion; usf:canonicalName "reliabilityandfailurehandling".
+<urn:usf:evaluationcriterion:availabilityandrecovery> a usf:EvaluationCriterion; usf:canonicalName "availabilityandrecovery".
+<urn:usf:evaluationcriterion:performanceandresourceuse> a usf:EvaluationCriterion; usf:canonicalName "performanceandresourceuse".
+<urn:usf:evaluationcriterion:scalability> a usf:EvaluationCriterion; usf:canonicalName "scalability".
+<urn:usf:evaluationcriterion:operationalcomplexity> a usf:EvaluationCriterion; usf:canonicalName "operationalcomplexity".
+<urn:usf:evaluationcriterion:maintenanceburden> a usf:EvaluationCriterion; usf:canonicalName "maintenanceburden".
+<urn:usf:evaluationcriterion:licencecompatibility> a usf:EvaluationCriterion; usf:canonicalName "licencecompatibility".
+<urn:usf:evaluationcriterion:acquisitionandtotalcost> a usf:EvaluationCriterion; usf:canonicalName "acquisitionandtotalcost".
+<urn:usf:evaluationcriterion:supplychainrisk> a usf:EvaluationCriterion; usf:canonicalName "supplychainrisk".
+<urn:usf:evaluationcriterion:vulnerabilityexposure> a usf:EvaluationCriterion; usf:canonicalName "vulnerabilityexposure".
+<urn:usf:evaluationcriterion:updateandpatchpolicy> a usf:EvaluationCriterion; usf:canonicalName "updateandpatchpolicy".
+<urn:usf:evaluationcriterion:versionstability> a usf:EvaluationCriterion; usf:canonicalName "versionstability".
+<urn:usf:evaluationcriterion:providercompatibility> a usf:EvaluationCriterion; usf:canonicalName "providercompatibility".
+<urn:usf:evaluationcriterion:environmentcompatibility> a usf:EvaluationCriterion; usf:canonicalName "environmentcompatibility".
+<urn:usf:evaluationcriterion:portability> a usf:EvaluationCriterion; usf:canonicalName "portability".
+<urn:usf:evaluationcriterion:vendorlockinandexit> a usf:EvaluationCriterion; usf:canonicalName "vendorlockinandexit".
+<urn:usf:evaluationcriterion:observability> a usf:EvaluationCriterion; usf:canonicalName "observability".
+<urn:usf:evaluationcriterion:backupandrestore> a usf:EvaluationCriterion; usf:canonicalName "backupandrestore".
+<urn:usf:evaluationcriterion:upgradeandrollback> a usf:EvaluationCriterion; usf:canonicalName "upgradeandrollback".
+<urn:usf:evaluationcriterion:testability> a usf:EvaluationCriterion; usf:canonicalName "testability".
+<urn:usf:evaluationcriterion:hermeticsubstitutefeasibility> a usf:EvaluationCriterion; usf:canonicalName "hermeticsubstitutefeasibility".
+<urn:usf:evaluationcriterion:productionshapedstagingfeasibility> a usf:EvaluationCriterion; usf:canonicalName "productionshapedstagingfeasibility".
+<urn:usf:evaluationcriterion:evidenceandprooffeasibility> a usf:EvaluationCriterion; usf:canonicalName "evidenceandprooffeasibility".
+<urn:usf:evaluationcriterion:semanticderivation> a usf:EvaluationCriterion; usf:canonicalName "semanticderivation".
+<urn:usf:evaluationcriterion:continuityandreplacement> a usf:EvaluationCriterion; usf:canonicalName "continuityandreplacement".
+
+<urn:usf:validationlayer:evaluator> a usf:ValidationLayer; usf:canonicalName "evaluator".
+<urn:usf:validationlayer:shacl> a usf:ValidationLayer; usf:canonicalName "shacl".
+<urn:usf:validationlayer:integrity> a usf:ValidationLayer; usf:canonicalName "integrity".
+<urn:usf:mappingstate:active> a usf:ControlledValue; usf:canonicalName "active".
+<urn:usf:realisationclass:livestardogwithisolatedexport> a usf:RealisationClass; usf:canonicalName "livestardogwithisolatedexport".
+<urn:usf:realisationclass:livestardogwithoutisolatedexport> a usf:RealisationClass; usf:canonicalName "livestardogwithoutisolatedexport".
+<urn:usf:realisationclass:otherlivesemanticauthority> a usf:RealisationClass; usf:canonicalName "otherlivesemanticauthority".
+<urn:usf:realisationclass:repositorylocalsemanticauthority> a usf:RealisationClass; usf:canonicalName "repositorylocalsemanticauthority".
+<urn:usf:validationfailurecode:activecontractselectionevaluationmissing> a usf:ValidationFailureCode; usf:canonicalName "activecontractselectionevaluationmissing"; usf:failureCodeLiteral "ACTIVE_CONTRACT_SELECTION_EVALUATION_MISSING"; usf:failurePrecedence 0; usf:failureForGateCounter "activeContractsRequiringTechnologySelectionWithoutEvaluatedCandidates"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>.
+<urn:usf:validationfailurecode:decisionstatecardinality> a usf:ValidationFailureCode; usf:canonicalName "decisionstatecardinality"; usf:failureCodeLiteral "DECISION_STATE_CARDINALITY"; usf:failurePrecedence 1; usf:failureForGateCounter "activeContractsRequiringTechnologySelectionWithoutEvaluatedCandidates"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:decisioncontractcardinality> a usf:ValidationFailureCode; usf:canonicalName "decisioncontractcardinality"; usf:failureCodeLiteral "DECISION_CONTRACT_CARDINALITY"; usf:failurePrecedence 2; usf:failureForGateCounter "activeContractsRequiringTechnologySelectionWithoutEvaluatedCandidates"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:decisionevaluationcardinality> a usf:ValidationFailureCode; usf:canonicalName "decisionevaluationcardinality"; usf:failureCodeLiteral "DECISION_EVALUATION_CARDINALITY"; usf:failurePrecedence 3; usf:failureForGateCounter "activeContractsRequiringTechnologySelectionWithoutEvaluatedCandidates"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:evaluationdependencydrift> a usf:ValidationFailureCode; usf:canonicalName "evaluationdependencydrift"; usf:failureCodeLiteral "EVALUATION_DEPENDENCY_DRIFT"; usf:failurePrecedence 4; usf:failureForGateCounter "criterionAssessmentsWithoutAdmittedCurrentEvidence"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>.
+<urn:usf:validationfailurecode:failureregistrydrift> a usf:ValidationFailureCode; usf:canonicalName "failureregistrydrift"; usf:failureCodeLiteral "FAILURE_REGISTRY_DRIFT"; usf:failurePrecedence 5; usf:failureForGateCounter "criterionAssessmentsWithoutAdmittedCurrentEvidence"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:evidenceassessmentrecordduplicate> a usf:ValidationFailureCode; usf:canonicalName "evidenceassessmentrecordduplicate"; usf:failureCodeLiteral "EVIDENCE_ASSESSMENT_RECORD_DUPLICATE"; usf:failurePrecedence 6; usf:failureForGateCounter "criterionAssessmentsWithoutAdmittedCurrentEvidence"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:missingselectedoption> a usf:ValidationFailureCode; usf:canonicalName "missingselectedoption"; usf:failureCodeLiteral "MISSING_SELECTED_OPTION"; usf:failurePrecedence 7; usf:failureForGateCounter "acceptedDecisionsWithoutExactlyOneSelectedOption"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>.
+<urn:usf:validationfailurecode:multipleselectedoptions> a usf:ValidationFailureCode; usf:canonicalName "multipleselectedoptions"; usf:failureCodeLiteral "MULTIPLE_SELECTED_OPTIONS"; usf:failurePrecedence 8; usf:failureForGateCounter "acceptedDecisionsWithoutExactlyOneSelectedOption"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>.
+<urn:usf:validationfailurecode:selectedoptionoutsidecandidateset> a usf:ValidationFailureCode; usf:canonicalName "selectedoptionoutsidecandidateset"; usf:failureCodeLiteral "SELECTED_OPTION_OUTSIDE_CANDIDATE_SET"; usf:failurePrecedence 9; usf:failureForGateCounter "acceptedDecisionsWithoutExactlyOneSelectedOption"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>.
+<urn:usf:validationfailurecode:fakeorduplicatecrediblecandidate> a usf:ValidationFailureCode; usf:canonicalName "fakeorduplicatecrediblecandidate"; usf:failureCodeLiteral "FAKE_OR_DUPLICATE_CREDIBLE_CANDIDATE"; usf:failurePrecedence 10; usf:failureForGateCounter "acceptedDecisionsWithoutMultipleCredibleCandidatesOrValidSoleCandidateProof"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:incompletecandidateset> a usf:ValidationFailureCode; usf:canonicalName "incompletecandidateset"; usf:failureCodeLiteral "INCOMPLETE_CANDIDATE_SET"; usf:failurePrecedence 11; usf:failureForGateCounter "acceptedDecisionsWithoutMultipleCredibleCandidatesOrValidSoleCandidateProof"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:candidatesearchspaceincomplete> a usf:ValidationFailureCode; usf:canonicalName "candidatesearchspaceincomplete"; usf:failureCodeLiteral "CANDIDATE_SEARCH_SPACE_INCOMPLETE"; usf:failurePrecedence 12; usf:failureForGateCounter "acceptedDecisionsWithoutMultipleCredibleCandidatesOrValidSoleCandidateProof"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:missingapplicablecriterion> a usf:ValidationFailureCode; usf:canonicalName "missingapplicablecriterion"; usf:failureCodeLiteral "MISSING_APPLICABLE_CRITERION"; usf:failurePrecedence 13; usf:failureForGateCounter "applicableCandidateCriterionAssessmentsMissing"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:unjustifiednotapplicablecriterion> a usf:ValidationFailureCode; usf:canonicalName "unjustifiednotapplicablecriterion"; usf:failureCodeLiteral "UNJUSTIFIED_NOT_APPLICABLE_CRITERION"; usf:failurePrecedence 14; usf:failureForGateCounter "applicableCandidateCriterionAssessmentsMissing"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:missingcandidatecriterionassessment> a usf:ValidationFailureCode; usf:canonicalName "missingcandidatecriterionassessment"; usf:failureCodeLiteral "MISSING_CANDIDATE_CRITERION_ASSESSMENT"; usf:failurePrecedence 15; usf:failureForGateCounter "applicableCandidateCriterionAssessmentsMissing"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:assessmentevidenceinvalid> a usf:ValidationFailureCode; usf:canonicalName "assessmentevidenceinvalid"; usf:failureCodeLiteral "ASSESSMENT_EVIDENCE_INVALID"; usf:failurePrecedence 16; usf:failureForGateCounter "criterionAssessmentsWithoutAdmittedCurrentEvidence"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:mandatorycriterionnotclosed> a usf:ValidationFailureCode; usf:canonicalName "mandatorycriterionnotclosed"; usf:failureCodeLiteral "MANDATORY_CRITERION_NOT_CLOSED"; usf:failurePrecedence 17; usf:failureForGateCounter "applicableCandidateCriterionAssessmentsMissing"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:componentcriterionassessmentmissing> a usf:ValidationFailureCode; usf:canonicalName "componentcriterionassessmentmissing"; usf:failureCodeLiteral "COMPONENT_CRITERION_ASSESSMENT_MISSING"; usf:failurePrecedence 18; usf:failureForGateCounter "applicableComponentCriterionAssessmentsMissing"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:componentcriterionassessmentduplicate> a usf:ValidationFailureCode; usf:canonicalName "componentcriterionassessmentduplicate"; usf:failureCodeLiteral "COMPONENT_CRITERION_ASSESSMENT_DUPLICATE"; usf:failurePrecedence 19; usf:failureForGateCounter "applicableComponentCriterionAssessmentsMissing"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:componentassessmentresponsibilitymismatch> a usf:ValidationFailureCode; usf:canonicalName "componentassessmentresponsibilitymismatch"; usf:failureCodeLiteral "COMPONENT_ASSESSMENT_RESPONSIBILITY_MISMATCH"; usf:failurePrecedence 20; usf:failureForGateCounter "applicableComponentCriterionAssessmentsMissing"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:componentassessmentevidenceinvalid> a usf:ValidationFailureCode; usf:canonicalName "componentassessmentevidenceinvalid"; usf:failureCodeLiteral "COMPONENT_ASSESSMENT_EVIDENCE_INVALID"; usf:failurePrecedence 21; usf:failureForGateCounter "criterionAssessmentsWithoutAdmittedCurrentEvidence"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:componentmandatorycriterionnotclosed> a usf:ValidationFailureCode; usf:canonicalName "componentmandatorycriterionnotclosed"; usf:failureCodeLiteral "COMPONENT_MANDATORY_CRITERION_NOT_CLOSED"; usf:failurePrecedence 22; usf:failureForGateCounter "applicableComponentCriterionAssessmentsMissing"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:rejectedcandidatereasonmissing> a usf:ValidationFailureCode; usf:canonicalName "rejectedcandidatereasonmissing"; usf:failureCodeLiteral "REJECTED_CANDIDATE_REASON_MISSING"; usf:failurePrecedence 23; usf:failureForGateCounter "credibleRejectedCandidatesWithoutEvidenceBackedRejectionReasons"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:rejectionreasonevidencemissing> a usf:ValidationFailureCode; usf:canonicalName "rejectionreasonevidencemissing"; usf:failureCodeLiteral "REJECTION_REASON_EVIDENCE_MISSING"; usf:failurePrecedence 24; usf:failureForGateCounter "credibleRejectedCandidatesWithoutEvidenceBackedRejectionReasons"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:componentkindcardinality> a usf:ValidationFailureCode; usf:canonicalName "componentkindcardinality"; usf:failureCodeLiteral "COMPONENT_KIND_CARDINALITY"; usf:failurePrecedence 25; usf:failureForGateCounter "selectedComponentsWithoutKindSpecificClosure"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:floatingcomponentversion> a usf:ValidationFailureCode; usf:canonicalName "floatingcomponentversion"; usf:failureCodeLiteral "FLOATING_COMPONENT_VERSION"; usf:failurePrecedence 26; usf:failureForGateCounter "selectedPackagesOrImagesWithoutExactVersionAndIntegrityBinding"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:componentintegritybindingmissing> a usf:ValidationFailureCode; usf:canonicalName "componentintegritybindingmissing"; usf:failureCodeLiteral "COMPONENT_INTEGRITY_BINDING_MISSING"; usf:failurePrecedence 27; usf:failureForGateCounter "selectedPackagesOrImagesWithoutExactVersionAndIntegrityBinding"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:repositorylocalsourcedigestmissing> a usf:ValidationFailureCode; usf:canonicalName "repositorylocalsourcedigestmissing"; usf:failureCodeLiteral "REPOSITORY_LOCAL_SOURCE_DIGEST_MISSING"; usf:failurePrecedence 28; usf:failureForGateCounter "selectedComponentsWithoutKindSpecificClosure"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:repositorylocalsourceintegritymismatch> a usf:ValidationFailureCode; usf:canonicalName "repositorylocalsourceintegritymismatch"; usf:failureCodeLiteral "REPOSITORY_LOCAL_SOURCE_INTEGRITY_MISMATCH"; usf:failurePrecedence 29; usf:failureForGateCounter "selectedComponentsWithoutKindSpecificClosure"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:repositorylocaltoolchaindigestmissing> a usf:ValidationFailureCode; usf:canonicalName "repositorylocaltoolchaindigestmissing"; usf:failureCodeLiteral "REPOSITORY_LOCAL_TOOLCHAIN_DIGEST_MISSING"; usf:failurePrecedence 30; usf:failureForGateCounter "selectedComponentsWithoutKindSpecificClosure"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:externalprovideridentityincomplete> a usf:ValidationFailureCode; usf:canonicalName "externalprovideridentityincomplete"; usf:failureCodeLiteral "EXTERNAL_PROVIDER_IDENTITY_INCOMPLETE"; usf:failurePrecedence 31; usf:failureForGateCounter "selectedComponentsWithoutKindSpecificClosure"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:externalproviderbindingmissing> a usf:ValidationFailureCode; usf:canonicalName "externalproviderbindingmissing"; usf:failureCodeLiteral "EXTERNAL_PROVIDER_BINDING_MISSING"; usf:failurePrecedence 32; usf:failureForGateCounter "providerChoicesWithoutRequiredEnvironmentBindings"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:externalprovidermodeorenvironmentmismatch> a usf:ValidationFailureCode; usf:canonicalName "externalprovidermodeorenvironmentmismatch"; usf:failureCodeLiteral "EXTERNAL_PROVIDER_MODE_OR_ENVIRONMENT_MISMATCH"; usf:failurePrecedence 33; usf:failureForGateCounter "providerChoicesWithoutRequiredEnvironmentBindings"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:containerimagemutablereference> a usf:ValidationFailureCode; usf:canonicalName "containerimagemutablereference"; usf:failureCodeLiteral "CONTAINER_IMAGE_MUTABLE_REFERENCE"; usf:failurePrecedence 34; usf:failureForGateCounter "selectedPackagesOrImagesWithoutExactVersionAndIntegrityBinding"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:containerimagedigestmismatch> a usf:ValidationFailureCode; usf:canonicalName "containerimagedigestmismatch"; usf:failureCodeLiteral "CONTAINER_IMAGE_DIGEST_MISMATCH"; usf:failurePrecedence 35; usf:failureForGateCounter "selectedPackagesOrImagesWithoutExactVersionAndIntegrityBinding"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:licenceassessmentinvalid> a usf:ValidationFailureCode; usf:canonicalName "licenceassessmentinvalid"; usf:failureCodeLiteral "LICENCE_ASSESSMENT_INVALID"; usf:failurePrecedence 36; usf:failureForGateCounter "selectedThirdPartyComponentsWithoutLicenceAssessment"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>.
+<urn:usf:validationfailurecode:vulnerabilityassessmentmissing> a usf:ValidationFailureCode; usf:canonicalName "vulnerabilityassessmentmissing"; usf:failureCodeLiteral "VULNERABILITY_ASSESSMENT_MISSING"; usf:failurePrecedence 37; usf:failureForGateCounter "selectedThirdPartyComponentsWithoutVulnerabilityAndSupplyChainAssessment"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>.
+<urn:usf:validationfailurecode:supplychainassessmentmissing> a usf:ValidationFailureCode; usf:canonicalName "supplychainassessmentmissing"; usf:failureCodeLiteral "SUPPLY_CHAIN_ASSESSMENT_MISSING"; usf:failurePrecedence 38; usf:failureForGateCounter "selectedThirdPartyComponentsWithoutVulnerabilityAndSupplyChainAssessment"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>.
+<urn:usf:validationfailurecode:componentresponsibilitymissing> a usf:ValidationFailureCode; usf:canonicalName "componentresponsibilitymissing"; usf:failureCodeLiteral "COMPONENT_RESPONSIBILITY_MISSING"; usf:failurePrecedence 39; usf:failureForGateCounter "selectedCompositionsWithoutCompleteComponentResponsibilityMapping"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:componentboundaryincomplete> a usf:ValidationFailureCode; usf:canonicalName "componentboundaryincomplete"; usf:failureCodeLiteral "COMPONENT_BOUNDARY_INCOMPLETE"; usf:failurePrecedence 40; usf:failureForGateCounter "selectedCompositionsWithoutCompleteComponentResponsibilityMapping"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:compositionfacetuncovered> a usf:ValidationFailureCode; usf:canonicalName "compositionfacetuncovered"; usf:failureCodeLiteral "COMPOSITION_FACET_UNCOVERED"; usf:failurePrecedence 41; usf:failureForGateCounter "selectedCompositionsWithoutCurrentWholeCompositionCoverageProof"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>.
+<urn:usf:validationfailurecode:compositiondependencyinvalid> a usf:ValidationFailureCode; usf:canonicalName "compositiondependencyinvalid"; usf:failureCodeLiteral "COMPOSITION_DEPENDENCY_INVALID"; usf:failurePrecedence 42; usf:failureForGateCounter "selectedCompositionsWithoutCurrentWholeCompositionCoverageProof"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:compositioninterfaceincompatible> a usf:ValidationFailureCode; usf:canonicalName "compositioninterfaceincompatible"; usf:failureCodeLiteral "COMPOSITION_INTERFACE_INCOMPATIBLE"; usf:failurePrecedence 43; usf:failureForGateCounter "selectedCompositionsWithoutCurrentWholeCompositionCoverageProof"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:componentversionincompatible> a usf:ValidationFailureCode; usf:canonicalName "componentversionincompatible"; usf:failureCodeLiteral "COMPONENT_VERSION_INCOMPATIBLE"; usf:failurePrecedence 44; usf:failureForGateCounter "selectedCompositionsWithoutCurrentWholeCompositionCoverageProof"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:compositioncoverageproofstaleormissing> a usf:ValidationFailureCode; usf:canonicalName "compositioncoverageproofstaleormissing"; usf:failureCodeLiteral "COMPOSITION_COVERAGE_PROOF_STALE_OR_MISSING"; usf:failurePrecedence 45; usf:failureForGateCounter "selectedCompositionsWithoutCurrentWholeCompositionCoverageProof"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:permutationrulesetinvalid> a usf:ValidationFailureCode; usf:canonicalName "permutationrulesetinvalid"; usf:failureCodeLiteral "PERMUTATION_RULE_SET_INVALID"; usf:failurePrecedence 46; usf:failureForGateCounter "compositionPermutationsLeftUnclassified"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:permutationequivalenceproofmissing> a usf:ValidationFailureCode; usf:canonicalName "permutationequivalenceproofmissing"; usf:failureCodeLiteral "PERMUTATION_EQUIVALENCE_PROOF_MISSING"; usf:failurePrecedence 47; usf:failureForGateCounter "compositionPermutationsLeftUnclassified"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:unclassifiedcompositionpermutation> a usf:ValidationFailureCode; usf:canonicalName "unclassifiedcompositionpermutation"; usf:failureCodeLiteral "UNCLASSIFIED_COMPOSITION_PERMUTATION"; usf:failurePrecedence 48; usf:failureForGateCounter "compositionPermutationsLeftUnclassified"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>.
+<urn:usf:validationfailurecode:providerenvironmentbindingmissing> a usf:ValidationFailureCode; usf:canonicalName "providerenvironmentbindingmissing"; usf:failureCodeLiteral "PROVIDER_ENVIRONMENT_BINDING_MISSING"; usf:failurePrecedence 49; usf:failureForGateCounter "providerChoicesWithoutRequiredEnvironmentBindings"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:selectedoptionrealisationmappingcardinality> a usf:ValidationFailureCode; usf:canonicalName "selectedoptionrealisationmappingcardinality"; usf:failureCodeLiteral "SELECTED_OPTION_REALISATION_MAPPING_CARDINALITY"; usf:failurePrecedence 50; usf:failureForGateCounter "selectedOptionsWithoutConcreteRealisationMappings"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:selectedcomponentconcretemappingcardinality> a usf:ValidationFailureCode; usf:canonicalName "selectedcomponentconcretemappingcardinality"; usf:failureCodeLiteral "SELECTED_COMPONENT_CONCRETE_MAPPING_CARDINALITY"; usf:failurePrecedence 51; usf:failureForGateCounter "selectedOptionsWithoutConcreteRealisationMappings"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:selectedcomponentconcretemappingtypemismatch> a usf:ValidationFailureCode; usf:canonicalName "selectedcomponentconcretemappingtypemismatch"; usf:failureCodeLiteral "SELECTED_COMPONENT_CONCRETE_MAPPING_TYPE_MISMATCH"; usf:failurePrecedence 52; usf:failureForGateCounter "selectedOptionsWithoutConcreteRealisationMappings"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:selectionmappingdependencydrift> a usf:ValidationFailureCode; usf:canonicalName "selectionmappingdependencydrift"; usf:failureCodeLiteral "SELECTION_MAPPING_DEPENDENCY_DRIFT"; usf:failurePrecedence 53; usf:failureForGateCounter "selectedOptionsWithoutConcreteRealisationMappings"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>, <urn:usf:validationlayer:shacl>.
+<urn:usf:validationfailurecode:legacyselectionwithoutindependentbasis> a usf:ValidationFailureCode; usf:canonicalName "legacyselectionwithoutindependentbasis"; usf:failureCodeLiteral "LEGACY_SELECTION_WITHOUT_INDEPENDENT_BASIS"; usf:failurePrecedence 54; usf:failureForGateCounter "legacySelectionsRetainedSolelyBecauseOfPreviousUse"; usf:failureLayer <urn:usf:validationlayer:evaluator>.
+<urn:usf:validationfailurecode:realisationoptionvalidatorgraphscopemismatch> a usf:ValidationFailureCode; usf:canonicalName "realisationoptionvalidatorgraphscopemismatch"; usf:failureCodeLiteral "REALISATION_OPTION_VALIDATOR_GRAPH_SCOPE_MISMATCH"; usf:failurePrecedence 55; usf:failureForGateCounter "realisationOptionValidatorGraphScopeMismatches"; usf:failureLayer <urn:usf:validationlayer:evaluator>, <urn:usf:validationlayer:integrity>.
+
+<urn:usf:evidencescopeclassification:declaredprovidermetadata> a usf:EvidenceScopeClassification; usf:canonicalName "declaredprovidermetadata".
+<urn:usf:evidencescopeclassification:deterministicevaluation> a usf:EvidenceScopeClassification; usf:canonicalName "deterministicevaluation".
+<urn:usf:evidencescopeclassification:externalstatic> a usf:EvidenceScopeClassification; usf:canonicalName "externalstatic".
+<urn:usf:evidencescopeclassification:hermeticlocal> a usf:EvidenceScopeClassification; usf:canonicalName "hermeticlocal".
+<urn:usf:provideridentity:declaredstardogmetadata> a usf:EvidenceProviderIdentity; usf:canonicalName "declaredstardogmetadata".
+<urn:usf:provideridentity:declaredexternalsources> a usf:EvidenceProviderIdentity; usf:canonicalName "declaredexternalsources".
+<urn:usf:provideridentity:repositorylocalacquisition> a usf:EvidenceProviderIdentity; usf:canonicalName "repositorylocalacquisition".
+<urn:usf:provideridentity:repositorylocalevaluator> a usf:EvidenceProviderIdentity; usf:canonicalName "repositorylocalevaluator".

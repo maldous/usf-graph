@@ -1,4 +1,65 @@
 PREFIX usf: <urn:usf:ontology:>
+PREFIX closure: <urn:usf:evaluationclosurestate:>
+# Decision-evaluation closure is derived exclusively from structured inputs.
+# It never reads a pre-existing closure state, preventing self-warrant.
+CONSTRUCT { ?evaluation usf:evaluationClosureState ?state . }
+WHERE {
+  ?evaluation a usf:DecisionEvaluation ; usf:evaluationForDecision ?decision .
+  BIND(EXISTS {
+    ?evaluation usf:evaluationAuthorityDigest ?boundAuthority ; usf:evaluationDependencySetDigest ?boundDependency ;
+      usf:evaluationEvidenceDigest ?boundDigest ; usf:evaluationProducerDigest ?boundProducer ;
+      usf:evaluationEvidenceResult ?evidence .
+    ?evidence a usf:EvidenceResult, usf:CompositeEvidenceResult ; usf:contentDigest ?boundDigest .
+    FILTER(
+      NOT EXISTS { ?evidence usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted> } ||
+      NOT EXISTS { ?evidence usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh> } ||
+      NOT EXISTS { ?evidence usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid> } ||
+      NOT EXISTS { ?evidence usf:withinValidityScope true } ||
+      NOT EXISTS { ?evidence usf:evaluatedAuthorityDigest ?boundAuthority } ||
+      NOT EXISTS { ?evidence usf:evidenceProducerDigest ?boundProducer } ||
+      NOT EXISTS { ?collection a usf:EvidenceCollection ; usf:collectedEvidence ?evidence ; usf:sourceDigest ?boundDependency }
+    )
+  } AS ?invalidEvidence)
+  # Structural closure depth (candidate credibility, criterion and component
+  # assessments, mitigations, sole-candidate proofs, package integrity,
+  # composition coverage and realisation mappings) is enforced by the
+  # registered realisation-option SHACL constraints and the registered
+  # closure-evaluation algorithm over the same digest-bound evidence. This
+  # projection derives the closure state from the accepted decision backbone
+  # and its exact digest-bound admitted evidence.
+  BIND(EXISTS {
+    ?decision usf:decisionState <urn:usf:decisionstate:accepted> ;
+      usf:decisionForContract ?contract ; usf:selectsOption ?selected ; usf:considersOption ?selected ;
+      usf:hasDecisionEvaluation ?evaluation .
+    ?contract a usf:SemanticContract .
+    ?evaluation usf:evaluationAuthorityDigest ?authorityDigest ;
+      usf:evaluationDependencySetDigest ?dependencyDigest ; usf:evaluationEvidenceDigest ?evidenceDigest ;
+      usf:evaluationImplementationSourceDigest ?implementationDigest ; usf:evaluationProducerDigest ?producerDigest ;
+      usf:evaluationEvidenceResult ?basisEvidence ;
+      usf:evaluationInvalidationCondition ?invalidation ; usf:independentSelectionBasis true ;
+      usf:selectionBasisEvidence ?basisEvidence .
+    ?basisEvidence a usf:EvidenceResult, usf:CompositeEvidenceResult ; usf:contentDigest ?evidenceDigest ; usf:evaluatedAuthorityDigest ?authorityDigest ;
+      usf:evidenceProducerDigest ?producerDigest ;
+      usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted> ;
+      usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh> ;
+      usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid> ; usf:withinValidityScope true .
+    ?evaluationCollection a usf:EvidenceCollection ; usf:collectedEvidence ?basisEvidence ; usf:sourceDigest ?dependencyDigest .
+    FILTER(REGEX(?authorityDigest, "^sha256:[0-9a-f]{64}$"))
+    FILTER(REGEX(?dependencyDigest, "^sha256:[0-9a-f]{64}$"))
+    FILTER(REGEX(?evidenceDigest, "^sha256:[0-9a-f]{64}$"))
+    FILTER(REGEX(?implementationDigest, "^sha256:[0-9a-f]{64}$"))
+    FILTER(REGEX(?producerDigest, "^sha256:[0-9a-f]{64}$"))
+    FILTER NOT EXISTS { ?evaluation usf:evaluationEvidenceResult ?otherEvidence . FILTER(?otherEvidence != ?basisEvidence) }
+    FILTER NOT EXISTS { ?decision usf:selectsOption ?otherSelected . FILTER(?otherSelected != ?selected) }
+    FILTER NOT EXISTS { ?decision usf:decisionState ?otherDecisionState . FILTER(?otherDecisionState != <urn:usf:decisionstate:accepted>) }
+    FILTER NOT EXISTS { ?decision usf:decisionForContract ?otherContract . FILTER(?otherContract != ?contract) }
+    FILTER NOT EXISTS { ?decision usf:hasDecisionEvaluation ?otherEvaluation . FILTER(?otherEvaluation != ?evaluation) }
+    FILTER NOT EXISTS { ?evaluation usf:evaluationForDecision ?otherDecision . FILTER(?otherDecision != ?decision) }
+  } AS ?closed)
+  BIND(IF(?invalidEvidence, closure:invalidated, IF(?closed, closure:complete, closure:incomplete)) AS ?state)
+}
+#---NEXT---#
+PREFIX usf: <urn:usf:ontology:>
 PREFIX oe: <urn:usf:obligationeffect:>
 PREFIX fresh: <urn:usf:freshness:>
 PREFIX rds: <urn:usf:readinessstate:>
@@ -27,6 +88,18 @@ WHERE {
   BIND(EXISTS {
     ?obligation a usf:AssuranceObligation ; usf:obligationFor ?subject ; usf:obligationEffect oe:blocking .
   } AS ?evaluated)
+  BIND(EXISTS {
+    ?subject usf:requiresRealisationOptionEvaluation true ; usf:hasActivationState <urn:usf:contractactivationstate:active> .
+    FILTER NOT EXISTS {
+      ?selectionDecision a usf:RealisationDecision ; usf:decisionForContract ?subject ;
+        usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?selectionEvaluation .
+      ?selectionEvaluation usf:evaluationClosureState <urn:usf:evaluationclosurestate:complete> .
+    }
+  } || EXISTS {
+    ?decision a usf:RealisationDecision ; usf:decisionForContract ?subject ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?decisionEvaluation .
+    FILTER NOT EXISTS { ?decisionEvaluation usf:evaluationClosureState <urn:usf:evaluationclosurestate:complete> }
+  } AS ?evaluationClosureBlocked)
   BIND(EXISTS {
     ?obligation a usf:AssuranceObligation ; usf:obligationFor ?subject ; usf:obligationEffect oe:blocking .
     VALUES (?obligationClass ?satisfaction) {
@@ -80,12 +153,14 @@ WHERE {
     ?obligation a ?obligationClass .
     FILTER NOT EXISTS { ?obligation ?satisfaction ?result }
   } AS ?missingAdvisory)
-  BIND(IF(!?evaluated, rds:unknown,
+  BIND(IF(?evaluationClosureBlocked, rds:notready,
+       IF(!?evaluated, rds:unknown,
        IF(?providerMismatch || ?environmentMismatch, rds:incompatible,
        IF(?stale, rds:stale,
        IF(?missingBlocking, rds:notready,
-       IF(?missingAdvisory, rds:degraded, rds:ready))))) AS ?state)
-  BIND(IF(!?evaluated, rr:unknownevaluation,
+       IF(?missingAdvisory, rds:degraded, rds:ready)))))) AS ?state)
+  BIND(IF(?evaluationClosureBlocked, rr:optionevaluationincomplete,
+       IF(!?evaluated, rr:unknownevaluation,
        IF(?providerMismatch, rr:incompatibleprovidermode,
        IF(?environmentMismatch, rr:incompatibleenvironment,
        IF(?stale, rr:staleevidence,
@@ -93,7 +168,7 @@ WHERE {
        IF(?unsignedEvidence, rr:unsignedevidence,
        IF(?integrityUnverified, rr:integrityunverified,
        IF(?missingBlocking, rr:missingblockingobligation,
-       IF(?missingAdvisory, rr:degradedadvisory, rr:satisfied))))))))) AS ?reason)
+       IF(?missingAdvisory, rr:degradedadvisory, rr:satisfied)))))))))) AS ?reason)
   BIND(IF(?state IN (rds:ready, rds:degraded), <urn:usf:proofrung:behaviour>, <urn:usf:proofrung:discovery>) AS ?rung)
 }
 #---NEXT---#

@@ -1,3 +1,0 @@
-@prefix usf: <urn:usf:ontology:> .
-<urn:usf:defect:pathdecision> a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:authorisesRealisationType usf:Implementation ; usf:authorisesSourcePath "census/local-semantic-validation" .
-<urn:usf:defect:pathrealisation> a usf:Realisation ; usf:realisesContract <urn:usf:semanticcontract:localsemanticvalidationtoolchain> ; usf:realisationState <urn:usf:realisationstate:implementable> ; usf:authorisedByDecision <urn:usf:defect:pathdecision> ; usf:authorisedSourcePath "tools/rdf4j" .

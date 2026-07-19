@@ -1,6 +1,7 @@
 @prefix usf: <urn:usf:ontology:>.
 @prefix sh: <http://www.w3.org/ns/shacl#>.
 @prefix shp: <urn:usf:shacl:>.
+@prefix ng: <urn:usf:namedgraph:>.
 
 shp:AgentShape a sh:NodeShape;
     usf:canonicalName "agentshape";
@@ -50,6 +51,15 @@ _:b35_b35_n3-359 sh:property _:b35_b35_n3-360.
 _:b35_b35_n3-358 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil>.
 shp:ValidatorRuleShape sh:or _:b35_b35_n3-352;
     sh:message "validatortarget: validator rule must target a graph, shape or defect".
+shp:RealisationOptionEvaluationValidatorTargetShape a sh:NodeShape;
+    usf:canonicalName "realisationoptionevaluationvalidatortargetshape";
+    sh:targetNode <urn:usf:validatorrule:validaterealisationoptionevaluation>.
+_:oe_validator_target_graphs sh:path usf:targetsGraph;
+    sh:minCount 7;
+    sh:maxCount 7;
+    sh:in (ng:vocabulary ng:capabilities ng:interfaces ng:evidence ng:bindings ng:materialisation ng:derivedreadiness);
+    sh:message "realisationoptionvalidatorgraphscopemismatch: realisation-option evaluation validator target graph set must be exact".
+shp:RealisationOptionEvaluationValidatorTargetShape sh:property _:oe_validator_target_graphs.
 shp:ShapeConceptShape a sh:NodeShape;
     usf:canonicalName "shapeconceptshape";
     sh:targetClass usf:Shape.

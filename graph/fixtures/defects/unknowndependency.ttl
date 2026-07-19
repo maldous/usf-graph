@@ -1,7 +1,0 @@
-@prefix usf: <urn:usf:ontology:> .
-@prefix fixt: <urn:usf:fixturenode:> .
-
-# Defect: a service dependency whose target is not a declared service.
-# Integrity rule 'unknowndependency' must return a row for this subject.
-fixt:dependingservice a usf:Service ; usf:canonicalName "dependingservice" ;
-    usf:dependsOnService fixt:undeclaredtargetservice .

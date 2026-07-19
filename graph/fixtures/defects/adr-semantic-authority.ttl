@@ -1,1 +1,0 @@
-@prefix usf: <urn:usf:ontology:> . <urn:usf:defect:adrauthorityinversion> a usf:ADRRecord ; usf:establishesSemanticTruth <urn:usf:defect:truth> .

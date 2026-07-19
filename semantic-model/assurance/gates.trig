@@ -246,4 +246,35 @@ crit:stardogdrift a usf:GateCriterion;
     usf:requiredByGate gate:livestardog;
     usf:obligationEffect oe:blocking;
     usf:usesAssuranceCell cell:behaviourliveauthoritycontrol
+.
+gate:realisationoptionevaluationclosure a usf:ReadinessGate;
+    usf:canonicalName "realisationoptionevaluationclosure";
+    usf:gateKind gk:realisationoptionevaluationclosure;
+    usf:hasCriterion crit:optionevaluationcontractcoverage, crit:optionevaluationcandidateclosure,
+        crit:optionevaluationselectioncardinality, crit:optionevaluationassessmentcompleteness,
+        crit:optionevaluationcomponentassessmentcompleteness,
+        crit:optionevaluationassessmentevidence, crit:optionevaluationrejectionevidence,
+        crit:optionevaluationcomponentkindclosure,
+        crit:optionevaluationcomponentintegrity, crit:optionevaluationcomponentlicence,
+        crit:optionevaluationcomponentsecurity, crit:optionevaluationcompositionresponsibility,
+        crit:optionevaluationcompositionproof, crit:optionevaluationpermutations,
+        crit:optionevaluationenvironmentbindings, crit:optionevaluationrealisationmapping,
+        crit:optionevaluationindependentselection.
+crit:optionevaluationcontractcoverage a usf:GateCriterion; usf:canonicalName "optionevaluationcontractcoverage"; usf:criterionCode "option-evaluation.active-contract-selection-coverage"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic.
+crit:optionevaluationcandidateclosure a usf:GateCriterion; usf:canonicalName "optionevaluationcandidateclosure"; usf:criterionCode "option-evaluation.candidate-or-sole-candidate-closure"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic.
+crit:optionevaluationselectioncardinality a usf:GateCriterion; usf:canonicalName "optionevaluationselectioncardinality"; usf:criterionCode "option-evaluation.selected-option-cardinality"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic.
+crit:optionevaluationassessmentcompleteness a usf:GateCriterion; usf:canonicalName "optionevaluationassessmentcompleteness"; usf:criterionCode "option-evaluation.candidate-criterion-assessment-completeness"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic.
+crit:optionevaluationcomponentassessmentcompleteness a usf:GateCriterion; usf:canonicalName "optionevaluationcomponentassessmentcompleteness"; usf:criterionCode "option-evaluation.component-criterion-assessment-completeness"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic.
+crit:optionevaluationassessmentevidence a usf:GateCriterion; usf:canonicalName "optionevaluationassessmentevidence"; usf:criterionCode "option-evaluation.assessment-current-evidence"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic.
+crit:optionevaluationrejectionevidence a usf:GateCriterion; usf:canonicalName "optionevaluationrejectionevidence"; usf:criterionCode "option-evaluation.rejection-reason-evidence"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic.
+crit:optionevaluationcomponentkindclosure a usf:GateCriterion; usf:canonicalName "optionevaluationcomponentkindclosure"; usf:criterionCode "option-evaluation.component-kind-specific-closure"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic.
+crit:optionevaluationcomponentintegrity a usf:GateCriterion; usf:canonicalName "optionevaluationcomponentintegrity"; usf:criterionCode "option-evaluation.component-version-integrity"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic.
+crit:optionevaluationcomponentlicence a usf:GateCriterion; usf:canonicalName "optionevaluationcomponentlicence"; usf:criterionCode "option-evaluation.component-licence"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic.
+crit:optionevaluationcomponentsecurity a usf:GateCriterion; usf:canonicalName "optionevaluationcomponentsecurity"; usf:criterionCode "option-evaluation.component-vulnerability-supply-chain"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic.
+crit:optionevaluationcompositionresponsibility a usf:GateCriterion; usf:canonicalName "optionevaluationcompositionresponsibility"; usf:criterionCode "option-evaluation.composition-responsibility-coverage"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic.
+crit:optionevaluationcompositionproof a usf:GateCriterion; usf:canonicalName "optionevaluationcompositionproof"; usf:criterionCode "option-evaluation.composition-current-coverage-proof"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic.
+crit:optionevaluationpermutations a usf:GateCriterion; usf:canonicalName "optionevaluationpermutations"; usf:criterionCode "option-evaluation.composition-permutation-classification"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic.
+crit:optionevaluationenvironmentbindings a usf:GateCriterion; usf:canonicalName "optionevaluationenvironmentbindings"; usf:criterionCode "option-evaluation.provider-environment-bindings"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic.
+crit:optionevaluationrealisationmapping a usf:GateCriterion; usf:canonicalName "optionevaluationrealisationmapping"; usf:criterionCode "option-evaluation.selected-option-realisation-mapping"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic.
+crit:optionevaluationindependentselection a usf:GateCriterion; usf:canonicalName "optionevaluationindependentselection"; usf:criterionCode "option-evaluation.independent-selection-basis"; usf:requiredByGate gate:realisationoptionevaluationclosure; usf:obligationEffect oe:blocking; usf:usesAssuranceCell cell:behaviourhermetichermetic
 }

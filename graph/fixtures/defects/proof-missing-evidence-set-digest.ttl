@@ -1,1 +1,0 @@
-@prefix usf: <urn:usf:ontology:> . @prefix proofstate: <urn:usf:proofresultstate:> . <urn:usf:defect:proofmissingevidencesetdigest> a usf:ProofResult ; usf:hasProofResultState proofstate:successful .

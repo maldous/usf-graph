@@ -1,7 +1,0 @@
-# expect-shacl: nonconforming
-@prefix usf: <urn:usf:ontology:> .
-
-<urn:usf:pathrole:defectorphanrepositoryworkflow> a usf:PathRole ;
-    usf:canonicalName "defectorphanrepositoryworkflow" ;
-    usf:authorisedParentPath ".github/orphan-workflows" ;
-    usf:materialisesOnDemand true .

@@ -1,1 +1,0 @@
-@prefix usf: <urn:usf:ontology:> . <urn:usf:defect:implementationpathunauthorised> a usf:Realisation ; usf:realisationState <urn:usf:realisationstate:implementable> ; usf:realisesContract <urn:usf:defect:contract> .

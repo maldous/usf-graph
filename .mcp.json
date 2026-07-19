@@ -2,7 +2,7 @@
   "mcpServers": {
     "usf": {
       "command": "node",
-      "args": ["tools/compiler/src/mcp.js"],
+      "args": ["processes/semantic-assurance/semantic-authority-mcp.mjs"],
       "env": {
         "STARDOG_SERVER": "${STARDOG_SERVER:-}",
         "STARDOG_DATABASE": "${STARDOG_DATABASE:-}",

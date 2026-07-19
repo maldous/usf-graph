@@ -1,5 +1,0 @@
-@prefix usf: <urn:usf:ontology:> .
-@prefix proofstate: <urn:usf:proofresultstate:> .
-# expect: proofmissingevidencesetdigest
-<urn:usf:defect:authoredruntimeproof> a usf:ProofResult ;
-    usf:hasProofResultState proofstate:successful .

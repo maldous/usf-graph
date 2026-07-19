@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+
+import { canonicalGraphDigest } from '../../capabilities/semantic-model-compilation/compiler.mjs';
 import {
   MATERIALISATION_CONTRACT,
   createMaterialisationPlan,
@@ -8,6 +11,51 @@ import {
 const ACCEPTED = 'urn:usf:decisionstate:accepted';
 const CONTRACT_REFERENCE = /^(?:urn:usf:[a-z0-9:._-]+|[a-z][a-z0-9]*)$/;
 const value = (row, key) => row[key]?.value ?? null;
+
+export function semanticAuthorityInventoryDigest(inventory, triples) {
+  if (!Array.isArray(inventory) || !Number.isSafeInteger(triples) || triples < 0) {
+    throw new Error('semantic authority witness inventory and triple count are required');
+  }
+  const body = inventory.map((record) => {
+    if (typeof record?.graph !== 'string' || typeof record?.sha256 !== 'string' || !Number.isSafeInteger(record?.triples) || record.triples < 0) {
+      throw new Error('semantic authority witness contains an invalid graph record');
+    }
+    const graphDigest = record.sha256.startsWith('sha256:') ? record.sha256.slice(7) : record.sha256;
+    if (!/^[0-9a-f]{64}$/.test(graphDigest)) throw new Error('semantic authority graph digest is invalid');
+    return `${record.graph}=${graphDigest}:${record.triples}`;
+  }).sort().join('\n');
+  return `sha256:${createHash('sha256').update(`${body}\ntotal=${triples}`).digest('hex')}`;
+}
+
+export async function readSemanticAuthorityWitness(client) {
+  if (!client || typeof client.connectivity !== 'function' || typeof client.select !== 'function' || typeof client.construct !== 'function') {
+    throw new Error('semantic authority witness requires connectivity, select and construct operations');
+  }
+  const [rawTriples, rows] = await Promise.all([
+    client.connectivity(),
+    client.select('SELECT DISTINCT ?g WHERE { GRAPH ?g { ?s ?p ?o } } ORDER BY ?g'),
+  ]);
+  const triples = Number(rawTriples);
+  if (!Number.isSafeInteger(triples) || triples < 0 || !Array.isArray(rows)) throw new Error('semantic authority witness response is invalid');
+  const graphs = rows.map((row) => value(row, 'g'));
+  if (graphs.some((graph) => typeof graph !== 'string' || graph.length === 0) || new Set(graphs).size !== graphs.length) {
+    throw new Error('semantic authority witness graph inventory is invalid');
+  }
+  graphs.sort();
+  const inventory = [];
+  for (const graph of graphs) {
+    const content = await client.construct(`CONSTRUCT { ?s ?p ?o } WHERE { GRAPH <${graph}> { ?s ?p ?o } }`, 'application/n-quads');
+    const record = await canonicalGraphDigest(content);
+    if (record.triples > 0) inventory.push({ graph, ...record });
+  }
+  return Object.freeze({
+    algorithm: 'sha256-rdfc10-graph-inventory-v2',
+    digest: semanticAuthorityInventoryDigest(inventory, triples),
+    inventory: Object.freeze(inventory),
+    triples,
+  });
+}
+
 const MATERIALISATION_RULE_WHERE = `
   ?family a <urn:usf:ontology:ArtefactFamily> ;
           <urn:usf:ontology:canonicalName> ?familyName ;

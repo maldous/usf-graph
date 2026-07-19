@@ -1,8 +1,0 @@
-# expect: circularproofevidence
-@prefix usf: <urn:usf:ontology:> .
-
-<urn:usf:defect:circularproof> a usf:ProofResult ;
-    usf:confidenceBasis <urn:usf:defect:circularevidence> .
-
-<urn:usf:defect:circularevidence> a usf:EvidenceResult ;
-    usf:evidenceFromProofResult <urn:usf:defect:circularproof> .

@@ -74,7 +74,7 @@ mcp_out="$(printf '%s\n' \
   '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"usf_health","arguments":{}}}' \
   '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"usf_query","arguments":{"sparql":"INSERT DATA { <urn:usf:probe:a> <urn:usf:probe:b> <urn:usf:probe:c> }"}}}' \
   '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"usf_evidence_admit","arguments":{"authorityDigest":"sha256:0000000000000000000000000000000000000000000000000000000000000000","semanticResource":"urn:usf:probe:evidence"}}}' \
-  | bash -c 'set -a; [ -f /usf/.env ] && . /usf/.env; set +a; exec /usr/local/bin/node /usf/tools/compiler/src/mcp.js' 2>&1)" || true
+  | bash -c 'set -a; [ -f /usf/.env ] && . /usf/.env; set +a; exec /usr/local/bin/node /usf/processes/semantic-assurance/semantic-authority-mcp.mjs' 2>&1)" || true
 for tool in usf_health usf_query usf_bootstrap usf_layout_context usf_layout_plan \
   usf_layout_validate usf_materialise usf_artifact_describe usf_artifact_verify \
   usf_contract_project usf_work_plan usf_evidence_admit usf_proof_evaluate \

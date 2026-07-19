@@ -2,7 +2,7 @@
 # Bootstrap the repository chroot for reproducible USF graph/compiler work.
 #
 # Stardog access is exclusively through the official JavaScript SDK installed
-# from tools/compiler/package-lock.json. No Stardog CLI, raw HTTP client, or local
+# from package-lock.json. No Stardog CLI, raw HTTP client, or local
 # Stardog server is installed or invoked.
 set -euo pipefail
 
@@ -27,7 +27,7 @@ ensure_dns(){
 }
 
 [ "$(id -u)" -eq 0 ] || { echo "error: run as root inside the chroot" >&2; exit 1; }
-[ -d /usf/tools/compiler ] || { echo "error: /usf/tools/compiler is missing" >&2; exit 1; }
+[ -d /usf/processes/semantic-assurance ] || { echo "error: /usf/processes/semantic-assurance is missing" >&2; exit 1; }
 
 log "OS prerequisites"
 need=()
@@ -74,8 +74,8 @@ log "Pinned Python RDF toolchain"
 "${VENV_DIR}/bin/python" -c 'import pyarrow, rdflib, pyshacl, yaml; print(pyarrow.__version__, rdflib.__version__, pyshacl.__version__, yaml.__version__)'
 
 log "Frozen compiler dependencies"
-(cd /usf/tools/compiler && npm ci --ignore-scripts)
-(cd /usf/tools/compiler && node -e 'import("stardog").then(() => console.log("official Stardog SDK import: OK"))')
+(cd /usf && npm ci --ignore-scripts)
+(cd /usf && node -e 'import("stardog").then(() => console.log("official Stardog SDK import: OK"))')
 
 log "Pinned agent CLIs (claude, codex)"
 want_claude="${CLAUDE_CODE_PKG##*@}"
@@ -142,7 +142,7 @@ log "Codex MCP registration and skill wiring (token-free)"
 # Token-free: usf launches via a wrapper that sources the git-ignored /usf/.env;
 # GitHub reads its bearer token from the environment at connect time.
 CODEX_CFG=/root/.codex/config.toml
-codex mcp add usf -- bash -c 'set -a; [ -f /usf/.env ] && . /usf/.env; set +a; exec /usr/local/bin/node /usf/tools/compiler/src/mcp.js'
+codex mcp add usf -- bash -c 'set -a; [ -f /usf/.env ] && . /usf/.env; set +a; exec /usr/local/bin/node /usf/processes/semantic-assurance/semantic-authority-mcp.mjs'
 codex mcp add github --url https://api.githubcopilot.com/mcp/ --bearer-token-env-var GITHUB_PERSONAL_ACCESS_TOKEN
 # Tool-approval posture (headless `codex exec` auto-denies prompted calls):
 #   usf    -> approve: the gateway is read-only and fail-closed server-side, so
@@ -164,7 +164,7 @@ echo "codex mcp/skill wiring present"
 log "readiness"
 [ -x /usr/local/bin/node ] || { echo "MISSING node" >&2; exit 1; }
 [ -x "${VENV_DIR}/bin/python" ] || { echo "MISSING venv" >&2; exit 1; }
-[ -d /usf/tools/compiler/node_modules/stardog ] || { echo "MISSING official Stardog SDK" >&2; exit 1; }
+[ -d /usf/node_modules/stardog ] || { echo "MISSING official Stardog SDK" >&2; exit 1; }
 [ -x /usr/local/bin/claude ] || { echo "MISSING claude CLI" >&2; exit 1; }
 [ -x /usr/local/bin/codex ] || { echo "MISSING codex CLI" >&2; exit 1; }
 for s in usf github; do

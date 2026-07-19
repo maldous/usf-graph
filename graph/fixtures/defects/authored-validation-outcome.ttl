@@ -1,3 +1,0 @@
-@prefix usf: <urn:usf:ontology:> .
-# expect: validationbypassesevidenceadmission
-<urn:usf:defect:authoredvalidationoutcome> a usf:ValidationResult .

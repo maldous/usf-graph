@@ -452,4 +452,135 @@ tst:writeonlysecretsettingsnegativepath a usf:Test;
 tst:deterministicdevelopmentandtestsubstitutesnegativepath a usf:Test;
     usf:canonicalName "deterministicdevelopmentandtestsubstitutesnegativepath";
     usf:testsContract sc:deterministicdevelopmentandtestsubstitutes
+.
+dfc:accepteddecisionunprovedcandidate a usf:Defect; usf:canonicalName "accepteddecisionunprovedcandidate".
+dfc:fakecandidate a usf:Defect; usf:canonicalName "fakecandidate".
+dfc:missingselectedoption a usf:Defect; usf:canonicalName "missingselectedoption".
+dfc:multipleselectedoptions a usf:Defect; usf:canonicalName "multipleselectedoptions".
+dfc:selectedoptionnotconsidered a usf:Defect; usf:canonicalName "selectedoptionnotconsidered".
+dfc:missingcriterion a usf:Defect; usf:canonicalName "missingcriterion".
+dfc:missingcriterionassessment a usf:Defect; usf:canonicalName "missingcriterionassessment".
+dfc:componentcriterionassessmentmissing a usf:Defect; usf:canonicalName "componentcriterionassessmentmissing".
+dfc:assessmentwithoutevidence a usf:Defect; usf:canonicalName "assessmentwithoutevidence".
+dfc:assessmentevidenceinvalid a usf:Defect; usf:canonicalName "assessmentevidenceinvalid".
+dfc:componentassessmentevidenceinvalid a usf:Defect; usf:canonicalName "componentassessmentevidenceinvalid".
+dfc:unjustifiednotapplicablecriterion a usf:Defect; usf:canonicalName "unjustifiednotapplicablecriterion".
+dfc:rejectedcandidatewithoutreason a usf:Defect; usf:canonicalName "rejectedcandidatewithoutreason".
+dfc:rejectionreasonwithoutevidence a usf:Defect; usf:canonicalName "rejectionreasonwithoutevidence".
+dfc:floatingpackageversion a usf:Defect; usf:canonicalName "floatingpackageversion".
+dfc:missingpackagedigest a usf:Defect; usf:canonicalName "missingpackagedigest".
+dfc:unknownlicence a usf:Defect; usf:canonicalName "unknownlicence".
+dfc:missingvulnerabilityassessment a usf:Defect; usf:canonicalName "missingvulnerabilityassessment".
+dfc:compositionfacetuncovered a usf:Defect; usf:canonicalName "compositionfacetuncovered".
+dfc:compositioncomponentwithoutresponsibility a usf:Defect; usf:canonicalName "compositioncomponentwithoutresponsibility".
+dfc:incompatiblecomponentversions a usf:Defect; usf:canonicalName "incompatiblecomponentversions".
+dfc:compositionwithoutcurrentcoverageproof a usf:Defect; usf:canonicalName "compositionwithoutcurrentcoverageproof".
+dfc:inheritedproductpreference a usf:Defect; usf:canonicalName "inheritedproductpreference".
+dfc:activecontractwithoutevaluation a usf:Defect; usf:canonicalName "activecontractwithoutevaluation".
+dfc:decisionstatecardinality a usf:Defect; usf:canonicalName "decisionstatecardinality".
+dfc:decisioncontractcardinality a usf:Defect; usf:canonicalName "decisioncontractcardinality".
+dfc:decisionevaluationcardinality a usf:Defect; usf:canonicalName "decisionevaluationcardinality".
+dfc:evaluationdependencydrift a usf:Defect; usf:canonicalName "evaluationdependencydrift".
+dfc:mandatorycriterionwithoutmitigation a usf:Defect; usf:canonicalName "mandatorycriterionwithoutmitigation".
+dfc:missingsupplychainassessment a usf:Defect; usf:canonicalName "missingsupplychainassessment".
+dfc:componentkindcardinality a usf:Defect; usf:canonicalName "componentkindcardinality".
+dfc:incompletecomponentboundary a usf:Defect; usf:canonicalName "incompletecomponentboundary".
+dfc:unclassifiedcompositionpermutation a usf:Defect; usf:canonicalName "unclassifiedcompositionpermutation".
+dfc:missingproviderenvironmentbinding a usf:Defect; usf:canonicalName "missingproviderenvironmentbinding".
+dfc:compositiondependencyinvalid a usf:Defect; usf:canonicalName "compositiondependencyinvalid".
+dfc:selectedoptionrealisationmappingcardinality a usf:Defect; usf:canonicalName "selectedoptionrealisationmappingcardinality".
+dfc:selectedcomponentconcretemappingcardinality a usf:Defect; usf:canonicalName "selectedcomponentconcretemappingcardinality".
+dfc:selectedcomponentconcretemappingtypemismatch a usf:Defect; usf:canonicalName "selectedcomponentconcretemappingtypemismatch".
+dfc:selectionmappingdependencydrift a usf:Defect; usf:canonicalName "selectionmappingdependencydrift".
+dfc:realisationoptionvalidatorgraphscopemismatch a usf:Defect; usf:canonicalName "realisationoptionvalidatorgraphscopemismatch".
+
+fx:multicandidatesingleproductselection a usf:Fixture; usf:canonicalName "multicandidatesingleproductselection"; usf:conforming true.
+fx:provedsolecandidate a usf:Fixture; usf:canonicalName "provedsolecandidate"; usf:conforming true.
+fx:repositorylocalimplementationselection a usf:Fixture; usf:canonicalName "repositorylocalimplementationselection"; usf:conforming true.
+fx:externalservicewithadapterselection a usf:Fixture; usf:canonicalName "externalservicewithadapterselection"; usf:conforming true.
+fx:multicomponentcompositionselection a usf:Fixture; usf:canonicalName "multicomponentcompositionselection"; usf:conforming true.
+fx:completepackageintegrityselection a usf:Fixture; usf:canonicalName "completepackageintegrityselection"; usf:conforming true.
+fx:conditionalrejectionwithreopeningcondition a usf:Fixture; usf:canonicalName "conditionalrejectionwithreopeningcondition"; usf:conforming true.
+fx:accepteddecisionunprovedcandidate a usf:Fixture; usf:canonicalName "accepteddecisionunprovedcandidate"; usf:conforming false; usf:demonstratesDefect dfc:accepteddecisionunprovedcandidate.
+fx:fakecandidate a usf:Fixture; usf:canonicalName "fakecandidate"; usf:conforming false; usf:demonstratesDefect dfc:fakecandidate.
+fx:missingselectedoption a usf:Fixture; usf:canonicalName "missingselectedoption"; usf:conforming false; usf:demonstratesDefect dfc:missingselectedoption.
+fx:multipleselectedoptions a usf:Fixture; usf:canonicalName "multipleselectedoptions"; usf:conforming false; usf:demonstratesDefect dfc:multipleselectedoptions.
+fx:selectedoptionnotconsidered a usf:Fixture; usf:canonicalName "selectedoptionnotconsidered"; usf:conforming false; usf:demonstratesDefect dfc:selectedoptionnotconsidered.
+fx:missingcriterion a usf:Fixture; usf:canonicalName "missingcriterion"; usf:conforming false; usf:demonstratesDefect dfc:missingcriterion.
+fx:missingcriterionassessment a usf:Fixture; usf:canonicalName "missingcriterionassessment"; usf:conforming false; usf:demonstratesDefect dfc:missingcriterionassessment.
+fx:componentcriterionassessmentmissing a usf:Fixture; usf:canonicalName "componentcriterionassessmentmissing"; usf:conforming false; usf:demonstratesDefect dfc:componentcriterionassessmentmissing.
+fx:assessmentwithoutevidence a usf:Fixture; usf:canonicalName "assessmentwithoutevidence"; usf:conforming false; usf:demonstratesDefect dfc:assessmentwithoutevidence.
+fx:assessmentevidenceinvalid a usf:Fixture; usf:canonicalName "assessmentevidenceinvalid"; usf:conforming false; usf:demonstratesDefect dfc:assessmentevidenceinvalid.
+fx:componentassessmentevidenceinvalid a usf:Fixture; usf:canonicalName "componentassessmentevidenceinvalid"; usf:conforming false; usf:demonstratesDefect dfc:componentassessmentevidenceinvalid.
+fx:unjustifiednotapplicablecriterion a usf:Fixture; usf:canonicalName "unjustifiednotapplicablecriterion"; usf:conforming false; usf:demonstratesDefect dfc:unjustifiednotapplicablecriterion.
+fx:rejectedcandidatewithoutreason a usf:Fixture; usf:canonicalName "rejectedcandidatewithoutreason"; usf:conforming false; usf:demonstratesDefect dfc:rejectedcandidatewithoutreason.
+fx:rejectionreasonwithoutevidence a usf:Fixture; usf:canonicalName "rejectionreasonwithoutevidence"; usf:conforming false; usf:demonstratesDefect dfc:rejectionreasonwithoutevidence.
+fx:floatingpackageversion a usf:Fixture; usf:canonicalName "floatingpackageversion"; usf:conforming false; usf:demonstratesDefect dfc:floatingpackageversion.
+fx:missingpackagedigest a usf:Fixture; usf:canonicalName "missingpackagedigest"; usf:conforming false; usf:demonstratesDefect dfc:missingpackagedigest.
+fx:unknownlicence a usf:Fixture; usf:canonicalName "unknownlicence"; usf:conforming false; usf:demonstratesDefect dfc:unknownlicence.
+fx:missingvulnerabilityassessment a usf:Fixture; usf:canonicalName "missingvulnerabilityassessment"; usf:conforming false; usf:demonstratesDefect dfc:missingvulnerabilityassessment.
+fx:compositionfacetuncovered a usf:Fixture; usf:canonicalName "compositionfacetuncovered"; usf:conforming false; usf:demonstratesDefect dfc:compositionfacetuncovered.
+fx:compositioncomponentwithoutresponsibility a usf:Fixture; usf:canonicalName "compositioncomponentwithoutresponsibility"; usf:conforming false; usf:demonstratesDefect dfc:compositioncomponentwithoutresponsibility.
+fx:incompatiblecomponentversions a usf:Fixture; usf:canonicalName "incompatiblecomponentversions"; usf:conforming false; usf:demonstratesDefect dfc:incompatiblecomponentversions.
+fx:compositionwithoutcurrentcoverageproof a usf:Fixture; usf:canonicalName "compositionwithoutcurrentcoverageproof"; usf:conforming false; usf:demonstratesDefect dfc:compositionwithoutcurrentcoverageproof.
+fx:inheritedproductpreference a usf:Fixture; usf:canonicalName "inheritedproductpreference"; usf:conforming false; usf:demonstratesDefect dfc:inheritedproductpreference.
+fx:activecontractwithoutevaluation a usf:Fixture; usf:canonicalName "activecontractwithoutevaluation"; usf:conforming false; usf:demonstratesDefect dfc:activecontractwithoutevaluation.
+fx:decisionstatecardinality a usf:Fixture; usf:canonicalName "decisionstatecardinality"; usf:conforming false; usf:demonstratesDefect dfc:decisionstatecardinality.
+fx:decisioncontractcardinality a usf:Fixture; usf:canonicalName "decisioncontractcardinality"; usf:conforming false; usf:demonstratesDefect dfc:decisioncontractcardinality.
+fx:decisionevaluationcardinality a usf:Fixture; usf:canonicalName "decisionevaluationcardinality"; usf:conforming false; usf:demonstratesDefect dfc:decisionevaluationcardinality.
+fx:evaluationdependencydrift a usf:Fixture; usf:canonicalName "evaluationdependencydrift"; usf:conforming false; usf:demonstratesDefect dfc:evaluationdependencydrift.
+fx:mandatorycriterionwithoutmitigation a usf:Fixture; usf:canonicalName "mandatorycriterionwithoutmitigation"; usf:conforming false; usf:demonstratesDefect dfc:mandatorycriterionwithoutmitigation.
+fx:missingsupplychainassessment a usf:Fixture; usf:canonicalName "missingsupplychainassessment"; usf:conforming false; usf:demonstratesDefect dfc:missingsupplychainassessment.
+fx:componentkindcardinality a usf:Fixture; usf:canonicalName "componentkindcardinality"; usf:conforming false; usf:demonstratesDefect dfc:componentkindcardinality.
+fx:incompletecomponentboundary a usf:Fixture; usf:canonicalName "incompletecomponentboundary"; usf:conforming false; usf:demonstratesDefect dfc:incompletecomponentboundary.
+fx:unclassifiedcompositionpermutation a usf:Fixture; usf:canonicalName "unclassifiedcompositionpermutation"; usf:conforming false; usf:demonstratesDefect dfc:unclassifiedcompositionpermutation.
+fx:missingproviderenvironmentbinding a usf:Fixture; usf:canonicalName "missingproviderenvironmentbinding"; usf:conforming false; usf:demonstratesDefect dfc:missingproviderenvironmentbinding.
+fx:compositiondependencyinvalid a usf:Fixture; usf:canonicalName "compositiondependencyinvalid"; usf:conforming false; usf:demonstratesDefect dfc:compositiondependencyinvalid.
+fx:selectedoptionrealisationmappingcardinality a usf:Fixture; usf:canonicalName "selectedoptionrealisationmappingcardinality"; usf:conforming false; usf:demonstratesDefect dfc:selectedoptionrealisationmappingcardinality.
+fx:selectedcomponentconcretemappingcardinality a usf:Fixture; usf:canonicalName "selectedcomponentconcretemappingcardinality"; usf:conforming false; usf:demonstratesDefect dfc:selectedcomponentconcretemappingcardinality.
+fx:selectedcomponentconcretemappingtypemismatch a usf:Fixture; usf:canonicalName "selectedcomponentconcretemappingtypemismatch"; usf:conforming false; usf:demonstratesDefect dfc:selectedcomponentconcretemappingtypemismatch.
+fx:selectionmappingdependencydrift a usf:Fixture; usf:canonicalName "selectionmappingdependencydrift"; usf:conforming false; usf:demonstratesDefect dfc:selectionmappingdependencydrift.
+fx:realisationoptionvalidatorgraphscopemismatch a usf:Fixture; usf:canonicalName "realisationoptionvalidatorgraphscopemismatch"; usf:conforming false; usf:demonstratesDefect dfc:realisationoptionvalidatorgraphscopemismatch.
+
+tst:realisationoptionevaluationpositivefixtures a usf:Test; usf:canonicalName "realisationoptionevaluationpositivefixtures"; usf:testsContract sc:compilersemanticenforcement.
+tst:accepteddecisionunprovedcandidate a usf:Test; usf:canonicalName "accepteddecisionunprovedcandidate"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:accepteddecisionunprovedcandidate.
+tst:fakecandidate a usf:Test; usf:canonicalName "fakecandidate"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:fakecandidate.
+tst:missingselectedoption a usf:Test; usf:canonicalName "missingselectedoption"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:missingselectedoption.
+tst:multipleselectedoptions a usf:Test; usf:canonicalName "multipleselectedoptions"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:multipleselectedoptions.
+tst:selectedoptionnotconsidered a usf:Test; usf:canonicalName "selectedoptionnotconsidered"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:selectedoptionnotconsidered.
+tst:missingcriterion a usf:Test; usf:canonicalName "missingcriterion"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:missingcriterion.
+tst:missingcriterionassessment a usf:Test; usf:canonicalName "missingcriterionassessment"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:missingcriterionassessment.
+tst:componentcriterionassessmentmissing a usf:Test; usf:canonicalName "componentcriterionassessmentmissing"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:componentcriterionassessmentmissing.
+tst:assessmentwithoutevidence a usf:Test; usf:canonicalName "assessmentwithoutevidence"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:assessmentwithoutevidence.
+tst:assessmentevidenceinvalid a usf:Test; usf:canonicalName "assessmentevidenceinvalid"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:assessmentevidenceinvalid.
+tst:componentassessmentevidenceinvalid a usf:Test; usf:canonicalName "componentassessmentevidenceinvalid"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:componentassessmentevidenceinvalid.
+tst:unjustifiednotapplicablecriterion a usf:Test; usf:canonicalName "unjustifiednotapplicablecriterion"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:unjustifiednotapplicablecriterion.
+tst:rejectedcandidatewithoutreason a usf:Test; usf:canonicalName "rejectedcandidatewithoutreason"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:rejectedcandidatewithoutreason.
+tst:rejectionreasonwithoutevidence a usf:Test; usf:canonicalName "rejectionreasonwithoutevidence"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:rejectionreasonwithoutevidence.
+tst:floatingpackageversion a usf:Test; usf:canonicalName "floatingpackageversion"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:floatingpackageversion.
+tst:missingpackagedigest a usf:Test; usf:canonicalName "missingpackagedigest"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:missingpackagedigest.
+tst:unknownlicence a usf:Test; usf:canonicalName "unknownlicence"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:unknownlicence.
+tst:missingvulnerabilityassessment a usf:Test; usf:canonicalName "missingvulnerabilityassessment"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:missingvulnerabilityassessment.
+tst:compositionfacetuncovered a usf:Test; usf:canonicalName "compositionfacetuncovered"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:compositionfacetuncovered.
+tst:compositioncomponentwithoutresponsibility a usf:Test; usf:canonicalName "compositioncomponentwithoutresponsibility"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:compositioncomponentwithoutresponsibility.
+tst:incompatiblecomponentversions a usf:Test; usf:canonicalName "incompatiblecomponentversions"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:incompatiblecomponentversions.
+tst:compositionwithoutcurrentcoverageproof a usf:Test; usf:canonicalName "compositionwithoutcurrentcoverageproof"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:compositionwithoutcurrentcoverageproof.
+tst:inheritedproductpreference a usf:Test; usf:canonicalName "inheritedproductpreference"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:inheritedproductpreference.
+tst:activecontractwithoutevaluation a usf:Test; usf:canonicalName "activecontractwithoutevaluation"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:activecontractwithoutevaluation.
+tst:decisionstatecardinality a usf:Test; usf:canonicalName "decisionstatecardinality"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:decisionstatecardinality.
+tst:decisioncontractcardinality a usf:Test; usf:canonicalName "decisioncontractcardinality"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:decisioncontractcardinality.
+tst:decisionevaluationcardinality a usf:Test; usf:canonicalName "decisionevaluationcardinality"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:decisionevaluationcardinality.
+tst:evaluationdependencydrift a usf:Test; usf:canonicalName "evaluationdependencydrift"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:evaluationdependencydrift.
+tst:mandatorycriterionwithoutmitigation a usf:Test; usf:canonicalName "mandatorycriterionwithoutmitigation"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:mandatorycriterionwithoutmitigation.
+tst:missingsupplychainassessment a usf:Test; usf:canonicalName "missingsupplychainassessment"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:missingsupplychainassessment.
+tst:componentkindcardinality a usf:Test; usf:canonicalName "componentkindcardinality"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:componentkindcardinality.
+tst:incompletecomponentboundary a usf:Test; usf:canonicalName "incompletecomponentboundary"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:incompletecomponentboundary.
+tst:unclassifiedcompositionpermutation a usf:Test; usf:canonicalName "unclassifiedcompositionpermutation"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:unclassifiedcompositionpermutation.
+tst:missingproviderenvironmentbinding a usf:Test; usf:canonicalName "missingproviderenvironmentbinding"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:missingproviderenvironmentbinding.
+tst:compositiondependencyinvalid a usf:Test; usf:canonicalName "compositiondependencyinvalid"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:compositiondependencyinvalid.
+tst:selectedoptionrealisationmappingcardinality a usf:Test; usf:canonicalName "selectedoptionrealisationmappingcardinality"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:selectedoptionrealisationmappingcardinality.
+tst:selectedcomponentconcretemappingcardinality a usf:Test; usf:canonicalName "selectedcomponentconcretemappingcardinality"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:selectedcomponentconcretemappingcardinality.
+tst:selectedcomponentconcretemappingtypemismatch a usf:Test; usf:canonicalName "selectedcomponentconcretemappingtypemismatch"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:selectedcomponentconcretemappingtypemismatch.
+tst:selectionmappingdependencydrift a usf:Test; usf:canonicalName "selectionmappingdependencydrift"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:selectionmappingdependencydrift.
+tst:realisationoptionvalidatorgraphscopemismatch a usf:Test; usf:canonicalName "realisationoptionvalidatorgraphscopemismatch"; usf:testsContract sc:compilersemanticenforcement; usf:plantsDefect dfc:realisationoptionvalidatorgraphscopemismatch.
 }

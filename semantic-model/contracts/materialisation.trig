@@ -56,6 +56,7 @@
     usf:canonicalName "transactionalmodelupdate".
 <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> a usf:SemanticContract;
     usf:canonicalName "repositoryexternalartefactmaterialisation";
+    usf:requiresRealisationOptionEvaluation true;
     usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:active>;
     usf:hasActivationState <urn:usf:contractactivationstate:active>;
     usf:activationReason "Current authority-bound evidence proves the fail-closed planner, validator and transactional apply control plane against the accepted independent layout decision; activation authorises exact validated materialisation plans but does not establish final repository, environment or suite readiness.";
@@ -243,7 +244,7 @@ actor:externalservice a usf:Entity;
     usf:requiresProviderMode <urn:usf:providermode:deterministictestsubstitute>;
     usf:requiresEnvironmentClass <urn:usf:environmentclass:hermetic>;
     usf:requiresEvidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:signed>, <urn:usf:evidencestage:integrityverified>.
-<urn:usf:realisationoption:capabilitycellswithprocessassemblies> a usf:RealisationOption;
+<urn:usf:realisationoption:capabilitycellswithprocessassemblies> a usf:RealisationOption, usf:ComposedRealisationOption;
     usf:canonicalName "capabilitycellswithprocessassemblies".
 <urn:usf:realisationoption:processcentricrepository> a usf:RealisationOption;
     usf:canonicalName "processcentricrepository".
@@ -434,7 +435,10 @@ path:codexagentintegration a usf:PathRole, usf:RepositoryLayoutRole;
 <urn:usf:realisationdecision:repositoryarchitectureandnaming> a usf:RealisationDecision, usf:RepositoryArchitectureDecision;
     usf:canonicalName "repositoryarchitectureandnaming";
     usf:decisionState <urn:usf:decisionstate:accepted>;
+    usf:decisionForContract <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation>;
     usf:considersOption <urn:usf:realisationoption:capabilitycellswithprocessassemblies>, <urn:usf:realisationoption:processcentricrepository>, <urn:usf:realisationoption:domainservicerepository>, <urn:usf:realisationoption:technologylayeredrepository>;
+    usf:selectsOption <urn:usf:realisationoption:capabilitycellswithprocessassemblies>;
+    usf:hasDecisionEvaluation <urn:usf:decisionevaluation:repositoryarchitectureandnaming>;
     usf:decisionRationale "Capability cells with thin deployable process assemblies most accurately preserve semantic ownership, dependency direction, data and security boundaries, independent testing and environment composition. Process-centric and technology-layered alternatives obscure ownership; independently deployable domain services are not required for every capability. Compatibility paths are isolated projections rather than target architecture.";
     usf:usesRepositoryNamingStandard <urn:usf:repositorynamingstandard:semanticpurpose>;
     usf:selectsRepositoryLayoutRole path:repositorydirective, path:processsource, path:capabilitysource, path:runtimemechanismsource, path:providerbindingsource, path:persistencesource, path:configurationsource, path:environmentsource, path:semanticmodelsource, path:assurancesource, path:operationssource, path:documentationsource, path:generatedoutput, path:programmeexecutionstate, path:claudeagentintegration, path:codexagentintegration;

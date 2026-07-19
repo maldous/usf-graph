@@ -144,6 +144,31 @@ val:validateassuranceconformance a usf:ValidatorRule;
     usf:resultCode "validateassuranceconformance";
     usf:targetsGraph ng:proofs, ng:evidence, ng:assuranceprofiles, ng:readinessgates, ng:derivedreadiness;
     usf:validatorSeverity sev:blocking.
+shp:realisationdecisionshape a usf:Shape;
+    usf:canonicalName "realisationdecisionshape".
+shp:criterionassessmentshape a usf:Shape;
+    usf:canonicalName "criterionassessmentshape".
+shp:criterionevidencebindingshape a usf:Shape;
+    usf:canonicalName "criterionevidencebindingshape".
+shp:optioncomponentshape a usf:Shape;
+    usf:canonicalName "optioncomponentshape".
+shp:compositioninterfaceshape a usf:Shape;
+    usf:canonicalName "compositioninterfaceshape".
+shp:criterionrequirementshape a usf:Shape;
+    usf:canonicalName "criterionrequirementshape".
+shp:criterionmitigationshape a usf:Shape;
+    usf:canonicalName "criterionmitigationshape".
+shp:realisationoptionselectioncontractshape a usf:Shape;
+    usf:canonicalName "realisationoptionselectioncontractshape".
+shp:realisationoptionevaluationvalidatortargetshape a usf:Shape;
+    usf:canonicalName "realisationoptionevaluationvalidatortargetshape".
+val:validaterealisationoptionevaluation a usf:ValidatorRule;
+    usf:canonicalName "validaterealisationoptionevaluation";
+    usf:detectsDefect dfc:accepteddecisionunprovedcandidate, dfc:fakecandidate, dfc:missingselectedoption, dfc:multipleselectedoptions, dfc:selectedoptionnotconsidered, dfc:missingcriterion, dfc:missingcriterionassessment, dfc:componentcriterionassessmentmissing, dfc:assessmentwithoutevidence, dfc:assessmentevidenceinvalid, dfc:componentassessmentevidenceinvalid, dfc:unjustifiednotapplicablecriterion, dfc:rejectedcandidatewithoutreason, dfc:rejectionreasonwithoutevidence, dfc:floatingpackageversion, dfc:missingpackagedigest, dfc:unknownlicence, dfc:missingvulnerabilityassessment, dfc:compositionfacetuncovered, dfc:compositioncomponentwithoutresponsibility, dfc:incompatiblecomponentversions, dfc:compositionwithoutcurrentcoverageproof, dfc:inheritedproductpreference, dfc:activecontractwithoutevaluation, dfc:decisionstatecardinality, dfc:decisioncontractcardinality, dfc:decisionevaluationcardinality, dfc:evaluationdependencydrift, dfc:mandatorycriterionwithoutmitigation, dfc:missingsupplychainassessment, dfc:componentkindcardinality, dfc:incompletecomponentboundary, dfc:unclassifiedcompositionpermutation, dfc:missingproviderenvironmentbinding, dfc:compositiondependencyinvalid, dfc:selectedoptionrealisationmappingcardinality, dfc:selectedcomponentconcretemappingcardinality, dfc:selectedcomponentconcretemappingtypemismatch, dfc:selectionmappingdependencydrift, dfc:realisationoptionvalidatorgraphscopemismatch;
+    usf:enforcesShape shp:realisationdecisionshape, shp:criterionassessmentshape, shp:criterionevidencebindingshape, shp:criterionrequirementshape, shp:criterionmitigationshape, shp:optioncomponentshape, shp:compositioninterfaceshape, shp:realisationoptionselectioncontractshape, shp:realisationoptionevaluationvalidatortargetshape;
+    usf:resultCode "realisationoptionevaluationclosure";
+    usf:targetsGraph ng:vocabulary, ng:capabilities, ng:interfaces, ng:evidence, ng:bindings, ng:materialisation, ng:derivedreadiness;
+    usf:validatorSeverity sev:blocking.
 val:validatevalidatorcoverage a usf:ValidatorRule;
     usf:canonicalName "validatevalidatorcoverage";
     usf:detectsDefect dfc:missingvalidatorcoverage;

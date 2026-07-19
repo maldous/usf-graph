@@ -1,6 +1,0 @@
-# expect-shacl: nonconforming
-@prefix usf: <urn:usf:ontology:> .
-
-<urn:usf:signingidentity:defectinvalidrelease> a usf:SigningIdentity ;
-    usf:canonicalName "defectinvalidrelease" ;
-    usf:signingKeyFingerprint "not-a-canonical-sha256-fingerprint" .

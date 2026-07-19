@@ -88,8 +88,15 @@ test('resolves a non-true transaction response through the explicit conforming S
     report: async () => ({ ok: true, body: shaclReport(true) }),
   } } });
   const client = createStardogSemanticAuthorityClient({ sdk, configuration: configuration(), resolveSecret: () => 'token-value' });
-  assert.equal(await client.validateInTransaction('transaction', [{ file: 'shape.ttl', content: '@prefix sh: <http://www.w3.org/ns/shacl#> .' }]), true);
-  assert.equal(reports, 1);
+  const shapes = [{ file: 'shape.ttl', content: '@prefix sh: <http://www.w3.org/ns/shacl#> .' }];
+  assert.equal(await client.validateInTransaction('transaction', shapes), true);
+  const receipt = await client.validateInTransactionWithReceipt('transaction', shapes);
+  assert.equal(receipt.conforms, true);
+  assert.equal(receipt.validatedDocumentCount, 1);
+  assert.match(receipt.validatedDocumentSetDigest, /^sha256:[0-9a-f]{64}$/);
+  assert.match(receipt.observationSetDigest, /^sha256:[0-9a-f]{64}$/);
+  assert.match(receipt.receiptDigest, /^sha256:[0-9a-f]{64}$/);
+  assert.equal(reports, 2);
 });
 
 test('returns false only for an explicit nonconforming SHACL report and fails closed on ambiguity', async () => {

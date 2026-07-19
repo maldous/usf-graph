@@ -1,6 +1,0 @@
-# conforming
-@prefix usf: <urn:usf:ontology:> .
-
-<urn:usf:signingidentity:fixturehermeticrelease> a usf:SigningIdentity ;
-    usf:canonicalName "fixturehermeticrelease" ;
-    usf:signingKeyFingerprint "d3e5e55b71044aecc0143ef490b67f399dc49fc6e73c1307a6b515ed8964b2f6" .

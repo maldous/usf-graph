@@ -174,12 +174,60 @@ _:b32_b32_n3-156 sh:path usf:inEnvironment;
     sh:maxCount 1;
     sh:class usf:Environment.
 _:b32_b32_n3-154 sh:property _:b32_b32_n3-156.
-_:b32_b32_n3-153 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil>.
+_:b32_b32_n3-153 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:evidence_result_composite_list.
+_:evidence_result_composite_list <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:evidence_result_composite_branch;
+    <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil>.
+_:evidence_result_composite_branch sh:property [
+    sh:path <http://www.w3.org/1999/02/22-rdf-syntax-ns#type>;
+    sh:hasValue usf:CompositeEvidenceResult
+].
 shp:EvidenceResultShape sh:or _:b32_b32_n3-150.
 _:b32_b32_n3-157 sh:prefixes usf:prefixes;
     sh:message "semantic-review evidence must bind a descriptor selected by the reviewed semantic subject";
     sh:select "SELECT $this WHERE {\n        $this usf:evidenceKind <urn:usf:evidencekind:semanticreviewevidence> ;\n              usf:concernsSemanticSubject ?review ; usf:contentDigest ?digest .\n        FILTER NOT EXISTS {\n          ?review a usf:SemanticAdequacyReview ;\n                  (usf:usesDispositionInventoryDescriptor|usf:usesIndependentReviewDescriptor|usf:usesSemanticAdequacyProofDescriptor) ?descriptor .\n          ?descriptor usf:descriptorDigest ?digest .\n        }\n      }".
 shp:EvidenceResultShape sh:sparql _:b32_b32_n3-157.
+
+shp:CompositeEvidenceResultShape a sh:NodeShape;
+    usf:canonicalName "compositeevidenceresultshape";
+    sh:targetClass usf:CompositeEvidenceResult;
+    sh:property [
+        sh:path usf:hasSupportingEvidenceManifest;
+        sh:minCount 2;
+        sh:class usf:EvidenceScopeManifest;
+        sh:message "compositeevidencesupportmissing: composite evidence requires at least two separately typed supporting manifests"
+    ];
+    sh:sparql [
+        usf:constraintFailureCode <urn:usf:validationfailurecode:assessmentevidenceinvalid>;
+        sh:message "compositeevidencescopeflattened: composite evidence must not flatten supporting scopes into one provider mode or environment";
+        sh:select "PREFIX usf: <urn:usf:ontology:>\nSELECT $this WHERE {\n  $this a usf:CompositeEvidenceResult .\n  { $this usf:usesProviderMode ?mode } UNION { $this usf:inEnvironment ?environment }\n}"
+    ];
+    sh:sparql [
+        usf:constraintFailureCode <urn:usf:validationfailurecode:assessmentevidenceinvalid>;
+        sh:message "compositeevidencescopeduplicate: supporting manifests must preserve distinct scope identities";
+        sh:select "PREFIX usf: <urn:usf:ontology:>\nSELECT $this WHERE {\n  $this usf:hasSupportingEvidenceManifest ?left, ?right .\n  ?left usf:evidenceScopeClassification ?scope .\n  ?right usf:evidenceScopeClassification ?scope .\n  FILTER(?left != ?right)\n}"
+    ].
+
+shp:EvidenceScopeManifestShape a sh:NodeShape;
+    usf:canonicalName "evidencescopemanifestshape";
+    sh:targetClass usf:EvidenceScopeManifest;
+    sh:property [ sh:path usf:evidenceScopeClassification; sh:minCount 1; sh:maxCount 1; sh:class usf:EvidenceScopeClassification; sh:message "evidencescopeclassificationcardinality: scope manifest requires exactly one classification" ];
+    sh:property [ sh:path usf:scopeProviderIdentity; sh:minCount 1; sh:maxCount 1; sh:class usf:EvidenceProviderIdentity; sh:message "evidencescopeprovidercardinality: scope manifest requires exactly one provider identity" ];
+    sh:property [ sh:path usf:scopeManifestDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$"; sh:message "evidencescopemanifestdigestinvalid: scope manifest requires one exact SHA-256 digest" ];
+    sh:property [ sh:path usf:scopeDescriptorDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$"; sh:message "evidencescopedescriptordigestinvalid: scope descriptor requires one exact SHA-256 digest" ];
+    sh:property [ sh:path usf:scopeCollectorDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$"; sh:message "evidencescopecollectordigestinvalid: scope collector requires one exact SHA-256 digest" ];
+    sh:property [ sh:path usf:scopeClaimBoundary; sh:minCount 1; sh:datatype xsd:string; sh:minLength 1; sh:message "evidencescopeclaimboundarymissing: scope manifest requires an explicit positive claim boundary" ];
+    sh:property [ sh:path usf:scopeProhibitedClaim; sh:minCount 1; sh:datatype xsd:string; sh:minLength 1; sh:message "evidencescopeprohibitedclaimmissing: scope manifest requires explicit prohibited claims" ];
+    sh:property [ sh:path usf:scopeSupportsCriterion; sh:minCount 1; sh:class usf:EvaluationCriterion; sh:message "evidencescopecriterionsupportmissing: scope manifest requires an explicit supported-criterion set" ];
+    sh:sparql [
+        usf:constraintFailureCode <urn:usf:validationfailurecode:assessmentevidenceinvalid>;
+        sh:message "evidencescopecriterionconflict: one scope cannot both support and prohibit the same criterion";
+        sh:select "PREFIX usf: <urn:usf:ontology:>\nSELECT $this WHERE { $this usf:scopeSupportsCriterion ?criterion; usf:scopeProhibitsCriterion ?criterion }"
+    ];
+    sh:sparql [
+        usf:constraintFailureCode <urn:usf:validationfailurecode:assessmentevidenceinvalid>;
+        sh:message "evidencescopederivationdigestincomplete: derived scope input and result digests must be present together and exact";
+        sh:select "PREFIX usf: <urn:usf:ontology:>\nSELECT $this WHERE {\n  { $this usf:scopeDerivationInputDigest ?input . FILTER NOT EXISTS { $this usf:scopeDerivationResultDigest ?result } }\n  UNION { $this usf:scopeDerivationResultDigest ?result . FILTER NOT EXISTS { $this usf:scopeDerivationInputDigest ?input } }\n  UNION { $this usf:scopeDerivationInputDigest ?input . FILTER(!REGEX(?input, '^sha256:[0-9a-f]{64}$')) }\n  UNION { $this usf:scopeDerivationResultDigest ?result . FILTER(!REGEX(?result, '^sha256:[0-9a-f]{64}$')) }\n}"
+    ].
 shp:SemanticAdequacyReviewShape a sh:NodeShape;
     usf:canonicalName "semanticadequacyreviewshape";
     sh:targetClass usf:SemanticAdequacyReview.

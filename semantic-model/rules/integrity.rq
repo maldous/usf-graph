@@ -2,6 +2,7 @@ PREFIX usf:  <urn:usf:ontology:>
 PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX owl:  <http://www.w3.org/2002/07/owl#>
+PREFIX ng:   <urn:usf:namedgraph:>
 # Whole-dataset integrity invariants. A conforming graph returns zero rows.
 # Each branch binds ?violation (the integrity rule code) and ?subject (the offending node).
 SELECT DISTINCT ?violation ?subject WHERE {
@@ -43,6 +44,18 @@ SELECT DISTINCT ?violation ?subject WHERE {
                  usf:TestObligation }
     FILTER(!STRSTARTS(STR(?g), "urn:usf:graph:derived"))
     BIND("directauthoredreadiness" AS ?violation)
+  } UNION {
+    GRAPH ?g { ?subject usf:evaluationClosureState ?closureState }
+    FILTER(!STRSTARTS(STR(?g), "urn:usf:graph:derived"))
+    BIND("directauthoredevaluationclosure" AS ?violation)
+  } UNION {
+    ?subject a usf:DecisionEvaluation .
+    FILTER NOT EXISTS { GRAPH <urn:usf:graph:derived:readiness> { ?subject usf:evaluationClosureState ?closureState } }
+    BIND("derivedevaluationclosuremissing" AS ?violation)
+  } UNION {
+    GRAPH <urn:usf:graph:derived:readiness> { ?subject usf:evaluationClosureState ?leftClosure, ?rightClosure }
+    FILTER(?leftClosure != ?rightClosure)
+    BIND("derivedevaluationclosuremultiple" AS ?violation)
   } UNION {
     # the same resource typed in more than one named graph (must be declared exactly once)
     GRAPH ?g1 { ?subject a ?t1 }
@@ -295,6 +308,526 @@ SELECT DISTINCT ?violation ?subject WHERE {
     ?subject usf:reviewedInSemanticAdequacyReview ?review ;
       usf:semanticAdequacyDisposition <urn:usf:semanticadequacydisposition:unresolvedexternaldecision> .
     BIND("acceptedcorrectionhasunresolvedexternalitem" AS ?violation)
+  } UNION {
+    # Accepted realisation decisions are not authority by state alone. Their
+    # candidate set, structured assessments, evidence and selected option must
+    # close before the decision can authorise implementation.
+    ?subject a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> .
+    FILTER NOT EXISTS { ?subject usf:hasDecisionEvaluation ?evaluation ; usf:selectsOption ?selected .
+      ?evaluation usf:evaluationForDecision ?subject ; usf:evaluationClosureState <urn:usf:evaluationclosurestate:complete> . }
+    BIND("accepteddecisionevaluationincomplete" AS ?violation)
+  } UNION {
+    ?subject a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?left, ?right .
+    FILTER(?left != ?right)
+    BIND("multipleselectedoptions" AS ?violation)
+  } UNION {
+    ?subject a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> .
+    FILTER NOT EXISTS { ?subject usf:selectsOption ?selected }
+    BIND("missingselectedoption" AS ?violation)
+  } UNION {
+    ?subject a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?selected .
+    FILTER NOT EXISTS { ?subject usf:considersOption ?selected }
+    BIND("selectedoptionoutsidecandidateset" AS ?violation)
+  } UNION {
+    ?subject a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?evaluation ; usf:selectsOption ?selected .
+    FILTER NOT EXISTS {
+      ?subject usf:considersOption ?oa, ?ob .
+      ?evaluation usf:hasCandidateCredibilityAssessment ?ca, ?cb .
+      ?ca usf:credibilityForOption ?oa ; usf:credibilityState <urn:usf:candidatecredibilitystate:credible> ; usf:credibilityEvidence ?ea .
+      ?cb usf:credibilityForOption ?ob ; usf:credibilityState <urn:usf:candidatecredibilitystate:credible> ; usf:credibilityEvidence ?eb .
+      FILTER(?oa != ?ob)
+    }
+    FILTER NOT EXISTS {
+      ?evaluation usf:hasSoleCandidateJustification ?sole .
+      ?sole usf:soleCandidateForOption ?selected ; usf:hasCandidateSearchSpace ?searchSpace ;
+        usf:hasCandidateClassExclusion ?exclusion ; usf:soleCandidateEvidence ?evidence ; usf:soleCandidateInvalidationCondition ?invalidation .
+      ?searchSpace a usf:CandidateSearchSpace ; usf:candidateDiscoveryCriteria ?criteria ; usf:searchesRealisationClass ?class ;
+        usf:candidateSearchSpaceDigest ?searchDigest ; usf:candidateSearchEvidence ?evidence ; usf:candidateSearchInvalidationCondition ?searchInvalidation .
+      ?exclusion usf:excludesRealisationClass ?excludedClass ; usf:exclusionReason ?reason ; usf:exclusionEvidence ?evidence .
+      ?evidence usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted> ;
+        usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh> ; usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid> ;
+        usf:withinValidityScope true .
+      FILTER(REGEX(?searchDigest, "^sha256:[0-9a-f]{64}$"))
+      FILTER NOT EXISTS { ?searchSpace usf:searchesRealisationClass ?undisposedClass . FILTER NOT EXISTS { ?subject usf:considersOption/usf:representsRealisationClass ?undisposedClass } FILTER NOT EXISTS { ?sole usf:hasCandidateClassExclusion/usf:excludesRealisationClass ?undisposedClass } }
+      FILTER EXISTS { ?selected usf:representsRealisationClass ?selectedClass . ?searchSpace usf:searchesRealisationClass ?selectedClass }
+    }
+    BIND("accepteddecisioncandidatesetincomplete" AS ?violation)
+  } UNION {
+    ?subject a usf:DecisionEvaluation ; usf:hasCandidateCredibilityAssessment ?left, ?right .
+    ?left usf:credibilityForOption ?option . ?right usf:credibilityForOption ?option .
+    FILTER(?left != ?right)
+    BIND("duplicatecandidatecredibilityassessment" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption ?subject ; usf:hasDecisionEvaluation ?evaluation .
+    FILTER(
+      NOT EXISTS { ?subject a usf:RealisationOption } ||
+      NOT EXISTS { ?evaluation usf:hasCandidateCredibilityAssessment ?credibility . ?credibility usf:credibilityForOption ?subject ; usf:credibilityEvidence ?evidence }
+    )
+    BIND("fakeorunassessedcandidate" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?subject .
+    ?criterion a usf:EvaluationCriterion .
+    FILTER NOT EXISTS { ?subject usf:hasCriterionRequirement ?requirement . ?requirement usf:requiresCriterion ?criterion }
+    BIND("evaluationcriterionmissing" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:considersOption ?option ; usf:hasDecisionEvaluation ?subject .
+    ?subject usf:hasCriterionRequirement/usf:requiresCriterion ?criterion .
+    FILTER NOT EXISTS { ?assessment a usf:CriterionAssessment ; usf:assessmentForEvaluation ?subject ; usf:assessmentForOption ?option ; usf:assessmentForCriterion ?criterion . FILTER NOT EXISTS { ?assessment usf:assessmentForComponent ?component } }
+    BIND("candidatecriterionassessmentmissing" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?evaluation .
+    ?subject a usf:CriterionAssessment ; usf:assessmentForEvaluation ?evaluation .
+    FILTER NOT EXISTS { ?subject usf:assessmentForComponent ?component }
+    FILTER NOT EXISTS {
+      ?subject usf:assessmentResult ?result ; usf:assessmentMethod ?method ; usf:assessmentEvidence ?evidence ;
+        usf:assessmentForCriterion ?criterion ;
+        usf:assessmentAuthorityDigest ?authorityDigest ; usf:assessmentEvidenceDigest ?evidenceDigest ; usf:assessmentConfidence ?confidence ;
+        usf:hasCriterionEvidenceBinding ?binding .
+      ?evaluation usf:evaluationAuthorityDigest ?authorityDigest ; usf:evaluationEvidenceDigest ?evidenceDigest ;
+        usf:evaluationProducerDigest ?producerDigest .
+      ?binding usf:bindingForAssessment ?subject ; usf:bindingEvidenceResult ?evidence ;
+        usf:bindingSupportingManifest ?manifest ; usf:bindingSupportDigest ?supportDigest ;
+        usf:bindingAuthorityDigest ?authorityDigest ; usf:bindingEvidenceDigest ?evidenceDigest .
+      ?evidence a usf:EvidenceResult, usf:CompositeEvidenceResult ; usf:contentDigest ?evidenceDigest ;
+        usf:evaluatedAuthorityDigest ?authorityDigest ; usf:evidenceProducerDigest ?producerDigest ;
+        usf:hasSupportingEvidenceManifest ?manifest ; usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted> ;
+        usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh> ; usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid> ;
+        usf:withinValidityScope true .
+      ?manifest a usf:EvidenceScopeManifest ; usf:scopeSupportsCriterion ?criterion .
+      FILTER NOT EXISTS { ?manifest usf:scopeProhibitsCriterion ?criterion }
+      FILTER(REGEX(?supportDigest, "^sha256:[0-9a-f]{64}$"))
+      FILTER(?result != <urn:usf:assessmentresult:insufficientevidence>)
+      FILTER(?confidence >= 0.0 && ?confidence <= 1.0)
+    }
+    BIND("assessmentevidenceinvalid" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?evaluation .
+    ?subject a usf:CriterionAssessment ; usf:assessmentForEvaluation ?evaluation ; usf:assessmentForComponent ?component .
+    FILTER NOT EXISTS {
+      ?subject usf:assessmentResult ?result ; usf:assessmentMethod ?method ; usf:assessmentEvidence ?evidence ;
+        usf:assessmentForCriterion ?criterion ;
+        usf:assessmentAuthorityDigest ?authorityDigest ; usf:assessmentEvidenceDigest ?evidenceDigest ; usf:assessmentConfidence ?confidence ;
+        usf:hasCriterionEvidenceBinding ?binding .
+      ?evaluation usf:evaluationAuthorityDigest ?authorityDigest ; usf:evaluationEvidenceDigest ?evidenceDigest ;
+        usf:evaluationProducerDigest ?producerDigest .
+      ?binding usf:bindingForAssessment ?subject ; usf:bindingEvidenceResult ?evidence ;
+        usf:bindingSupportingManifest ?manifest ; usf:bindingSupportDigest ?supportDigest ;
+        usf:bindingAuthorityDigest ?authorityDigest ; usf:bindingEvidenceDigest ?evidenceDigest .
+      ?evidence a usf:EvidenceResult, usf:CompositeEvidenceResult ; usf:contentDigest ?evidenceDigest ;
+        usf:evaluatedAuthorityDigest ?authorityDigest ; usf:evidenceProducerDigest ?producerDigest ;
+        usf:hasSupportingEvidenceManifest ?manifest ; usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted> ;
+        usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh> ; usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid> ;
+        usf:withinValidityScope true .
+      ?manifest a usf:EvidenceScopeManifest ; usf:scopeSupportsCriterion ?criterion .
+      FILTER NOT EXISTS { ?manifest usf:scopeProhibitsCriterion ?criterion }
+      FILTER(REGEX(?supportDigest, "^sha256:[0-9a-f]{64}$"))
+      FILTER(?result != <urn:usf:assessmentresult:insufficientevidence>)
+      FILTER(?confidence >= 0.0 && ?confidence <= 1.0)
+    }
+    BIND("componentassessmentevidenceinvalid" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?evaluation .
+    ?evaluation a usf:DecisionEvaluation ; usf:hasCriterionRequirement ?subject .
+    ?subject usf:criterionApplicability <urn:usf:criterionapplicability:notapplicable> ; usf:requiresCriterion ?criterion .
+    { FILTER NOT EXISTS { ?subject usf:applicabilityJustification ?justification } }
+    UNION
+    { ?assessment usf:assessmentForEvaluation ?evaluation ; usf:assessmentForCriterion ?criterion .
+      FILTER NOT EXISTS { ?assessment usf:assessmentResult <urn:usf:assessmentresult:notapplicablewithjustification> ; usf:assessmentLimitation ?limitation } }
+    BIND("criterionnotapplicableunexplained" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?subject ; usf:selectsOption ?selected .
+    ?subject usf:hasCandidateCredibilityAssessment ?credibility .
+    ?credibility usf:credibilityForOption ?option ; usf:credibilityState <urn:usf:candidatecredibilitystate:credible> .
+    FILTER(?option != ?selected)
+    FILTER NOT EXISTS { ?subject usf:hasOptionRejection ?rejection . ?rejection usf:rejectsOption ?option ; usf:hasRejectionReason ?reason . }
+    BIND("crediblerejectedcandidateunexplained" AS ?violation)
+  } UNION {
+    ?subject a usf:RejectionReason .
+    FILTER NOT EXISTS { ?subject usf:rejectionCriterion ?criterion ; usf:rejectionEvidence ?evidence ; usf:rejectionDuration ?duration ;
+      usf:rejectionStatement ?statement ; usf:reopeningCondition ?condition .
+      ?evidence usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted> ; usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh> ;
+        usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid> ; usf:withinValidityScope true . }
+    BIND("rejectionreasonevidenceinvalid" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?option .
+    ?option usf:hasOptionComponent/usf:componentIdentity ?subject . ?subject a ?kind .
+    VALUES ?kind { usf:PackageComponent usf:RuntimeComponent usf:RepositoryLocalComponent usf:ExternalProviderComponent usf:ContainerImageComponent }
+    FILTER NOT EXISTS { ?subject usf:componentVersion ?version }
+    BIND("selectedpackageversionmissing" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?option .
+    ?option usf:hasOptionComponent/usf:componentIdentity ?subject . ?subject a ?kind ; usf:componentVersion ?version .
+    VALUES ?kind { usf:PackageComponent usf:RuntimeComponent }
+    FILTER(REGEX(LCASE(STR(?version)), "^(latest|next|stable|main|master|head|[~><=*^])") || !REGEX(STR(?version), "^[0-9]+([.][0-9]+){0,3}([+-][0-9A-Za-z.-]+)?$"))
+    BIND("selectedpackageversionfloating" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?option .
+    ?option usf:hasOptionComponent/usf:componentIdentity ?subject . ?subject a ?kind ; usf:componentVersion ?version .
+    VALUES ?kind { usf:PackageComponent usf:RuntimeComponent usf:RepositoryLocalComponent usf:ExternalProviderComponent usf:ContainerImageComponent }
+    FILTER NOT EXISTS { ?subject usf:componentDistributionSource ?distribution ; usf:componentIntegrityDigest ?digest ;
+      usf:componentObservationDigest ?observationDigest ; usf:componentAcquisitionSource ?source ;
+      usf:componentDependencyLockDigest ?lock ; usf:componentPatchPolicy ?patch ; usf:componentContinuityRule ?continuity ;
+      usf:hasIntegrityConstraint/usf:integrityConstraintDigest ?digest .
+      FILTER(REGEX(?digest, "^(sha256:[0-9a-f]{64}|sha512-[A-Za-z0-9+/=]+)$") &&
+        REGEX(?observationDigest, "^sha256:[0-9a-f]{64}$") && REGEX(?lock, "^sha256:[0-9a-f]{64}$")) }
+    BIND("selectedcomponentintegritymissing" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?subject .
+    FILTER NOT EXISTS {
+      ?subject usf:evaluationAuthorityDigest ?authorityDigest ; usf:evaluationEvidenceDigest ?evidenceDigest ;
+        usf:evaluationProducerDigest ?producerDigest ; usf:evaluationEvidenceResult ?evidence .
+      ?evidence a usf:EvidenceResult, usf:CompositeEvidenceResult ; usf:contentDigest ?evidenceDigest ;
+        usf:evaluatedAuthorityDigest ?authorityDigest ; usf:evidenceProducerDigest ?producerDigest ;
+        usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted> ;
+        usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh> ;
+        usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid> ; usf:withinValidityScope true .
+    }
+    BIND("evaluationdependencydrift" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ;
+      usf:hasDecisionEvaluation ?evaluation ; usf:selectsOption ?option .
+    ?evaluation usf:evaluationAuthorityDigest ?authorityDigest ; usf:evaluationEvidenceDigest ?evidenceDigest ;
+      usf:evaluationProducerDigest ?producerDigest ; usf:evaluationEvidenceResult ?evidence .
+    ?option usf:hasOptionComponent/usf:componentIdentity ?subject . ?subject a ?kind .
+    VALUES ?kind { usf:PackageComponent usf:RuntimeComponent usf:ExternalProviderComponent usf:ContainerImageComponent }
+    FILTER NOT EXISTS {
+      ?subject usf:hasLicenceAssessment ?licence .
+      ?licence usf:licenceIdentifier ?identifier ; usf:licenceEvidence ?evidence ; usf:licenceCompatible true .
+      ?evidence usf:contentDigest ?evidenceDigest ; usf:evaluatedAuthorityDigest ?authorityDigest ; usf:evidenceProducerDigest ?producerDigest ;
+        usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted> ; usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh> ;
+        usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid> ; usf:withinValidityScope true .
+      FILTER(LCASE(STR(?identifier)) != "unknown")
+      FILTER NOT EXISTS { ?subject usf:hasLicenceAssessment ?otherLicence . FILTER(?otherLicence != ?licence) }
+      FILTER NOT EXISTS { ?licence usf:licenceEvidence ?otherEvidence . FILTER(?otherEvidence != ?evidence) }
+    }
+    BIND("licenceassessmentinvalid" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ;
+      usf:hasDecisionEvaluation ?evaluation ; usf:selectsOption ?option .
+    ?evaluation usf:evaluationAuthorityDigest ?authorityDigest ; usf:evaluationEvidenceDigest ?evidenceDigest ;
+      usf:evaluationProducerDigest ?producerDigest ; usf:evaluationEvidenceResult ?evidence .
+    ?option usf:hasOptionComponent/usf:componentIdentity ?subject .
+    FILTER NOT EXISTS {
+      ?subject usf:hasVulnerabilityAssessment ?vulnerability .
+      ?vulnerability usf:vulnerabilityScannerIdentity ?scanner ; usf:vulnerabilityAssessedAt ?at ;
+        usf:vulnerabilityEvidence ?evidence ; usf:vulnerabilityPolicy ?policy ; usf:acceptedVulnerabilityCount 0 .
+      ?evidence usf:contentDigest ?evidenceDigest ; usf:evaluatedAuthorityDigest ?authorityDigest ; usf:evidenceProducerDigest ?producerDigest ;
+        usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted> ; usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh> ;
+        usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid> ; usf:withinValidityScope true .
+      FILTER NOT EXISTS { ?subject usf:hasVulnerabilityAssessment ?otherAssessment . FILTER(?otherAssessment != ?vulnerability) }
+      FILTER NOT EXISTS { ?vulnerability usf:vulnerabilityEvidence ?otherEvidence . FILTER(?otherEvidence != ?evidence) }
+    }
+    BIND("vulnerabilityassessmentmissing" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ;
+      usf:hasDecisionEvaluation ?evaluation ; usf:selectsOption ?option .
+    ?evaluation usf:evaluationAuthorityDigest ?authorityDigest ; usf:evaluationEvidenceDigest ?evidenceDigest ;
+      usf:evaluationProducerDigest ?producerDigest ; usf:evaluationEvidenceResult ?evidence .
+    ?option usf:hasOptionComponent/usf:componentIdentity ?subject . ?subject a ?kind .
+    VALUES ?kind { usf:PackageComponent usf:RuntimeComponent usf:RepositoryLocalComponent usf:ExternalProviderComponent usf:ContainerImageComponent }
+    FILTER NOT EXISTS {
+      ?subject usf:hasSupplyChainAssessment ?supply .
+      ?supply usf:supplyChainEvidence ?evidence ; usf:supplyChainProvenance ?provenance ;
+        usf:dependencyDisclosureState ?disclosure ; usf:supplyChainAssessmentLimitation ?supplyLimitation .
+      ?evidence usf:contentDigest ?evidenceDigest ; usf:evaluatedAuthorityDigest ?authorityDigest ; usf:evidenceProducerDigest ?producerDigest ;
+        usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted> ; usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh> ;
+        usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid> ; usf:withinValidityScope true .
+      FILTER(((?kind = usf:PackageComponent || ?kind = usf:RepositoryLocalComponent) && EXISTS {
+        ?supply usf:componentDependencySetDigest ?dependencyDigest . FILTER(REGEX(?dependencyDigest, "^sha256:[0-9a-f]{64}$"))
+      }) || ((?kind != usf:PackageComponent && ?kind != usf:RepositoryLocalComponent) && NOT EXISTS {
+        ?supply usf:componentDependencySetDigest ?unexpectedDependencyDigest
+      }))
+      FILTER NOT EXISTS { ?subject usf:hasSupplyChainAssessment ?otherAssessment . FILTER(?otherAssessment != ?supply) }
+      FILTER NOT EXISTS { ?supply usf:supplyChainEvidence ?otherEvidence . FILTER(?otherEvidence != ?evidence) }
+    }
+    BIND("supplychainassessmentmissing" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?subject .
+    ?subject a usf:ComposedRealisationOption .
+    FILTER NOT EXISTS { ?subject usf:hasOptionComponent ?component ; usf:hasComponentResponsibility ?responsibility .
+      ?component usf:componentForOption ?subject ; usf:componentIdentity ?identity ; usf:componentRole ?role ; usf:componentResponsibility ?statement .
+      ?responsibility usf:responsibilityForComponent ?component ; usf:responsibilityForRequirement ?requirement ; usf:responsibilityOwner ?owner . }
+    BIND("compositionresponsibilitymissing" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?option .
+    ?option a usf:ComposedRealisationOption ; usf:hasOptionComponent ?subject .
+    FILTER NOT EXISTS { ?option usf:hasComponentResponsibility ?responsibility . ?responsibility usf:responsibilityForComponent ?subject ; usf:responsibilityForRequirement ?requirement ; usf:responsibilityOwner ?owner }
+    BIND("compositioncomponentresponsibilitymissing" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?subject .
+    ?subject a usf:ComposedRealisationOption ; usf:hasOptionComponent ?component ; usf:hasComponentResponsibility ?responsibility .
+    FILTER NOT EXISTS { ?subject usf:hasCompositionCoverageProof ?proof . ?proof usf:coverageProofForOption ?subject ; usf:compositionProofSuccessful true ; usf:compositionProofCurrent true }
+    BIND("compositioncoverageproofmissing" AS ?violation)
+  } UNION {
+    ?option a usf:ComposedRealisationOption ; usf:hasCompositionCoverageProof ?subject .
+      ?subject usf:coverageProofForOption ?option .
+      { FILTER NOT EXISTS { ?subject usf:compositionProofCurrent true ; usf:compositionProofSuccessful true ;
+        usf:compositionProofAuthorityDigest ?authorityDigest ; usf:compositionProofImplementationDigest ?implementationDigest ;
+        usf:compositionProjectionDigest ?projectionDigest ; usf:compositionPermutationPayloadDigest ?permutationPayloadDigest ;
+        usf:compositionProofEvidence ?evidence ; usf:compositionProofDigest ?proofDigest ;
+        usf:requiredFacetCount ?required ; usf:coveredFacetCount ?required ; usf:requiredPortCount ?ports ; usf:implementedPortCount ?ports ;
+        usf:orphanResponsibilityCount 0 ; usf:duplicateResponsibilityCount 0 ; usf:invalidDependencyCount 0 ; usf:incompatibleInterfaceCount 0 ;
+        usf:incompatibleComponentVersionCount 0 ;
+        usf:unusedComponentCount 0 ; usf:unclassifiedPermutationCount 0 } }
+    BIND("compositioncoverageproofstaleormissing" AS ?violation)
+  } UNION {
+    ?option a usf:ComposedRealisationOption ; usf:hasCompositionCoverageProof ?subject .
+    ?subject usf:requiredFacetCount ?required ; usf:coveredFacetCount ?covered .
+    FILTER(?required != ?covered)
+    BIND("compositionfacetuncovered" AS ?violation)
+  } UNION {
+    ?option a usf:ComposedRealisationOption ; usf:hasCompositionCoverageProof ?subject .
+    ?subject usf:incompatibleComponentVersionCount ?incompatible .
+    FILTER(?incompatible != 0)
+    BIND("componentversionincompatible" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?subject .
+    ?subject a usf:ComposedRealisationOption .
+    FILTER NOT EXISTS { ?subject usf:hasCompositionPermutationAssessment ?permutation .
+      ?permutation usf:permutationForOption ?subject ; usf:permutationDimensionSetDigest ?digest ;
+        usf:permutationCaseCount ?count ; usf:permutationDisposition ?disposition ; usf:permutationEvidence ?evidence . }
+    BIND("unclassifiedcompositionpermutation" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?subject .
+    ?subject a usf:ComposedRealisationOption .
+    FILTER(
+      NOT EXISTS { ?subject usf:hasOptionComponent/usf:componentEnvironmentBinding <urn:usf:environment:localdev> } ||
+      NOT EXISTS { ?subject usf:hasOptionComponent/usf:componentEnvironmentBinding <urn:usf:environment:hermetic> } ||
+      NOT EXISTS { ?subject usf:hasOptionComponent/usf:componentEnvironmentBinding <urn:usf:environment:productionshaped> }
+    )
+    BIND("selectedproviderenvironmentbindingsmissing" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?evaluation ; usf:selectsOption ?option .
+    ?option usf:hasOptionComponent ?subject . ?evaluation usf:hasCriterionRequirement ?criterionRequirement .
+    ?criterionRequirement usf:requiresCriterion ?criterion ; usf:criterionApplicability <urn:usf:criterionapplicability:applicable> .
+    FILTER NOT EXISTS { ?assessment a usf:CriterionAssessment ; usf:assessmentForEvaluation ?evaluation ; usf:assessmentForOption ?option ; usf:assessmentForComponent ?subject ; usf:assessmentForCriterion ?criterion }
+    BIND("componentcriterionassessmentmissing" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?evaluation ; usf:selectsOption ?option .
+    ?option usf:hasOptionComponent ?subject . ?evaluation usf:hasCriterionRequirement ?criterionRequirement .
+    ?criterionRequirement usf:requiresCriterion ?criterion ; usf:criterionApplicability <urn:usf:criterionapplicability:applicable> .
+    ?left a usf:CriterionAssessment ; usf:assessmentForEvaluation ?evaluation ; usf:assessmentForOption ?option ; usf:assessmentForComponent ?subject ; usf:assessmentForCriterion ?criterion .
+    ?right a usf:CriterionAssessment ; usf:assessmentForEvaluation ?evaluation ; usf:assessmentForOption ?option ; usf:assessmentForComponent ?subject ; usf:assessmentForCriterion ?criterion .
+    FILTER(?left != ?right)
+    BIND("componentcriterionassessmentduplicate" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?evaluation ; usf:selectsOption ?option .
+    ?option usf:hasOptionComponent ?component ; usf:hasComponentResponsibility ?subject .
+    ?subject usf:responsibilityForComponent ?component .
+    ?assessment a usf:CriterionAssessment ; usf:assessmentForEvaluation ?evaluation ; usf:assessmentForOption ?option ; usf:assessmentForComponent ?component ; usf:assessmentForCriterion ?criterion .
+    ?evaluation usf:hasCriterionRequirement ?criterionRequirement . ?criterionRequirement usf:requiresCriterion ?criterion ; usf:criterionApplicability <urn:usf:criterionapplicability:applicable> .
+    FILTER NOT EXISTS { ?assessment usf:assessmentForResponsibility ?subject }
+    BIND("componentassessmentresponsibilitymismatch" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?evaluation ; usf:selectsOption ?option .
+    ?option usf:hasOptionComponent ?component .
+    ?assessment a usf:CriterionAssessment ; usf:assessmentForEvaluation ?evaluation ; usf:assessmentForOption ?option ; usf:assessmentForComponent ?component ; usf:assessmentForCriterion ?criterion ; usf:assessmentForResponsibility ?subject .
+    ?evaluation usf:hasCriterionRequirement ?criterionRequirement . ?criterionRequirement usf:requiresCriterion ?criterion ; usf:criterionApplicability <urn:usf:criterionapplicability:applicable> .
+    FILTER NOT EXISTS { ?option usf:hasComponentResponsibility ?subject . ?subject usf:responsibilityForComponent ?component }
+    BIND("componentassessmentresponsibilitymismatch" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?option .
+    ?option usf:hasOptionComponent/usf:componentIdentity ?subject .
+    FILTER(NOT EXISTS { ?subject a ?oneKind . VALUES ?oneKind { usf:PackageComponent usf:RuntimeComponent usf:RepositoryLocalComponent usf:ExternalProviderComponent usf:ContainerImageComponent } } || EXISTS { ?subject a ?leftKind, ?rightKind . VALUES ?leftKind { usf:PackageComponent usf:RuntimeComponent usf:RepositoryLocalComponent usf:ExternalProviderComponent usf:ContainerImageComponent } VALUES ?rightKind { usf:PackageComponent usf:RuntimeComponent usf:RepositoryLocalComponent usf:ExternalProviderComponent usf:ContainerImageComponent } FILTER(?leftKind != ?rightKind) })
+    BIND("componentkindcardinality" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption/usf:hasOptionComponent/usf:componentIdentity ?subject .
+    ?subject a usf:RepositoryLocalComponent .
+    FILTER NOT EXISTS { ?subject usf:componentVersion "source-digest-bound" ; usf:componentIntegrityDigest ?digest ; usf:componentImplementationSourceDigest ?digest ; usf:componentToolchainDigest ?toolchain ; usf:componentDependencyLockDigest ?lock ; usf:componentAcquisitionSource "urn:usf:repository:usf"^^<http://www.w3.org/2001/XMLSchema#anyURI> . FILTER(REGEX(?digest, "^sha256:[0-9a-f]{64}$") && REGEX(?toolchain, "^sha256:[0-9a-f]{64}$") && REGEX(?lock, "^sha256:[0-9a-f]{64}$")) }
+    BIND("repositorylocalsourcedigestmissing" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption/usf:hasOptionComponent ?subject .
+    ?subject usf:componentRole <urn:usf:componentrole:provider> ; usf:componentEnvironmentBinding ?environment ; usf:componentProviderMode ?mode .
+    FILTER NOT EXISTS { ?subject usf:componentProviderBinding ?binding . ?binding usf:inEnvironment ?environment ; usf:hasProviderMode ?mode ; usf:bindsProvider ?provider ; usf:bindsPort ?port . ?provider usf:hasProviderMode ?mode ; usf:fulfilsPort ?port }
+    BIND("externalproviderbindingmissing" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption/usf:hasOptionComponent/usf:componentIdentity ?subject .
+    ?subject a usf:ContainerImageComponent .
+    FILTER NOT EXISTS { ?subject usf:componentAcquisitionSource ?reference ; usf:componentIntegrityDigest ?digest . FILTER(REGEX(STR(?reference), "@sha256:[0-9a-f]{64}$") && CONCAT("sha256:", REPLACE(STR(?reference), "^.*@sha256:", "")) = ?digest) }
+    BIND("containerimagemutablereference" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?option .
+    ?option usf:hasOptionComponent ?subject, ?target . ?subject usf:dependsOnOptionComponent ?target ; usf:componentIdentity ?sourceIdentity ; usf:componentInterface ?interface .
+    ?target usf:componentIdentity ?targetIdentity ; usf:componentInterface ?interface .
+    ?sourceIdentity usf:componentVersion ?sourceVersion ; usf:componentIntegrityDigest ?sourceDigest . ?targetIdentity usf:componentVersion ?targetVersion ; usf:componentIntegrityDigest ?targetDigest .
+    FILTER NOT EXISTS { ?compatibility a usf:ComponentCompatibilityAssessment ; usf:compatibilityForSourceComponent ?subject ; usf:compatibilityForTargetComponent ?target ; usf:compatibilityForInterface ?interface ; usf:compatibilitySourceVersion ?sourceVersion ; usf:compatibilityTargetVersion ?targetVersion ; usf:compatibilitySourceIntegrityDigest ?sourceDigest ; usf:compatibilityTargetIntegrityDigest ?targetDigest ; usf:compatibilitySuccessful true ; usf:compatibilityCurrent true ; usf:compatibilityEvidence ?evidence . ?evidence usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted> ; usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh> ; usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid> ; usf:withinValidityScope true }
+    BIND("compositioninterfaceincompatible" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?subject .
+    ?subject a usf:ComposedRealisationOption .
+    FILTER NOT EXISTS { ?subject usf:hasCompositionPermutationAssessment ?assessment . ?assessment usf:usesPermutationRuleSet ?ruleSet . ?ruleSet usf:permutationRuleSetDigest ?digest ; usf:hasPermutationDimension ?dimension ; usf:hasPermutationClassificationRule ?rule, ?defaultRule . ?dimension usf:permutationDimensionKey ?key ; usf:permutationAllowedValue ?value . ?rule usf:permutationRulePriority ?priority ; usf:permutationRuleDisposition ?disposition ; usf:permutationRuleDefault ?default ; usf:permutationRuleEvidence ?evidence . ?defaultRule usf:permutationRuleDefault true . FILTER NOT EXISTS { ?ruleSet usf:hasPermutationClassificationRule ?otherDefault . ?otherDefault usf:permutationRuleDefault true . FILTER(?otherDefault != ?defaultRule) } }
+    BIND("permutationrulesetinvalid" AS ?violation)
+  } UNION {
+    ?subject a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> .
+    FILTER(
+      NOT EXISTS { ?mapping a usf:SelectedOptionRealisationMapping ; usf:mappingForDecision ?subject ; usf:mappingState <urn:usf:mappingstate:active> } ||
+      EXISTS { ?left a usf:SelectedOptionRealisationMapping ; usf:mappingForDecision ?subject ; usf:mappingState <urn:usf:mappingstate:active> . ?right a usf:SelectedOptionRealisationMapping ; usf:mappingForDecision ?subject ; usf:mappingState <urn:usf:mappingstate:active> . FILTER(?left != ?right) }
+    )
+    BIND("selectedoptionrealisationmappingcardinality" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?option . ?option usf:hasOptionComponent ?subject .
+    FILTER(
+      NOT EXISTS { ?mapping a usf:SelectedComponentConcreteMapping ; usf:componentMappingForOption ?option ; usf:componentMappingForComponent ?subject ; usf:mappingState <urn:usf:mappingstate:active> } ||
+      EXISTS { ?left a usf:SelectedComponentConcreteMapping ; usf:componentMappingForOption ?option ; usf:componentMappingForComponent ?subject ; usf:mappingState <urn:usf:mappingstate:active> . ?right a usf:SelectedComponentConcreteMapping ; usf:componentMappingForOption ?option ; usf:componentMappingForComponent ?subject ; usf:mappingState <urn:usf:mappingstate:active> . FILTER(?left != ?right) }
+    )
+    BIND("selectedcomponentconcretemappingcardinality" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?evaluation ; usf:selectsOption ?option .
+    ?evaluation usf:evaluationAuthorityDigest ?authorityDigest ; usf:evaluationEvidenceDigest ?evidenceDigest ; usf:evaluationImplementationSourceDigest ?implementationDigest .
+    { ?decision usf:decisionForContract ?contract .
+      ?subject a usf:SelectedOptionRealisationMapping ; usf:mappingForDecision ?decision ; usf:mappingState <urn:usf:mappingstate:active> .
+      FILTER NOT EXISTS { ?subject usf:mappingForEvaluation ?evaluation ; usf:mappingForSelectedOption ?option ; usf:mappingToRealisation ?realisation ; usf:mappingAuthorityDigest ?authorityDigest ; usf:mappingEvaluationDigest ?evidenceDigest ; usf:mappingImplementationSourceDigest ?implementationDigest . ?realisation usf:authorisedByDecision ?decision ; usf:realisesContract ?contract ; usf:realisesOption ?option }
+    }
+    UNION
+    { ?option usf:hasOptionComponent ?component . ?subject a usf:SelectedComponentConcreteMapping ; usf:componentMappingForOption ?option ; usf:componentMappingForComponent ?component ; usf:mappingState <urn:usf:mappingstate:active> .
+      FILTER NOT EXISTS { ?subject usf:mappingAuthorityDigest ?authorityDigest ; usf:mappingEvaluationDigest ?evidenceDigest ; usf:mappingImplementationSourceDigest ?implementationDigest }
+    }
+    BIND("selectionmappingdependencydrift" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?option .
+    ?option usf:hasOptionComponent ?component . ?component usf:componentIdentity ?identity ; usf:componentRole ?role .
+    ?subject a usf:SelectedComponentConcreteMapping ; usf:componentMappingForOption ?option ; usf:componentMappingForComponent ?component ; usf:mappingState <urn:usf:mappingstate:active> .
+    FILTER(
+      EXISTS { ?subject usf:componentMappingToImplementation ?target . FILTER NOT EXISTS { ?target a usf:Implementation } } ||
+      EXISTS { ?subject usf:componentMappingToAdapter ?target . FILTER NOT EXISTS { ?target a usf:Adapter } } ||
+      EXISTS { ?subject usf:componentMappingToProviderBinding ?target . FILTER NOT EXISTS { ?target a usf:Binding . ?component usf:componentProviderBinding ?target } } ||
+      EXISTS { ?component usf:componentProviderBinding ?required . FILTER NOT EXISTS { ?subject usf:componentMappingToProviderBinding ?required . ?required a usf:Binding } } ||
+      EXISTS { ?subject usf:componentMappingToDependencyBinding ?target . FILTER NOT EXISTS { ?identity usf:componentVersion ?version ; usf:componentIntegrityDigest ?integrity ; usf:componentDependencyLockDigest ?lock ; usf:componentAcquisitionSource ?source . ?target a usf:DependencyBinding ; usf:dependencyBindingForComponentIdentity ?identity ; usf:dependencyBindingVersion ?version ; usf:dependencyBindingIntegrityDigest ?integrity ; usf:dependencyBindingLockDigest ?lock ; usf:dependencyBindingAcquisitionSource ?source ; usf:dependencyBindingRepresentation ?representation ; usf:dependencyBindingMaterialisationRule ?materialisationRule } }
+    )
+    BIND("selectedcomponentconcretemappingtypemismatch" AS ?violation)
+  } UNION {
+    ?subject a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?evaluation .
+    FILTER NOT EXISTS {
+      ?evaluation usf:independentSelectionBasis true ; usf:selectionBasisEvidence ?evidence .
+      ?evidence usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted> ;
+        usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh> ; usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid> ;
+        usf:withinValidityScope true .
+    }
+    BIND("selectionbasisnotindependentlywarranted" AS ?violation)
+  } UNION {
+    ?subject a usf:Realisation ; usf:realisationState <urn:usf:realisationstate:implementable> ; usf:authorisedByDecision ?decision .
+    FILTER NOT EXISTS { ?decision usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?selected ; usf:hasDecisionEvaluation ?evaluation .
+      ?evaluation usf:evaluationForDecision ?decision ; usf:evaluationClosureState <urn:usf:evaluationclosurestate:complete> . }
+    BIND("activerealisationevaluationincomplete" AS ?violation)
+  } UNION {
+    ?subject a usf:SemanticContract ; usf:hasActivationState <urn:usf:contractactivationstate:active> ;
+      usf:requiresRealisationOptionEvaluation true .
+    FILTER NOT EXISTS {
+      ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ;
+        usf:decisionForContract ?subject ; usf:hasDecisionEvaluation ?evaluation .
+      ?evaluation a usf:DecisionEvaluation ; usf:evaluationForDecision ?decision .
+    }
+    BIND("activecontractselectionevaluationmissing" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?subject .
+    FILTER NOT EXISTS {
+      ?subject usf:evaluationAuthorityDigest ?authorityDigest ; usf:evaluationDependencySetDigest ?dependencyDigest ;
+        usf:evaluationEvidenceDigest ?evidenceDigest ; usf:evaluationImplementationSourceDigest ?implementationDigest ;
+        usf:evaluationProducerDigest ?producerDigest ; usf:selectionBasisEvidence ?evidence .
+      ?evidence a usf:EvidenceResult ; usf:contentDigest ?evidenceDigest ; usf:evaluatedAuthorityDigest ?authorityDigest ;
+        usf:evidenceProducerDigest ?producerDigest ; usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted> ;
+        usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh> ; usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid> ;
+        usf:withinValidityScope true .
+      ?collection a usf:EvidenceCollection ; usf:collectedEvidence ?evidence ; usf:sourceDigest ?dependencyDigest .
+      FILTER(REGEX(?implementationDigest, "^sha256:[0-9a-f]{64}$"))
+    }
+    BIND("evaluationdigestbindingincoherent" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?evaluation .
+    ?evaluation usf:hasCriterionRequirement ?subject .
+    FILTER(
+      NOT EXISTS { ?subject usf:criterionForEvaluation ?evaluation } ||
+      NOT EXISTS { ?subject usf:requiresCriterion ?criterion } ||
+      NOT EXISTS { ?subject usf:criterionApplicability ?applicability } ||
+      NOT EXISTS { ?subject usf:criterionMandatory ?mandatory . FILTER(DATATYPE(?mandatory) = <http://www.w3.org/2001/XMLSchema#boolean>) } ||
+      EXISTS { ?subject usf:criterionApplicability <urn:usf:criterionapplicability:notapplicable> ; usf:criterionMandatory true }
+    )
+    BIND("criterionrequirementmetadatainvalid" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:hasDecisionEvaluation ?evaluation .
+    ?evaluation usf:evaluationAuthorityDigest ?authorityDigest ; usf:evaluationEvidenceDigest ?evidenceDigest ;
+      usf:evaluationProducerDigest ?producerDigest ; usf:hasCandidateCredibilityAssessment ?credibility ; usf:hasCriterionRequirement ?requirement .
+    ?credibility usf:credibilityForOption ?option ; usf:credibilityState <urn:usf:candidatecredibilitystate:credible> .
+    ?requirement usf:requiresCriterion ?criterion ; usf:criterionApplicability <urn:usf:criterionapplicability:applicable> ; usf:criterionMandatory true .
+    ?subject a usf:CriterionAssessment ; usf:assessmentForEvaluation ?evaluation ; usf:assessmentForOption ?option ;
+      usf:assessmentForCriterion ?criterion .
+    FILTER NOT EXISTS { ?subject usf:assessmentResult <urn:usf:assessmentresult:satisfies> }
+    FILTER NOT EXISTS {
+      ?subject usf:assessmentMitigation ?mitigation .
+      ?mitigation a usf:CriterionMitigation ; usf:mitigationAccepted true ; usf:mitigationStatement ?statement ;
+        usf:mitigationEvidence ?evidence ; usf:mitigationInvalidationCondition ?invalidation .
+      ?evidence a usf:EvidenceResult ; usf:contentDigest ?evidenceDigest ; usf:evaluatedAuthorityDigest ?authorityDigest ;
+        usf:evidenceProducerDigest ?producerDigest ; usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted> ;
+        usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh> ; usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid> ;
+        usf:withinValidityScope true .
+    }
+    BIND("mandatorycriterionunsatisfiedorunmitigated" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?option .
+    ?option a usf:ComposedRealisationOption ; usf:hasOptionComponent ?subject .
+    FILTER(
+      NOT EXISTS { ?subject usf:componentForOption ?option } ||
+      NOT EXISTS { ?subject usf:componentIdentity ?identity } ||
+      NOT EXISTS { ?subject usf:componentRole ?role } ||
+      NOT EXISTS { ?subject usf:componentResponsibility ?statement } ||
+      NOT EXISTS { ?subject usf:componentDataOwnershipBoundary ?dataBoundary } ||
+      NOT EXISTS { ?subject usf:componentTransactionBoundary ?transactionBoundary } ||
+      NOT EXISTS { ?subject usf:componentSecurityBoundary ?securityBoundary } ||
+      NOT EXISTS { ?subject usf:componentSecretBoundary ?secretBoundary } ||
+      NOT EXISTS { ?subject usf:componentDeploymentBoundary ?deploymentBoundary } ||
+      NOT EXISTS { ?subject usf:componentFailurePropagation ?failurePropagation } ||
+      NOT EXISTS { ?subject usf:componentRetryPolicy ?retryPolicy } ||
+      NOT EXISTS { ?subject usf:componentTimeoutPolicy ?timeoutPolicy } ||
+      NOT EXISTS { ?subject usf:componentUpgradeCompatibility ?upgradeCompatibility } ||
+      NOT EXISTS { ?subject usf:componentRollbackOrder ?rollbackOrder } ||
+      NOT EXISTS { ?subject usf:componentReplacementBoundary ?replacementBoundary }
+    )
+    BIND("compositioncomponentboundaryincomplete" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ;
+      usf:decisionForContract ?contract ; usf:selectsOption ?option .
+    ?option a usf:ComposedRealisationOption .
+    { ?contract usf:declaresFacet ?subject }
+    UNION
+    { ?subject a usf:Port ; usf:portForContract ?contract }
+    FILTER NOT EXISTS {
+      ?option usf:hasComponentResponsibility ?responsibility ; usf:hasOptionComponent ?component .
+      ?responsibility usf:responsibilityOwner ?option ; usf:responsibilityForRequirement ?subject ; usf:responsibilityForComponent ?component .
+      FILTER NOT EXISTS {
+        ?option usf:hasComponentResponsibility ?other .
+        ?other usf:responsibilityOwner ?option ; usf:responsibilityForRequirement ?subject . FILTER(?other != ?responsibility)
+      }
+    }
+    BIND("compositionrequirementresponsibilitynotexact" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:decisionForContract ?contract ; usf:selectsOption ?option .
+    ?option a usf:ComposedRealisationOption ; usf:hasOptionComponent ?source . ?source usf:dependsOnOptionComponent ?subject .
+    FILTER(?source = ?subject || NOT EXISTS { ?option usf:hasOptionComponent ?subject } || NOT EXISTS {
+      ?source usf:componentInterface ?interface . ?subject usf:componentInterface ?interface .
+      ?interface a usf:CompositionInterface ; usf:compositionInterfaceForContract ?contract .
+    })
+    BIND("compositiondependencyorinterfaceinvalid" AS ?violation)
+  } UNION {
+    ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?option .
+    ?option a usf:ComposedRealisationOption ; usf:hasOptionComponent ?subject .
+    ?subject usf:dependsOnOptionComponent+ ?subject .
+    BIND("compositiondependencycycle" AS ?violation)
+  } UNION {
+    BIND(<urn:usf:validatorrule:validaterealisationoptionevaluation> AS ?subject)
+    FILTER(
+      NOT EXISTS { ?subject usf:targetsGraph ng:vocabulary } ||
+      NOT EXISTS { ?subject usf:targetsGraph ng:capabilities } ||
+      NOT EXISTS { ?subject usf:targetsGraph ng:interfaces } ||
+      NOT EXISTS { ?subject usf:targetsGraph ng:evidence } ||
+      NOT EXISTS { ?subject usf:targetsGraph ng:bindings } ||
+      NOT EXISTS { ?subject usf:targetsGraph ng:materialisation } ||
+      NOT EXISTS { ?subject usf:targetsGraph ng:derivedreadiness } ||
+      EXISTS {
+        ?subject usf:targetsGraph ?unexpectedGraph .
+        FILTER(?unexpectedGraph NOT IN (ng:vocabulary, ng:capabilities, ng:interfaces, ng:evidence, ng:bindings, ng:materialisation, ng:derivedreadiness))
+      }
+    )
+    BIND("realisationoptionvalidatorgraphscopemismatch" AS ?violation)
   } UNION {
     # semantic contract without any realisation resource. Invariant: every
     # semantic contract carries at least a contract-only Realisation node

@@ -144,6 +144,24 @@ function recordedGraphNQuads(added, graph) {
 }
 
 function fakeClient(overrides = {}) {
+  const stable = (value) => Array.isArray(value)
+    ? value.map(stable)
+    : value && typeof value === 'object'
+      ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])]))
+      : value;
+  const canonicalJson = (value) => JSON.stringify(stable(value));
+  const sha256 = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
+  const receipt = (shapes, conforms = true) => {
+    const inputs = shapes.map(({ file, path }) => ({ path: `semantic-model/${file}`, digest: sha256(readFileSync(path)) }))
+      .sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
+    const core = {
+      conforms,
+      validatedDocumentCount: inputs.length,
+      validatedDocumentSetDigest: sha256(canonicalJson(inputs)),
+      observationSetDigest: sha256(canonicalJson(inputs.map((input) => ({ ...input, conforms })))),
+    };
+    return { ...core, receiptDigest: sha256(canonicalJson(core)) };
+  };
   const rec = { cleared: [], added: [], committed: false, rolledBack: false, began: false };
   const client = {
     async connectivity() {
@@ -178,6 +196,9 @@ function fakeClient(overrides = {}) {
     },
     async validateInTransaction() {
       return true;
+    },
+    async validateInTransactionWithReceipt(_transaction, shapes) {
+      return receipt(shapes);
     },
     async selectInTransaction(tx, q) {
       if (/REGEX/.test(q)) return [{ c: { value: '0' } }]; // contamination
@@ -471,8 +492,9 @@ test('compile: rolls back after a validation failure', async () => {
   const dir = writeGraph(baseSpec());
   const m = loadManifest(dir);
   const { client, rec } = fakeClient({
-    async validateInTransaction() {
-      return false;
+    async validateInTransactionWithReceipt(_transaction, shapes) {
+      const inputs = shapes.map(({ file, path }) => ({ path: `semantic-model/${file}`, digest: `sha256:${createHash('sha256').update(readFileSync(path)).digest('hex')}` }));
+      return { conforms: false, validatedDocumentCount: inputs.length };
     },
   });
   await assert.rejects(() => compile({ manifest: m, client }), /SHACL validation/);

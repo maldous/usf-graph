@@ -1,4 +1,7 @@
 GRAPH <urn:usf:graph:derived:readiness> {
+  <urn:usf:decisionevaluation:repositoryarchitectureandnaming> <urn:usf:ontology:evaluationClosureState> <urn:usf:evaluationclosurestate:complete> .
+  <urn:usf:decisionevaluation:semanticauthoritycontrolselection> <urn:usf:ontology:evaluationClosureState> <urn:usf:evaluationclosurestate:complete> .
+  <urn:usf:decisionevaluation:semanticmodelcompilationrealisation> <urn:usf:ontology:evaluationClosureState> <urn:usf:evaluationclosurestate:complete> .
   <urn:usf:readiness:r0313f2063509645bc844bd67e2ddc99f46809c3daf0384a037753faf826829d6> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:Readiness> .
   <urn:usf:readiness:r0313f2063509645bc844bd67e2ddc99f46809c3daf0384a037753faf826829d6> <urn:usf:ontology:canonicalName> "r0313f2063509645bc844bd67e2ddc99f46809c3daf0384a037753faf826829d6" .
   <urn:usf:readiness:r0313f2063509645bc844bd67e2ddc99f46809c3daf0384a037753faf826829d6> <urn:usf:ontology:derivedFrom> <urn:usf:capability:datagovernancecataloglineageclassificationpiidsrgdpr> .
@@ -459,6 +462,12 @@ GRAPH <urn:usf:graph:derived:readiness> {
   <urn:usf:readinessgateresult:g677f08df3ea9394793b974f5d7d1c290bf310fabf166c928be941d31aa0e4a58> <urn:usf:ontology:gateReadinessReason> <urn:usf:readinessreason:missingblockingobligation> .
   <urn:usf:readinessgateresult:g677f08df3ea9394793b974f5d7d1c290bf310fabf166c928be941d31aa0e4a58> <urn:usf:ontology:gateReadinessState> <urn:usf:readinessstate:notready> .
   <urn:usf:readinessgateresult:g677f08df3ea9394793b974f5d7d1c290bf310fabf166c928be941d31aa0e4a58> <urn:usf:ontology:gateResultOf> <urn:usf:readinessgate:artefact> .
+  <urn:usf:readinessgateresult:g79f9da3b46a4d2dc65320150998b24e62367c6b509496fed60cbc6d7d40b3c6d> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:ReadinessGateResult> .
+  <urn:usf:readinessgateresult:g79f9da3b46a4d2dc65320150998b24e62367c6b509496fed60cbc6d7d40b3c6d> <urn:usf:ontology:canonicalName> "g79f9da3b46a4d2dc65320150998b24e62367c6b509496fed60cbc6d7d40b3c6d" .
+  <urn:usf:readinessgateresult:g79f9da3b46a4d2dc65320150998b24e62367c6b509496fed60cbc6d7d40b3c6d> <urn:usf:ontology:derivedFrom> <urn:usf:readinessgate:realisationoptionevaluationclosure> .
+  <urn:usf:readinessgateresult:g79f9da3b46a4d2dc65320150998b24e62367c6b509496fed60cbc6d7d40b3c6d> <urn:usf:ontology:gateReadinessReason> <urn:usf:readinessreason:missingblockingobligation> .
+  <urn:usf:readinessgateresult:g79f9da3b46a4d2dc65320150998b24e62367c6b509496fed60cbc6d7d40b3c6d> <urn:usf:ontology:gateReadinessState> <urn:usf:readinessstate:notready> .
+  <urn:usf:readinessgateresult:g79f9da3b46a4d2dc65320150998b24e62367c6b509496fed60cbc6d7d40b3c6d> <urn:usf:ontology:gateResultOf> <urn:usf:readinessgate:realisationoptionevaluationclosure> .
   <urn:usf:readinessgateresult:g9da4e5f94dba591880812432565fca1dfb12d343943be6cf5d864dc656dd7303> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:ReadinessGateResult> .
   <urn:usf:readinessgateresult:g9da4e5f94dba591880812432565fca1dfb12d343943be6cf5d864dc656dd7303> <urn:usf:ontology:canonicalName> "g9da4e5f94dba591880812432565fca1dfb12d343943be6cf5d864dc656dd7303" .
   <urn:usf:readinessgateresult:g9da4e5f94dba591880812432565fca1dfb12d343943be6cf5d864dc656dd7303> <urn:usf:ontology:derivedFrom> <urn:usf:readinessgate:enterprise> .

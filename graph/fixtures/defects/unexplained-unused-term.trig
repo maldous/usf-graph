@@ -1,8 +1,0 @@
-# graph: urn:usf:graph:ontology
-# expect: unexplainedunusedterm
-@prefix owl: <http://www.w3.org/2002/07/owl#> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-
-<urn:usf:ontology:FixtureOrphanTerm> a owl:Class ;
-    rdfs:label "FixtureOrphanTerm" ;
-    rdfs:comment "Planted defect: a declared class with no usage and no term usage disposition." .

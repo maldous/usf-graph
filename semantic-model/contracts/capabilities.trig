@@ -2318,6 +2318,7 @@ sc:writeonlysecretsettings a usf:SemanticContract;
     usf:declaresFacet cf:writeonlysecretsettingsauditmodel, cf:writeonlysecretsettingscontracts, cf:writeonlysecretsettingserrormodel, cf:writeonlysecretsettingslifecycle, cf:writeonlysecretsettingspermissions, cf:writeonlysecretsettingsproof, cf:writeonlysecretsettingsreadinessmodel, cf:writeonlysecretsettingsstatemodel, cf:writeonlysecretsettingsuisemantics, cf:writeonlysecretsettingsvalidation.
 sc:compilersemanticenforcement a usf:SemanticContract;
     usf:canonicalName "compilersemanticenforcement";
+    usf:requiresRealisationOptionEvaluation true;
     usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:active>;
     usf:hasActivationState contractstate:active;
     usf:activationReason "Current admitted evidence and successful proof results separately establish deterministic substitute behaviour and exact live Stardog authority-control validation without conflating their environments or provider claims.";

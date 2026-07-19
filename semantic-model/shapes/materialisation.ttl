@@ -653,7 +653,7 @@ shp:RepositoryArchitectureDecisionShape a sh:NodeShape;
 _:b39_b39_n3-709 sh:path usf:decisionState;
     sh:minCount 1;
     sh:maxCount 1;
-    sh:hasValue <urn:usf:decisionstate:accepted>.
+    sh:class usf:DecisionState.
 shp:RepositoryArchitectureDecisionShape sh:property _:b39_b39_n3-709.
 _:b39_b39_n3-710 sh:path usf:decisionRationale;
     sh:minCount 1;

@@ -1,0 +1,21 @@
+{
+  "distributions": [
+    {
+      "name": "PyYAML",
+      "version": "6.0.3"
+    },
+    {
+      "name": "pyshacl",
+      "version": "0.40.0"
+    },
+    {
+      "name": "rdflib",
+      "version": "7.6.0"
+    }
+  ],
+  "python": {
+    "implementation": "CPython",
+    "version": "3.11.2"
+  },
+  "schemaVersion": 1
+}

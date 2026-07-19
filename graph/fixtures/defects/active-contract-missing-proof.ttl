@@ -1,2 +1,0 @@
-# expect: activecontractmissingproof
-@prefix usf: <urn:usf:ontology:> . @prefix contractstate: <urn:usf:contractactivationstate:> . <urn:usf:defect:activecontractmissingproof> a usf:SemanticContract ; usf:hasActivationState contractstate:active .

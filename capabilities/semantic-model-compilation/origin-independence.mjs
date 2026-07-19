@@ -29,7 +29,7 @@ const trackerWordPattern = `\\b${escapeRegex(trackerProduct)}\\b`;
 const trackerDomainPattern = `${escapeRegex(trackerProduct)}\\.${joinToken('a', 'pp')}`;
 const externalOrdinalPattern = `\\b${escapeRegex(externalOrdinalPrefix)}[0-9]+\\b`;
 const trackerFieldPattern = `\\b(?:${trackerFields.map(escapeRegex).join('|')})\\b`;
-const formerRepositoryPattern = `${escapeRegex(formerRepository)}(?:\\.git|/|\\b)`;
+const formerRepositoryPattern = `${escapeRegex(formerRepository)}(?:\\.git|/|(?![-._a-z0-9]))`;
 
 export const EXTERNAL_ORIGIN_PATTERNS = Object.freeze([
   trackerWordPattern,

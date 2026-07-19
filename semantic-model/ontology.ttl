@@ -3,6 +3,7 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
 @prefix owl: <http://www.w3.org/2002/07/owl#>.
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+@prefix sh: <http://www.w3.org/ns/shacl#>.
 
 <urn:usf:ontology> a owl:Ontology;
     rdfs:label "Universal Service Foundation ontology".
@@ -65,6 +66,160 @@ usf:RealisationDecision a owl:Class;
 usf:RealisationOption a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Realisation option".
+usf:ComposedRealisationOption a owl:Class;
+    rdfs:subClassOf usf:RealisationOption;
+    rdfs:label "Composed realisation option";
+    rdfs:comment "A candidate realisation whose fitness depends on an explicit, responsibility-bearing set of interoperating components.".
+usf:DecisionEvaluation a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Decision evaluation".
+usf:EvaluationCriterion a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Evaluation criterion".
+usf:CriterionRequirement a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Criterion requirement".
+usf:CriterionAssessment a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Criterion assessment".
+usf:CriterionEvidenceBinding a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Criterion evidence binding".
+usf:LicenceCompatibilityPolicy a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Licence compatibility policy".
+usf:CriterionMitigation a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Criterion mitigation";
+    rdfs:comment "An explicitly accepted, evidence-backed control that closes a mandatory criterion which is not directly satisfied by an option.".
+usf:CandidateCredibilityAssessment a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Candidate credibility assessment".
+usf:SoleCandidateJustification a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Sole candidate justification".
+usf:CandidateClassExclusion a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Candidate class exclusion".
+usf:OptionRejection a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Option rejection".
+usf:RejectionReason a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Rejection reason".
+usf:OptionComponent a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Option component".
+usf:CompositionInterface a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Composition interface";
+    rdfs:comment "A contract-bound interaction boundary between selected option components. It records composition compatibility without inventing a product-runtime operation for non-runtime components.".
+usf:ComponentIdentity a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Component identity".
+usf:PackageComponent a owl:Class;
+    rdfs:subClassOf usf:ComponentIdentity;
+    rdfs:label "Package component".
+usf:RuntimeComponent a owl:Class;
+    rdfs:subClassOf usf:ComponentIdentity;
+    rdfs:label "Runtime component".
+usf:ExternalProviderComponent a owl:Class;
+    rdfs:subClassOf usf:ComponentIdentity;
+    rdfs:label "External provider component".
+usf:RepositoryLocalComponent a owl:Class;
+    rdfs:subClassOf usf:ComponentIdentity;
+    rdfs:label "Repository-local component".
+usf:ContainerImageComponent a owl:Class;
+    rdfs:subClassOf usf:ComponentIdentity;
+    rdfs:label "Container image component";
+    rdfs:comment "A third-party or repository-produced OCI component whose selected identity is an immutable digest-qualified image reference.".
+usf:ComponentResponsibility a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Component responsibility".
+usf:ComponentIntegrityConstraint a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Component integrity constraint".
+usf:LicenceAssessment a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Licence assessment".
+usf:VulnerabilityAssessment a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Vulnerability assessment".
+usf:SupplyChainAssessment a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Supply-chain assessment".
+usf:PortabilityAssessment a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Portability and exit assessment".
+usf:CompositionCoverageProof a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Composition coverage proof".
+usf:CompositionPermutationAssessment a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Composition permutation assessment".
+usf:ComponentCompatibilityAssessment a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Component compatibility assessment";
+    rdfs:comment "Evidence-backed compatibility of exact component versions and integrity identities across one declared dependency interface.".
+usf:CandidateSearchSpace a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Candidate search space";
+    rdfs:comment "A finite, digest-bound set of materially different realisation classes considered for a proven sole-candidate decision.".
+usf:RealisationClass a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Realisation class".
+usf:PermutationDimension a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation dimension".
+usf:PermutationRuleSet a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation rule set".
+usf:PermutationClassificationRule a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation classification rule".
+usf:PermutationCondition a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation condition".
+usf:PermutationEquivalenceProof a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation equivalence proof".
+usf:SelectedOptionRealisationMapping a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Selected option realisation mapping".
+usf:SelectedComponentConcreteMapping a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Selected component concrete mapping".
+usf:DependencyBinding a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Dependency binding";
+    rdfs:comment "A digest-bound mapping from one selected component identity to its exact acquired dependency representation.".
+usf:ValidationFailureCode a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Validation failure code".
+usf:ValidationLayer a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Validation layer".
+usf:EvaluationClosureState a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Evaluation closure state".
+usf:AssessmentResult a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Assessment result".
+usf:CriterionApplicability a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Criterion applicability".
+usf:CandidateCredibilityState a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Candidate credibility state".
+usf:RejectionDuration a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Rejection duration".
+usf:ComponentRole a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Component role".
+usf:PermutationDisposition a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation disposition".
 usf:RepresentationDecision a owl:Class;
     rdfs:subClassOf usf:RealisationDecision;
     rdfs:label "Representation decision".
@@ -149,6 +304,12 @@ usf:supportsClaim a owl:ObjectProperty;
     rdfs:domain usf:EvidenceResult;
     rdfs:range usf:Claim.
 usf:contentDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceResult;
+    rdfs:range xsd:string.
+usf:evidenceProducerDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceResult;
+    rdfs:range xsd:string.
+usf:evaluatedAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:EvidenceResult;
     rdfs:range xsd:string.
 usf:mediaType a owl:DatatypeProperty, owl:FunctionalProperty;
@@ -309,6 +470,9 @@ usf:warrantsFeature a owl:ObjectProperty;
 usf:contractConstraint a owl:DatatypeProperty;
     rdfs:domain usf:SemanticContract;
     rdfs:range xsd:string.
+usf:requiresRealisationOptionEvaluation a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticContract;
+    rdfs:range xsd:boolean.
 usf:permittedRealisationType a owl:ObjectProperty;
     rdfs:domain usf:SemanticContract;
     rdfs:range owl:Class.
@@ -318,6 +482,9 @@ usf:requiredValidation a owl:ObjectProperty;
 usf:authorisedByDecision a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:Realisation;
     rdfs:range usf:RealisationDecision.
+usf:realisesOption a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:Realisation;
+    rdfs:range usf:RealisationOption.
 usf:authorisedSourcePath a owl:DatatypeProperty;
     rdfs:domain usf:Realisation;
     rdfs:range xsd:string.
@@ -357,6 +524,704 @@ usf:decisionState a owl:ObjectProperty, owl:FunctionalProperty;
 usf:considersOption a owl:ObjectProperty;
     rdfs:domain usf:RealisationDecision;
     rdfs:range usf:RealisationOption.
+usf:decisionForContract a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:RealisationDecision;
+    rdfs:range usf:SemanticContract.
+usf:selectsOption a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:RealisationDecision;
+    rdfs:range usf:RealisationOption.
+usf:hasDecisionEvaluation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:RealisationDecision;
+    rdfs:range usf:DecisionEvaluation.
+usf:evaluationForDecision a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DecisionEvaluation;
+    rdfs:range usf:RealisationDecision.
+usf:evaluationClosureState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DecisionEvaluation;
+    rdfs:range usf:EvaluationClosureState.
+usf:evaluationAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DecisionEvaluation;
+    rdfs:range xsd:string.
+usf:evaluationDependencySetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DecisionEvaluation;
+    rdfs:range xsd:string.
+usf:evaluationEvidenceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DecisionEvaluation;
+    rdfs:range xsd:string.
+usf:evaluationImplementationSourceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DecisionEvaluation;
+    rdfs:range xsd:string.
+usf:evaluationProducerDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DecisionEvaluation;
+    rdfs:range xsd:string.
+usf:evaluationEvidenceResult a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DecisionEvaluation;
+    rdfs:range usf:CompositeEvidenceResult;
+    rdfs:comment "The exact current composite evidence result whose authority, content and producer bindings govern the decision evaluation.".
+usf:independentSelectionBasis a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DecisionEvaluation;
+    rdfs:range xsd:boolean.
+usf:selectionBasisEvidence a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DecisionEvaluation;
+    rdfs:range usf:EvidenceResult.
+usf:evaluationInvalidationCondition a owl:DatatypeProperty;
+    rdfs:domain usf:DecisionEvaluation;
+    rdfs:range xsd:string.
+usf:hasCriterionRequirement a owl:ObjectProperty;
+    rdfs:domain usf:DecisionEvaluation;
+    rdfs:range usf:CriterionRequirement.
+usf:criterionForEvaluation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionRequirement;
+    rdfs:range usf:DecisionEvaluation.
+usf:requiresCriterion a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionRequirement;
+    rdfs:range usf:EvaluationCriterion.
+usf:criterionApplicability a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionRequirement;
+    rdfs:range usf:CriterionApplicability.
+usf:criterionMandatory a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionRequirement;
+    rdfs:range xsd:boolean.
+usf:applicabilityJustification a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionRequirement;
+    rdfs:range xsd:string.
+usf:hasCriterionAssessment a owl:ObjectProperty;
+    rdfs:domain usf:DecisionEvaluation;
+    rdfs:range usf:CriterionAssessment.
+usf:assessmentForEvaluation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionAssessment;
+    rdfs:range usf:DecisionEvaluation.
+usf:assessmentForOption a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionAssessment;
+    rdfs:range usf:RealisationOption.
+usf:assessmentForComponent a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionAssessment;
+    rdfs:range usf:OptionComponent.
+usf:assessmentForCriterion a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionAssessment;
+    rdfs:range usf:EvaluationCriterion.
+usf:assessmentForResponsibility a owl:ObjectProperty;
+    rdfs:domain usf:CriterionAssessment;
+    rdfs:range usf:ComponentResponsibility.
+usf:assessmentResult a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionAssessment;
+    rdfs:range usf:AssessmentResult.
+usf:assessmentMethod a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionAssessment;
+    rdfs:range xsd:string.
+usf:assessmentEvidence a owl:ObjectProperty;
+    rdfs:domain usf:CriterionAssessment;
+    rdfs:range usf:EvidenceResult.
+usf:assessmentAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionAssessment;
+    rdfs:range xsd:string.
+usf:assessmentEvidenceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionAssessment;
+    rdfs:range xsd:string.
+usf:assessmentConfidence a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionAssessment;
+    rdfs:range xsd:decimal.
+usf:assessmentLimitation a owl:DatatypeProperty;
+    rdfs:domain usf:CriterionAssessment;
+    rdfs:range xsd:string.
+usf:assessmentMitigation a owl:ObjectProperty;
+    rdfs:domain usf:CriterionAssessment;
+    rdfs:range usf:CriterionMitigation.
+usf:mitigationAccepted a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionMitigation;
+    rdfs:range xsd:boolean.
+usf:mitigationStatement a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionMitigation;
+    rdfs:range xsd:string.
+usf:mitigationEvidence a owl:ObjectProperty;
+    rdfs:domain usf:CriterionMitigation;
+    rdfs:range usf:EvidenceResult.
+usf:mitigationInvalidationCondition a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionMitigation;
+    rdfs:range xsd:string.
+usf:hasCriterionEvidenceBinding a owl:ObjectProperty;
+    rdfs:domain usf:CriterionAssessment;
+    rdfs:range usf:CriterionEvidenceBinding.
+usf:bindingForAssessment a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionEvidenceBinding;
+    rdfs:range usf:CriterionAssessment.
+usf:bindingEvidenceResult a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionEvidenceBinding;
+    rdfs:range usf:EvidenceResult.
+usf:bindingAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionEvidenceBinding;
+    rdfs:range xsd:string.
+usf:bindingEvidenceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionEvidenceBinding;
+    rdfs:range xsd:string.
+usf:bindingSupportingManifest a owl:ObjectProperty;
+    rdfs:domain usf:CriterionEvidenceBinding;
+    rdfs:range usf:EvidenceScopeManifest.
+usf:bindingSupportDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CriterionEvidenceBinding;
+    rdfs:range xsd:string.
+usf:hasCandidateCredibilityAssessment a owl:ObjectProperty;
+    rdfs:domain usf:DecisionEvaluation;
+    rdfs:range usf:CandidateCredibilityAssessment.
+usf:credibilityForEvaluation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CandidateCredibilityAssessment;
+    rdfs:range usf:DecisionEvaluation.
+usf:credibilityForOption a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CandidateCredibilityAssessment;
+    rdfs:range usf:RealisationOption.
+usf:credibilityState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CandidateCredibilityAssessment;
+    rdfs:range usf:CandidateCredibilityState.
+usf:credibilityBasis a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CandidateCredibilityAssessment;
+    rdfs:range xsd:string.
+usf:credibilityEvidence a owl:ObjectProperty;
+    rdfs:domain usf:CandidateCredibilityAssessment;
+    rdfs:range usf:EvidenceResult.
+usf:hasSoleCandidateJustification a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DecisionEvaluation;
+    rdfs:range usf:SoleCandidateJustification.
+usf:soleCandidateForOption a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SoleCandidateJustification;
+    rdfs:range usf:RealisationOption.
+usf:candidateDiscoveryCriteria a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CandidateSearchSpace;
+    rdfs:range xsd:string.
+usf:hasCandidateSearchSpace a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SoleCandidateJustification;
+    rdfs:range usf:CandidateSearchSpace.
+usf:searchesRealisationClass a owl:ObjectProperty;
+    rdfs:domain usf:CandidateSearchSpace;
+    rdfs:range usf:RealisationClass.
+usf:candidateSearchSpaceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CandidateSearchSpace;
+    rdfs:range xsd:string.
+usf:candidateSearchEvidence a owl:ObjectProperty;
+    rdfs:domain usf:CandidateSearchSpace;
+    rdfs:range usf:EvidenceResult.
+usf:candidateSearchInvalidationCondition a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CandidateSearchSpace;
+    rdfs:range xsd:string.
+usf:representsRealisationClass a owl:ObjectProperty;
+    rdfs:domain usf:RealisationOption;
+    rdfs:range usf:RealisationClass.
+usf:hasCandidateClassExclusion a owl:ObjectProperty;
+    rdfs:domain usf:SoleCandidateJustification;
+    rdfs:range usf:CandidateClassExclusion.
+usf:excludedRealisationClass a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CandidateClassExclusion;
+    rdfs:range xsd:string.
+usf:excludesRealisationClass a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CandidateClassExclusion;
+    rdfs:range usf:RealisationClass.
+usf:exclusionReason a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CandidateClassExclusion;
+    rdfs:range xsd:string.
+usf:exclusionEvidence a owl:ObjectProperty;
+    rdfs:domain usf:CandidateClassExclusion;
+    rdfs:range usf:EvidenceResult.
+usf:soleCandidateEvidence a owl:ObjectProperty;
+    rdfs:domain usf:SoleCandidateJustification;
+    rdfs:range usf:EvidenceResult.
+usf:soleCandidateInvalidationCondition a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SoleCandidateJustification;
+    rdfs:range xsd:string.
+usf:hasOptionRejection a owl:ObjectProperty;
+    rdfs:domain usf:DecisionEvaluation;
+    rdfs:range usf:OptionRejection.
+usf:rejectionForEvaluation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionRejection;
+    rdfs:range usf:DecisionEvaluation.
+usf:rejectsOption a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionRejection;
+    rdfs:range usf:RealisationOption.
+usf:hasRejectionReason a owl:ObjectProperty;
+    rdfs:domain usf:OptionRejection;
+    rdfs:range usf:RejectionReason.
+usf:rejectionCriterion a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:RejectionReason;
+    rdfs:range usf:EvaluationCriterion.
+usf:rejectionRequirement a owl:ObjectProperty;
+    rdfs:domain usf:RejectionReason;
+    rdfs:range usf:Entity.
+usf:rejectionEvidence a owl:ObjectProperty;
+    rdfs:domain usf:RejectionReason;
+    rdfs:range usf:EvidenceResult.
+usf:rejectionDuration a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:RejectionReason;
+    rdfs:range usf:RejectionDuration.
+usf:rejectionStatement a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:RejectionReason;
+    rdfs:range xsd:string.
+usf:reopeningCondition a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:RejectionReason;
+    rdfs:range xsd:string.
+usf:hasOptionComponent a owl:ObjectProperty;
+    rdfs:domain usf:ComposedRealisationOption;
+    rdfs:range usf:OptionComponent.
+usf:componentForOption a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range usf:ComposedRealisationOption.
+usf:componentIdentity a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range usf:ComponentIdentity.
+usf:componentRole a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range usf:ComponentRole.
+usf:componentResponsibility a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range xsd:string.
+usf:dependsOnOptionComponent a owl:ObjectProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range usf:OptionComponent.
+usf:componentInterface a owl:ObjectProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range usf:CompositionInterface.
+usf:compositionInterfaceForContract a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionInterface;
+    rdfs:range usf:SemanticContract.
+usf:compositionInterfaceResponsibility a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionInterface;
+    rdfs:range xsd:string.
+usf:compositionInterfaceSecurityBoundary a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionInterface;
+    rdfs:range xsd:string.
+usf:compositionInterfaceFailureBehaviour a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionInterface;
+    rdfs:range xsd:string.
+usf:componentProviderMode a owl:ObjectProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range usf:ProviderMode.
+usf:componentProviderBinding a owl:ObjectProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range usf:Binding.
+usf:componentEnvironmentBinding a owl:ObjectProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range usf:Environment.
+usf:componentDataOwnershipBoundary a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range xsd:string.
+usf:componentTransactionBoundary a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range xsd:string.
+usf:componentSecurityBoundary a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range xsd:string.
+usf:componentSecretBoundary a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range xsd:string.
+usf:componentDeploymentBoundary a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range xsd:string.
+usf:componentFailurePropagation a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range xsd:string.
+usf:componentRetryPolicy a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range xsd:string.
+usf:componentTimeoutPolicy a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range xsd:string.
+usf:componentUpgradeCompatibility a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range xsd:string.
+usf:componentRollbackOrder a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range xsd:string.
+usf:componentReplacementBoundary a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OptionComponent;
+    rdfs:range xsd:string.
+usf:hasComponentResponsibility a owl:ObjectProperty;
+    rdfs:domain usf:ComposedRealisationOption;
+    rdfs:range usf:ComponentResponsibility.
+usf:responsibilityForComponent a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentResponsibility;
+    rdfs:range usf:OptionComponent.
+usf:responsibilityForRequirement a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentResponsibility;
+    rdfs:range usf:Entity.
+usf:responsibilityOwner a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentResponsibility;
+    rdfs:range usf:Entity.
+usf:responsibilityCoordinationRule a owl:DatatypeProperty;
+    rdfs:domain usf:ComponentResponsibility;
+    rdfs:range xsd:string.
+usf:componentVersion a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentIdentity;
+    rdfs:range xsd:string.
+usf:componentDistributionSource a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentIdentity;
+    rdfs:range xsd:string.
+usf:componentIntegrityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentIdentity;
+    rdfs:range xsd:string.
+usf:componentObservationDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentIdentity;
+    rdfs:range xsd:string.
+usf:componentAcquisitionSource a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentIdentity;
+    rdfs:range xsd:anyURI.
+usf:componentDependencyLockDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentIdentity;
+    rdfs:range xsd:string.
+usf:componentImplementationSourceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentIdentity;
+    rdfs:range xsd:string.
+usf:componentToolchainDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentIdentity;
+    rdfs:range xsd:string.
+usf:componentPatchPolicy a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentIdentity;
+    rdfs:range xsd:string.
+usf:componentContinuityRule a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentIdentity;
+    rdfs:range xsd:string.
+usf:hasIntegrityConstraint a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentIdentity;
+    rdfs:range usf:ComponentIntegrityConstraint.
+usf:integrityConstraintDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentIntegrityConstraint;
+    rdfs:range xsd:string.
+usf:hasLicenceAssessment a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentIdentity;
+    rdfs:range usf:LicenceAssessment.
+usf:licenceIdentifier a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:LicenceAssessment;
+    rdfs:range xsd:string.
+usf:licenceEvidence a owl:ObjectProperty;
+    rdfs:domain usf:LicenceAssessment;
+    rdfs:range usf:EvidenceResult.
+usf:licenceCompatible a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:LicenceAssessment;
+    rdfs:range xsd:boolean.
+usf:licenceUsageContext a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:LicenceAssessment;
+    rdfs:range xsd:string.
+usf:licenceAssessmentMethod a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:LicenceAssessment;
+    rdfs:range xsd:string.
+usf:licenceAssessmentLimitation a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:LicenceAssessment;
+    rdfs:range xsd:string.
+usf:licenceCompatibilityCondition a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:LicenceAssessment;
+    rdfs:range xsd:string.
+usf:usesLicenceCompatibilityPolicy a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:LicenceAssessment;
+    rdfs:range usf:LicenceCompatibilityPolicy.
+usf:licencePolicyDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:LicenceCompatibilityPolicy;
+    rdfs:range xsd:string.
+usf:licencePolicyRule a owl:DatatypeProperty;
+    rdfs:domain usf:LicenceCompatibilityPolicy;
+    rdfs:range xsd:string.
+usf:licencePolicyInvalidationCondition a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:LicenceCompatibilityPolicy;
+    rdfs:range xsd:string.
+usf:hasVulnerabilityAssessment a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentIdentity;
+    rdfs:range usf:VulnerabilityAssessment.
+usf:vulnerabilityScannerIdentity a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:VulnerabilityAssessment;
+    rdfs:range xsd:string.
+usf:vulnerabilityAssessedAt a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:VulnerabilityAssessment;
+    rdfs:range xsd:dateTime.
+usf:vulnerabilityEvidence a owl:ObjectProperty;
+    rdfs:domain usf:VulnerabilityAssessment;
+    rdfs:range usf:EvidenceResult.
+usf:vulnerabilityPolicy a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:VulnerabilityAssessment;
+    rdfs:range xsd:string.
+usf:acceptedVulnerabilityCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:VulnerabilityAssessment;
+    rdfs:range xsd:nonNegativeInteger.
+usf:vulnerabilityAssessmentMethod a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:VulnerabilityAssessment;
+    rdfs:range xsd:string.
+usf:vulnerabilityAssessmentScope a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:VulnerabilityAssessment;
+    rdfs:range xsd:string.
+usf:vulnerabilityAssessmentLimitation a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:VulnerabilityAssessment;
+    rdfs:range xsd:string.
+usf:vulnerabilityPolicyDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:VulnerabilityAssessment;
+    rdfs:range xsd:string.
+usf:hasSupplyChainAssessment a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentIdentity;
+    rdfs:range usf:SupplyChainAssessment.
+usf:supplyChainEvidence a owl:ObjectProperty;
+    rdfs:domain usf:SupplyChainAssessment;
+    rdfs:range usf:EvidenceResult.
+usf:supplyChainProvenance a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SupplyChainAssessment;
+    rdfs:range xsd:string.
+usf:componentDependencySetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SupplyChainAssessment;
+    rdfs:range xsd:string.
+usf:dependencyDisclosureState a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SupplyChainAssessment;
+    rdfs:range xsd:string.
+usf:supplyChainAssessmentLimitation a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SupplyChainAssessment;
+    rdfs:range xsd:string.
+usf:hasPortabilityAssessment a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentIdentity;
+    rdfs:range usf:PortabilityAssessment.
+usf:portabilityEvidence a owl:ObjectProperty;
+    rdfs:domain usf:PortabilityAssessment;
+    rdfs:range usf:EvidenceResult.
+usf:exitAndReplacementRule a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PortabilityAssessment;
+    rdfs:range xsd:string.
+usf:hasCompositionCoverageProof a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComposedRealisationOption;
+    rdfs:range usf:CompositionCoverageProof.
+usf:coverageProofForOption a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range usf:ComposedRealisationOption.
+usf:compositionProofSuccessful a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:boolean.
+usf:compositionProofCurrent a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:boolean.
+usf:compositionProofAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:string.
+usf:compositionProofImplementationDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:string.
+usf:compositionProjectionDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:string.
+usf:compositionPermutationPayloadDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:string.
+usf:compositionProofEvidence a owl:ObjectProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range usf:EvidenceResult.
+usf:compositionProofDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:string.
+usf:requiredFacetCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:coveredFacetCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:requiredPortCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:implementedPortCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:orphanResponsibilityCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:duplicateResponsibilityCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:incompatibleInterfaceCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:unusedComponentCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:invalidDependencyCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:incompatibleComponentVersionCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:unclassifiedPermutationCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionCoverageProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:hasCompositionPermutationAssessment a owl:ObjectProperty;
+    rdfs:domain usf:ComposedRealisationOption;
+    rdfs:range usf:CompositionPermutationAssessment.
+usf:permutationForOption a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionPermutationAssessment;
+    rdfs:range usf:ComposedRealisationOption.
+usf:permutationDimensionSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionPermutationAssessment;
+    rdfs:range xsd:string.
+usf:permutationCaseCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionPermutationAssessment;
+    rdfs:range xsd:positiveInteger.
+usf:permutationDisposition a owl:ObjectProperty;
+    rdfs:domain usf:CompositionPermutationAssessment;
+    rdfs:range usf:PermutationDisposition.
+usf:permutationEvidence a owl:ObjectProperty;
+    rdfs:domain usf:CompositionPermutationAssessment;
+    rdfs:range usf:EvidenceResult.
+usf:usesPermutationRuleSet a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:CompositionPermutationAssessment;
+    rdfs:range usf:PermutationRuleSet.
+usf:hasPermutationDimension a owl:ObjectProperty;
+    rdfs:domain usf:PermutationRuleSet;
+    rdfs:range usf:PermutationDimension.
+usf:permutationDimensionKey a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationDimension;
+    rdfs:range xsd:string.
+usf:permutationAllowedValue a owl:DatatypeProperty;
+    rdfs:domain usf:PermutationDimension;
+    rdfs:range xsd:string.
+usf:hasPermutationClassificationRule a owl:ObjectProperty;
+    rdfs:domain usf:PermutationRuleSet;
+    rdfs:range usf:PermutationClassificationRule.
+usf:permutationRuleSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRuleSet;
+    rdfs:range xsd:string.
+usf:permutationRulePriority a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationClassificationRule;
+    rdfs:range xsd:positiveInteger.
+usf:permutationRuleDisposition a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationClassificationRule;
+    rdfs:range usf:PermutationDisposition.
+usf:permutationRuleDefault a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationClassificationRule;
+    rdfs:range xsd:boolean.
+usf:hasPermutationCondition a owl:ObjectProperty;
+    rdfs:domain usf:PermutationClassificationRule;
+    rdfs:range usf:PermutationCondition.
+usf:permutationConditionDimension a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCondition;
+    rdfs:range xsd:string.
+usf:permutationConditionValue a owl:DatatypeProperty;
+    rdfs:domain usf:PermutationCondition;
+    rdfs:range xsd:string.
+usf:permutationRuleEvidence a owl:ObjectProperty;
+    rdfs:domain usf:PermutationClassificationRule;
+    rdfs:range usf:EvidenceResult.
+usf:permutationEquivalenceProof a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationClassificationRule;
+    rdfs:range usf:PermutationEquivalenceProof.
+usf:equivalenceProofSuccessful a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationEquivalenceProof;
+    rdfs:range xsd:boolean.
+usf:equivalenceProofCurrent a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationEquivalenceProof;
+    rdfs:range xsd:boolean.
+usf:equivalenceProofRuleSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationEquivalenceProof;
+    rdfs:range xsd:string.
+usf:equivalenceProofMatchedRowsDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationEquivalenceProof;
+    rdfs:range xsd:string.
+usf:equivalenceProofAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationEquivalenceProof;
+    rdfs:range xsd:string.
+usf:equivalenceProofImplementationDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationEquivalenceProof;
+    rdfs:range xsd:string.
+usf:equivalenceProofEvidence a owl:ObjectProperty;
+    rdfs:domain usf:PermutationEquivalenceProof;
+    rdfs:range usf:EvidenceResult.
+usf:compatibilityForSourceComponent a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentCompatibilityAssessment;
+    rdfs:range usf:OptionComponent.
+usf:compatibilityForTargetComponent a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentCompatibilityAssessment;
+    rdfs:range usf:OptionComponent.
+usf:compatibilityForInterface a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentCompatibilityAssessment;
+    rdfs:range usf:CompositionInterface.
+usf:compatibilitySourceVersion a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentCompatibilityAssessment;
+    rdfs:range xsd:string.
+usf:compatibilityTargetVersion a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentCompatibilityAssessment;
+    rdfs:range xsd:string.
+usf:compatibilitySourceIntegrityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentCompatibilityAssessment;
+    rdfs:range xsd:string.
+usf:compatibilityTargetIntegrityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentCompatibilityAssessment;
+    rdfs:range xsd:string.
+usf:compatibilitySuccessful a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentCompatibilityAssessment;
+    rdfs:range xsd:boolean.
+usf:compatibilityCurrent a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentCompatibilityAssessment;
+    rdfs:range xsd:boolean.
+usf:compatibilityEvidence a owl:ObjectProperty;
+    rdfs:domain usf:ComponentCompatibilityAssessment;
+    rdfs:range usf:EvidenceResult.
+usf:mappingForDecision a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SelectedOptionRealisationMapping;
+    rdfs:range usf:RealisationDecision.
+usf:mappingForEvaluation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SelectedOptionRealisationMapping;
+    rdfs:range usf:DecisionEvaluation.
+usf:mappingForSelectedOption a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SelectedOptionRealisationMapping;
+    rdfs:range usf:RealisationOption.
+usf:mappingToRealisation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SelectedOptionRealisationMapping;
+    rdfs:range usf:Realisation.
+usf:componentMappingForOption a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SelectedComponentConcreteMapping;
+    rdfs:range usf:RealisationOption.
+usf:componentMappingForComponent a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SelectedComponentConcreteMapping;
+    rdfs:range usf:OptionComponent.
+usf:componentMappingToImplementation a owl:ObjectProperty;
+    rdfs:domain usf:SelectedComponentConcreteMapping;
+    rdfs:range usf:Implementation.
+usf:componentMappingToAdapter a owl:ObjectProperty;
+    rdfs:domain usf:SelectedComponentConcreteMapping;
+    rdfs:range usf:Adapter.
+usf:componentMappingToProviderBinding a owl:ObjectProperty;
+    rdfs:domain usf:SelectedComponentConcreteMapping;
+    rdfs:range usf:Binding.
+usf:componentMappingToDependencyBinding a owl:ObjectProperty;
+    rdfs:domain usf:SelectedComponentConcreteMapping;
+    rdfs:range usf:DependencyBinding.
+usf:dependencyBindingForComponentIdentity a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DependencyBinding;
+    rdfs:range usf:ComponentIdentity.
+usf:dependencyBindingVersion a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DependencyBinding;
+    rdfs:range xsd:string.
+usf:dependencyBindingIntegrityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DependencyBinding;
+    rdfs:range xsd:string.
+usf:dependencyBindingLockDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DependencyBinding;
+    rdfs:range xsd:string.
+usf:dependencyBindingAcquisitionSource a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DependencyBinding;
+    rdfs:range xsd:anyURI.
+usf:dependencyBindingRepresentation a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DependencyBinding;
+    rdfs:range xsd:string.
+usf:dependencyBindingMaterialisationRule a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DependencyBinding;
+    rdfs:range xsd:string.
+usf:mappingAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:mappingEvaluationDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:mappingImplementationSourceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:mappingState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:range usf:ControlledValue.
+usf:failureCodeLiteral a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationFailureCode;
+    rdfs:range xsd:string.
+usf:constraintFailureCode a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:range usf:ValidationFailureCode.
+usf:failureLayer a owl:ObjectProperty;
+    rdfs:domain usf:ValidationFailureCode;
+    rdfs:range usf:ValidationLayer.
+usf:failurePrecedence a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationFailureCode;
+    rdfs:range xsd:nonNegativeInteger.
+usf:failureForGateCounter a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationFailureCode;
+    rdfs:range xsd:string.
 usf:requiresADR a owl:ObjectProperty;
     rdfs:domain usf:RealisationDecision;
     rdfs:range usf:ADRRequirement.
@@ -651,6 +1516,22 @@ usf:EvidenceResult a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "EvidenceResult";
     rdfs:comment "A collected item of evidence that may satisfy an evidence requirement.".
+usf:CompositeEvidenceResult a owl:Class;
+    rdfs:subClassOf usf:EvidenceResult;
+    rdfs:label "CompositeEvidenceResult";
+    rdfs:comment "An evidence result whose separately typed supporting manifests preserve independent provider and claim boundaries without flattening their evidence scopes.".
+usf:EvidenceScopeManifest a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "EvidenceScopeManifest";
+    rdfs:comment "A digest-bound manifest identifying one evidence scope, its provider identity, its permitted claims and its prohibited claims.".
+usf:EvidenceScopeClassification a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "EvidenceScopeClassification";
+    rdfs:comment "A closed classification of the acquisition or execution scope represented by an evidence-scope manifest.".
+usf:EvidenceProviderIdentity a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "EvidenceProviderIdentity";
+    rdfs:comment "The stable identity of the provider or acquisition boundary that supplied a bounded evidence scope.".
 usf:Control a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Control";
@@ -1148,6 +2029,54 @@ usf:evidenceForContract a owl:ObjectProperty;
     rdfs:domain usf:EvidenceResult;
     rdfs:range usf:SemanticContract;
     rdfs:label "evidenceForContract".
+usf:hasSupportingEvidenceManifest a owl:ObjectProperty;
+    rdfs:domain usf:CompositeEvidenceResult;
+    rdfs:range usf:EvidenceScopeManifest;
+    rdfs:label "has supporting evidence manifest".
+usf:evidenceScopeClassification a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceScopeManifest;
+    rdfs:range usf:EvidenceScopeClassification;
+    rdfs:label "evidence scope classification".
+usf:scopeProviderIdentity a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceScopeManifest;
+    rdfs:range usf:EvidenceProviderIdentity;
+    rdfs:label "scope provider identity".
+usf:scopeManifestDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceScopeManifest;
+    rdfs:range xsd:string;
+    rdfs:label "scope manifest digest".
+usf:scopeDescriptorDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceScopeManifest;
+    rdfs:range xsd:string;
+    rdfs:label "scope descriptor digest".
+usf:scopeCollectorDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceScopeManifest;
+    rdfs:range xsd:string;
+    rdfs:label "scope collector digest".
+usf:scopeClaimBoundary a owl:DatatypeProperty;
+    rdfs:domain usf:EvidenceScopeManifest;
+    rdfs:range xsd:string;
+    rdfs:label "scope claim boundary".
+usf:scopeProhibitedClaim a owl:DatatypeProperty;
+    rdfs:domain usf:EvidenceScopeManifest;
+    rdfs:range xsd:string;
+    rdfs:label "scope prohibited claim".
+usf:scopeSupportsCriterion a owl:ObjectProperty;
+    rdfs:domain usf:EvidenceScopeManifest;
+    rdfs:range usf:EvaluationCriterion;
+    rdfs:label "scope supports criterion".
+usf:scopeProhibitsCriterion a owl:ObjectProperty;
+    rdfs:domain usf:EvidenceScopeManifest;
+    rdfs:range usf:EvaluationCriterion;
+    rdfs:label "scope prohibits criterion".
+usf:scopeDerivationInputDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceScopeManifest;
+    rdfs:range xsd:string;
+    rdfs:label "scope derivation input digest".
+usf:scopeDerivationResultDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceScopeManifest;
+    rdfs:range xsd:string;
+    rdfs:label "scope derivation result digest".
 usf:requiresEvidenceKind a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:EvidenceRequirement;
     rdfs:range usf:EvidenceKind;
@@ -3486,6 +4415,8 @@ usf:intentionallyStandalone a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:comment "Marks a resource whose lack of architectural connection is a deliberate, reviewed decision; requires a decision rationale.".
 usf:Importer usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
     usf:termUsageRationale "Reserved for the clean room generation and release lifecycle; instances are produced by compiler generation runs, not authored in the semantic graph.".
+usf:ContainerImageComponent usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
+    usf:termUsageRationale "Reserved component kind for container-image realisation options; the currently selected compositions bind no container image, and instances enter only through an accepted realisation decision with exact image digests.".
 usf:Transform usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
     usf:termUsageRationale "Reserved for the clean room generation and release lifecycle; instances are produced by compiler generation runs, not authored in the semantic graph.".
 usf:acceptanceExpiresOn usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;

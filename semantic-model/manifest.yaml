@@ -144,6 +144,11 @@ shapeGraphs:
     graph: "urn:usf:graph:shapes"
     loadOrder: 36
     validationOrder: 6
+  - file: shapes/realisation-option-evaluation.ttl
+    graph: "urn:usf:graph:shapes"
+    loadOrder: 36
+    validationOrder: 6
+    liveValidation: false
   - file: shapes/execution.ttl
     graph: "urn:usf:graph:shapes"
     loadOrder: 36

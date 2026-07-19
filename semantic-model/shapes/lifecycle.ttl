@@ -72,7 +72,7 @@ _:b38_b38_n3-570 sh:path usf:proofAlgorithmSourcePath;
     sh:minCount 1;
     sh:maxCount 1;
     sh:datatype xsd:string;
-    sh:pattern "^(?:assurance|graph/rules|tools/(?:proof|validation))/[A-Za-z0-9._/-]+$".
+    sh:pattern "^assurance/[A-Za-z0-9._/-]+$".
 <urn:usf:shape:proofalgorithmsource> sh:property _:b38_b38_n3-570.
 _:b38_b38_n3-571 sh:path usf:proofAlgorithmSourceDigest;
     sh:minCount 1;

@@ -116,6 +116,10 @@ function entry(section, raw, graphDir, order) {
     contentType: file ? contentTypeFor(file) : 'text/turtle',
     order,
     validationOrder: raw.validationOrder ?? null,
+    // Registered SHACL that the live semantic store cannot evaluate (it does
+    // not support advanced SHACL) is validated exclusively by the local
+    // registered harness; it is still loaded as shape-graph data.
+    liveValidation: raw.liveValidation !== false,
   });
 }
 

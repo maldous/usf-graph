@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { sha256 } from '../../capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs';
-import { createSemanticAuthorityGateway } from './semantic-authority-gateway.mjs';
+import { createSemanticAuthorityGateway, readSemanticAuthorityWitness, semanticAuthorityInventoryDigest } from './semantic-authority-gateway.mjs';
 
 const authorityDigest = `sha256:${'d'.repeat(64)}`;
 const contract = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation';
@@ -63,4 +63,31 @@ test('fails closed when a bounded materialisation-rule projection is truncated',
     : select(sparql);
   const gateway = createSemanticAuthorityGateway({ client: incomplete, readAuthorityWitness: witness });
   await assert.rejects(() => gateway.layoutContext(), /rule projection is incomplete/);
+});
+
+
+test('builds a deterministic content-sensitive witness from canonical graph bytes', async () => {
+  const graphContent = new Map([
+    ['urn:usf:graph:a', '<urn:subject:a> <urn:predicate:value> "a" .\n'],
+    ['urn:usf:graph:b', '<urn:subject:b> <urn:predicate:value> "b" .\n'],
+  ]);
+  const witnessClient = {
+    connectivity: async () => 2,
+    select: async () => [{ g: binding('urn:usf:graph:b') }, { g: binding('urn:usf:graph:a') }],
+    construct: async (sparql) => graphContent.get([...graphContent.keys()].find((graph) => sparql.includes(`<${graph}>`))),
+  };
+  const observed = await readSemanticAuthorityWitness(witnessClient);
+  assert.deepEqual(observed.inventory.map(({ graph }) => graph), ['urn:usf:graph:a', 'urn:usf:graph:b']);
+  assert.equal(observed.digest, semanticAuthorityInventoryDigest(observed.inventory, 2));
+  graphContent.set('urn:usf:graph:b', '<urn:subject:b> <urn:predicate:value> "changed" .\n');
+  assert.notEqual((await readSemanticAuthorityWitness(witnessClient)).digest, observed.digest);
+});
+
+test('witness construction rejects duplicate graph identities and incomplete clients', async () => {
+  await assert.rejects(() => readSemanticAuthorityWitness({}), /connectivity, select and construct/);
+  await assert.rejects(() => readSemanticAuthorityWitness({
+    connectivity: async () => 1,
+    select: async () => [{ g: binding('urn:usf:graph:a') }, { g: binding('urn:usf:graph:a') }],
+    construct: async () => '',
+  }), /graph inventory is invalid/);
 });

@@ -1,8 +1,0 @@
-@prefix usf: <urn:usf:ontology:> .
-@prefix fixt: <urn:usf:fixturenode:> .
-
-# Conforming: a service that depends on another declared service. Acyclic,
-# resolvable, non-self. Exercises usf:dependsOnService and shp:ServiceShape.
-fixt:dependentservice a usf:Service ; usf:canonicalName "dependentservice" ;
-    usf:dependsOnService fixt:dependencyservice .
-fixt:dependencyservice a usf:Service ; usf:canonicalName "dependencyservice" .

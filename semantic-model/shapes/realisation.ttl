@@ -1,6 +1,7 @@
 @prefix usf: <urn:usf:ontology:>.
 @prefix sh: <http://www.w3.org/ns/shacl#>.
 @prefix shp: <urn:usf:shacl:>.
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
 
 shp:RealisationShape a sh:NodeShape;
     usf:canonicalName "realisationshape";
@@ -38,7 +39,7 @@ _:b41_b41_n3-764 sh:prefixes usf:prefixes;
 shp:RealisationShape sh:sparql _:b41_b41_n3-764.
 _:b41_b41_n3-765 sh:prefixes usf:prefixes;
     sh:message "realisationdecision: a completed realisation must be authorised by an accepted decision; contract-only, implementable, deferred, not-claimed and deprecated states are exempt";
-    sh:select "SELECT $this WHERE {\n          $this usf:realisationState ?state .\n          FILTER(?state NOT IN (<urn:usf:realisationstate:contractonly>, <urn:usf:realisationstate:implementable>, <urn:usf:realisationstate:deferred>,\n                                <urn:usf:realisationstate:notclaimed>, <urn:usf:realisationstate:deprecated>))\n          FILTER NOT EXISTS {\n            $this usf:authorisedByDecision ?decision .\n            ?decision usf:decisionState <urn:usf:decisionstate:accepted> .\n          }\n        }".
+    sh:select "SELECT $this WHERE {\n          $this usf:realisationState ?state .\n          FILTER(?state NOT IN (<urn:usf:realisationstate:contractonly>, <urn:usf:realisationstate:implementable>, <urn:usf:realisationstate:deferred>,\n                                <urn:usf:realisationstate:notclaimed>, <urn:usf:realisationstate:deprecated>))\n          FILTER NOT EXISTS {\n            $this usf:authorisedByDecision ?decision .\n            ?decision usf:decisionState <urn:usf:decisionstate:accepted> ;\n              usf:selectsOption ?selected ; usf:hasDecisionEvaluation ?evaluation .\n            ?evaluation usf:evaluationForDecision ?decision ;\n              usf:evaluationClosureState <urn:usf:evaluationclosurestate:complete> .\n          }\n        }".
 shp:RealisationShape sh:sparql _:b41_b41_n3-765.
 shp:ImplementationShape a sh:NodeShape;
     usf:canonicalName "implementationshape";

@@ -16,15 +16,61 @@ function fixture() {
   mkdirSync(casRoot);
   writeFileSync(join(root, 'source.mjs'), 'export const value = true;\n');
   writeFileSync(join(root, 'proof.mjs'), 'export const proof = true;\n');
-  writeFileSync(join(root, 'tests.mjs'), 'export const tests = true;\n');
+  writeFileSync(join(root, 'dependency.mjs'), 'export const dependency = true;\n');
+  writeFileSync(join(root, 'tests.mjs'), "import { dependency } from './dependency.mjs'; export const tests = dependency;\n");
   writeFileSync(join(root, 'substitute.mjs'), 'export const substitute = true;\n');
+  writeFileSync(join(root, 'package-lock.json'), '{"lockfileVersion":3}\n');
   roots.push(root);
   return { root, casRoot };
 }
 
 function focusedResult(root, passed = true) {
   const tests = compilerProofInternals.sourceSet(root, ['tests.mjs']);
-  const stagedFileDigests = tests.records;
+  const stagedFileDigests = compilerProofInternals.sourceSet(root, [
+    'dependency.mjs', 'package-lock.json', 'proof.mjs', 'source.mjs', 'tests.mjs',
+  ]).records;
+  const resolvedModuleRecords = stagedFileDigests.filter(({ path }) => path !== 'package-lock.json');
+  const resolvedModuleSetDigest = compilerProofInternals.sha256(compilerProofInternals.canonicalJson(resolvedModuleRecords));
+  const loadedModuleRecords = resolvedModuleRecords;
+  const loadedModuleSetDigest = resolvedModuleSetDigest;
+  const bootstrapModuleRecords = resolvedModuleRecords.filter(({ path }) => ['proof.mjs', 'source.mjs'].includes(path));
+  const bootstrapModuleSetDigest = compilerProofInternals.sha256(compilerProofInternals.canonicalJson(bootstrapModuleRecords));
+  const fileBinding = (path, digest, inode) => ({ device: '1', digest, inode: String(inode), path, size: '1' });
+  const nodeExecutableBinding = fileBinding('/runtime/node', compilerProofInternals.sha256('node'), 1);
+  const nativeRuntimeBindings = [fileBinding('/runtime/libnode.so', compilerProofInternals.sha256('native-runtime'), 2)];
+  const nativeRuntimeDigests = [{ path: '/runtime/libnode.so', digest: compilerProofInternals.sha256('native-runtime') }];
+  const virtualSharedObjects = [];
+  const runtimeCore = {
+    nodeVersion: '22.23.1',
+    node: nodeExecutableBinding,
+    nativeFiles: nativeRuntimeBindings,
+    virtualSharedObjects,
+  };
+  const nativeRuntimeBindingDigest = compilerProofInternals.sha256(compilerProofInternals.canonicalJson(runtimeCore));
+  const networkIsolatorBinding = fileBinding('/usr/bin/unshare', compilerProofInternals.sha256('unshare'), 3);
+  const environment = {
+    LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', TEMP: '<RUNTIME_ROOT>', TMP: '<RUNTIME_ROOT>', TMPDIR: '<RUNTIME_ROOT>',
+    TZ: 'UTC', USF_HERMETIC_TEST_MODE: '1', USF_TEST_INVENTORY_DIGEST: tests.digest,
+  };
+  const nodeFlags = [
+    '--frozen-intrinsics', '--permission', '--allow-fs-read=<SNAPSHOT_ROOT>', '--allow-fs-read=<RUNTIME_ROOT>', '--allow-fs-write=<RUNTIME_ROOT>',
+    '--allow-fs-read=<NODE_EXECUTABLE>', '--allow-fs-read=/runtime/libnode.so', '--no-addons',
+    '<REPOSITORY_LOCAL_TEST_LAUNCHER>', 'tests.mjs',
+  ];
+  const launcherDigest = bootstrapModuleRecords.find(({ path }) => path === 'proof.mjs').digest;
+  const discoveryAlgorithmDigest = bootstrapModuleRecords.find(({ path }) => path === 'source.mjs').digest;
+  const invocationDigest = compilerProofInternals.sha256(compilerProofInternals.canonicalJson({
+    nodeVersion: '22.23.1', nodeExecutableBinding, launcherDigest, bootstrapModuleSetDigest,
+    nativeRuntimeBindingDigest, networkIsolatorBinding,
+    args: ['<NETWORK_ISOLATOR>', '--net', '--', '<NODE_EXECUTABLE>', ...nodeFlags], environment,
+  }));
+  const snapshotManifestDigest = compilerProofInternals.sha256(compilerProofInternals.canonicalJson(stagedFileDigests));
+  const snapshotPermissionsDigest = compilerProofInternals.sha256('permissions');
+  const snapshotExclusions = [];
+  const testSummary = {
+    counts: { cancelled: 0, failed: passed ? 0 : 1, passed: passed ? 7 : 6, skipped: 0, suites: 0, tests: 7, todo: 0, topLevel: 1 },
+    success: passed,
+  };
   return {
     passed,
     count: 7,
@@ -33,41 +79,112 @@ function focusedResult(root, passed = true) {
     preExecutionReboundDigest: tests.digest,
     stagedTestInventoryDigest: tests.digest,
     executedTestInventoryDigest: tests.digest,
-    executedByteSetDigest: tests.digest,
+    executedByteSetDigest: loadedModuleSetDigest,
     launcherObservedTestInventoryDigest: tests.digest,
     launcherObservedTestFileCount: 1,
-    snapshotManifestDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(stagedFileDigests)),
-    authorisedExecutionByteSetDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(stagedFileDigests)),
+    loadedModuleCount: loadedModuleRecords.length,
+    loadedModuleRecords,
+    loadedModuleSetDigest,
+    resolvedModuleCount: resolvedModuleRecords.length,
+    resolvedModuleRecords,
+    resolvedModuleSetDigest,
+    snapshotManifestDigest,
+    authorisedExecutionByteSetDigest: snapshotManifestDigest,
     authorisedRoots: ['.'],
     authorisedRootSetDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(['.'])),
-    snapshotRootDigest: compilerProofInternals.sha256('snapshot-root'),
-    snapshotPermissionsDigest: compilerProofInternals.sha256('permissions'),
+    snapshotRootDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson({
+      snapshotManifestDigest, permissionsDigest: snapshotPermissionsDigest, exclusions: snapshotExclusions,
+    })),
+    snapshotPermissionsDigest,
     snapshotReadOnlyVerified: true,
     snapshotPolicy: 'EPHEMERAL_DELETE_AFTER_EXECUTION',
-    snapshotExclusions: [],
+    snapshotExclusions,
     snapshotFileCount: stagedFileDigests.length,
     stagedFileDigests,
-    discoveryAlgorithmDigest: compilerProofInternals.sha256('discovery'),
+    discoveryAlgorithmDigest,
     rejectionCodeVocabularyDigest: compilerProofInternals.sha256('rejections'),
-    dependencyLockDigest: compilerProofInternals.sha256('lock'),
-    dependencyByteSetDigest: compilerProofInternals.sha256('dependencies'),
-    launcherDigest: compilerProofInternals.sha256('launcher'),
-    nodeExecutableDigest: compilerProofInternals.sha256('node'),
-    nativeRuntimeDigests: [],
+    dependencyLockDigest: stagedFileDigests.find(({ path }) => path === 'package-lock.json').digest,
+    dependencyByteSetDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson([])),
+    launcherDigest,
+    bootstrapModuleRecords,
+    bootstrapModuleSetDigest,
+    nodeExecutableBinding,
+    nodeExecutableDigest: nodeExecutableBinding.digest,
+    nativeRuntimeBindings,
+    nativeRuntimeDigests,
+    nativeRuntimeSetDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(nativeRuntimeDigests)),
+    nativeRuntimePreBindingDigest: nativeRuntimeBindingDigest,
+    nativeRuntimeChildBindingDigest: nativeRuntimeBindingDigest,
+    nativeRuntimePostBindingDigest: nativeRuntimeBindingDigest,
+    virtualSharedObjects,
     networkIsolation: 'LINUX_NETWORK_NAMESPACE',
-    networkIsolatorDigest: compilerProofInternals.sha256('unshare'),
-    nodeFlags: ['--permission', '--no-addons', '<REPOSITORY_LOCAL_TEST_LAUNCHER>'],
+    networkIsolatorBinding,
+    networkIsolatorPostBinding: networkIsolatorBinding,
+    networkIsolatorDigest: networkIsolatorBinding.digest,
+    nodeFlags,
     nodeVersion: '22.23.1',
     invocationMode: 'NODE_TEST_PROGRAMMATIC_EXACT_FILES',
     isolationMode: 'none',
-    invocationDigest: compilerProofInternals.sha256('invocation'),
-    expectedDenialCodes: { filesystemRead: 'ERR_ACCESS_DENIED' },
-    environment: { TZ: 'UTC' },
-    outputDigest: compilerProofInternals.sha256(passed ? 'tests' : 'failed'),
+    invocationDigest,
+    expectedDenialCodes: {
+      childProcess: 'ERR_ACCESS_DENIED', filesystemRead: 'ERR_ACCESS_DENIED', filesystemWrite: 'ERR_ACCESS_DENIED',
+      network: ['EACCES', 'ENETDOWN', 'ENETUNREACH'], worker: 'ERR_ACCESS_DENIED',
+    },
+    environment,
+    testSummary,
+    outputDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(testSummary)),
   };
 }
 
+function optionClosureResult() {
+  const gateCounters = Object.fromEntries(compilerProofInternals.GATE_COUNTER_NAMES.map((name) => [name, 0]));
+  const closureStates = ['repositoryarchitectureandnaming', 'semanticmodelcompilationrealisation', 'semanticauthoritycontrolselection']
+    .map((decision) => ({ decision: `urn:usf:realisationdecision:${decision}`, state: 'COMPLETE' }));
+  const resultCore = {
+    schemaVersion: 1,
+    gate: 'REALISATION_OPTION_EVALUATION_CLOSURE',
+    acceptedDecisionCount: 3,
+    criterionCount: 31,
+    findings: [],
+    gateCounters,
+    closureStates,
+    reasonCodeVocabularyDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(compilerProofInternals.REASON_PRECEDENCE)),
+  };
+  const evaluated = {
+    ...resultCore,
+    ok: true,
+    resultDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(resultCore)),
+    evaluatedAuthorityDigest: authorityDigest,
+    evaluationEvidenceDigest: compilerProofInternals.sha256('option-evaluation-evidence'),
+    evaluationDependencySetDigest: compilerProofInternals.sha256('option-evaluation-dependencies'),
+    evaluationImplementationSourceDigest: compilerProofInternals.sha256('option-evaluation-implementation'),
+    sourceSetDigest: compilerProofInternals.sha256('option-evaluation-source-set'),
+    sourceFileCount: 46,
+  };
+  return { ...evaluated, evidenceDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(evaluated)) };
+}
+
+function rebindOptionClosure(overrides = {}, omitted = []) {
+  const candidate = { ...optionClosureResult(), ...overrides };
+  const resultCore = {
+    schemaVersion: candidate.schemaVersion,
+    gate: candidate.gate,
+    acceptedDecisionCount: candidate.acceptedDecisionCount,
+    criterionCount: candidate.criterionCount,
+    findings: candidate.findings,
+    gateCounters: candidate.gateCounters,
+    closureStates: candidate.closureStates,
+    reasonCodeVocabularyDigest: candidate.reasonCodeVocabularyDigest,
+  };
+  candidate.resultDigest = compilerProofInternals.sha256(compilerProofInternals.canonicalJson(resultCore));
+  delete candidate.evidenceDigest;
+  for (const field of omitted) delete candidate[field];
+  candidate.evidenceDigest = compilerProofInternals.sha256(compilerProofInternals.canonicalJson(candidate));
+  return candidate;
+}
+
 function localShaclResult(overrides = {}) {
+  const focusRootDigest = compilerProofInternals.sha256('focus-roots');
   const classifier = [
     'via-service-predicate', 'managed-service-token', 'service-string-literal', 'service-comment',
     'service-variable-name', 'service-iri', 'service-clause',
@@ -77,8 +194,8 @@ function localShaclResult(overrides = {}) {
     evidenceScope: 'HERMETIC_SUBSTITUTE',
     validationScope: 'LOCAL_PYSHACL_COMPATIBLE_AFFECTED_CLOSURE',
     localCompatibleConforms: true,
-    registeredSparqlConstraintCount: 79,
-    locallyEvaluatedConstraintCount: 79,
+    registeredSparqlConstraintCount: 125,
+    locallyEvaluatedConstraintCount: 125,
     actualServiceAlgebraNodeCount: 0,
     liveServiceConstraintCount: 0,
     liveServiceConstraintSetDigest: compilerProofInternals.EMPTY_SET_DIGEST,
@@ -88,12 +205,12 @@ function localShaclResult(overrides = {}) {
     serviceConstraintsCountedAsLocalPass: 0,
     prefixInjectionDeterministic: true,
     prefixSemanticsEquivalent: true,
-    prefixSemanticEquivalenceCount: 79,
+    prefixSemanticEquivalenceCount: 125,
     pyshaclServiceDetectionMode: 'PARSED_SPARQL_ALGEBRA',
     transitiveFocusGap: 0,
-    focusRootCount: 11,
-    focusRootDigest: compilerProofInternals.EXPECTED_FOCUS_ROOT_DIGEST,
-    focusNodeCount: 162,
+    focusRootCount: 336,
+    focusRootDigest,
+    focusNodeCount: 557,
     focusNodeDigest: compilerProofInternals.sha256('focus-nodes'),
     serviceClassifierSelfTestCount: 7,
     serviceClassifierSelfTests: classifier,
@@ -136,7 +253,34 @@ function localShaclResult(overrides = {}) {
     firstOutputDigest: digest,
     secondOutputDigest: digest,
     evidence,
+    expectedScope: {
+      registeredSparqlConstraintCount: evidence.registeredSparqlConstraintCount,
+      registeredConstraintSetDigest: evidence.registeredConstraintSetDigest,
+      shapeSourceFileCount: 11,
+      shapeSourceSetDigest: evidence.shapeSourceSetDigest,
+      focusRootCount: evidence.focusRootCount,
+      focusRootDigest: evidence.focusRootDigest,
+    },
   };
+}
+
+function liveValidationResult(local = localShaclResult()) {
+  const makeReceipt = (phase) => {
+    const core = {
+      conforms: true,
+      validatedDocumentCount: local.expectedScope.shapeSourceFileCount,
+      validatedDocumentSetDigest: local.expectedScope.shapeSourceSetDigest,
+      observationSetDigest: compilerProofInternals.sha256(phase),
+    };
+    return { ...core, receiptDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(core)) };
+  };
+  const core = {
+    authored: makeReceipt('authored-live-validation'),
+    derived: makeReceipt('derived-live-validation'),
+    validatedDocumentCount: local.expectedScope.shapeSourceFileCount,
+    validatedDocumentSetDigest: local.expectedScope.shapeSourceSetDigest,
+  };
+  return { ...core, receiptDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(core)) };
 }
 
 test.after(() => roots.forEach((root) => rmSync(root, { recursive: true, force: true })));
@@ -150,17 +294,19 @@ test('emits digest-bound evidence and a verified deterministic integrity envelop
     casRoot,
     createLiveClient: async () => ({}),
     readAuthorityWitness: async () => ({ digest: authorityDigest }),
-    sourcePaths: ['proof.mjs', 'source.mjs', 'substitute.mjs', 'tests.mjs'],
+    sourcePaths: ['dependency.mjs', 'package-lock.json', 'proof.mjs', 'source.mjs', 'substitute.mjs', 'tests.mjs'],
     proofAlgorithmPath: 'proof.mjs',
     testPaths: ['tests.mjs'],
     substituteSourcePaths: ['substitute.mjs'],
     runFocusedTests: async () => focusedResult(root),
     runLocalCompatibleShacl: async () => localShaclResult(),
+    realisationOptionClosure: optionClosureResult(),
     createCommand: () => ({ execute: async () => ({
       evaluatedAuthorityDigest: authorityDigest,
       semanticModelPath: 'semantic-model',
       contaminationCount: 0,
       commitOutcome: { state: 'validated-rolled-back', exactCandidateStateVerified: true, candidateDigest: `sha256:${'b'.repeat(64)}` },
+      liveValidation: liveValidationResult(),
     }) }),
   };
   const result = await evaluateCompilerSemanticEnforcement(inputs);
@@ -199,7 +345,7 @@ test('emits digest-bound evidence and a verified deterministic integrity envelop
   assert.deepEqual(authorityControl.supportedEvidenceKinds, ['urn:usf:evidencekind:validationevidence']);
   assert.equal(hermetic.cases.length, 2);
   assert.equal(authorityControl.cases.length, 6);
-  assert.equal(hermetic.localShaclRegisteredConstraintCount, 79);
+  assert.equal(hermetic.localShaclRegisteredConstraintCount, 125);
   assert.equal(hermetic.localShaclActualServiceAlgebraNodeCount, 0);
   assert.equal(hermetic.localShaclValidationPhaseResultDigest, localShaclResult().evidence.validationPhaseResultDigest);
   assert.equal(authorityControl.liveServiceConstraintCount, 0);
@@ -209,6 +355,12 @@ test('emits digest-bound evidence and a verified deterministic integrity envelop
     const { evidenceDigest, ...claims } = scoped;
     assert.equal(evidenceDigest, compilerProofInternals.sha256(compilerProofInternals.canonicalJson(claims)));
   }
+  const { evidenceDigest: _authorityEvidenceDigest, ...authorityCore } = authorityControl;
+  const substitutedAuthority = compilerProofInternals.evidenceManifest({
+    ...authorityCore,
+    implementationSourceDigest: compilerProofInternals.sha256('cross-scope-substitution'),
+  });
+  assert.throws(() => compilerProofInternals.validateCompositeScopes([hermetic, substitutedAuthority]), /exact cross-scope constraint boundaries/);
 });
 
 test('fails closed on a stale authority or failed focused tests', async () => {
@@ -220,14 +372,18 @@ test('fails closed on a stale authority or failed focused tests', async () => {
     casRoot,
     createLiveClient: async () => ({}),
     readAuthorityWitness: async () => ({ digest: authorityDigest }),
-    sourcePaths: ['proof.mjs', 'source.mjs', 'substitute.mjs', 'tests.mjs'],
+    sourcePaths: ['dependency.mjs', 'package-lock.json', 'proof.mjs', 'source.mjs', 'substitute.mjs', 'tests.mjs'],
     proofAlgorithmPath: 'proof.mjs',
     testPaths: ['tests.mjs'],
     substituteSourcePaths: ['substitute.mjs'],
     runLocalCompatibleShacl: async () => localShaclResult(),
-    createCommand: () => ({ execute: async () => ({ evaluatedAuthorityDigest: `sha256:${'c'.repeat(64)}` }) }),
+    realisationOptionClosure: optionClosureResult(),
+    createCommand: () => ({ execute: async () => ({
+      evaluatedAuthorityDigest: `sha256:${'c'.repeat(64)}`,
+      liveValidation: liveValidationResult(),
+    }) }),
   };
-  const focused = (passed) => ({ ...focusedResult(root, passed), count: 1 });
+  const focused = (passed) => focusedResult(root, passed);
   await assert.rejects(() => evaluateCompilerSemanticEnforcement({ ...base, runFocusedTests: async () => focused(false) }), /did not produce valid passing evidence/);
   await assert.rejects(() => evaluateCompilerSemanticEnforcement({ ...base, runFocusedTests: async () => focused(true) }), /proof cases failed/);
 });
@@ -242,12 +398,35 @@ test('rejects invalid local SHACL evidence before creating a live authority clie
     casRoot,
     createLiveClient: async () => { liveClientCreated = true; return {}; },
     readAuthorityWitness: async () => ({ digest: authorityDigest }),
-    sourcePaths: ['proof.mjs', 'source.mjs', 'substitute.mjs', 'tests.mjs'],
+    sourcePaths: ['dependency.mjs', 'package-lock.json', 'proof.mjs', 'source.mjs', 'substitute.mjs', 'tests.mjs'],
     proofAlgorithmPath: 'proof.mjs',
     testPaths: ['tests.mjs'],
     substituteSourcePaths: ['substitute.mjs'],
     runFocusedTests: async () => focusedResult(root),
     runLocalCompatibleShacl: async () => localShaclResult({ candidateViolationCount: 1 }),
+    realisationOptionClosure: optionClosureResult(),
+  }), /does not close the exact compatible affected constraint scope/);
+  assert.equal(liveClientCreated, false);
+
+  const mismatchedScope = localShaclResult();
+  mismatchedScope.expectedScope = {
+    ...mismatchedScope.expectedScope,
+    focusRootDigest: compilerProofInternals.sha256('wrong-focus-root-set'),
+  };
+  await assert.rejects(() => evaluateCompilerSemanticEnforcement({
+    authorityDigest,
+    evaluatedAt: '2026-07-18T13:30:00Z',
+    repositoryRoot: root,
+    casRoot,
+    createLiveClient: async () => { liveClientCreated = true; return {}; },
+    readAuthorityWitness: async () => ({ digest: authorityDigest }),
+    sourcePaths: ['dependency.mjs', 'package-lock.json', 'proof.mjs', 'source.mjs', 'substitute.mjs', 'tests.mjs'],
+    proofAlgorithmPath: 'proof.mjs',
+    testPaths: ['tests.mjs'],
+    substituteSourcePaths: ['substitute.mjs'],
+    runFocusedTests: async () => focusedResult(root),
+    runLocalCompatibleShacl: async () => mismatchedScope,
+    realisationOptionClosure: optionClosureResult(),
   }), /does not close the exact compatible affected constraint scope/);
   assert.equal(liveClientCreated, false);
 });
@@ -263,89 +442,264 @@ test('rejects incomplete or broadened local SHACL validation phases before live 
     casRoot,
     createLiveClient: async () => { liveClientCreated = true; return {}; },
     readAuthorityWitness: async () => ({ digest: authorityDigest }),
-    sourcePaths: ['proof.mjs', 'source.mjs', 'substitute.mjs', 'tests.mjs'],
+    sourcePaths: ['dependency.mjs', 'package-lock.json', 'proof.mjs', 'source.mjs', 'substitute.mjs', 'tests.mjs'],
     proofAlgorithmPath: 'proof.mjs',
     testPaths: ['tests.mjs'],
     substituteSourcePaths: ['substitute.mjs'],
     runFocusedTests: async () => focusedResult(root),
     runLocalCompatibleShacl: async () => localShaclResult({ validationPhaseResults: invalidPhases }),
+    realisationOptionClosure: optionClosureResult(),
   }), /does not close the exact compatible affected constraint scope/);
   assert.equal(liveClientCreated, false);
 });
 
+test('rejects incomplete realisation-option closure before focused tests or live access', async () => {
+  const { root, casRoot } = fixture();
+  let focusedTestsStarted = false;
+  let liveClientCreated = false;
+  await assert.rejects(() => evaluateCompilerSemanticEnforcement({
+    authorityDigest,
+    evaluatedAt: '2026-07-18T13:30:00Z',
+    repositoryRoot: root,
+    casRoot,
+    createLiveClient: async () => { liveClientCreated = true; return {}; },
+    readAuthorityWitness: async () => ({ digest: authorityDigest }),
+    sourcePaths: ['dependency.mjs', 'package-lock.json', 'proof.mjs', 'source.mjs', 'substitute.mjs', 'tests.mjs'],
+    proofAlgorithmPath: 'proof.mjs',
+    testPaths: ['tests.mjs'],
+    substituteSourcePaths: ['substitute.mjs'],
+    runFocusedTests: async () => { focusedTestsStarted = true; return focusedResult(root); },
+    runLocalCompatibleShacl: async () => localShaclResult(),
+    realisationOptionClosure: {
+      ...optionClosureResult(),
+      ok: false,
+      gateCounters: { acceptedDecisionsWithoutEvaluationClosure: 1 },
+    },
+  }), /realisation option evaluation closure is incomplete or stale/);
+  assert.equal(focusedTestsStarted, false);
+  assert.equal(liveClientCreated, false);
+});
+
+test('rejects every malformed option-closure binding and resolved-module substitution locally', async () => {
+  const valid = optionClosureResult();
+  const invalidClosures = [
+    undefined,
+    rebindOptionClosure({ gate: 'WRONG_GATE' }),
+    rebindOptionClosure({ evaluatedAuthorityDigest: `sha256:${'b'.repeat(64)}` }),
+    rebindOptionClosure({ gateCounters: {} }),
+    rebindOptionClosure({ gateCounters: { ...valid.gateCounters, unknownCounter: 0 } }),
+    rebindOptionClosure({ gateCounters: { ...valid.gateCounters, [compilerProofInternals.GATE_COUNTER_NAMES[0]]: 1 } }),
+    rebindOptionClosure({ acceptedDecisionCount: 0, closureStates: [] }),
+    rebindOptionClosure({ closureStates: [null, valid.closureStates[1], valid.closureStates[2]] }),
+    rebindOptionClosure({ closureStates: [valid.closureStates[0], valid.closureStates[0], valid.closureStates[2]] }),
+    rebindOptionClosure({ closureStates: valid.closureStates.map((item, index) => index === 0 ? { ...item, state: 'INCOMPLETE' } : item) }),
+    ...['resultDigest', 'evaluationEvidenceDigest', 'evaluationDependencySetDigest', 'evaluationImplementationSourceDigest', 'sourceSetDigest']
+      .map((field) => rebindOptionClosure({}, [field])),
+  ];
+  for (const candidate of invalidClosures) {
+    assert.throws(() => compilerProofInternals.validateRealisationOptionClosure(candidate, authorityDigest), /incomplete or stale|digest is invalid/);
+  }
+
+  const { root, casRoot } = fixture();
+  let localShaclStarted = false;
+  let liveClientCreated = false;
+  const invalidFocused = focusedResult(root);
+  invalidFocused.loadedModuleRecords = [{ path: 'ambient.mjs', digest: compilerProofInternals.sha256('ambient') }];
+  invalidFocused.loadedModuleCount = 1;
+  invalidFocused.loadedModuleSetDigest = compilerProofInternals.sha256(compilerProofInternals.canonicalJson(invalidFocused.loadedModuleRecords));
+  invalidFocused.executedByteSetDigest = invalidFocused.loadedModuleSetDigest;
+  await assert.rejects(() => evaluateCompilerSemanticEnforcement({
+    authorityDigest,
+    evaluatedAt: '2026-07-18T13:30:00Z',
+    repositoryRoot: root,
+    casRoot,
+    createLiveClient: async () => { liveClientCreated = true; return {}; },
+    readAuthorityWitness: async () => ({ digest: authorityDigest }),
+    sourcePaths: ['dependency.mjs', 'package-lock.json', 'proof.mjs', 'source.mjs', 'substitute.mjs', 'tests.mjs'],
+    proofAlgorithmPath: 'proof.mjs',
+    testPaths: ['tests.mjs'],
+    substituteSourcePaths: ['substitute.mjs'],
+    runFocusedTests: async () => invalidFocused,
+    runLocalCompatibleShacl: async () => { localShaclStarted = true; return localShaclResult(); },
+    realisationOptionClosure: valid,
+  }), /exact resolved and loaded modules with locked runtime inputs/);
+  assert.equal(localShaclStarted, false);
+  assert.equal(liveClientCreated, false);
+});
+
 test('rejects mixed, mislabeled, live-claiming and self-referential evidence', () => {
+  const testInventory = [{ path: 'tests.mjs', digest: compilerProofInternals.sha256('test') }];
+  const testInventoryDigest = compilerProofInternals.sha256(compilerProofInternals.canonicalJson(testInventory));
+  const substituteImplementationSources = [{ path: 'substitute.mjs', digest: compilerProofInternals.sha256('substitute') }];
+  const bootstrapModuleRecords = [
+    { path: 'proof.mjs', digest: compilerProofInternals.sha256('launcher') },
+    { path: 'source.mjs', digest: compilerProofInternals.sha256('discovery') },
+  ];
+  const bootstrapModuleSetDigest = compilerProofInternals.sha256(compilerProofInternals.canonicalJson(bootstrapModuleRecords));
+  const implementationSources = [...bootstrapModuleRecords, ...substituteImplementationSources, ...testInventory]
+    .sort(({ path: left }, { path: right }) => left.localeCompare(right));
+  const packageLock = { path: 'package-lock.json', digest: compilerProofInternals.sha256('lock') };
+  const stagedFileDigests = [packageLock, ...bootstrapModuleRecords, ...substituteImplementationSources, ...testInventory]
+    .sort(({ path: left }, { path: right }) => left.localeCompare(right));
+  const snapshotManifestDigest = compilerProofInternals.sha256(compilerProofInternals.canonicalJson(stagedFileDigests));
+  const resolvedModuleRecords = [...bootstrapModuleRecords, ...substituteImplementationSources, ...testInventory]
+    .sort(({ path: left }, { path: right }) => left.localeCompare(right));
+  const resolvedModuleSetDigest = compilerProofInternals.sha256(compilerProofInternals.canonicalJson(resolvedModuleRecords));
+  const loadedModuleRecords = [...bootstrapModuleRecords, ...testInventory]
+    .sort(({ path: left }, { path: right }) => left.localeCompare(right));
+  const loadedModuleSetDigest = compilerProofInternals.sha256(compilerProofInternals.canonicalJson(loadedModuleRecords));
+  const binding = (path, digest, inode) => ({ device: '1', digest, inode: String(inode), path, size: '1' });
+  const nodeExecutableBinding = binding('/runtime/node', compilerProofInternals.sha256('node'), 1);
+  const nativeRuntimeBindings = [binding('/runtime/libnode.so', compilerProofInternals.sha256('native-runtime'), 2)];
+  const nativeRuntimeDigests = [{ path: '/runtime/libnode.so', digest: compilerProofInternals.sha256('native-runtime') }];
+  const virtualSharedObjects = [];
+  const runtimeCore = { nodeVersion: '22.23.1', node: nodeExecutableBinding, nativeFiles: nativeRuntimeBindings, virtualSharedObjects };
+  const runtimeBindingDigest = compilerProofInternals.sha256(compilerProofInternals.canonicalJson(runtimeCore));
+  const networkIsolatorBinding = binding('/usr/bin/unshare', compilerProofInternals.sha256('unshare'), 3);
+  const environment = {
+    LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', TEMP: '<RUNTIME_ROOT>', TMP: '<RUNTIME_ROOT>', TMPDIR: '<RUNTIME_ROOT>',
+    TZ: 'UTC', USF_HERMETIC_TEST_MODE: '1', USF_TEST_INVENTORY_DIGEST: testInventoryDigest,
+  };
+  const nodeFlags = [
+    '--frozen-intrinsics', '--permission', '--allow-fs-read=<SNAPSHOT_ROOT>', '--allow-fs-read=<RUNTIME_ROOT>', '--allow-fs-write=<RUNTIME_ROOT>',
+    '--allow-fs-read=<NODE_EXECUTABLE>', '--allow-fs-read=/runtime/libnode.so', '--no-addons',
+    '<REPOSITORY_LOCAL_TEST_LAUNCHER>', 'tests.mjs',
+  ];
+  const invocationDigest = compilerProofInternals.sha256(compilerProofInternals.canonicalJson({
+    nodeVersion: '22.23.1', nodeExecutableBinding, launcherDigest: bootstrapModuleRecords[0].digest,
+    bootstrapModuleSetDigest, nativeRuntimeBindingDigest: runtimeBindingDigest, networkIsolatorBinding,
+    args: ['<NETWORK_ISOLATOR>', '--net', '--', '<NODE_EXECUTABLE>', ...nodeFlags], environment,
+  }));
+  const snapshotPermissionsDigest = compilerProofInternals.sha256('permissions');
+  const snapshotExclusions = [];
+  const testSummary = {
+    counts: { cancelled: 0, failed: 0, passed: 1, skipped: 0, suites: 0, tests: 1, todo: 0, topLevel: 1 },
+    success: true,
+  };
   const common = {
     schemaVersion: 2,
     evaluatedAt: '2026-07-18T13:30:00Z',
     providerIdentity: 'urn:usf:provider:compilerfocusedtestsubstitute',
     liveAuthorityDependency: false,
-    implementationSourceDigest: compilerProofInternals.sha256('implementation'),
-    substituteImplementationDigest: compilerProofInternals.sha256('substitute'),
-    proofAlgorithmDigest: compilerProofInternals.sha256('algorithm'),
-    testSetDigest: compilerProofInternals.sha256('test-inventory'),
-    testInventoryDigest: compilerProofInternals.sha256('test-inventory'),
-    preExecutionReboundDigest: compilerProofInternals.sha256('test-inventory'),
-    stagedTestInventoryDigest: compilerProofInternals.sha256('test-inventory'),
-    executedTestInventoryDigest: compilerProofInternals.sha256('test-inventory'),
-    executedByteSetDigest: compilerProofInternals.sha256('test-inventory'),
-    launcherObservedTestInventoryDigest: compilerProofInternals.sha256('test-inventory'),
+    implementationSourceDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(implementationSources)),
+    implementationSources,
+    substituteImplementationDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(substituteImplementationSources)),
+    substituteImplementationSources,
+    proofAlgorithmDigest: bootstrapModuleRecords[0].digest,
+    realisationOptionClosureEvidenceDigest: compilerProofInternals.sha256('option-closure-evidence'),
+    realisationOptionClosureResultDigest: compilerProofInternals.sha256('option-closure-result'),
+    realisationOptionEvaluationDependencyDigest: compilerProofInternals.sha256('option-evaluation-dependencies'),
+    realisationOptionEvaluationEvidenceDigest: compilerProofInternals.sha256('option-evaluation-evidence'),
+    realisationOptionEvaluationImplementationSourceDigest: compilerProofInternals.sha256('option-evaluation-implementation'),
+    realisationOptionEvaluationSourceSetDigest: compilerProofInternals.sha256('option-evaluation-source-set'),
+    testSetDigest: testInventoryDigest,
+    testInventoryDigest,
+    preExecutionReboundDigest: testInventoryDigest,
+    stagedTestInventoryDigest: testInventoryDigest,
+    executedTestInventoryDigest: testInventoryDigest,
+    executedByteSetDigest: loadedModuleSetDigest,
+    launcherObservedTestInventoryDigest: testInventoryDigest,
     launcherObservedTestFileCount: 1,
-    snapshotManifestDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson([{ path: 'tests.mjs', digest: compilerProofInternals.sha256('test') }])),
-    authorisedExecutionByteSetDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson([{ path: 'tests.mjs', digest: compilerProofInternals.sha256('test') }])),
+    loadedModuleCount: loadedModuleRecords.length,
+    loadedModuleRecords,
+    loadedModuleSetDigest,
+    resolvedModuleCount: resolvedModuleRecords.length,
+    resolvedModuleRecords,
+    resolvedModuleSetDigest,
+    snapshotManifestDigest,
+    authorisedExecutionByteSetDigest: snapshotManifestDigest,
     authorisedRoots: ['.'],
     authorisedRootSetDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(['.'])),
-    snapshotRootDigest: compilerProofInternals.sha256('snapshot-root'),
-    snapshotPermissionsDigest: compilerProofInternals.sha256('permissions'),
+    snapshotRootDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson({
+      snapshotManifestDigest, permissionsDigest: snapshotPermissionsDigest, exclusions: snapshotExclusions,
+    })),
+    snapshotPermissionsDigest,
     snapshotReadOnlyVerified: true,
     snapshotPolicy: 'EPHEMERAL_DELETE_AFTER_EXECUTION',
-    snapshotExclusions: [],
-    snapshotFileCount: 1,
-    stagedFileDigests: [{ path: 'tests.mjs', digest: compilerProofInternals.sha256('test') }],
-    discoveryAlgorithmDigest: compilerProofInternals.sha256('discovery'),
+    snapshotExclusions,
+    snapshotFileCount: stagedFileDigests.length,
+    stagedFileDigests,
+    testInventory,
+    discoveryAlgorithmDigest: bootstrapModuleRecords[1].digest,
     rejectionCodeVocabularyDigest: compilerProofInternals.sha256('rejections'),
-    dependencyLockDigest: compilerProofInternals.sha256('lock'),
-    dependencyByteSetDigest: compilerProofInternals.sha256('dependencies'),
-    launcherDigest: compilerProofInternals.sha256('launcher'),
-    nodeExecutableDigest: compilerProofInternals.sha256('node'),
-    nativeRuntimeDigests: [],
+    dependencyLockDigest: packageLock.digest,
+    dependencyByteSetDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson([])),
+    launcherDigest: bootstrapModuleRecords[0].digest,
+    bootstrapModuleRecords,
+    bootstrapModuleSetDigest,
+    nodeExecutableBinding,
+    nodeExecutableDigest: nodeExecutableBinding.digest,
+    nodeVersion: '22.23.1',
+    nativeRuntimeBindings,
+    nativeRuntimeDigests,
+    nativeRuntimeSetDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(nativeRuntimeDigests)),
+    nativeRuntimePreBindingDigest: runtimeBindingDigest,
+    nativeRuntimeChildBindingDigest: runtimeBindingDigest,
+    nativeRuntimePostBindingDigest: runtimeBindingDigest,
+    virtualSharedObjects,
     networkIsolation: 'LINUX_NETWORK_NAMESPACE',
-    networkIsolatorDigest: compilerProofInternals.sha256('unshare'),
-    nodeFlags: ['--permission', '--no-addons', '<REPOSITORY_LOCAL_TEST_LAUNCHER>'],
+    networkIsolatorBinding,
+    networkIsolatorPostBinding: networkIsolatorBinding,
+    networkIsolatorDigest: networkIsolatorBinding.digest,
+    nodeFlags,
+    expectedDenialCodes: {
+      childProcess: 'ERR_ACCESS_DENIED', filesystemRead: 'ERR_ACCESS_DENIED', filesystemWrite: 'ERR_ACCESS_DENIED',
+      network: ['EACCES', 'ENETDOWN', 'ENETUNREACH'], worker: 'ERR_ACCESS_DENIED',
+    },
+    environment,
     invocationMode: 'NODE_TEST_PROGRAMMATIC_EXACT_FILES',
     isolationMode: 'none',
-    invocationDigest: compilerProofInternals.sha256('invocation'),
+    invocationDigest,
     localShaclActualServiceAlgebraNodeCount: 0,
     localShaclCandidateSourceSetDigest: compilerProofInternals.sha256('candidate-source'),
     localShaclCandidateViolationCount: 0,
     localShaclCompatibleConstraintSetDigest: compilerProofInternals.sha256('constraint-set'),
     localShaclDeterministicOutputDigest: compilerProofInternals.sha256('local-output'),
     localShaclEvidenceDigest: compilerProofInternals.sha256('local-evidence'),
+    localShaclExpectedFocusRootCount: 336,
+    localShaclExpectedFocusRootDigest: compilerProofInternals.sha256('focus-roots'),
+    localShaclExpectedRegisteredConstraintCount: 125,
+    localShaclExpectedRegisteredConstraintSetDigest: compilerProofInternals.sha256('constraint-set'),
+    localShaclExpectedShapeSourceFileCount: 11,
+    localShaclExpectedShapeSourceSetDigest: compilerProofInternals.sha256('shape-sources'),
+    localShaclFocusNodeCount: 557,
     localShaclFocusNodeDigest: compilerProofInternals.sha256('focus-nodes'),
-    localShaclFocusRootDigest: compilerProofInternals.EXPECTED_FOCUS_ROOT_DIGEST,
+    localShaclFocusRootCount: 336,
+    localShaclFocusRootDigest: compilerProofInternals.sha256('focus-roots'),
     localShaclHarnessSourceDigest: compilerProofInternals.sha256('harness'),
     localShaclLiveServiceConstraintSetDigest: compilerProofInternals.EMPTY_SET_DIGEST,
-    localShaclLocallyEvaluatedConstraintCount: 79,
+    localShaclLocallyEvaluatedConstraintCount: 125,
     localShaclPrefixInjectionAlgorithmDigest: compilerProofInternals.sha256('prefix-algorithm'),
     localShaclPythonDependencyByteSetDigest: compilerProofInternals.sha256('python-dependencies'),
     localShaclRegisteredConstraintSetDigest: compilerProofInternals.sha256('constraint-set'),
-    localShaclRegisteredConstraintCount: 79,
+    localShaclRegisteredConstraintCount: 125,
+    localShaclShapeSourceSetDigest: compilerProofInternals.sha256('shape-sources'),
     localShaclServiceClassificationAlgorithmDigest: compilerProofInternals.sha256('service-classifier'),
     localShaclSubstringBasedExclusionCount: 0,
     localShaclUnexpectedExclusionCount: 0,
     localShaclValidationPhaseResultDigest: compilerProofInternals.sha256('validation-phases'),
     testFileCount: 1,
+    testCount: 1,
     testRuntime: 'node@22.23.1',
-    testOutputDigest: compilerProofInternals.sha256('test-output'),
+    testSummary,
+    testOutputDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(testSummary)),
     environmentClass: 'urn:usf:environmentclass:hermetic',
     providerMode: 'urn:usf:providermode:deterministictestsubstitute',
-    supportedEvidenceKinds: ['urn:usf:evidencekind:validationevidence'],
-    evidenceStages: ['emitted'],
-    cases: [{ id: 'focused-tests-passed', passed: true }],
+    supportedEvidenceKinds: ['urn:usf:evidencekind:runtimeproofevidence', 'urn:usf:evidencekind:validationevidence'],
+    evidenceStages: ['emitted', 'collected', 'normalised', 'ingested', 'signed', 'integrityverified'],
+    cases: [{ id: 'focused-tests-passed', passed: true }, { id: 'local-compatible-shacl-passed', passed: true }],
     nonclaims: [],
   };
   const hermetic = compilerProofInternals.evidenceManifest({ ...common, evidenceScope: compilerProofInternals.HERMETIC_SCOPE });
-  assert.throws(() => compilerProofInternals.evidenceManifest({ ...common }), /unsupported evidence scope/);
-  assert.throws(() => compilerProofInternals.evidenceManifest({ ...common, evidenceScope: [compilerProofInternals.HERMETIC_SCOPE, compilerProofInternals.AUTHORITY_SCOPE] }), /unsupported evidence scope/);
+  assert.equal(hermetic.executedByteSetDigest, hermetic.loadedModuleSetDigest);
+  assert.notEqual(hermetic.executedByteSetDigest, hermetic.resolvedModuleSetDigest);
+  assert.throws(() => compilerProofInternals.evidenceManifest({
+    ...common,
+    evidenceScope: compilerProofInternals.HERMETIC_SCOPE,
+    cases: [{ id: 'focused-tests-passed', passed: true }],
+  }), /complete canonical scope contract/);
+  assert.throws(() => compilerProofInternals.evidenceManifest({ ...common }), /structurally mixed evidence scope/);
+  assert.throws(() => compilerProofInternals.evidenceManifest({ ...common, evidenceScope: [compilerProofInternals.HERMETIC_SCOPE, compilerProofInternals.AUTHORITY_SCOPE] }), /structurally mixed evidence scope/);
   assert.throws(() => compilerProofInternals.evidenceManifest({
     ...common,
     evidenceScope: compilerProofInternals.HERMETIC_SCOPE,
@@ -354,15 +708,82 @@ test('rejects mixed, mislabeled, live-claiming and self-referential evidence', (
   assert.throws(() => compilerProofInternals.evidenceManifest({
     ...common,
     evidenceScope: compilerProofInternals.HERMETIC_SCOPE,
+    candidateAuthorityDigest: compilerProofInternals.sha256('live-candidate'),
+  }), /structurally mixed evidence scope/);
+  assert.throws(() => compilerProofInternals.evidenceManifest({
+    ...common,
+    evidenceScope: compilerProofInternals.HERMETIC_SCOPE,
     cases: [{ id: 'candidate-transaction-rolled-back', passed: true }],
   }), /cannot contain live authority-control claims/);
   assert.throws(() => compilerProofInternals.validateCompositeScopes([hermetic, hermetic]), /silently merge/);
-  assert.throws(() => compilerProofInternals.evidenceManifest({ ...common, evidenceScope: compilerProofInternals.AUTHORITY_SCOPE }), /live authority-control evidence manifest requires/);
+  assert.throws(() => compilerProofInternals.evidenceManifest({ ...common, evidenceScope: compilerProofInternals.AUTHORITY_SCOPE }), /structurally mixed evidence scope/);
   assert.throws(() => compilerProofInternals.evidenceManifest({ ...common, evidenceScope: compilerProofInternals.HERMETIC_SCOPE, descriptorDigest: compilerProofInternals.sha256('self') }), /derived outputs/);
+  const { bootstrapModuleRecords: _omittedBootstrap, ...missingBootstrap } = common;
+  assert.throws(() => compilerProofInternals.evidenceManifest({ ...missingBootstrap, evidenceScope: compilerProofInternals.HERMETIC_SCOPE }), /structurally mixed evidence scope/);
+  const { loadedModuleRecords: _omittedLoaded, ...missingLoaded } = common;
+  assert.throws(() => compilerProofInternals.evidenceManifest({ ...missingLoaded, evidenceScope: compilerProofInternals.HERMETIC_SCOPE }), /structurally mixed evidence scope/);
+  assert.throws(() => compilerProofInternals.evidenceManifest({
+    ...common,
+    evidenceScope: compilerProofInternals.HERMETIC_SCOPE,
+    executedByteSetDigest: resolvedModuleSetDigest,
+  }), /exact resolved and loaded modules/);
+  assert.throws(() => compilerProofInternals.evidenceManifest({
+    ...common,
+    evidenceScope: compilerProofInternals.HERMETIC_SCOPE,
+    testOutputDigest: compilerProofInternals.sha256('forged-summary'),
+  }), /structured test summary/);
+  assert.throws(() => compilerProofInternals.evidenceManifest({
+    ...common,
+    evidenceScope: compilerProofInternals.HERMETIC_SCOPE,
+    nodeFlags: common.nodeFlags.filter((flag) => flag !== '--frozen-intrinsics'),
+  }), /locked runtime inputs/);
+  const substitutedBootstrap = [{ path: 'proof.mjs', digest: compilerProofInternals.sha256('substituted-launcher') }, bootstrapModuleRecords[1]];
+  assert.throws(() => compilerProofInternals.evidenceManifest({
+    ...common,
+    evidenceScope: compilerProofInternals.HERMETIC_SCOPE,
+    bootstrapModuleRecords: substitutedBootstrap,
+    bootstrapModuleSetDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(substitutedBootstrap)),
+  }), /exact resolved and loaded modules/);
+  assert.throws(() => compilerProofInternals.evidenceManifest({
+    ...common,
+    evidenceScope: compilerProofInternals.HERMETIC_SCOPE,
+    nativeRuntimePostBindingDigest: compilerProofInternals.sha256('post-runtime-substitution'),
+  }), /equal pre-child-post bindings/);
+  assert.throws(() => compilerProofInternals.evidenceManifest({
+    ...common,
+    evidenceScope: compilerProofInternals.HERMETIC_SCOPE,
+    networkIsolatorPostBinding: { ...networkIsolatorBinding, digest: compilerProofInternals.sha256('post-isolator-substitution') },
+  }), /execution source, dependency, snapshot or invocation closure/);
+  const generatedImplementationSources = implementationSources.map((record) => record.path === 'source.mjs'
+    ? { ...record, path: 'proof-result.json' } : record).sort(({ path: left }, { path: right }) => left.localeCompare(right));
+  assert.throws(() => compilerProofInternals.evidenceManifest({
+    ...common,
+    evidenceScope: compilerProofInternals.HERMETIC_SCOPE,
+    implementationSources: generatedImplementationSources,
+    implementationSourceDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(generatedImplementationSources)),
+  }), /execution source, dependency, snapshot or invocation closure/);
 });
 
-test('rejects proof and evidence outputs from the implementation source digest', () => {
+test('rejects proof outputs, noncanonical paths, symlinks and aliases from the implementation source digest', () => {
   const { root } = fixture();
   assert.throws(() => compilerProofInternals.sourceSet(root, ['.work/proof-result.json']), /generated proof output/);
   assert.throws(() => compilerProofInternals.sourceSet(root, ['semantic-model/assurance/evidence.trig']), /generated proof output/);
+  assert.throws(() => compilerProofInternals.sourceSet(root, ['./source.mjs']), /not canonical repository-relative identity/);
+  assert.throws(() => compilerProofInternals.sourceSet(root, ['source.mjs', 'source.mjs']), /duplicated/);
+  const virtualFileSystem = (stat) => ({
+    exists: () => true,
+    lstat: () => stat,
+    read: () => Buffer.from('unreachable fixture bytes'),
+    realpath: (path) => path,
+  });
+  assert.throws(() => compilerProofInternals.sourceSet(root, ['source-link.mjs'], virtualFileSystem({
+    dev: 1, ino: 2, nlink: 1, isFile: () => true, isSymbolicLink: () => true,
+  })), /canonical regular repository file/);
+  assert.throws(() => compilerProofInternals.sourceSet(root, ['source-hard-link.mjs'], virtualFileSystem({
+    dev: 1, ino: 3, nlink: 2, isFile: () => true, isSymbolicLink: () => false,
+  })), /canonical regular repository file/);
+  const localCas = join(root, 'cas-output');
+  mkdirSync(localCas, { recursive: true });
+  writeFileSync(join(localCas, 'prior-proof.mjs'), 'generated proof bytes\n');
+  assert.throws(() => compilerProofInternals.sourceSet(root, ['cas-output/prior-proof.mjs'], {}, [localCas]), /generated output or CAS root/);
 });

@@ -55,6 +55,14 @@ const CONTAMINATION_RE = new RegExp(CONTAMINATION_PATTERNS.join('|'));
 // intended detector rather than an invalid string escape.
 const SPARQL_CONTAMINATION = CONTAMINATION_PATTERNS.join('|').replace(/\\/g, '\\\\');
 const SHAPES_GRAPH_MARKER = 'urn:usf:graph:shapes';
+const SHA256 = /^sha256:[0-9a-f]{64}$/;
+const stable = (value) => Array.isArray(value)
+  ? value.map(stable)
+  : value && typeof value === 'object'
+    ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])]))
+    : value;
+const canonicalJson = (value) => JSON.stringify(stable(value));
+const sha256 = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
 
 const readText = (p) => readFileSync(p, 'utf8');
 const { namedNode } = DataFactory;
@@ -67,6 +75,27 @@ const XSD_INTEGER_FAMILY = new Set([
   'long', 'int', 'short', 'byte',
   'unsignedLong', 'unsignedInt', 'unsignedShort', 'unsignedByte',
 ].map((name) => XSD + name));
+
+function validatedReceipt(receipt, shapes, phase) {
+  // Bind the exact document bytes transmitted for validation: non-base shape
+  // documents carry the shared declaration header prepended by
+  // shapeConstraints, so raw file bytes would not match what was validated.
+  const expectedInputs = shapes.map(({ file, content }) => ({
+    path: `semantic-model/${file}`,
+    digest: sha256(content),
+  })).sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
+  const expectedSetDigest = sha256(canonicalJson(expectedInputs));
+  const fields = ['conforms', 'observationSetDigest', 'receiptDigest', 'validatedDocumentCount', 'validatedDocumentSetDigest'];
+  const core = receipt && typeof receipt === 'object' ? Object.fromEntries(fields.filter((field) => field !== 'receiptDigest').map((field) => [field, receipt[field]])) : null;
+  if (!receipt || Array.isArray(receipt) || canonicalJson(Object.keys(receipt).sort()) !== canonicalJson(fields)
+      || receipt.conforms !== true || receipt.validatedDocumentCount !== expectedInputs.length
+      || receipt.validatedDocumentSetDigest !== expectedSetDigest
+      || !SHA256.test(receipt.observationSetDigest || '')
+      || receipt.receiptDigest !== sha256(canonicalJson(core))) {
+    throw new CompilerError('live SHACL provider returned an incomplete or mismatched validation receipt', { phase });
+  }
+  return Object.freeze(receipt);
+}
 
 function canonicalLiteralQuad(item) {
   const object = item.object;
@@ -377,7 +406,9 @@ export function buildPlan(manifest) {
 // documents. A single concatenated request exceeds the managed service's
 // accepted SHACL payload even though every module is valid Turtle.
 function shapeConstraints(manifest) {
-  const documents = manifest.shapes.map((shape) => ({ file: shape.file, content: readText(shape.path) }));
+  const documents = manifest.shapes
+    .filter((shape) => shape.liveValidation !== false)
+    .map((shape) => ({ file: shape.file, path: shape.path, content: readText(shape.path) }));
   const base = documents.find((document) => document.file === 'shapes.ttl');
   if (!base) throw new CompilerError('base shapes document is not registered', {
     phase: 'shapes:prefixes',
@@ -452,6 +483,9 @@ export async function compile({
   }
   checkLocal(manifest);
   await client.connectivity();
+  if (typeof client.validateInTransactionWithReceipt !== 'function') {
+    throw new CompilerError('semantic authority provider lacks digest-bound live SHACL validation receipts', { phase: 'validate:provider' });
+  }
 
   const shapes = shapeConstraints(manifest);
   const integrity = integrityRules(manifest);
@@ -464,6 +498,8 @@ export async function compile({
     return transport;
   };
   let commitOutcome;
+  let authoredValidationReceipt;
+  let derivedValidationReceipt;
   let tx;
 
   try {
@@ -501,10 +537,12 @@ export async function compile({
     }
 
     // Validate the authored state before deriving.
-    if (!(await client.validateInTransaction(tx, shapes))) {
+    const authoredReceipt = await client.validateInTransactionWithReceipt(tx, shapes);
+    if (authoredReceipt?.conforms !== true) {
       const report = await client.reportInTransaction(tx, shapes);
       throw new CompilerError('authored state failed SHACL validation', { phase: 'validate:authored', report });
     }
+    authoredValidationReceipt = validatedReceipt(authoredReceipt, shapes, 'validate:authored-receipt');
 
     // Replace the configured constraint graph in one complete upload. Loading
     // modules one at a time exposes an invalid partial constraints graph to
@@ -540,10 +578,12 @@ export async function compile({
     }
 
     // Validate the derived state.
-    if (!(await client.validateInTransaction(tx, shapes))) {
+    const derivedReceipt = await client.validateInTransactionWithReceipt(tx, shapes);
+    if (derivedReceipt?.conforms !== true) {
       const report = await client.reportInTransaction(tx, shapes);
       throw new CompilerError('derived state failed SHACL validation', { phase: 'validate:derived', report });
     }
+    derivedValidationReceipt = validatedReceipt(derivedReceipt, shapes, 'validate:derived-receipt');
 
     // Every registered integrity SELECT must return zero rows, in manifest
     // order. No later lifecycle rule may be silently omitted.
@@ -688,6 +728,12 @@ export async function compile({
         });
       }
     }
+    const liveValidationCore = {
+      authored: authoredValidationReceipt,
+      derived: derivedValidationReceipt,
+      validatedDocumentCount: manifest.shapes.length,
+      validatedDocumentSetDigest: authoredValidationReceipt.validatedDocumentSetDigest,
+    };
     return {
       ok: true,
       graphsCleared: clearableGraphs(manifest).length,
@@ -696,6 +742,10 @@ export async function compile({
       derived: derivedTriples,
       contaminationCount: 0,
       commitOutcome,
+      liveValidation: {
+        ...liveValidationCore,
+        receiptDigest: sha256(canonicalJson(liveValidationCore)),
+      },
     };
   } catch (err) {
     if (tx) {

@@ -10,7 +10,11 @@
   "packageManager": "npm@10.9.8",
   "scripts": {
     "test": "node assurance/semantic-model-compilation/test-runner.mjs all",
-    "test:semantic-assurance": "node assurance/semantic-model-compilation/test-runner.mjs semantic-assurance"
+    "test:semantic-assurance": "node assurance/semantic-model-compilation/test-runner.mjs semantic-assurance",
+    "publish:authority:validate": "node processes/semantic-assurance/semantic-authority-publication.mjs --mode=validate",
+    "publish:authority": "node processes/semantic-assurance/semantic-authority-publication.mjs --mode=commit",
+    "authority:drift": "node processes/semantic-assurance/semantic-authority-drift.mjs",
+    "authority:snapshot-derived": "node processes/semantic-assurance/semantic-authority-drift.mjs --write-derived"
   },
   "dependencies": {
     "n3": "2.1.1",
