@@ -6,16 +6,16 @@ This file is the durable programme directive for a long-running, restartable and
 
 When the user says **“Read GOAL.md and begin”**, do not return a plan and wait. Read the mandatory governing material, establish exact current state, report the measured usage baseline, and immediately execute the next safe critical-path action.
 
-This revision records the direct user authorisation required by the Claude execution shim for bounded modifying workers. Modifying workers are permitted under the isolation and integration rules in this file. Only the coordinator may mutate Stardog, integrate worker changes, or make programme-level completion claims.
+This directive records the direct user authorisation required by the Claude execution shim for bounded modifying workers. Modifying workers are permitted under the isolation and integration rules in this file. Only the coordinator may mutate Stardog, integrate worker changes or make programme-level readiness and completion claims.
 
 The programme has two inseparable objectives:
 
 1. deliver the complete repository-local executable USF suite in development, deterministic-test and production-shaped-staging environments; and
-2. establish a formal, executable and proof-bearing mechanism for semantic exhaustiveness across capabilities, resources, actions, transports, states, actors, roles, permissions, conditions, provider modes, environments, outcomes, token scopes, tests, evidence and proofs.
+2. establish a formal, executable and proof-bearing mechanism for semantic exhaustiveness across capabilities, resources, actions, transports, interactions, states, actors, roles, permissions, conditions, provider modes, environments, outcomes, token scopes, tests, evidence and proofs.
 
-The programme is not complete when it has produced only semantic contracts, RDF, JSON specifications, generated packets, matrices, reports, reference demonstrations, adapters without required behaviour, or paths to code in another repository.
+The programme is not complete when it has produced only semantic contracts, RDF, JSON specifications, generated packets, matrices, reports, reference demonstrations, adapters without required behaviour or paths to code in another repository.
 
-Completion requires a standalone clone of this repository to contain all source, configuration, migrations, seeds, orchestration, test assets, proof assets and operational tooling needed to build, run and validate the complete in-scope suite without access to an earlier or parent repository.
+Completion requires a standalone clone of this repository to contain all source, configuration, migrations, representative data, orchestration, tests, proof algorithms and operational tooling needed to build, run and validate the complete in-scope suite without an earlier repository, parent checkout, external work tracker, hidden agent memory or untracked implementation bytes.
 
 The lifecycle is strictly semantic-first:
 
@@ -32,9 +32,45 @@ Model
   → re-evaluated Proof and Contract state
 ```
 
-Semantics establish what must be true. Code, tests, reports and work records are candidate realisations or evidence; none independently establish semantic truth.
+Semantics establish what must be true. Code, tests, reports, generated matrices and external work records are candidate realisations, evidence or projections; none independently establish semantic truth.
 
-## 2. Terminal outcomes
+The permutation mechanism is an intentional semantic meta-layer that defines how existing USF concepts are enumerated, dispositioned and proved. It is not a second copy of the USF domain model and must not create a second semantic-source authority.
+
+## 2. Current programme priority and checkpoint override
+
+Do not embed volatile current-state digests in this directive. Repository bytes, the verified checkpoint, programme ledger and live authority determine exact current state.
+
+The discovery of an incomplete operation universe reopens the affected semantic-adequacy, permission, token and executable-delivery scope under:
+
+```text
+OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE
+```
+
+Preserve independently valid contamination dispositions, realisation-option evaluation, compiler cutover, implementation and evidence within their exact unchanged dependency scopes. Do not invalidate unrelated work merely because this gate is new.
+
+This `GOAL.md` digest supersedes any checkpoint or generated ledger that still identifies executable-environment delivery as the first unblocked programme action without first accounting for permutation closure. At the first session under this directive:
+
+1. verify the checkpoint and its generator against the new goal digest;
+2. update tracked checkpoint-generation logic and directive validators if they do not represent this gate;
+3. regenerate the checkpoint from tracked commands;
+4. make the authority-bound permutation-family census the next semantic critical-path action;
+5. do not permit an older checkpoint to bypass this directive.
+
+The dependency order is now:
+
+1. `DIRECTIVE_AND_CHECKPOINT_RECONCILIATION`;
+2. `OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE`;
+3. `COMPILER_GENERATOR_AND_PROOF_REFRESH` for every changed source or semantic dependency;
+4. `EXECUTABLE_ENVIRONMENT_DELIVERY`;
+5. `BIDIRECTIONAL_TRACEABILITY_CLOSURE`;
+6. `FINAL_HERMETIC_SYSTEM_GATES`;
+7. terminal outcome evaluation.
+
+Executable work whose semantics, permissions and write scope are demonstrably unaffected may proceed in parallel, but no permission, operation-catalogue, access-token or overall completion claim may close before the permutation gate passes.
+
+No overall percentage is permitted unless it records the metric name, numerator, denominator, weighting algorithm, state source and calculation digest. A remaining-delivery percentage must never be labelled overall programme completion.
+
+## 3. Terminal outcomes
 
 Continue until exactly one overall terminal outcome is warranted:
 
@@ -45,20 +81,20 @@ USF_HERMETIC_SUITE_DELIVERY_BLOCKED_IRRECOVERABLY
 
 `USF_HERMETIC_SUITE_DELIVERY_COMPLETE` is permitted only when every completion gate in this file passes.
 
-`USF_HERMETIC_SUITE_DELIVERY_BLOCKED_IRRECOVERABLY` is permitted only when progress requires an unavailable mandatory credential, explicit human or legal acceptance, a paid or irreversible external action not already authorised, inaccessible mandatory external evidence, an unexplained authority conflict, unexplained user-owned repository state, or an infrastructure limit with no authorised recovery path.
+`USF_HERMETIC_SUITE_DELIVERY_BLOCKED_IRRECOVERABLY` is permitted only when progress requires an unavailable mandatory credential, explicit human or legal acceptance, a paid or irreversible external action not already authorised, inaccessible mandatory external evidence, an unexplained authority conflict, unexplained user-owned repository state or an infrastructure limit with no authorised recovery path.
 
-Routine ambiguity, missing semantics, missing code, test failures, proof failures, stale evidence, dependency conflicts, architectural decisions, Stardog failures, rollback, performance defects, incomplete matrices, absent permissions, missing collectors or incomplete environments are not irrecoverable blockers. Resolve them and continue.
+Routine ambiguity, missing semantics, missing code, test failures, proof failures, stale evidence, dependency conflicts, architecture decisions, Stardog failures, rollback, performance defects, incomplete matrices, absent permissions, missing collectors, context limits or incomplete environments are not irrecoverable blockers. Resolve them and continue.
 
-The permutation work has an intermediate exact verdict:
+The permutation subprogramme has an intermediate exact verdict:
 
 ```text
 PERMUTATION_CLOSURE_COMPLETE
 PERMUTATION_CLOSURE_INCOMPLETE
 ```
 
-This intermediate verdict never substitutes for the overall terminal outcome. After permutation closure, continue executable-suite delivery unless the entire programme is complete.
+It never substitutes for the overall terminal outcome. After permutation closure, continue executable-suite delivery unless the entire programme is complete.
 
-## 3. Instruction precedence and semantic authority
+## 4. Instruction precedence and semantic authority
 
 Read the applicable execution shim, `AGENTS.md`, this file, the USF skill and the latest verified checkpoint before acting. A Claude session reads `CLAUDE.md`; a Codex session reads `CODEX.md`; another agent reads its equivalent shim when present.
 
@@ -73,15 +109,15 @@ Apply precedence in this order:
 7. current digest-bound packets and focused live queries;
 8. repository source, tests, ADRs, reports, caches, earlier repositories and external work records as non-authoritative inputs.
 
+This directive explicitly authorises modifying workers under Section 6. A product shim whose default is read-only must apply this more specific programme authorisation while preserving coordinator-only semantic mutation.
+
 Validated semantic state in Stardog is the sole current USF semantic authority. Stardog storage alone does not establish truth: the state must satisfy the live ontology, constraints, evidence-admission, proof, contract and realisation lifecycle.
 
-Current authority may be corrected only through the authorised semantic publication path. Preserve lineage, produce evidence, evaluate alternatives, publish a coherent superseding decision transactionally, invalidate dependants, and regenerate affected projections. Never bypass authority informally.
+Current authority may be corrected only through the authorised semantic publication path. Preserve lineage, produce evidence, evaluate alternatives, publish a coherent superseding decision transactionally, invalidate dependants and regenerate affected projections. Never bypass authority informally.
 
-Graph source files are registered materialisations used to update authority. Their presence does not independently establish truth, completeness or implementation readiness.
+Graph source files are registered materialisations used to update authority. Their presence does not independently establish truth, completeness or implementation readiness. Determine the canonical semantic-source root and publication path from current repository and authority state rather than assuming a historical `graph/`, `semantic-model/` or tools path.
 
-Do not embed volatile current-state digests in this directive. Repository bytes, the verified checkpoint, the programme ledger and live authority determine current state. Any prose snapshot, prior prompt or prior agent summary is subordinate to those sources.
-
-## 4. Exact session start and continuation protocol
+## 5. Exact session start and continuation protocol
 
 Before modification:
 
@@ -91,41 +127,44 @@ Before modification:
 4. attribute every pre-existing modification and untracked path without changing it;
 5. confirm no unowned process or transaction is modifying the checkout;
 6. load and verify the latest programme checkpoint, ledger and available sidecar digests;
-7. call `usf_health`;
-8. call `usf_bootstrap` exactly once for this task unless a verified unchanged bootstrap result is already reusable;
-9. record the exact live authority digest and compare it with the checkpoint;
-10. retrieve the active repository-materialisation contract before creating, renaming or deleting tracked paths or selecting representation formats;
-11. determine the current canonical semantic-source root and publication path rather than assuming `graph/`, `semantic-model/` or any historical directory is authoritative;
-12. establish an actual token/cache telemetry baseline using Section 7;
-13. identify the checkpoint’s exact next executable action and begin it.
+7. reconcile the checkpoint with Section 2 before trusting its next action;
+8. call `usf_health`;
+9. call `usf_bootstrap` exactly once for this task unless a verified unchanged bootstrap result is reusable;
+10. record the exact live authority digest and compare it with the checkpoint;
+11. retrieve the active repository-materialisation contract before creating, renaming or deleting tracked paths or selecting representation formats;
+12. confirm required environment variables without printing secrets;
+13. confirm the operator-owned CAS and required secret interfaces are available without exposing credentials;
+14. establish an actual token/cache telemetry baseline using Section 8;
+15. begin the next safe critical-path action immediately.
 
 Do not repeat broad bootstrap, census, contamination inventory, repository-wide analysis or foundational option evaluation while relevant digests remain unchanged. Query before reading files and read the smallest sufficient ranges.
 
-A fresh invocation resumes from exact state. It does not replay the previous conversation or spend a new session proving already verified facts.
+A fresh invocation resumes from exact durable state. It does not replay a prior conversation or spend a new session proving unchanged verified facts.
 
-## 5. Execution mode, agent throughput and Git hygiene
+## 6. Execution mode, agent throughput and Git hygiene
 
 Use one top-level coordinator. Only the coordinator may:
 
 - mutate Stardog;
 - publish semantic authority;
-- integrate modifying-worker commits;
+- integrate modifying-worker commits or patches;
 - resolve cross-scope conflicts;
-- update the authoritative checkpoint;
+- update authoritative programme state;
 - make readiness or completion claims.
 
 Use bounded parallelism dynamically:
 
-- begin with up to four independent workers when four real independent tasks exist;
-- scale to at most eight active execution participants when scopes remain independent;
+- begin with up to four independent workers when four genuine independent tasks exist;
+- scale to at most eight active execution participants while scopes remain independent;
 - delegation depth is at most two;
-- do not spawn an agent for a task the coordinator can finish faster directly;
+- do not spawn an agent for work the coordinator can finish faster directly;
 - prefer read-only exploration workers for search, evidence gathering, bounded comparison and test diagnosis;
 - use modifying workers only for self-contained changes with disjoint write scopes;
 - resume an existing worker for continuation of the same scope rather than creating a fresh one;
-- stop completed or idle workers promptly.
+- stop completed or idle workers promptly;
+- use background shells for independent deterministic tests and generators when a separate model participant is unnecessary.
 
-Every modifying worker must use its own branch and worktree and receive this compact packet:
+Every modifying worker uses its own branch and worktree and receives:
 
 ```text
 objective
@@ -140,7 +179,7 @@ expected result format
 stop conditions
 ```
 
-Worker write scopes must not overlap. Workers do not mutate Stardog, rewrite shared programme state, edit the same generated projection concurrently or integrate one another.
+Worker write scopes do not overlap. Workers do not mutate Stardog, rewrite shared programme state, edit the same generated projection concurrently or integrate one another.
 
 Workers return only:
 
@@ -156,20 +195,22 @@ recommended next action
 
 Never send workers the conversation, full graph, full checkpoint, complete test logs or broad repository dumps.
 
-Worker commits and coherent coordinator wave commits are permitted. Random partial commits, milestone overclaims and unintegrated worker commits are prohibited. Leave no stray worktree, stash, temporary branch or unintegrated commit. Never use `git stash` for coordination. Never reset, clean, overwrite, discard or delete unknown or user-owned work.
+Worker commits are permitted as temporary coordination artefacts in isolated worktrees. The coordinator may inspect, cherry-pick or otherwise integrate them, then remove all temporary branches and worktrees. Unless a direct current user instruction changes this policy, intermediate commits on the primary programme branch are prohibited and one final programme commit is created only after every global completion gate passes. A worker commit, patch or checkpoint is never a completion milestone.
 
-Push only when directly authorised for that session. The direct authorisation used to publish this revision does not silently authorise later agents to push unrelated implementation work.
+Push only when directly authorised for that session. The authorisation used to publish this directive does not silently authorise later agents to push unrelated delivery work.
 
-## 6. Throughput-first delivery discipline
+Never use `git stash` for coordination. Never reset, clean, overwrite, discard or delete unknown or user-owned work. Leave no stray worktree, stash, branch, process, transaction or unintegrated worker commit.
 
-Throughput means **verified programme progress per token and per unit of wall time**, not raw tool-call volume.
+## 7. Throughput-first delivery discipline
+
+Throughput means **verified programme progress per fresh token and per unit of wall time**, not raw tool-call volume, token volume or agent count.
 
 Operate in coherent dependency-ordered delivery waves:
 
-1. verify the exact checkpoint state and relevant digests;
-2. select the smallest set of unblocked critical-path tasks that closes meaningful obligations;
+1. verify exact checkpoint state and relevant digests;
+2. select the smallest set of unblocked critical-path tasks closing meaningful obligations;
 3. partition independent tasks across workers;
-4. while workers execute, complete non-overlapping serial work;
+4. complete non-overlapping coordinator work while workers execute;
 5. integrate results as they become available;
 6. run the smallest targeted checks needed to detect immediate regressions;
 7. correct failures at their source;
@@ -180,7 +221,7 @@ Operate in coherent dependency-ordered delivery waves:
 
 Mandatory efficiency rules:
 
-- prefer implementation over narration when an authorised action is available;
+- prefer implementation over narration when an authorised action exists;
 - batch compatible repository changes before integrated validation;
 - do not run the complete compliance suite after each small edit;
 - run exhaustive, adversarial, clean-room and deterministic validation at final gates or after a material authority, architecture, security or cross-system change;
@@ -188,45 +229,49 @@ Mandatory efficiency rules:
 - use scripts for inventories, matrices, digests, transformations, traceability and repetitive checks;
 - run independent long tests in background shells when safe;
 - store large output in files and return only decisive excerpts and stable error signatures;
-- do not construct orchestration, telemetry or reporting infrastructure beyond the smallest reusable mechanism required by this directive;
-- use current authority and checkpoint digests as cache keys for semantic context and generated work;
-- do not reopen accepted decisions without changed evidence or dependency digests.
+- do not construct orchestration, telemetry or reporting infrastructure beyond the smallest reusable mechanism required;
+- use authority and checkpoint digests as cache keys for semantic context and generated work;
+- do not reopen accepted decisions without changed evidence or dependency digests;
+- do not reduce semantic coverage merely to increase apparent throughput.
 
-Model effort discipline for Claude or an equivalent runtime:
+Model-effort discipline for Claude or an equivalent runtime:
 
 - use `high` as the default balance for implementation and coordination;
-- use `xhigh` or the runtime’s equivalent for hard semantic design, proof, security or cross-system reasoning;
+- use `xhigh` or equivalent for hard semantic design, proof, security or cross-system reasoning;
 - use `max` only for a bounded exceptional blocker, then return to the lower setting;
-- do not run the entire long-lived multi-agent programme at maximum effort merely to increase activity;
-- use faster or lower-cost workers for mechanical bounded tasks when the runtime supports safe model routing.
+- do not run the entire long-lived programme at maximum effort merely to increase activity;
+- use faster or lower-cost workers for mechanical bounded tasks when safe model routing is available.
 
-## 7. Token minimisation, cache preservation and measured usage
+## 8. Token minimisation, cache preservation and measured usage
 
 Token minimisation is mandatory and must not weaken delivery.
 
-Treat conversation and model-local memory as temporary. Treat validated authority, Git, the programme checkpoint and ledger, CAS, evidence, proof and validation state as durable systems.
+Treat conversation and model-local memory as temporary. Treat validated authority, Git, tracked programme tooling, the regenerated checkpoint and ledger, CAS, evidence, proof and validation state as durable systems.
+
+### 8.1 Stable reusable context
 
 Preserve a stable prompt prefix and reusable working context:
 
 - keep `AGENTS.md`, the applicable shim, this file, the loaded USF skill and shared agent definitions stable within a wave;
 - after the first complete read, retain governing-document digests and section indexes and retrieve only exact sections later;
-- perform one bootstrap per task and reuse it while its authority dependencies remain unchanged;
+- perform one bootstrap per task and reuse it while authority dependencies remain unchanged;
 - use bounded SPARQL with exact identifiers, predicates and limits;
 - read exact file ranges rather than complete large files;
 - reference semantic resources and stored results by identifiers and digests rather than repeating contents;
 - keep one compact task ledger containing objective, identifiers, scopes, invariants, acceptance, validation and next action;
-- avoid volatile timestamps, random identifiers and reordered stable instructions in reusable prompt prefixes unless semantically required;
+- keep volatile deltas, errors and worker results after the stable instruction prefix where the host supports prompt-prefix caching;
+- avoid volatile timestamps, random identifiers and reordered stable instructions in the reusable prefix unless semantically required;
 - do not paste worker conversations, large diffs, logs or repeated explanations into coordinator context;
 - resume an existing subagent for the same semantic scope where possible;
 - checkpoint before context pressure becomes material;
-- compact only when needed and preserve authority digest, accepted decisions, active scopes, completed evidence, residual findings and exact next action;
+- compact only when needed and preserve authority digest, accepted decisions, active scopes, completed evidence, findings and exact next action;
 - never make correctness depend on a cache hit.
 
-### 7.1 Actual telemetry only
+### 8.2 Actual telemetry only
 
-Do not infer token usage or caching from speed, elapsed time, estimated cost or subjective impressions. Use actual Claude Code/API telemetry when available.
+Do not infer token usage or caching from speed, elapsed time, estimated cost or subjective impressions. Use actual runtime telemetry when available.
 
-At session start, perform one bounded local-only observability setup without overwriting existing settings. Confirm whether actual usage records provide:
+At session start perform one bounded local-only observability setup without overwriting existing settings. Confirm whether usage records provide:
 
 ```text
 input_tokens
@@ -236,9 +281,10 @@ output_tokens
 context-window utilisation
 model identity
 request or message identity
+request timestamp
 ```
 
-Use `/usage`, the supported status-line input, or a compact transcript parser outside tracked repository content. Deduplicate cumulative records by stable request or message identity. Never sum repeated status-line refreshes or cumulative snapshots as independent usage.
+Use the runtime’s supported usage view, status-line input or a compact transcript parser outside tracked repository content. Deduplicate cumulative records by stable request or message identity. Never sum repeated status-line refreshes or cumulative snapshots as independent usage.
 
 Calculate:
 
@@ -255,11 +301,14 @@ fresh_input =
 cache_reuse_percent =
     cache_read_input_tokens / total_input * 100
 
-cache_read_to_write_ratio =
+cache_read_to_creation_ratio =
     cache_read_input_tokens / cache_creation_input_tokens
+
+total_accounted =
+    total_input + output_tokens
 ```
 
-Cache creation during initial warm-up is expected.
+When a denominator is zero, report `NOT_APPLICABLE`. When the runtime does not expose a value, report `METRIC_UNAVAILABLE`; never estimate or fabricate it. Cache creation during initial warm-up is expected.
 
 Use these status labels:
 
@@ -273,13 +322,13 @@ CACHE_EFFECTIVE
 CACHE_DEGRADED
   a stable repeated workload has zero cache reads, or cache creation equals or exceeds reads across three consecutive measured points
 
-METRIC_UNAVAILABLE
-  the runtime does not expose the value
+CACHE_METRIC_UNAVAILABLE
+  the runtime exposes no trustworthy cache-read value
 ```
 
 Never state that caching is active without a positive measured cache-read field.
 
-### 7.2 Reporting cadence
+### 8.3 Reporting cadence
 
 Report compact measured usage:
 
@@ -287,11 +336,11 @@ Report compact measured usage:
 - at each delivery-wave boundary;
 - after compaction;
 - after a material cache-behaviour change;
-- at least once per long-running wave, but not so frequently that telemetry itself harms throughput;
+- at least once per long-running wave, without allowing telemetry to harm throughput;
 - before a usage-limit safe stop;
 - in the final report.
 
-Use this format:
+Use:
 
 ```text
 USAGE
@@ -304,7 +353,7 @@ cache read:
 total input:
 output:
 cache reuse:
-cache read:write:
+cache read:creation:
 context used:
 measured token throughput:
 active/completed agents:
@@ -319,9 +368,33 @@ next critical action:
 blockers:
 ```
 
-Use actual numbers only. Mark unavailable values `METRIC_UNAVAILABLE`. Distinguish API processing time from wall time when both are available.
+Use actual numbers only and distinguish API processing time from wall time when both are available.
 
-## 8. Complete repository-local realisation
+### 8.4 Token-aware execution choices
+
+Prefer one stable authority witness over repeated bootstrap, one digest-bound census over repeated broad queries, deterministic generation over manually authored rows, targeted failing-test output over full logs, resuming workers over replacement, focused checks before integrated checks and one coherent semantic transaction over repeated authority churn.
+
+Do not choose a weaker model, permission design, test scope or proof to reduce tokens.
+
+## 9. Unattended operation and stop conditions
+
+Do not ask the user to make routine implementation, architecture, ordering, dependency, naming, remediation, testing or retry decisions. Resolve them through authority, evidence, credible option evaluation, claims, proof, accepted realisation and validation.
+
+Do not stop after creating an issue, ADR, plan, report, checkpoint, matrix or generated packet. Continue implementation while a safe authorised action remains.
+
+Stop and report only for:
+
+- unexplained authority conflict;
+- authority drift that cannot be safely reconciled;
+- unavailable mandatory credentials or external evidence;
+- a paid, irreversible, legal or human acceptance action not already authorised;
+- unexplained repository state risking user-owned work;
+- an infrastructure limit with no authorised recovery path;
+- pressure to make an unsupported completion claim.
+
+On routine failure capture exact evidence, identify the violated obligation, repair the narrowest root cause, validate it and continue.
+
+## 10. Complete repository-local realisation
 
 A semantic contract is realised only when all applicable behaviour is executable from tracked repository files.
 
@@ -333,44 +406,76 @@ repository-local source or repository-local adapter
 all referenced paths beneath the repository root
 locked reproducible dependencies
 configuration schema and safe examples
-migrations and representative seeds
+migrations and representative data
 commands, APIs, workers, events and scheduled jobs
 positive, negative, error and recovery behaviour
-dev, test and staging wiring
+dev, deterministic-test and staging wiring
 health and readiness
 unit, contract, integration and end-to-end tests
 semantic traceability to implementation and tests
 validation evidence admitted into the lifecycle
+all applicable operation permutations dispositioned
+all REQUIRED and ALLOWED runtime cells executable
+all FORBIDDEN cells negatively enforced
+fine-grained permission and token-scope bindings
 ```
+
+A `REQUIRED` or `ALLOWED` cell may be marked temporarily incomplete during delivery, but `PERMUTATION_CLOSURE_COMPLETE` cannot rely on a proof-rung substitute for runtime behaviour when the cell represents an executable operation. A proof-only closure is permitted only for a semantically non-runtime assurance cell whose authority explicitly states that no runtime execution is applicable.
 
 The following do not count as implementation:
 
 ```text
 RDF, JSON or a generated contract alone
+a matrix without executable required behaviour
 a path naming code elsewhere
 a source digest without source bytes
 a generated interface without working behaviour
 a mock as the only staging behaviour when real behaviour is required
 a package declaration not integrated and exercised
 an orchestration service that starts but does not fulfil its contract
-a report asserting that implementation exists
+a report asserting implementation exists
 ```
 
-Earlier repositories, histories, work trackers and local caches are not semantic inputs and are not required for build, run, test, staging or continuation. Eliminate paths escaping the repository, absolute source paths, `file:` dependencies to another checkout, source-supplying submodules, cross-repository symlinks, parent-source mounts, parent tools and implementation references that exist only in an agent cache or CAS.
+Earlier repositories, histories, work trackers and local caches are not semantic inputs and are not required for build, run, test, staging or continuation. Eliminate paths escaping the repository, absolute source paths, `file:` dependencies to another checkout, source-supplying submodules, cross-repository symlinks, parent-source mounts, parent tools and implementation references that exist only in an agent cache or unverified CAS.
 
-Third-party packages, images and external services require an accepted option decision, exact version or digest, integrity verification, licence and supply-chain assessment, a declared acquisition process and replacement/continuity rule. At least one build and test run must execute with network disabled using only verified acquired inputs.
+Third-party packages, images and external services require an accepted option decision, exact version or digest, integrity verification, licence and supply-chain assessment, a declared acquisition process and replacement or continuity rule. At least one build and test run executes with network disabled using only verified acquired inputs.
+
+External services require repository-local clients, adapters, schemas, failure handling, deterministic substitutes where permitted and production-shaped staging bindings.
 
 No `TODO`, `FIXME`, deliberate no-op, `not implemented`, unconditional success, skipped mandatory test, empty handler or placeholder may remain in an in-scope executable path.
 
-## 9. Required environments and hermetic bootstrap
+## 11. Hermetic derivation and repository materialisation
 
-Deliver development, deterministic-test and production-shaped-staging environments from the same versioned application source and images. Differences are configuration, policy and infrastructure differences, not separate behavioural implementations.
+Every current directory, filename, semantic identity, application, process, module, adapter, API, command, event, worker, job, data model, migration, representative data set, configuration key, environment variable, secret slot, role, permission, token scope, image, external dependency, test, fixture, collector, proof algorithm, validator, workflow, generated artefact and operator procedure must have this chain:
 
-Development requires one-command start, local deterministic dependencies, safe example configuration, representative tenants and users, fast feedback, health/readiness, reset and teardown.
+```text
+current semantic requirement
+→ claim, constraint or obligation
+→ accepted realisation decision
+→ authorised representation and path role
+→ authority-digest-bound materialisation plan
+→ repository-local artefact or locked external component
+→ validation evidence
+→ proof and contract re-evaluation
+```
 
-Test requires isolated deterministic execution, fresh state or proven rollback, permitted hermetic provider substitutes, parallel-safe isolation, failure injection, machine-readable evidence and complete teardown.
+Traceability is bidirectional. Every obligation has a realisation and every artefact has one semantic owner and independent justification. Generated output binds its generator, exact inputs, algorithm version and digest.
 
-Staging requires immutable application images, production-equivalent process model, persistent services and migrations, ingress/trust boundary where applicable, externally injected secrets, readiness gates, restart/recovery, backup/restore, observability, resource limits, upgrade/rollback and no development-only paths.
+The root of trust is exactly:
+
+```text
+current validated semantic authority
+current repository source
+version- and digest-locked toolchain inputs
+verified authorised CAS payloads
+credentials supplied only through modelled secret interfaces
+```
+
+Framework defaults, ambient host assumptions, undeclared network access, mutable tags, floating versions, unverified tools, hidden generator inputs, cache-dependent correctness, wall-clock-dependent canonical output, unseeded canonical randomness and locale/timezone/platform-dependent canonical behaviour are blocking defects.
+
+The compiler, generators, validators and proof tools are delivered system components. They are repository-local, versioned, digest-bound, tested and capable of rebuilding governed output from current authority. If an independent Python proof remains warranted, preserve it as an independent verifier or explicitly supersede it through evidence-backed option evaluation; never silently assume another implementation is equivalent.
+
+Before creating foundational paths, retrieve the active repository-materialisation contract, evaluate credible layout alternatives, derive an exact plan, validate it through authorised layout operations and reject unauthorised paths.
 
 The bootstrap counterfactual is:
 
@@ -378,13 +483,31 @@ The bootstrap counterfactual is:
 
 Completion requires a demonstrated yes from two independent fresh clones and a poisoned-state test.
 
-## 10. Semantic adequacy, contamination and realisation-option closure
+## 12. Required environments and deliverable inventory
 
-Preserve the existing digest-bound semantic-adequacy and contamination review while its dependencies remain unchanged. Reopen only affected items when a relevant semantic, evidence, proof, representation or authority digest changes.
+Build one bounded, canonical, authority-digest-bound deliverable inventory and regenerate it only when a relevant dependency changes. Attempt to prove it incomplete before accepting it.
 
-Every imported name, IRI, capability boundary, service/package boundary, interface, operation, event, workflow, state, technology choice, provider assumption, environment classification, nonclaim, path role and operational process must have an independent semantic basis rather than mere historical familiarity.
+Every record includes semantic identifier, owner, claims, behaviours, dependencies, data/security boundary, environments, evidence/proof/validation, candidate form, state and applicable permutation families.
 
-Every imported item has exactly one complete disposition:
+The inventory covers all applications, processes, modules, bindings, stores, schemas, migrations, representative data, commands, APIs, protocols, events, publishers, consumers, workers, queues, retries, jobs, identity, sessions, roles, permissions, tenancy, privacy, configuration, environments, health, readiness, observability, backup, restore, upgrade, rollback, collectors, proofs, validators, tests, CI, release gates and documentation.
+
+Every capability has an accountable boundary. Runtime, operator-control and assurance boundaries remain distinct. Non-runtime capabilities receive no artificial product service. Orphan processes, capabilities without behavioural ownership, hidden workers, shared processes without tenant/security separation and assurance tooling counted as product runtime are zero.
+
+Deliver development, deterministic-test and production-shaped-staging environments from the same application source and images.
+
+Development provides one-command start, deterministic local dependencies, safe examples, representative tenants/users, health/readiness, reset and teardown.
+
+Test provides isolated deterministic execution, fresh state or proven rollback, permitted substitutes, parallel-safe isolation, failure injection, machine-readable evidence and teardown.
+
+Staging provides immutable images, production-equivalent topology, persistent services and migrations, ingress/trust boundary where applicable, external secrets, readiness, restart/recovery, backup/restore, observability, resource limits, upgrade/rollback and no development-only paths.
+
+## 13. Semantic adequacy, contamination and realisation-option closure
+
+Preserve existing digest-bound semantic-adequacy and contamination review while dependencies remain unchanged. Reopen only affected items when semantic, evidence, proof, representation or authority dependencies change.
+
+Every imported name, IRI, capability boundary, process/package boundary, interface, operation, event, workflow, state, technology choice, provider assumption, environment classification, nonclaim, path role and operational process has an independent semantic basis rather than historical familiarity.
+
+Every inherited item has exactly one disposition:
 
 ```text
 INDEPENDENTLY_WARRANTED_RETAINED
@@ -396,32 +519,50 @@ HISTORICAL_PROVENANCE_ONLY
 UNRESOLVED_EXTERNAL_DECISION
 ```
 
-Operational sequencing must not become permanent capability, package, directory, filename, IRI or API identity unless it has genuine stable semantic meaning.
+Operational sequencing does not become permanent identity unless it has genuine stable semantic meaning.
 
-No realisation decision is grandfathered. Before implementation expansion, prove current candidate coverage, current criterion/evidence assessment, exact component/version binding, licence and supply-chain closure, responsibility mapping, composition coverage and required provider/environment bindings. Preserve independently validated unaffected behaviour within its proven scope.
+No realisation decision is grandfathered. Before implementation expansion prove candidate coverage, criterion/evidence assessment, exact component/version binding, licence and supply-chain closure, responsibility mapping, composition coverage and provider/environment bindings.
 
-The compiler, generators, validators, proof algorithms and materialisation tools are delivered system components. They must be repository-local, versioned, digest-bound, tested and free of historical-origin assumptions.
+The realisation-option closure gate requires zero:
 
-## 11. Mandatory semantic-exhaustiveness objective
+```text
+contracts requiring selection without evaluated candidates
+accepted decisions without credible alternatives or a valid sole-candidate proof
+accepted decisions without exactly one selected option
+missing candidate or component criterion assessments
+assessments without admitted current evidence
+credible rejections without evidence-backed reasons
+selected packages or images without exact version and integrity
+selected components without kind-specific closure
+third-party components without licence and vulnerability/supply-chain assessment
+compositions without complete responsibility mapping
+compositions without current whole-composition coverage proof
+composition permutations left unclassified
+provider choices without development, deterministic-test and staging bindings
+selected options without concrete realisation mappings
+legacy selections retained solely because of previous use
+```
+
+## 14. Mandatory semantic-exhaustiveness objective
 
 Create a formal, generic and extensible mechanism proving that every semantically meaningful way of operating every active USF capability has been considered.
 
-The mechanism must prove:
+The mechanism proves:
 
 1. every active capability has an explicit operational-surface classification;
-2. every applicable operational combination has one exact deterministic permutation cell;
+2. every applicable operational combination has one deterministic permutation cell;
 3. every candidate cell has exactly one disposition;
-4. every operation is bound to capability, contract, resource, action, interface or port, transport, interaction pattern, direction, state, permission, eligible principal path, tenant/security boundary, provider/environment conditions, outcomes, audit, evidence, proof, validation and token scope or explicit token non-applicability;
-5. every relevant role-to-operation and principal-to-operation combination is explicitly classified;
+4. every operation is bound to capability, contract, resource, action, interface or port, transport, interaction pattern, direction, session model, state, permission, eligible principal path, tenant/security boundary, provider/environment conditions, outcomes, audit, evidence, proof, validation and token scope or explicit token non-applicability;
+5. every relevant role-to-operation and principal-to-operation combination is classified;
 6. every required operation has at least one satisfiable authorised execution path;
 7. every active role has at least one meaningful authorised capability;
 8. no operation, role, permission, event, transition, port, provider mode, token scope or active capability remains orphaned;
 9. no active contract contains an unresolved or silently omitted applicable permutation;
 10. the complete permutation universe is finite, deterministic, queryable and digest-bound.
 
-### 11.1 Meaning of “all permutations realised”
+### 14.1 Meaning of all permutations realised
 
-Every finite candidate combination must be materialised as a queryable semantic cell and assigned exactly one closed disposition:
+Every finite candidate combination is materialised as a queryable semantic cell and assigned exactly one disposition:
 
 ```text
 REQUIRED
@@ -432,32 +573,33 @@ DEFERRED
 UNRESOLVED
 ```
 
-This does **not** mean every combination is allowed. Preserve deny-by-default and least privilege.
+This does not mean every combination is allowed. Preserve deny-by-default and least privilege.
 
 For every active contract:
 
-- `UNRESOLVED` = 0 before closure;
+- `UNRESOLVED` equals zero before closure;
 - `DEFERRED` is prohibited unless the capability or contract is explicitly deferred by current authority;
-- every `REQUIRED` or `ALLOWED` cell is executable or has a currently warranted proof-rung limitation;
-- every `FORBIDDEN` cell is impossible to authorise or encode into a token;
-- every `NOT_APPLICABLE` cell carries a controlled reason code, rationale and provenance.
+- every executable `REQUIRED` or `ALLOWED` cell has delivered behaviour before closure;
+- every `FORBIDDEN` cell is impossible to authorise or encode into a valid token;
+- every `NOT_APPLICABLE` cell carries a controlled reason code, rationale, provenance and proof.
 
-Interpret the requirement that no platform role be unable to do anything as follows:
+Interpret the requirement that no platform role be unable to do anything as:
 
 - no active role is empty;
 - no required operation lacks an eligible human role or service principal;
-- every platform operation has a normal operator path or a tightly controlled emergency path;
-- every role-operation-context cell is explicitly granted, conditional, denied, delegated-only, service-only, break-glass-only or not applicable.
+- every platform operation has a normal operator path or tightly controlled emergency path;
+- every role-operation-context cell is granted, conditional, denied, delegated-only, service-only, break-glass-only or not applicable.
 
-Do not grant every role every permission. A role intended to have no privileges must be inactive, retired or explicitly non-operational rather than silently empty.
+Do not grant every role every permission. A role intended to have no privilege must be inactive, retired or explicitly non-operational rather than silently empty.
 
-## 12. Permutation meta-model
+## 15. Permutation meta-model and finite-domain rule
 
-Implement an intentional semantic meta-layer defining how existing USF semantics are enumerated and proven. It describes the closure mechanism; it does not duplicate the domain model.
+Implement an intentional semantic meta-layer defining how existing USF semantics are enumerated and proved. It describes closure; it does not duplicate the domain model.
 
-Derive final canonical names from current authority. The required conceptual resources are:
+Derive final canonical names from current authority. Required conceptual resources include:
 
 ```text
+PermutationUniverse
 PermutationFamily
 PermutationDimension
 PermutationDimensionValue
@@ -471,214 +613,173 @@ AuthorisationPath
 AuthorisationConditionProfile
 PrincipalKind
 RolePermissionDisposition
+ResourceSelectorKind
 TokenScope
 TokenProfile
 TokenClaimConstraint
 PermutationCoverage
 PermutationProof
-PermutationUniverse
 PermutationPartition
 PermutationFamilyReview
 ```
 
-Each `PermutationFamily` declares:
+Each `PermutationFamily` declares canonical identity, semantic subject, ordered dimensions, finite value source, conditionally active dimensions, applicability rules, disposition set, closure requirements, generator, stable-key algorithm, partition rule, proof obligations, validation obligations and lifecycle state.
 
-```text
-canonical identity
-semantic subject
-ordered dimensions
-finite value source for each dimension
-conditionally active dimensions
-applicability rules
-required disposition set
-closure requirements
-generation algorithm
-stable-key algorithm
-partitioning rule
-proof obligations
-validation obligations
-lifecycle state
-```
+Each `PermutationCell` declares family, exact dimension values, stable key, digest, disposition, reason, provenance, authority digest, lifecycle state, permission atom, authorisation paths, token scope or token-not-applicable state, evidence/proof/validation identifiers and test identifiers.
 
-Each `PermutationCell` declares:
+Cell identity derives from canonical dimension identifiers, never insertion order, tracker ID, display label or runtime instance. Duplicate keys are forbidden. Every candidate key has exactly one cell and no cell exists outside the candidate universe.
 
-```text
-family
-exact ordered dimension values
-canonical stable key
-content-sensitive digest
-disposition
-controlled reason code
-reason text
-provenance or derivation rule
-authority digest
-lifecycle state
-permission atom where applicable
-eligible authorisation paths
-token scope or token-not-applicable state
-required evidence, proof and validation identifiers
-```
+Exhaustiveness is finite and reproducible. Enumerate semantic classes and selector kinds, not every runtime user, tenant, resource, timestamp or arbitrary string. Runtime specificity uses validated selectors such as exact resource ID, owner relationship, tenant, organisation, tag/classification, bounded path prefix, approved predicate, time window, environment, session and delegation chain.
 
-A cell identity is derived from canonical dimension identifiers, never insertion order, a tracker identifier or a runtime instance identifier. Duplicate semantic keys are forbidden. Every candidate key has exactly one cell, and no extra cell may exist outside the candidate universe.
+Every controlled domain is closed, versioned, validated and digest-bound. Applicability rules may prevent meaningless Cartesian expansion, but every exclusion is explicit and proved. Performance optimisation may not silently prune cells.
 
-## 13. Finite-domain rule
+## 16. Permutation-family census
 
-Exhaustiveness must be finite, reproducible and applicable.
-
-Enumerate controlled semantic classes such as:
-
-```text
-capability and contract
-resource class
-selector kind
-action kind
-transport and interaction pattern
-direction and session model
-actor and principal kind
-role and service identity
-permission atom
-condition profile
-tenant/security boundary
-lifecycle source and target state
-provider mode
-environment class
-outcome and error class
-audit category
-proof rung
-```
-
-Do not enumerate every runtime user, tenant, resource instance, timestamp or arbitrary string. Represent runtime specificity through validated selector and claim constraints such as exact resource ID, owner relationship, tenant, organisation, tag/classification, bounded path prefix, approved predicate, time window, environment, session and delegation chain.
-
-Every controlled-value domain must itself be closed, validated and digest-bound.
-
-## 14. Permutation-family census
-
-Review every active capability, contract and mandatory facet. Assign exactly one family-applicability disposition:
+Review every active capability, contract and mandatory facet. Assign exactly one disposition:
 
 ```text
 MATRIX_REQUIRED
 MATRIX_NOT_APPLICABLE
 ```
 
-`MATRIX_NOT_APPLICABLE` requires a reason code and proof that no independently meaningful multi-axis operational behaviour exists.
+`MATRIX_NOT_APPLICABLE` requires a controlled reason and proof that no meaningful multi-axis operational behaviour exists.
 
-At minimum, implement these families where applicable:
+At minimum implement these families where applicable:
 
-1. Capability × Resource × Action
-2. Capability × Interface × Operation
-3. Interface × Transport × InteractionPattern × Direction
-4. Operation × Permission
-5. Operation × Role × ConditionProfile
-6. Permission × Role × TenantBoundary
-7. Permission × PrincipalKind × EnvironmentClass
-8. Permission × ResourceSelectorKind
-9. Operation × SourceState × TargetState
-10. Transition × Trigger × Permission × Actor
-11. Port × Action × ProviderMode × EnvironmentClass
-12. Event × Publisher × Consumer × DeliverySemantics
-13. Event × PublishPermission × ConsumePermission
-14. Queue/Event × AckMode × RetryMode × ReplayMode
-15. DataModel × Action × PrivacyClassification × TenantBoundary
-16. ConfigurationKey × Action × Role × Environment
-17. Secret × Action × PrincipalKind × Environment
-18. UI Surface × Action × Permission × RouteKind
-19. Form/View × Operation × Permission
-20. TokenProfile × PermissionAtom × ClaimConstraint
-21. Operation × ExpectedOutcome × ErrorClass
-22. Operation × AuditEvent × AuditOutcome
-23. Capability × ProviderMode × ProofRung × EnvironmentClass
-24. RequiredPermutation × Test × Evidence × Proof
-25. Role × Capability × Action reachability
-26. Service/Process × Capability × Interface × LifecycleObligation
-27. ScheduledJob × Action × Role/ServiceIdentity × Environment
-28. API/Command × RateLimitPolicy × Permission × TenantBoundary
-29. Resource × DataField × Action × PrivacyClassification
-30. ExternalDependency × Operation × FailureMode × RecoveryAction
+1. Capability × Resource × Action.
+2. Capability × Interface × Operation.
+3. Interface × Transport × InteractionPattern × Direction × SessionModel.
+4. Operation × PermissionAtom.
+5. Operation × Role × ConditionProfile.
+6. PermissionAtom × Role × TenantBoundary.
+7. PermissionAtom × PrincipalKind × EnvironmentClass.
+8. PermissionAtom × ResourceSelectorKind.
+9. Operation × SourceState × TargetState.
+10. Transition × Trigger × PermissionAtom × PrincipalKind.
+11. Port × Action × ProviderMode × EnvironmentClass.
+12. Event × Publisher × Consumer × DeliverySemantics.
+13. Event × PublishPermission × SubscribePermission × ConsumePermission.
+14. Queue/Event × AckMode × RetryMode × ReplayMode × DeadLetterMode.
+15. DataModel × Action × PrivacyClassification × TenantBoundary.
+16. ConfigurationKey × Action × Role × EnvironmentClass.
+17. SecretClass × Action × PrincipalKind × EnvironmentClass.
+18. UI Surface × Action × PermissionAtom × RouteKind.
+19. Form/View × Operation × PermissionAtom.
+20. TokenProfile × PermissionAtom × ClaimConstraint.
+21. Operation × ExpectedOutcome × ErrorClass.
+22. Operation × AuditEvent × AuditOutcome.
+23. Capability × ProviderMode × ProofRung × EnvironmentClass.
+24. RequiredPermutation × Test × Evidence × Proof.
+25. Role × Capability × Action reachability.
+26. Service/Process × Capability × Interface × LifecycleObligation.
+27. ScheduledJob × Action × Role/ServiceIdentity × EnvironmentClass.
+28. API/Command × RateLimitPolicy × PermissionAtom × TenantBoundary.
+29. Resource × DataField × Action × PrivacyClassification.
+30. ExternalDependency × Operation × FailureMode × RecoveryAction.
+31. API/ProtocolSurface × Action × AuthenticationMode.
+32. Resource × Action × RetentionState × LegalHoldState.
+33. PermissionAtom × DelegationMode × AuthenticationStrength.
+34. Operation × RateLimitClass × QuotaState × Outcome.
 
-The census covers lifecycle, state model, permission, contracts, validation, errors, audit, readiness, proof, UI, APIs, commands, events, workflows, storage, configuration, secrets, tenancy, privacy, operators and automation. No active facet may remain absent from the census.
+The census covers lifecycle, state, permission, contracts, validation, errors, audit, readiness, proof, UI, APIs, commands, events, workflows, storage, configuration, secrets, tenancy, privacy, operators and automation. No active facet remains absent.
 
-## 15. Complete operation catalogue
+## 17. Complete operation catalogue
 
-Create a closed and extensible `ActionKind` taxonomy. Do not rely on operation names such as `get`, `post` or `create` to carry semantics.
+Create a closed and extensible `ActionKind` taxonomy. Do not rely on names such as `get`, `post` or `create` to carry semantics.
 
-Evaluate applicability of at least these generic resource actions:
+Generic resource actions:
 
 ```text
-create, read, get, head, list, search, query,
-update, replace, patch, upsert,
-delete, purge, restore, archive, unarchive,
-copy, move, import, export,
-validate, verify, sign, scan, quarantine, release,
-enable, disable, activate, deactivate,
-approve, reject, lock, unlock
+create read get head list search query
+update replace patch upsert
+delete purge restore archive unarchive
+copy move import export
+validate verify sign scan quarantine release
+enable disable activate deactivate
+approve reject lock unlock
+```
+
+Object and file actions:
+
+```text
+put get head list upload download
+sign verify scan quarantine release
+delete restore purge copy move
 ```
 
 Connection and session actions:
 
 ```text
-connect, open, authenticate, authorise,
-read, write, send, receive,
-subscribe, unsubscribe,
-ping, pong, heartbeat,
-close, disconnect, abort, reconnect, resume
+connect open authenticate authorise
+read write send receive
+subscribe unsubscribe
+ping pong heartbeat
+close disconnect abort reconnect resume
 ```
 
 Execution and workflow actions:
 
 ```text
-create, schedule, start, signal,
-pause, resume, stop, cancel,
-retry, replay, redrive,
-compensate, rollback, complete, fail,
-acknowledge, reject, lease, renewLease
+create schedule start signal
+pause resume stop cancel
+retry replay redrive
+compensate rollback complete fail
+acknowledge reject lease renewLease
 ```
 
 Security and identity actions:
 
 ```text
-login, logout, refresh, exchange, introspect,
-issue, delegate, impersonate, revoke, rotate,
-recover, breakGlass, approveElevation, terminateSession
+login logout refresh callback exchange introspect
+issue delegate impersonate revoke rotate
+recover breakGlass approveElevation terminateSession
 ```
 
 Event and messaging actions:
 
 ```text
-publish, consume, subscribe, unsubscribe,
-acknowledge, negativeAcknowledge,
-retry, replay, redrive,
-deadLetter, inspectDeadLetter, purgeDeadLetter
+publish consume subscribe unsubscribe
+acknowledge negativeAcknowledge
+retry replay redrive
+deadLetter inspectDeadLetter purgeDeadLetter
 ```
 
 Data and transaction actions:
 
 ```text
-begin, commit, rollback,
-select, insert, update, upsert, delete,
-migrate, seed, snapshot, backup, restore,
-replicate, reconcile
+begin commit rollback
+select insert update upsert delete
+migrate seed snapshot backup restore
+replicate reconcile
 ```
 
 Webhook actions:
 
 ```text
-register, inspect, list, update, delete,
-enable, disable, test, deliver, inspectDelivery,
-retry, replay, rotateSecret, revokeSecret
+register inspect list update delete
+enable disable test deliver inspectDelivery
+retry replay rotateSecret revokeSecret
 ```
 
 Provider actions:
 
 ```text
-configure, inspect, list, test,
-enable, disable, failover, recover, rotateCredentials
+configure inspect list test
+enable disable failover recover rotateCredentials
 ```
 
-Not every capability supports every action. Every generated candidate action must nonetheless receive an explicit disposition.
+Administrative and policy actions:
 
-## 16. Transport and interaction taxonomy
+```text
+assign unassign grant deny revoke evaluate simulate explain
+attest certify publish retire supersede
+```
 
-Create explicit controlled values for at least:
+Not every capability supports every action. Every generated candidate action nonetheless receives a disposition. Distinguish read from get/list/search/query/export, write from create/update/replace/patch, delete from purge, restore from create, open from connect, close from disconnect and publish from send.
+
+## 18. Transport and interaction taxonomy
+
+Create explicit controlled values for:
 
 Transports:
 
@@ -701,13 +802,7 @@ webhook callback
 HTTP methods:
 
 ```text
-GET
-HEAD
-OPTIONS
-POST
-PUT
-PATCH
-DELETE
+GET HEAD OPTIONS POST PUT PATCH DELETE
 ```
 
 Interaction patterns:
@@ -730,72 +825,33 @@ transactional
 Directions:
 
 ```text
-inbound
-outbound
-bidirectional
-internal
+inbound outbound bidirectional internal
 ```
 
 Session models:
 
 ```text
-stateless
-stateful
-connection-oriented
-resumable
-leased
-transactional
+stateless stateful connection-oriented resumable leased transactional
 ```
 
-Every declared operation has explicit applicable values or an explicit `NOT_APPLICABLE` disposition.
+Every declared operation has explicit applicable values or `NOT_APPLICABLE`.
 
-Every WebSocket-capable surface must explicitly consider:
+Every WebSocket-capable surface explicitly considers:
 
 ```text
-connect
-open
-authenticate
-authorise
-read
-write
-send
-receive
-subscribe
-unsubscribe
-ping
-pong
-heartbeat
-close
-disconnect
-abort
-reconnect
-resume
+connect open authenticate authorise read write send receive subscribe
+unsubscribe ping pong heartbeat close disconnect abort reconnect resume
 ```
 
-## 17. Permission atoms and complete authorisation matrix
+An API or protocol may forbid or mark an action not applicable, but may not omit it because existing code lacks it.
+
+## 19. Permission atoms and complete authorisation matrix
 
 Replace ambiguous permission naming with exact `PermissionAtom` semantics.
 
-Each permission atom identifies:
+Each atom identifies capability, resource, action, transport/interaction restriction where relevant, scope type, tenant boundary, selector kind, lifecycle restriction, environment restriction, principal restriction, delegability, break-glass eligibility, audit category and stable identifier.
 
-```text
-capability
-resource or resource class
-action
-transport or interaction restriction where security-relevant
-scope type
-tenant boundary
-selector kind
-lifecycle-state restrictions
-environment restrictions
-principal-kind restrictions
-delegability
-break-glass eligibility
-audit category
-stable permission identifier
-```
-
-For every active role and every relevant permission atom, create exactly one role-permission disposition:
+For every active role and relevant atom create exactly one disposition:
 
 ```text
 GRANTED
@@ -809,75 +865,51 @@ BREAK_GLASS_ONLY
 
 Every conditional grant references a finite named `AuthorisationConditionProfile`.
 
-Evaluate conditions including:
-
-```text
-tenant membership and ownership
-platform scope
-resource ownership
-delegated administration
-service identity
-authentication strength
-session state
-network or trust boundary
-environment and provider mode
-lifecycle state
-resource and privacy classification
-consent and entitlement state
-quota state
-legal hold
-time restriction
-request origin
-approval state
-break-glass state
-```
+Evaluate tenant membership/ownership, platform scope, resource ownership, delegated administration, service identity, authentication strength, session state, trust boundary, environment, provider mode, lifecycle state, resource/privacy classification, consent, entitlement, quota, legal hold, time, request origin, approval and break-glass state.
 
 Required invariants:
 
-1. every operation requires at least one permission atom, including an explicit public/anonymous atom when genuinely unauthenticated;
-2. every permission atom is used by an operation or explicitly retired;
-3. every active role has at least one granted or conditionally granted cell;
-4. every required or allowed operation cell has at least one satisfiable principal path;
-5. no forbidden cell has a role, ABAC, delegation, service-identity or token path;
+1. every operation requires at least one atom, including explicit anonymous/public access when genuinely unauthenticated;
+2. every atom is used or explicitly retired;
+3. every active role has at least one granted or conditional relevant cell;
+4. every required/allowed operation has a satisfiable principal path;
+5. no forbidden cell has a role, ABAC, delegation, service or token path;
 6. no implicit grant exists;
-7. no wildcard grant exists unless represented as a separately reviewed bounded resource and expanded to a proven finite set;
+7. wildcard grants are forbidden unless bounded, expanded and proved equivalent to an exact finite set;
 8. separation-of-duty conflicts are explicit and validated;
-9. tenant and platform permission namespaces cannot silently overlap;
-10. human roles and service identities remain distinguishable.
+9. tenant and platform namespaces cannot silently overlap;
+10. human roles and service identities remain distinct;
+11. list/search/export are not silently inherited from read/get;
+12. write/update/delete/purge remain distinct unless explicit composition is proved.
 
-## 18. Authorisation reachability and break-glass
+## 20. Authorisation reachability and break-glass
 
-For every `REQUIRED` or `ALLOWED` operation-context cell, prove an authorisation path consisting of:
+For every required or allowed operation-context cell prove:
 
 ```text
-active operation
 active capability and contract
-eligible principal kind
-role, service identity or bounded ABAC rule
-permission atom
-satisfied condition profile
-compatible tenant boundary
-compatible environment and provider mode
-valid token scope or explicit non-token execution mode
+→ active operation
+→ eligible principal kind
+→ role, service identity or bounded ABAC rule
+→ permission atom
+→ satisfied condition profile
+→ compatible tenant boundary
+→ compatible environment/provider mode
+→ valid lifecycle state
+→ valid token scope or explicit non-token mode
 ```
 
-Prove additionally:
+Prove no path is unsatisfiable, depends only on retired roles or invalid environments, leaves a required platform operation without an operator, exposes a tenant operation only through unreviewed platform authority, permits a forbidden cell by composition or increases privilege through delegation or exchange.
 
-- no path is logically unsatisfiable;
-- no path depends only on a retired role;
-- no path depends only on an invalid environment;
-- no required platform operation lacks a controlled operator or emergency path;
-- no tenant operation is available solely through platform-wide authority without an explicit exception;
-- every active role is non-empty;
-- every required operation is reachable by at least one eligible principal.
+Every active role is non-empty and every required operation has an eligible principal.
 
-Where normal access is unsafe, provide an explicit break-glass path with strong authentication, short lifetime, reason, approval where required, complete audit, revocation, no implicit persistence and post-use review.
+Where normal access is unsafe, provide break-glass with strong authentication, short lifetime, reason, approval where required, complete audit, revocation, no implicit persistence and post-use review.
 
-## 19. Fine-grained token generation and verification
+## 21. Fine-grained token generation and verification
 
-Derive token scopes only from active `REQUIRED` or `ALLOWED` authorisation cells.
+Derive token scopes only from active required or allowed authorisation cells.
 
-Implement semantic definitions for:
+Model:
 
 ```text
 TokenProfile
@@ -894,145 +926,71 @@ RevocationPolicy
 BreakGlassTokenProfile
 ```
 
-A token projection can express:
-
-```text
-subject and actor
-principal kind and roles
-tenant, organisation and suborganisation
-audience and environment
-capability and resource class
-exact action
-transport or interaction restriction
-resource selector
-lifecycle-state restriction
-condition-profile identifier
-delegation chain
-authentication strength
-issued-at, not-before and expiry
-unique token identifier
-proof-of-possession where required
-break-glass reason and approval
-```
+A token projection can express subject, actor, principal kind, roles, tenant, organisation, suborganisation, audience, environment, capability, resource class, exact action, transport/interaction restriction, selector, lifecycle restriction, condition profile, delegation chain, authentication strength, issued-at, not-before, expiry, token ID, proof-of-possession and break-glass reason/approval.
 
 Token invariants:
 
-1. every token scope maps to exact active permission atoms;
-2. every token-eligible permission atom maps to an exact token scope;
-3. a token cannot encode a forbidden or not-applicable cell;
-4. a token cannot broaden resource, tenant, action, environment or transport beyond its source cells;
+1. every scope maps to exact active permission atoms;
+2. every token-eligible atom maps to an exact scope;
+3. no scope encodes forbidden, not-applicable, deferred or unresolved cells;
+4. no scope broadens resource, tenant, action, environment, lifecycle state or transport beyond its source cells;
 5. refresh, exchange and delegation cannot increase privilege;
 6. audience and bounded lifetime are mandatory;
-7. break-glass tokens are short-lived, non-refreshable, fully audited and reviewed;
-8. wildcards are forbidden unless expanded and proven equivalent to a finite exact set;
-9. verification fails closed on unknown permission, stale authority digest, retired scope or condition mismatch;
+7. break-glass tokens are short-lived, non-refreshable, audited and reviewed;
+8. wildcards are forbidden unless expanded and proved equivalent to a finite exact set;
+9. verification fails closed on unknown permission, stale authority, retired scope or condition mismatch;
 10. scopes use stable semantic identifiers, not display names;
-11. the generator can emit a least-privilege token for every satisfiable token-based authorisation path.
+11. the generator emits least-privilege token profiles for every satisfiable token path.
 
-Do not store secrets or issued runtime tokens in Git or semantic authority.
+Do not store secrets or issued runtime tokens in Git or authority.
 
-## 20. Lifecycle and transition permutations
+## 22. Lifecycle and transition permutations
 
-Correct any place where an unordered state enumeration has been mechanically converted into a sequential state machine.
+Correct any place where unordered state alternatives were mechanically converted into a sequence.
 
-Every transition declares where applicable:
+Every transition declares source, target, triggering operation/event, permission atom, eligible principal, guard, success/failure outcome, audit, compensation/rollback and idempotency.
 
-```text
-source state
-target state
-triggering operation or event
-required permission
-eligible principal kind
-guard condition
-success outcome
-failure outcome
-audit event
-compensation or rollback behaviour
-idempotency semantics
-```
+Generate every applicable state × action candidate and classify it as permitted, forbidden, not applicable, terminal no-op, idempotent repeat or compensating transition. Never infer order from lexical, file or list order.
 
-Generate and classify every applicable state × action candidate as:
+## 23. Provider, environment and failure permutations
+
+For every applicable port action enumerate:
 
 ```text
-permitted transition
-forbidden transition
-not applicable
-terminal-state no-op
-idempotent repeat
-compensating transition
+port × action × provider mode × environment class × expected outcome × failure class
 ```
 
-Never infer transition order from lexical order, file order or list position.
+Consider deterministic substitute, repository-local service, external sandbox, live external and authority-control modes where applicable across local, hermetic, integration, staging, production-shaped, production-live and authority-control environments.
 
-## 21. Provider, environment and failure permutations
+Every cell defines timeout, retry, idempotency, circuit behaviour, tenant boundary, credential boundary, audit, evidence, proof rung and readiness effect. No provider/environment cell is silently omitted.
 
-For every applicable port action, enumerate:
+## 24. Event, queue and message permutations
 
-```text
-port
-× action
-× provider mode
-× environment class
-× expected outcome
-× failure class
-```
+For each event and message model publisher, consumer, publish/subscribe/consume permissions, acknowledgement, negative acknowledgement, retry, replay, redrive, dead-letter handling, ordering, deduplication, tenant filtering, payload classification, delivery semantics, environment, provider mode and audit.
 
-At minimum consider deterministic test substitute, repository-local service, external sandbox, live external and authority-control modes where applicable, across local, hermetic, integration, staging, production-shaped, production-live and authority-control environments.
+Explicitly disposition at-most-once, at-least-once, effectively-once, ordered and unordered modes where applicable. Do not assume one guarantee applies universally.
 
-Each applicable cell defines timeout, retry, idempotency, circuit behaviour, tenant boundary, credential boundary, expected audit, required evidence, proof rung and readiness effect.
+## 25. Data, privacy, configuration, secret and UI permutations
 
-No provider-mode/environment combination may be silently omitted.
+For every data/resource class evaluate action × principal × tenant boundary × privacy classification × consent × retention × legal hold × ownership selector × environment × audit.
 
-## 22. Event, queue and message permutations
+Prove read/write distinctness, list/search not equivalent to get, export not equivalent to read, delete distinct from purge, restore distinct from create, metadata separable from payload, field-level restrictions possible and cross-tenant access forbidden without explicit proven platform permission.
 
-For each event and message, model:
+For every configuration key and secret classify read, list, create, update, rotate, revoke, delete and use across roles, service identities and environments.
 
-```text
-publisher and consumer
-publish, consume and subscribe permissions
-acknowledgement semantics
-retry, replay and redrive
-dead-letter handling
-ordering and deduplication
-tenant filtering
-payload classification
-delivery semantics
-environment and provider mode
-audit requirements
-```
+For every UI surface, route, form and view, bind visible and invocable actions to the exact operation and permission semantics used by APIs, commands and automation. UI hiding is never authorisation.
 
-Explicitly disposition applicable delivery modes including at-most-once, at-least-once, effectively-once, ordered and unordered. Do not assume one guarantee applies universally.
+## 26. Deterministic derivation and materialisation
 
-## 23. Data, privacy, configuration, secret and UI permutations
+Do not hand-author the matrix.
 
-For every data/resource class, evaluate action × principal × tenant boundary × privacy classification × consent × retention × legal hold × ownership selector × environment × audit category.
+Implement deterministic rules or a proved generator that:
 
-Prove that:
-
-- read and write are distinct;
-- list/search are not silently equivalent to get;
-- export is not silently equivalent to read;
-- delete is distinct from purge;
-- restore is distinct from create;
-- metadata and payload access may be authorised separately;
-- sensitive fields may have finer permissions than their containing resource;
-- cross-tenant access is forbidden unless an explicit proven platform operation permits it.
-
-For every configuration key and secret, classify read, list, create, update, rotate, revoke, delete and use across roles, service identities and environments.
-
-For every UI surface, route, form and view, bind visible and invocable actions to the same exact operation and permission semantics used by APIs, commands and automation. UI hiding alone is never authorisation.
-
-## 24. Deterministic derivation and materialisation
-
-Do not hand-author millions of rows.
-
-Implement deterministic rules or a proven generator that:
-
-1. reads current finite semantic dimensions;
-2. enumerates the complete candidate universe;
-3. applies applicability rules;
+1. reads finite semantic dimensions;
+2. enumerates the candidate universe;
+3. applies explicit applicability rules;
 4. materialises every cell;
-5. assigns exactly one disposition;
+5. assigns one disposition;
 6. generates permission atoms;
 7. generates role-permission cells;
 8. generates authorisation paths and reachability;
@@ -1040,279 +998,260 @@ Implement deterministic rules or a proven generator that:
 10. generates coverage and proof obligations;
 11. emits deterministic counts, partitions and digests.
 
-Authoritative queryable permutation cells must be available in Stardog. Partition large matrices deterministically by family and capability using bounded named graphs or another authorised layout.
+Authoritative queryable cells are available in Stardog. Partition large matrices deterministically by family and capability using authorised named graphs or another modelled layout.
 
-Large tabular or compressed projections may be stored in the operator-owned CAS, but Stardog retains sufficient semantic state to query any cell. Every external payload has exact digest, media type, size and locator; it cannot replace semantic authority and must be reproducible from current authority.
+Large tabular/compressed projections may live in operator-owned CAS, but Stardog retains enough state to query any cell. Every external payload has digest, media type, size and locator and is reproducible. External projections do not replace authority.
 
-Do not suppress rows merely to reduce volume. Address scale with partitioning, indexing, streaming generation, deterministic batching and compact identifiers.
+Do not suppress rows to reduce volume. Use partitioning, indexing, streaming generation, deterministic batching and compact identifiers.
 
-## 25. Permutation coverage model
+## 27. Permutation coverage model
 
-Coverage measures the generated permutation universe, not merely whether a pre-existing test obligation has a result.
+Coverage measures the generated universe, not merely pre-existing tests.
 
-For every required or allowed cell, derive:
+For every required/allowed cell derive semantic-definition, permission, principal, token, lifecycle, positive-test, evidence, proof, environment/provider and audit coverage.
 
-```text
-semantic-definition coverage
-permission coverage
-principal reachability
-token-scope coverage
-lifecycle coverage
-test coverage
-evidence coverage
-proof coverage
-environment/provider coverage
-audit coverage
-```
+For every forbidden cell derive denial-rule, token-denial, negative-test and bypass-resistance coverage.
 
-For every forbidden cell, derive:
+For every not-applicable cell derive applicability-rule and rationale-proof coverage.
 
-```text
-denial-rule coverage
-token-denial coverage
-negative-test coverage
-bypass-resistance coverage
-```
+Every coverage record names the exact key. No aggregate 100% claim is allowed unless every required/allowed cell is covered, every forbidden cell has a denial proof and every not-applicable cell has rationale proof.
 
-Every coverage record identifies the exact permutation key. No aggregate `100%` claim is permitted unless every required cell is covered and every forbidden cell has a proven denial path.
+## 28. Formal semantic-exhaustiveness proof
 
-## 26. Formal semantic-exhaustiveness proof
-
-Implement a deterministic proof algorithm bound to:
+Implement a deterministic proof bound to:
 
 ```text
 authority digest
 ontology digest
 controlled-value digest
-permutation-family census digest
+family-census digest
 applicability-rule digest
 candidate-universe digest
 generated-cell digest
 permission-matrix digest
+authorisation-path digest
 token-scope digest
 test/evidence-set digest
 implementation-source digest
+proof-algorithm digest
 ```
+
+The proof independently recomputes the candidate key universe rather than trusting generator counts. Use an implementation path sufficiently independent from the generator to detect shared defects. Evaluate any existing Python proof as a candidate independent verifier rather than silently discarding it or assuming equivalence.
 
 The proof establishes:
 
-1. every reviewed subject is `MATRIX_REQUIRED` or `MATRIX_NOT_APPLICABLE`;
-2. every required family has finite closed dimensions;
+1. every subject is `MATRIX_REQUIRED` or `MATRIX_NOT_APPLICABLE`;
+2. every required family has finite dimensions;
 3. every candidate key creates exactly one cell;
-4. no extra cell exists outside the universe;
-5. every cell has exactly one valid disposition;
-6. active contracts have zero unresolved cells;
-7. unauthorised deferred cells are zero;
-8. every required and allowed cell is operationally reachable;
-9. every forbidden cell has no authorisation or token path;
-10. every operation has permission coverage;
-11. every relevant role-operation combination has a disposition;
-12. every active role is non-empty;
-13. every required operation has an eligible principal;
-14. every token scope is bounded by active permission cells;
-15. every lifecycle transition is operation/event-triggered or explicitly justified;
-16. every provider/environment cell has its required proof obligation;
-17. every required cell has coverage;
-18. every forbidden cell has negative coverage;
-19. no wildcard or inherited permission silently broadens access;
-20. unchanged authority reproduces identical counts, keys and digests.
+4. no extra cell exists;
+5. every cell has one valid disposition;
+6. active unresolved and unauthorised deferred counts are zero;
+7. every required/allowed runtime cell is executable and reachable;
+8. every forbidden cell has no authorisation or token path;
+9. every operation has permission coverage;
+10. every relevant role-operation-context has a disposition;
+11. every active role is non-empty;
+12. every required operation has an eligible principal;
+13. every token scope is bounded by active permission cells;
+14. every lifecycle transition is triggered or justified;
+15. every provider/environment cell has proof obligations;
+16. every required cell has positive coverage;
+17. every forbidden cell has negative coverage;
+18. every not-applicable cell has rationale proof;
+19. no wildcard or inherited permission broadens access;
+20. unchanged inputs reproduce identical counts, keys and digests.
 
-The proof emits counts by family, dimension and disposition; zero-gate counters; orphan and reachability counters; unresolved and duplicate counters; missing/overbroad token counters; missing-test counters; exact digests; uncertainty and explicit nonclaims.
+Emit counts by family, dimension and disposition; zero gates; orphan/reachability, unresolved, duplicate, token and test counters; exact digests; uncertainty and nonclaims.
 
-Admit the result through the normal USF evidence and proof lifecycle and rerun required post-publication authority-binding validation.
+Admit the result through the USF evidence/proof lifecycle and rerun post-publication authority-binding validation.
 
-## 27. SHACL, integrity, fixtures and generated tests
+## 29. SHACL, integrity, fixtures and generated tests
 
 Add fail-closed SHACL and integrity rules for every closure invariant.
 
-Plant defects proving detection of:
+Plant defects for:
 
 ```text
-missing or duplicate permutation cell
+missing or duplicate cell
 multiple or absent dispositions
 unresolved active cell
-required operation without principal path
+not-applicable without rationale
+required operation without principal
 active role without privilege
 permission without operation
 operation without permission
-permission without role, ABAC or service path
-forbidden cell with a grant
+permission without role/ABAC/service path
+forbidden cell with grant
 forbidden cell in token scope
-over-broad token scope
-wildcard privilege broadening
+over-broad scope
+wildcard broadening
 cross-tenant leakage
 platform/tenant namespace collision
 unsatisfiable conditional grant
 transition without trigger or permission
-state enumeration falsely sequenced
+state alternatives falsely sequenced
 incomplete WebSocket family
-event missing publish or consume permission
+event missing publish/subscribe/consume permission
 provider/environment omission
-operation missing audit behaviour
+operation missing audit
 required cell missing test/evidence
-NOT_APPLICABLE without rationale
 stale authority digest
 non-deterministic cell identity
 ```
 
 Include conforming fixtures for every major family. Each negative fixture fails for its intended stable code and no unrelated code.
 
-Generate deterministic executable tests from the matrix:
+Generate deterministic positive tests for required/allowed cells and negative authorisation/token tests for forbidden cells. Verify conditions, tenant, state, transport, selector, audit and stable denial/error codes. Proof-only test dispositions are allowed only for semantically non-runtime assurance cells. Use fixed seeds and exact reproduction information. Partition by capability and family.
 
-- positive tests for required and allowed cells;
-- negative authorisation and token tests for forbidden cells;
-- condition, tenant, state, transport, resource-selector and audit checks;
-- proof-only dispositions only where runtime execution is impossible at the current warranted proof rung;
-- fixed seeds and exact reproduction information for property-based tests;
-- partitions by capability and family for diagnosis and parallel execution.
+## 30. Migration of current authority
 
-## 28. Migration of all current authority
+Migrate every active capability, contract, interface, operation, port, event, message, workflow, transition, role, permission, provider mode, environment, UI surface and token-related capability into the closure mechanism. No existing operation is a privileged legacy exception.
 
-Migrate every active capability, contract, interface, operation, port, event, message, workflow, transition, role, permission, provider mode, environment, UI surface and token-related capability into the closure mechanism.
+For every capability assign surface classification, complete the family census, generate and disposition cells, bind atoms, establish reachability, derive token scopes and generate tests/proofs.
 
-No existing operation is a privileged legacy exception.
+Where semantics cannot justify allowed, forbidden or not applicable, create an explicit unresolved cell, identify the missing decision, resolve it through evidence and publication and return unresolved count to zero. Do not guess.
 
-For every active capability:
+## 31. Performance and scale evidence
 
-1. assign operational-surface classification;
-2. complete the family census;
-3. generate applicable cells;
-4. classify every cell;
-5. bind permission atoms;
-6. establish role/service reachability;
-7. derive token scopes;
-8. generate tests and proofs.
+Measure candidate count, materialised count, triples, generation time, validation time, proof time, exact-cell lookup latency, role-capability listing latency, token-scope latency, projection size, transaction size, peak memory, bounded-resource behaviour and deterministic repeatability.
 
-Where current semantics cannot justify allowed, forbidden or not applicable, create an explicit unresolved cell, identify the missing semantic decision, resolve it through evidence and publication, and return active unresolved count to zero. Do not guess.
+Do not reduce coverage for performance. Given role, operation and context, return final decision, exact cell, atom, conditions, reason, policy lineage, token scope, proof and evidence state.
 
-## 29. Performance and scale evidence
+## 32. Required permutation-delivery artefacts
 
-Measure before publication:
+Deliver ontology and controlled values, family census, applicability rules, deterministic generator, complete action/transport catalogue, permission atoms, role matrix, reachability, token model/projection/verifier, lifecycle/event/provider matrices, coverage, SHACL, integrity, fixtures, generated tests, independent proof, evidence/proof resources, bounded operator/MCP queries and documentation for adding dimensions, actions, roles and capabilities without silent gaps.
 
-```text
-candidate permutation count
-materialised cell count
-triples added
-generation time
-validation time
-proof time
-exact-cell lookup latency
-role-capability listing latency
-token-scope derivation latency
-serialised projection size
-Stardog transaction size
-peak memory and bounded-resource behaviour
-deterministic repeatability
-```
+Runtime evidence, proof output, issued tokens, secrets and logs remain outside Git unless current authority requires a tracked representation.
 
-Do not reduce semantic coverage for performance. A decision query given role, operation and context must return final decision, exact cell, permission atom, conditions, reason, policy lineage, token scope, proof and evidence state.
+## 33. Dependency closure and implementation lifecycle
 
-## 30. Dependency closure and implementation lifecycle
-
-Construct the dependency graph from live semantic relationships plus implementation and environment dependencies. Include model, controlled values, collectors, proofs, contract activation, realisation decisions, paths, data/migrations, interfaces/events, identity/tenancy/permissions/privacy, provider/environment topology, validation and recovery gates.
-
-The semantic-exhaustiveness and permission-closure work is now a mandatory critical-path node before any permission, role, token, operation-catalogue or access-control implementation can be considered complete. Unaffected executable-environment work may proceed in parallel when its semantics and write scopes do not overlap.
+Construct the dependency graph from live semantics plus implementation/environment dependencies. Include model, controlled values, permutation families, collectors, proofs, contracts, decisions, paths, data, interfaces, events, identity, permissions, tokens, tenancy, privacy, provider modes, environment, validation and recovery.
 
 For each actionable contract:
 
-1. verify complete model behaviour and applicable permutation closure;
-2. implement missing collectors and proof algorithms;
+1. verify complete model behaviour and permutation closure;
+2. implement missing collectors and proofs;
 3. evaluate credible realisation options;
-4. implement the minimum complete repository-local behaviour, never a stub;
-5. integrate it into dev, test and staging;
-6. run focused and aggregate validation;
+4. implement minimum complete local behaviour, never a stub;
+5. integrate dev/test/staging;
+6. run focused then aggregate validation;
 7. admit validation evidence;
 8. re-evaluate proof and contract state;
 9. checkpoint and continue.
 
-## 31. Stardog mutation and self-healing
+Validation includes format, lint, type, unit, semantic contract, API, protocol, command, event, data, integration, state, permission, token, tenancy, privacy, negative, adversarial, SHACL, integrity, derivation, migration, recovery, security, dependency, performance, orchestration, clean-room and end-to-end checks.
 
-All semantic mutations are coordinator-only and use registered authored semantic source and the authorised compiler publication transaction.
+Every mandatory validation becomes a `ValidationResult`. Passing tests without evidence admission and proof re-evaluation does not close a contract.
+
+## 34. Stardog mutation and self-healing
+
+All semantic mutations are coordinator-only and use registered authored source and the canonical compiler publication transaction.
 
 Never issue mutation SPARQL through a read gateway, raw HTTP, database CLI or ad hoc script.
 
-Before publication, verify repository preconditions, current authority, transaction ownership, local validation, exact semantic delta and stale-packet invalidation.
+Before publication verify repository preconditions, authority, transaction ownership, local validation, exact delta and stale-packet invalidation. Use validate-and-rollback before accepted publication.
 
-After publication, record the new authority digest; verify SHACL, integrity, contamination, derivations, graph inventory, permutation closure and source/live drift; invalidate stale packets; update checkpoint and measured usage; continue.
+After publication record the authority digest; verify SHACL, integrity, contamination, derivations, graph inventory, permutation closure and source/live drift; invalidate stale packets; update checkpoint and usage; continue.
 
-Classify failures before acting. Retry only transient operations, never replay ambiguous mutations, never alter another owner’s transaction, minimise failing fixtures, preserve state and continue through safe recovery.
+Classify failures. Retry only transient reads, never replay ambiguous mutations, never alter another owner’s transaction, minimise fixtures and preserve state.
 
-## 32. Validation, adversarial review and clean-room acceptance
+Address resource limits with bounded queries, indexing, partitioning, batching, projections, CAS or an authorised store migration. Never weaken completeness to fit a tier.
 
-Run applicable format, lint, static, type, unit, semantic-contract, API, command, event, data, integration, state-transition, permission, tenancy, privacy, token, negative, adversarial, SHACL, integrity, derivation, migration, backup, restore, retry, timeout, rollback, security, licence, dependency, performance, orchestration and end-to-end checks.
+## 35. External coordination policy
 
-Every mandatory validation produces a `ValidationResult` entering the evidence lifecycle. A passing test alone does not close a contract.
+Durable programme state lives in authority, Git, tracked repository tooling, regenerated checkpoint conventions, authorised CAS and evidence/proof/validation state. An external work tracker is not programme memory and does not establish semantic gaps, architecture, naming, dependency order or completion.
+
+Use external coordination only for an unavailable human or organisation performing legal, commercial, credential, access or organisational work that cannot be resolved through semantics, implementation, evidence, proof or validation. Record the actor, unblock condition and why repository-local semantic state is insufficient.
+
+No external work-record identifier may enter a path, IRI, canonical name, package, service, schema, test, branch, tag or generated artefact.
+
+## 36. Validation, adversarial review and clean-room acceptance
 
 Actively attack:
 
 ```text
-specification or report treated as implementation
-semantic or implementation path outside the repository
-missing source behind a digest
-hidden parent-repository dependency
+specification, matrix or report treated as implementation
+path outside repository
+missing source behind digest
+hidden parent dependency
 mock-only readiness overclaim
-active contract lacking executable behaviour or environment wiring
+contract lacking behaviour/environment
+capability without family review
+operation/action/transport omission
 orphan operation, permission or role
 implicit or wildcard grant
-forbidden permission reachable through ABAC, delegation or token
+forbidden access through ABAC/delegation/token
 cross-tenant leakage
-operation/action/transport omission
-state enumeration mistaken for transitions
+empty active role
+break-glass without controls
+over-broad token
+state alternatives mistaken for transitions
+event permission/delivery omission
 provider/environment omission
 positive-only tests
-stale evidence or proof
+stale evidence/proof
 source/live drift
 secret leakage
-supply-chain or licence violation
+supply-chain/licence violation
 partial rollback
-hidden cache or host-state dependency
-unimplemented user, API, operator or automation journey
+hidden cache/host-state dependency
+unimplemented user/API/operator/automation journey
 ```
 
-At least two independent final reviews are mandatory; the second reviewer is not shown the first conclusion before reporting.
+At least two independent final reviews are mandatory; the second is not shown the first conclusion.
 
-Run the complete suite twice from independent clean temporary clones against the same authority digest. Require deterministic canonical outputs, inventories, matrices, plans, evidence-set digests and attestations except explicitly normalised volatile fields. Run a poisoned-state test. Flakiness is a defect, not a reason to rerun until green.
+Run the complete suite twice from independent clean temporary clones against the same authority. Require deterministic canonical outputs, inventories, universes, matrices, plans, evidence-set digests and attestations except normalised volatile fields. Run a poisoned-state test. Flakiness is a defect.
 
-## 33. Checkpoint, handoff and usage-limit safe stop
+## 37. Checkpoint, handoff and usage-limit safe stop
 
-Maintain the atomic JCS-canonical checkpoint at `.work/programme/checkpoint.json` and its verified sidecars using tracked regeneration commands. `.work/` is volatile and never the sole durable source of programme truth.
+`.work/` is volatile gitignored scratch and may be empty at session start. Never store irreplaceable state or tooling there. Regenerate checkpoint, ledger and sidecars with tracked commands. Credentials and CAS payloads remain outside Git.
 
-After each coherent wave, store durable semantic, implementation, evidence, proof and validation state in its authorised system, then write one compact checkpoint containing:
+When required, copy the operator-supplied evidence signing key from its authorised secret store into the prescribed `.work/programme/` path with mode 600. Never print or commit it.
+
+Maintain the atomic JCS-canonical checkpoint at `.work/programme/checkpoint.json` and verified sidecars.
+
+After each wave store durable state in authorised systems, then checkpoint:
 
 ```text
 goal and governing-document digests
-repository HEAD, working-tree and patch digests
+HEAD, working-tree and patch digests
 authority and candidate digests
-current phase and semantic/executable node
-inventory, census, universe, matrix and coverage digests
-classified completed, reopened, actionable, superseded and blocked identifiers
-changed paths and content digests
-publication transaction outcome
-evidence, proof and validation identifiers
+phase and current node
+inventory, census, universe, matrix, coverage and proof digests
+completed, reopened, actionable, superseded and blocked identifiers
+changed paths and digests
+publication outcome
+evidence/proof/validation identifiers
 dev/test/staging state
 agent/worktree/branch ownership
-process and transaction ownership
-measured usage and cache status
-unresolved findings
-next exact semantic identifier, action and command
+process/transaction ownership
+usage/cache boundary
+findings
+next identifier, action and command
 ```
 
 Before a model, context or execution limit prevents safe continuation:
 
-1. finish the current atomic operation;
-2. do not begin an operation that cannot be completed and reconciled;
-3. run the smallest focused validation;
-4. write and verify checkpoint and sidecars;
+1. finish the atomic operation;
+2. do not begin an unreconcilable operation;
+3. run focused validation;
+4. write and verify checkpoint/sidecars;
 5. record exact next action;
 6. verify Git, worktrees, stashes, CAS, processes and transactions;
 7. leave no ambiguity or unowned state;
-8. return a compact continuation report, not a terminal programme verdict.
+8. return compact continuation and measured usage, not a terminal verdict.
 
-## 34. Completion gates
+## 38. Directive and validator harmonisation
 
-All applicable gates must pass before overall completion.
+Review `AGENTS.md`, `CODEX.md`, `CLAUDE.md`, other shims, the USF skill, this file, checkpoint generator, validators, CI, layout schemas and proof algorithms. They agree on authority, semantic source, compiler paths/runtime, worker permissions, commit policy, permutation closure, permission/token semantics, materialisation, completion, external coordination and cache reporting.
 
-### 34.1 Authority and semantic closure
+A directive, checkpoint generator, command or validator enforcing superseded policy is a blocking defect. Remove active references to retired tool paths and any next-action state bypassing the permutation gate.
+
+## 39. Completion gates
+
+All applicable gates pass before overall completion.
+
+### 39.1 Authority and semantic closure
 
 ```text
 live authority health verified
@@ -1322,195 +1261,222 @@ integrity violations = 0
 contamination = 0
 source/live drift = 0
 unknown graph drift = 0
-unexplained semantic resources = 0
-unclassified capabilities or contracts = 0
+unexplained resources = 0
+unclassified capabilities/contracts = 0
 silent inherited reuse = 0
-implementation-derived semantic assumptions = 0
+implementation-derived assumptions = 0
 unjustified technology selections = 0
-source paths treated as target architecture = 0
-unreviewed nonclaims or deferred states = 0
+source paths treated as architecture = 0
+unreviewed nonclaims/deferred states = 0
 proof-to-current-implementation mismatches = 0
-directive and validator conflicts = 0
+directive/validator conflicts = 0
 ```
 
-### 34.2 Semantic-exhaustiveness and permission closure
+### 39.2 Permutation and permission closure
 
 ```text
 active capabilities without family review = 0
 mandatory facets without family review = 0
 required families without finite dimensions = 0
 candidate keys without cells = 0
-cells outside the candidate universe = 0
+cells outside candidate universe = 0
 duplicate cells = 0
-cells without exactly one disposition = 0
+cells without one disposition = 0
 active unresolved cells = 0
 unauthorised deferred cells = 0
-NOT_APPLICABLE cells without reason/proof = 0
+NOT_APPLICABLE without rationale/proof = 0
 operation/action omissions = 0
 transport/interaction omissions = 0
-WebSocket family omissions = 0
-operations without permission atoms = 0
-permission atoms without operation or retirement = 0
-relevant role-permission cells without disposition = 0
-active roles with zero reachable privilege = 0
-required operations without eligible principal path = 0
+WebSocket omissions = 0
+operations without atoms = 0
+atoms without operation/retirement = 0
+role-permission cells without disposition = 0
+active roles with zero privilege = 0
+required operations without principal path = 0
 unsatisfiable allowed paths = 0
 forbidden cells with grant paths = 0
 forbidden cells with token scopes = 0
 over-broad token scopes = 0
-wildcard privilege broadening = 0
-cross-tenant privilege leakage = 0
-invalid lifecycle transitions = 0
-events without publish/consume authorisation = 0
+wildcard broadening = 0
+cross-tenant leakage = 0
+invalid transitions = 0
+events without publish/subscribe/consume authorisation = 0
 provider/environment omissions = 0
-required cells without coverage = 0
+required cells without positive coverage = 0
 forbidden cells without negative coverage = 0
-non-deterministic universe or digest results = 0
+not-applicable cells without rationale coverage = 0
+non-deterministic universe/digests = 0
 ```
 
-`PERMUTATION_CLOSURE_COMPLETE` is allowed only when all these counters are zero and the formal proof, fixtures, generated tests, validate-and-rollback, accepted publication, post-publication proof and zero-drift checks pass.
+`PERMUTATION_CLOSURE_COMPLETE` additionally requires the independent proof, fixtures, generated tests, validate-and-rollback, accepted publication when authorised, post-publication proof and zero drift.
 
-### 34.3 Executable repository closure
+### 39.3 Executable repository closure
 
 ```text
-all active contracts have repository-local executable realisations
-repository artefacts without semantic derivation = 0
-semantic obligations without delivered realisations = 0
-implicit operational inputs = 0
-unlocked external dependencies = 0
-unmodelled configuration or secret interfaces = 0
+active contracts without local executable realisations = 0
+artefacts without semantic derivation = 0
+obligations without realisations = 0
+implicit inputs = 0
+unlocked dependencies = 0
+unmodelled configuration/secrets = 0
 origin-dependent knowledge = 0
-semantic-to-artefact traceability gaps = 0
-artefact-to-semantic traceability gaps = 0
+bidirectional traceability gaps = 0
 external local-repository references = 0
 specification-only active realisations = 0
-missing implementation paths = 0
-placeholder or no-op implementations = 0
-all required source tracked in final Git tree
+missing paths = 0
+placeholders/no-ops = 0
+required source absent from final Git tree = 0
 ```
 
-### 34.4 Environment closure
+### 39.4 Environment closure
 
 ```text
-dev builds, starts, becomes healthy and executes required journeys
-test is isolated, deterministic and complete
-staging is production-shaped and has no dev-only shortcut
-migrations and seeds pass from empty state
-services, workers and scheduled jobs execute
-cross-service APIs, events and data contracts pass
-backup, restore, restart, upgrade and rollback pass
-teardown leaves no unauthorised residue
-network-isolated rebuild succeeds
-clean-clone hermetic failures = 0
+dev failures = 0
+deterministic-test failures = 0
+production-shaped-staging failures = 0
+migration/representative-data failures = 0
+services/workers/jobs not executing = 0
+cross-service contract failures = 0
+backup/restore/restart/upgrade/rollback failures = 0
+unauthorised teardown residue = 0
+network-isolated rebuild failures = 0
+clean-clone failures = 0
 ```
 
-### 34.5 Evidence, proof and validation
+### 39.5 Evidence, proof and validation
 
 ```text
-mandatory evidence admitted, fresh, integrity-valid and applicable
-mandatory proofs current and successful
-results bind exact evidence, source, authority, decision, configuration, environment, provider, persistence, migration, interface and dependency scope
-failed or stale results retain lineage and cannot activate contracts
-CAS payloads verify
-all planted defects rejected by intended gates
-all required unit, contract, integration and end-to-end tests pass
-all required user, API, operator and automation journeys pass
-all rollback and recovery tests pass
-two clean-room runs pass
-canonical outputs and digests are deterministic
-security, licence, dependency, provenance and signature gates pass
+mandatory evidence missing/stale/invalid = 0
+mandatory proofs without current success = 0
+proofs missing exact authority/source/evidence/permutation bindings = 0
+unsupported confidence = 0
+stale result activating contract = 0
+CAS failures = 0
+planted defects not rejected = 0
+required test failures = 0
+required journey failures = 0
+rollback/recovery failures = 0
+clean-room failures = 0
+canonical nondeterminism = 0
+security/licence/dependency/provenance/signature failures = 0
 ```
 
-### 34.6 Independent review and repository state
+### 39.6 Independent review and repository state
 
 ```text
-two independent final reviews complete
-critical findings = 0
-high findings = 0
-claim-affecting unresolved medium findings = 0
-all resolved findings have regression tests or semantic constraints
-executable and semantic audits have zero actionable in-scope gaps
-no unauthorised external-work dependency or identity
-no stash
-no stray worktree, branch or unintegrated commit
-no temporary repository artefact
-no unowned process or transaction
+independent final reviews < 2
+critical findings > 0
+high findings > 0
+claim-affecting unresolved medium findings > 0
+resolved findings without regression constraint > 0
+audit gaps > 0
+unauthorised external-work dependency > 0
+unintended primary changes > 0
+stray worktrees/branches/commits > 0
+stashes > 0
+temporary repository artefacts > 0
+unowned processes/transactions > 0
 ```
 
-## 35. Forbidden shortcuts
+### 39.7 Final evidence
+
+```text
+final suite evidence manifest verified
+final evidence-set digest recorded
+final repository-source inventory digest recorded
+final permutation-universe digest recorded
+final permission-matrix digest recorded
+final authorisation-path digest recorded
+final token-scope digest recorded
+final dev/test/staging evidence verified
+final attestation digest verified where required
+post-publication proofs pass
+final contract packets regenerate
+two empty-cache clean clones pass
+poisoned-state test passes
+```
+
+## 40. Forbidden shortcuts
 
 Never claim completion by:
 
 ```text
-landing semantics or matrices without executable behaviour
-pointing implementation paths at an earlier repository
-stopping when a work-plan query returns no rows
+landing semantics/matrices without executable behaviour
+pointing at an earlier repository
+stopping on an empty work plan
 calling a reference implementation the suite
-using a cache as the only source of implementation bytes
-creating orchestration without exercising complete behaviour
+using cache as the only source of bytes
+creating orchestration without behaviour
 using tests as proof without evidence admission
 using hermetic evidence as live-provider evidence
-creating a report instead of an authoritative result
-leaving active contracts without implementations
-leaving implementations outside environment deployment
-skipping negative cases, matrix cells or adversarial review
-accepting nondeterministic output
+creating a report instead of authority-bound results
+leaving contracts without implementation
+leaving implementation outside environments
+skipping negative cases, cells or adversarial review
+accepting nondeterminism
 calling raw throughput delivery progress
-weakening semantics, least privilege, security or tests to finish faster
+granted-by-default or wildcard authorisation
+omitting role-operation cells
+calling NOT_APPLICABLE without proof
+weakening semantics, least privilege, security, tokens, tests or proofs to finish faster
 ```
 
-## 36. Finalisation, commit and report
+## 41. Finalisation, commit and report
 
 After all gates pass:
 
-1. archive final runtime evidence in CAS;
+1. archive runtime evidence in CAS;
 2. publish final evidence, proof, contract, realisation, validation and permutation metadata through the compiler transaction;
-3. verify final authority, permutation proof and source/live drift;
-4. rerun post-publication proof and adversarial checks;
-5. run two standalone-clone acceptance passes and poisoned-state test;
-6. remove authorised ephemeral state;
-7. inspect the complete Git diff and exclude unrelated user work;
-8. create the final commit with authority, evidence-set, repository-source and permutation-universe digests in the body;
+3. verify authority, permutation proof and drift;
+4. rerun post-publication proof/adversarial checks;
+5. run two clone acceptances and poisoned-state test;
+6. remove ephemeral state;
+7. inspect the complete diff and exclude unrelated work;
+8. create the final commit with authority, evidence-set, repository-source, permutation-universe, permission-matrix, authorisation-path and token-scope digests in the body;
 9. push only with direct current user authorisation;
-10. report the exact commit and final authority digest.
+10. report exact commit and authority digest.
 
 The final report contains:
 
 ```text
-terminal and permutation-closure verdicts
-initial and final repository HEAD
-initial and final authority digests
-GOAL.md digest
+terminal and permutation verdicts
+initial/final HEAD and authority
+goal digest
 commits integrated
-files created, modified and removed
-semantic queries and publications
-capabilities and facets reviewed
-permutation families and dimensions
-candidate and materialised cell counts
+files created/modified/removed
+semantic queries/publications
+capabilities/facets reviewed
+permutation families/dimensions
+candidate/materialised counts
 counts by disposition
-action and transport counts
+actions/transports
 permission atoms
 roles and role-permission cells
-authorisation paths and reachability counters
-token profiles and scopes
-positive and negative generated tests
-coverage, evidence and proof digests
-SHACL, integrity and drift results
-performance and scale measurements
-dev/test/staging results
+authorisation paths/reachability
+token profiles/scopes
+positive/negative tests
+coverage/evidence/proof digests
+SHACL/integrity/drift
+performance/scale
+dev/test/staging
 adversarial findings
-residual risks and explicit nonclaims
-complete measured token totals
-cache creation and cache-read totals
-cache reuse percentage
-agent counts and agent token totals where available
-final Git, worktree, stash, CAS, process and transaction state
+residual risks/nonclaims
+measured token totals
+cache creation/read/reuse/read:creation
+agent counts and token totals where available
+final evidence-set digest
+final repository-source digest
+final universe/matrix/path/token digests
+final attestation digest
+final Git/worktree/stash/CAS/process/transaction state
 ```
 
 Do not paste unbounded logs or payloads. Report verified identifiers, counts, digests and locators.
 
-## 37. Success condition
+## 42. Success condition
 
-The programme succeeds only when the entire current semantic suite has been traversed, every meaningful operational and authorisation permutation has been explicitly dispositioned and proved, every required operation has a satisfiable least-privilege principal path, fine-grained token scopes cannot exceed those paths, and the repository contains the complete executable implementation required to run and demonstrate the suite in development, deterministic test and production-shaped staging.
+The programme succeeds only when the entire current semantic suite has been traversed, every meaningful operational and authorisation permutation has been dispositioned and proved, every required operation has a satisfiable least-privilege principal path, fine-grained token scopes cannot exceed those paths, and the repository contains the complete executable implementation required to run and demonstrate the suite in development, deterministic test and production-shaped staging.
 
-The final authority must warrant the completion claim, and two standalone clean clones must independently prove it without an earlier repository, parent checkout, untracked source, hidden agent cache, external work tracker or conversational history.
+The final authority warrants the claim, and two standalone clean clones prove it without an earlier repository, parent checkout, untracked source, hidden agent cache, external work tracker or conversational history.
+
+Begin now by reading the governing files and skill, establishing exact Git and live-authority state, recording the initial measured usage/cache baseline, reconciling the checkpoint with this directive, and producing the authority-bound permutation-family census. Continue unattended through modelling, derivation, implementation, fixtures, proof, publication, executable tests, environment delivery and final gates until exactly one overall terminal outcome is warranted.
