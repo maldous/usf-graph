@@ -64,6 +64,19 @@ Before creating, renaming or deleting any tracked path, or selecting a represent
 
 Generated projections, external work records, ADRs, source files and external payloads do not establish semantic truth. Verify every external artifact against its Stardog-recorded digest before use. Do not commit runtime evidence, proof logs or validation output unless the active contract explicitly requires a tracked representation.
 
+## Session-transient .work
+
+`.work/` is gitignored session scratch: assume it is empty at session start and
+deletable at any time. Never store durable state or tooling there — tracked
+commands regenerate everything: `node operations/programme/update-checkpoint.mjs`
+(checkpoint, ledger, sidecars), `npm run publish:authority[:validate]`
+(coordinator-only authority publication), `npm run authority:drift` and
+`npm run authority:snapshot-derived` (source/live parity and derived snapshots).
+The one operator-supplied file is the evidence signing key: copy it from the
+operator secret store (`/var/lib/usf-programme/programme/`) to
+`.work/programme/realisation-option-evaluation-signing-key.pk8` with mode 600
+when a collector needs `--signing-key=`; it never enters Git or command output.
+
 ## Task ledger
 
 Keep one compact ledger: objective, semantic identifiers, read scope, write
