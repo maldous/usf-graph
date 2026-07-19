@@ -30,6 +30,7 @@ export const ROLES = Object.freeze([
   'shapes',
   'rules',
   'derived',
+  'permutation',
 ]);
 
 // The one required derivation order. Obligations → evidence → surfaces →
@@ -78,6 +79,7 @@ function roleFor(section, file) {
       if (first === 'assurance') return 'assurance';
       if (first === 'realisation') return 'realisation';
       if (first === 'execution') return 'execution';
+      if (first === 'permutation') return 'permutation';
       if (!file.includes('/')) return 'authority'; // authored top-level registries
       throw new ManifestError(`Cannot derive role for authored file ${file}`);
     default:

@@ -1,0 +1,142 @@
+@prefix usf: <urn:usf:ontology:>.
+@prefix transport: <urn:usf:transport:>.
+@prefix httpmethod: <urn:usf:httpmethod:>.
+@prefix interactionpattern: <urn:usf:interactionpattern:>.
+@prefix direction: <urn:usf:direction:>.
+@prefix sessionmodel: <urn:usf:sessionmodel:>.
+
+<urn:usf:graph:permutation-transports> {
+transport:cli a usf:Transport;
+  usf:canonicalName "cli";
+  usf:definition "Invocation through a command-line interface.".
+transport:databaseprotocol a usf:Transport;
+  usf:canonicalName "databaseprotocol";
+  usf:definition "Communication with a data store over its native wire protocol.".
+transport:durablequeue a usf:Transport;
+  usf:canonicalName "durablequeue";
+  usf:definition "Persistent point-to-point message delivery through a durable queue.".
+transport:eventbus a usf:Transport;
+  usf:canonicalName "eventbus";
+  usf:definition "Broadcast distribution of events to subscribers over a shared bus.".
+transport:fileexchange a usf:Transport;
+  usf:canonicalName "fileexchange";
+  usf:definition "Data interchange through files placed in an agreed location.".
+transport:grpc a usf:Transport;
+  usf:canonicalName "grpc";
+  usf:definition "Contract-first remote procedure calls carried over HTTP/2 using gRPC.".
+transport:http a usf:Transport;
+  usf:canonicalName "http";
+  usf:definition "Request-response transfer over the Hypertext Transfer Protocol.".
+transport:internalprocesscall a usf:Transport;
+  usf:canonicalName "internalprocesscall";
+  usf:definition "Direct in-process invocation between components without crossing a network boundary.".
+transport:objectstorageprotocol a usf:Transport;
+  usf:canonicalName "objectstorageprotocol";
+  usf:definition "Communication with an object store over its storage API protocol.".
+transport:scheduledinvocation a usf:Transport;
+  usf:canonicalName "scheduledinvocation";
+  usf:definition "Execution triggered by a timer or cron-style schedule rather than by a caller.".
+transport:serversentevents a usf:Transport;
+  usf:canonicalName "serversentevents";
+  usf:definition "One-way server-to-client event streaming over a held HTTP connection.".
+transport:webhookcallback a usf:Transport;
+  usf:canonicalName "webhookcallback";
+  usf:definition "Outbound HTTP delivery to a consumer-registered callback endpoint.".
+transport:websocket a usf:Transport;
+  usf:canonicalName "websocket";
+  usf:definition "Full-duplex message exchange over a persistent WebSocket connection.".
+httpmethod:delete a usf:HttpMethod;
+  usf:canonicalName "delete";
+  usf:methodToken "DELETE";
+  usf:definition "Removal of an identified resource.".
+httpmethod:get a usf:HttpMethod;
+  usf:canonicalName "get";
+  usf:methodToken "GET";
+  usf:definition "Safe retrieval of a resource representation.".
+httpmethod:head a usf:HttpMethod;
+  usf:canonicalName "head";
+  usf:methodToken "HEAD";
+  usf:definition "Safe retrieval of resource metadata without a response body.".
+httpmethod:options a usf:HttpMethod;
+  usf:canonicalName "options";
+  usf:methodToken "OPTIONS";
+  usf:definition "Discovery of the communication options available for a resource.".
+httpmethod:patch a usf:HttpMethod;
+  usf:canonicalName "patch";
+  usf:methodToken "PATCH";
+  usf:definition "Partial modification of an existing resource.".
+httpmethod:post a usf:HttpMethod;
+  usf:canonicalName "post";
+  usf:methodToken "POST";
+  usf:definition "Submission of data for processing, typically creating a resource or triggering an operation.".
+httpmethod:put a usf:HttpMethod;
+  usf:canonicalName "put";
+  usf:methodToken "PUT";
+  usf:definition "Full replacement or creation of a resource at a known URI.".
+interactionpattern:batch a usf:InteractionPattern;
+  usf:canonicalName "batch";
+  usf:definition "Many items are processed together in a single grouped interaction.".
+interactionpattern:bidirectionalstreaming a usf:InteractionPattern;
+  usf:canonicalName "bidirectionalstreaming";
+  usf:definition "Client and server exchange independent message streams concurrently.".
+interactionpattern:callback a usf:InteractionPattern;
+  usf:canonicalName "callback";
+  usf:definition "The provider later invokes an endpoint supplied by the caller.".
+interactionpattern:clientstreaming a usf:InteractionPattern;
+  usf:canonicalName "clientstreaming";
+  usf:definition "The client sends a stream of messages and receives a single response.".
+interactionpattern:fireandforget a usf:InteractionPattern;
+  usf:canonicalName "fireandforget";
+  usf:definition "The caller sends a message and proceeds without awaiting any response.".
+interactionpattern:longpolling a usf:InteractionPattern;
+  usf:canonicalName "longpolling";
+  usf:definition "The client holds a request open until data becomes available or a timeout elapses.".
+interactionpattern:pointtopoint a usf:InteractionPattern;
+  usf:canonicalName "pointtopoint";
+  usf:definition "Each message is delivered to exactly one consumer from a queue.".
+interactionpattern:publishsubscribe a usf:InteractionPattern;
+  usf:canonicalName "publishsubscribe";
+  usf:definition "Producers publish to a topic and every current subscriber receives each message.".
+interactionpattern:requestresponse a usf:InteractionPattern;
+  usf:canonicalName "requestresponse";
+  usf:definition "The caller sends one request and awaits one correlated response.".
+interactionpattern:scheduled a usf:InteractionPattern;
+  usf:canonicalName "scheduled";
+  usf:definition "The interaction is initiated by a schedule rather than by an external caller.".
+interactionpattern:serverstreaming a usf:InteractionPattern;
+  usf:canonicalName "serverstreaming";
+  usf:definition "The client sends a single request and receives a stream of messages.".
+interactionpattern:transactional a usf:InteractionPattern;
+  usf:canonicalName "transactional";
+  usf:definition "The operations of the interaction succeed or fail atomically as one unit.".
+direction:bidirectional a usf:InteractionDirection;
+  usf:canonicalName "bidirectional";
+  usf:definition "Either party may initiate exchanges across the system boundary.".
+direction:inbound a usf:InteractionDirection;
+  usf:canonicalName "inbound";
+  usf:definition "The interaction is initiated by an external party towards the system.".
+direction:internal a usf:InteractionDirection;
+  usf:canonicalName "internal";
+  usf:definition "The interaction remains entirely within the system boundary.".
+direction:outbound a usf:InteractionDirection;
+  usf:canonicalName "outbound";
+  usf:definition "The interaction is initiated by the system towards an external party.".
+sessionmodel:connectionoriented a usf:SessionModel;
+  usf:canonicalName "connectionoriented";
+  usf:definition "Session state is bound to the lifetime of an underlying connection.".
+sessionmodel:leased a usf:SessionModel;
+  usf:canonicalName "leased";
+  usf:definition "Session or work ownership is held under a time-bounded lease that must be renewed.".
+sessionmodel:resumable a usf:SessionModel;
+  usf:canonicalName "resumable";
+  usf:definition "An interrupted session can be resumed from saved state.".
+sessionmodel:stateful a usf:SessionModel;
+  usf:canonicalName "stateful";
+  usf:definition "The system retains session state on which subsequent interactions depend.".
+sessionmodel:stateless a usf:SessionModel;
+  usf:canonicalName "stateless";
+  usf:definition "Each interaction is self-contained and no session state is retained between calls.".
+sessionmodel:transactional a usf:SessionModel;
+  usf:canonicalName "transactional";
+  usf:definition "The session scopes its operations inside an atomic transaction boundary.".
+}

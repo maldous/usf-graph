@@ -173,19 +173,34 @@ for (const path of untrackedPaths) {
   });
 }
 changes.sort((left, right) => (left.currentPath ?? left.previousPath).localeCompare(right.currentPath ?? right.previousPath, 'en'));
-const nextExactAction = {
-  action: 'Deliver the development, deterministic-test and production-shaped-staging environments from repository-local declared inputs.',
+// GOAL.md digest this generator was last reconciled against (GOAL Section 2).
+// A changed GOAL.md reopens DIRECTIVE_AND_CHECKPOINT_RECONCILIATION so an
+// older checkpoint can never bypass the current directive.
+const reconciledGoalDigest = 'sha256:3e6aaebdb730dbed3a6506bb53bbf008c96a00acfd41a7445beb2e8a74c4b2e3';
+const directiveReconciled = goalDigest === reconciledGoalDigest;
+
+const nextExactAction = directiveReconciled ? {
+  action: 'Produce the authority-bound permutation-family census across every active capability, contract and mandatory facet, then deliver the permutation meta-model, complete action/transport catalogue, permission and token closure, deterministic universe generation, fixtures, generated tests and independent proof.',
   authorityDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
   command: 'npm run authority:drift && npm test',
   preconditions: [
     'authority digest remains exact and the semantic-model source retains zero live drift',
     'no authority mutation transaction or modifying worker is active',
-    'the compiler proof refresh binds the relocated canonical implementation sources before proof-dependent claims',
+    'no permission, operation-catalogue, access-token or overall completion claim closes before the permutation gate passes',
   ],
   semanticIdentifiers: [
-    'EXECUTABLE_ENVIRONMENT_DELIVERY',
-    'urn:usf:semanticcontract:environmentregistryandbootstrap',
-    'urn:usf:semanticcontract:deterministicdevelopmentandtestsubstitutes',
+    'OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE',
+    'PERMUTATION_FAMILY_CENSUS',
+  ],
+} : {
+  action: 'Read the changed GOAL.md completely, update this tracked checkpoint generator and any directive validators to the current dependency order, then regenerate the checkpoint before trusting any generated next action.',
+  authorityDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
+  command: 'node operations/programme/update-checkpoint.mjs',
+  preconditions: [
+    'the checked-out HEAD includes the latest GOAL.md from the programme remote',
+  ],
+  semanticIdentifiers: [
+    'DIRECTIVE_AND_CHECKPOINT_RECONCILIATION',
   ],
 };
 
@@ -194,28 +209,58 @@ const dependencyNodes = [
   { blockerCode: 'NONE', id: 'CANONICAL_COMPILER_DEPENDENCY_CLOSURE', prerequisites: ['REALISATION_OPTION_EVALUATION_CLOSURE'], state: 'COMPLETE' },
   { blockerCode: 'NONE', id: 'CANONICAL_COMPILER_ENTRYPOINT_CUTOVER', prerequisites: ['CANONICAL_COMPILER_DEPENDENCY_CLOSURE'], state: 'COMPLETE' },
   { blockerCode: 'NONE', id: 'DUPLICATE_COMPILER_RETIREMENT', prerequisites: ['CANONICAL_COMPILER_ENTRYPOINT_CUTOVER'], state: 'COMPLETE' },
-  { blockerCode: 'LOCAL_IMPLEMENTATION', id: 'EXECUTABLE_ENVIRONMENT_DELIVERY', prerequisites: [], state: 'UNBLOCKED' },
+  {
+    blockerCode: directiveReconciled ? 'NONE' : 'DIRECTIVE_DIGEST_CHANGED',
+    id: 'DIRECTIVE_AND_CHECKPOINT_RECONCILIATION',
+    prerequisites: [],
+    state: directiveReconciled ? 'COMPLETE' : 'REOPENED_GOAL_DIGEST_CHANGED',
+  },
+  {
+    blockerCode: 'LOCAL_SEMANTIC_IMPLEMENTATION',
+    id: 'OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE',
+    prerequisites: ['DIRECTIVE_AND_CHECKPOINT_RECONCILIATION'],
+    state: directiveReconciled ? 'UNBLOCKED' : 'BLOCKED_BY_RECONCILIATION',
+  },
+  { blockerCode: 'LOCAL_PROOF_REFRESH', id: 'COMPILER_GENERATOR_AND_PROOF_REFRESH', prerequisites: ['OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE'], state: 'BLOCKED_BY_PERMUTATION_CLOSURE' },
+  { blockerCode: 'LOCAL_IMPLEMENTATION', id: 'EXECUTABLE_ENVIRONMENT_DELIVERY', prerequisites: ['COMPILER_GENERATOR_AND_PROOF_REFRESH'], state: 'BLOCKED_BY_PERMUTATION_CLOSURE' },
   { blockerCode: 'LOCAL_VALIDATION', id: 'BIDIRECTIONAL_TRACEABILITY_CLOSURE', prerequisites: ['EXECUTABLE_ENVIRONMENT_DELIVERY'], state: 'BLOCKED_BY_DELIVERY' },
   { blockerCode: 'LOCAL_VALIDATION_THEN_AUTHORITY_PUBLICATION_REQUIRED', id: 'FINAL_HERMETIC_SYSTEM_GATES', prerequisites: ['BIDIRECTIONAL_TRACEABILITY_CLOSURE'], state: 'BLOCKED_BY_DELIVERY' },
 ];
+
+const currentItem = directiveReconciled
+  ? { id: 'OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE', state: 'UNBLOCKED' }
+  : { id: 'DIRECTIVE_AND_CHECKPOINT_RECONCILIATION', state: 'REOPENED_GOAL_DIGEST_CHANGED' };
+const currentPhase = 'OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE';
 
 const stateClassifications = {
   EXTERNAL_OR_HUMAN_BLOCKED: [],
   PARTIALLY_DELIVERED: ['COMPILER_PROOF_PREVIOUS_IMPLEMENTATION_BINDING', 'HERMETIC_EXECUTABLE_SUITE'],
   REMAINING_ACTIONABLE: dependencyNodes.filter(({ state }) => state !== 'COMPLETE').map(({ id }) => id),
+  REOPENED_BY_DIRECTIVE: [
+    'OPERATION_UNIVERSE_SEMANTIC_ADEQUACY',
+    'PERMISSION_AND_TOKEN_SCOPE_CLOSURE',
+    'OPERATION_CATALOGUE_COMPLETENESS',
+  ],
   SUPERSEDED_OR_INVALIDATED: ['REJECTED_EXECUTABLE_REALISATION', 'STALE_MIXED_SCOPE_COMPILER_PROOF', 'REFERENCE_OR_HISTORICAL_SOURCE_COMPLETION'],
-  VERIFIED_CURRENT: ['SEMANTIC_ADEQUACY_AND_CONTAMINATION', 'DELIVERABLE_AND_LAYOUT_AUTHORITY', 'SOURCE_LIVE_PARITY', 'MILESTONE_GIT_PUBLICATION', 'REALISATION_OPTION_EVALUATION_CLOSURE', 'CANONICAL_COMPILER_SOLE_PATH'],
+  VERIFIED_CURRENT: ['SEMANTIC_ADEQUACY_AND_CONTAMINATION_WITHIN_UNCHANGED_DEPENDENCY_SCOPE', 'DELIVERABLE_AND_LAYOUT_AUTHORITY', 'SOURCE_LIVE_PARITY', 'MILESTONE_GIT_PUBLICATION', 'REALISATION_OPTION_EVALUATION_CLOSURE', 'CANONICAL_COMPILER_SOLE_PATH'],
 };
 
 const gateSummary = [
-  { id: 'SEMANTIC_ADEQUACY', state: 'VERIFIED_CURRENT' },
+  { id: 'DIRECTIVE_AND_CHECKPOINT_RECONCILIATION', state: directiveReconciled ? 'VERIFIED_CURRENT' : 'REOPENED_GOAL_DIGEST_CHANGED' },
+  { id: 'SEMANTIC_ADEQUACY', state: 'VERIFIED_CURRENT_EXCEPT_REOPENED_OPERATION_UNIVERSE_SCOPE' },
   { id: 'DELIVERABLE_AND_LAYOUT_AUTHORITY', state: 'VERIFIED_CURRENT' },
   { id: 'REALISATION_OPTION_EVALUATION_CLOSURE', state: 'VERIFIED_CURRENT' },
+  { id: 'PERMUTATION_AND_AUTHORISATION_CLOSURE', state: 'REMAINING_ACTIONABLE' },
   { id: 'COMPILER_PROOF_ADMISSION', state: 'PARTIALLY_DELIVERED_REOPENED_IMPLEMENTATION_BINDING' },
   { id: 'CANONICAL_COMPILER_SOLE_PATH', state: 'VERIFIED_CURRENT' },
-  { id: 'EXECUTABLE_ENVIRONMENTS', state: 'REMAINING_ACTIONABLE' },
+  { id: 'EXECUTABLE_ENVIRONMENTS', state: 'BLOCKED_BY_PERMUTATION_CLOSURE' },
   { id: 'FINAL_HERMETIC_CLOSURE', state: 'REMAINING_ACTIONABLE' },
 ];
+
+const permutationClosure = {
+  verdict: 'PERMUTATION_CLOSURE_INCOMPLETE',
+  verdictKind: 'INTERMEDIATE_NEVER_OVERALL_TERMINAL',
+};
 
 const dependencyReviewPath = join(stateRoot, 'compiler-cutover-dependency-review.json');
 const dependencyReviewDigest = existsSync(dependencyReviewPath) ? sha256(readFileSync(dependencyReviewPath)) : null;
@@ -257,11 +302,9 @@ const ledger = {
   ],
   dependencyNodes,
   gateSummary,
-  currentItem: {
-    id: 'EXECUTABLE_ENVIRONMENT_DELIVERY',
-    state: 'UNBLOCKED',
-  },
-  currentPhase: 'EXECUTABLE_DELIVERY_ENVIRONMENTS',
+  currentItem,
+  currentPhase,
+  permutationClosure,
   goalDigest,
   git: {
     branch: gitText(['branch', '--show-current']),
@@ -329,10 +372,7 @@ const checkpoint = {
     deterministicTest: 'NOT_DELIVERED',
     productionShapedStaging: 'NOT_DELIVERED',
   },
-  currentItem: {
-    id: 'EXECUTABLE_ENVIRONMENT_DELIVERY',
-    state: 'UNBLOCKED',
-  },
+  currentItem,
   git: {
     branch: gitText(['branch', '--show-current']),
     changedPathCountFromHead: changes.length,
@@ -380,7 +420,8 @@ const checkpoint = {
   nextExactAction,
   ownedQueries: [],
   ownedTransactions: [],
-  phase: 'EXECUTABLE_DELIVERY_ENVIRONMENTS',
+  permutationClosure,
+  phase: currentPhase,
   previousCheckpointDigest: priorCheckpointDigest,
   programmeLedger: {
     digest: ledgerDigest,

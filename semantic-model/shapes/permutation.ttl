@@ -1,0 +1,309 @@
+@prefix usf: <urn:usf:ontology:>.
+@prefix sh: <http://www.w3.org/ns/shacl#>.
+@prefix shp: <urn:usf:shacl:>.
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+
+shp:PermutationFamilyShape a sh:NodeShape;
+    usf:canonicalName "permutationfamilyshape";
+    sh:targetClass usf:PermutationFamily.
+_:pf1 sh:path usf:canonicalName;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:datatype xsd:string;
+    sh:message "permutationfamilyname: family must carry exactly one canonical name".
+shp:PermutationFamilyShape sh:property _:pf1.
+_:pf2 sh:path usf:familyOfUniverse;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:PermutationUniverse;
+    sh:message "permutationfamilyuniverse: family must belong to exactly one universe".
+shp:PermutationFamilyShape sh:property _:pf2.
+_:pf3 sh:path usf:hasFamilyDimensionBinding;
+    sh:minCount 2;
+    sh:class usf:PermutationFamilyDimensionBinding;
+    sh:message "permutationfamilydimensions: family must bind at least two ordered dimensions".
+shp:PermutationFamilyShape sh:property _:pf3.
+_:pf4 sh:path usf:familyStableKeyAlgorithm;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:message "permutationfamilystablekey: family must declare its stable-key algorithm".
+shp:PermutationFamilyShape sh:property _:pf4.
+_:pf5 sh:prefixes usf:prefixes;
+    sh:message "permutationfamilypositions: family dimension positions must be unique per family";
+    sh:select "SELECT $this WHERE {\n      $this usf:hasFamilyDimensionBinding ?left, ?right .\n      ?left usf:dimensionPosition ?position .\n      ?right usf:dimensionPosition ?position .\n      FILTER (?left != ?right)\n    }".
+shp:PermutationFamilyShape sh:sparql _:pf5.
+
+shp:PermutationFamilyDimensionBindingShape a sh:NodeShape;
+    usf:canonicalName "permutationfamilydimensionbindingshape";
+    sh:targetClass usf:PermutationFamilyDimensionBinding.
+_:pb1 sh:path usf:bindsDimension;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:PermutationDimension;
+    sh:message "permutationbindingdimension: binding must bind exactly one dimension".
+shp:PermutationFamilyDimensionBindingShape sh:property _:pb1.
+_:pb2 sh:path usf:dimensionPosition;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:datatype xsd:integer;
+    sh:minInclusive 1;
+    sh:message "permutationbindingposition: binding must carry exactly one 1-based position".
+shp:PermutationFamilyDimensionBindingShape sh:property _:pb2.
+
+shp:ClosureDimensionSourceShape a sh:NodeShape;
+    usf:canonicalName "closuredimensionsourceshape";
+    sh:targetObjectsOf usf:bindsDimension.
+_:cd1 sh:path usf:dimensionValueSource;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:DimensionValueSource;
+    sh:message "closuredimensionsource: every family-bound dimension must declare exactly one value source".
+shp:ClosureDimensionSourceShape sh:property _:cd1.
+
+shp:DimensionValueSourceShape a sh:NodeShape;
+    usf:canonicalName "dimensionvaluesourceshape";
+    sh:targetClass usf:DimensionValueSource.
+_:vs1 sh:path usf:valueSourceKind;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:in ("classinstances" "controlledlist" "derivedselector");
+    sh:message "valuesourcekind: value source must declare exactly one controlled kind".
+shp:DimensionValueSourceShape sh:property _:vs1.
+_:vs2 sh:prefixes usf:prefixes;
+    sh:message "valuesourceclassiri: class-instance value sources must name their class IRI";
+    sh:select "SELECT $this WHERE {\n      $this usf:valueSourceKind \"classinstances\" .\n      FILTER NOT EXISTS { $this usf:valueSourceClassIri ?class }\n    }".
+shp:DimensionValueSourceShape sh:sparql _:vs2.
+
+shp:PermutationCellShape a sh:NodeShape;
+    usf:canonicalName "permutationcellshape";
+    sh:targetClass usf:PermutationCell.
+_:pc1 sh:path usf:cellOfFamily;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:PermutationFamily;
+    sh:message "permutationcellfamily: cell must belong to exactly one family".
+shp:PermutationCellShape sh:property _:pc1.
+_:pc2 sh:path usf:cellStableKey;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:message "permutationcellstablekey: cell must carry exactly one stable key".
+shp:PermutationCellShape sh:property _:pc2.
+_:pc3 sh:path usf:cellDisposition;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:PermutationClosureDisposition;
+    sh:message "permutationcelldisposition: cell must carry exactly one closure disposition".
+shp:PermutationCellShape sh:property _:pc3.
+_:pc4 sh:path usf:cellAuthorityDigest;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "permutationcellauthority: cell must bind exactly one exact authority digest".
+shp:PermutationCellShape sh:property _:pc4.
+_:pc5 sh:prefixes usf:prefixes;
+    sh:message "notapplicablecellwithoutreason: not-applicable cells must carry a controlled reason and rationale";
+    sh:select "SELECT $this WHERE {\n      $this usf:cellDisposition <urn:usf:permutationclosuredisposition:notapplicable> .\n      FILTER (NOT EXISTS { $this usf:cellDispositionReason ?reason } || NOT EXISTS { $this usf:cellReasonText ?text })\n    }".
+shp:PermutationCellShape sh:sparql _:pc5.
+_:pc6 sh:prefixes usf:prefixes;
+    sh:message "forbiddencellwithtokenscope: forbidden cells must not reference a token scope";
+    sh:select "SELECT $this WHERE {\n      $this usf:cellDisposition <urn:usf:permutationclosuredisposition:forbidden> ;\n            usf:cellTokenScope ?scope .\n    }".
+shp:PermutationCellShape sh:sparql _:pc6.
+_:pc7 sh:prefixes usf:prefixes;
+    sh:message "forbiddencellwithauthorisationpath: forbidden cells must not reference a satisfiable authorisation path";
+    sh:select "SELECT $this WHERE {\n      $this usf:cellDisposition <urn:usf:permutationclosuredisposition:forbidden> ;\n            usf:cellAuthorisationPath ?path .\n      ?path usf:pathSatisfiable true .\n    }".
+shp:PermutationCellShape sh:sparql _:pc7.
+_:pc8 sh:prefixes usf:prefixes;
+    sh:message "duplicatepermutationcellkey: no two cells of one family may share a stable key";
+    sh:select "SELECT $this WHERE {\n      $this usf:cellOfFamily ?family ; usf:cellStableKey ?key .\n      ?other usf:cellOfFamily ?family ; usf:cellStableKey ?key .\n      FILTER (?other != $this)\n    }".
+shp:PermutationCellShape sh:sparql _:pc8.
+
+shp:PermutationFamilyReviewShape a sh:NodeShape;
+    usf:canonicalName "permutationfamilyreviewshape";
+    sh:targetClass usf:PermutationFamilyReview.
+_:pr1 sh:path usf:reviewOfSubject;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:message "reviewsubject: review must name exactly one subject".
+shp:PermutationFamilyReviewShape sh:property _:pr1.
+_:pr2 sh:path usf:reviewOfFamily;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:PermutationFamily;
+    sh:message "reviewfamily: review must name exactly one family".
+shp:PermutationFamilyReviewShape sh:property _:pr2.
+_:pr3 sh:path usf:reviewDisposition;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:PermutationFamilyReviewDisposition;
+    sh:message "reviewdisposition: review must carry exactly one disposition".
+shp:PermutationFamilyReviewShape sh:property _:pr3.
+_:pr4 sh:prefixes usf:prefixes;
+    sh:message "matrixnotapplicablewithoutproof: matrix-not-applicable reviews must carry a reason code and signal digest";
+    sh:select "SELECT $this WHERE {\n      $this usf:reviewDisposition <urn:usf:familyreviewdisposition:matrixnotapplicable> .\n      FILTER (NOT EXISTS { $this usf:reviewReasonCode ?code } || NOT EXISTS { $this usf:reviewSignalDigest ?digest })\n    }".
+shp:PermutationFamilyReviewShape sh:sparql _:pr4.
+
+shp:PermissionAtomShape a sh:NodeShape;
+    usf:canonicalName "permissionatomshape";
+    sh:targetClass usf:PermissionAtom.
+_:pa1 sh:path usf:atomCapability;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:Capability;
+    sh:message "permissionatomcapability: atom must bind exactly one capability".
+shp:PermissionAtomShape sh:property _:pa1.
+_:pa2 sh:path usf:atomAction;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:ActionKind;
+    sh:message "permissionatomaction: atom must bind exactly one action kind".
+shp:PermissionAtomShape sh:property _:pa2.
+_:pa3 sh:path usf:atomTenantBoundary;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:TenantBoundary;
+    sh:message "permissionatomboundary: atom must bind exactly one tenant boundary".
+shp:PermissionAtomShape sh:property _:pa3.
+_:pa4 sh:path usf:atomAuditCategory;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:AuditCategory;
+    sh:message "permissionatomaudit: atom must bind exactly one audit category".
+shp:PermissionAtomShape sh:property _:pa4.
+_:pa5 sh:path usf:atomStableIdentifier;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:message "permissionatomidentifier: atom must carry exactly one stable identifier".
+shp:PermissionAtomShape sh:property _:pa5.
+_:pa6 sh:path usf:atomSelectorKind;
+    sh:minCount 1;
+    sh:class usf:ResourceSelectorKind;
+    sh:message "permissionatomselector: atom must bind at least one resource selector kind".
+shp:PermissionAtomShape sh:property _:pa6.
+_:pa7 sh:prefixes usf:prefixes;
+    sh:message "orphanpermissionatom: atom must supersede a permission or be referenced by a disposition or authorisation path";
+    sh:select "SELECT $this WHERE {\n      FILTER NOT EXISTS { $this usf:atomSupersedesPermission ?permission }\n      FILTER NOT EXISTS { ?disposition usf:rolePermissionAtom $this }\n      FILTER NOT EXISTS { ?path usf:pathPermissionAtom $this }\n    }".
+shp:PermissionAtomShape sh:sparql _:pa7.
+
+shp:RolePermissionDispositionShape a sh:NodeShape;
+    usf:canonicalName "rolepermissiondispositionshape";
+    sh:targetClass usf:RolePermissionDisposition.
+_:rp1 sh:path usf:rolePermissionRole;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:Role;
+    sh:message "roledispositionrole: disposition must bind exactly one role".
+shp:RolePermissionDispositionShape sh:property _:rp1.
+_:rp2 sh:path usf:rolePermissionAtom;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:PermissionAtom;
+    sh:message "roledispositionatom: disposition must bind exactly one permission atom".
+shp:RolePermissionDispositionShape sh:property _:rp2.
+_:rp3 sh:path usf:rolePermissionKind;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:RolePermissionDispositionKind;
+    sh:message "roledispositionkind: disposition must carry exactly one controlled kind".
+shp:RolePermissionDispositionShape sh:property _:rp3.
+_:rp4 sh:prefixes usf:prefixes;
+    sh:message "conditionalgrantwithoutprofile: conditional grants must reference a condition profile";
+    sh:select "SELECT $this WHERE {\n      $this usf:rolePermissionKind <urn:usf:rolepermissiondispositionkind:conditionallygranted> .\n      FILTER NOT EXISTS { $this usf:rolePermissionConditionProfile ?profile }\n    }".
+shp:RolePermissionDispositionShape sh:sparql _:rp4.
+_:rp5 sh:prefixes usf:prefixes;
+    sh:message "duplicateroledisposition: one role and atom pair must have at most one disposition";
+    sh:select "SELECT $this WHERE {\n      $this usf:rolePermissionRole ?role ; usf:rolePermissionAtom ?atom .\n      ?other usf:rolePermissionRole ?role ; usf:rolePermissionAtom ?atom .\n      FILTER (?other != $this)\n    }".
+shp:RolePermissionDispositionShape sh:sparql _:rp5.
+_:rp6 sh:prefixes usf:prefixes;
+    sh:message "coordinatoratomrolegrant: atoms restricted to the coordinator principal must not be role-granted";
+    sh:select "SELECT $this WHERE {\n      $this usf:rolePermissionAtom ?atom .\n      ?atom usf:atomPrincipalRestriction <urn:usf:principalkind:coordinator> .\n      FILTER NOT EXISTS { ?atom usf:atomPrincipalRestriction ?other . FILTER (?other != <urn:usf:principalkind:coordinator>) }\n      $this usf:rolePermissionKind ?kind .\n      FILTER (?kind IN (<urn:usf:rolepermissiondispositionkind:granted>, <urn:usf:rolepermissiondispositionkind:conditionallygranted>))\n    }".
+shp:RolePermissionDispositionShape sh:sparql _:rp6.
+
+shp:AuthorisationPathShape a sh:NodeShape;
+    usf:canonicalName "authorisationpathshape";
+    sh:targetClass usf:AuthorisationPath.
+_:ap1 sh:path usf:pathOperation;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:message "authorisationpathoperation: path must bind exactly one operation".
+shp:AuthorisationPathShape sh:property _:ap1.
+_:ap2 sh:path usf:pathPrincipalKind;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:PrincipalKind;
+    sh:message "authorisationpathprincipal: path must bind exactly one principal kind".
+shp:AuthorisationPathShape sh:property _:ap2.
+_:ap3 sh:path usf:pathPermissionAtom;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:PermissionAtom;
+    sh:message "authorisationpathatom: path must bind exactly one permission atom".
+shp:AuthorisationPathShape sh:property _:ap3.
+_:ap4 sh:path usf:pathSatisfiable;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:datatype xsd:boolean;
+    sh:message "authorisationpathsatisfiable: path must state satisfiability".
+shp:AuthorisationPathShape sh:property _:ap4.
+_:ap5 sh:prefixes usf:prefixes;
+    sh:message "tokenlesspathwithoutmode: satisfiable paths must carry a token scope or an explicit non-token execution mode";
+    sh:select "SELECT $this WHERE {\n      $this usf:pathSatisfiable true .\n      FILTER (NOT EXISTS { $this usf:pathTokenScope ?scope } && NOT EXISTS { $this usf:pathNonTokenExecutionMode ?mode })\n    }".
+shp:AuthorisationPathShape sh:sparql _:ap5.
+
+shp:AuthorisationConditionProfileShape a sh:NodeShape;
+    usf:canonicalName "authorisationconditionprofileshape";
+    sh:targetClass usf:AuthorisationConditionProfile.
+_:cp1 sh:path usf:conditionProfileExpression;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:message "conditionprofileexpression: profile must carry exactly one expression".
+shp:AuthorisationConditionProfileShape sh:property _:cp1.
+_:cp2 sh:path usf:conditionProfileDigest;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "conditionprofiledigest: profile must carry exactly one exact digest".
+shp:AuthorisationConditionProfileShape sh:property _:cp2.
+
+shp:TokenScopeShape a sh:NodeShape;
+    usf:canonicalName "tokenscopeshape";
+    sh:targetClass usf:TokenScope.
+_:ts1 sh:path usf:scopeStableIdentifier;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:message "tokenscopeidentifier: scope must carry exactly one stable identifier".
+shp:TokenScopeShape sh:property _:ts1.
+_:ts2 sh:path usf:scopePermissionAtom;
+    sh:minCount 1;
+    sh:class usf:PermissionAtom;
+    sh:message "tokenscopeatom: scope must map to at least one permission atom".
+shp:TokenScopeShape sh:property _:ts2.
+_:ts3 sh:prefixes usf:prefixes;
+    sh:message "tokenscopeforbiddenatom: scope must not map to an atom that only forbidden cells reference";
+    sh:select "SELECT $this WHERE {\n      $this usf:scopePermissionAtom ?atom .\n      ?cell usf:cellPermissionAtom ?atom ; usf:cellDisposition <urn:usf:permutationclosuredisposition:forbidden> .\n      FILTER NOT EXISTS {\n        ?live usf:cellPermissionAtom ?atom ; usf:cellDisposition ?ok .\n        FILTER (?ok IN (<urn:usf:permutationclosuredisposition:required>, <urn:usf:permutationclosuredisposition:allowed>))\n      }\n    }".
+shp:TokenScopeShape sh:sparql _:ts3.
+
+shp:TokenProfileShape a sh:NodeShape;
+    usf:canonicalName "tokenprofileshape";
+    sh:targetClass usf:TokenProfile.
+_:tp1 sh:path usf:profileIssuerClass;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:TokenIssuerClass;
+    sh:message "tokenprofileissuer: profile must bind exactly one issuer class".
+shp:TokenProfileShape sh:property _:tp1.
+_:tp2 sh:path usf:profileAudience;
+    sh:minCount 1;
+    sh:class usf:TokenAudience;
+    sh:message "tokenprofileaudience: profile must bind at least one audience".
+shp:TokenProfileShape sh:property _:tp2.
+_:tp3 sh:path usf:profileLifetimePolicy;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:TokenLifetimePolicy;
+    sh:message "tokenprofilelifetime: profile must bind exactly one lifetime policy".
+shp:TokenProfileShape sh:property _:tp3.
+_:tp4 sh:path usf:profileScope;
+    sh:minCount 1;
+    sh:class usf:TokenScope;
+    sh:message "tokenprofilescope: profile must bind at least one token scope".
+shp:TokenProfileShape sh:property _:tp4.

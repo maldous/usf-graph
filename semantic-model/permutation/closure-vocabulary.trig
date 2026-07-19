@@ -1,0 +1,116 @@
+@prefix usf: <urn:usf:ontology:>.
+@prefix pcd: <urn:usf:permutationclosuredisposition:>.
+@prefix frd: <urn:usf:familyreviewdisposition:>.
+@prefix rpdk: <urn:usf:rolepermissiondispositionkind:>.
+@prefix pk: <urn:usf:principalkind:>.
+@prefix rsk: <urn:usf:resourceselectorkind:>.
+@prefix osc: <urn:usf:operationalsurfaceclassification:>.
+@prefix pdr: <urn:usf:permutationdispositionreason:>.
+
+<urn:usf:graph:permutation-vocabulary> {
+pcd:required a usf:PermutationClosureDisposition;
+    usf:canonicalName "required";
+    usf:definition "The combination must exist and behave; it requires executable behaviour, a permission atom, a satisfiable principal path, coverage, evidence and proof.".
+pcd:allowed a usf:PermutationClosureDisposition;
+    usf:canonicalName "allowed";
+    usf:definition "The combination is permitted when invoked; it requires executable behaviour, a permission atom, a satisfiable principal path and positive coverage.".
+pcd:forbidden a usf:PermutationClosureDisposition;
+    usf:canonicalName "forbidden";
+    usf:definition "The combination must be impossible to authorise or encode into a valid token; it requires denial rules, token denial and negative coverage.".
+pcd:notapplicable a usf:PermutationClosureDisposition;
+    usf:canonicalName "notapplicable";
+    usf:definition "The combination is semantically meaningless for its subject; it requires a controlled reason code, rationale, provenance and applicability proof.".
+pcd:deferred a usf:PermutationClosureDisposition;
+    usf:canonicalName "deferred";
+    usf:definition "The combination is explicitly deferred by current authority; prohibited unless the capability or contract is authority-deferred.".
+pcd:unresolved a usf:PermutationClosureDisposition;
+    usf:canonicalName "unresolved";
+    usf:definition "The combination lacks a warranted semantic decision; active unresolved cells must return to zero before closure.".
+
+frd:matrixrequired a usf:PermutationFamilyReviewDisposition;
+    usf:canonicalName "matrixrequired";
+    usf:definition "The subject exhibits the family's multi-axis operational behaviour and its candidate cells must be generated and dispositioned.".
+frd:matrixnotapplicable a usf:PermutationFamilyReviewDisposition;
+    usf:canonicalName "matrixnotapplicable";
+    usf:definition "The subject provably has no independently meaningful behaviour on this family's axes; requires a controlled reason and signal proof.".
+
+rpdk:granted a usf:RolePermissionDispositionKind;
+    usf:canonicalName "granted";
+    usf:definition "The role holds the permission atom unconditionally within its boundary.".
+rpdk:conditionallygranted a usf:RolePermissionDispositionKind;
+    usf:canonicalName "conditionallygranted";
+    usf:definition "The role holds the permission atom only while a finite named authorisation condition profile is satisfied.".
+rpdk:denied a usf:RolePermissionDispositionKind;
+    usf:canonicalName "denied";
+    usf:definition "The role explicitly does not hold the permission atom and no composition may reintroduce it.".
+rpdk:notapplicable a usf:RolePermissionDispositionKind;
+    usf:canonicalName "notapplicable";
+    usf:definition "The permission atom is semantically meaningless for the role's boundary or principal kind.".
+rpdk:delegatedonly a usf:RolePermissionDispositionKind;
+    usf:canonicalName "delegatedonly";
+    usf:definition "The role can exercise the permission atom only through an explicit bounded delegation.".
+rpdk:serviceidentityonly a usf:RolePermissionDispositionKind;
+    usf:canonicalName "serviceidentityonly";
+    usf:definition "Only a service identity may exercise the permission atom; human roles are excluded.".
+rpdk:breakglassonly a usf:RolePermissionDispositionKind;
+    usf:canonicalName "breakglassonly";
+    usf:definition "The permission atom is reachable only through the controlled break-glass path with audit and review.".
+
+pk:humanuser a usf:PrincipalKind;
+    usf:canonicalName "humanuser";
+    usf:definition "An authenticated human acting through tenant or platform roles.".
+pk:serviceidentity a usf:PrincipalKind;
+    usf:canonicalName "serviceidentity";
+    usf:definition "A non-human workload identity executing declared service behaviour.".
+pk:automationagent a usf:PrincipalKind;
+    usf:canonicalName "automationagent";
+    usf:definition "An autonomous or assisted agent executing authorised programme or platform automation.".
+pk:externalservice a usf:PrincipalKind;
+    usf:canonicalName "externalservice";
+    usf:definition "An external system interacting through declared integration surfaces such as webhooks.".
+pk:anonymous a usf:PrincipalKind;
+    usf:canonicalName "anonymous";
+    usf:definition "An unauthenticated caller; permitted only where an explicit public permission atom exists.".
+pk:platformoperator a usf:PrincipalKind;
+    usf:canonicalName "platformoperator";
+    usf:definition "A privileged human operating platform-scope control planes under audit.".
+pk:coordinator a usf:PrincipalKind;
+    usf:canonicalName "coordinator";
+    usf:definition "The single authorised control-plane principal permitted to mutate semantic authority and integrate programme changes.".
+
+rsk:exactresourceid a usf:ResourceSelectorKind; usf:canonicalName "exactresourceid"; usf:definition "Selects exactly one resource by stable identifier.".
+rsk:ownerrelationship a usf:ResourceSelectorKind; usf:canonicalName "ownerrelationship"; usf:definition "Selects resources owned by the requesting principal.".
+rsk:tenantscope a usf:ResourceSelectorKind; usf:canonicalName "tenantscope"; usf:definition "Selects resources within the principal's tenant boundary.".
+rsk:organisationscope a usf:ResourceSelectorKind; usf:canonicalName "organisationscope"; usf:definition "Selects resources within an organisation or suborganisation.".
+rsk:tagclassification a usf:ResourceSelectorKind; usf:canonicalName "tagclassification"; usf:definition "Selects resources carrying a validated tag or classification.".
+rsk:boundedpathprefix a usf:ResourceSelectorKind; usf:canonicalName "boundedpathprefix"; usf:definition "Selects resources under a bounded, validated path prefix.".
+rsk:approvedpredicate a usf:ResourceSelectorKind; usf:canonicalName "approvedpredicate"; usf:definition "Selects resources satisfying an approved finite predicate.".
+rsk:timewindow a usf:ResourceSelectorKind; usf:canonicalName "timewindow"; usf:definition "Restricts selection to a bounded time window.".
+rsk:environmentscope a usf:ResourceSelectorKind; usf:canonicalName "environmentscope"; usf:definition "Restricts selection to declared environments or environment classes.".
+rsk:sessionscope a usf:ResourceSelectorKind; usf:canonicalName "sessionscope"; usf:definition "Restricts selection to the requesting session's state.".
+rsk:delegationchain a usf:ResourceSelectorKind; usf:canonicalName "delegationchain"; usf:definition "Restricts selection through an explicit bounded delegation chain.".
+
+osc:callableinterface a usf:OperationalSurfaceClassification; usf:canonicalName "callableinterface"; usf:definition "Exposes callable command and query operations.".
+osc:gatewaycontrolplane a usf:OperationalSurfaceClassification; usf:canonicalName "gatewaycontrolplane"; usf:definition "Exposes coordinator or operator control-plane gateway operations.".
+osc:eventdriven a usf:OperationalSurfaceClassification; usf:canonicalName "eventdriven"; usf:definition "Publishes or consumes events or messages.".
+osc:scheduledautomation a usf:OperationalSurfaceClassification; usf:canonicalName "scheduledautomation"; usf:definition "Executes scheduled or policy-driven automation.".
+osc:workflowdriven a usf:OperationalSurfaceClassification; usf:canonicalName "workflowdriven"; usf:definition "Owns stateful workflows with declared transitions.".
+osc:datapersistence a usf:OperationalSurfaceClassification; usf:canonicalName "datapersistence"; usf:definition "Owns persisted data models with tenancy, migration and recovery obligations.".
+osc:configurationsurface a usf:OperationalSurfaceClassification; usf:canonicalName "configurationsurface"; usf:definition "Owns configuration keys or secret slots across environments.".
+osc:uisurface a usf:OperationalSurfaceClassification; usf:canonicalName "uisurface"; usf:definition "Exposes user-facing surfaces, routes, forms or views.".
+osc:assuranceverification a usf:OperationalSurfaceClassification; usf:canonicalName "assuranceverification"; usf:definition "Provides assurance, validation or proof behaviour rather than product runtime.".
+osc:internalprocessonly a usf:OperationalSurfaceClassification; usf:canonicalName "internalprocessonly"; usf:definition "Operates only through internal process calls with no external surface.".
+
+pdr:requiredbycontractobligation a usf:PermutationDispositionReason; usf:canonicalName "requiredbycontractobligation"; usf:definition "Current contract claims or obligations require this combination to behave.".
+pdr:allowedbyexplicitauthorisation a usf:PermutationDispositionReason; usf:canonicalName "allowedbyexplicitauthorisation"; usf:definition "Current authority explicitly permits this combination without requiring it.".
+pdr:forbiddenbydenybydefault a usf:PermutationDispositionReason; usf:canonicalName "forbiddenbydenybydefault"; usf:definition "No grant exists and deny-by-default forbids the combination.".
+pdr:forbiddenbytenantboundary a usf:PermutationDispositionReason; usf:canonicalName "forbiddenbytenantboundary"; usf:definition "The combination would cross a tenant or platform boundary without an explicit proven exception.".
+pdr:forbiddenbyleastprivilege a usf:PermutationDispositionReason; usf:canonicalName "forbiddenbyleastprivilege"; usf:definition "Least privilege forbids granting this combination to the principal or role.".
+pdr:forbiddenbycoordinatoronly a usf:PermutationDispositionReason; usf:canonicalName "forbiddenbycoordinatoronly"; usf:definition "Only the coordinator principal may exercise this combination; all other paths are forbidden.".
+pdr:notapplicablebysubjectabsence a usf:PermutationDispositionReason; usf:canonicalName "notapplicablebysubjectabsence"; usf:definition "The subject declares none of the facets this combination ranges over.".
+pdr:notapplicablebyapplicabilityrule a usf:PermutationDispositionReason; usf:canonicalName "notapplicablebyapplicabilityrule"; usf:definition "An explicit proved applicability rule excludes the combination.".
+pdr:notapplicablebytransportabsence a usf:PermutationDispositionReason; usf:canonicalName "notapplicablebytransportabsence"; usf:definition "The subject exposes no surface on the combination's transport or interaction pattern.".
+pdr:notapplicablebyuinonexposure a usf:PermutationDispositionReason; usf:canonicalName "notapplicablebyuinonexposure"; usf:definition "The capability is explicitly internal and authorises no UI exposure.".
+pdr:deferredbyauthoritydecision a usf:PermutationDispositionReason; usf:canonicalName "deferredbyauthoritydecision"; usf:definition "Current authority explicitly defers the capability or contract scope.".
+pdr:unresolvedpendingsemanticdecision a usf:PermutationDispositionReason; usf:canonicalName "unresolvedpendingsemanticdecision"; usf:definition "A missing semantic decision has been identified and must be resolved through evidence and publication.".
+}

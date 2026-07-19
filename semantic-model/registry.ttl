@@ -185,6 +185,30 @@ ng:materialisation a usf:NamedGraph;
     usf:graphIri "urn:usf:graph:materialisation"^^xsd:anyURI;
     usf:loadOrder 35;
     usf:graphValidationOrder 39.
+ng:permutationvocabulary a usf:NamedGraph;
+    usf:canonicalName "permutationvocabulary";
+    usf:graphClass gcl:authoredgraph;
+    usf:graphIri "urn:usf:graph:permutation-vocabulary"^^xsd:anyURI;
+    usf:loadOrder 21;
+    usf:graphValidationOrder 25.
+ng:permutationactions a usf:NamedGraph;
+    usf:canonicalName "permutationactions";
+    usf:graphClass gcl:authoredgraph;
+    usf:graphIri "urn:usf:graph:permutation-actions"^^xsd:anyURI;
+    usf:loadOrder 22;
+    usf:graphValidationOrder 26.
+ng:permutationtransports a usf:NamedGraph;
+    usf:canonicalName "permutationtransports";
+    usf:graphClass gcl:authoredgraph;
+    usf:graphIri "urn:usf:graph:permutation-transports"^^xsd:anyURI;
+    usf:loadOrder 33;
+    usf:graphValidationOrder 37.
+ng:permutationfamilies a usf:NamedGraph;
+    usf:canonicalName "permutationfamilies";
+    usf:graphClass gcl:authoredgraph;
+    usf:graphIri "urn:usf:graph:permutation-families"^^xsd:anyURI;
+    usf:loadOrder 34;
+    usf:graphValidationOrder 38.
 ng:shapes a usf:NamedGraph;
     usf:canonicalName "shapes";
     usf:graphClass gcl:shapegraph;

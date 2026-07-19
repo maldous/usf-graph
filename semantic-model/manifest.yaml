@@ -123,6 +123,22 @@ authoredGraphs:
     graph: "urn:usf:graph:materialisation"
     loadOrder: 35
     validationOrder: 39
+  - file: permutation/closure-vocabulary.trig
+    graph: "urn:usf:graph:permutation-vocabulary"
+    loadOrder: 21
+    validationOrder: 25
+  - file: permutation/action-catalogue.trig
+    graph: "urn:usf:graph:permutation-actions"
+    loadOrder: 22
+    validationOrder: 26
+  - file: permutation/transport-catalogue.trig
+    graph: "urn:usf:graph:permutation-transports"
+    loadOrder: 33
+    validationOrder: 37
+  - file: permutation/families.trig
+    graph: "urn:usf:graph:permutation-families"
+    loadOrder: 34
+    validationOrder: 38
 shapeGraphs:
   - file: shapes.ttl
     graph: "urn:usf:graph:shapes"
@@ -170,6 +186,10 @@ shapeGraphs:
     loadOrder: 36
     validationOrder: 6
   - file: shapes/materialisation.ttl
+    graph: "urn:usf:graph:shapes"
+    loadOrder: 36
+    validationOrder: 6
+  - file: shapes/permutation.ttl
     graph: "urn:usf:graph:shapes"
     loadOrder: 36
     validationOrder: 6

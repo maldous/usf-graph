@@ -1,0 +1,664 @@
+@prefix usf: <urn:usf:ontology:>.
+@prefix actiongroup: <urn:usf:actiongroup:>.
+@prefix actionkind: <urn:usf:actionkind:>.
+
+<urn:usf:graph:permutation-actions> {
+actiongroup:administrativeandpolicy a usf:ActionGroup;
+  usf:canonicalName "administrativeandpolicy";
+  usf:definition "Action group covering assignment, authorisation-decision and policy lifecycle actions for administration and policy.".
+actiongroup:connectionandsession a usf:ActionGroup;
+  usf:canonicalName "connectionandsession";
+  usf:definition "Action group covering establishment, exchange, keep-alive and termination actions on connections and sessions.".
+actiongroup:dataandtransaction a usf:ActionGroup;
+  usf:canonicalName "dataandtransaction";
+  usf:definition "Action group covering transaction boundaries, statement-level data manipulation and data lifecycle actions.".
+actiongroup:eventandmessaging a usf:ActionGroup;
+  usf:canonicalName "eventandmessaging";
+  usf:definition "Action group covering publication, consumption, acknowledgement, redelivery and dead-letter actions for events and messages.".
+actiongroup:executionandworkflow a usf:ActionGroup;
+  usf:canonicalName "executionandworkflow";
+  usf:definition "Action group covering scheduling, control, recovery and completion actions on executions and workflows.".
+actiongroup:genericresource a usf:ActionGroup;
+  usf:canonicalName "genericresource";
+  usf:definition "Action group covering the generic lifecycle, retrieval, mutation, transfer, assurance and state-control actions applicable to any managed resource.".
+actiongroup:objectandfile a usf:ActionGroup;
+  usf:canonicalName "objectandfile";
+  usf:definition "Action group covering storage, transfer, assurance and lifecycle actions on objects and files.".
+actiongroup:provider a usf:ActionGroup;
+  usf:canonicalName "provider";
+  usf:definition "Action group covering configuration, inspection, availability and credential actions for external providers.".
+actiongroup:securityandidentity a usf:ActionGroup;
+  usf:canonicalName "securityandidentity";
+  usf:definition "Action group covering authentication, token, delegation, credential and emergency-access actions for security and identity.".
+actiongroup:webhook a usf:ActionGroup;
+  usf:canonicalName "webhook";
+  usf:definition "Action group covering registration, delivery, testing and secret-management actions for webhooks.".
+actiongroup:websocketsurface a usf:ActionGroup;
+  usf:canonicalName "websocketsurface";
+  usf:definition "Mandatory consideration set for every WebSocket-capable surface: each listed action must be explicitly considered and may be forbidden or marked not applicable, but may not be omitted because existing code lacks it.";
+  usf:mandatoryConsiderationAction actionkind:abort, actionkind:authenticate, actionkind:authorise, actionkind:close, actionkind:connect, actionkind:disconnect, actionkind:heartbeat, actionkind:open, actionkind:ping, actionkind:pong, actionkind:read, actionkind:receive, actionkind:reconnect, actionkind:resume, actionkind:send, actionkind:subscribe, actionkind:unsubscribe, actionkind:write.
+actionkind:abort a usf:ActionKind;
+  usf:canonicalName "abort";
+  usf:actionLabel "abort";
+  usf:inActionGroup actiongroup:connectionandsession;
+  usf:definition "Terminate a connection or session immediately without orderly shutdown.".
+actionkind:acknowledge a usf:ActionKind;
+  usf:canonicalName "acknowledge";
+  usf:actionLabel "acknowledge";
+  usf:inActionGroup actiongroup:eventandmessaging, actiongroup:executionandworkflow;
+  usf:definition "Confirm successful receipt or processing of a message or work item.".
+actionkind:activate a usf:ActionKind;
+  usf:canonicalName "activate";
+  usf:actionLabel "activate";
+  usf:inActionGroup actiongroup:genericresource;
+  usf:definition "Bring a resource into active operational effect.".
+actionkind:approve a usf:ActionKind;
+  usf:canonicalName "approve";
+  usf:actionLabel "approve";
+  usf:inActionGroup actiongroup:genericresource;
+  usf:definition "Record an affirmative decision that permits a pending resource or request to proceed.".
+actionkind:approveelevation a usf:ActionKind;
+  usf:canonicalName "approveelevation";
+  usf:actionLabel "approveElevation";
+  usf:inActionGroup actiongroup:securityandidentity;
+  usf:definition "Approve a pending request for temporarily elevated privileges.".
+actionkind:archive a usf:ActionKind;
+  usf:canonicalName "archive";
+  usf:actionLabel "archive";
+  usf:inActionGroup actiongroup:genericresource;
+  usf:definition "Move a resource into long-term inactive retention while preserving it.".
+actionkind:assign a usf:ActionKind;
+  usf:canonicalName "assign";
+  usf:actionLabel "assign";
+  usf:inActionGroup actiongroup:administrativeandpolicy;
+  usf:definition "Attach a role, duty or resource to a principal or target.".
+actionkind:attest a usf:ActionKind;
+  usf:canonicalName "attest";
+  usf:actionLabel "attest";
+  usf:inActionGroup actiongroup:administrativeandpolicy;
+  usf:definition "Formally declare that a subject satisfies a stated requirement.".
+actionkind:authenticate a usf:ActionKind;
+  usf:canonicalName "authenticate";
+  usf:actionLabel "authenticate";
+  usf:inActionGroup actiongroup:connectionandsession;
+  usf:definition "Prove the identity of a principal on a connection or session.".
+actionkind:authorise a usf:ActionKind;
+  usf:canonicalName "authorise";
+  usf:actionLabel "authorise";
+  usf:inActionGroup actiongroup:connectionandsession;
+  usf:definition "Establish that an authenticated principal may perform requested actions on a connection or session.".
+actionkind:backup a usf:ActionKind;
+  usf:canonicalName "backup";
+  usf:actionLabel "backup";
+  usf:inActionGroup actiongroup:dataandtransaction;
+  usf:definition "Produce a recoverable copy of data for protection against loss.".
+actionkind:begin a usf:ActionKind;
+  usf:canonicalName "begin";
+  usf:actionLabel "begin";
+  usf:inActionGroup actiongroup:dataandtransaction;
+  usf:definition "Open a new transaction boundary.".
+actionkind:breakglass a usf:ActionKind;
+  usf:canonicalName "breakglass";
+  usf:actionLabel "breakGlass";
+  usf:inActionGroup actiongroup:securityandidentity;
+  usf:definition "Invoke audited emergency access that bypasses the normal authorisation flow.".
+actionkind:callback a usf:ActionKind;
+  usf:canonicalName "callback";
+  usf:actionLabel "callback";
+  usf:inActionGroup actiongroup:securityandidentity;
+  usf:definition "Complete an externally initiated authentication or authorisation flow at a return endpoint.".
+actionkind:cancel a usf:ActionKind;
+  usf:canonicalName "cancel";
+  usf:actionLabel "cancel";
+  usf:inActionGroup actiongroup:executionandworkflow;
+  usf:definition "Request orderly termination of an execution before completion.".
+actionkind:certify a usf:ActionKind;
+  usf:canonicalName "certify";
+  usf:actionLabel "certify";
+  usf:inActionGroup actiongroup:administrativeandpolicy;
+  usf:definition "Issue a formal certification that a subject has passed evaluation.".
+actionkind:close a usf:ActionKind;
+  usf:canonicalName "close";
+  usf:actionLabel "close";
+  usf:inActionGroup actiongroup:connectionandsession;
+  usf:definition "End a connection or session through orderly shutdown.".
+actionkind:commit a usf:ActionKind;
+  usf:canonicalName "commit";
+  usf:actionLabel "commit";
+  usf:inActionGroup actiongroup:dataandtransaction;
+  usf:definition "Make the effects of an open transaction permanent.".
+actionkind:compensate a usf:ActionKind;
+  usf:canonicalName "compensate";
+  usf:actionLabel "compensate";
+  usf:inActionGroup actiongroup:executionandworkflow;
+  usf:definition "Apply a compensating action that semantically reverses completed work.".
+actionkind:complete a usf:ActionKind;
+  usf:canonicalName "complete";
+  usf:actionLabel "complete";
+  usf:inActionGroup actiongroup:executionandworkflow;
+  usf:definition "Mark an execution or work item as successfully finished.".
+actionkind:configure a usf:ActionKind;
+  usf:canonicalName "configure";
+  usf:actionLabel "configure";
+  usf:inActionGroup actiongroup:provider;
+  usf:definition "Set or change the operating configuration of a provider or component.".
+actionkind:connect a usf:ActionKind;
+  usf:canonicalName "connect";
+  usf:actionLabel "connect";
+  usf:inActionGroup actiongroup:connectionandsession;
+  usf:definition "Establish a transport-level link to an endpoint.".
+actionkind:consume a usf:ActionKind;
+  usf:canonicalName "consume";
+  usf:actionLabel "consume";
+  usf:inActionGroup actiongroup:eventandmessaging;
+  usf:definition "Take delivery of messages from a queue or stream for processing.".
+actionkind:copy a usf:ActionKind;
+  usf:canonicalName "copy";
+  usf:actionLabel "copy";
+  usf:inActionGroup actiongroup:genericresource, actiongroup:objectandfile;
+  usf:definition "Duplicate a resource to another location while retaining the original.".
+actionkind:create a usf:ActionKind;
+  usf:canonicalName "create";
+  usf:actionLabel "create";
+  usf:inActionGroup actiongroup:executionandworkflow, actiongroup:genericresource;
+  usf:definition "Bring a new resource or execution into existence.".
+actionkind:deactivate a usf:ActionKind;
+  usf:canonicalName "deactivate";
+  usf:actionLabel "deactivate";
+  usf:inActionGroup actiongroup:genericresource;
+  usf:definition "Take a resource out of active operational effect without deleting it.".
+actionkind:deadletter a usf:ActionKind;
+  usf:canonicalName "deadletter";
+  usf:actionLabel "deadLetter";
+  usf:inActionGroup actiongroup:eventandmessaging;
+  usf:definition "Move a message that cannot be processed to the dead-letter destination.".
+actionkind:delegate a usf:ActionKind;
+  usf:canonicalName "delegate";
+  usf:actionLabel "delegate";
+  usf:inActionGroup actiongroup:securityandidentity;
+  usf:definition "Confer a subset of a principal's authority on another principal.".
+actionkind:delete a usf:ActionKind;
+  usf:canonicalName "delete";
+  usf:actionLabel "delete";
+  usf:inActionGroup actiongroup:dataandtransaction, actiongroup:genericresource, actiongroup:objectandfile, actiongroup:webhook;
+  usf:definition "Remove a resource so it is no longer available through normal operations.".
+actionkind:deliver a usf:ActionKind;
+  usf:canonicalName "deliver";
+  usf:actionLabel "deliver";
+  usf:inActionGroup actiongroup:webhook;
+  usf:definition "Transmit a webhook payload to its registered destination.".
+actionkind:deny a usf:ActionKind;
+  usf:canonicalName "deny";
+  usf:actionLabel "deny";
+  usf:inActionGroup actiongroup:administrativeandpolicy;
+  usf:definition "Record a negative authorisation decision for a request or assignment.".
+actionkind:disable a usf:ActionKind;
+  usf:canonicalName "disable";
+  usf:actionLabel "disable";
+  usf:inActionGroup actiongroup:genericresource, actiongroup:provider, actiongroup:webhook;
+  usf:definition "Turn off a resource or integration so it ceases to take effect.".
+actionkind:disconnect a usf:ActionKind;
+  usf:canonicalName "disconnect";
+  usf:actionLabel "disconnect";
+  usf:inActionGroup actiongroup:connectionandsession;
+  usf:definition "Detach from a transport-level link.".
+actionkind:download a usf:ActionKind;
+  usf:canonicalName "download";
+  usf:actionLabel "download";
+  usf:inActionGroup actiongroup:objectandfile;
+  usf:definition "Transfer the content of an object or file from the system to the caller.".
+actionkind:enable a usf:ActionKind;
+  usf:canonicalName "enable";
+  usf:actionLabel "enable";
+  usf:inActionGroup actiongroup:genericresource, actiongroup:provider, actiongroup:webhook;
+  usf:definition "Turn on a resource or integration so it takes effect.".
+actionkind:evaluate a usf:ActionKind;
+  usf:canonicalName "evaluate";
+  usf:actionLabel "evaluate";
+  usf:inActionGroup actiongroup:administrativeandpolicy;
+  usf:definition "Compute an authorisation or policy decision for a given input.".
+actionkind:exchange a usf:ActionKind;
+  usf:canonicalName "exchange";
+  usf:actionLabel "exchange";
+  usf:inActionGroup actiongroup:securityandidentity;
+  usf:definition "Trade one credential or token for another.".
+actionkind:explain a usf:ActionKind;
+  usf:canonicalName "explain";
+  usf:actionLabel "explain";
+  usf:inActionGroup actiongroup:administrativeandpolicy;
+  usf:definition "Produce the reasoning behind an authorisation or policy decision.".
+actionkind:export a usf:ActionKind;
+  usf:canonicalName "export";
+  usf:actionLabel "export";
+  usf:inActionGroup actiongroup:genericresource;
+  usf:definition "Produce an external representation of resources for use outside the system.".
+actionkind:fail a usf:ActionKind;
+  usf:canonicalName "fail";
+  usf:actionLabel "fail";
+  usf:inActionGroup actiongroup:executionandworkflow;
+  usf:definition "Mark an execution or work item as unsuccessfully terminated.".
+actionkind:failover a usf:ActionKind;
+  usf:canonicalName "failover";
+  usf:actionLabel "failover";
+  usf:inActionGroup actiongroup:provider;
+  usf:definition "Switch service to an alternative provider or instance after degradation.".
+actionkind:get a usf:ActionKind;
+  usf:canonicalName "get";
+  usf:actionLabel "get";
+  usf:inActionGroup actiongroup:genericresource, actiongroup:objectandfile;
+  usf:definition "Retrieve a single identified resource representation.".
+actionkind:grant a usf:ActionKind;
+  usf:canonicalName "grant";
+  usf:actionLabel "grant";
+  usf:inActionGroup actiongroup:administrativeandpolicy;
+  usf:definition "Confer a permission or entitlement on a principal.".
+actionkind:head a usf:ActionKind;
+  usf:canonicalName "head";
+  usf:actionLabel "head";
+  usf:inActionGroup actiongroup:genericresource, actiongroup:objectandfile;
+  usf:definition "Retrieve only the metadata of an identified resource without its content.".
+actionkind:heartbeat a usf:ActionKind;
+  usf:canonicalName "heartbeat";
+  usf:actionLabel "heartbeat";
+  usf:inActionGroup actiongroup:connectionandsession;
+  usf:definition "Emit a periodic liveness signal on a connection or session.".
+actionkind:impersonate a usf:ActionKind;
+  usf:canonicalName "impersonate";
+  usf:actionLabel "impersonate";
+  usf:inActionGroup actiongroup:securityandidentity;
+  usf:definition "Act as another principal under audited authority.".
+actionkind:import a usf:ActionKind;
+  usf:canonicalName "import";
+  usf:actionLabel "import";
+  usf:inActionGroup actiongroup:genericresource;
+  usf:definition "Ingest an external representation of resources into the system.".
+actionkind:insert a usf:ActionKind;
+  usf:canonicalName "insert";
+  usf:actionLabel "insert";
+  usf:inActionGroup actiongroup:dataandtransaction;
+  usf:definition "Add new rows or records within a data store.".
+actionkind:inspect a usf:ActionKind;
+  usf:canonicalName "inspect";
+  usf:actionLabel "inspect";
+  usf:inActionGroup actiongroup:provider, actiongroup:webhook;
+  usf:definition "Examine the current definition and state of a registration or provider.".
+actionkind:inspectdeadletter a usf:ActionKind;
+  usf:canonicalName "inspectdeadletter";
+  usf:actionLabel "inspectDeadLetter";
+  usf:inActionGroup actiongroup:eventandmessaging;
+  usf:definition "Examine messages held in the dead-letter destination.".
+actionkind:inspectdelivery a usf:ActionKind;
+  usf:canonicalName "inspectdelivery";
+  usf:actionLabel "inspectDelivery";
+  usf:inActionGroup actiongroup:webhook;
+  usf:definition "Examine the record of a webhook delivery attempt.".
+actionkind:introspect a usf:ActionKind;
+  usf:canonicalName "introspect";
+  usf:actionLabel "introspect";
+  usf:inActionGroup actiongroup:securityandidentity;
+  usf:definition "Query the validity and attributes of a token.".
+actionkind:issue a usf:ActionKind;
+  usf:canonicalName "issue";
+  usf:actionLabel "issue";
+  usf:inActionGroup actiongroup:securityandidentity;
+  usf:definition "Create and hand out a new token or credential.".
+actionkind:lease a usf:ActionKind;
+  usf:canonicalName "lease";
+  usf:actionLabel "lease";
+  usf:inActionGroup actiongroup:executionandworkflow;
+  usf:definition "Acquire time-bounded exclusive ownership of a work item.".
+actionkind:list a usf:ActionKind;
+  usf:canonicalName "list";
+  usf:actionLabel "list";
+  usf:inActionGroup actiongroup:genericresource, actiongroup:objectandfile, actiongroup:provider, actiongroup:webhook;
+  usf:definition "Enumerate a collection of resources.".
+actionkind:lock a usf:ActionKind;
+  usf:canonicalName "lock";
+  usf:actionLabel "lock";
+  usf:inActionGroup actiongroup:genericresource;
+  usf:definition "Prevent modification of a resource by other actors.".
+actionkind:login a usf:ActionKind;
+  usf:canonicalName "login";
+  usf:actionLabel "login";
+  usf:inActionGroup actiongroup:securityandidentity;
+  usf:definition "Establish an authenticated security session for a principal.".
+actionkind:logout a usf:ActionKind;
+  usf:canonicalName "logout";
+  usf:actionLabel "logout";
+  usf:inActionGroup actiongroup:securityandidentity;
+  usf:definition "Terminate a principal's authenticated security session.".
+actionkind:migrate a usf:ActionKind;
+  usf:canonicalName "migrate";
+  usf:actionLabel "migrate";
+  usf:inActionGroup actiongroup:dataandtransaction;
+  usf:definition "Apply schema or data migrations to a data store.".
+actionkind:move a usf:ActionKind;
+  usf:canonicalName "move";
+  usf:actionLabel "move";
+  usf:inActionGroup actiongroup:genericresource, actiongroup:objectandfile;
+  usf:definition "Relocate a resource to another location, removing it from the original.".
+actionkind:negativeacknowledge a usf:ActionKind;
+  usf:canonicalName "negativeacknowledge";
+  usf:actionLabel "negativeAcknowledge";
+  usf:inActionGroup actiongroup:eventandmessaging;
+  usf:definition "Report unsuccessful processing of a message so it can be redelivered or dead-lettered.".
+actionkind:open a usf:ActionKind;
+  usf:canonicalName "open";
+  usf:actionLabel "open";
+  usf:inActionGroup actiongroup:connectionandsession;
+  usf:definition "Initiate an application-level session over an established link.".
+actionkind:patch a usf:ActionKind;
+  usf:canonicalName "patch";
+  usf:actionLabel "patch";
+  usf:inActionGroup actiongroup:genericresource;
+  usf:definition "Apply a partial modification to a resource.".
+actionkind:pause a usf:ActionKind;
+  usf:canonicalName "pause";
+  usf:actionLabel "pause";
+  usf:inActionGroup actiongroup:executionandworkflow;
+  usf:definition "Temporarily suspend an execution so that it can later resume.".
+actionkind:ping a usf:ActionKind;
+  usf:canonicalName "ping";
+  usf:actionLabel "ping";
+  usf:inActionGroup actiongroup:connectionandsession;
+  usf:definition "Send a liveness probe that expects a corresponding pong.".
+actionkind:pong a usf:ActionKind;
+  usf:canonicalName "pong";
+  usf:actionLabel "pong";
+  usf:inActionGroup actiongroup:connectionandsession;
+  usf:definition "Answer a liveness probe received as a ping.".
+actionkind:publish a usf:ActionKind;
+  usf:canonicalName "publish";
+  usf:actionLabel "publish";
+  usf:inActionGroup actiongroup:administrativeandpolicy, actiongroup:eventandmessaging;
+  usf:definition "Emit an event, message or artefact to a topic or registry for interested consumers.".
+actionkind:purge a usf:ActionKind;
+  usf:canonicalName "purge";
+  usf:actionLabel "purge";
+  usf:inActionGroup actiongroup:genericresource, actiongroup:objectandfile;
+  usf:definition "Irrecoverably destroy a resource or messages, bypassing retention.".
+actionkind:purgedeadletter a usf:ActionKind;
+  usf:canonicalName "purgedeadletter";
+  usf:actionLabel "purgeDeadLetter";
+  usf:inActionGroup actiongroup:eventandmessaging;
+  usf:definition "Irrecoverably remove messages from the dead-letter destination.".
+actionkind:put a usf:ActionKind;
+  usf:canonicalName "put";
+  usf:actionLabel "put";
+  usf:inActionGroup actiongroup:objectandfile;
+  usf:definition "Store an object at a caller-specified key, replacing any existing content.".
+actionkind:quarantine a usf:ActionKind;
+  usf:canonicalName "quarantine";
+  usf:actionLabel "quarantine";
+  usf:inActionGroup actiongroup:genericresource, actiongroup:objectandfile;
+  usf:definition "Isolate a suspect resource so it cannot be used until released.".
+actionkind:query a usf:ActionKind;
+  usf:canonicalName "query";
+  usf:actionLabel "query";
+  usf:inActionGroup actiongroup:genericresource;
+  usf:definition "Evaluate a structured expression over resources and return the matches.".
+actionkind:read a usf:ActionKind;
+  usf:canonicalName "read";
+  usf:actionLabel "read";
+  usf:inActionGroup actiongroup:connectionandsession, actiongroup:genericresource;
+  usf:definition "Access the informational content of a resource or stream without modifying it.".
+actionkind:receive a usf:ActionKind;
+  usf:canonicalName "receive";
+  usf:actionLabel "receive";
+  usf:inActionGroup actiongroup:connectionandsession;
+  usf:definition "Accept inbound data delivered on a connection or session.".
+actionkind:reconcile a usf:ActionKind;
+  usf:canonicalName "reconcile";
+  usf:actionLabel "reconcile";
+  usf:inActionGroup actiongroup:dataandtransaction;
+  usf:definition "Compare replicas or ledgers and resolve any divergence.".
+actionkind:reconnect a usf:ActionKind;
+  usf:canonicalName "reconnect";
+  usf:actionLabel "reconnect";
+  usf:inActionGroup actiongroup:connectionandsession;
+  usf:definition "Re-establish a previously lost or closed connection.".
+actionkind:recover a usf:ActionKind;
+  usf:canonicalName "recover";
+  usf:actionLabel "recover";
+  usf:inActionGroup actiongroup:provider, actiongroup:securityandidentity;
+  usf:definition "Restore normal operation or access after failure or loss.".
+actionkind:redrive a usf:ActionKind;
+  usf:canonicalName "redrive";
+  usf:actionLabel "redrive";
+  usf:inActionGroup actiongroup:eventandmessaging, actiongroup:executionandworkflow;
+  usf:definition "Return previously failed or dead-lettered work to its source for reprocessing.".
+actionkind:refresh a usf:ActionKind;
+  usf:canonicalName "refresh";
+  usf:actionLabel "refresh";
+  usf:inActionGroup actiongroup:securityandidentity;
+  usf:definition "Obtain a new access credential using an existing refresh credential.".
+actionkind:register a usf:ActionKind;
+  usf:canonicalName "register";
+  usf:actionLabel "register";
+  usf:inActionGroup actiongroup:webhook;
+  usf:definition "Record a new webhook subscription or endpoint with the system.".
+actionkind:reject a usf:ActionKind;
+  usf:canonicalName "reject";
+  usf:actionLabel "reject";
+  usf:inActionGroup actiongroup:executionandworkflow, actiongroup:genericresource;
+  usf:definition "Record a negative decision that stops a pending resource, request or work item.".
+actionkind:release a usf:ActionKind;
+  usf:canonicalName "release";
+  usf:actionLabel "release";
+  usf:inActionGroup actiongroup:genericresource, actiongroup:objectandfile;
+  usf:definition "Remove a hold or quarantine so a resource becomes usable again.".
+actionkind:renewlease a usf:ActionKind;
+  usf:canonicalName "renewlease";
+  usf:actionLabel "renewLease";
+  usf:inActionGroup actiongroup:executionandworkflow;
+  usf:definition "Extend the duration of an existing lease before it expires.".
+actionkind:replace a usf:ActionKind;
+  usf:canonicalName "replace";
+  usf:actionLabel "replace";
+  usf:inActionGroup actiongroup:genericresource;
+  usf:definition "Substitute the entire content of a resource with a new representation.".
+actionkind:replay a usf:ActionKind;
+  usf:canonicalName "replay";
+  usf:actionLabel "replay";
+  usf:inActionGroup actiongroup:eventandmessaging, actiongroup:executionandworkflow, actiongroup:webhook;
+  usf:definition "Process past messages or events again from a recorded history.".
+actionkind:replicate a usf:ActionKind;
+  usf:canonicalName "replicate";
+  usf:actionLabel "replicate";
+  usf:inActionGroup actiongroup:dataandtransaction;
+  usf:definition "Copy data continuously or on demand to another store or region.".
+actionkind:restore a usf:ActionKind;
+  usf:canonicalName "restore";
+  usf:actionLabel "restore";
+  usf:inActionGroup actiongroup:dataandtransaction, actiongroup:genericresource, actiongroup:objectandfile;
+  usf:definition "Return a deleted, archived or backed-up resource to service.".
+actionkind:resume a usf:ActionKind;
+  usf:canonicalName "resume";
+  usf:actionLabel "resume";
+  usf:inActionGroup actiongroup:connectionandsession, actiongroup:executionandworkflow;
+  usf:definition "Continue a paused or interrupted execution or session from its saved state.".
+actionkind:retire a usf:ActionKind;
+  usf:canonicalName "retire";
+  usf:actionLabel "retire";
+  usf:inActionGroup actiongroup:administrativeandpolicy;
+  usf:definition "Withdraw a published artefact or policy from active use.".
+actionkind:retry a usf:ActionKind;
+  usf:canonicalName "retry";
+  usf:actionLabel "retry";
+  usf:inActionGroup actiongroup:eventandmessaging, actiongroup:executionandworkflow, actiongroup:webhook;
+  usf:definition "Attempt a failed operation again.".
+actionkind:revoke a usf:ActionKind;
+  usf:canonicalName "revoke";
+  usf:actionLabel "revoke";
+  usf:inActionGroup actiongroup:administrativeandpolicy, actiongroup:securityandidentity;
+  usf:definition "Withdraw a previously granted token, credential, permission or delegation.".
+actionkind:revokesecret a usf:ActionKind;
+  usf:canonicalName "revokesecret";
+  usf:actionLabel "revokeSecret";
+  usf:inActionGroup actiongroup:webhook;
+  usf:definition "Invalidate a webhook signing secret so it can no longer be used.".
+actionkind:rollback a usf:ActionKind;
+  usf:canonicalName "rollback";
+  usf:actionLabel "rollback";
+  usf:inActionGroup actiongroup:dataandtransaction, actiongroup:executionandworkflow;
+  usf:definition "Undo the effects of an open transaction or applied change.".
+actionkind:rotate a usf:ActionKind;
+  usf:canonicalName "rotate";
+  usf:actionLabel "rotate";
+  usf:inActionGroup actiongroup:securityandidentity;
+  usf:definition "Replace a credential or key with a new one while retiring the old.".
+actionkind:rotatecredentials a usf:ActionKind;
+  usf:canonicalName "rotatecredentials";
+  usf:actionLabel "rotateCredentials";
+  usf:inActionGroup actiongroup:provider;
+  usf:definition "Replace the credentials used to access a provider.".
+actionkind:rotatesecret a usf:ActionKind;
+  usf:canonicalName "rotatesecret";
+  usf:actionLabel "rotateSecret";
+  usf:inActionGroup actiongroup:webhook;
+  usf:definition "Replace a webhook signing secret with a new one.".
+actionkind:scan a usf:ActionKind;
+  usf:canonicalName "scan";
+  usf:actionLabel "scan";
+  usf:inActionGroup actiongroup:genericresource, actiongroup:objectandfile;
+  usf:definition "Analyse a resource for threats or policy violations.".
+actionkind:schedule a usf:ActionKind;
+  usf:canonicalName "schedule";
+  usf:actionLabel "schedule";
+  usf:inActionGroup actiongroup:executionandworkflow;
+  usf:definition "Arrange an execution to start at a defined future time or cadence.".
+actionkind:search a usf:ActionKind;
+  usf:canonicalName "search";
+  usf:actionLabel "search";
+  usf:inActionGroup actiongroup:genericresource;
+  usf:definition "Find resources matching caller-supplied criteria across a collection.".
+actionkind:seed a usf:ActionKind;
+  usf:canonicalName "seed";
+  usf:actionLabel "seed";
+  usf:inActionGroup actiongroup:dataandtransaction;
+  usf:definition "Populate a data store with initial or reference data.".
+actionkind:select a usf:ActionKind;
+  usf:canonicalName "select";
+  usf:actionLabel "select";
+  usf:inActionGroup actiongroup:dataandtransaction;
+  usf:definition "Retrieve rows or records matching a statement within a data store.".
+actionkind:send a usf:ActionKind;
+  usf:canonicalName "send";
+  usf:actionLabel "send";
+  usf:inActionGroup actiongroup:connectionandsession;
+  usf:definition "Transmit data to a specific counterparty on a connection or session.".
+actionkind:sign a usf:ActionKind;
+  usf:canonicalName "sign";
+  usf:actionLabel "sign";
+  usf:inActionGroup actiongroup:genericresource, actiongroup:objectandfile;
+  usf:definition "Produce a cryptographic signature over a resource.".
+actionkind:signal a usf:ActionKind;
+  usf:canonicalName "signal";
+  usf:actionLabel "signal";
+  usf:inActionGroup actiongroup:executionandworkflow;
+  usf:definition "Deliver an asynchronous signal to a running execution.".
+actionkind:simulate a usf:ActionKind;
+  usf:canonicalName "simulate";
+  usf:actionLabel "simulate";
+  usf:inActionGroup actiongroup:administrativeandpolicy;
+  usf:definition "Evaluate a hypothetical authorisation or policy decision without applying any effect.".
+actionkind:snapshot a usf:ActionKind;
+  usf:canonicalName "snapshot";
+  usf:actionLabel "snapshot";
+  usf:inActionGroup actiongroup:dataandtransaction;
+  usf:definition "Capture a point-in-time image of data or state.".
+actionkind:start a usf:ActionKind;
+  usf:canonicalName "start";
+  usf:actionLabel "start";
+  usf:inActionGroup actiongroup:executionandworkflow;
+  usf:definition "Begin running a created or scheduled execution.".
+actionkind:stop a usf:ActionKind;
+  usf:canonicalName "stop";
+  usf:actionLabel "stop";
+  usf:inActionGroup actiongroup:executionandworkflow;
+  usf:definition "Halt a running execution.".
+actionkind:subscribe a usf:ActionKind;
+  usf:canonicalName "subscribe";
+  usf:actionLabel "subscribe";
+  usf:inActionGroup actiongroup:connectionandsession, actiongroup:eventandmessaging;
+  usf:definition "Register interest in receiving events or messages for a topic or channel.".
+actionkind:supersede a usf:ActionKind;
+  usf:canonicalName "supersede";
+  usf:actionLabel "supersede";
+  usf:inActionGroup actiongroup:administrativeandpolicy;
+  usf:definition "Replace a published artefact or policy with a successor.".
+actionkind:terminatesession a usf:ActionKind;
+  usf:canonicalName "terminatesession";
+  usf:actionLabel "terminateSession";
+  usf:inActionGroup actiongroup:securityandidentity;
+  usf:definition "Forcefully end another principal's active session.".
+actionkind:test a usf:ActionKind;
+  usf:canonicalName "test";
+  usf:actionLabel "test";
+  usf:inActionGroup actiongroup:provider, actiongroup:webhook;
+  usf:definition "Exercise a registration or provider to confirm that it functions.".
+actionkind:unarchive a usf:ActionKind;
+  usf:canonicalName "unarchive";
+  usf:actionLabel "unarchive";
+  usf:inActionGroup actiongroup:genericresource;
+  usf:definition "Return an archived resource to active availability.".
+actionkind:unassign a usf:ActionKind;
+  usf:canonicalName "unassign";
+  usf:actionLabel "unassign";
+  usf:inActionGroup actiongroup:administrativeandpolicy;
+  usf:definition "Detach a previously assigned role, duty or resource.".
+actionkind:unlock a usf:ActionKind;
+  usf:canonicalName "unlock";
+  usf:actionLabel "unlock";
+  usf:inActionGroup actiongroup:genericresource;
+  usf:definition "Remove a lock so a resource can be modified again.".
+actionkind:unsubscribe a usf:ActionKind;
+  usf:canonicalName "unsubscribe";
+  usf:actionLabel "unsubscribe";
+  usf:inActionGroup actiongroup:connectionandsession, actiongroup:eventandmessaging;
+  usf:definition "Cancel a previously registered interest in events or messages.".
+actionkind:update a usf:ActionKind;
+  usf:canonicalName "update";
+  usf:actionLabel "update";
+  usf:inActionGroup actiongroup:dataandtransaction, actiongroup:genericresource, actiongroup:webhook;
+  usf:definition "Modify an existing resource or records with new values.".
+actionkind:upload a usf:ActionKind;
+  usf:canonicalName "upload";
+  usf:actionLabel "upload";
+  usf:inActionGroup actiongroup:objectandfile;
+  usf:definition "Transfer the content of an object or file from the caller into the system.".
+actionkind:upsert a usf:ActionKind;
+  usf:canonicalName "upsert";
+  usf:actionLabel "upsert";
+  usf:inActionGroup actiongroup:dataandtransaction, actiongroup:genericresource;
+  usf:definition "Create a resource or record if absent, otherwise update it.".
+actionkind:validate a usf:ActionKind;
+  usf:canonicalName "validate";
+  usf:actionLabel "validate";
+  usf:inActionGroup actiongroup:genericresource;
+  usf:definition "Check a resource against structural and semantic rules.".
+actionkind:verify a usf:ActionKind;
+  usf:canonicalName "verify";
+  usf:actionLabel "verify";
+  usf:inActionGroup actiongroup:genericresource, actiongroup:objectandfile;
+  usf:definition "Confirm the integrity or authenticity of a resource or signature.".
+actionkind:write a usf:ActionKind;
+  usf:canonicalName "write";
+  usf:actionLabel "write";
+  usf:inActionGroup actiongroup:connectionandsession;
+  usf:definition "Emit data onto a connection, session or resource, modifying its content.".
+actionkind:close usf:distinctFromAction actionkind:disconnect.
+actionkind:connect usf:distinctFromAction actionkind:open.
+actionkind:create usf:distinctFromAction actionkind:restore.
+actionkind:create usf:distinctFromAction actionkind:write.
+actionkind:delete usf:distinctFromAction actionkind:purge.
+actionkind:export usf:distinctFromAction actionkind:read.
+actionkind:get usf:distinctFromAction actionkind:read.
+actionkind:list usf:distinctFromAction actionkind:read.
+actionkind:patch usf:distinctFromAction actionkind:write.
+actionkind:publish usf:distinctFromAction actionkind:send.
+actionkind:query usf:distinctFromAction actionkind:read.
+actionkind:read usf:distinctFromAction actionkind:search.
+actionkind:replace usf:distinctFromAction actionkind:write.
+actionkind:update usf:distinctFromAction actionkind:write.
+}

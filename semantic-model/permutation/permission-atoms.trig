@@ -1,0 +1,450 @@
+@prefix usf: <urn:usf:ontology:>.
+@prefix pa: <urn:usf:permissionatom:>.
+@prefix perm: <urn:usf:permission:>.
+@prefix cap: <urn:usf:capability:>.
+@prefix tb: <urn:usf:tenantboundary:>.
+@prefix pk: <urn:usf:principalkind:>.
+@prefix rsk: <urn:usf:resourceselectorkind:>.
+@prefix actionkind: <urn:usf:actionkind:>.
+@prefix aud: <urn:usf:auditevent:>.
+@prefix ac: <urn:usf:auditcategory:>.
+@prefix el: <urn:usf:environmentclass:>.
+@prefix sc: <urn:usf:semanticcontract:>.
+
+<urn:usf:graph:permutation-authorisation> {
+
+# ── Audit permissions ────────────────────────────────────────────────────────
+pa:auditread a usf:PermissionAtom;
+    usf:canonicalName "auditread";
+    usf:definition "Read a single audit event by identifier within the requesting tenant boundary.";
+    usf:atomCapability cap:auditofprivilegedaccess;
+    usf:atomResourceClassIri <urn:usf:ontology:AuditEvent>;
+    usf:atomAction actionkind:get;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:exactresourceid, rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:auditread;
+    usf:atomStableIdentifier "pa:auditread";
+    usf:atomSupersedesPermission perm:auditread.
+
+pa:auditsearch a usf:PermissionAtom;
+    usf:canonicalName "auditsearch";
+    usf:definition "List and search audit events within the requesting tenant boundary.";
+    usf:atomCapability cap:auditofprivilegedaccess;
+    usf:atomResourceClassIri <urn:usf:ontology:AuditEvent>;
+    usf:atomAction actionkind:list;
+    usf:atomScopeType "collection";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope, rsk:timewindow;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:auditread;
+    usf:atomStableIdentifier "pa:auditsearch";
+    usf:atomSupersedesPermission perm:auditsearch.
+
+pa:auditverify a usf:PermissionAtom;
+    usf:canonicalName "auditverify";
+    usf:definition "Verify the integrity of audit event records within the requesting tenant boundary.";
+    usf:atomCapability cap:auditofprivilegedaccess;
+    usf:atomResourceClassIri <urn:usf:ontology:AuditEvent>;
+    usf:atomAction actionkind:verify;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:exactresourceid, rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:auditread;
+    usf:atomStableIdentifier "pa:auditverify";
+    usf:atomSupersedesPermission perm:auditverify.
+
+# ── Authentication permission ────────────────────────────────────────────────
+pa:authlogin a usf:PermissionAtom;
+    usf:canonicalName "authlogin";
+    usf:definition "Initiate an authentication session for a principal against a configured identity provider.";
+    usf:atomCapability cap:authenticationplatform;
+    usf:atomResourceClassIri <urn:usf:ontology:AuthenticationSession>;
+    usf:atomAction actionkind:login;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope;
+    usf:atomPrincipalRestriction pk:humanuser;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:authentication;
+    usf:atomStableIdentifier "pa:authlogin";
+    usf:atomSupersedesPermission perm:authlogin.
+
+# ── API keys permission ──────────────────────────────────────────────────────
+pa:apikeycreate a usf:PermissionAtom;
+    usf:canonicalName "apikeycreate";
+    usf:definition "Create a new API key or personal access token within the requesting tenant boundary.";
+    usf:atomCapability cap:apikeyspersonalaccesstokens;
+    usf:atomResourceClassIri <urn:usf:ontology:ApiKey>;
+    usf:atomAction actionkind:create;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:securitymanagement;
+    usf:atomStableIdentifier "pa:apikeycreate";
+    usf:atomSupersedesPermission perm:apikeycreate.
+
+# ── Authorisation permission ─────────────────────────────────────────────────
+pa:authorizationcheck a usf:PermissionAtom;
+    usf:canonicalName "authorizationcheck";
+    usf:definition "Evaluate an authorisation policy decision for a given principal, resource and action.";
+    usf:atomCapability cap:abacpolicydecisionpoint;
+    usf:atomResourceClassIri <urn:usf:ontology:AuthorizationDecision>;
+    usf:atomAction actionkind:evaluate;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:authorisation;
+    usf:atomStableIdentifier "pa:authorizationcheck";
+    usf:atomSupersedesPermission perm:authorizationcheck.
+
+# ── Tenant members permission ────────────────────────────────────────────────
+pa:tenantmembersread a usf:PermissionAtom;
+    usf:canonicalName "tenantmembersread";
+    usf:definition "Read tenant member profiles and permissions within the requesting tenant boundary.";
+    usf:atomCapability cap:useridentityandtenantmembership;
+    usf:atomResourceClassIri <urn:usf:ontology:TenantMember>;
+    usf:atomAction actionkind:get;
+    usf:atomScopeType "collection";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope, rsk:exactresourceid;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:identityread;
+    usf:atomStableIdentifier "pa:tenantmembersread";
+    usf:atomSupersedesPermission perm:tenantmembersread.
+
+# ── Configuration permissions ────────────────────────────────────────────────
+pa:configread a usf:PermissionAtom;
+    usf:canonicalName "configread";
+    usf:definition "Read current configuration, feature flags and provider status within the requesting tenant boundary.";
+    usf:atomCapability cap:configurationregistryandhistory;
+    usf:atomResourceClassIri <urn:usf:ontology:ConfigurationEntry>;
+    usf:atomAction actionkind:get;
+    usf:atomScopeType "collection";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:configurationread;
+    usf:atomStableIdentifier "pa:configread";
+    usf:atomSupersedesPermission perm:configread.
+
+# ── File/object storage permissions ──────────────────────────────────────────
+pa:filedownload a usf:PermissionAtom;
+    usf:canonicalName "filedownload";
+    usf:definition "Download a file object by identifier within the requesting tenant boundary.";
+    usf:atomCapability cap:objectstorageandtenantprefixesandsignedurls;
+    usf:atomResourceClassIri <urn:usf:ontology:FileObject>;
+    usf:atomAction actionkind:download;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:exactresourceid, rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:storageread;
+    usf:atomStableIdentifier "pa:filedownload";
+    usf:atomSupersedesPermission perm:filedownload.
+
+pa:fileread a usf:PermissionAtom;
+    usf:canonicalName "fileread";
+    usf:definition "Retrieve file metadata or verify file integrity within the requesting tenant boundary.";
+    usf:atomCapability cap:objectstorageandtenantprefixesandsignedurls;
+    usf:atomResourceClassIri <urn:usf:ontology:FileObject>;
+    usf:atomAction actionkind:get;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:exactresourceid, rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:storageread;
+    usf:atomStableIdentifier "pa:fileread";
+    usf:atomSupersedesPermission perm:fileread.
+
+pa:filelist a usf:PermissionAtom;
+    usf:canonicalName "filelist";
+    usf:definition "List file objects within the requesting tenant boundary.";
+    usf:atomCapability cap:objectstorageandtenantprefixesandsignedurls;
+    usf:atomResourceClassIri <urn:usf:ontology:FileObject>;
+    usf:atomAction actionkind:list;
+    usf:atomScopeType "collection";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:storageread;
+    usf:atomStableIdentifier "pa:filelist";
+    usf:atomSupersedesPermission perm:filelist.
+
+pa:filecreate a usf:PermissionAtom;
+    usf:canonicalName "filecreate";
+    usf:definition "Upload a new file object within the requesting tenant boundary.";
+    usf:atomCapability cap:objectstorageandtenantprefixesandsignedurls;
+    usf:atomResourceClassIri <urn:usf:ontology:FileObject>;
+    usf:atomAction actionkind:create;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:storagewrite;
+    usf:atomStableIdentifier "pa:filecreate";
+    usf:atomSupersedesPermission perm:filecreate.
+
+# ── Route access (unauthenticated) permission ────────────────────────────────
+pa:routeaccessnone a usf:PermissionAtom;
+    usf:canonicalName "routeaccessnone";
+    usf:definition "Access health, readiness and OpenAPI endpoints without authentication.";
+    usf:atomCapability cap:internalservicecatalogandreadiness;
+    usf:atomResourceClassIri <urn:usf:ontology:ReadinessEndpoint>;
+    usf:atomAction actionkind:get;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:platform;
+    usf:atomSelectorKind rsk:exactresourceid;
+    usf:atomPrincipalRestriction pk:anonymous;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:platformhealth;
+    usf:atomStableIdentifier "pa:routeaccessnone";
+    usf:atomSupersedesPermission perm:routeaccessnone.
+
+# ── Job/scheduled work permissions ───────────────────────────────────────────
+pa:jobcancel a usf:PermissionAtom;
+    usf:canonicalName "jobcancel";
+    usf:definition "Cancel a scheduled or running job within the requesting tenant boundary.";
+    usf:atomCapability cap:scheduledjobsbuiltinontheeventsubstrate;
+    usf:atomResourceClassIri <urn:usf:ontology:ScheduledJob>;
+    usf:atomAction actionkind:cancel;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:exactresourceid, rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:jobmanagement;
+    usf:atomStableIdentifier "pa:jobcancel";
+    usf:atomSupersedesPermission perm:jobcancel.
+
+pa:jobcreate a usf:PermissionAtom;
+    usf:canonicalName "jobcreate";
+    usf:definition "Create a new scheduled job within the requesting tenant boundary.";
+    usf:atomCapability cap:scheduledjobsbuiltinontheeventsubstrate;
+    usf:atomResourceClassIri <urn:usf:ontology:ScheduledJob>;
+    usf:atomAction actionkind:create;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:jobmanagement;
+    usf:atomStableIdentifier "pa:jobcreate";
+    usf:atomSupersedesPermission perm:jobcreate.
+
+pa:jobread a usf:PermissionAtom;
+    usf:canonicalName "jobread";
+    usf:definition "Read a single scheduled job by identifier within the requesting tenant boundary.";
+    usf:atomCapability cap:scheduledjobsbuiltinontheeventsubstrate;
+    usf:atomResourceClassIri <urn:usf:ontology:ScheduledJob>;
+    usf:atomAction actionkind:get;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:exactresourceid, rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:jobmanagement;
+    usf:atomStableIdentifier "pa:jobread";
+    usf:atomSupersedesPermission perm:jobread.
+
+pa:joblist a usf:PermissionAtom;
+    usf:canonicalName "joblist";
+    usf:definition "List scheduled jobs within the requesting tenant boundary.";
+    usf:atomCapability cap:scheduledjobsbuiltinontheeventsubstrate;
+    usf:atomResourceClassIri <urn:usf:ontology:ScheduledJob>;
+    usf:atomAction actionkind:list;
+    usf:atomScopeType "collection";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:jobmanagement;
+    usf:atomStableIdentifier "pa:joblist";
+    usf:atomSupersedesPermission perm:joblist.
+
+# ── Notification permissions ─────────────────────────────────────────────────
+pa:notificationcancel a usf:PermissionAtom;
+    usf:canonicalName "notificationcancel";
+    usf:definition "Cancel a pending notification delivery within the requesting tenant boundary.";
+    usf:atomCapability cap:notificationdeliveryandpreferencesandchannels;
+    usf:atomResourceClassIri <urn:usf:ontology:NotificationDelivery>;
+    usf:atomAction actionkind:cancel;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:exactresourceid, rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:notificationmanagement;
+    usf:atomStableIdentifier "pa:notificationcancel";
+    usf:atomSupersedesPermission perm:notificationcancel.
+
+pa:notificationcreate a usf:PermissionAtom;
+    usf:canonicalName "notificationcreate";
+    usf:definition "Create a new notification delivery within the requesting tenant boundary.";
+    usf:atomCapability cap:notificationdeliveryandpreferencesandchannels;
+    usf:atomResourceClassIri <urn:usf:ontology:NotificationDelivery>;
+    usf:atomAction actionkind:create;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:notificationmanagement;
+    usf:atomStableIdentifier "pa:notificationcreate";
+    usf:atomSupersedesPermission perm:notificationcreate.
+
+pa:notificationread a usf:PermissionAtom;
+    usf:canonicalName "notificationread";
+    usf:definition "Read a single notification delivery by identifier within the requesting tenant boundary.";
+    usf:atomCapability cap:notificationdeliveryandpreferencesandchannels;
+    usf:atomResourceClassIri <urn:usf:ontology:NotificationDelivery>;
+    usf:atomAction actionkind:get;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:exactresourceid, rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:notificationmanagement;
+    usf:atomStableIdentifier "pa:notificationread";
+    usf:atomSupersedesPermission perm:notificationread.
+
+pa:notificationlist a usf:PermissionAtom;
+    usf:canonicalName "notificationlist";
+    usf:definition "List notification deliveries within the requesting tenant boundary.";
+    usf:atomCapability cap:notificationdeliveryandpreferencesandchannels;
+    usf:atomResourceClassIri <urn:usf:ontology:NotificationDelivery>;
+    usf:atomAction actionkind:list;
+    usf:atomScopeType "collection";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:notificationmanagement;
+    usf:atomStableIdentifier "pa:notificationlist";
+    usf:atomSupersedesPermission perm:notificationlist.
+
+pa:notificationsend a usf:PermissionAtom;
+    usf:canonicalName "notificationsend";
+    usf:definition "Dispatch a notification through configured channels within the requesting tenant boundary.";
+    usf:atomCapability cap:notificationdeliveryandpreferencesandchannels;
+    usf:atomResourceClassIri <urn:usf:ontology:NotificationDelivery>;
+    usf:atomAction actionkind:send;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:notificationmanagement;
+    usf:atomStableIdentifier "pa:notificationsend";
+    usf:atomSupersedesPermission perm:notificationsend.
+
+pa:notificationtemplatecreate a usf:PermissionAtom;
+    usf:canonicalName "notificationtemplatecreate";
+    usf:definition "Create a new notification template within the requesting tenant boundary.";
+    usf:atomCapability cap:notificationdeliveryandpreferencesandchannels;
+    usf:atomResourceClassIri <urn:usf:ontology:NotificationTemplate>;
+    usf:atomAction actionkind:create;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:notificationmanagement;
+    usf:atomStableIdentifier "pa:notificationtemplatecreate";
+    usf:atomSupersedesPermission perm:notificationtemplatecreate.
+
+# ── Observability permissions ────────────────────────────────────────────────
+pa:observabilityreadinessread a usf:PermissionAtom;
+    usf:canonicalName "observabilityreadinessread";
+    usf:definition "Read observability readiness status within the requesting tenant boundary.";
+    usf:atomCapability cap:metricsandtraces;
+    usf:atomResourceClassIri <urn:usf:ontology:ReadinessStatus>;
+    usf:atomAction actionkind:get;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:observabilityread;
+    usf:atomStableIdentifier "pa:observabilityreadinessread";
+    usf:atomSupersedesPermission perm:observabilityreadinessread.
+
+pa:observabilitysignalread a usf:PermissionAtom;
+    usf:canonicalName "observabilitysignalread";
+    usf:definition "List observability signals within the requesting tenant boundary.";
+    usf:atomCapability cap:metricsandtraces;
+    usf:atomResourceClassIri <urn:usf:ontology:ObservabilitySignal>;
+    usf:atomAction actionkind:list;
+    usf:atomScopeType "collection";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:observabilityread;
+    usf:atomStableIdentifier "pa:observabilitysignalread";
+    usf:atomSupersedesPermission perm:observabilitysignalread.
+
+# ── Provider permissions ─────────────────────────────────────────────────────
+pa:providerread a usf:PermissionAtom;
+    usf:canonicalName "providerread";
+    usf:definition "Read a single provider configuration by identifier within the requesting tenant boundary.";
+    usf:atomCapability cap:providerconfigurationplane;
+    usf:atomResourceClassIri <urn:usf:ontology:ProviderConfiguration>;
+    usf:atomAction actionkind:get;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:exactresourceid, rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:configurationread;
+    usf:atomStableIdentifier "pa:providerread";
+    usf:atomSupersedesPermission perm:providerread.
+
+pa:providerlist a usf:PermissionAtom;
+    usf:canonicalName "providerlist";
+    usf:definition "List provider configurations within the requesting tenant boundary.";
+    usf:atomCapability cap:providerconfigurationplane;
+    usf:atomResourceClassIri <urn:usf:ontology:ProviderConfiguration>;
+    usf:atomAction actionkind:list;
+    usf:atomScopeType "collection";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:configurationread;
+    usf:atomStableIdentifier "pa:providerlist";
+    usf:atomSupersedesPermission perm:providerlist.
+
+# ── Tenant context permission ────────────────────────────────────────────────
+pa:tenantcontextread a usf:PermissionAtom;
+    usf:canonicalName "tenantcontextread";
+    usf:definition "Read tenant host identity resolution context within the requesting tenant boundary.";
+    usf:atomCapability cap:tenanthostidentityresolution;
+    usf:atomResourceClassIri <urn:usf:ontology:TenantContext>;
+    usf:atomAction actionkind:get;
+    usf:atomScopeType "resource";
+    usf:atomTenantBoundary tb:tenant;
+    usf:atomSelectorKind rsk:tenantscope;
+    usf:atomDelegable false;
+    usf:atomBreakGlassEligible false;
+    usf:atomAuditCategory ac:identityread;
+    usf:atomStableIdentifier "pa:tenantcontextread";
+    usf:atomSupersedesPermission perm:tenantcontextread.
+}
