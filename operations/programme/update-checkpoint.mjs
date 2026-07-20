@@ -178,11 +178,31 @@ changes.sort((left, right) => (left.currentPath ?? left.previousPath).localeComp
 // older checkpoint can never bypass the current directive.
 const reconciledGoalDigest = 'sha256:3e6aaebdb730dbed3a6506bb53bbf008c96a00acfd41a7445beb2e8a74c4b2e3';
 const directiveReconciled = goalDigest === reconciledGoalDigest;
+const optionAcquisition = {
+  acquisitionInputDigest: 'sha256:7d5f9939c26e1524a5d38e6eecd46d26a8bb476f69e8ad1859f459150db59a3d',
+  acquisitionSetDigest: 'sha256:be26125ea7f9ba92a44e05f711678c97b0769b75c102f0efb14875eea37623c0',
+  authorityDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
+  byteSize: 5526,
+  casPath: '/var/lib/usf-cas/sha256/7d/7d5f9939c26e1524a5d38e6eecd46d26a8bb476f69e8ad1859f459150db59a3d',
+  collectedAt: '2026-07-20T02:00:39Z',
+  collectorDigest: 'sha256:315cb068463808d958d621840c715ce66f93a1a14c1777bc1bd498ec06ad1c69',
+  state: 'VERIFIED_LOCAL_ACQUISITION_PENDING_SIGNED_EVIDENCE',
+  validUntil: '2027-07-15T02:00:39Z',
+};
+const optionAcquisitionBytes = readFileSync(optionAcquisition.casPath);
+if (sha256(optionAcquisitionBytes) !== optionAcquisition.acquisitionInputDigest) {
+  throw new Error('realisation-option acquisition CAS bytes do not match the recorded digest');
+}
+const optionAcquisitionRecord = JSON.parse(optionAcquisitionBytes);
+if (optionAcquisitionRecord.authorityDigest !== optionAcquisition.authorityDigest
+  || optionAcquisitionRecord.acquisitionSetDigest !== optionAcquisition.acquisitionSetDigest) {
+  throw new Error('realisation-option acquisition CAS record does not match its authority or set binding');
+}
 
 const nextExactAction = directiveReconciled ? {
-  action: 'Regenerate the raw realisation-option acquisition set against the exact current authority and frozen committed source; preserve the emitted acquisition digest for the separately signed evidence refresh.',
+  action: 'Copy the operator-supplied DER PKCS#8 evidence signing key to the prescribed mode-600 path, then regenerate the signed realisation-option evidence from the verified acquisition digest.',
   authorityDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
-  command: 'node assurance/semantic-model-compilation/realisation-option-acquisition.mjs --authority-digest=sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd --collected-at=2026-07-20T02:00:39Z --valid-until=2027-07-15T02:00:39Z --stardog-version=12.1.0 --stardog-edition=enterprise --stardog-licence-type=enterprise --cas-root=/var/lib/usf-cas',
+  command: 'test -f .work/programme/realisation-option-evaluation-signing-key.pk8 && test "$(stat -c %a .work/programme/realisation-option-evaluation-signing-key.pk8)" = 600 && node assurance/semantic-model-compilation/realisation-option-evaluation-evidence.mjs --authority-digest=sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd --collected-at=2026-07-20T02:00:39Z --valid-until=2027-07-15T02:00:39Z --acquisition-digest=sha256:7d5f9939c26e1524a5d38e6eecd46d26a8bb476f69e8ad1859f459150db59a3d --signing-key=.work/programme/realisation-option-evaluation-signing-key.pk8 --cas-root=/var/lib/usf-cas --replace-bindings --replace-evidence',
   preconditions: [
     'authority digest and authority packet/projection byte digests remain exact',
     'no authority mutation transaction or modifying worker is active',
@@ -190,6 +210,8 @@ const nextExactAction = directiveReconciled ? {
     'integrated local permutation and universal-semantic wave gate remains current at 100/100',
     'the checkpoint-bound committed source bytes remain frozen after this validation-only state update',
     'candidate reviews remain unpublished and cannot establish semantic truth',
+    'an operator has supplied the DER PKCS#8 signing key through the authorised secret store interface',
+    'the signing key exists only at .work/programme/realisation-option-evaluation-signing-key.pk8 with mode 600',
   ],
   semanticIdentifiers: [
     'OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE',
@@ -208,7 +230,7 @@ const nextExactAction = directiveReconciled ? {
 };
 
 const dependencyNodes = [
-  { blockerCode: 'LOCAL_EVIDENCE_REGENERATION', id: 'REALISATION_OPTION_EVALUATION_CLOSURE', prerequisites: [], state: 'PARTIALLY_DELIVERED_REOPENED_EVIDENCE_BINDING' },
+  { blockerCode: 'EXTERNAL_SIGNING_CREDENTIAL_REQUIRED', id: 'REALISATION_OPTION_EVALUATION_CLOSURE', prerequisites: [], state: 'PARTIALLY_DELIVERED_RAW_ACQUISITION_CURRENT_SIGNED_EVIDENCE_PENDING' },
   { blockerCode: 'STALE_OPTION_EVALUATION_EVIDENCE', id: 'CANONICAL_COMPILER_DEPENDENCY_CLOSURE', prerequisites: ['REALISATION_OPTION_EVALUATION_CLOSURE'], state: 'PARTIALLY_DELIVERED_REOPENED_EVIDENCE_BINDING' },
   { blockerCode: 'NONE', id: 'CANONICAL_COMPILER_ENTRYPOINT_CUTOVER', prerequisites: ['CANONICAL_COMPILER_DEPENDENCY_CLOSURE'], state: 'COMPLETE' },
   { blockerCode: 'NONE', id: 'DUPLICATE_COMPILER_RETIREMENT', prerequisites: ['CANONICAL_COMPILER_ENTRYPOINT_CUTOVER'], state: 'COMPLETE' },
@@ -239,7 +261,7 @@ const currentItem = directiveReconciled
 const currentPhase = 'OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE';
 
 const stateClassifications = {
-  EXTERNAL_OR_HUMAN_BLOCKED: [],
+  EXTERNAL_OR_HUMAN_BLOCKED: ['REALISATION_OPTION_EVALUATION_EVIDENCE_SIGNING_KEY'],
   PARTIALLY_DELIVERED: ['COMPILER_PROOF_PREVIOUS_IMPLEMENTATION_BINDING', 'HERMETIC_EXECUTABLE_SUITE'],
   REMAINING_ACTIONABLE: dependencyNodes.filter(({ state }) => state !== 'COMPLETE').map(({ id }) => id),
   REOPENED_BY_DIRECTIVE: [
@@ -248,14 +270,14 @@ const stateClassifications = {
     'OPERATION_CATALOGUE_COMPLETENESS',
   ],
   SUPERSEDED_OR_INVALIDATED: ['REJECTED_EXECUTABLE_REALISATION', 'STALE_MIXED_SCOPE_COMPILER_PROOF', 'REFERENCE_OR_HISTORICAL_SOURCE_COMPLETION'],
-  VERIFIED_CURRENT: ['SEMANTIC_ADEQUACY_AND_CONTAMINATION_WITHIN_UNCHANGED_DEPENDENCY_SCOPE', 'DELIVERABLE_AND_LAYOUT_AUTHORITY', 'MILESTONE_GIT_PUBLICATION', 'REALISATION_OPTION_EVALUATION_CLOSURE', 'CANONICAL_COMPILER_SOLE_PATH', 'FOUNDATION_DOMAIN_CLOSURE', 'UNIVERSAL_SEMANTIC_GAP_RECONSTRUCTION'],
+  VERIFIED_CURRENT: ['SEMANTIC_ADEQUACY_AND_CONTAMINATION_WITHIN_UNCHANGED_DEPENDENCY_SCOPE', 'DELIVERABLE_AND_LAYOUT_AUTHORITY', 'MILESTONE_GIT_PUBLICATION', 'CANONICAL_COMPILER_SOLE_PATH', 'FOUNDATION_DOMAIN_CLOSURE', 'UNIVERSAL_SEMANTIC_GAP_RECONSTRUCTION'],
 };
 
 const gateSummary = [
   { id: 'DIRECTIVE_AND_CHECKPOINT_RECONCILIATION', state: directiveReconciled ? 'VERIFIED_CURRENT' : 'REOPENED_GOAL_DIGEST_CHANGED' },
   { id: 'SEMANTIC_ADEQUACY', state: 'VERIFIED_CURRENT_EXCEPT_REOPENED_OPERATION_UNIVERSE_SCOPE' },
   { id: 'DELIVERABLE_AND_LAYOUT_AUTHORITY', state: 'VERIFIED_CURRENT' },
-  { id: 'REALISATION_OPTION_EVALUATION_CLOSURE', state: 'VERIFIED_CURRENT' },
+  { id: 'REALISATION_OPTION_EVALUATION_CLOSURE', state: 'PARTIALLY_DELIVERED_RAW_ACQUISITION_CURRENT_SIGNED_EVIDENCE_PENDING' },
   { id: 'FOUNDATION_DOMAIN_CLOSURE', state: 'VERIFIED_CURRENT_LOCAL_CANDIDATE' },
   { id: 'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE', state: 'REMAINING_ACTIONABLE' },
   { id: 'CAPABILITY_PERMUTATION_CLOSURE', state: 'BLOCKED_BY_UNIVERSAL_FAMILY_MODEL_REVIEW' },
@@ -394,6 +416,13 @@ const ledger = {
   },
   nextDependencyNodes: dependencyNodes.filter(({ state }) => state === 'UNBLOCKED' || state === 'PARTIALLY_UNBLOCKED').map(({ id }) => id),
   nextExactAction,
+  realisationOptionEvaluation: {
+    acquisition: optionAcquisition,
+    evidenceSigningKey: {
+      path: '.work/programme/realisation-option-evaluation-signing-key.pk8',
+      state: 'ABSENT_OPERATOR_SUPPLIED_SECRET_REQUIRED',
+    },
+  },
   recordKind: 'USF_PROGRAMME_LEDGER',
   recordedAt,
   schemaVersion: 2,
@@ -437,6 +466,7 @@ const checkpoint = {
       { byteSize: 1516, digest: 'sha256:a7148e9b618f5dda16b588e45739742e0aa6ea0ae34dd5639daa41a6eed8224d', kind: 'COMPILER_PROOF_ATTESTATION', mediaType: 'application/vnd.in-toto+json', state: 'VERIFIED_ADMITTED' },
       { byteSize: 10802, digest: 'sha256:c976ca68a8656dba2aec13b703a44378997996e11cbfd52ad8382f50254be9cc', kind: 'STALE_MIXED_SCOPE_EVIDENCE', mediaType: 'application/json', state: 'INVALIDATED_HISTORICAL_ONLY' },
       { byteSize: 1168, digest: 'sha256:dac9ecbd1c3c20a35bb6e2008275a904baaf0d24ab2de9cd7de86ef0727a274f', kind: 'STALE_MIXED_SCOPE_ATTESTATION', mediaType: 'application/vnd.in-toto+json', state: 'INVALIDATED_HISTORICAL_ONLY' },
+      { byteSize: optionAcquisition.byteSize, digest: optionAcquisition.acquisitionInputDigest, kind: 'REALISATION_OPTION_RAW_ACQUISITION', mediaType: 'application/json', state: optionAcquisition.state },
     ],
     root: '/var/lib/usf-cas',
   },
@@ -453,6 +483,7 @@ const checkpoint = {
   currentEnvironmentState: {
     development: 'NOT_DELIVERED',
     deterministicTest: 'NOT_DELIVERED',
+    evidenceSigningKey: 'ABSENT_OPERATOR_SUPPLIED_SECRET_REQUIRED',
     productionShapedStaging: 'NOT_DELIVERED',
   },
   currentItem,
@@ -511,6 +542,13 @@ const checkpoint = {
   programmeLedger: {
     digest: ledgerDigest,
     path: '.work/programme/programme-ledger.json',
+  },
+  realisationOptionEvaluation: {
+    acquisition: optionAcquisition,
+    evidenceSigningKey: {
+      path: '.work/programme/realisation-option-evaluation-signing-key.pk8',
+      state: 'ABSENT_OPERATOR_SUPPLIED_SECRET_REQUIRED',
+    },
   },
   reopenedIdentifiers: [
     {
