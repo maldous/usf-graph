@@ -218,25 +218,88 @@ if (optionAcquisitionRecord.authorityDigest !== optionAcquisition.authorityDiges
 }
 
 const currentWavePaths = {
-  foundationAssessment: '.work/generated/foundation-domain-closure-assessment-8243a59f8b66008523a7a1350ddcba00c13b7f5b37e5a6d9ddef84bd70481f61.json',
-  foundationProof: '.work/generated/foundation-domain-closure-proof-d506796d4ae5002e5694fd34a70505013b2b6aca9321de2fd748e61a71da87b8.json',
-  localShaclEvidence: '.work/generated/local-shacl-relationship-review-wave-bf7c02bcd827ef20cf4d66e402e6c2ec744191c89cd5a7c0dc66d15895b04bf3.json',
-  universalAnalysis: '.work/generated/universal-family-completeness-analysis-d4b298ec651d4929cf5ef06c83cc29037132c5b12db8cb8984eb345d0802e4d4.json',
-  universalInventory: '.work/generated/universal-semantic-inventory-8d1fd6a44f6c2ebab8384e7d7b0ccd882b07c29b2098a12d7b3a59eab2c774d2.json',
-  universalProof: '.work/generated/universal-semantic-coverage-proof-db86340a264cedcf17b17bab333d4b966b93cda64fbc2d9db14e120d009065e4.json',
-  universalRegistry: '.work/generated/universal-family-registry-48a591a52d84a4522b8b7ba0bf29b96f7c12fdff13a38482b8d01ec3c7f876ff.json',
-  universalReviewProjection: '.work/generated/universal-review-projection-51d7e1e32ad74afc7fdf46951eac55c9550d3e61ee83489d6398b79603e07fb1.json',
+  foundationAssessment: '.work/generated/foundation-domain-closure-assessment-236215bd95c4298f94f50e591009e9ae3704d2100f65c25e5c142ef44ac5c2ab.json',
+  foundationProof: '.work/generated/foundation-domain-closure-proof-af1efba4f69c6c0d5574ccc1409e6aaf767045932da6c4cae07ed5d4362a6f1d.json',
+  universalAnalysis: '.work/generated/universal-family-completeness-analysis-030e9a63ace37fe62df643470d742ba7cd780015ac2be801af76d365570646f2.json',
+  universalInventory: '.work/generated/universal-semantic-inventory-62243ea8564ff04a54bb4894d0ad626e93da50e2856fe507f698b644e77050db.json',
+  universalProof: '.work/generated/universal-semantic-coverage-proof-a1769c24de356e3fe1c1ce1c8632173d60a7ed622f02493353f78e1b90dfb833.json',
+  universalRegistry: '.work/generated/universal-family-registry-395507bac3d3a30faff847fd6c2bb3e7351cfac1d2b66048c5564d8bd086a5a3.json',
+  universalReviewProjection: '.work/generated/universal-review-projection-81818a6d0a0e25b4666d0bd2516c974bf4f9f50563f3b5ebc6f01493a9065c06.json',
 };
 const currentWaveArtifacts = Object.fromEntries(Object.entries(currentWavePaths)
   .map(([key, path]) => [key, readContentAddressedJson(path)]));
 const foundationAssessmentRecord = currentWaveArtifacts.foundationAssessment.record;
 const foundationProofRecord = currentWaveArtifacts.foundationProof.record;
-const localShaclEvidenceRecord = currentWaveArtifacts.localShaclEvidence.record;
 const universalAnalysisRecord = currentWaveArtifacts.universalAnalysis.record;
 const universalInventoryRecord = currentWaveArtifacts.universalInventory.record;
 const universalProofRecord = currentWaveArtifacts.universalProof.record;
 const universalRegistryRecord = currentWaveArtifacts.universalRegistry.record;
 const universalReviewProjectionRecord = currentWaveArtifacts.universalReviewProjection.record;
+
+const familyModelReviewObservationPath = '.work/programme/family-model-review-observations.tsv';
+const familyModelReviewObservationDigest = digestWorkingPath(familyModelReviewObservationPath);
+requireEqual(
+  familyModelReviewObservationDigest,
+  'sha256:de02beded68b2ff8e112240ca874ec4ae5de198c5773c88750895c4dcbf53b14',
+  'family-model review observation byte binding',
+);
+const familyModelReviewLines = readFileSync(join(repositoryRoot, familyModelReviewObservationPath), 'utf8')
+  .replace(/\n$/u, '').split('\n');
+requireEqual(
+  familyModelReviewLines.shift(),
+  'index\tfamilyIri\tclassification\tsignatureVerdict\tdefectCodes',
+  'family-model review observation header',
+);
+const familyModelReviewObservations = familyModelReviewLines.map((line, index) => {
+  const fields = line.split('\t');
+  if (fields.length !== 5) throw new Error(`family-model review observation field count: ${index}`);
+  const [recordIndex, familyIri, classification, signatureVerdict, defectCodes] = fields;
+  requireEqual(Number(recordIndex), index, `family-model review observation index ${index}`);
+  if (![
+    'CAPABILITY_SPECIFIC_RELATIONSHIP',
+    'DOWNSTREAM_DERIVATION',
+    'OPTIONAL_DOMAIN_EXTENSION',
+    'UNIVERSAL_REUSABLE_PRIMITIVE',
+  ].includes(classification)) throw new Error(`family-model review classification outside closed set: ${classification}`);
+  if (!['SEMANTIC_CORRECTION_REQUIRED', 'WARRANTED'].includes(signatureVerdict)) {
+    throw new Error(`family-model review verdict outside closed set: ${signatureVerdict}`);
+  }
+  if ((signatureVerdict === 'WARRANTED') !== (defectCodes === '')) {
+    throw new Error(`family-model review defect-code/verdict mismatch: ${familyIri}`);
+  }
+  return { classification, defectCodes, familyIri, index, signatureVerdict };
+});
+requireEqual(familyModelReviewObservations.length, 108, 'family-model review observation count');
+const observedFamilyIris = familyModelReviewObservations.map(({ familyIri }) => familyIri).sort();
+if (new Set(observedFamilyIris).size !== observedFamilyIris.length) {
+  throw new Error('family-model review observations contain duplicate family IRIs');
+}
+requireEqual(
+  JSON.stringify(observedFamilyIris),
+  JSON.stringify(universalRegistryRecord.families.map(({ familyIri }) => familyIri).sort()),
+  'family-model review observation family set',
+);
+const familyModelReviewWarrantedCount = familyModelReviewObservations
+  .filter(({ signatureVerdict }) => signatureVerdict === 'WARRANTED').length;
+const familyModelReviewCorrectionCount = familyModelReviewObservations
+  .filter(({ signatureVerdict }) => signatureVerdict === 'SEMANTIC_CORRECTION_REQUIRED').length;
+requireEqual(familyModelReviewWarrantedCount, 96, 'warranted family-model review observation count');
+requireEqual(familyModelReviewCorrectionCount, 12, 'correction-required family-model review observation count');
+
+const localShaclObservation = {
+  actualServiceAlgebraNodes: 0,
+  bytesPersisted: false,
+  candidateViolations: 0,
+  evaluatedConstraints: 237,
+  evidenceDigest: 'sha256:490beb2a941931aa7a7c2780c865a254a414ec231cbfc991500d2ccb86a8902f',
+  harnessSourceDigest: digestWorkingPath('assurance/semantic-model-compilation/local-shacl-validation.mjs'),
+  plantedFixtureEvidenceDigest: 'sha256:baebd9446c802dbbdb801721e10977498ce19b79bfbc1043680534369140bad2',
+  plantedFixtures: { cases: 25, missingCodes: 0, multipleCodes: 0, negative: 18, positive: 7, unexpectedCodes: 0 },
+  registeredConstraints: 237,
+  state: 'CURRENT_FOCUSED_PASS_RESULT_DIGEST_RECORDED_FULL_BYTES_NOT_PERSISTED',
+  substringExclusions: 0,
+  unexpectedExclusions: 0,
+};
 
 requireEqual(foundationProofRecord.assessmentDigest, foundationAssessmentRecord.assessmentDigest, 'foundation proof assessment binding');
 requireEqual(universalAnalysisRecord.foundationAssessmentDigest, foundationAssessmentRecord.assessmentDigest, 'universal analysis foundation assessment binding');
@@ -263,16 +326,17 @@ const universalReconstructionMismatchCount = universalProofMismatchFields
   .reduce((sum, field) => sum + universalProofRecord.results[field], 0);
 
 const nextExactAction = directiveReconciled ? {
-  action: 'Inspect the largest residual subject-local review gap groups through the analysis path recorded by the verified checkpoint, then resolve the first evidence-backed group without inventing semantic decisions.',
+  action: 'Split the overloaded Permission source axis from the admitted PermissionAtom axis for the five affected family signatures, update generator and independent-verifier consumers without admitting candidate atoms, then run the focused family-model and universe tests.',
   authorityDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
-  command: "analysis_path=$(jq -er '.permutationClosure.universalFamilyModel.analysisPath' .work/programme/checkpoint.json) && jq -er '{verdict, gapCount, relationshipSignatureDispositionPartition, atomicCandidateCount, gapGroups:(.gaps | group_by(.code) | map({code:.[0].code,count:length}) | sort_by(-.count,.code))}' \"$analysis_path\"",
+  command: "node --test assurance/permutation-closure/family-model.test.mjs assurance/permutation-closure/universe-generator.test.mjs assurance/permutation-closure/universe-proof.test.mjs",
   preconditions: [
     'authority digest and authority packet/projection byte digests remain exact',
     'no authority mutation transaction or modifying worker is active',
     'foundation-domain closure assessment and independent proof remain current',
     'the current universal independent reconstruction has zero inventory, family, review, analysis, and source mismatches',
-    'the relationship-review and candidate-projection focused and integrated local gates are current',
-    'the local SHACL evidence evaluates every compatible registered constraint with zero violations and zero exclusions',
+    'the current family observation sidecar remains byte-exact and is not treated as semantic authority',
+    'the current independent reconstruction has zero inventory, family, review, analysis, and source mismatches',
+    'the local SHACL focused result evaluates every compatible registered constraint with zero violations and zero exclusions',
     'candidate reviews remain unpublished and cannot establish semantic truth',
   ],
   semanticIdentifiers: [
@@ -308,7 +372,7 @@ const dependencyNodes = [
     prerequisites: ['DIRECTIVE_AND_CHECKPOINT_RECONCILIATION'],
     state: directiveReconciled ? 'COMPLETE' : 'BLOCKED_BY_RECONCILIATION',
   },
-  { blockerCode: 'LOCAL_SEMANTIC_REVIEW_AND_IMPLEMENTATION', id: 'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE', prerequisites: ['FOUNDATION_DOMAIN_CLOSURE'], state: directiveReconciled ? 'UNBLOCKED' : 'BLOCKED_BY_RECONCILIATION' },
+  { blockerCode: 'LOCAL_SEMANTIC_REVIEW_AND_IMPLEMENTATION', id: 'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE', prerequisites: ['FOUNDATION_DOMAIN_CLOSURE'], state: directiveReconciled ? 'IN_PROGRESS_12_SIGNATURE_CORRECTIONS_REQUIRED' : 'BLOCKED_BY_RECONCILIATION' },
   { blockerCode: 'LOCAL_SEMANTIC_IMPLEMENTATION', id: 'CAPABILITY_CLASSIFICATION_AND_FOUNDATION_APPLICATION', prerequisites: ['UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE'], state: 'BLOCKED_BY_UNIVERSAL_FAMILY_MODEL_REVIEW' },
   { blockerCode: 'LOCAL_SEMANTIC_IMPLEMENTATION', id: 'SERVICE_FUNCTION_AND_OPERATION_CLOSURE', prerequisites: ['CAPABILITY_CLASSIFICATION_AND_FOUNDATION_APPLICATION'], state: 'BLOCKED_BY_CAPABILITY_CLASSIFICATION' },
   { blockerCode: 'LOCAL_SEMANTIC_IMPLEMENTATION', id: 'IDENTITY_RESOURCE_AUTHORISATION_CLOSURE', prerequisites: ['SERVICE_FUNCTION_AND_OPERATION_CLOSURE'], state: 'BLOCKED_BY_SERVICE_FUNCTION_CLOSURE' },
@@ -324,7 +388,7 @@ const dependencyNodes = [
 ];
 
 const currentItem = directiveReconciled
-  ? { id: 'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE', state: 'UNBLOCKED' }
+  ? { id: 'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE', state: 'IN_PROGRESS_12_SIGNATURE_CORRECTIONS_REQUIRED' }
   : { id: 'DIRECTIVE_AND_CHECKPOINT_RECONCILIATION', state: 'REOPENED_GOAL_DIGEST_CHANGED' };
 const currentPhase = 'OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE';
 
@@ -339,7 +403,7 @@ const stateClassifications = {
     'OPERATION_CATALOGUE_COMPLETENESS',
   ],
   SUPERSEDED_OR_INVALIDATED: ['REJECTED_EXECUTABLE_REALISATION', 'STALE_MIXED_SCOPE_COMPILER_PROOF', 'REFERENCE_OR_HISTORICAL_SOURCE_COMPLETION'],
-  VERIFIED_CURRENT: ['SEMANTIC_ADEQUACY_AND_CONTAMINATION_WITHIN_UNCHANGED_DEPENDENCY_SCOPE', 'DELIVERABLE_AND_LAYOUT_AUTHORITY', 'MILESTONE_GIT_PUBLICATION', 'CANONICAL_COMPILER_SOLE_PATH', 'FOUNDATION_DOMAIN_CLOSURE', 'UNIVERSAL_SEMANTIC_GAP_RECONSTRUCTION'],
+  VERIFIED_CURRENT: ['SEMANTIC_ADEQUACY_AND_CONTAMINATION_WITHIN_UNCHANGED_DEPENDENCY_SCOPE', 'DELIVERABLE_AND_LAYOUT_AUTHORITY', 'MILESTONE_GIT_PUBLICATION', 'CANONICAL_COMPILER_SOLE_PATH', 'FOUNDATION_DOMAIN_CLOSURE', 'UNIVERSAL_SEMANTIC_GAP_RECONSTRUCTION', 'FAMILY_MODEL_REVIEW_OBSERVATIONS_108'],
 };
 
 const gateSummary = [
@@ -348,7 +412,7 @@ const gateSummary = [
   { id: 'DELIVERABLE_AND_LAYOUT_AUTHORITY', state: 'VERIFIED_CURRENT' },
   { id: 'REALISATION_OPTION_EVALUATION_CLOSURE', state: 'PARTIALLY_DELIVERED_RAW_ACQUISITION_CURRENT_SIGNED_EVIDENCE_PENDING' },
   { id: 'FOUNDATION_DOMAIN_CLOSURE', state: 'VERIFIED_CURRENT_LOCAL_CANDIDATE' },
-  { id: 'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE', state: 'REMAINING_ACTIONABLE' },
+  { id: 'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE', state: 'IN_PROGRESS_96_WARRANTED_12_CORRECTIONS_REQUIRED' },
   { id: 'CAPABILITY_SEMANTIC_APPLICATION_AND_CLASSIFICATION', state: 'BLOCKED_BY_UNIVERSAL_FAMILY_MODEL_REVIEW' },
   { id: 'SERVICE_FUNCTION_IDENTITY_RESOURCE_DATA_AND_INTERACTION_CLOSURE', state: 'BLOCKED_BY_CAPABILITY_SEMANTIC_APPLICATION' },
   { id: 'SERVICE_REQUIREMENT_AND_PRODUCTION_PROFILE_CLOSURE', state: 'BLOCKED_BY_CAPABILITY_SEMANTICS' },
@@ -397,6 +461,18 @@ const permutationClosure = {
     authorityReviewRequiredTermCount: universalProofRecord.results.unresolvedSemanticTermCount,
     classCount: universalInventoryRecord.classCount,
     familyCount: universalRegistryRecord.familyCount,
+    familyModelReviewObservations: {
+      classificationCounts: Object.fromEntries([...new Set(familyModelReviewObservations.map(({ classification }) => classification))]
+        .sort().map((classification) => [classification, familyModelReviewObservations
+          .filter((record) => record.classification === classification).length])),
+      digest: familyModelReviewObservationDigest,
+      path: familyModelReviewObservationPath,
+      recordCount: familyModelReviewObservations.length,
+      reviewedRegistryFileDigest: 'sha256:48a591a52d84a4522b8b7ba0bf29b96f7c12fdff13a38482b8d01ec3c7f876ff',
+      semanticCorrectionRequiredCount: familyModelReviewCorrectionCount,
+      state: 'COMPLETE_OBSERVATION_SET_NOT_SEMANTIC_AUTHORITY_POST_CORRECTION_REVIEW_REQUIRED',
+      warrantedCount: familyModelReviewWarrantedCount,
+    },
     gapCount: universalAnalysisRecord.gapCount,
     independentProofDigest: universalProofRecord.proofDigest,
     independentProofFileDigest: currentWaveArtifacts.universalProof.fileDigest,
@@ -451,7 +527,6 @@ const currentWaveArtifactBindings = [
   { fileDigest: permutationClosure.universalFamilyModel.reviewProjectionFileDigest, internalDigest: permutationClosure.universalFamilyModel.reviewProjectionDigest, internalField: 'reviewProjectionDigest', path: permutationClosure.universalFamilyModel.reviewProjectionPath },
   { fileDigest: permutationClosure.universalFamilyModel.analysisFileDigest, internalDigest: permutationClosure.universalFamilyModel.analysisDigest, internalField: 'analysisDigest', path: permutationClosure.universalFamilyModel.analysisPath },
   { fileDigest: permutationClosure.universalFamilyModel.independentProofFileDigest, internalDigest: permutationClosure.universalFamilyModel.independentProofDigest, internalField: 'proofDigest', path: permutationClosure.universalFamilyModel.independentProofPath },
-  { fileDigest: currentWaveArtifacts.localShaclEvidence.fileDigest, internalDigest: localShaclEvidenceRecord.evidenceDigest, internalField: 'evidenceDigest', path: currentWaveArtifacts.localShaclEvidence.path },
   { fileDigest: 'sha256:2b557090632299e1b28feef07f4f770cdd1b9229019a4586824cc06a9fdb4739', internalDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd', internalField: 'authorityDigest', path: '.work/generated/permutation-authority-packet-2b557090632299e1b28feef07f4f770cdd1b9229019a4586824cc06a9fdb4739.json' },
   { fileDigest: 'sha256:886abdaedb6bb18f82bb90a218a525d64bd1027b999f49f0dc11e001df4e1c16', internalDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd', internalField: 'authorityDigest', path: '.work/generated/permutation-authority-projection-886abdaedb6bb18f82bb90a218a525d64bd1027b999f49f0dc11e001df4e1c16.json' },
 ];
@@ -761,27 +836,7 @@ const checkpoint = {
   },
   validation: {
     compilerSuite: { failed: 0, focusedPassed: 14, state: 'FOCUSED_CURRENT_FULL_INTEGRATED_GATE_PENDING' },
-    localShacl: {
-      actualServiceAlgebraNodes: localShaclEvidenceRecord.actualServiceAlgebraNodeCount,
-      candidateViolations: localShaclEvidenceRecord.candidateViolationCount,
-      evaluatedConstraints: localShaclEvidenceRecord.locallyEvaluatedConstraintCount,
-      evidenceDigest: localShaclEvidenceRecord.evidenceDigest,
-      evidenceFileDigest: currentWaveArtifacts.localShaclEvidence.fileDigest,
-      evidencePath: currentWaveArtifacts.localShaclEvidence.path,
-      harnessSourceDigest: localShaclEvidenceRecord.harnessSourceDigest,
-      plantedFixtureEvidenceDigest: localShaclEvidenceRecord.plantedFixtureEvidenceDigest,
-      plantedFixtures: {
-        cases: localShaclEvidenceRecord.plantedFixtureEvidence.caseCount,
-        missingCodes: localShaclEvidenceRecord.plantedFixtureEvidence.missingExpectedCount,
-        multipleCodes: localShaclEvidenceRecord.plantedFixtureEvidence.multipleCodeCount,
-        negative: localShaclEvidenceRecord.plantedFixtureEvidence.negativeControlCount,
-        positive: localShaclEvidenceRecord.plantedFixtureEvidence.positiveControlCount,
-        unexpectedCodes: localShaclEvidenceRecord.plantedFixtureEvidence.unexpectedCodeCount,
-      },
-      registeredConstraints: localShaclEvidenceRecord.registeredSparqlConstraintCount,
-      substringExclusions: localShaclEvidenceRecord.substringBasedExclusionCount,
-      unexpectedExclusions: localShaclEvidenceRecord.unexpectedExclusionCount,
-    },
+    localShacl: localShaclObservation,
     narrowPermutationAndUniversal: {
       familyModelAndLocalShacl: { failed: 0, passed: 27 },
       relationshipReviewAndIndependentProof: { failed: 0, passed: 17 },

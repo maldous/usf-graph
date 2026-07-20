@@ -49,14 +49,14 @@ const RELATIONSHIP_REVIEW_CLASS = `${O}PermutationRelationshipSignatureReview`;
 const TERM_REVIEW_CLASS = `${O}SemanticTermPermutationReview`;
 const REVIEW_COVERAGE_CLASS = `${O}PermutationReviewCoverage`;
 const FAMILY_CANDIDATE_CLASS = `${O}PermutationFamilyCandidate`;
-const RELATIONSHIP_REVIEW_DISPOSITIONS = new Set([
-  'urn:usf:permutationrelationshipreviewdisposition:universalreusableprimitive',
-  'urn:usf:permutationrelationshipreviewdisposition:capabilityspecificrelationship',
-  'urn:usf:permutationrelationshipreviewdisposition:explicitnonapplicability',
-  'urn:usf:permutationrelationshipreviewdisposition:downstreamderivation',
-  'urn:usf:permutationrelationshipreviewdisposition:externalauthoritydecisionrequired',
-  'urn:usf:permutationrelationshipreviewdisposition:optionaldomainextension',
-  'urn:usf:permutationrelationshipreviewdisposition:invalidorredundant',
+const SEMANTIC_REVIEW_DISPOSITIONS = new Set([
+  'urn:usf:permutationsemanticreviewdisposition:universalreusableprimitive',
+  'urn:usf:permutationsemanticreviewdisposition:capabilityspecificrelationship',
+  'urn:usf:permutationsemanticreviewdisposition:explicitnonapplicability',
+  'urn:usf:permutationsemanticreviewdisposition:downstreamderivation',
+  'urn:usf:permutationsemanticreviewdisposition:externalauthoritydecisionrequired',
+  'urn:usf:permutationsemanticreviewdisposition:optionaldomainextension',
+  'urn:usf:permutationsemanticreviewdisposition:invalidorredundant',
 ]);
 const RDF_TERM_KIND_IRI = Object.freeze({
   BlankNode: 'urn:usf:permutationrelationshipobjecttermkind:blanknode',
@@ -925,11 +925,15 @@ export function loadUniversalReviewProjection({ inventory, registry, repositoryR
     .map(({ value }) => value);
   const termReviews = typed(TERM_REVIEW_CLASS).map((reviewIri) => {
     const core = {
+      algorithmDigests: literalArray(reviewIri, 'semanticReviewAlgorithmDigest'),
       authorityDigests: literalArray(reviewIri, 'termPermutationAuthorityDigest'),
       axisBindingIris: objectArray(reviewIri, 'termPermutationAxisBinding'),
+      dispositionIris: objectArray(reviewIri, 'semanticReviewDisposition'),
+      evidenceDigests: literalArray(reviewIri, 'semanticReviewEvidenceDigest'),
       familyCandidateStateIris: objectArray(reviewIri, 'termPermutationFamilyCandidateState'),
       inventoryDigests: literalArray(reviewIri, 'termPermutationInventoryDigest'),
       participationIris: objectArray(reviewIri, 'termPermutationParticipation'),
+      rationales: literalArray(reviewIri, 'semanticReviewRationale'),
       reasonCodes: literalArray(reviewIri, 'termPermutationReasonCode'),
       reviewDigests: literalArray(reviewIri, 'termPermutationReviewDigest'),
       reviewIri,
@@ -942,10 +946,14 @@ export function loadUniversalReviewProjection({ inventory, registry, repositoryR
   const familySignatureReviews = typed(FAMILY_REVIEW_CLASS).map((reviewIri) => {
     const core = {
       applicabilityRuleIris: objectArray(reviewIri, 'reviewedFamilyApplicabilityRule'),
+      algorithmDigests: literalArray(reviewIri, 'semanticReviewAlgorithmDigest'),
       authorityDigests: literalArray(reviewIri, 'familySignatureReviewAuthorityDigest'),
       dimensionBindingIris: objectArray(reviewIri, 'reviewedFamilyDimensionBinding'),
       dispositionIris: objectArray(reviewIri, 'familySignatureReviewDisposition'),
+      evidenceDigests: literalArray(reviewIri, 'semanticReviewEvidenceDigest'),
       familyIris: objectArray(reviewIri, 'reviewedPermutationFamily'),
+      rationales: literalArray(reviewIri, 'semanticReviewRationale'),
+      semanticDispositionIris: objectArray(reviewIri, 'semanticReviewDisposition'),
       registryDigests: literalArray(reviewIri, 'familySignatureReviewRegistryDigest'),
       reviewDigests: literalArray(reviewIri, 'familySignatureReviewDigest'),
       reviewIri,
@@ -959,19 +967,20 @@ export function loadUniversalReviewProjection({ inventory, registry, repositoryR
     const core = {
       activeOccurrenceCounts: literalArray(reviewIri, 'reviewedRelationshipActiveOccurrenceCount'),
       activeOccurrenceSetDigests: literalArray(reviewIri, 'reviewedRelationshipActiveOccurrenceSetDigest'),
-      algorithmDigests: literalArray(reviewIri, 'relationshipSignatureReviewAlgorithmDigest'),
+      algorithmDigests: literalArray(reviewIri, 'semanticReviewAlgorithmDigest'),
       authorityDigests: literalArray(reviewIri, 'relationshipSignatureReviewAuthorityDigest'),
       candidateDigests: literalArray(reviewIri, 'relationshipSignatureReviewCandidateDigest'),
       candidateIris: objectArray(reviewIri, 'relationshipSignatureReviewCandidate'),
       directionIris: objectArray(reviewIri, 'reviewedRelationshipDirection'),
-      dispositionIris: objectArray(reviewIri, 'relationshipSignatureReviewDisposition'),
-      evidenceDigests: literalArray(reviewIri, 'relationshipSignatureReviewEvidenceDigest'),
+      dispositionIris: objectArray(reviewIri, 'semanticReviewDisposition'),
+      evidenceDigests: literalArray(reviewIri, 'semanticReviewEvidenceDigest'),
       inventoryDigests: literalArray(reviewIri, 'relationshipSignatureReviewInventoryDigest'),
       objectClassIris: objectArray(reviewIri, 'reviewedRelationshipObjectClass'),
       objectClassSetDigests: literalArray(reviewIri, 'reviewedRelationshipObjectClassSetDigest'),
       objectDatatypeIris: objectArray(reviewIri, 'reviewedRelationshipObjectDatatype'),
       objectTermKindIris: objectArray(reviewIri, 'reviewedRelationshipObjectTermKind'),
       predicateIris: objectArray(reviewIri, 'reviewedRelationshipPredicate'),
+      rationales: literalArray(reviewIri, 'semanticReviewRationale'),
       reasonCodes: literalArray(reviewIri, 'relationshipSignatureReviewReasonCode'),
       registryDigests: literalArray(reviewIri, 'relationshipSignatureReviewRegistryDigest'),
       reviewDigests: literalArray(reviewIri, 'relationshipSignatureReviewDigest'),
@@ -1047,7 +1056,7 @@ export function loadUniversalReviewProjection({ inventory, registry, repositoryR
     relationshipSignatureReviewCount: relationshipSignatureReviews.length,
     relationshipSignatureReviewSetDigest: digest(relationshipSignatureReviews),
     relationshipSignatureReviews,
-    schemaVersion: 3,
+    schemaVersion: 4,
     semanticInputSourceSetDigest,
     termReviewCount: termReviews.length,
     termReviews,
@@ -1421,16 +1430,25 @@ function familyModelReviews(inventory, registry, reviewProjection) {
     const related = reviews.filter(({ familyIris }) => familyIris.length === 1
       && familyIris[0] === family.familyIri);
     const expectedCore = (review) => ({
+      algorithmDigest: review.algorithmDigests[0],
       applicabilityRuleIri: family.ruleIri,
       authorityDigest: inventory.authorityBinding.authorityDigest,
       dimensionBindingIris: family.orderedBindings.map(({ bindingIri }) => bindingIri).sort(compare),
       dispositionIri: FAMILY_REVIEW_WARRANTED,
+      evidenceDigest: review.evidenceDigests[0],
       familyIri: family.familyIri,
+      rationale: review.rationales[0],
       registryDigest: registry.registryDigest,
+      semanticDispositionIri: review.semanticDispositionIris[0],
       signatureDigest: family.familyRecordDigest,
       subjectRegistrationIri: family.registrationIri,
     });
     const exact = related.filter((review) => {
+      if (review.algorithmDigests.length !== 1 || !SHA256.test(review.algorithmDigests[0])
+        || review.evidenceDigests.length !== 1 || !SHA256.test(review.evidenceDigests[0])
+        || review.rationales.length !== 1 || review.rationales[0].trim().length === 0
+        || review.semanticDispositionIris.length !== 1
+        || !SEMANTIC_REVIEW_DISPOSITIONS.has(review.semanticDispositionIris[0])) return false;
       const core = expectedCore(review);
       const match = canonicalJson(review.applicabilityRuleIris) === canonicalJson([core.applicabilityRuleIri])
         && canonicalJson(review.authorityDigests) === canonicalJson([core.authorityDigest])
@@ -1449,6 +1467,8 @@ function familyModelReviews(inventory, registry, reviewProjection) {
         ? 'REVIEW_DUPLICATE'
         : exact.length === 1 ? 'REVIEW_CURRENT' : 'REVIEW_STALE_OR_INVALID';
     return {
+      acceptedSemanticDispositionIri: state === 'REVIEW_CURRENT'
+        ? exact[0].semanticDispositionIris[0] : null,
       acceptedReviewIri: state === 'REVIEW_CURRENT' ? exact[0].reviewIri : null,
       expectedFamilyRecordDigest: family.familyRecordDigest,
       familyIri: family.familyIri,
@@ -1545,7 +1565,7 @@ function relationshipSignatureDispositions(inventory, signatureWitnesses, relati
       relationshipSignatureIri === signature.relationshipSignatureIri
     ));
     const externalDecision = review?.acceptedDispositionIri
-      === 'urn:usf:permutationrelationshipreviewdisposition:externalauthoritydecisionrequired';
+      === 'urn:usf:permutationsemanticreviewdisposition:externalauthoritydecisionrequired';
     const disposition = covered ? 'EXACT_FAMILY_COVERAGE'
       : review?.reviewState === 'REVIEW_CURRENT' && !externalDecision
         ? 'AUTHORITY_REVIEWED_SEMANTIC_CORRECTION_REQUIRED'
@@ -1774,13 +1794,15 @@ function relationshipSignatureReviewState({
     const expectedCandidate = candidatesBySignature.get(signature.relationshipSignatureIri) ?? null;
     const exact = related.filter((review) => {
       if (review.dispositionIris.length !== 1
-        || !RELATIONSHIP_REVIEW_DISPOSITIONS.has(review.dispositionIris[0])
+        || !SEMANTIC_REVIEW_DISPOSITIONS.has(review.dispositionIris[0])
         || review.reasonCodes.length !== 1
         || !/^UNIVERSAL_[A-Z0-9_]+$/u.test(review.reasonCodes[0])
         || review.evidenceDigests.length !== 1
         || !SHA256.test(review.evidenceDigests[0])
         || review.algorithmDigests.length !== 1
-        || !SHA256.test(review.algorithmDigests[0])) return false;
+        || !SHA256.test(review.algorithmDigests[0])
+        || review.rationales.length !== 1
+        || review.rationales[0].trim().length === 0) return false;
       const candidatePair = !expectedCandidate
         && review.candidateIris.length === 0 && review.candidateDigests.length === 0
         ? { candidateDigest: null, candidateIri: null }
@@ -1806,6 +1828,7 @@ function relationshipSignatureReviewState({
         objectDatatypeIri: signature.objectDatatypeIri,
         objectTermKindIri: RDF_TERM_KIND_IRI[signature.objectTermKind] ?? null,
         predicateIri: signature.predicateIri,
+        rationale: review.rationales[0],
         reasonCode: review.reasonCodes[0],
         registryDigest: registry.registryDigest,
         relationshipSignatureDigest: signature.relationshipSignatureDigest,
@@ -1911,19 +1934,28 @@ function currentTermReviewIndex(inventory, reviewProjection) {
   const orphanReviewIris = [];
   for (const review of reviewProjection?.termReviews ?? []) {
     if (review.reviewedTermIris.length !== 1 || review.authorityDigests.length !== 1
+      || review.algorithmDigests.length !== 1 || !SHA256.test(review.algorithmDigests[0])
       || review.axisBindingIris.length !== 1 || review.familyCandidateStateIris.length !== 1
+      || review.dispositionIris.length !== 1
+      || !SEMANTIC_REVIEW_DISPOSITIONS.has(review.dispositionIris[0])
+      || review.evidenceDigests.length !== 1 || !SHA256.test(review.evidenceDigests[0])
       || review.inventoryDigests.length !== 1 || review.participationIris.length !== 1
+      || review.rationales.length !== 1 || review.rationales[0].trim().length === 0
       || review.reasonCodes.length !== 1 || review.reviewDigests.length !== 1
       || review.statedSourcePlanes.length !== 1) {
       invalidReviewIris.push(review.reviewIri);
       continue;
     }
     const core = {
+      algorithmDigest: review.algorithmDigests[0],
       authorityDigest: review.authorityDigests[0],
       axisBindingIri: review.axisBindingIris[0],
+      dispositionIri: review.dispositionIris[0],
+      evidenceDigest: review.evidenceDigests[0],
       familyCandidateStateIri: review.familyCandidateStateIris[0],
       inventoryDigest: review.inventoryDigests[0],
       participationIri: review.participationIris[0],
+      rationale: review.rationales[0],
       reasonCode: review.reasonCodes[0],
       reviewedTermIri: review.reviewedTermIris[0],
       sourcePlane: review.statedSourcePlanes[0],
@@ -2148,7 +2180,7 @@ export function analyseUniversalFamilyCompleteness({
   );
   if (!reviewProjection
     || reviewProjection.recordKind !== 'USF_UNIVERSAL_REVIEW_PROJECTION'
-    || reviewProjection.schemaVersion !== 3
+    || reviewProjection.schemaVersion !== 4
     || reviewProjection.authorityDigest !== inventory.authorityBinding.authorityDigest
     || reviewProjection.inventoryDigest !== inventory.inventoryDigest
     || reviewProjection.familyRegistryDigest !== registry.registryDigest
@@ -2308,7 +2340,7 @@ export function analyseUniversalFamilyCompleteness({
     relationshipSignatureWitnessCount: signatureWitnesses.witnessCount,
     relationshipSignatureWitnessSetDigest: signatureWitnesses.setDigest,
     relationshipSignatureWitnesses: signatureWitnesses.records,
-    schemaVersion: 6,
+    schemaVersion: 7,
     termDispositionPartition,
     termDispositionSetDigest: digest(dispositionResult.dispositions),
     termDispositions: dispositionResult.dispositions,

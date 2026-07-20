@@ -1230,6 +1230,26 @@ _:fdca6 sh:path usf:foundationAssessmentNonClaim; sh:minCount 1; sh:datatype xsd
     sh:message "FOUNDATION_ASSESSMENT_NONCLAIM_ABSENT: assessment must state its bounded nonclaims".
 shp:FoundationDomainClosureAssessmentShape sh:property _:fdca6.
 
+shp:PermutationSemanticReviewShape a sh:NodeShape;
+    usf:canonicalName "permutationsemanticreviewshape";
+    sh:targetClass usf:SemanticTermPermutationReview, usf:PermutationFamilySignatureReview, usf:PermutationRelationshipSignatureReview.
+_:psr1 sh:path usf:semanticReviewDisposition; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationSemanticReviewDisposition;
+    sh:message "PERMUTATION_SEMANTIC_REVIEW_DISPOSITION_ABSENT: every review item needs exactly one controlled semantic classification".
+shp:PermutationSemanticReviewShape sh:property _:psr1.
+_:psr1Closed sh:path usf:semanticReviewDisposition;
+    sh:in (<urn:usf:permutationsemanticreviewdisposition:universalreusableprimitive> <urn:usf:permutationsemanticreviewdisposition:capabilityspecificrelationship> <urn:usf:permutationsemanticreviewdisposition:explicitnonapplicability> <urn:usf:permutationsemanticreviewdisposition:downstreamderivation> <urn:usf:permutationsemanticreviewdisposition:externalauthoritydecisionrequired> <urn:usf:permutationsemanticreviewdisposition:optionaldomainextension> <urn:usf:permutationsemanticreviewdisposition:invalidorredundant>);
+    sh:message "PERMUTATION_SEMANTIC_REVIEW_DISPOSITION_OUTSIDE_CLOSED_SET: review classification must use the seven-value governed vocabulary".
+shp:PermutationSemanticReviewShape sh:property _:psr1Closed.
+_:psr2 sh:path usf:semanticReviewEvidenceDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_SEMANTIC_REVIEW_EVIDENCE_ABSENT: every review item needs one exact independent evidence digest".
+shp:PermutationSemanticReviewShape sh:property _:psr2.
+_:psr3 sh:path usf:semanticReviewAlgorithmDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_SEMANTIC_REVIEW_ALGORITHM_ABSENT: every review item needs one exact independent review-algorithm digest".
+shp:PermutationSemanticReviewShape sh:property _:psr3.
+_:psr4 sh:path usf:semanticReviewRationale; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:minLength 1;
+    sh:message "PERMUTATION_SEMANTIC_REVIEW_RATIONALE_ABSENT: every review item needs one bounded self-contained rationale".
+shp:PermutationSemanticReviewShape sh:property _:psr4.
+
 shp:SemanticTermPermutationReviewShape a sh:NodeShape;
     usf:canonicalName "semantictermpermutationreviewshape";
     sh:targetClass usf:SemanticTermPermutationReview.
@@ -1458,13 +1478,6 @@ shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr14.
 _:prsr15 sh:path usf:relationshipSignatureReviewCandidateDigest; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
     sh:message "PERMUTATION_RELATIONSHIP_REVIEW_CANDIDATE_DIGEST_INVALID: a candidate binding needs one SHA-256 digest".
 shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr15.
-_:prsr16 sh:path usf:relationshipSignatureReviewDisposition; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationRelationshipReviewDisposition;
-    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_DISPOSITION_ABSENT: relationship review needs one controlled disposition".
-shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr16.
-_:prsr16Closed sh:path usf:relationshipSignatureReviewDisposition;
-    sh:in (<urn:usf:permutationrelationshipreviewdisposition:universalreusableprimitive> <urn:usf:permutationrelationshipreviewdisposition:capabilityspecificrelationship> <urn:usf:permutationrelationshipreviewdisposition:explicitnonapplicability> <urn:usf:permutationrelationshipreviewdisposition:downstreamderivation> <urn:usf:permutationrelationshipreviewdisposition:externalauthoritydecisionrequired> <urn:usf:permutationrelationshipreviewdisposition:optionaldomainextension> <urn:usf:permutationrelationshipreviewdisposition:invalidorredundant>);
-    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_DISPOSITION_OUTSIDE_CLOSED_SET: disposition must use the seven governed universal-review classifications".
-shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr16Closed.
 _:prsr17 sh:path usf:relationshipSignatureReviewReasonCode; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^UNIVERSAL_[A-Z0-9_]+$";
     sh:message "PERMUTATION_RELATIONSHIP_REVIEW_REASON_INVALID: relationship review needs one stable reason code".
 shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr17.
@@ -1477,12 +1490,6 @@ shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr19.
 _:prsr20 sh:path usf:relationshipSignatureReviewRegistryDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
     sh:message "PERMUTATION_RELATIONSHIP_REVIEW_REGISTRY_BINDING_ABSENT: relationship review needs one exact family-registry digest".
 shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr20.
-_:prsr21 sh:path usf:relationshipSignatureReviewEvidenceDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
-    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_EVIDENCE_BINDING_ABSENT: relationship review needs independent evidence bytes".
-shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr21.
-_:prsr22 sh:path usf:relationshipSignatureReviewAlgorithmDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
-    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_ALGORITHM_BINDING_ABSENT: relationship review needs an independent method digest".
-shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr22.
 _:prsr23 sh:path usf:relationshipSignatureReviewDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
     sh:message "PERMUTATION_RELATIONSHIP_REVIEW_DIGEST_ABSENT: relationship review needs one exact review digest".
 shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr23.

@@ -120,7 +120,7 @@ const PLANTED_FIXTURE_PYTHON_SOURCE = `def planted_fixture_evidence(authored_dat
     datatype_relationship_kind = URIRef("urn:usf:permutationfamilycandidatekind:datatyperelationship")
     named_node_kind = URIRef("urn:usf:permutationrelationshipobjecttermkind:namednode")
     literal_kind = URIRef("urn:usf:permutationrelationshipobjecttermkind:literal")
-    redundant_relationship = URIRef("urn:usf:permutationrelationshipreviewdisposition:invalidorredundant")
+    semantic_review_disposition = URIRef("urn:usf:permutationsemanticreviewdisposition:invalidorredundant")
     required_controlled_values = (
         (participation, USF.PermutationParticipationClassification),
         (axis_binding, USF.PermutationAxisBindingClassification),
@@ -133,7 +133,7 @@ const PLANTED_FIXTURE_PYTHON_SOURCE = `def planted_fixture_evidence(authored_dat
         (datatype_relationship_kind, USF.PermutationFamilyCandidateKind),
         (named_node_kind, USF.PermutationRelationshipObjectTermKind),
         (literal_kind, USF.PermutationRelationshipObjectTermKind),
-        (redundant_relationship, USF.PermutationRelationshipReviewDisposition),
+        (semantic_review_disposition, USF.PermutationSemanticReviewDisposition),
     )
     missing_controlled_values = [str(value) for value, kind in required_controlled_values if (value, RDF.type, kind) not in data]
     if missing_controlled_values:
@@ -163,6 +163,10 @@ const PLANTED_FIXTURE_PYTHON_SOURCE = `def planted_fixture_evidence(authored_dat
         add(review, USF.termPermutationSourcePlane, Literal("planted-fixture"))
         add(review, USF.termPermutationAuthorityDigest, authority)
         add(review, USF.termPermutationInventoryDigest, inventory)
+        add(review, USF.semanticReviewDisposition, semantic_review_disposition)
+        add(review, USF.semanticReviewEvidenceDigest, digest(identifier + ":evidence"))
+        add(review, USF.semanticReviewAlgorithmDigest, digest(identifier + ":algorithm"))
+        add(review, USF.semanticReviewRationale, Literal("Independent semantic-term review fixture rationale."))
         add(review, USF.termPermutationReviewDigest, digest(identifier + ":review"))
         return review
 
@@ -183,6 +187,10 @@ const PLANTED_FIXTURE_PYTHON_SOURCE = `def planted_fixture_evidence(authored_dat
         add(review, USF.familySignatureReviewAuthorityDigest, authority)
         add(review, USF.familySignatureReviewRegistryDigest, registry)
         add(review, USF.reviewedFamilySignatureDigest, digest(identifier + ":signature"))
+        add(review, USF.semanticReviewDisposition, semantic_review_disposition)
+        add(review, USF.semanticReviewEvidenceDigest, digest(identifier + ":evidence"))
+        add(review, USF.semanticReviewAlgorithmDigest, digest(identifier + ":algorithm"))
+        add(review, USF.semanticReviewRationale, Literal("Independent family-signature review fixture rationale."))
         add(review, USF.familySignatureReviewDigest, digest(identifier + ":review"))
         add(review, USF.familySignatureReviewDisposition, warranted_family)
         return review
@@ -260,13 +268,14 @@ const PLANTED_FIXTURE_PYTHON_SOURCE = `def planted_fixture_evidence(authored_dat
         add(review, USF.reviewedRelationshipActiveOccurrenceCount, Literal(1, datatype=rdflib.XSD.nonNegativeInteger))
         add(review, USF.reviewedRelationshipActiveOccurrenceSetDigest, digest(identifier + ":occurrences"))
         add(review, USF.reviewedRelationshipWitnessSetDigest, digest(identifier + ":witnesses"))
-        add(review, USF.relationshipSignatureReviewDisposition, redundant_relationship)
+        add(review, USF.semanticReviewDisposition, semantic_review_disposition)
         add(review, USF.relationshipSignatureReviewReasonCode, Literal("UNIVERSAL_REVIEW_INVALID_OR_REDUNDANT"))
         add(review, USF.relationshipSignatureReviewAuthorityDigest, digest(identifier + ":authority"))
         add(review, USF.relationshipSignatureReviewInventoryDigest, digest(identifier + ":inventory"))
         add(review, USF.relationshipSignatureReviewRegistryDigest, digest(identifier + ":registry"))
-        add(review, USF.relationshipSignatureReviewEvidenceDigest, digest(identifier + ":evidence"))
-        add(review, USF.relationshipSignatureReviewAlgorithmDigest, digest(identifier + ":algorithm"))
+        add(review, USF.semanticReviewEvidenceDigest, digest(identifier + ":evidence"))
+        add(review, USF.semanticReviewAlgorithmDigest, digest(identifier + ":algorithm"))
+        add(review, USF.semanticReviewRationale, Literal("Independent relationship review fixture rationale."))
         add(review, USF.relationshipSignatureReviewDigest, digest(identifier + ":review"))
         if authorisation_claim:
             add(review, USF.establishesSemanticTruth, Literal(True))
@@ -306,6 +315,26 @@ const PLANTED_FIXTURE_PYTHON_SOURCE = `def planted_fixture_evidence(authored_dat
     expected("positive-object-candidate", positive_object_candidate, [])
     expected("positive-datatype-candidate", positive_datatype_candidate, [])
     expected("positive-relationship-review", positive_relationship_review, [])
+
+    missing_semantic_disposition = add_relationship_review("semantic-review-disposition-absent")
+    data.remove((missing_semantic_disposition, USF.semanticReviewDisposition, None))
+    fixture.remove((missing_semantic_disposition, USF.semanticReviewDisposition, None))
+    expected("semantic-review-disposition-absent", missing_semantic_disposition, ["PERMUTATION_SEMANTIC_REVIEW_DISPOSITION_ABSENT"])
+
+    missing_semantic_evidence = add_relationship_review("semantic-review-evidence-absent")
+    data.remove((missing_semantic_evidence, USF.semanticReviewEvidenceDigest, None))
+    fixture.remove((missing_semantic_evidence, USF.semanticReviewEvidenceDigest, None))
+    expected("semantic-review-evidence-absent", missing_semantic_evidence, ["PERMUTATION_SEMANTIC_REVIEW_EVIDENCE_ABSENT"])
+
+    missing_semantic_algorithm = add_relationship_review("semantic-review-algorithm-absent")
+    data.remove((missing_semantic_algorithm, USF.semanticReviewAlgorithmDigest, None))
+    fixture.remove((missing_semantic_algorithm, USF.semanticReviewAlgorithmDigest, None))
+    expected("semantic-review-algorithm-absent", missing_semantic_algorithm, ["PERMUTATION_SEMANTIC_REVIEW_ALGORITHM_ABSENT"])
+
+    missing_semantic_rationale = add_relationship_review("semantic-review-rationale-absent")
+    data.remove((missing_semantic_rationale, USF.semanticReviewRationale, None))
+    fixture.remove((missing_semantic_rationale, USF.semanticReviewRationale, None))
+    expected("semantic-review-rationale-absent", missing_semantic_rationale, ["PERMUTATION_SEMANTIC_REVIEW_RATIONALE_ABSENT"])
 
     missing_term = add_term_review("missing-reviewed-term", digest("missing-term:authority"), digest("missing-term:inventory"), omit_term=True)
     expected("missing-reviewed-term", missing_term, ["UNIVERSAL_REVIEW_TERM_ABSENT"])

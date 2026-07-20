@@ -179,7 +179,7 @@ function projectedRelationshipReview({ candidate, signature, witnessDigests = []
     candidateDigest: candidate?.candidateDigest ?? null,
     candidateIri: candidate?.candidateIri ?? null,
     directionIri: 'urn:usf:permutationpathdirection:outbound',
-    dispositionIri: 'urn:usf:permutationrelationshipreviewdisposition:capabilityspecificrelationship',
+    dispositionIri: 'urn:usf:permutationsemanticreviewdisposition:capabilityspecificrelationship',
     evidenceDigest,
     inventoryDigest: inventory.inventoryDigest,
     objectClassIris: signature.objectClassIris,
@@ -187,6 +187,7 @@ function projectedRelationshipReview({ candidate, signature, witnessDigests = []
     objectDatatypeIri: signature.objectDatatypeIri,
     objectTermKindIri: termKindIri(signature.objectTermKind),
     predicateIri: signature.predicateIri,
+    rationale: 'Independent capability-specific relationship review.',
     reasonCode: 'UNIVERSAL_CAPABILITY_SPECIFIC_RELATIONSHIP',
     registryDigest: registry.registryDigest,
     relationshipSignatureDigest: signature.relationshipSignatureDigest,
@@ -213,6 +214,7 @@ function projectedRelationshipReview({ candidate, signature, witnessDigests = []
     objectDatatypeIris: semanticCore.objectDatatypeIri ? [semanticCore.objectDatatypeIri] : [],
     objectTermKindIris: [semanticCore.objectTermKindIri],
     predicateIris: [semanticCore.predicateIri],
+    rationales: [semanticCore.rationale],
     reasonCodes: [semanticCore.reasonCode],
     registryDigests: [semanticCore.registryDigest],
     reviewDigests: [digest(semanticCore)],
@@ -360,7 +362,7 @@ test('fresh inventory and registry use exact current sources without census or g
   assert.deepEqual(inventory.excludedSourceGroups, [
     'conformanceFixture', 'derivedGraphs', 'reviewGraphs', 'rules', 'shapeGraphs',
   ]);
-  assert.equal(reviewProjection.schemaVersion, 3);
+  assert.equal(reviewProjection.schemaVersion, 4);
   assert.equal(reviewProjection.familyCandidateSetDigest, digest(reviewProjection.familyCandidates));
   assert.equal(reviewProjection.relationshipSignatureReviewSetDigest,
     digest(reviewProjection.relationshipSignatureReviews));
@@ -599,26 +601,34 @@ test('review projection is mandatory and one exact family review closes only its
 
   const family = registry.families[0];
   const decisionCore = {
+    algorithmDigest: digest('family-signature-review-algorithm-v1'),
     applicabilityRuleIri: family.ruleIri,
     authorityDigest: AUTHORITY_BINDING.authorityDigest,
     dimensionBindingIris: family.orderedBindings.map(({ bindingIri }) => bindingIri).sort(),
     dispositionIri: 'urn:usf:permutationfamilymodelreviewdisposition:warranted',
+    evidenceDigest: digest('family-signature-review-evidence-v1'),
     familyIri: family.familyIri,
+    rationale: 'Independent review accepts this exact capability-specific family signature.',
     registryDigest: registry.registryDigest,
+    semanticDispositionIri: 'urn:usf:permutationsemanticreviewdisposition:capabilityspecificrelationship',
     signatureDigest: family.familyRecordDigest,
     subjectRegistrationIri: family.registrationIri,
   };
   const reviewRecordCore = {
+    algorithmDigests: [decisionCore.algorithmDigest],
     applicabilityRuleIris: [family.ruleIri],
     authorityDigests: [AUTHORITY_BINDING.authorityDigest],
     dimensionBindingIris: decisionCore.dimensionBindingIris,
     dispositionIris: [decisionCore.dispositionIri],
+    evidenceDigests: [decisionCore.evidenceDigest],
     familyIris: [family.familyIri],
+    rationales: [decisionCore.rationale],
     registryDigests: [registry.registryDigest],
     reviewDigests: [digest(decisionCore)],
     reviewIri: 'urn:usf:test:family-signature-review:one',
     signatureDigests: [family.familyRecordDigest],
     sourcePlanes: ['reviewGraphs'],
+    semanticDispositionIris: [decisionCore.semanticDispositionIri],
     subjectRegistrationIris: [family.registrationIri],
   };
   const reviewRecord = {
@@ -683,21 +693,29 @@ test('a non-axis term review cannot override exact family coverage', () => {
     termUsageStateIris: [],
   };
   const reviewCore = {
+    algorithmDigest: digest('term-review-algorithm-v1'),
     authorityDigest: AUTHORITY_BINDING.authorityDigest,
     axisBindingIri: 'urn:usf:permutationaxisbindingclassification:notanaxis',
+    dispositionIri: 'urn:usf:permutationsemanticreviewdisposition:invalidorredundant',
+    evidenceDigest: digest('term-review-evidence-v1'),
     familyCandidateStateIri: 'urn:usf:permutationfamilycandidateclassification:notafamilycandidate',
     inventoryDigest: `sha256:${'8'.repeat(64)}`,
     participationIri: 'urn:usf:permutationparticipationclassification:metadataprovenancenonaxis',
+    rationale: 'Independent review classifies the synthetic term as redundant metadata.',
     reasonCode: 'UNIVERSAL_SYNTHETIC_NON_AXIS',
     reviewedTermIri: term.iri,
     sourcePlane: 'definitionGraphs',
   };
   const review = {
+    algorithmDigests: [reviewCore.algorithmDigest],
     authorityDigests: [reviewCore.authorityDigest],
     axisBindingIris: [reviewCore.axisBindingIri],
+    dispositionIris: [reviewCore.dispositionIri],
+    evidenceDigests: [reviewCore.evidenceDigest],
     familyCandidateStateIris: [reviewCore.familyCandidateStateIri],
     inventoryDigests: [reviewCore.inventoryDigest],
     participationIris: [reviewCore.participationIri],
+    rationales: [reviewCore.rationale],
     reasonCodes: [reviewCore.reasonCode],
     reviewDigests: [digest(reviewCore)],
     reviewIri: 'urn:usf:test:term-review:conflict',
