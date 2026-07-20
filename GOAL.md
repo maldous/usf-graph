@@ -1479,4 +1479,343 @@ The programme succeeds only when the entire current semantic suite has been trav
 
 The final authority warrants the claim, and two standalone clean clones prove it without an earlier repository, parent checkout, untracked source, hidden agent cache, external work tracker or conversational history.
 
-Begin now by reading the governing files and skill, establishing exact Git and live-authority state, recording the initial measured usage/cache baseline, reconciling the checkpoint with this directive, and producing the authority-bound permutation-family census. Continue unattended through modelling, derivation, implementation, fixtures, proof, publication, executable tests, environment delivery and final gates until exactly one overall terminal outcome is warranted.
+On every continuation, read the governing files and skill, establish exact Git and live-authority state, reconcile the checkpoint and programme ledger with this directive, and resume the first unresolved dependency found in durable state. Reuse valid work while its bound dependencies remain unchanged. Continue unattended through modelling, derivation, implementation, fixtures, proof, publication, executable tests, environment delivery and final gates until exactly one overall terminal outcome is warranted.
+
+## 43. Remaining USF Foundation and Capability Completion
+
+This programme remains active. Recent work has substantially improved the
+expressive foundation, but foundation expressiveness is not capability or
+executable completion. The requirements below extend the dependency-ordered
+work still governed by every preceding section; they do not supersede valid
+work or establish a new programme.
+
+Previously completed work remains valid only within its unchanged authority,
+source, implementation, environment, evidence, proof and algorithm bindings.
+A changed dependency reopens only the affected evidence, proof, contract and
+downstream gate closure. No local source file, report, fixture, generated
+matrix, checkpoint or ledger establishes semantic truth. Candidate changes
+must still pass the existing evidence, proof, semantic-correction and
+transactional publication lifecycle.
+
+Keep these states distinct and dependency ordered:
+
+```text
+foundation vocabulary exists
+-> foundation vocabulary is locally validated
+-> foundation vocabulary is published into semantic authority
+-> capability-specific semantics use that vocabulary
+-> capability-specific evidence and proof exist
+-> executable implementations are bound
+-> executable environments are delivered
+-> final system closure is proven
+```
+
+No state proves a later state merely because its artefacts exist or its local
+validator passes.
+
+### 43.1 Universal family-model review closure
+
+Review every registered permutation family and every semantic term in the
+governed review scope. For each item determine and record exactly one governed
+classification:
+
+```text
+UNIVERSAL_REUSABLE_PRIMITIVE
+CAPABILITY_SPECIFIC_SEMANTIC_RELATIONSHIP
+EXPLICIT_NON_APPLICABILITY_DECISION
+DOWNSTREAM_DERIVATION
+EXTERNAL_AUTHORITY_DECISION_REQUIRED
+OPTIONAL_OR_DOMAIN_EXTENSION_CONCERN
+INVALID_OR_REDUNDANT_CONCEPT
+```
+
+Each review preserves exact source identity and digest bindings, distinguishes
+foundation from capability scope, identifies dependent dispositions and names
+any accountable decision still required. Review observations remain in the
+governed review plane and cannot mutate or establish authority directly. An
+accepted semantic correction decision is required before authority mutation.
+Review closure requires zero unresolved review items and an independent exact
+reconstruction of the reviewed family, term and relationship sets.
+
+### 43.2 Apply the foundation to every capability
+
+The foundation conformance fixture proves expressibility only. It is never
+capability-completion evidence.
+
+For every authoritative capability identify its kind, contract, accountable
+process boundary where applicable, participating processes, interfaces,
+operations, resource or data boundary, actors and principal kinds,
+permissions, authorisation conditions, events and messages, publishers and
+consumers, configuration and secret boundaries, provider boundaries, state
+and lifecycle semantics, evidence/test/proof obligations, environment
+applicability and UI exposure where applicable.
+
+Every required family/capability intersection ends in exactly one governed
+disposition:
+
+```text
+MATRIX_REQUIRED
+MATRIX_NOT_APPLICABLE
+```
+
+Absence never implies non-applicability. `MATRIX_NOT_APPLICABLE` requires an
+authority-bound rationale, exact scope and evidence sufficient to prove that
+the family genuinely cannot apply.
+
+### 43.3 Capability classification
+
+Classify every capability as exactly one of:
+
+```text
+EXECUTABLE_CAPABILITY
+DECLARATIVE_CAPABILITY
+COMPOSITE_CAPABILITY
+ASSURANCE_OR_QUALITY_GATE_CAPABILITY
+```
+
+An executable capability exposes or references one or more semantically
+complete operations. A declarative capability states its observable condition
+or invariant. A composite capability identifies its component capabilities
+and satisfaction rule. An assurance or quality-gate capability identifies
+what it evaluates and is not represented as product runtime unless it truly
+has a runtime process. Names, interfaces and descriptive contract facets alone
+do not establish executable or complete status. Add conforming and
+planted-defect validation for every classification rule.
+
+### 43.4 Service-function and operation closure
+
+Normalise executable behaviour so every operation identifies:
+
+```text
+realised capability
+owning interface
+operation kind
+permitted principal kinds
+required permissions and authorisation conditions
+target resource or explicit no-resource decision
+input and output contracts
+preconditions, invariants and postconditions
+idempotency and transaction boundary
+concurrency, timeout and cancellation behaviour
+failure classifications and retryability
+state transition or explicit stateless decision
+audit event and observability signals
+emitted domain events
+test, evidence and proof obligations
+version and compatibility expectations
+```
+
+Where authority does not define behaviour, retain a capability-specific
+unresolved gap. Never invent implementation behaviour to satisfy structure.
+
+### 43.5 Actor, identity, resource and authorisation closure
+
+Close and prove this chain:
+
+```text
+principal or identity
+-> scope and membership
+-> role, attribute or delegation
+-> condition profile
+-> permission
+-> operation
+-> resource selector
+-> target resource
+-> authorisation decision
+-> enforcement expectation
+-> audit evidence
+```
+
+Distinguish human, service, workload, device, external and AI-agent
+principals; tenant, platform and shared scopes; and role assignment from
+permission definition. Model delegation, expiry, revocation, authentication
+strength, token and non-token execution modes. An unresolved reachability
+witness is not an authorised path. Every operation needs a closed
+authorisation disposition, operational token scopes require an active
+authorised path, and cross-tenant/cross-scope denial must be proved.
+
+### 43.6 Resource and data closure
+
+For every resource-bearing capability identify the resource class or governed
+data model, ownership, tenancy, applicable actions, selectors, fields, privacy
+classification, field mutability, masking, encryption, search, export,
+redaction, legal hold, persistence, transaction, schema change, migration and
+recovery requirements. Distinguish platform-owned, tenant-owned and shared
+reference data. Reject blanket persistence, tenancy or recovery assumptions
+and never infer completeness from a generic `rdfs:Resource` domain.
+
+### 43.7 Version and compatibility closure
+
+Resolve all remaining inconsistencies among version resources, literal version
+identifiers, compatibility assessments, migration endpoints and component
+version evidence. Use distinct object and datatype properties. Validate that
+object properties reject literals, datatype properties reject resources,
+assessments bind exact source/target identities, evidence is current and
+integrity-bound, migrations use compatible version semantics, and obsolete
+uses are migrated or explicitly deprecated.
+
+### 43.8 Lifecycle and transition closure
+
+Every authoritative transition identifies its workflow, lifecycle or state
+machine owner; source and target states; trigger event or operation; required
+permission or authority; guard or precondition; effect or postcondition; and
+failure or compensation behaviour where applicable. Controlled-value order
+never creates transition authority. Plant exact negative cases for ownerless
+or triggerless transitions, cross-lifecycle transitions, terminal-state
+escape, impossible reversal, unauthorised transition and missing evidence.
+
+### 43.9 Event and messaging closure
+
+For every event-bearing capability identify event form, optional message and
+message contract, publisher, consumer, principal kinds, publish/subscribe/
+consume/acknowledge/replay/dead-letter/administration permissions as
+applicable, tenant boundary, transport, delivery semantics, retry,
+acknowledgement, replay, dead-letter, ordering, idempotency, correlation,
+causation, audit and observability. Missing publishers or consumers remain
+unresolved unless exact non-applicability is authorised.
+
+### 43.10 Scheduled and long-running work closure
+
+For scheduled jobs, workflows and long-running processes model trigger type,
+due instant or recurrence, timezone/calendar when required, missed-run and
+overlap behaviour, claim and lease semantics, checkpointing, retry policy,
+maximum attempts, timeout, pause/resume/cancellation, drain, failure and
+dead-letter behaviour, compensation, service identity, authorisation recheck,
+environment applicability, readiness dependencies, evidence and tests. Do not
+assume scheduled work is periodic or long-running work is a queue worker.
+
+### 43.11 General service requirements and success criteria
+
+Provide a reusable service-requirement model independent of infrastructure
+realisation for functional, security, privacy/data, availability, recovery,
+observability, support/operations, compliance/policy and environment
+requirements, plus deployment constraints.
+
+Each requirement has stable identity, source, applicable service/capability/
+operation/environment profile, mandatory or optional status, rationale,
+effective scope, success criteria, evidence requirement, gate dependency,
+supersession and validity. Each success criterion names the exact requirement,
+evaluation method, expected result, evidence, scope, freshness and pass/fail/
+indeterminate result. Concrete infrastructure products, plans, topology, cost
+and capacity allocations are prohibited in this model.
+
+### 43.12 USF production service profile
+
+Define the service-side requirements that must hold before production
+realisation: required services/capabilities/functions, security, identity,
+authorisation, data protection, legal duties, service-level availability and
+recovery objectives, observability, support/operations, evidence, readiness
+gates, prohibited provider modes/substitutes where known and production-
+permitted lifecycle states.
+
+The profile exposes stable requirement, capability, operation, evidence and
+gate IRIs. It contains no physical servers, power, virtual machines,
+containers, clusters, cloud functions/providers, hosting offerings, regions,
+zones, network topology, infrastructure failure domains, capacity allocation,
+prices, contracts or concrete production deployments.
+
+### 43.13 Capability evidence, proof and readiness
+
+For every capability and required semantic family, create the applicable
+positive, negative, lifecycle, interaction and failure test obligations.
+Where implementation exists, execute tests and collect exact evidence bound to
+authority, source, version, provider mode, environment and configuration.
+Evaluate proof; distinguish structural from behavioural proof and foundation
+conformance from capability conformance; derive contract/readiness only from
+admitted current evidence. Otherwise leave the capability proof-blocked.
+
+Ontology classes, conformance fixtures, matrix cells, SHACL conformance,
+implementation files and unexecuted test names do not establish capability
+readiness, nor may another capability's proof satisfy the obligation.
+
+### 43.14 Semantic publication and re-evaluation
+
+After a coherent capability-specific correction passes local validation:
+
+1. verify source and live authority state;
+2. regenerate affected derived graphs;
+3. run local and supported live SHACL validation;
+4. run integrity and lifecycle queries;
+5. verify registry and manifest consistency;
+6. generate exact evidence and proof;
+7. perform authorised transactional publication;
+8. reconcile uncertain outcomes fail-closed;
+9. verify the post-publication authority digest;
+10. re-evaluate self-publication-sensitive evidence and proof;
+11. update checkpoint and ledger;
+12. resume the next unresolved dependency.
+
+Never publish the foundation conformance fixture as product authority.
+
+### 43.15 Executable environment delivery
+
+After semantic and authorisation closure, continue the existing executable
+delivery programme through repository-local development, deterministic
+hermetic test and production-shaped staging. Each environment contains the
+complete in-scope suite with tracked source, exact configuration, migrations,
+representative data, deterministic dependencies, startup/shutdown, readiness,
+failure injection, required backup/restore, upgrade/rollback, observability,
+security, tests, evidence, proof and traceability. Production-shaped staging
+is not production infrastructure and cannot claim production readiness.
+
+### 43.16 Bidirectional traceability closure
+
+Prove both directions:
+
+```text
+semantic requirement -> capability -> function -> process -> implementation
+-> environment -> test -> evidence -> proof -> contract/readiness
+
+implementation artefact -> process -> function -> capability -> requirement
+-> test obligation -> evidence -> proof -> governing semantic authority
+```
+
+Reject orphan implementation, unimplemented required functions, untested
+active implementation, evidence without obligation, proof without admitted
+evidence, readiness without current proof, semantic claims without realisation
+and realisations without semantic warrant.
+
+### 43.17 Universal Infrastructure Foundation boundary
+
+Universal Infrastructure Foundation is a later programme. Finish USF's
+service-side capability, function, requirement, policy, evidence, gate and
+production-profile semantics first. Do not implement UIF within this goal
+unless the user directly instructs it after USF completion. UIF may reference
+stable USF IRIs but must not redefine USF concepts.
+
+### 43.18 Continuation, handoff and exhaustion safety
+
+Every agent resumes without conversation history by:
+
+1. reading all governing instructions and the applicable agent shim;
+2. loading the USF skill;
+3. inspecting repository identity, working state, worktrees, processes and
+   transactions while preserving unowned work;
+4. loading and verifying the latest checkpoint and programme ledger;
+5. inspecting current validated live semantic authority;
+6. comparing authority, source, implementation, environment, evidence, proof
+   and algorithm dependency digests;
+7. retaining only prior results whose complete dependency bindings remain
+   current;
+8. selecting the first unresolved dependency from durable state;
+9. performing its next safe critical-path action;
+10. updating durable state before context or execution exhaustion.
+
+Checkpoint whenever context pressure becomes material, a semantic dependency
+changes, a coherent wave completes, an external/human dependency blocks a
+branch, authority is published, evidence/proof is invalidated, or execution
+budget may expire. Without exposing secrets, record objective, phase, first
+unresolved dependency, semantic identifiers, authority binding, changed paths,
+completed work, validation, evidence/proof, invalidated/reopened items,
+external blockers, next exact safe action and its preconditions.
+
+The checkpoint is execution state, not semantic authority. It references
+durable identifiers, digests, files, evidence and semantic resources and never
+uses a conversational summary as its primary source of truth. An agent limit
+is not a programme terminal outcome. Finish the current atomic operation,
+leave no ambiguous mutation, persist the exact continuation state and resume
+later from the first unresolved dependency.
+
+Completion requires every preceding terminal gate plus all requirements in
+this section. Until then, continue dependency-ordered work and report only the
+terminal verdict warranted by current authority, evidence and proof.
