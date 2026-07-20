@@ -180,19 +180,20 @@ const reconciledGoalDigest = 'sha256:3e6aaebdb730dbed3a6506bb53bbf008c96a00acfd4
 const directiveReconciled = goalDigest === reconciledGoalDigest;
 
 const nextExactAction = directiveReconciled ? {
-  action: 'Run the one pending integrated local permutation and universal-semantic wave gate against the committed candidate before regenerating stale option-evaluation evidence or entering family-model review closure.',
+  action: 'Regenerate the raw realisation-option acquisition set against the exact current authority and frozen committed source; preserve the emitted acquisition digest for the separately signed evidence refresh.',
   authorityDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
-  command: 'node --test assurance/permutation-closure/family-census.test.mjs assurance/permutation-closure/family-model.test.mjs assurance/permutation-closure/foundation-domain-closure.test.mjs assurance/permutation-closure/universal-semantic-coverage.test.mjs assurance/permutation-closure/universe-generator.test.mjs assurance/semantic-model-compilation/compiler-proof.test.mjs assurance/semantic-model-compilation/local-shacl-validation.test.mjs',
+  command: 'node assurance/semantic-model-compilation/realisation-option-acquisition.mjs --authority-digest=sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd --collected-at=2026-07-20T02:00:39Z --valid-until=2027-07-15T02:00:39Z --stardog-version=12.1.0 --stardog-edition=enterprise --stardog-licence-type=enterprise --cas-root=/var/lib/usf-cas',
   preconditions: [
     'authority digest and authority packet/projection byte digests remain exact',
     'no authority mutation transaction or modifying worker is active',
     'foundation-domain closure assessment and independent proof remain current',
-    'narrow family-census and universal-semantic gates remain current at 15/15 and 9/9',
+    'integrated local permutation and universal-semantic wave gate remains current at 100/100',
+    'the checkpoint-bound committed source bytes remain frozen after this validation-only state update',
     'candidate reviews remain unpublished and cannot establish semantic truth',
   ],
   semanticIdentifiers: [
     'OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE',
-    'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE',
+    'REALISATION_OPTION_EVALUATION_CLOSURE',
   ],
 } : {
   action: 'Read the changed GOAL.md completely, update this tracked checkpoint generator and any directive validators to the current dependency order, then regenerate the checkpoint before trusting any generated next action.',
@@ -207,8 +208,8 @@ const nextExactAction = directiveReconciled ? {
 };
 
 const dependencyNodes = [
-  { blockerCode: 'NONE', id: 'REALISATION_OPTION_EVALUATION_CLOSURE', prerequisites: [], state: 'COMPLETE' },
-  { blockerCode: 'NONE', id: 'CANONICAL_COMPILER_DEPENDENCY_CLOSURE', prerequisites: ['REALISATION_OPTION_EVALUATION_CLOSURE'], state: 'COMPLETE' },
+  { blockerCode: 'LOCAL_EVIDENCE_REGENERATION', id: 'REALISATION_OPTION_EVALUATION_CLOSURE', prerequisites: [], state: 'PARTIALLY_DELIVERED_REOPENED_EVIDENCE_BINDING' },
+  { blockerCode: 'STALE_OPTION_EVALUATION_EVIDENCE', id: 'CANONICAL_COMPILER_DEPENDENCY_CLOSURE', prerequisites: ['REALISATION_OPTION_EVALUATION_CLOSURE'], state: 'PARTIALLY_DELIVERED_REOPENED_EVIDENCE_BINDING' },
   { blockerCode: 'NONE', id: 'CANONICAL_COMPILER_ENTRYPOINT_CUTOVER', prerequisites: ['CANONICAL_COMPILER_DEPENDENCY_CLOSURE'], state: 'COMPLETE' },
   { blockerCode: 'NONE', id: 'DUPLICATE_COMPILER_RETIREMENT', prerequisites: ['CANONICAL_COMPILER_ENTRYPOINT_CUTOVER'], state: 'COMPLETE' },
   {
@@ -625,6 +626,11 @@ const checkpoint = {
       familyCensus: { failed: 0, passed: 15 },
       universalSemanticCoverage: { failed: 0, passed: 9 },
       state: 'CURRENT_FOCUSED_PASS',
+    },
+    integratedPermutationAndUniversal: {
+      failed: 0,
+      passed: 100,
+      state: 'CURRENT_INTEGRATED_LOCAL_PASS',
     },
     rootSuite: {
       discoveredFileCount: 19,
