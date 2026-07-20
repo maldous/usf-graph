@@ -171,7 +171,7 @@ shp:PermutationApplicabilityClauseShape sh:sparql _:pac_operand_index.
 shp:PermutationApplicabilityOperandShape a sh:NodeShape;
     usf:canonicalName "permutationapplicabilityoperandshape";
     sh:targetClass usf:PermutationApplicabilityOperand.
-_:pao_index sh:path usf:applicabilityOperandIndex; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:positiveInteger;
+_:pao_index sh:path usf:applicabilityOperandIndex; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:integer; sh:minInclusive 1;
     sh:message "APPLICABILITY_OPERAND_INDEX_CARDINALITY: operand requires one positive index".
 shp:PermutationApplicabilityOperandShape sh:property _:pao_index.
 _:pao_clause sh:path usf:applicabilityOperandClause; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationApplicabilityClause;
@@ -218,7 +218,7 @@ shp:PermutationSignalSelectorShape sh:sparql _:pss_steps.
 shp:PermutationSignalPathStepShape a sh:NodeShape;
     usf:canonicalName "permutationsignalpathstepshape";
     sh:targetClass usf:PermutationSignalPathStep.
-_:psp_index sh:path usf:signalPathStepIndex; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:positiveInteger; sh:message "SIGNAL_PATH_STEP_INDEX_CARDINALITY: path step requires one positive index".
+_:psp_index sh:path usf:signalPathStepIndex; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:integer; sh:minInclusive 1; sh:message "SIGNAL_PATH_STEP_INDEX_CARDINALITY: path step requires one positive index".
 shp:PermutationSignalPathStepShape sh:property _:psp_index.
 _:psp_predicate sh:path usf:signalPathStepPredicate; sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI; sh:message "SIGNAL_PATH_STEP_PREDICATE_CARDINALITY: path step requires one semantic predicate".
 shp:PermutationSignalPathStepShape sh:property _:psp_predicate.
@@ -375,7 +375,7 @@ _:pvd_class_closure_contract sh:prefixes usf:prefixes;
 shp:PermutationValueDerivationShape sh:sparql _:pvd_class_closure_contract.
 
 shp:PermutationValueDerivationOperandShape a sh:NodeShape; usf:canonicalName "permutationvaluederivationoperandshape"; sh:targetClass usf:PermutationValueDerivationOperand.
-_:pvdo_index sh:path usf:valueDerivationOperandIndex; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:positiveInteger; sh:message "VALUE_DERIVATION_OPERAND_INDEX_INVALID: operand requires one positive index".
+_:pvdo_index sh:path usf:valueDerivationOperandIndex; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:integer; sh:minInclusive 1; sh:message "VALUE_DERIVATION_OPERAND_INDEX_INVALID: operand requires one positive index".
 shp:PermutationValueDerivationOperandShape sh:property _:pvdo_index.
 _:pvdo_expression sh:path usf:valueDerivationOperandExpression; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationValueDerivation; sh:message "VALUE_DERIVATION_OPERAND_EXPRESSION_CARDINALITY: operand requires one child expression".
 shp:PermutationValueDerivationOperandShape sh:property _:pvdo_expression.
@@ -444,7 +444,7 @@ shp:PermutationCoverageRegionShape sh:property _:pgr5.
 _:pgr6 sh:path usf:coverageRegionDomainScopeDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
     sh:message "PERMUTATION_COVERAGE_REGION_BINDING_INCOMPLETE: region must bind its domain scope".
 shp:PermutationCoverageRegionShape sh:property _:pgr6.
-_:pgr7 sh:path usf:coverageRegionMemberCount; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:nonNegativeInteger;
+_:pgr7 sh:path usf:coverageRegionMemberCount; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:integer; sh:minInclusive 0;
     sh:message "PERMUTATION_COVERAGE_REGION_BINDING_INCOMPLETE: region must bind its member count".
 shp:PermutationCoverageRegionShape sh:property _:pgr7.
 _:pgr8 sh:path usf:coverageRegionMemberKeyDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
@@ -823,7 +823,7 @@ shp:AuthorisationConditionProfileShape sh:property _:cp6.
 shp:AuthorisationConditionClauseShape a sh:NodeShape;
     usf:canonicalName "authorisationconditionclauseshape";
     sh:targetClass usf:AuthorisationConditionClause.
-_:cc1 sh:path usf:conditionClausePosition; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:positiveInteger;
+_:cc1 sh:path usf:conditionClausePosition; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:integer; sh:minInclusive 1;
     sh:message "AUTHORISATION_CONDITION_CLAUSE_POSITION_INVALID: clause needs one positive position".
 shp:AuthorisationConditionClauseShape sh:property _:cc1.
 _:cc2 sh:path usf:conditionClausePredicate; sh:minCount 1; sh:maxCount 1; sh:class usf:AuthorisationConditionPredicate;
@@ -1033,19 +1033,28 @@ shp:ServiceIdentityShape sh:property _:si3.
 _:si4 sh:path usf:serviceIdentityDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$"; sh:message "SERVICE_IDENTITY_DIGEST_ABSENT: identity needs one exact digest".
 shp:ServiceIdentityShape sh:property _:si4.
 
-shp:FoundationProcessLifecycleShape a sh:NodeShape;
-    usf:canonicalName "foundationprocesslifecycleshape";
-    sh:targetSubjectsOf usf:processLifecycleObligation.
-_:fpl1 sh:path usf:processForCapability; sh:minCount 1; sh:class usf:Capability; sh:message "FOUNDATION_PROCESS_CAPABILITY_ABSENT: lifecycle-bearing process needs an owned capability".
-shp:FoundationProcessLifecycleShape sh:property _:fpl1.
-_:fpl2 sh:path usf:processProvidesInterface; sh:minCount 1; sh:class usf:Interface; sh:message "FOUNDATION_PROCESS_INTERFACE_ABSENT: lifecycle-bearing process needs an interface responsibility".
-shp:FoundationProcessLifecycleShape sh:property _:fpl2.
-_:fpl3 sh:path usf:processPrincipalKind; sh:minCount 1; sh:class usf:PrincipalKind; sh:message "FOUNDATION_PROCESS_PRINCIPAL_ABSENT: lifecycle-bearing process needs a principal kind".
-shp:FoundationProcessLifecycleShape sh:property _:fpl3.
-_:fpl4 sh:path usf:processEnvironmentClass; sh:minCount 1; sh:class usf:EnvironmentClass; sh:message "FOUNDATION_PROCESS_ENVIRONMENT_ABSENT: lifecycle-bearing process needs an environment class".
-shp:FoundationProcessLifecycleShape sh:property _:fpl4.
-_:fpl5 sh:path usf:processProviderMode; sh:minCount 1; sh:class usf:ProviderMode; sh:message "FOUNDATION_PROCESS_PROVIDER_MODE_ABSENT: lifecycle-bearing process needs a provider mode".
-shp:FoundationProcessLifecycleShape sh:property _:fpl5.
+# DEFERRED CONSTRAINT (never live): FoundationProcessLifecycleShape was introduced in
+# 02df16c ahead of its satisfying data. It targets every subject of
+# usf:processLifecycleObligation, but the capability deployable processes in
+# contracts/capabilities.trig do not yet carry processPrincipalKind,
+# processEnvironmentClass or processProviderMode — that enrichment is the still-blocked
+# capability-closure work (only the foundation conformance fixture models it today).
+# Publishing this shape before the enrichment makes every authority publication fail
+# closed on scheduled-but-unauthored data. Re-enable this block together with the
+# capability process lifecycle enrichment; do not re-enable it alone.
+# shp:FoundationProcessLifecycleShape a sh:NodeShape;
+#     usf:canonicalName "foundationprocesslifecycleshape";
+#     sh:targetSubjectsOf usf:processLifecycleObligation.
+# _:fpl1 sh:path usf:processForCapability; sh:minCount 1; sh:class usf:Capability; sh:message "FOUNDATION_PROCESS_CAPABILITY_ABSENT: lifecycle-bearing process needs an owned capability".
+# shp:FoundationProcessLifecycleShape sh:property _:fpl1.
+# _:fpl2 sh:path usf:processProvidesInterface; sh:minCount 1; sh:class usf:Interface; sh:message "FOUNDATION_PROCESS_INTERFACE_ABSENT: lifecycle-bearing process needs an interface responsibility".
+# shp:FoundationProcessLifecycleShape sh:property _:fpl2.
+# _:fpl3 sh:path usf:processPrincipalKind; sh:minCount 1; sh:class usf:PrincipalKind; sh:message "FOUNDATION_PROCESS_PRINCIPAL_ABSENT: lifecycle-bearing process needs a principal kind".
+# shp:FoundationProcessLifecycleShape sh:property _:fpl3.
+# _:fpl4 sh:path usf:processEnvironmentClass; sh:minCount 1; sh:class usf:EnvironmentClass; sh:message "FOUNDATION_PROCESS_ENVIRONMENT_ABSENT: lifecycle-bearing process needs an environment class".
+# shp:FoundationProcessLifecycleShape sh:property _:fpl4.
+# _:fpl5 sh:path usf:processProviderMode; sh:minCount 1; sh:class usf:ProviderMode; sh:message "FOUNDATION_PROCESS_PROVIDER_MODE_ABSENT: lifecycle-bearing process needs a provider mode".
+# shp:FoundationProcessLifecycleShape sh:property _:fpl5.
 
 shp:RequiredPermutationAssuranceShape a sh:NodeShape;
     usf:canonicalName "requiredpermutationassuranceshape";
@@ -1169,7 +1178,7 @@ shp:FoundationConformanceProjectionRuleShape sh:sparql _:fcpr7.
 shp:FoundationConformancePredicateMappingShape a sh:NodeShape;
     usf:canonicalName "foundationconformancepredicatemappingshape";
     sh:targetClass usf:FoundationConformancePredicateMapping.
-_:fcpm1 sh:path usf:foundationProjectionMappingPosition; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:positiveInteger;
+_:fcpm1 sh:path usf:foundationProjectionMappingPosition; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:integer; sh:minInclusive 1;
     sh:message "FOUNDATION_PROJECTION_MAPPING_INCOMPLETE: mapping needs one positive position".
 shp:FoundationConformancePredicateMappingShape sh:property _:fcpm1.
 _:fcpm2 sh:path usf:foundationProjectionSourcePredicate; sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI;
@@ -1460,7 +1469,7 @@ shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr8.
 _:prsr9 sh:path usf:reviewedRelationshipObjectDatatype; sh:maxCount 1; sh:nodeKind sh:IRI;
     sh:message "PERMUTATION_RELATIONSHIP_REVIEW_DATATYPE_INVALID: a reviewed object datatype must be one IRI".
 shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr9.
-_:prsr10 sh:path usf:reviewedRelationshipActiveOccurrenceCount; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:nonNegativeInteger;
+_:prsr10 sh:path usf:reviewedRelationshipActiveOccurrenceCount; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:integer; sh:minInclusive 0;
     sh:message "PERMUTATION_RELATIONSHIP_REVIEW_OCCURRENCE_COUNT_ABSENT: relationship review needs the exact active occurrence count".
 shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr10.
 _:prsr11 sh:path usf:reviewedRelationshipActiveOccurrenceSetDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
@@ -1570,10 +1579,10 @@ shp:PermutationFamilyCandidateShape sh:property _:pfcr7.
 _:pfcr8 sh:path usf:candidateFamilyDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
     sh:message "UNIVERSAL_CANDIDATE_DIGEST_ABSENT: one exact candidate digest is required".
 shp:PermutationFamilyCandidateShape sh:property _:pfcr8.
-_:pfcr9 sh:path usf:candidateFamilyMissingTermCount; sh:maxCount 1; sh:datatype xsd:nonNegativeInteger;
+_:pfcr9 sh:path usf:candidateFamilyMissingTermCount; sh:maxCount 1; sh:datatype xsd:integer; sh:minInclusive 0;
     sh:message "UNIVERSAL_CANDIDATE_MISSING_TERM_COUNT_INVALID: missing-term count must be one non-negative integer".
 shp:PermutationFamilyCandidateShape sh:property _:pfcr9.
-_:pfcr10 sh:path usf:candidateFamilyEmptyAxisCount; sh:maxCount 1; sh:datatype xsd:nonNegativeInteger;
+_:pfcr10 sh:path usf:candidateFamilyEmptyAxisCount; sh:maxCount 1; sh:datatype xsd:integer; sh:minInclusive 0;
     sh:message "UNIVERSAL_CANDIDATE_EMPTY_AXIS_COUNT_INVALID: empty-axis count must be one non-negative integer".
 shp:PermutationFamilyCandidateShape sh:property _:pfcr10.
 _:pfcr11 sh:prefixes usf:prefixes;

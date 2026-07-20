@@ -126,7 +126,7 @@ _:b37_b37_n3-492 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b37_b37_n3
 _:b37_b37_n3-493 sh:datatype xsd:integer.
 _:b37_b37_n3-492 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:b37_b37_n3-494.
 _:b37_b37_n3-494 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b37_b37_n3-495.
-_:b37_b37_n3-495 sh:datatype xsd:nonNegativeInteger.
+_:b37_b37_n3-495 sh:datatype xsd:integer; sh:minInclusive 0.
 _:b37_b37_n3-494 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil>.
 _:b37_b37_n3-491 sh:or _:b37_b37_n3-492.
 shp:CompilerPhaseShape sh:property _:b37_b37_n3-491.

@@ -251,7 +251,7 @@ _:b32_b32_n3-161 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b32_b32_n3
 _:b32_b32_n3-162 sh:datatype xsd:integer.
 _:b32_b32_n3-161 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:b32_b32_n3-163.
 _:b32_b32_n3-163 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b32_b32_n3-164.
-_:b32_b32_n3-164 sh:datatype xsd:nonNegativeInteger.
+_:b32_b32_n3-164 sh:datatype xsd:integer; sh:minInclusive 0.
 _:b32_b32_n3-163 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil>.
 _:b32_b32_n3-160 sh:or _:b32_b32_n3-161.
 shp:SemanticAdequacyReviewShape sh:property _:b32_b32_n3-160.

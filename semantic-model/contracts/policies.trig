@@ -60,8 +60,6 @@ con:environmentserviceclassification a usf:Constraint;
     usf:canonicalName "environmentserviceclassification".
 pc:operational a usf:PrivacyClassification;
     usf:canonicalName "operational".
-pc:personal a usf:PrivacyClassification;
-    usf:canonicalName "personal".
 perm:auditread a usf:Permission;
     usf:boundedBy tb:tenant;
     usf:canonicalName "auditread".

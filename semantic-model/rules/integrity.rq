@@ -638,7 +638,7 @@ SELECT DISTINCT ?violation ?subject WHERE {
   } UNION {
     ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption/usf:hasOptionComponent ?subject .
     ?subject usf:componentRole <urn:usf:componentrole:provider> ; usf:componentEnvironmentBinding ?environment ; usf:componentProviderMode ?mode .
-    FILTER NOT EXISTS { ?subject usf:componentProviderBinding ?binding . ?binding usf:inEnvironment ?environment ; usf:hasProviderMode ?mode ; usf:bindsProvider ?provider ; usf:bindsPort ?port . ?provider usf:hasProviderMode ?mode ; usf:fulfilsPort ?port }
+    FILTER NOT EXISTS { ?subject usf:componentProviderBinding ?binding . ?binding usf:bindingEnvironment ?environment ; usf:hasProviderMode ?mode ; usf:bindingProvider ?provider ; usf:bindsPort ?port . ?provider usf:hasProviderMode ?mode ; usf:fulfilsPort ?port }
     BIND("externalproviderbindingmissing" AS ?violation)
   } UNION {
     ?decision a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption/usf:hasOptionComponent/usf:componentIdentity ?subject .

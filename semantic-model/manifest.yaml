@@ -258,7 +258,7 @@ retiredGraphs:
     supersededBy: "urn:usf:semanticcorrectiondecision:importedauthoritycounterfactual"
 inactiveSources:
   - file: permutation/permission-atoms.trig
-    contentDigest: "sha256:a2468945fb77483d26d8ce985a290a2d45d6c03805a777b78160488390b98dd4"
+    contentDigest: "sha256:bb092756afd00729eb4fcac63143ed0de1ea1c0e548763cc1fb2bb9e3bcd109e"
     disposition: CANDIDATE_MIGRATION_MATERIAL
     authorityEligible: false
 fixtures:

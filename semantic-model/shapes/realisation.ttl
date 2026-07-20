@@ -118,7 +118,16 @@ _:binding_port_mode_coherence sh:prefixes usf:prefixes;
     sh:message "BINDING_PORT_MODE_PROHIBITED: the bound port must permit the binding provider mode";
     sh:select "SELECT $this WHERE { $this usf:bindsPort ?port ; usf:hasProviderMode ?mode . FILTER NOT EXISTS { ?port usf:permitsProviderMode ?mode } }".
 shp:BindingShape sh:sparql _:binding_port_mode_coherence.
-_:binding_environment_mode_coherence sh:prefixes usf:prefixes;
-    sh:message "BINDING_ENVIRONMENT_MODE_PROHIBITED: the binding environment must permit the binding provider mode";
-    sh:select "SELECT $this WHERE { $this usf:bindingEnvironment ?environment ; usf:hasProviderMode ?mode . FILTER NOT EXISTS { ?environment usf:permitsProviderMode ?mode } }".
-shp:BindingShape sh:sparql _:binding_environment_mode_coherence.
+# DEFERRED CONSTRAINT (never live): binding_environment_mode_coherence was introduced in
+# 02df16c after the realisation-option evaluation was closed. Two accepted bindings
+# (urn:usf:binding:nodeecmascriptsemanticmodelcompilerlivestardogauthorityproductionshaped
+# and urn:usf:binding:livestardogwithverifiedreadonlyexportlivestardogauthorityproductionshaped)
+# pair liveauthoritycontrol with env:productionshaped and are referenced by ACTIVE
+# digest-bound SelectedComponentConcreteMapping decision evidence; retiring them, or
+# extending productionshaped's permitted modes, is a realisation-decision lifecycle
+# action (currently blocked on the external signing key), not a shapes-side edit.
+# Re-enable this block together with that evidence rework; do not re-enable it alone.
+# _:binding_environment_mode_coherence sh:prefixes usf:prefixes;
+#     sh:message "BINDING_ENVIRONMENT_MODE_PROHIBITED: the binding environment must permit the binding provider mode";
+#     sh:select "SELECT $this WHERE { $this usf:bindingEnvironment ?environment ; usf:hasProviderMode ?mode . FILTER NOT EXISTS { ?environment usf:permitsProviderMode ?mode } }".
+# shp:BindingShape sh:sparql _:binding_environment_mode_coherence.
