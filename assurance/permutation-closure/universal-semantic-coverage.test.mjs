@@ -782,6 +782,15 @@ test('independent proof accepts the corrected source-kind witness reconstruction
   assert.equal(proof.verdict, 'UNIVERSAL_SEMANTIC_GAP_AND_CROSS_PRODUCT_RECONSTRUCTION_PASS');
   assert.equal(proof.results.analysisReconstructionMismatchCount, 0);
   assert.equal(proof.results.familyReconstructionMismatchCount, 0);
+  assert.equal(proof.results.atomicEndpointAmbiguityCount, analysis.gaps.filter(({ code }) => (
+    code.startsWith('UNIVERSAL_ATOMIC_CANDIDATE_')
+  )).length);
+  assert.equal(proof.results.unresolvedAtomicCandidateCount, analysis.atomicCandidateCount);
+  assert.equal(proof.results.unresolvedRelationshipSignatureCount,
+    analysis.relationshipSignatureDispositionPartition.AUTHORITY_REVIEW_REQUIRED);
+  assert.equal(proof.results.validatorDependencyUnresolvedTermCount,
+    analysis.termDispositions.filter(({ reasonFacets }) => reasonFacets
+      .includes('UNIVERSAL_VALIDATOR_DEPENDENCY_UNDISPOSITIONED')).length);
 });
 
 test('exact external standard dependencies fail closed when either bound term disappears', () => {
@@ -798,7 +807,101 @@ test('exact external standard dependencies fail closed when either bound term di
   }
 });
 
-test('atomic relationship discovery is mechanical and ambiguity has a distinct diagnostic', () => {
+test('relationship and validator witnesses preserve exact subject-local provenance', () => {
+  const selector = {
+    digest: `sha256:${'3'.repeat(64)}`,
+    iri: 'urn:usf:permutationsignalselector:syntheticrelationship',
+    steps: [{
+      directionIri: 'urn:usf:permutationpathdirection:outbound',
+      index: 1,
+      predicateIri: `${O}syntheticUncoveredRelationship`,
+    }],
+    subjectClassClosure: {
+      closureDigest: `sha256:${'4'.repeat(64)}`,
+      closureIri: 'urn:usf:permutationclassclosure:syntheticsubject',
+      memberClassIris: [`${O}Capability`],
+    },
+    terminalClassClosure: {
+      closureDigest: `sha256:${'5'.repeat(64)}`,
+      closureIri: 'urn:usf:permutationclassclosure:syntheticterminal',
+      memberClassIris: [`${O}Interface`],
+    },
+  };
+  const relationshipSignature = {
+    objectClassIris: [`${O}Interface`, `${O}Port`],
+    objectTermKind: 'NamedNode',
+    predicateIri: `${O}syntheticUncoveredRelationship`,
+    relationshipSignatureDigest: `sha256:${'6'.repeat(64)}`,
+    relationshipSignatureIri: `urn:usf:relationshipsignature:${'6'.repeat(64)}`,
+    subjectClassIris: [`${O}Capability`, `${O}Service`],
+  };
+  const relationship = universalSemanticCoverageInternals.buildRelationshipSignatureWitnesses({
+    relationshipSignatures: [relationshipSignature],
+  }, {
+    families: [{
+      applicabilitySelectors: [],
+      familyIri: 'urn:usf:permutationfamily:syntheticrelationship',
+      familyRecordDigest: `sha256:${'2'.repeat(64)}`,
+      orderedBindings: [{ selector }],
+    }],
+  });
+  assert.equal(relationship.witnessCount, 1);
+  assert.deepEqual(relationship.records[0].matchedSubjectClassIris, [`${O}Capability`]);
+  assert.deepEqual(relationship.records[0].matchedTerminalClassIris, [`${O}Interface`]);
+  assert.equal(relationship.records[0].subjectClassClosureDigest,
+    selector.subjectClassClosure.closureDigest);
+  assert.equal(relationship.records[0].terminalClassClosureDigest,
+    selector.terminalClassClosure.closureDigest);
+
+  const validatorWitnesses = analysis.witnesses.filter(({ role }) => role === 'VALIDATOR_DEPENDENCY');
+  assert.equal(validatorWitnesses.length, inventory.validationDependencyRecords.length);
+  assert.equal(validatorWitnesses.every((record) => (
+    record.dependencyDigest && record.validationRole && record.sourcePath && record.sourceRecordDigest
+  )), true);
+  assert.deepEqual(new Set(validatorWitnesses.map(({ dependencyDigest }) => dependencyDigest)),
+    new Set(inventory.validationDependencyRecords.map(({ dependencyDigest }) => dependencyDigest)));
+});
+
+test('validator evidence is additive and relationship activity selects the exact primary diagnostic', () => {
+  const activeTerm = {
+    activeOccurrenceCount: 1,
+    declarationKindIris: [`${OWL}ObjectProperty`],
+    fixtureOccurrenceCount: 0,
+    iri: `${O}syntheticActiveRelationship`,
+    termKey: `property\0${O}syntheticActiveRelationship`,
+    termKind: 'property',
+    termUsageStateIris: [],
+  };
+  const declaredTerm = {
+    ...activeTerm,
+    activeOccurrenceCount: 0,
+    iri: `${O}syntheticDeclaredRelationship`,
+    termKey: `property\0${O}syntheticDeclaredRelationship`,
+  };
+  const validatorCore = {
+    inventoryDigest: `sha256:${'1'.repeat(64)}`,
+    registryDigest: `sha256:${'2'.repeat(64)}`,
+    role: 'VALIDATOR_DEPENDENCY',
+    schemaVersion: 4,
+    termKey: activeTerm.termKey,
+  };
+  const result = universalSemanticCoverageInternals.termDispositions({
+    authorityBinding: AUTHORITY_BINDING,
+    inventoryDigest: validatorCore.inventoryDigest,
+    sourceRecords: [],
+    terms: [activeTerm, declaredTerm],
+  }, {
+    records: [{ ...validatorCore, witnessDigest: digest(validatorCore) }],
+  }, { termReviews: [] });
+  const active = result.dispositions.find(({ termKey }) => termKey === activeTerm.termKey);
+  const declared = result.dispositions.find(({ termKey }) => termKey === declaredTerm.termKey);
+  assert.equal(active.reasonCode, 'UNIVERSAL_ACTIVE_RELATIONSHIP_UNCOVERED');
+  assert.deepEqual(active.reasonFacets, ['UNIVERSAL_VALIDATOR_DEPENDENCY_UNDISPOSITIONED']);
+  assert.equal(declared.reasonCode, 'UNIVERSAL_DECLARED_RELATIONSHIP_UNDISPOSITIONED');
+  assert.deepEqual(declared.reasonFacets, []);
+});
+
+test('atomic relationship discovery is mechanical and endpoint defects have exact precedence', () => {
   const base = {
     activeOccurrenceCount: 1,
     objectClassIris: [`${O}Interface`],
@@ -817,15 +920,34 @@ test('atomic relationship discovery is mechanical and ambiguity has a distinct d
   assert.equal(current.candidates.length, 1);
   assert.equal(current.gaps.length, 0);
 
-  const ambiguous = universalSemanticCoverageInternals.discoverAtomicRelationshipCandidates({
-    authorityBinding: AUTHORITY_BINDING,
-    inventoryDigest: inventory.inventoryDigest,
-    relationshipSignatures: [{ ...base, objectClassIris: [`${O}Interface`, `${O}Port`] }],
-  }, new Map());
-  assert.equal(ambiguous.candidates.length, 0);
-  assert.deepEqual(ambiguous.gaps.map(({ code }) => code), [
-    'UNIVERSAL_ATOMIC_CANDIDATE_ENDPOINT_AMBIGUOUS',
-  ]);
+  for (const [expectedCode, mutation] of [
+    ['UNIVERSAL_ATOMIC_CANDIDATE_SUBJECT_CLASS_ABSENT', {
+      objectClassIris: [`${O}Interface`, `${O}Port`], subjectClassIris: [],
+    }],
+    ['UNIVERSAL_ATOMIC_CANDIDATE_SUBJECT_CLASS_MULTIPLE', {
+      subjectClassIris: [`${O}Capability`, `${O}Service`],
+    }],
+    ['UNIVERSAL_ATOMIC_CANDIDATE_OBJECT_CLASS_ABSENT', { objectClassIris: [] }],
+    ['UNIVERSAL_ATOMIC_CANDIDATE_OBJECT_CLASS_MULTIPLE', {
+      objectClassIris: [`${O}Interface`, `${O}Port`],
+    }],
+    ['UNIVERSAL_ATOMIC_CANDIDATE_LITERAL_DATATYPE_ABSENT', {
+      objectClassIris: [], objectDatatypeIri: null, objectTermKind: 'Literal',
+    }],
+    ['UNIVERSAL_ATOMIC_CANDIDATE_OBJECT_TERM_KIND_UNSUPPORTED', {
+      objectClassIris: [], objectTermKind: 'BlankNode',
+    }],
+  ]) {
+    const rejected = universalSemanticCoverageInternals.discoverAtomicRelationshipCandidates({
+      authorityBinding: AUTHORITY_BINDING,
+      inventoryDigest: inventory.inventoryDigest,
+      relationshipSignatures: [{ ...base, ...mutation }],
+    }, new Map());
+    assert.equal(rejected.candidates.length, 0);
+    assert.deepEqual(rejected.gaps.map(({ code }) => code), [expectedCode]);
+    assert.equal(rejected.gaps[0].subjectClassCount,
+      ({ ...base, ...mutation }).subjectClassIris.length);
+  }
 });
 
 test('foundation and authority bindings fail with exact reasons', () => {

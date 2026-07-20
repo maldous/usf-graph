@@ -1147,7 +1147,7 @@ export function buildExactCoverageWitnessIndex(inventory, registry) {
   const add = (core) => records.push(witness({
     inventoryDigest: inventory.inventoryDigest,
     registryDigest: registry.registryDigest,
-    schemaVersion: 3,
+    schemaVersion: 4,
     ...core,
   }));
   const matchingIndividuals = (memberClassIris) => {
@@ -1303,13 +1303,17 @@ export function buildExactCoverageWitnessIndex(inventory, registry) {
       termKey,
     });
   }
-  for (const termKey of inventory.validationDependencyTermKeys) add({
+  for (const dependency of inventory.validationDependencyRecords) add({
     bindingPosition: null,
+    dependencyDigest: dependency.dependencyDigest,
     familyIri: null,
     familyRecordDigest: null,
     ownerIri: 'urn:usf:graph:validation-dependencies',
     role: 'VALIDATOR_DEPENDENCY',
-    termKey,
+    sourcePath: dependency.sourcePath,
+    sourceRecordDigest: dependency.sourceRecordDigest,
+    termKey: dependency.termKey,
+    validationRole: dependency.role,
   });
   records.sort((left, right) => compare(canonicalJson(left), canonicalJson(right)));
   const duplicate = records.find((record, index) => index > 0
@@ -1327,7 +1331,7 @@ export function buildExactCoverageWitnessIndex(inventory, registry) {
     recordKind: 'USF_UNIVERSAL_EXACT_COVERAGE_WITNESS_INDEX',
     records,
     registryDigest: registry.registryDigest,
-    schemaVersion: 3,
+    schemaVersion: 4,
     witnessCount: records.length,
   };
   return { ...core, witnessIndexDigest: digest(core) };
@@ -1406,14 +1410,20 @@ function buildRelationshipSignatureWitnesses(inventory, registry) {
       const outbound = step.directionIri === 'urn:usf:permutationpathdirection:outbound';
       const inbound = step.directionIri === 'urn:usf:permutationpathdirection:inbound';
       if (!outbound && !inbound) continue;
-      const subjectMatch = (outbound ? signature.subjectClassIris : signature.objectClassIris)
-        .some((iri) => subjectMembers.has(iri));
-      const terminalMatch = (outbound ? signature.objectClassIris : signature.subjectClassIris)
-        .some((iri) => terminalMembers.has(iri));
-      if (!subjectMatch || !terminalMatch) continue;
+      const signatureSubjectClassIris = outbound
+        ? signature.subjectClassIris : signature.objectClassIris;
+      const signatureTerminalClassIris = outbound
+        ? signature.objectClassIris : signature.subjectClassIris;
+      const matchedSubjectClassIris = signatureSubjectClassIris
+        .filter((iri) => subjectMembers.has(iri)).sort(compare);
+      const matchedTerminalClassIris = signatureTerminalClassIris
+        .filter((iri) => terminalMembers.has(iri)).sort(compare);
+      if (matchedSubjectClassIris.length === 0 || matchedTerminalClassIris.length === 0) continue;
       const core = {
         familyIri: family.familyIri,
         familyRecordDigest: family.familyRecordDigest,
+        matchedSubjectClassIris,
+        matchedTerminalClassIris,
         relationshipSignatureDigest: signature.relationshipSignatureDigest,
         relationshipSignatureIri: signature.relationshipSignatureIri,
         role: sourceRole,
@@ -1421,6 +1431,10 @@ function buildRelationshipSignatureWitnesses(inventory, registry) {
         selectorIri: selector.iri,
         stepDirectionIri: step.directionIri,
         stepIndex: step.index,
+        subjectClassClosureDigest: selector.subjectClassClosure.closureDigest,
+        subjectClassClosureIri: selector.subjectClassClosure.closureIri,
+        terminalClassClosureDigest: selector.terminalClassClosure.closureDigest,
+        terminalClassClosureIri: selector.terminalClassClosure.closureIri,
       };
       records.push({ ...core, witnessDigest: digest(core) });
     }
@@ -1485,17 +1499,32 @@ function discoverAtomicRelationshipCandidates(inventory, signatureWitnessByIri) 
       || signature.activeOccurrenceCount === 0) continue;
     const namedObject = signature.objectTermKind === 'NamedNode';
     const literalObject = signature.objectTermKind === 'Literal';
-    if (signature.subjectClassIris.length !== 1
-      || (namedObject && signature.objectClassIris.length !== 1)
-      || (literalObject && !signature.objectDatatypeIri)
-      || (!namedObject && !literalObject)) {
+    const reasonCode = signature.subjectClassIris.length === 0
+      ? 'UNIVERSAL_ATOMIC_CANDIDATE_SUBJECT_CLASS_ABSENT'
+      : signature.subjectClassIris.length > 1
+        ? 'UNIVERSAL_ATOMIC_CANDIDATE_SUBJECT_CLASS_MULTIPLE'
+        : namedObject && signature.objectClassIris.length === 0
+          ? 'UNIVERSAL_ATOMIC_CANDIDATE_OBJECT_CLASS_ABSENT'
+          : namedObject && signature.objectClassIris.length > 1
+            ? 'UNIVERSAL_ATOMIC_CANDIDATE_OBJECT_CLASS_MULTIPLE'
+            : literalObject && !signature.objectDatatypeIri
+              ? 'UNIVERSAL_ATOMIC_CANDIDATE_LITERAL_DATATYPE_ABSENT'
+              : !namedObject && !literalObject
+                ? 'UNIVERSAL_ATOMIC_CANDIDATE_OBJECT_TERM_KIND_UNSUPPORTED'
+                : null;
+    if (reasonCode) {
       gaps.push({
-        code: 'UNIVERSAL_ATOMIC_CANDIDATE_ENDPOINT_AMBIGUOUS',
+        code: reasonCode,
+        objectClassCount: signature.objectClassIris.length,
         objectClassIris: signature.objectClassIris,
+        objectClassSetDigest: digest(signature.objectClassIris),
         objectDatatypeIri: signature.objectDatatypeIri,
+        objectTermKind: signature.objectTermKind,
         predicateIri: signature.predicateIri,
         relationshipSignatureIri: signature.relationshipSignatureIri,
+        subjectClassCount: signature.subjectClassIris.length,
         subjectClassIris: signature.subjectClassIris,
+        subjectClassSetDigest: digest(signature.subjectClassIris),
       });
       continue;
     }
@@ -1612,6 +1641,7 @@ function termDispositions(inventory, witnessIndex, reviewProjection) {
       ? 'CURRENT' : currentReviews.length > 1 ? 'DUPLICATE' : 'MISSING';
     let disposition;
     let reasonCode;
+    let reasonFacets = [];
     if (exactWitnesses.length > 0) {
       disposition = 'EXACT_CLOSURE_PARTICIPATION';
       reasonCode = 'UNIVERSAL_EXACT_WITNESS_PRESENT';
@@ -1628,14 +1658,16 @@ function termDispositions(inventory, witnessIndex, reviewProjection) {
       reasonCode = 'UNIVERSAL_ZERO_INSTANCE_BY_DESIGN_EXPLICIT';
     } else {
       disposition = 'AUTHORITY_REVIEW_REQUIRED';
-      reasonCode = validatorWitnesses.length > 0
-        ? 'UNIVERSAL_VALIDATOR_DEPENDENCY_UNDISPOSITIONED'
-        : term.termKind === 'class'
+      reasonFacets = validatorWitnesses.length > 0
+        ? ['UNIVERSAL_VALIDATOR_DEPENDENCY_UNDISPOSITIONED'] : [];
+      reasonCode = term.termKind === 'class'
         ? 'UNIVERSAL_ACTIVE_CLASS_UNDISPOSITIONED'
         : term.termKind === 'individual'
           ? 'UNIVERSAL_ACTIVE_INDIVIDUAL_UNDISPOSITIONED'
           : term.declarationKindIris.includes(`${OWL}ObjectProperty`)
-          ? 'UNIVERSAL_ACTIVE_RELATIONSHIP_UNCOVERED'
+          ? term.activeOccurrenceCount > 0
+            ? 'UNIVERSAL_ACTIVE_RELATIONSHIP_UNCOVERED'
+            : 'UNIVERSAL_DECLARED_RELATIONSHIP_UNDISPOSITIONED'
           : 'UNIVERSAL_ACTIVE_PROPERTY_UNDISPOSITIONED';
     }
     if (currentReview) {
@@ -1678,6 +1710,7 @@ function termDispositions(inventory, witnessIndex, reviewProjection) {
         reasonCode = currentReview.reasonCode;
       }
     }
+    if (disposition !== 'AUTHORITY_REVIEW_REQUIRED') reasonFacets = [];
     const gapDigest = disposition === 'AUTHORITY_REVIEW_REQUIRED'
       ? digest({ reasonCode, termKey: term.termKey }) : null;
     const core = {
@@ -1686,10 +1719,11 @@ function termDispositions(inventory, witnessIndex, reviewProjection) {
       gapIri: gapDigest ? `urn:usf:universalsemanticgap:${gapDigest.slice('sha256:'.length)}` : null,
       inventoryDigest: inventory.inventoryDigest,
       reasonCode,
+      reasonFacets,
       reviewClosureState,
       reviewDecisionDigest: currentReview?.reviewDigest ?? null,
       reviewDecisionIri: currentReview?.reviewIri ?? null,
-      schemaVersion: 3,
+      schemaVersion: 4,
       termKey: term.termKey,
       witnessDigests: witnesses.map(({ witnessDigest }) => witnessDigest).sort(compare),
     };
@@ -1905,7 +1939,7 @@ export function analyseUniversalFamilyCompleteness({
     relationshipSignatureWitnessCount: signatureWitnesses.witnessCount,
     relationshipSignatureWitnessSetDigest: signatureWitnesses.setDigest,
     relationshipSignatureWitnesses: signatureWitnesses.records,
-    schemaVersion: 4,
+    schemaVersion: 5,
     termDispositionPartition,
     termDispositionSetDigest: digest(dispositionResult.dispositions),
     termDispositions: dispositionResult.dispositions,

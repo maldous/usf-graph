@@ -1113,7 +1113,7 @@ function reconstructReviewProjection(dataset, inventory, registry, analyzerSourc
 function reconstructAnalysis(inventory, registry, reviewProjection) {
   const witnesses = [];
   const add = (core) => {
-    const record = compact({ inventoryDigest: inventory.inventoryDigest, registryDigest: registry.registryDigest, schemaVersion: 3, ...core });
+    const record = compact({ inventoryDigest: inventory.inventoryDigest, registryDigest: registry.registryDigest, schemaVersion: 4, ...core });
     witnesses.push({ ...record, witnessDigest: digest(record) });
   };
   const matchingIndividuals = (classIris) => {
@@ -1191,9 +1191,13 @@ function reconstructAnalysis(inventory, registry, reviewProjection) {
   }
   for (const termKey of inventory.mechanismDependencyTermKeys) add({ bindingPosition: null, familyIri: null,
     familyRecordDigest: null, ownerIri: PERMUTATION_GRAPH, role: 'PERMUTATION_META_MODEL_DEPENDENCY', termKey });
-  for (const termKey of inventory.validationDependencyTermKeys) add({ bindingPosition: null, familyIri: null,
+  for (const dependency of inventory.validationDependencyRecords) add({
+    bindingPosition: null, dependencyDigest: dependency.dependencyDigest, familyIri: null,
     familyRecordDigest: null, ownerIri: 'urn:usf:graph:validation-dependencies',
-    role: 'VALIDATOR_DEPENDENCY', termKey });
+    role: 'VALIDATOR_DEPENDENCY', sourcePath: dependency.sourcePath,
+    sourceRecordDigest: dependency.sourceRecordDigest, termKey: dependency.termKey,
+    validationRole: dependency.role,
+  });
   witnesses.sort((a, b) => compare(canonicalJson(a), canonicalJson(b)));
   const byTerm = new Map();
   for (const witness of witnesses) {
@@ -1267,6 +1271,7 @@ function reconstructAnalysis(inventory, registry, reviewProjection) {
     const review = reviews.length === 1 ? reviews[0] : null;
     let disposition;
     let reasonCode;
+    let reasonFacets = [];
     let reviewClosureState = reviews.length === 1 ? 'CURRENT' : reviews.length > 1 ? 'DUPLICATE' : 'MISSING';
     if (exact.length) [disposition, reasonCode] = ['EXACT_CLOSURE_PARTICIPATION', 'UNIVERSAL_EXACT_WITNESS_PRESENT'];
     else if (mechanism.length) [disposition, reasonCode] = ['STRUCTURAL_META_MODEL_DEPENDENCY', 'UNIVERSAL_META_MODEL_DEPENDENCY_EXPLICIT'];
@@ -1274,12 +1279,17 @@ function reconstructAnalysis(inventory, registry, reviewProjection) {
       && term.fixtureOccurrenceCount === 0) [disposition, reasonCode] = ['RESERVED_WITH_EXPLICIT_STATE', 'UNIVERSAL_RESERVED_SCOPE_EXPLICIT'];
     else if (term.termUsageStateIris.includes(ZERO_BY_DESIGN) && term.activeOccurrenceCount === 0
       && term.fixtureOccurrenceCount === 0) [disposition, reasonCode] = ['ZERO_INSTANCE_WITH_EXPLICIT_STATE', 'UNIVERSAL_ZERO_INSTANCE_BY_DESIGN_EXPLICIT'];
-    else [disposition, reasonCode] = ['AUTHORITY_REVIEW_REQUIRED', validator.length
-      ? 'UNIVERSAL_VALIDATOR_DEPENDENCY_UNDISPOSITIONED'
-      : term.termKind === 'class' ? 'UNIVERSAL_ACTIVE_CLASS_UNDISPOSITIONED'
+    else {
+      disposition = 'AUTHORITY_REVIEW_REQUIRED';
+      reasonFacets = validator.length ? ['UNIVERSAL_VALIDATOR_DEPENDENCY_UNDISPOSITIONED'] : [];
+      reasonCode = term.termKind === 'class' ? 'UNIVERSAL_ACTIVE_CLASS_UNDISPOSITIONED'
         : term.termKind === 'individual' ? 'UNIVERSAL_ACTIVE_INDIVIDUAL_UNDISPOSITIONED'
           : term.declarationKindIris.includes(`${OWL}ObjectProperty`)
-            ? 'UNIVERSAL_ACTIVE_RELATIONSHIP_UNCOVERED' : 'UNIVERSAL_ACTIVE_PROPERTY_UNDISPOSITIONED'];
+            ? term.activeOccurrenceCount > 0
+              ? 'UNIVERSAL_ACTIVE_RELATIONSHIP_UNCOVERED'
+              : 'UNIVERSAL_DECLARED_RELATIONSHIP_UNDISPOSITIONED'
+            : 'UNIVERSAL_ACTIVE_PROPERTY_UNDISPOSITIONED';
+    }
     if (review) {
       const nonAxis = review.participationIri
         === 'urn:usf:permutationparticipationclassification:metadataprovenancenonaxis'
@@ -1319,12 +1329,13 @@ function reconstructAnalysis(inventory, registry, reviewProjection) {
         reviewClosureState = 'CONFLICT';
       }
     }
+    if (disposition !== 'AUTHORITY_REVIEW_REQUIRED') reasonFacets = [];
     const gapDigest = disposition === 'AUTHORITY_REVIEW_REQUIRED' ? digest({ reasonCode, termKey: term.termKey }) : null;
     const core = { authorityDigest: inventory.authorityBinding.authorityDigest, disposition,
       gapIri: gapDigest ? `urn:usf:universalsemanticgap:${gapDigest.slice(7)}` : null,
-      inventoryDigest: inventory.inventoryDigest, reasonCode, reviewClosureState,
+      inventoryDigest: inventory.inventoryDigest, reasonCode, reasonFacets, reviewClosureState,
       reviewDecisionDigest: review?.reviewDigest ?? null,
-      reviewDecisionIri: review?.reviewIri ?? null, schemaVersion: 3, termKey: term.termKey,
+      reviewDecisionIri: review?.reviewIri ?? null, schemaVersion: 4, termKey: term.termKey,
       witnessDigests: owned.map(({ witnessDigest }) => witnessDigest).sort(compare) };
     termDispositions.push({ ...core, dispositionDigest: digest(core) });
     if (gapDigest) dispositionGaps.push({ code: reasonCode, gapIri: core.gapIri, termIri: term.iri, termKind: term.termKind });
@@ -1353,17 +1364,26 @@ function reconstructAnalysis(inventory, registry, reviewProjection) {
       const outbound = step.directionIri === 'urn:usf:permutationpathdirection:outbound';
       const inbound = step.directionIri === 'urn:usf:permutationpathdirection:inbound';
       if (!outbound && !inbound) continue;
-      const subjectMatch = (outbound ? signature.subjectClassIris : signature.objectClassIris)
-        .some((iri) => subjectMembers.has(iri));
-      const terminalMatch = (outbound ? signature.objectClassIris : signature.subjectClassIris)
-        .some((iri) => terminalMembers.has(iri));
-      if (!subjectMatch || !terminalMatch) continue;
+      const signatureSubjectClassIris = outbound
+        ? signature.subjectClassIris : signature.objectClassIris;
+      const signatureTerminalClassIris = outbound
+        ? signature.objectClassIris : signature.subjectClassIris;
+      const matchedSubjectClassIris = signatureSubjectClassIris
+        .filter((iri) => subjectMembers.has(iri)).sort(compare);
+      const matchedTerminalClassIris = signatureTerminalClassIris
+        .filter((iri) => terminalMembers.has(iri)).sort(compare);
+      if (matchedSubjectClassIris.length === 0 || matchedTerminalClassIris.length === 0) continue;
       const core = {
         familyIri: family.familyIri, familyRecordDigest: family.familyRecordDigest,
+        matchedSubjectClassIris, matchedTerminalClassIris,
         relationshipSignatureDigest: signature.relationshipSignatureDigest,
         relationshipSignatureIri: signature.relationshipSignatureIri, role,
         selectorDigest: selector.digest, selectorIri: selector.iri,
         stepDirectionIri: step.directionIri, stepIndex: step.index,
+        subjectClassClosureDigest: selector.subjectClassClosure.closureDigest,
+        subjectClassClosureIri: selector.subjectClassClosure.closureIri,
+        terminalClassClosureDigest: selector.terminalClassClosure.closureDigest,
+        terminalClassClosureIri: selector.terminalClassClosure.closureIri,
       };
       signatureWitnessBuffer.push({ ...core, witnessDigest: digest(core) });
     }
@@ -1414,14 +1434,27 @@ function reconstructAnalysis(inventory, registry, reviewProjection) {
       || signature.activeOccurrenceCount === 0) continue;
     const namedObject = signature.objectTermKind === 'NamedNode';
     const literalObject = signature.objectTermKind === 'Literal';
-    if (signature.subjectClassIris.length !== 1
-      || (namedObject && signature.objectClassIris.length !== 1)
-      || (literalObject && !signature.objectDatatypeIri)
-      || (!namedObject && !literalObject)) {
-      atomicGaps.push({ code: 'UNIVERSAL_ATOMIC_CANDIDATE_ENDPOINT_AMBIGUOUS',
-        objectClassIris: signature.objectClassIris, objectDatatypeIri: signature.objectDatatypeIri,
+    const reasonCode = signature.subjectClassIris.length === 0
+      ? 'UNIVERSAL_ATOMIC_CANDIDATE_SUBJECT_CLASS_ABSENT'
+      : signature.subjectClassIris.length > 1
+        ? 'UNIVERSAL_ATOMIC_CANDIDATE_SUBJECT_CLASS_MULTIPLE'
+        : namedObject && signature.objectClassIris.length === 0
+          ? 'UNIVERSAL_ATOMIC_CANDIDATE_OBJECT_CLASS_ABSENT'
+          : namedObject && signature.objectClassIris.length > 1
+            ? 'UNIVERSAL_ATOMIC_CANDIDATE_OBJECT_CLASS_MULTIPLE'
+            : literalObject && !signature.objectDatatypeIri
+              ? 'UNIVERSAL_ATOMIC_CANDIDATE_LITERAL_DATATYPE_ABSENT'
+              : !namedObject && !literalObject
+                ? 'UNIVERSAL_ATOMIC_CANDIDATE_OBJECT_TERM_KIND_UNSUPPORTED'
+                : null;
+    if (reasonCode) {
+      atomicGaps.push({ code: reasonCode, objectClassCount: signature.objectClassIris.length,
+        objectClassIris: signature.objectClassIris, objectClassSetDigest: digest(signature.objectClassIris),
+        objectDatatypeIri: signature.objectDatatypeIri, objectTermKind: signature.objectTermKind,
         predicateIri: signature.predicateIri, relationshipSignatureIri: signature.relationshipSignatureIri,
-        subjectClassIris: signature.subjectClassIris });
+        subjectClassCount: signature.subjectClassIris.length,
+        subjectClassIris: signature.subjectClassIris,
+        subjectClassSetDigest: digest(signature.subjectClassIris) });
       continue;
     }
     const core = { authorityDigest: inventory.authorityBinding.authorityDigest,
@@ -1724,7 +1757,7 @@ export function proveUniversalSemanticCoverage({
     recordKind: 'USF_UNIVERSAL_EXACT_COVERAGE_WITNESS_INDEX',
     records: reconstructed.witnesses,
     registryDigest: registry.registryDigest,
-    schemaVersion: 3,
+    schemaVersion: 4,
     witnessCount: reconstructed.witnesses.length,
   };
   compareAnalysis('witnessCount', reconstructed.witnesses.length, analysis.witnessCount);
@@ -1791,18 +1824,27 @@ export function proveUniversalSemanticCoverage({
     registryDigest: registry.registryDigest,
     results: {
       analysisReconstructionMismatchCount: 0,
+      atomicEndpointAmbiguityCount: reconstructed.gaps.filter(({ code }) => (
+        code.startsWith('UNIVERSAL_ATOMIC_CANDIDATE_')
+      )).length,
       familyReconstructionMismatchCount: 0,
       inventoryReconstructionMismatchCount: 0,
+      unresolvedAtomicCandidateCount: reconstructed.atomicCandidates.length,
       reviewSourceReconstructionMismatchCount: 0,
       reviewProjectionReconstructionMismatchCount: 0,
       unresolvedFamilyReviewCount: reconstructed.registeredFamilyModelReview.rows
         .filter(({ reviewState }) => reviewState !== 'REVIEW_CURRENT').length,
       unresolvedSemanticTermCount: reconstructed.termDispositions
         .filter(({ disposition }) => disposition === 'AUTHORITY_REVIEW_REQUIRED').length,
+      unresolvedRelationshipSignatureCount: reconstructed.relationshipSignatureDispositions
+        .filter(({ disposition }) => disposition === 'AUTHORITY_REVIEW_REQUIRED').length,
+      validatorDependencyUnresolvedTermCount: reconstructed.termDispositions
+        .filter(({ reasonFacets }) => reasonFacets
+          .includes('UNIVERSAL_VALIDATOR_DEPENDENCY_UNDISPOSITIONED')).length,
     },
     reviewProjectionDigest: reviewProjection.reviewProjectionDigest,
     reviewSourceSetDigest: independentReviewProjection.reviewSourceSetDigest,
-    schemaVersion: 3,
+    schemaVersion: 4,
     sourceSetDigest: independent.sourceSetDigest,
     verdict: 'UNIVERSAL_SEMANTIC_GAP_AND_CROSS_PRODUCT_RECONSTRUCTION_PASS',
   };
