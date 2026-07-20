@@ -1396,18 +1396,154 @@ _:pfsr11 sh:prefixes usf:prefixes;
     sh:select "SELECT $this WHERE { $this ?predicate ?value . FILTER (?predicate IN (usf:establishesSemanticTruth, usf:directlyActivatesContract, usf:directlyAdmitsEvidence, usf:directlyEstablishesProof)) } LIMIT 1".
 shp:PermutationFamilySignatureReviewShape sh:sparql _:pfsr11.
 
+shp:PermutationRelationshipSignatureReviewShape a sh:NodeShape;
+    usf:canonicalName "permutationrelationshipsignaturereviewshape";
+    sh:targetClass usf:PermutationRelationshipSignatureReview.
+_:prsr1 sh:path usf:reviewedRelationshipSignature; sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_SIGNATURE_ABSENT: relationship review needs one exact signature identity".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr1.
+_:prsr2 sh:path usf:reviewedRelationshipSignatureDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_SIGNATURE_DIGEST_ABSENT: relationship review needs one exact signature digest".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr2.
+_:prsr3 sh:path usf:reviewedRelationshipPredicate; sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_PREDICATE_ABSENT: relationship review needs one exact predicate".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr3.
+_:prsrDirection sh:path usf:reviewedRelationshipDirection; sh:minCount 1; sh:maxCount 1; sh:in (<urn:usf:permutationpathdirection:outbound> <urn:usf:permutationpathdirection:inbound>);
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_DIRECTION_INVALID: relationship review needs one controlled direction".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsrDirection.
+_:prsrSubjectKind sh:path usf:reviewedRelationshipSubjectTermKind; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationRelationshipObjectTermKind;
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_SUBJECT_KIND_ABSENT: relationship review needs one controlled RDF subject-term kind".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsrSubjectKind.
+_:prsrSubjectKindClosed sh:path usf:reviewedRelationshipSubjectTermKind;
+    sh:in (<urn:usf:permutationrelationshipobjecttermkind:namednode> <urn:usf:permutationrelationshipobjecttermkind:blanknode>);
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_SUBJECT_KIND_OUTSIDE_CLOSED_SET: RDF subjects must be named nodes or blank nodes".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsrSubjectKindClosed.
+_:prsr4 sh:path usf:reviewedRelationshipSubjectClass; sh:nodeKind sh:IRI;
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_SUBJECT_CLASS_INVALID: reviewed subject classes must be IRIs".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr4.
+_:prsr5 sh:path usf:reviewedRelationshipSubjectClassSetDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_SUBJECT_SET_DIGEST_ABSENT: relationship review needs the exact subject-class-set digest, including the empty set".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr5.
+_:prsr6 sh:path usf:reviewedRelationshipObjectTermKind; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationRelationshipObjectTermKind;
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_OBJECT_KIND_ABSENT: relationship review needs one controlled RDF object-term kind".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr6.
+_:prsr6Closed sh:path usf:reviewedRelationshipObjectTermKind;
+    sh:in (<urn:usf:permutationrelationshipobjecttermkind:namednode> <urn:usf:permutationrelationshipobjecttermkind:literal> <urn:usf:permutationrelationshipobjecttermkind:blanknode>);
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_OBJECT_KIND_OUTSIDE_CLOSED_SET: object-term kind must be named node, literal or blank node".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr6Closed.
+_:prsr7 sh:path usf:reviewedRelationshipObjectClass; sh:nodeKind sh:IRI;
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_OBJECT_CLASS_INVALID: reviewed object classes must be IRIs".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr7.
+_:prsr8 sh:path usf:reviewedRelationshipObjectClassSetDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_OBJECT_SET_DIGEST_ABSENT: relationship review needs the exact object-class-set digest, including the empty set".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr8.
+_:prsr9 sh:path usf:reviewedRelationshipObjectDatatype; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_DATATYPE_INVALID: a reviewed object datatype must be one IRI".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr9.
+_:prsr10 sh:path usf:reviewedRelationshipActiveOccurrenceCount; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:nonNegativeInteger;
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_OCCURRENCE_COUNT_ABSENT: relationship review needs the exact active occurrence count".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr10.
+_:prsr11 sh:path usf:reviewedRelationshipActiveOccurrenceSetDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_OCCURRENCE_SET_DIGEST_ABSENT: relationship review needs the exact active occurrence-set digest".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr11.
+_:prsr12 sh:path usf:reviewedRelationshipWitnessDigest; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_WITNESS_DIGEST_INVALID: every witness digest must be a SHA-256 digest".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr12.
+_:prsr13 sh:path usf:reviewedRelationshipWitnessSetDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_WITNESS_SET_DIGEST_ABSENT: relationship review needs the exact witness-set digest, including the empty set".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr13.
+_:prsr14 sh:path usf:relationshipSignatureReviewCandidate; sh:maxCount 1; sh:class usf:PermutationFamilyCandidate;
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_CANDIDATE_INVALID: a candidate binding must identify one family candidate".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr14.
+_:prsr15 sh:path usf:relationshipSignatureReviewCandidateDigest; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_CANDIDATE_DIGEST_INVALID: a candidate binding needs one SHA-256 digest".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr15.
+_:prsr16 sh:path usf:relationshipSignatureReviewDisposition; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationRelationshipReviewDisposition;
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_DISPOSITION_ABSENT: relationship review needs one controlled disposition".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr16.
+_:prsr16Closed sh:path usf:relationshipSignatureReviewDisposition;
+    sh:in (<urn:usf:permutationrelationshipreviewdisposition:universalreusableprimitive> <urn:usf:permutationrelationshipreviewdisposition:capabilityspecificrelationship> <urn:usf:permutationrelationshipreviewdisposition:explicitnonapplicability> <urn:usf:permutationrelationshipreviewdisposition:downstreamderivation> <urn:usf:permutationrelationshipreviewdisposition:externalauthoritydecisionrequired> <urn:usf:permutationrelationshipreviewdisposition:optionaldomainextension> <urn:usf:permutationrelationshipreviewdisposition:invalidorredundant>);
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_DISPOSITION_OUTSIDE_CLOSED_SET: disposition must use the seven governed universal-review classifications".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr16Closed.
+_:prsr17 sh:path usf:relationshipSignatureReviewReasonCode; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^UNIVERSAL_[A-Z0-9_]+$";
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_REASON_INVALID: relationship review needs one stable reason code".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr17.
+_:prsr18 sh:path usf:relationshipSignatureReviewAuthorityDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_AUTHORITY_BINDING_ABSENT: relationship review needs one exact authority digest".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr18.
+_:prsr19 sh:path usf:relationshipSignatureReviewInventoryDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_INVENTORY_BINDING_ABSENT: relationship review needs one exact semantic-input inventory digest".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr19.
+_:prsr20 sh:path usf:relationshipSignatureReviewRegistryDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_REGISTRY_BINDING_ABSENT: relationship review needs one exact family-registry digest".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr20.
+_:prsr21 sh:path usf:relationshipSignatureReviewEvidenceDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_EVIDENCE_BINDING_ABSENT: relationship review needs independent evidence bytes".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr21.
+_:prsr22 sh:path usf:relationshipSignatureReviewAlgorithmDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_ALGORITHM_BINDING_ABSENT: relationship review needs an independent method digest".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr22.
+_:prsr23 sh:path usf:relationshipSignatureReviewDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_DIGEST_ABSENT: relationship review needs one exact review digest".
+shp:PermutationRelationshipSignatureReviewShape sh:property _:prsr23.
+_:prsr24 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_ENDPOINT_MODE_INVALID: literal signatures need exactly one datatype and no object class; named-node and blank-node signatures prohibit a datatype";
+    sh:select "SELECT $this WHERE { $this usf:reviewedRelationshipObjectTermKind ?kind . BIND (EXISTS { $this usf:reviewedRelationshipObjectDatatype ?datatype } AS ?hasDatatype) BIND (EXISTS { $this usf:reviewedRelationshipObjectClass ?objectClass } AS ?hasObjectClass) FILTER ((?kind = <urn:usf:permutationrelationshipobjecttermkind:literal> && (!?hasDatatype || ?hasObjectClass)) || (?kind != <urn:usf:permutationrelationshipobjecttermkind:literal> && ?hasDatatype)) } LIMIT 1".
+shp:PermutationRelationshipSignatureReviewShape sh:sparql _:prsr24.
+_:prsr25 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_CANDIDATE_BINDING_INCOMPLETE: candidate identity and digest must be present together";
+    sh:select "SELECT $this WHERE { BIND (EXISTS { $this usf:relationshipSignatureReviewCandidate ?candidate } AS ?hasCandidate) BIND (EXISTS { $this usf:relationshipSignatureReviewCandidateDigest ?digest } AS ?hasDigest) FILTER (?hasCandidate != ?hasDigest) } LIMIT 1".
+shp:PermutationRelationshipSignatureReviewShape sh:sparql _:prsr25.
+_:prsr26 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_CANDIDATE_DIGEST_MISMATCH: linked candidate and recorded candidate digest must agree";
+    sh:select "SELECT $this WHERE { $this usf:relationshipSignatureReviewCandidate ?candidate; usf:relationshipSignatureReviewCandidateDigest ?expected . ?candidate usf:candidateFamilyDigest ?actual . FILTER (?expected != ?actual) } LIMIT 1".
+shp:PermutationRelationshipSignatureReviewShape sh:sparql _:prsr26.
+_:prsr27 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_DUPLICATE: one signature and authority/inventory tuple may have only one review";
+    sh:select "SELECT $this WHERE { $this usf:reviewedRelationshipSignature ?signature; usf:relationshipSignatureReviewAuthorityDigest ?authority; usf:relationshipSignatureReviewInventoryDigest ?inventory . ?other a usf:PermutationRelationshipSignatureReview; usf:reviewedRelationshipSignature ?signature; usf:relationshipSignatureReviewAuthorityDigest ?authority; usf:relationshipSignatureReviewInventoryDigest ?inventory . FILTER (?other != $this) } LIMIT 1".
+shp:PermutationRelationshipSignatureReviewShape sh:sparql _:prsr27.
+_:prsr28 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_RELATIONSHIP_REVIEW_AUTHORISATION_PROHIBITED: a relationship review cannot establish truth, create a family, activate a contract, admit evidence or establish proof directly";
+    sh:select "SELECT $this WHERE { $this ?predicate ?value . FILTER (?predicate IN (usf:establishesSemanticTruth, usf:directlyActivatesContract, usf:directlyAdmitsEvidence, usf:directlyEstablishesProof)) } LIMIT 1".
+shp:PermutationRelationshipSignatureReviewShape sh:sparql _:prsr28.
+
 shp:PermutationFamilyCandidateShape a sh:NodeShape;
     usf:canonicalName "permutationfamilycandidateshape";
     sh:targetClass usf:PermutationFamilyCandidate.
 _:pfcr1 sh:path usf:candidateFamilySubjectClass; sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI;
     sh:message "UNIVERSAL_CANDIDATE_SUBJECT_ABSENT: one exact semantic subject class is required".
 shp:PermutationFamilyCandidateShape sh:property _:pfcr1.
-_:pfcr2 sh:path usf:candidateFamilyAxisClass; sh:minCount 1; sh:nodeKind sh:IRI;
-    sh:message "UNIVERSAL_CANDIDATE_AXIS_SET_EMPTY: at least one independently reviewed axis class is required in addition to the candidate subject class".
+_:pfcrKind sh:path usf:candidateFamilyKind; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationFamilyCandidateKind;
+    sh:message "UNIVERSAL_CANDIDATE_KIND_ABSENT: one controlled candidate kind is required".
+shp:PermutationFamilyCandidateShape sh:property _:pfcrKind.
+_:pfcrKindClosed sh:path usf:candidateFamilyKind;
+    sh:in (<urn:usf:permutationfamilycandidatekind:multiaxisfamily> <urn:usf:permutationfamilycandidatekind:objectrelationship> <urn:usf:permutationfamilycandidatekind:datatyperelationship>);
+    sh:message "UNIVERSAL_CANDIDATE_KIND_OUTSIDE_CLOSED_SET: candidate kind must be multi-axis, object relationship or datatype relationship".
+shp:PermutationFamilyCandidateShape sh:property _:pfcrKindClosed.
+_:pfcr2 sh:path usf:candidateFamilyAxisClass; sh:nodeKind sh:IRI;
+    sh:message "UNIVERSAL_CANDIDATE_AXIS_INVALID: candidate axis classes must be IRIs".
 shp:PermutationFamilyCandidateShape sh:property _:pfcr2.
-_:pfcr3 sh:path usf:candidateFamilySelectorProperty; sh:minCount 1; sh:nodeKind sh:IRI;
-    sh:message "UNIVERSAL_CANDIDATE_SELECTOR_ABSENT: at least one current semantic selector is required".
+_:pfcr3 sh:path usf:candidateFamilySelectorProperty; sh:nodeKind sh:IRI;
+    sh:message "UNIVERSAL_CANDIDATE_SELECTOR_INVALID: candidate selector properties must be IRIs".
 shp:PermutationFamilyCandidateShape sh:property _:pfcr3.
+_:pfcrSignature sh:path usf:candidateRelationshipSignature; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "UNIVERSAL_CANDIDATE_SIGNATURE_INVALID: relationship candidate signature must be one IRI".
+shp:PermutationFamilyCandidateShape sh:property _:pfcrSignature.
+_:pfcrSignatureDigest sh:path usf:candidateRelationshipSignatureDigest; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "UNIVERSAL_CANDIDATE_SIGNATURE_DIGEST_INVALID: relationship candidate signature digest must be one SHA-256 digest".
+shp:PermutationFamilyCandidateShape sh:property _:pfcrSignatureDigest.
+_:pfcrDirection sh:path usf:candidateRelationshipDirection; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "UNIVERSAL_CANDIDATE_DIRECTION_INVALID: relationship candidate direction must be one IRI".
+shp:PermutationFamilyCandidateShape sh:property _:pfcrDirection.
+_:pfcrPredicate sh:path usf:candidateRelationshipPredicate; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "UNIVERSAL_CANDIDATE_PREDICATE_INVALID: relationship candidate predicate must be one IRI".
+shp:PermutationFamilyCandidateShape sh:property _:pfcrPredicate.
+_:pfcrTerminalClass sh:path usf:candidateRelationshipTerminalClass; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "UNIVERSAL_CANDIDATE_TERMINAL_CLASS_INVALID: object relationship candidate terminal class must be one IRI".
+shp:PermutationFamilyCandidateShape sh:property _:pfcrTerminalClass.
+_:pfcrTerminalDatatype sh:path usf:candidateRelationshipTerminalDatatype; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "UNIVERSAL_CANDIDATE_TERMINAL_DATATYPE_INVALID: datatype relationship candidate terminal datatype must be one IRI".
+shp:PermutationFamilyCandidateShape sh:property _:pfcrTerminalDatatype.
 _:pfcr4 sh:path usf:candidateFamilyClassification; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationFamilyCandidateClassification;
     sh:message "UNIVERSAL_CANDIDATE_CLASSIFICATION_ABSENT: one controlled authority-review state is required".
 shp:PermutationFamilyCandidateShape sh:property _:pfcr4.
@@ -1427,23 +1563,40 @@ shp:PermutationFamilyCandidateShape sh:property _:pfcr7.
 _:pfcr8 sh:path usf:candidateFamilyDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
     sh:message "UNIVERSAL_CANDIDATE_DIGEST_ABSENT: one exact candidate digest is required".
 shp:PermutationFamilyCandidateShape sh:property _:pfcr8.
-_:pfcr9 sh:path usf:candidateFamilyMissingTermCount; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:nonNegativeInteger;
-    sh:message "UNIVERSAL_CANDIDATE_MISSING_TERM_COUNT_ABSENT: one exact missing-term count is required".
+_:pfcr9 sh:path usf:candidateFamilyMissingTermCount; sh:maxCount 1; sh:datatype xsd:nonNegativeInteger;
+    sh:message "UNIVERSAL_CANDIDATE_MISSING_TERM_COUNT_INVALID: missing-term count must be one non-negative integer".
 shp:PermutationFamilyCandidateShape sh:property _:pfcr9.
-_:pfcr10 sh:path usf:candidateFamilyEmptyAxisCount; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:nonNegativeInteger;
-    sh:message "UNIVERSAL_CANDIDATE_EMPTY_AXIS_COUNT_ABSENT: one exact empty-axis count is required".
+_:pfcr10 sh:path usf:candidateFamilyEmptyAxisCount; sh:maxCount 1; sh:datatype xsd:nonNegativeInteger;
+    sh:message "UNIVERSAL_CANDIDATE_EMPTY_AXIS_COUNT_INVALID: empty-axis count must be one non-negative integer".
 shp:PermutationFamilyCandidateShape sh:property _:pfcr10.
 _:pfcr11 sh:prefixes usf:prefixes;
     sh:message "UNIVERSAL_CANDIDATE_WARRANTED_WITH_GAPS: a warranted family candidate cannot retain missing terms or empty finite axes";
     sh:select """
       SELECT $this WHERE {
-        $this usf:candidateFamilyClassification <urn:usf:permutationfamilycandidateclassification:warranted>;
+        $this usf:candidateFamilyKind <urn:usf:permutationfamilycandidatekind:multiaxisfamily>;
+              usf:candidateFamilyClassification <urn:usf:permutationfamilycandidateclassification:warranted>;
               usf:candidateFamilyMissingTermCount ?missing;
               usf:candidateFamilyEmptyAxisCount ?empty.
         FILTER (?missing != 0 || ?empty != 0)
       }
     """.
 shp:PermutationFamilyCandidateShape sh:sparql _:pfcr11.
+_:pfcrMultiAxis sh:prefixes usf:prefixes;
+    sh:message "UNIVERSAL_CANDIDATE_MULTI_AXIS_COMPONENTS_ABSENT: a multi-axis candidate needs axis, selector, missing-term count and empty-axis count components";
+    sh:select "SELECT $this WHERE { $this usf:candidateFamilyKind <urn:usf:permutationfamilycandidatekind:multiaxisfamily> . FILTER (!EXISTS { $this usf:candidateFamilyAxisClass ?axis } || !EXISTS { $this usf:candidateFamilySelectorProperty ?selector } || !EXISTS { $this usf:candidateFamilyMissingTermCount ?missing } || !EXISTS { $this usf:candidateFamilyEmptyAxisCount ?empty }) } LIMIT 1".
+shp:PermutationFamilyCandidateShape sh:sparql _:pfcrMultiAxis.
+_:pfcrRelationship sh:prefixes usf:prefixes;
+    sh:message "UNIVERSAL_CANDIDATE_RELATIONSHIP_COMPONENTS_ABSENT: an atomic relationship candidate needs signature, signature digest, direction and predicate components";
+    sh:select "SELECT $this WHERE { $this usf:candidateFamilyKind ?kind . FILTER (?kind IN (<urn:usf:permutationfamilycandidatekind:objectrelationship>, <urn:usf:permutationfamilycandidatekind:datatyperelationship>)) FILTER (!EXISTS { $this usf:candidateRelationshipSignature ?signature } || !EXISTS { $this usf:candidateRelationshipSignatureDigest ?digest } || !EXISTS { $this usf:candidateRelationshipDirection ?direction } || !EXISTS { $this usf:candidateRelationshipPredicate ?predicate }) } LIMIT 1".
+shp:PermutationFamilyCandidateShape sh:sparql _:pfcrRelationship.
+_:pfcrEndpoint sh:prefixes usf:prefixes;
+    sh:message "UNIVERSAL_CANDIDATE_ENDPOINT_MODE_INVALID: object candidates need one terminal class and no datatype; datatype candidates need one datatype and no terminal class";
+    sh:select "SELECT $this WHERE { $this usf:candidateFamilyKind ?kind . BIND (EXISTS { $this usf:candidateRelationshipTerminalClass ?terminalClass } AS ?hasClass) BIND (EXISTS { $this usf:candidateRelationshipTerminalDatatype ?terminalDatatype } AS ?hasDatatype) FILTER ((?kind = <urn:usf:permutationfamilycandidatekind:objectrelationship> && (!?hasClass || ?hasDatatype)) || (?kind = <urn:usf:permutationfamilycandidatekind:datatyperelationship> && (!?hasDatatype || ?hasClass))) } LIMIT 1".
+shp:PermutationFamilyCandidateShape sh:sparql _:pfcrEndpoint.
+_:pfcrFormIsolation sh:prefixes usf:prefixes;
+    sh:message "UNIVERSAL_CANDIDATE_FORM_COMPONENT_CONFLICT: multi-axis and atomic relationship components cannot be mixed";
+    sh:select "SELECT $this WHERE { $this usf:candidateFamilyKind ?kind . FILTER ((?kind = <urn:usf:permutationfamilycandidatekind:multiaxisfamily> && EXISTS { $this ?relationshipComponent ?value . FILTER (?relationshipComponent IN (usf:candidateRelationshipSignature, usf:candidateRelationshipSignatureDigest, usf:candidateRelationshipDirection, usf:candidateRelationshipPredicate, usf:candidateRelationshipTerminalClass, usf:candidateRelationshipTerminalDatatype)) }) || (?kind IN (<urn:usf:permutationfamilycandidatekind:objectrelationship>, <urn:usf:permutationfamilycandidatekind:datatyperelationship>) && EXISTS { $this ?multiAxisComponent ?value . FILTER (?multiAxisComponent IN (usf:candidateFamilyAxisClass, usf:candidateFamilySelectorProperty, usf:candidateFamilyMissingTermCount, usf:candidateFamilyEmptyAxisCount)) })) } LIMIT 1".
+shp:PermutationFamilyCandidateShape sh:sparql _:pfcrFormIsolation.
 _:pfcr12 sh:prefixes usf:prefixes;
     sh:message "UNIVERSAL_CANDIDATE_AUTHORISATION_PROHIBITED: a family candidate cannot establish truth, activate a contract, admit evidence or establish proof directly";
     sh:select "SELECT $this WHERE { $this ?predicate ?value . FILTER (?predicate IN (usf:establishesSemanticTruth, usf:directlyActivatesContract, usf:directlyAdmitsEvidence, usf:directlyEstablishesProof)) } LIMIT 1".

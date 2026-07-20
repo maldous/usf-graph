@@ -26,9 +26,37 @@ const RESERVED = 'urn:usf:termusagestate:reservedfuturescope';
 const ZERO_BY_DESIGN = 'urn:usf:termusagestate:zeroinstancebydesign';
 const FAMILY_REVIEW_CLASS = `${O}PermutationFamilySignatureReview`;
 const FAMILY_REVIEW_WARRANTED = 'urn:usf:permutationfamilymodelreviewdisposition:warranted';
+const RELATIONSHIP_REVIEW_CLASS = `${O}PermutationRelationshipSignatureReview`;
 const TERM_REVIEW_CLASS = `${O}SemanticTermPermutationReview`;
 const REVIEW_COVERAGE_CLASS = `${O}PermutationReviewCoverage`;
 const FAMILY_CANDIDATE_CLASS = `${O}PermutationFamilyCandidate`;
+const RELATIONSHIP_REVIEW_DISPOSITIONS = new Set([
+  'urn:usf:permutationrelationshipreviewdisposition:universalreusableprimitive',
+  'urn:usf:permutationrelationshipreviewdisposition:capabilityspecificrelationship',
+  'urn:usf:permutationrelationshipreviewdisposition:explicitnonapplicability',
+  'urn:usf:permutationrelationshipreviewdisposition:downstreamderivation',
+  'urn:usf:permutationrelationshipreviewdisposition:externalauthoritydecisionrequired',
+  'urn:usf:permutationrelationshipreviewdisposition:optionaldomainextension',
+  'urn:usf:permutationrelationshipreviewdisposition:invalidorredundant',
+]);
+const RDF_TERM_KIND_IRI = Object.freeze({
+  BlankNode: 'urn:usf:permutationrelationshipobjecttermkind:blanknode',
+  Literal: 'urn:usf:permutationrelationshipobjecttermkind:literal',
+  NamedNode: 'urn:usf:permutationrelationshipobjecttermkind:namednode',
+});
+const ATOMIC_CANDIDATE_KIND_IRI = Object.freeze({
+  DATATYPE_RELATIONSHIP: 'urn:usf:permutationfamilycandidatekind:datatyperelationship',
+  OBJECT_RELATIONSHIP: 'urn:usf:permutationfamilycandidatekind:objectrelationship',
+});
+const AUTHORITY_REVIEW_REQUIRED_IRI = 'urn:usf:permutationfamilycandidateclassification:authorityreviewrequired';
+const ATOMIC_ENDPOINT_GAP_CODES = new Set([
+  'UNIVERSAL_ATOMIC_CANDIDATE_SUBJECT_CLASS_ABSENT',
+  'UNIVERSAL_ATOMIC_CANDIDATE_SUBJECT_CLASS_MULTIPLE',
+  'UNIVERSAL_ATOMIC_CANDIDATE_OBJECT_CLASS_ABSENT',
+  'UNIVERSAL_ATOMIC_CANDIDATE_OBJECT_CLASS_MULTIPLE',
+  'UNIVERSAL_ATOMIC_CANDIDATE_LITERAL_DATATYPE_ABSENT',
+  'UNIVERSAL_ATOMIC_CANDIDATE_OBJECT_TERM_KIND_UNSUPPORTED',
+]);
 const TERM_SET_ALGORITHM = 'semantic-input-term-key-set-v1';
 const FAMILY_SIGNATURE_ALGORITHM = 'family-record-canonical-json-sha256-v1';
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
@@ -1002,7 +1030,8 @@ function compact(value) {
 function reconstructReviewProjection(dataset, inventory, registry, analyzerSourceDigest) {
   const allTypes = explicitTypes(dataset.records);
   const reviewClassIris = new Set([
-    TERM_REVIEW_CLASS, REVIEW_COVERAGE_CLASS, FAMILY_REVIEW_CLASS, FAMILY_CANDIDATE_CLASS,
+    TERM_REVIEW_CLASS, REVIEW_COVERAGE_CLASS, FAMILY_REVIEW_CLASS, RELATIONSHIP_REVIEW_CLASS,
+    FAMILY_CANDIDATE_CLASS,
   ]);
   const reviewResourceIris = uniqueSorted([...allTypes.entries()]
     .filter(([, typeIris]) => typeIris.some((typeIri) => reviewClassIris.has(typeIri)))
@@ -1060,6 +1089,38 @@ function reconstructReviewProjection(dataset, inventory, registry, analyzerSourc
     };
     return { ...core, projectionRecordDigest: digest(core) };
   }).sort((a, b) => compare(a.reviewIri, b.reviewIri));
+  const relationshipSignatureReviews = typed(RELATIONSHIP_REVIEW_CLASS).map((reviewIri) => {
+    const core = {
+      activeOccurrenceCounts: literalsFor(reviewIri, 'reviewedRelationshipActiveOccurrenceCount'),
+      activeOccurrenceSetDigests: literalsFor(reviewIri, 'reviewedRelationshipActiveOccurrenceSetDigest'),
+      algorithmDigests: literalsFor(reviewIri, 'relationshipSignatureReviewAlgorithmDigest'),
+      authorityDigests: literalsFor(reviewIri, 'relationshipSignatureReviewAuthorityDigest'),
+      candidateDigests: literalsFor(reviewIri, 'relationshipSignatureReviewCandidateDigest'),
+      candidateIris: objectsFor(reviewIri, 'relationshipSignatureReviewCandidate'),
+      directionIris: objectsFor(reviewIri, 'reviewedRelationshipDirection'),
+      dispositionIris: objectsFor(reviewIri, 'relationshipSignatureReviewDisposition'),
+      evidenceDigests: literalsFor(reviewIri, 'relationshipSignatureReviewEvidenceDigest'),
+      inventoryDigests: literalsFor(reviewIri, 'relationshipSignatureReviewInventoryDigest'),
+      objectClassIris: objectsFor(reviewIri, 'reviewedRelationshipObjectClass'),
+      objectClassSetDigests: literalsFor(reviewIri, 'reviewedRelationshipObjectClassSetDigest'),
+      objectDatatypeIris: objectsFor(reviewIri, 'reviewedRelationshipObjectDatatype'),
+      objectTermKindIris: objectsFor(reviewIri, 'reviewedRelationshipObjectTermKind'),
+      predicateIris: objectsFor(reviewIri, 'reviewedRelationshipPredicate'),
+      reasonCodes: literalsFor(reviewIri, 'relationshipSignatureReviewReasonCode'),
+      registryDigests: literalsFor(reviewIri, 'relationshipSignatureReviewRegistryDigest'),
+      reviewDigests: literalsFor(reviewIri, 'relationshipSignatureReviewDigest'),
+      reviewIri,
+      signatureDigests: literalsFor(reviewIri, 'reviewedRelationshipSignatureDigest'),
+      signatureIris: objectsFor(reviewIri, 'reviewedRelationshipSignature'),
+      sourcePlanes: sourcePlanes(reviewIri),
+      subjectClassIris: objectsFor(reviewIri, 'reviewedRelationshipSubjectClass'),
+      subjectClassSetDigests: literalsFor(reviewIri, 'reviewedRelationshipSubjectClassSetDigest'),
+      subjectTermKindIris: objectsFor(reviewIri, 'reviewedRelationshipSubjectTermKind'),
+      witnessDigests: literalsFor(reviewIri, 'reviewedRelationshipWitnessDigest'),
+      witnessSetDigests: literalsFor(reviewIri, 'reviewedRelationshipWitnessSetDigest'),
+    };
+    return { ...core, projectionRecordDigest: digest(core) };
+  }).sort((a, b) => compare(a.reviewIri, b.reviewIri));
   const coverages = typed(REVIEW_COVERAGE_CLASS).map((coverageIri) => {
     const core = {
       authorityDigests: literalsFor(coverageIri, 'permutationReviewAuthorityDigest'),
@@ -1078,9 +1139,29 @@ function reconstructReviewProjection(dataset, inventory, registry, analyzerSourc
     return { ...core, projectionRecordDigest: digest(core) };
   }).sort((a, b) => compare(a.coverageIri, b.coverageIri));
   const familyCandidates = typed(FAMILY_CANDIDATE_CLASS).map((candidateIri) => {
-    const core = { candidateIri, sourcePlanes: sourcePlanes(candidateIri) };
+    const core = {
+      authorityDigests: literalsFor(candidateIri, 'candidateFamilyAuthorityDigest'),
+      axisClassIris: objectsFor(candidateIri, 'candidateFamilyAxisClass'),
+      candidateDigests: literalsFor(candidateIri, 'candidateFamilyDigest'),
+      candidateIri,
+      classificationIris: objectsFor(candidateIri, 'candidateFamilyClassification'),
+      directionIris: objectsFor(candidateIri, 'candidateRelationshipDirection'),
+      emptyAxisCounts: literalsFor(candidateIri, 'candidateFamilyEmptyAxisCount'),
+      inventoryDigests: literalsFor(candidateIri, 'candidateFamilyInventoryDigest'),
+      kindIris: objectsFor(candidateIri, 'candidateFamilyKind'),
+      missingTermCounts: literalsFor(candidateIri, 'candidateFamilyMissingTermCount'),
+      predicateIris: objectsFor(candidateIri, 'candidateRelationshipPredicate'),
+      reasonCodes: literalsFor(candidateIri, 'candidateFamilyReasonCode'),
+      selectorPropertyIris: objectsFor(candidateIri, 'candidateFamilySelectorProperty'),
+      signatureDigests: literalsFor(candidateIri, 'candidateRelationshipSignatureDigest'),
+      signatureIris: objectsFor(candidateIri, 'candidateRelationshipSignature'),
+      sourcePlanes: sourcePlanes(candidateIri),
+      subjectClassIris: objectsFor(candidateIri, 'candidateFamilySubjectClass'),
+      terminalClassIris: objectsFor(candidateIri, 'candidateRelationshipTerminalClass'),
+      terminalDatatypeIris: objectsFor(candidateIri, 'candidateRelationshipTerminalDatatype'),
+    };
     return { ...core, projectionRecordDigest: digest(core) };
-  });
+  }).sort((a, b) => compare(a.candidateIri, b.candidateIri));
   const semanticSourceRecords = dataset.sourceRecords.filter(({ manifestGroup }) => [
     'authoredGraphs', 'definitionGraphs',
   ].includes(manifestGroup));
@@ -1092,6 +1173,7 @@ function reconstructReviewProjection(dataset, inventory, registry, analyzerSourc
     coverageCount: coverages.length,
     coverages,
     familyCandidateCount: familyCandidates.length,
+    familyCandidateSetDigest: digest(familyCandidates),
     familyCandidates,
     familyRegistryDigest: registry.registryDigest,
     familySignatureReviewCount: familySignatureReviews.length,
@@ -1102,7 +1184,10 @@ function reconstructReviewProjection(dataset, inventory, registry, analyzerSourc
     reviewSourceCount: reviewSourceRecords.length,
     reviewSourceRecords,
     reviewSourceSetDigest: digest(reviewSourceRecords),
-    schemaVersion: 2,
+    relationshipSignatureReviewCount: relationshipSignatureReviews.length,
+    relationshipSignatureReviewSetDigest: digest(relationshipSignatureReviews),
+    relationshipSignatureReviews,
+    schemaVersion: 3,
     semanticInputSourceSetDigest: digest(semanticSourceRecords),
     termReviewCount: termReviews.length,
     termReviews,
@@ -1406,27 +1491,6 @@ function reconstructAnalysis(inventory, registry, reviewProjection) {
     }
     signatureWitnessByIri.get(record.relationshipSignatureIri).push(record);
   }
-  const relationshipSignatureDispositions = [];
-  const relationshipSignatureGaps = [];
-  for (const signature of inventory.relationshipSignatures) {
-    const owned = signatureWitnessByIri.get(signature.relationshipSignatureIri) ?? [];
-    const reasonCode = owned.length
-      ? 'UNIVERSAL_RELATIONSHIP_SIGNATURE_EXACT_SELECTOR_WITNESS'
-      : 'UNIVERSAL_RELATIONSHIP_SIGNATURE_UNDISPOSITIONED';
-    const core = {
-      authorityDigest: inventory.authorityBinding.authorityDigest,
-      disposition: owned.length ? 'EXACT_FAMILY_COVERAGE' : 'AUTHORITY_REVIEW_REQUIRED',
-      inventoryDigest: inventory.inventoryDigest, reasonCode,
-      relationshipSignatureDigest: signature.relationshipSignatureDigest,
-      relationshipSignatureIri: signature.relationshipSignatureIri, schemaVersion: 1,
-      witnessDigests: owned.map(({ witnessDigest }) => witnessDigest).sort(compare),
-    };
-    relationshipSignatureDispositions.push({ ...core, dispositionDigest: digest(core) });
-    if (!owned.length) relationshipSignatureGaps.push({
-      code: reasonCode, predicateIri: signature.predicateIri,
-      relationshipSignatureIri: signature.relationshipSignatureIri,
-    });
-  }
   const atomicCandidates = [];
   const atomicGaps = [];
   for (const signature of inventory.relationshipSignatures) {
@@ -1474,6 +1538,239 @@ function reconstructAnalysis(inventory, registry, reviewProjection) {
   }
   atomicCandidates.sort((a, b) => compare(a.candidateIri, b.candidateIri));
   atomicGaps.sort((a, b) => compare(canonicalJson(a), canonicalJson(b)));
+  const expectedAtomicByIri = new Map(atomicCandidates.map((candidate) => [candidate.candidateIri, candidate]));
+  const atomicKindIris = new Set(Object.values(ATOMIC_CANDIDATE_KIND_IRI));
+  const projectedAtomic = reviewProjection.familyCandidates.filter(({ kindIris, signatureIris }) => (
+    kindIris.some((kindIri) => atomicKindIris.has(kindIri)) || signatureIris.length > 0
+  ));
+  const projectedAtomicRows = projectedAtomic.map((record) => {
+    const expected = expectedAtomicByIri.get(record.candidateIri);
+    const exact = expected && canonicalJson({
+      authorityDigests: record.authorityDigests, axisClassIris: record.axisClassIris,
+      candidateDigests: record.candidateDigests, classificationIris: record.classificationIris,
+      directionIris: record.directionIris, emptyAxisCounts: record.emptyAxisCounts,
+      inventoryDigests: record.inventoryDigests, kindIris: record.kindIris,
+      missingTermCounts: record.missingTermCounts, predicateIris: record.predicateIris,
+      reasonCodes: record.reasonCodes, selectorPropertyIris: record.selectorPropertyIris,
+      signatureDigests: record.signatureDigests, signatureIris: record.signatureIris,
+      subjectClassIris: record.subjectClassIris, terminalClassIris: record.terminalClassIris,
+      terminalDatatypeIris: record.terminalDatatypeIris,
+    }) === canonicalJson({
+      authorityDigests: [expected.authorityDigest], axisClassIris: [],
+      candidateDigests: [expected.candidateDigest], classificationIris: [AUTHORITY_REVIEW_REQUIRED_IRI],
+      directionIris: [expected.directionIri], emptyAxisCounts: [],
+      inventoryDigests: [expected.inventoryDigest], kindIris: [ATOMIC_CANDIDATE_KIND_IRI[expected.candidateKind]],
+      missingTermCounts: [], predicateIris: [expected.predicateIri], reasonCodes: [expected.reasonCode],
+      selectorPropertyIris: [], signatureDigests: [expected.relationshipSignatureDigest],
+      signatureIris: [expected.relationshipSignatureIri], subjectClassIris: [expected.subjectClassIri],
+      terminalClassIris: expected.terminalClassIri ? [expected.terminalClassIri] : [],
+      terminalDatatypeIris: expected.terminalDatatypeIri ? [expected.terminalDatatypeIri] : [],
+    });
+    return {
+      candidateIri: record.candidateIri,
+      expectedCandidateDigest: expected?.candidateDigest ?? null,
+      projectionState: !expected ? 'CANDIDATE_ORPHAN'
+        : exact ? 'CANDIDATE_CURRENT' : 'CANDIDATE_STALE_OR_INVALID',
+      projectedCandidateDigest: record.candidateDigests.length === 1 ? record.candidateDigests[0] : null,
+      relationshipSignatureIris: record.signatureIris,
+    };
+  });
+  const atomicRowsBySignature = new Map();
+  for (const row of projectedAtomicRows) for (const signatureIri of row.relationshipSignatureIris) {
+    if (!atomicRowsBySignature.has(signatureIri)) atomicRowsBySignature.set(signatureIri, []);
+    atomicRowsBySignature.get(signatureIri).push(row);
+  }
+  for (const related of atomicRowsBySignature.values()) if (related.length > 1) {
+    for (const row of related) row.projectionState = 'CANDIDATE_DUPLICATE';
+  }
+  const projectedAtomicIris = new Set(projectedAtomicRows.map(({ candidateIri }) => candidateIri));
+  const missingAtomicRows = atomicCandidates.filter(({ candidateIri }) => !projectedAtomicIris.has(candidateIri))
+    .map((candidate) => ({
+      candidateIri: candidate.candidateIri,
+      expectedCandidateDigest: candidate.candidateDigest,
+      projectionState: 'CANDIDATE_MISSING',
+      projectedCandidateDigest: null,
+      relationshipSignatureIris: [candidate.relationshipSignatureIri],
+    }));
+  const atomicProjectionRows = [...projectedAtomicRows, ...missingAtomicRows]
+    .sort((a, b) => compare(a.candidateIri, b.candidateIri));
+  const atomicCandidateProjection = {
+    currentCount: atomicProjectionRows.filter(({ projectionState }) => projectionState === 'CANDIDATE_CURRENT').length,
+    duplicateCount: atomicProjectionRows.filter(({ projectionState }) => projectionState === 'CANDIDATE_DUPLICATE').length,
+    expectedCount: atomicCandidates.length,
+    gaps: atomicProjectionRows.filter(({ projectionState }) => projectionState !== 'CANDIDATE_CURRENT')
+      .map(({ candidateIri, projectionState }) => ({ candidateIri, code: `UNIVERSAL_ATOMIC_${projectionState}` })),
+    orphanCount: atomicProjectionRows.filter(({ projectionState }) => projectionState === 'CANDIDATE_ORPHAN').length,
+    missingCount: atomicProjectionRows.filter(({ projectionState }) => projectionState === 'CANDIDATE_MISSING').length,
+    projectedCount: projectedAtomic.length,
+    projectionStatePartition: Object.fromEntries([
+      'CANDIDATE_CURRENT', 'CANDIDATE_MISSING', 'CANDIDATE_ORPHAN',
+      'CANDIDATE_DUPLICATE', 'CANDIDATE_STALE_OR_INVALID',
+    ].map((state) => [state, atomicProjectionRows
+      .filter(({ projectionState }) => projectionState === state).length])),
+    rowSetDigest: digest(atomicProjectionRows),
+    rows: atomicProjectionRows,
+    staleOrInvalidCount: atomicProjectionRows
+      .filter(({ projectionState }) => projectionState === 'CANDIDATE_STALE_OR_INVALID').length,
+  };
+  const atomicBySignature = new Map(atomicCandidates.map((candidate) => (
+    [candidate.relationshipSignatureIri, candidate]
+  )));
+  const witnessDigestsBySignature = new Map();
+  for (const witness of relationshipSignatureWitnesses) {
+    if (!witnessDigestsBySignature.has(witness.relationshipSignatureIri)) {
+      witnessDigestsBySignature.set(witness.relationshipSignatureIri, []);
+    }
+    witnessDigestsBySignature.get(witness.relationshipSignatureIri).push(witness.witnessDigest);
+  }
+  for (const [signatureIri, values] of witnessDigestsBySignature) {
+    witnessDigestsBySignature.set(signatureIri, uniqueSorted(values));
+  }
+  const knownRelationshipSignatureIris = new Set(inventory.relationshipSignatures
+    .map(({ relationshipSignatureIri }) => relationshipSignatureIri));
+  const orphanRelationshipReviewIris = reviewProjection.relationshipSignatureReviews
+    .filter(({ signatureIris }) => signatureIris.length !== 1
+      || !knownRelationshipSignatureIris.has(signatureIris[0]))
+    .map(({ reviewIri }) => reviewIri);
+  const relationshipReviewRows = inventory.relationshipSignatures.map((signature) => {
+    const related = reviewProjection.relationshipSignatureReviews.filter(({ signatureIris }) => (
+      signatureIris.length === 1 && signatureIris[0] === signature.relationshipSignatureIri
+    ));
+    const witnessDigests = witnessDigestsBySignature.get(signature.relationshipSignatureIri) ?? [];
+    const expectedCandidate = atomicBySignature.get(signature.relationshipSignatureIri) ?? null;
+    const exact = related.filter((review) => {
+      if (review.dispositionIris.length !== 1
+        || !RELATIONSHIP_REVIEW_DISPOSITIONS.has(review.dispositionIris[0])
+        || review.reasonCodes.length !== 1 || !/^UNIVERSAL_[A-Z0-9_]+$/u.test(review.reasonCodes[0])
+        || review.evidenceDigests.length !== 1 || !SHA256.test(review.evidenceDigests[0])
+        || review.algorithmDigests.length !== 1 || !SHA256.test(review.algorithmDigests[0])) return false;
+      const candidatePair = !expectedCandidate
+        && review.candidateIris.length === 0 && review.candidateDigests.length === 0
+        ? { candidateDigest: null, candidateIri: null }
+        : review.candidateIris.length === 1 && review.candidateDigests.length === 1
+          && expectedCandidate && review.candidateIris[0] === expectedCandidate.candidateIri
+          && review.candidateDigests[0] === expectedCandidate.candidateDigest
+          ? { candidateDigest: review.candidateDigests[0], candidateIri: review.candidateIris[0] }
+          : null;
+      if (!candidatePair) return false;
+      const core = {
+        activeOccurrenceCount: signature.activeOccurrenceCount,
+        activeOccurrenceSetDigest: signature.activeOccurrenceSetDigest,
+        algorithmDigest: review.algorithmDigests[0],
+        authorityDigest: inventory.authorityBinding.authorityDigest,
+        ...candidatePair,
+        directionIri: 'urn:usf:permutationpathdirection:outbound',
+        dispositionIri: review.dispositionIris[0], evidenceDigest: review.evidenceDigests[0],
+        inventoryDigest: inventory.inventoryDigest, objectClassIris: signature.objectClassIris,
+        objectClassSetDigest: digest(signature.objectClassIris),
+        objectDatatypeIri: signature.objectDatatypeIri,
+        objectTermKindIri: RDF_TERM_KIND_IRI[signature.objectTermKind] ?? null,
+        predicateIri: signature.predicateIri, reasonCode: review.reasonCodes[0],
+        registryDigest: registry.registryDigest,
+        relationshipSignatureDigest: signature.relationshipSignatureDigest,
+        relationshipSignatureIri: signature.relationshipSignatureIri,
+        subjectClassIris: signature.subjectClassIris,
+        subjectClassSetDigest: digest(signature.subjectClassIris),
+        subjectTermKindIri: RDF_TERM_KIND_IRI[signature.subjectTermKind] ?? null,
+        witnessDigests, witnessSetDigest: digest(witnessDigests),
+      };
+      return canonicalJson({
+        activeOccurrenceCounts: review.activeOccurrenceCounts,
+        activeOccurrenceSetDigests: review.activeOccurrenceSetDigests,
+        authorityDigests: review.authorityDigests, directionIris: review.directionIris,
+        inventoryDigests: review.inventoryDigests, objectClassIris: review.objectClassIris,
+        objectClassSetDigests: review.objectClassSetDigests,
+        objectDatatypeIris: review.objectDatatypeIris, objectTermKindIris: review.objectTermKindIris,
+        predicateIris: review.predicateIris, registryDigests: review.registryDigests,
+        reviewDigests: review.reviewDigests, signatureDigests: review.signatureDigests,
+        subjectClassIris: review.subjectClassIris,
+        subjectClassSetDigests: review.subjectClassSetDigests,
+        subjectTermKindIris: review.subjectTermKindIris,
+        witnessDigests: review.witnessDigests, witnessSetDigests: review.witnessSetDigests,
+      }) === canonicalJson({
+        activeOccurrenceCounts: [String(core.activeOccurrenceCount)],
+        activeOccurrenceSetDigests: [core.activeOccurrenceSetDigest],
+        authorityDigests: [core.authorityDigest], directionIris: [core.directionIri],
+        inventoryDigests: [core.inventoryDigest], objectClassIris: core.objectClassIris,
+        objectClassSetDigests: [core.objectClassSetDigest],
+        objectDatatypeIris: core.objectDatatypeIri ? [core.objectDatatypeIri] : [],
+        objectTermKindIris: [core.objectTermKindIri], predicateIris: [core.predicateIri],
+        registryDigests: [core.registryDigest], reviewDigests: [digest(core)],
+        signatureDigests: [core.relationshipSignatureDigest], subjectClassIris: core.subjectClassIris,
+        subjectClassSetDigests: [core.subjectClassSetDigest], subjectTermKindIris: [core.subjectTermKindIri],
+        witnessDigests: core.witnessDigests, witnessSetDigests: [core.witnessSetDigest],
+      });
+    });
+    const reviewState = related.length === 0 ? 'REVIEW_MISSING'
+      : related.length > 1 ? 'REVIEW_DUPLICATE'
+        : exact.length === 1 ? 'REVIEW_CURRENT' : 'REVIEW_STALE_OR_INVALID';
+    return {
+      acceptedDispositionIri: reviewState === 'REVIEW_CURRENT' ? exact[0].dispositionIris[0] : null,
+      acceptedReasonCode: reviewState === 'REVIEW_CURRENT' ? exact[0].reasonCodes[0] : null,
+      acceptedReviewDigest: reviewState === 'REVIEW_CURRENT' ? exact[0].reviewDigests[0] : null,
+      acceptedReviewIri: reviewState === 'REVIEW_CURRENT' ? exact[0].reviewIri : null,
+      relationshipSignatureIri: signature.relationshipSignatureIri,
+      reviewCount: related.length,
+      reviewState,
+    };
+  }).sort((a, b) => compare(a.relationshipSignatureIri, b.relationshipSignatureIri));
+  const relationshipReviewGaps = relationshipReviewRows
+    .filter(({ reviewState }) => reviewState !== 'REVIEW_CURRENT')
+    .map(({ relationshipSignatureIri, reviewState }) => ({
+      code: `UNIVERSAL_RELATIONSHIP_${reviewState}`,
+      relationshipSignatureIri,
+    })).concat(orphanRelationshipReviewIris.map((reviewIri) => ({
+      code: 'UNIVERSAL_RELATIONSHIP_REVIEW_ORPHAN', reviewIri,
+    })));
+  const relationshipSignatureReview = {
+    currentReviewCount: relationshipReviewRows.filter(({ reviewState }) => reviewState === 'REVIEW_CURRENT').length,
+    duplicateReviewCount: relationshipReviewRows.filter(({ reviewState }) => reviewState === 'REVIEW_DUPLICATE').length,
+    gaps: relationshipReviewGaps,
+    missingReviewCount: relationshipReviewRows.filter(({ reviewState }) => reviewState === 'REVIEW_MISSING').length,
+    orphanReviewCount: orphanRelationshipReviewIris.length,
+    orphanReviewIris: orphanRelationshipReviewIris,
+    reviewSetDigest: digest(relationshipReviewRows),
+    reviewStatePartition: Object.fromEntries([
+      'REVIEW_CURRENT', 'REVIEW_MISSING', 'REVIEW_DUPLICATE', 'REVIEW_STALE_OR_INVALID',
+    ].map((state) => [state, relationshipReviewRows
+      .filter(({ reviewState }) => reviewState === state).length])),
+    rows: relationshipReviewRows,
+    staleOrInvalidReviewCount: relationshipReviewRows
+      .filter(({ reviewState }) => reviewState === 'REVIEW_STALE_OR_INVALID').length,
+  };
+  const relationshipSignatureDispositions = [];
+  const relationshipSignatureGaps = [];
+  for (const signature of inventory.relationshipSignatures) {
+    const owned = signatureWitnessByIri.get(signature.relationshipSignatureIri) ?? [];
+    const review = relationshipReviewRows.find(({ relationshipSignatureIri }) => (
+      relationshipSignatureIri === signature.relationshipSignatureIri
+    ));
+    const externalDecision = review?.acceptedDispositionIri
+      === 'urn:usf:permutationrelationshipreviewdisposition:externalauthoritydecisionrequired';
+    const disposition = owned.length ? 'EXACT_FAMILY_COVERAGE'
+      : review?.reviewState === 'REVIEW_CURRENT' && !externalDecision
+        ? 'AUTHORITY_REVIEWED_SEMANTIC_CORRECTION_REQUIRED' : 'AUTHORITY_REVIEW_REQUIRED';
+    const reasonCode = owned.length ? 'UNIVERSAL_RELATIONSHIP_SIGNATURE_EXACT_SELECTOR_WITNESS'
+      : review?.reviewState === 'REVIEW_CURRENT'
+        ? externalDecision ? 'UNIVERSAL_RELATIONSHIP_EXTERNAL_AUTHORITY_DECISION_REQUIRED'
+          : 'UNIVERSAL_RELATIONSHIP_SEMANTIC_CORRECTION_REQUIRED'
+        : `UNIVERSAL_RELATIONSHIP_${review?.reviewState ?? 'REVIEW_MISSING'}`;
+    const core = {
+      authorityDigest: inventory.authorityBinding.authorityDigest, disposition,
+      inventoryDigest: inventory.inventoryDigest, reasonCode,
+      relationshipReviewDigest: review?.acceptedReviewDigest ?? null,
+      relationshipReviewIri: review?.acceptedReviewIri ?? null,
+      relationshipSignatureDigest: signature.relationshipSignatureDigest,
+      relationshipSignatureIri: signature.relationshipSignatureIri, schemaVersion: 3,
+      witnessDigests: owned.map(({ witnessDigest }) => witnessDigest).sort(compare),
+    };
+    relationshipSignatureDispositions.push({ ...core, dispositionDigest: digest(core) });
+    if (!owned.length && review?.reviewState === 'REVIEW_CURRENT') relationshipSignatureGaps.push({
+      code: reasonCode, predicateIri: signature.predicateIri,
+      relationshipReviewIri: review?.acceptedReviewIri ?? null,
+      relationshipSignatureIri: signature.relationshipSignatureIri,
+    });
+  }
   const knownFamilies = new Set(registry.families.map(({ familyIri }) => familyIri));
   const orphanFamilyReviewIris = reviewProjection.familySignatureReviews.filter(({ familyIris }) => (
     familyIris.length !== 1 || !knownFamilies.has(familyIris[0])
@@ -1599,6 +1896,8 @@ function reconstructAnalysis(inventory, registry, reviewProjection) {
     ...inventory.undeclaredClassIris.map((termIri) => ({ code: 'UNIVERSAL_ACTIVE_CLASS_UNDECLARED', termIri })),
     ...inventory.undeclaredPredicateIris.map((predicateIri) => ({ code: 'UNIVERSAL_ACTIVE_RELATIONSHIP_UNDECLARED', predicateIri })),
     ...dispositionGaps, ...relationshipSignatureGaps, ...atomicGaps,
+    ...atomicCandidateProjection.gaps,
+    ...relationshipSignatureReview.gaps,
     ...atomicCandidates.map(({ candidateIri, predicateIri, relationshipSignatureIri }) => ({
       candidateIri, code: 'UNIVERSAL_CANDIDATE_MODEL_NOT_AUTHORITY',
       predicateIri, relationshipSignatureIri,
@@ -1612,16 +1911,19 @@ function reconstructAnalysis(inventory, registry, reviewProjection) {
     'ZERO_INSTANCE_WITH_EXPLICIT_STATE',
   ].map((state) => [state, termDispositions.filter(({ disposition }) => disposition === state).length]));
   const relationshipSignatureDispositionPartition = Object.fromEntries([
-    'AUTHORITY_REVIEW_REQUIRED', 'EXACT_FAMILY_COVERAGE',
+    'AUTHORITY_REVIEW_REQUIRED', 'AUTHORITY_REVIEWED_SEMANTIC_CORRECTION_REQUIRED',
+    'EXACT_FAMILY_COVERAGE',
   ].map((state) => [state, relationshipSignatureDispositions
     .filter(({ disposition }) => disposition === state).length]));
   return {
     atomicCandidates,
+    atomicCandidateProjection,
     gaps,
     registeredFamilyModelReview,
     registeredReviewCoverage,
     relationshipSignatureDispositionPartition,
     relationshipSignatureDispositions,
+    relationshipSignatureReview,
     relationshipSignatureWitnesses,
     termDispositionPartition,
     termDispositions,
@@ -1662,6 +1964,16 @@ export function proveUniversalSemanticCoverage({
   verifyInternalDigest(analysis, 'analysisDigest', 'UNIVERSAL_PROOF_ANALYSIS_DIGEST_MISMATCH');
   verifyInternalDigest(foundationAssessment, 'assessmentDigest', 'UNIVERSAL_PROOF_FOUNDATION_DIGEST_MISMATCH');
   verifyInternalDigest(foundationProof, 'proofDigest', 'UNIVERSAL_PROOF_FOUNDATION_DIGEST_MISMATCH');
+  if (reviewProjection.recordKind !== 'USF_UNIVERSAL_REVIEW_PROJECTION'
+    || reviewProjection.schemaVersion !== 3) {
+    fail('UNIVERSAL_PROOF_REVIEW_PROJECTION_SCHEMA_MISMATCH',
+      'the independent proof requires the exact schema-3 review projection');
+  }
+  if (analysis.recordKind !== 'USF_UNIVERSAL_FAMILY_COMPLETENESS_ANALYSIS'
+    || analysis.schemaVersion !== 6) {
+    fail('UNIVERSAL_PROOF_ANALYSIS_SCHEMA_MISMATCH',
+      'the independent proof requires the exact schema-6 completeness analysis');
+  }
   if (canonicalJson(inventory.authorityBinding) !== canonicalJson(authorityBinding)
     || canonicalJson(foundationAssessment.baselineAuthorityBinding) !== canonicalJson(authorityBinding)
     || canonicalJson(foundationProof.baselineAuthorityBinding) !== canonicalJson(authorityBinding)
@@ -1742,6 +2054,16 @@ export function proveUniversalSemanticCoverage({
       'review projection differs from current semantic source bytes');
   }
   const reconstructed = reconstructAnalysis(inventory, registry, reviewProjection);
+  if (canonicalJson(reconstructed.atomicCandidateProjection)
+      !== canonicalJson(analysis.atomicCandidateProjection)) {
+    fail('UNIVERSAL_PROOF_ATOMIC_CANDIDATE_PROJECTION_SUBSTITUTION',
+      'atomic candidate projection differs from independent expected/projected-set reconciliation');
+  }
+  if (canonicalJson(reconstructed.relationshipSignatureReview)
+      !== canonicalJson(analysis.relationshipSignatureReview)) {
+    fail('UNIVERSAL_PROOF_RELATIONSHIP_REVIEW_BINDING_SUBSTITUTION',
+      'relationship review state differs from independent exact-signature reconciliation');
+  }
   const analysisMismatches = [];
   const compareAnalysis = (field, expected, actual) => {
     if (canonicalJson(expected) !== canonicalJson(actual)) analysisMismatches.push(field);
@@ -1789,6 +2111,10 @@ export function proveUniversalSemanticCoverage({
     }));
   compareAnalysis('atomicCandidatePredicateCounts', atomicCandidatePredicateCounts,
     analysis.atomicCandidatePredicateCounts);
+  compareAnalysis('atomicCandidateProjection', reconstructed.atomicCandidateProjection,
+    analysis.atomicCandidateProjection);
+  compareAnalysis('relationshipSignatureReview', reconstructed.relationshipSignatureReview,
+    analysis.relationshipSignatureReview);
   compareAnalysis('gaps', reconstructed.gaps, analysis.gaps);
   compareAnalysis('gapCount', reconstructed.gaps.length, analysis.gapCount);
   compareAnalysis('gapSetDigest', digest(reconstructed.gaps), analysis.gapSetDigest);
@@ -1824,9 +2150,13 @@ export function proveUniversalSemanticCoverage({
     registryDigest: registry.registryDigest,
     results: {
       analysisReconstructionMismatchCount: 0,
-      atomicEndpointAmbiguityCount: reconstructed.gaps.filter(({ code }) => (
-        code.startsWith('UNIVERSAL_ATOMIC_CANDIDATE_')
-      )).length,
+      atomicCandidateProjectionDuplicateCount: reconstructed.atomicCandidateProjection.duplicateCount,
+      atomicCandidateProjectionMissingCount: reconstructed.atomicCandidateProjection.missingCount,
+      atomicCandidateProjectionOrphanCount: reconstructed.atomicCandidateProjection.orphanCount,
+      atomicCandidateProjectionStaleOrInvalidCount:
+        reconstructed.atomicCandidateProjection.staleOrInvalidCount,
+      atomicEndpointAmbiguityCount: reconstructed.gaps
+        .filter(({ code }) => ATOMIC_ENDPOINT_GAP_CODES.has(code)).length,
       familyReconstructionMismatchCount: 0,
       inventoryReconstructionMismatchCount: 0,
       unresolvedAtomicCandidateCount: reconstructed.atomicCandidates.length,
@@ -1838,13 +2168,19 @@ export function proveUniversalSemanticCoverage({
         .filter(({ disposition }) => disposition === 'AUTHORITY_REVIEW_REQUIRED').length,
       unresolvedRelationshipSignatureCount: reconstructed.relationshipSignatureDispositions
         .filter(({ disposition }) => disposition === 'AUTHORITY_REVIEW_REQUIRED').length,
+      relationshipSignatureReviewCurrentCount: reconstructed.relationshipSignatureReview.currentReviewCount,
+      relationshipSignatureReviewDuplicateCount: reconstructed.relationshipSignatureReview.duplicateReviewCount,
+      relationshipSignatureReviewMissingCount: reconstructed.relationshipSignatureReview.missingReviewCount,
+      relationshipSignatureReviewOrphanCount: reconstructed.relationshipSignatureReview.orphanReviewCount,
+      relationshipSignatureReviewStaleOrInvalidCount:
+        reconstructed.relationshipSignatureReview.staleOrInvalidReviewCount,
       validatorDependencyUnresolvedTermCount: reconstructed.termDispositions
         .filter(({ reasonFacets }) => reasonFacets
           .includes('UNIVERSAL_VALIDATOR_DEPENDENCY_UNDISPOSITIONED')).length,
     },
     reviewProjectionDigest: reviewProjection.reviewProjectionDigest,
     reviewSourceSetDigest: independentReviewProjection.reviewSourceSetDigest,
-    schemaVersion: 4,
+    schemaVersion: 5,
     sourceSetDigest: independent.sourceSetDigest,
     verdict: 'UNIVERSAL_SEMANTIC_GAP_AND_CROSS_PRODUCT_RECONSTRUCTION_PASS',
   };

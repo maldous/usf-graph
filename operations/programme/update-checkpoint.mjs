@@ -79,6 +79,24 @@ function digestWorkingPath(path) {
   return sha256(readFileSync(absolutePath));
 }
 
+function readContentAddressedJson(path) {
+  const fileDigest = digestWorkingPath(path);
+  if (!fileDigest) throw new Error(`current wave artefact is absent or not a regular file: ${path}`);
+  const match = path.match(/-([0-9a-f]{64})\.json$/u);
+  if (!match || fileDigest !== `sha256:${match[1]}`) {
+    throw new Error(`current wave artefact path is not bound to its byte digest: ${path}`);
+  }
+  return {
+    fileDigest,
+    path,
+    record: JSON.parse(readFileSync(join(repositoryRoot, path), 'utf8')),
+  };
+}
+
+function requireEqual(actual, expected, label) {
+  if (actual !== expected) throw new Error(`${label}: expected ${expected}, observed ${actual}`);
+}
+
 function trackedInventory() {
   const records = gitBuffer(['ls-files', '-s', '-z']).toString('utf8').split('\0').filter(Boolean);
   return records.map((record) => {
@@ -199,17 +217,62 @@ if (optionAcquisitionRecord.authorityDigest !== optionAcquisition.authorityDiges
   throw new Error('realisation-option acquisition CAS record does not match its authority or set binding');
 }
 
+const currentWavePaths = {
+  foundationAssessment: '.work/generated/foundation-domain-closure-assessment-8243a59f8b66008523a7a1350ddcba00c13b7f5b37e5a6d9ddef84bd70481f61.json',
+  foundationProof: '.work/generated/foundation-domain-closure-proof-d506796d4ae5002e5694fd34a70505013b2b6aca9321de2fd748e61a71da87b8.json',
+  localShaclEvidence: '.work/generated/local-shacl-relationship-review-wave-bf7c02bcd827ef20cf4d66e402e6c2ec744191c89cd5a7c0dc66d15895b04bf3.json',
+  universalAnalysis: '.work/generated/universal-family-completeness-analysis-d4b298ec651d4929cf5ef06c83cc29037132c5b12db8cb8984eb345d0802e4d4.json',
+  universalInventory: '.work/generated/universal-semantic-inventory-8d1fd6a44f6c2ebab8384e7d7b0ccd882b07c29b2098a12d7b3a59eab2c774d2.json',
+  universalProof: '.work/generated/universal-semantic-coverage-proof-db86340a264cedcf17b17bab333d4b966b93cda64fbc2d9db14e120d009065e4.json',
+  universalRegistry: '.work/generated/universal-family-registry-48a591a52d84a4522b8b7ba0bf29b96f7c12fdff13a38482b8d01ec3c7f876ff.json',
+  universalReviewProjection: '.work/generated/universal-review-projection-51d7e1e32ad74afc7fdf46951eac55c9550d3e61ee83489d6398b79603e07fb1.json',
+};
+const currentWaveArtifacts = Object.fromEntries(Object.entries(currentWavePaths)
+  .map(([key, path]) => [key, readContentAddressedJson(path)]));
+const foundationAssessmentRecord = currentWaveArtifacts.foundationAssessment.record;
+const foundationProofRecord = currentWaveArtifacts.foundationProof.record;
+const localShaclEvidenceRecord = currentWaveArtifacts.localShaclEvidence.record;
+const universalAnalysisRecord = currentWaveArtifacts.universalAnalysis.record;
+const universalInventoryRecord = currentWaveArtifacts.universalInventory.record;
+const universalProofRecord = currentWaveArtifacts.universalProof.record;
+const universalRegistryRecord = currentWaveArtifacts.universalRegistry.record;
+const universalReviewProjectionRecord = currentWaveArtifacts.universalReviewProjection.record;
+
+requireEqual(foundationProofRecord.assessmentDigest, foundationAssessmentRecord.assessmentDigest, 'foundation proof assessment binding');
+requireEqual(universalAnalysisRecord.foundationAssessmentDigest, foundationAssessmentRecord.assessmentDigest, 'universal analysis foundation assessment binding');
+requireEqual(universalAnalysisRecord.foundationProofDigest, foundationProofRecord.proofDigest, 'universal analysis foundation proof binding');
+requireEqual(universalAnalysisRecord.inventoryDigest, universalInventoryRecord.inventoryDigest, 'universal analysis inventory binding');
+requireEqual(universalAnalysisRecord.registryDigest, universalRegistryRecord.registryDigest, 'universal analysis registry binding');
+requireEqual(universalAnalysisRecord.reviewProjectionDigest, universalReviewProjectionRecord.reviewProjectionDigest, 'universal analysis review projection binding');
+requireEqual(universalProofRecord.analysisDigest, universalAnalysisRecord.analysisDigest, 'universal proof analysis binding');
+requireEqual(universalProofRecord.inventoryDigest, universalInventoryRecord.inventoryDigest, 'universal proof inventory binding');
+requireEqual(universalProofRecord.registryDigest, universalRegistryRecord.registryDigest, 'universal proof registry binding');
+requireEqual(universalProofRecord.reviewProjectionDigest, universalReviewProjectionRecord.reviewProjectionDigest, 'universal proof review projection binding');
+requireEqual(universalProofRecord.authorityBinding.authorityDigest, optionAcquisition.authorityDigest, 'universal proof authority binding');
+requireEqual(universalInventoryRecord.authorityBinding.authorityDigest, optionAcquisition.authorityDigest, 'universal inventory authority binding');
+requireEqual(universalAnalysisRecord.authorityDigest, optionAcquisition.authorityDigest, 'universal analysis authority binding');
+
+const universalProofMismatchFields = [
+  'analysisReconstructionMismatchCount',
+  'familyReconstructionMismatchCount',
+  'inventoryReconstructionMismatchCount',
+  'reviewProjectionReconstructionMismatchCount',
+  'reviewSourceReconstructionMismatchCount',
+];
+const universalReconstructionMismatchCount = universalProofMismatchFields
+  .reduce((sum, field) => sum + universalProofRecord.results[field], 0);
+
 const nextExactAction = directiveReconciled ? {
-  action: 'Inspect the largest current subject-local universal-review gap groups from the digest-bound analysis, then resolve the first evidence-backed group without inventing semantic decisions.',
+  action: 'Inspect the largest residual subject-local review gap groups through the analysis path recorded by the verified checkpoint, then resolve the first evidence-backed group without inventing semantic decisions.',
   authorityDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
-  command: "jq -r '.gaps | group_by(.code) | map({code: .[0].code, count: length}) | sort_by(-.count, .code)' .work/generated/universal-family-completeness-analysis-be5bb47cabe054d7012d7e98d6cddd05b4ef8435aaa5169215edeb8ac58e5d09.json",
+  command: "analysis_path=$(jq -er '.permutationClosure.universalFamilyModel.analysisPath' .work/programme/checkpoint.json) && jq -er '{verdict, gapCount, relationshipSignatureDispositionPartition, atomicCandidateCount, gapGroups:(.gaps | group_by(.code) | map({code:.[0].code,count:length}) | sort_by(-.count,.code))}' \"$analysis_path\"",
   preconditions: [
     'authority digest and authority packet/projection byte digests remain exact',
     'no authority mutation transaction or modifying worker is active',
     'foundation-domain closure assessment and independent proof remain current',
-    'the exact value-domain registry and subject-local witness correction remains committed and pushed',
     'the current universal independent reconstruction has zero inventory, family, review, analysis, and source mismatches',
-    'the prior integrated 100-test result remains stale until the coherent review wave boundary',
+    'the relationship-review and candidate-projection focused and integrated local gates are current',
+    'the local SHACL evidence evaluates every compatible registered constraint with zero violations and zero exclusions',
     'candidate reviews remain unpublished and cannot establish semantic truth',
   ],
   semanticIdentifiers: [
@@ -298,19 +361,20 @@ const gateSummary = [
 
 const permutationClosure = {
   foundationDomain: {
-    assessmentDigest: 'sha256:9261fccdbf0f4e4a70338ea3167e0ed968be8c67780915e7d2ce92724a40def0',
-    assessmentFileDigest: 'sha256:0088a03a961ef6f4b2a35f32e18b27367bbdab21cb1aac8c9fe7882c11c9bdc9',
-    assessmentPath: '.work/generated/foundation-domain-closure-assessment-0088a03a961ef6f4b2a35f32e18b27367bbdab21cb1aac8c9fe7882c11c9bdc9.json',
-    dimensionBindingOccurrenceCount: 304,
-    emptyDomainCount: 0,
-    familyCount: 108,
-    fixtureCombinationCount: 80911,
-    proofDigest: 'sha256:3af4cb5a377a6001207d5bf9495f8bc0cd0decf1b8744898f064166bd0330df9',
-    proofFileDigest: 'sha256:743677482dbca73d9538b3a07d4e51aa440b4d277993c80bc59195422046ff3a',
-    proofPath: '.work/generated/foundation-domain-closure-proof-743677482dbca73d9538b3a07d4e51aa440b4d277993c80bc59195422046ff3a.json',
-    proofVerdict: 'FOUNDATION_DOMAIN_CLOSURE_PROOF_PASS',
-    uniqueDimensionCount: 245,
-    verdict: 'FOUNDATION_DOMAIN_CLOSURE_COMPLETE',
+    assessmentDigest: foundationAssessmentRecord.assessmentDigest,
+    assessmentFileDigest: currentWaveArtifacts.foundationAssessment.fileDigest,
+    assessmentPath: currentWaveArtifacts.foundationAssessment.path,
+    dimensionBindingOccurrenceCount: foundationAssessmentRecord.dimensionBindingOccurrenceCount,
+    emptyDomainCount: foundationProofRecord.results.emptyDomainCount,
+    familyCount: foundationAssessmentRecord.familyCount,
+    fixtureCombinationCount: foundationAssessmentRecord.totalCombinationCount,
+    proofDigest: foundationProofRecord.proofDigest,
+    proofFileDigest: currentWaveArtifacts.foundationProof.fileDigest,
+    proofPath: currentWaveArtifacts.foundationProof.path,
+    proofReconstructionMismatchCount: foundationProofRecord.results.reconstructionMismatchCount,
+    proofVerdict: foundationProofRecord.verdict,
+    uniqueDimensionCount: foundationAssessmentRecord.uniqueDimensionCount,
+    verdict: foundationAssessmentRecord.foundationVerdict,
   },
   supersededProjectionBindings: {
     familyCount34: 'SUPERSEDED',
@@ -320,37 +384,64 @@ const permutationClosure = {
     finiteDomainGapCount371: 'SUPERSEDED',
   },
   universalFamilyModel: {
-    analysisDigest: 'sha256:262aa48a3e1143e015e9fdd8cdfea6db226ee5b7b3d1495e25b7398befb1bb5d',
-    analysisFileDigest: 'sha256:be5bb47cabe054d7012d7e98d6cddd05b4ef8435aaa5169215edeb8ac58e5d09',
-    analysisPath: '.work/generated/universal-family-completeness-analysis-be5bb47cabe054d7012d7e98d6cddd05b4ef8435aaa5169215edeb8ac58e5d09.json',
-    atomicEndpointAmbiguityCount: 470,
-    atomicCandidateCount: 1555,
-    authorityReviewRequiredTermCount: 12106,
-    familyCount: 108,
-    gapCount: 33011,
-    independentProofDigest: 'sha256:029e589c8a8c63afdaddd38ba580ca33abcd7d9a22278b3cedfa67218bbee007',
-    independentProofFileDigest: 'sha256:4f229b9aad1d8cbb53f0ee8583df92f508c3cf49abbccdc1e6aba48a40d35bd8',
-    independentProofPath: '.work/generated/universal-semantic-coverage-proof-4f229b9aad1d8cbb53f0ee8583df92f508c3cf49abbccdc1e6aba48a40d35bd8.json',
-    independentProofVerdict: 'UNIVERSAL_SEMANTIC_GAP_AND_CROSS_PRODUCT_RECONSTRUCTION_PASS',
-    inventoryDigest: 'sha256:4cb28a7bed578d51cdfb1120d44bd6714615f67e8404b9ee5f75c04eabf48e32',
-    inventoryFileDigest: 'sha256:1aef438a34cf38b799b6926282f0cad04e258110bd344ea7e2568ccadace7e47',
-    inventoryPath: '.work/generated/universal-semantic-inventory-1aef438a34cf38b799b6926282f0cad04e258110bd344ea7e2568ccadace7e47.json',
-    missingFamilyReviewCount: 108,
-    registryDigest: 'sha256:1c45e27d1a611e33d2c7b495b17715fa70b95b937a2e8f6cc369219e72d2a0bf',
-    registryFileDigest: 'sha256:c8fb16617c6ea58a761165b149f50cf9f40c85c64d1f0546f76d98e418436b50',
-    registryPath: '.work/generated/universal-family-registry-c8fb16617c6ea58a761165b149f50cf9f40c85c64d1f0546f76d98e418436b50.json',
-    relationshipSignatureReviewRequiredCount: 2025,
-    reviewProjectionDigest: 'sha256:20dc5ca399e84ca2ba1a52f29ba73f834b0865fdce287eae5ab0437c3f49fc94',
-    reviewProjectionFileDigest: 'sha256:56b87808955eb40d1bd2052ff8f3850b58f8fdd0fdaa3a0ff8573b9fbd2d4248',
-    reviewProjectionPath: '.work/generated/universal-review-projection-56b87808955eb40d1bd2052ff8f3850b58f8fdd0fdaa3a0ff8573b9fbd2d4248.json',
-    witnessCount: 13511,
-    witnessIndexDigest: 'sha256:7919c491e5113b14201f14110a2d58195ebbfdd826d0c8215e73a635fe0d15bc',
-    validatorDependencyUnresolvedTermCount: 999,
-    verdict: 'UNIVERSAL_FAMILY_MODEL_INCOMPLETE',
+    analysisDigest: universalAnalysisRecord.analysisDigest,
+    analysisFileDigest: currentWaveArtifacts.universalAnalysis.fileDigest,
+    analysisPath: currentWaveArtifacts.universalAnalysis.path,
+    atomicCandidateCount: universalAnalysisRecord.atomicCandidateCount,
+    atomicCandidateProjectionCurrentCount: universalAnalysisRecord.atomicCandidateProjection.currentCount,
+    atomicCandidateProjectionDuplicateCount: universalAnalysisRecord.atomicCandidateProjection.duplicateCount,
+    atomicCandidateProjectionMissingCount: universalAnalysisRecord.atomicCandidateProjection.missingCount,
+    atomicCandidateProjectionOrphanCount: universalAnalysisRecord.atomicCandidateProjection.orphanCount,
+    atomicCandidateProjectionStaleOrInvalidCount: universalAnalysisRecord.atomicCandidateProjection.staleOrInvalidCount,
+    atomicEndpointAmbiguityCount: universalProofRecord.results.atomicEndpointAmbiguityCount,
+    authorityReviewRequiredTermCount: universalProofRecord.results.unresolvedSemanticTermCount,
+    classCount: universalInventoryRecord.classCount,
+    familyCount: universalRegistryRecord.familyCount,
+    gapCount: universalAnalysisRecord.gapCount,
+    independentProofDigest: universalProofRecord.proofDigest,
+    independentProofFileDigest: currentWaveArtifacts.universalProof.fileDigest,
+    independentProofPath: currentWaveArtifacts.universalProof.path,
+    independentProofReconstructionMismatchCount: universalReconstructionMismatchCount,
+    independentProofVerdict: universalProofRecord.verdict,
+    individualCount: universalInventoryRecord.individualCount,
+    inventoryDigest: universalInventoryRecord.inventoryDigest,
+    inventoryFileDigest: currentWaveArtifacts.universalInventory.fileDigest,
+    inventoryPath: currentWaveArtifacts.universalInventory.path,
+    missingFamilyReviewCount: universalAnalysisRecord.registeredFamilyModelReview.missingReviewCount,
+    projectedFamilyCandidateCount: universalReviewProjectionRecord.familyCandidateCount,
+    projectedRelationshipSignatureReviewCount: universalReviewProjectionRecord.relationshipSignatureReviewCount,
+    propertyCount: universalInventoryRecord.propertyCount,
+    registryDigest: universalRegistryRecord.registryDigest,
+    registryFileDigest: currentWaveArtifacts.universalRegistry.fileDigest,
+    registryPath: currentWaveArtifacts.universalRegistry.path,
+    relationshipCategoryCount: universalInventoryRecord.relationshipCategoryCount,
+    relationshipSignatureCount: universalInventoryRecord.relationshipSignatureCount,
+    relationshipSignatureDispositionPartition: universalAnalysisRecord.relationshipSignatureDispositionPartition,
+    relationshipSignatureReviewCurrentCount: universalProofRecord.results.relationshipSignatureReviewCurrentCount,
+    relationshipSignatureReviewDuplicateCount: universalProofRecord.results.relationshipSignatureReviewDuplicateCount,
+    relationshipSignatureReviewMissingCount: universalProofRecord.results.relationshipSignatureReviewMissingCount,
+    relationshipSignatureReviewOrphanCount: universalProofRecord.results.relationshipSignatureReviewOrphanCount,
+    relationshipSignatureReviewStaleOrInvalidCount: universalProofRecord.results.relationshipSignatureReviewStaleOrInvalidCount,
+    reviewProjectionDigest: universalReviewProjectionRecord.reviewProjectionDigest,
+    reviewProjectionFileDigest: currentWaveArtifacts.universalReviewProjection.fileDigest,
+    reviewProjectionPath: currentWaveArtifacts.universalReviewProjection.path,
+    semanticTermCount: universalInventoryRecord.termCount,
+    termDispositionPartition: universalAnalysisRecord.termDispositionPartition,
+    unresolvedRelationshipSignatureCount: universalProofRecord.results.unresolvedRelationshipSignatureCount,
+    validatorDependencyUnresolvedTermCount: universalProofRecord.results.validatorDependencyUnresolvedTermCount,
+    verdict: universalAnalysisRecord.verdict,
+    witnessCount: universalAnalysisRecord.witnessCount,
+    witnessIndexDigest: universalAnalysisRecord.witnessIndexDigest,
   },
   verdict: 'PERMUTATION_CLOSURE_INCOMPLETE',
   verdictKind: 'INTERMEDIATE_NEVER_OVERALL_TERMINAL',
 };
+
+requireEqual(universalProofRecord.familyCount, permutationClosure.universalFamilyModel.familyCount, 'universal proof family count');
+requireEqual(universalProofRecord.gapCount, permutationClosure.universalFamilyModel.gapCount, 'universal proof gap count');
+requireEqual(universalProofRecord.results.atomicCandidateProjectionMissingCount, permutationClosure.universalFamilyModel.atomicCandidateProjectionMissingCount, 'universal proof missing atomic candidate count');
+requireEqual(universalProofRecord.results.relationshipSignatureReviewMissingCount, permutationClosure.universalFamilyModel.relationshipSignatureReviewMissingCount, 'universal proof missing relationship review count');
+requireEqual(universalProofRecord.candidateVerdict, permutationClosure.universalFamilyModel.verdict, 'universal proof candidate verdict');
 
 const currentWaveArtifactBindings = [
   { fileDigest: permutationClosure.foundationDomain.assessmentFileDigest, internalDigest: permutationClosure.foundationDomain.assessmentDigest, internalField: 'assessmentDigest', path: permutationClosure.foundationDomain.assessmentPath },
@@ -360,6 +451,7 @@ const currentWaveArtifactBindings = [
   { fileDigest: permutationClosure.universalFamilyModel.reviewProjectionFileDigest, internalDigest: permutationClosure.universalFamilyModel.reviewProjectionDigest, internalField: 'reviewProjectionDigest', path: permutationClosure.universalFamilyModel.reviewProjectionPath },
   { fileDigest: permutationClosure.universalFamilyModel.analysisFileDigest, internalDigest: permutationClosure.universalFamilyModel.analysisDigest, internalField: 'analysisDigest', path: permutationClosure.universalFamilyModel.analysisPath },
   { fileDigest: permutationClosure.universalFamilyModel.independentProofFileDigest, internalDigest: permutationClosure.universalFamilyModel.independentProofDigest, internalField: 'proofDigest', path: permutationClosure.universalFamilyModel.independentProofPath },
+  { fileDigest: currentWaveArtifacts.localShaclEvidence.fileDigest, internalDigest: localShaclEvidenceRecord.evidenceDigest, internalField: 'evidenceDigest', path: currentWaveArtifacts.localShaclEvidence.path },
   { fileDigest: 'sha256:2b557090632299e1b28feef07f4f770cdd1b9229019a4586824cc06a9fdb4739', internalDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd', internalField: 'authorityDigest', path: '.work/generated/permutation-authority-packet-2b557090632299e1b28feef07f4f770cdd1b9229019a4586824cc06a9fdb4739.json' },
   { fileDigest: 'sha256:886abdaedb6bb18f82bb90a218a525d64bd1027b999f49f0dc11e001df4e1c16', internalDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd', internalField: 'authorityDigest', path: '.work/generated/permutation-authority-projection-886abdaedb6bb18f82bb90a218a525d64bd1027b999f49f0dc11e001df4e1c16.json' },
 ];
@@ -614,15 +706,17 @@ const checkpoint = {
       verdict: permutationClosure.foundationDomain.proofVerdict,
     },
     universalSemanticCoverage: {
-      atomicEndpointAmbiguityCount: 470,
+      atomicCandidateProjectionMissingCount: permutationClosure.universalFamilyModel.atomicCandidateProjectionMissingCount,
+      atomicEndpointAmbiguityCount: permutationClosure.universalFamilyModel.atomicEndpointAmbiguityCount,
       proofDigest: permutationClosure.universalFamilyModel.independentProofDigest,
-      reconstructionMismatchCount: 0,
+      reconstructionMismatchCount: permutationClosure.universalFamilyModel.independentProofReconstructionMismatchCount,
+      relationshipSignatureReviewMissingCount: permutationClosure.universalFamilyModel.relationshipSignatureReviewMissingCount,
       state: 'CURRENT_LOCAL_INDEPENDENT_RECONSTRUCTION_NOT_CLOSURE_PROOF',
-      unresolvedFamilyReviewCount: 108,
-      unresolvedAtomicCandidateCount: 1555,
-      unresolvedRelationshipSignatureCount: 2025,
-      unresolvedSemanticTermCount: 12106,
-      validatorDependencyUnresolvedTermCount: 999,
+      unresolvedFamilyReviewCount: universalProofRecord.results.unresolvedFamilyReviewCount,
+      unresolvedAtomicCandidateCount: universalProofRecord.results.unresolvedAtomicCandidateCount,
+      unresolvedRelationshipSignatureCount: universalProofRecord.results.unresolvedRelationshipSignatureCount,
+      unresolvedSemanticTermCount: universalProofRecord.results.unresolvedSemanticTermCount,
+      validatorDependencyUnresolvedTermCount: universalProofRecord.results.validatorDependencyUnresolvedTermCount,
       verdict: permutationClosure.universalFamilyModel.independentProofVerdict,
     },
   },
@@ -668,29 +762,36 @@ const checkpoint = {
   validation: {
     compilerSuite: { failed: 0, focusedPassed: 14, state: 'FOCUSED_CURRENT_FULL_INTEGRATED_GATE_PENDING' },
     localShacl: {
-      actualServiceAlgebraNodes: 0,
-      candidateViolations: 0,
-      evaluatedConstraints: 228,
-      evidenceDigest: 'sha256:7e8e7c176fc0fc2c61721bfb4f2828d0d038fe7b730c4ba53f9e1abd30d79272',
-      harnessSourceDigest: 'sha256:52db9580c0878d698439f4d680120e282de6f824caa8f8b01c914648e088ed85',
-      plantedFixtureEvidenceDigest: 'sha256:f16f512282fa44474d2e0aaf8c32262526efdf7c05d30e24853b6191beae1164',
-      plantedFixtures: { cases: 12, negative: 8, positive: 4, unexpectedCodes: 0, missingCodes: 0, multipleCodes: 0 },
-      registeredConstraints: 228,
-      substringExclusions: 0,
-      unexpectedExclusions: 0,
+      actualServiceAlgebraNodes: localShaclEvidenceRecord.actualServiceAlgebraNodeCount,
+      candidateViolations: localShaclEvidenceRecord.candidateViolationCount,
+      evaluatedConstraints: localShaclEvidenceRecord.locallyEvaluatedConstraintCount,
+      evidenceDigest: localShaclEvidenceRecord.evidenceDigest,
+      evidenceFileDigest: currentWaveArtifacts.localShaclEvidence.fileDigest,
+      evidencePath: currentWaveArtifacts.localShaclEvidence.path,
+      harnessSourceDigest: localShaclEvidenceRecord.harnessSourceDigest,
+      plantedFixtureEvidenceDigest: localShaclEvidenceRecord.plantedFixtureEvidenceDigest,
+      plantedFixtures: {
+        cases: localShaclEvidenceRecord.plantedFixtureEvidence.caseCount,
+        missingCodes: localShaclEvidenceRecord.plantedFixtureEvidence.missingExpectedCount,
+        multipleCodes: localShaclEvidenceRecord.plantedFixtureEvidence.multipleCodeCount,
+        negative: localShaclEvidenceRecord.plantedFixtureEvidence.negativeControlCount,
+        positive: localShaclEvidenceRecord.plantedFixtureEvidence.positiveControlCount,
+        unexpectedCodes: localShaclEvidenceRecord.plantedFixtureEvidence.unexpectedCodeCount,
+      },
+      registeredConstraints: localShaclEvidenceRecord.registeredSparqlConstraintCount,
+      substringExclusions: localShaclEvidenceRecord.substringBasedExclusionCount,
+      unexpectedExclusions: localShaclEvidenceRecord.unexpectedExclusionCount,
     },
     narrowPermutationAndUniversal: {
-      familyCensus: { failed: 0, passed: 15 },
-      familyModel: { failed: 0, passed: 21 },
-      universalSemanticCoverageTargeted: { failed: 0, passed: 4 },
-      universeGenerator: { failed: 0, passed: 39 },
+      familyModelAndLocalShacl: { failed: 0, passed: 27 },
+      relationshipReviewAndIndependentProof: { failed: 0, passed: 17 },
       state: 'CURRENT_FOCUSED_PASS',
     },
     integratedPermutationAndUniversal: {
-      previousFailed: 0,
-      previousPassed: 100,
-      staleCause: 'VALUE_DOMAIN_RELATIONSHIP_SIGNATURE_VALIDATOR_AND_DIAGNOSTIC_ALGORITHMS_CHANGED',
-      state: 'STALE_REQUIRES_ONE_COHERENT_WAVE_BOUNDARY_RERUN',
+      command: 'node --test assurance/permutation-closure/*.test.mjs assurance/semantic-model-compilation/local-shacl-validation.test.mjs',
+      failed: 0,
+      passed: 101,
+      state: 'CURRENT_COHERENT_WAVE_PASS',
     },
     rootSuite: {
       discoveredFileCount: 19,
@@ -702,9 +803,9 @@ const checkpoint = {
         'REPOSITORY_SECURITY_SCAN_INVALID',
         'SOURCE_RECORD_DRIFT',
       ],
-      state: 'STALE_OPTION_EVALUATION_EVIDENCE_REGENERATION_REQUIRED_AFTER_SOURCE_FREEZE',
+      state: 'STALE_RELATIONSHIP_REVIEW_CANDIDATE_SOURCE_WAVE_REQUIRES_FINAL_SOURCE_FREEZE',
     },
-    semanticCheck: { state: 'CURRENT_LOCAL_SHACL_PASS_FULL_INTEGRATED_GATE_PENDING' },
+    semanticCheck: { state: 'CURRENT_LOCAL_SHACL_AND_INTEGRATED_WAVE_PASS' },
     sourceLiveDrift: 'NOT_ASSERTED_FOR_UNPUBLISHED_CANDIDATE',
   },
 };

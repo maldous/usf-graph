@@ -12,6 +12,9 @@
 @prefix pabc: <urn:usf:permutationaxisbindingclassification:>.
 @prefix pfcc: <urn:usf:permutationfamilycandidateclassification:>.
 @prefix pfmrd: <urn:usf:permutationfamilymodelreviewdisposition:>.
+@prefix prrd: <urn:usf:permutationrelationshipreviewdisposition:>.
+@prefix pfck: <urn:usf:permutationfamilycandidatekind:>.
+@prefix protk: <urn:usf:permutationrelationshipobjecttermkind:>.
 @prefix acp: <urn:usf:authorisationconditionprofile:>.
 @prefix acc: <urn:usf:authorisationconditionclause:>.
 @prefix acpred: <urn:usf:authorisationconditionpredicate:>.
@@ -271,6 +274,22 @@ pfcc:rejected a usf:PermutationFamilyCandidateClassification; usf:canonicalName 
 pfmrd:warranted a usf:PermutationFamilyModelReviewDisposition;
     usf:canonicalName "warranted";
     usf:definition "Independent review accepts the exact leaf signature of an already-authored registered family; this classification creates no family, behaviour, permission, evidence admission, proof or contract activation.".
+
+prrd:universalreusableprimitive a usf:PermutationRelationshipReviewDisposition; usf:canonicalName "universalreusableprimitive"; usf:definition "Independent review finds that the relationship expresses a reusable foundation primitive; a semantic correction decision is required before it becomes authority.".
+prrd:capabilityspecificrelationship a usf:PermutationRelationshipReviewDisposition; usf:canonicalName "capabilityspecificrelationship"; usf:definition "Independent review finds that the relationship belongs to capability-specific semantics rather than a universal family; capability authority must supply its disposition.".
+prrd:explicitnonapplicability a usf:PermutationRelationshipReviewDisposition; usf:canonicalName "explicitnonapplicability"; usf:definition "Independent review proposes explicit non-applicability for the exact subject-local relationship; authority-bound rationale and scope remain mandatory.".
+prrd:downstreamderivation a usf:PermutationRelationshipReviewDisposition; usf:canonicalName "downstreamderivation"; usf:definition "Independent review finds that the relationship is a derived output whose closure depends on an earlier governed disposition.".
+prrd:externalauthoritydecisionrequired a usf:PermutationRelationshipReviewDisposition; usf:canonicalName "externalauthoritydecisionrequired"; usf:definition "Independent review cannot determine the relationship disposition from current admitted semantic evidence and identifies an accountable external authority decision.".
+prrd:optionaldomainextension a usf:PermutationRelationshipReviewDisposition; usf:canonicalName "optionaldomainextension"; usf:definition "Independent review finds an optional domain-extension concern that is not part of the current universal foundation scope, with explicit reopening conditions.".
+prrd:invalidorredundant a usf:PermutationRelationshipReviewDisposition; usf:canonicalName "invalidorredundant"; usf:definition "Independent review finds the relationship invalid, duplicative or semantically redundant; removal or supersession requires the normal authority lifecycle.".
+
+pfck:multiaxisfamily a usf:PermutationFamilyCandidateKind; usf:canonicalName "multiaxisfamily"; usf:definition "A reviewed proposal combining one semantic subject with two or more independently varying governed axes.".
+pfck:objectrelationship a usf:PermutationFamilyCandidateKind; usf:canonicalName "objectrelationship"; usf:definition "A mechanically reconstructed subject-local object relationship with one exact subject class and one exact terminal class.".
+pfck:datatyperelationship a usf:PermutationFamilyCandidateKind; usf:canonicalName "datatyperelationship"; usf:definition "A mechanically reconstructed subject-local datatype relationship with one exact subject class and one exact terminal datatype.".
+
+protk:namednode a usf:PermutationRelationshipObjectTermKind; usf:canonicalName "namednode"; usf:definition "The relationship object is an RDF named node.".
+protk:literal a usf:PermutationRelationshipObjectTermKind; usf:canonicalName "literal"; usf:definition "The relationship object is an RDF literal.".
+protk:blanknode a usf:PermutationRelationshipObjectTermKind; usf:canonicalName "blanknode"; usf:definition "The relationship object is an RDF blank node and cannot become an atomic candidate without an explicit identity rule.".
 
 accomp:all a usf:AuthorisationConditionComposition; usf:canonicalName "all"; usf:definition "Every ordered clause must be satisfied.".
 accomp:any a usf:AuthorisationConditionComposition; usf:canonicalName "any"; usf:definition "At least one ordered clause must be satisfied; each alternative remains explicit.".

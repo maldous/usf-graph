@@ -135,6 +135,101 @@ function withProjectionDigest(value) {
   return { ...core, reviewProjectionDigest: digest(core) };
 }
 
+function withAnalysisDigest(value) {
+  const { analysisDigest: omitted, ...core } = value;
+  return { ...core, analysisDigest: digest(core) };
+}
+
+function projectedAtomicCandidate(candidate, overrides = {}) {
+  const core = {
+    authorityDigests: [candidate.authorityDigest],
+    axisClassIris: [],
+    candidateDigests: [candidate.candidateDigest],
+    candidateIri: candidate.candidateIri,
+    classificationIris: ['urn:usf:permutationfamilycandidateclassification:authorityreviewrequired'],
+    directionIris: [candidate.directionIri],
+    emptyAxisCounts: [],
+    inventoryDigests: [candidate.inventoryDigest],
+    kindIris: [`urn:usf:permutationfamilycandidatekind:${candidate.candidateKind === 'OBJECT_RELATIONSHIP'
+      ? 'objectrelationship' : 'datatyperelationship'}`],
+    missingTermCounts: [],
+    predicateIris: [candidate.predicateIri],
+    reasonCodes: [candidate.reasonCode],
+    selectorPropertyIris: [],
+    signatureDigests: [candidate.relationshipSignatureDigest],
+    signatureIris: [candidate.relationshipSignatureIri],
+    sourcePlanes: ['reviewGraphs'],
+    subjectClassIris: [candidate.subjectClassIri],
+    terminalClassIris: candidate.terminalClassIri ? [candidate.terminalClassIri] : [],
+    terminalDatatypeIris: candidate.terminalDatatypeIri ? [candidate.terminalDatatypeIri] : [],
+  };
+  const record = { ...core, ...overrides };
+  return { ...record, projectionRecordDigest: digest(record) };
+}
+
+function projectedRelationshipReview({ candidate, signature, witnessDigests = [], overrides = {} }) {
+  const termKindIri = (kind) => `urn:usf:permutationrelationshipobjecttermkind:${kind.toLowerCase()}`;
+  const algorithmDigest = digest('independent-relationship-review-algorithm-v1');
+  const evidenceDigest = digest('independent-relationship-review-evidence-v1');
+  const semanticCore = {
+    activeOccurrenceCount: signature.activeOccurrenceCount,
+    activeOccurrenceSetDigest: signature.activeOccurrenceSetDigest,
+    algorithmDigest,
+    authorityDigest: AUTHORITY_BINDING.authorityDigest,
+    candidateDigest: candidate?.candidateDigest ?? null,
+    candidateIri: candidate?.candidateIri ?? null,
+    directionIri: 'urn:usf:permutationpathdirection:outbound',
+    dispositionIri: 'urn:usf:permutationrelationshipreviewdisposition:capabilityspecificrelationship',
+    evidenceDigest,
+    inventoryDigest: inventory.inventoryDigest,
+    objectClassIris: signature.objectClassIris,
+    objectClassSetDigest: digest(signature.objectClassIris),
+    objectDatatypeIri: signature.objectDatatypeIri,
+    objectTermKindIri: termKindIri(signature.objectTermKind),
+    predicateIri: signature.predicateIri,
+    reasonCode: 'UNIVERSAL_CAPABILITY_SPECIFIC_RELATIONSHIP',
+    registryDigest: registry.registryDigest,
+    relationshipSignatureDigest: signature.relationshipSignatureDigest,
+    relationshipSignatureIri: signature.relationshipSignatureIri,
+    subjectClassIris: signature.subjectClassIris,
+    subjectClassSetDigest: digest(signature.subjectClassIris),
+    subjectTermKindIri: termKindIri(signature.subjectTermKind),
+    witnessDigests,
+    witnessSetDigest: digest(witnessDigests),
+  };
+  const core = {
+    activeOccurrenceCounts: [String(semanticCore.activeOccurrenceCount)],
+    activeOccurrenceSetDigests: [semanticCore.activeOccurrenceSetDigest],
+    algorithmDigests: [semanticCore.algorithmDigest],
+    authorityDigests: [semanticCore.authorityDigest],
+    candidateDigests: semanticCore.candidateDigest ? [semanticCore.candidateDigest] : [],
+    candidateIris: semanticCore.candidateIri ? [semanticCore.candidateIri] : [],
+    directionIris: [semanticCore.directionIri],
+    dispositionIris: [semanticCore.dispositionIri],
+    evidenceDigests: [semanticCore.evidenceDigest],
+    inventoryDigests: [semanticCore.inventoryDigest],
+    objectClassIris: semanticCore.objectClassIris,
+    objectClassSetDigests: [semanticCore.objectClassSetDigest],
+    objectDatatypeIris: semanticCore.objectDatatypeIri ? [semanticCore.objectDatatypeIri] : [],
+    objectTermKindIris: [semanticCore.objectTermKindIri],
+    predicateIris: [semanticCore.predicateIri],
+    reasonCodes: [semanticCore.reasonCode],
+    registryDigests: [semanticCore.registryDigest],
+    reviewDigests: [digest(semanticCore)],
+    reviewIri: 'urn:usf:test:relationship-signature-review:one',
+    signatureDigests: [semanticCore.relationshipSignatureDigest],
+    signatureIris: [semanticCore.relationshipSignatureIri],
+    sourcePlanes: ['reviewGraphs'],
+    subjectClassIris: semanticCore.subjectClassIris,
+    subjectClassSetDigests: [semanticCore.subjectClassSetDigest],
+    subjectTermKindIris: [semanticCore.subjectTermKindIri],
+    witnessDigests: semanticCore.witnessDigests,
+    witnessSetDigests: [semanticCore.witnessSetDigest],
+  };
+  const record = { ...core, ...overrides };
+  return { ...record, projectionRecordDigest: digest(record) };
+}
+
 function createReviewPlaneRepository() {
   const root = mkdtempSync(join(tmpdir(), 'usf-universal-review-plane-'));
   const modelRoot = join(root, 'semantic-model');
@@ -265,7 +360,10 @@ test('fresh inventory and registry use exact current sources without census or g
   assert.deepEqual(inventory.excludedSourceGroups, [
     'conformanceFixture', 'derivedGraphs', 'reviewGraphs', 'rules', 'shapeGraphs',
   ]);
-  assert.equal(reviewProjection.schemaVersion, 2);
+  assert.equal(reviewProjection.schemaVersion, 3);
+  assert.equal(reviewProjection.familyCandidateSetDigest, digest(reviewProjection.familyCandidates));
+  assert.equal(reviewProjection.relationshipSignatureReviewSetDigest,
+    digest(reviewProjection.relationshipSignatureReviews));
   assert.equal(reviewProjection.reviewSourceCount, 0);
   assert.deepEqual(reviewProjection.reviewSourceRecords, []);
   assert.equal(reviewProjection.reviewSourceSetDigest, digest([]));
@@ -642,6 +740,26 @@ test('independent proof reconstructs full subject-local family semantics and rej
   assert.equal(proof.results.reviewSourceReconstructionMismatchCount, 0);
   assert.equal(proof.reviewSourceSetDigest, reviewProjection.reviewSourceSetDigest);
 
+  const candidateProjectionSubstitution = structuredClone(analysis);
+  candidateProjectionSubstitution.atomicCandidateProjection.rows[0].projectedCandidateDigest
+    = `sha256:${'c'.repeat(64)}`;
+  candidateProjectionSubstitution.atomicCandidateProjection.rowSetDigest
+    = digest(candidateProjectionSubstitution.atomicCandidateProjection.rows);
+  expectCode(() => proveUniversalSemanticCoverage({
+    ...input,
+    analysis: withAnalysisDigest(candidateProjectionSubstitution),
+  }), 'UNIVERSAL_PROOF_ATOMIC_CANDIDATE_PROJECTION_SUBSTITUTION');
+
+  const relationshipReviewSubstitution = structuredClone(analysis);
+  relationshipReviewSubstitution.relationshipSignatureReview.rows[0].acceptedReviewIri
+    = 'urn:usf:test:forged-relationship-review';
+  relationshipReviewSubstitution.relationshipSignatureReview.reviewSetDigest
+    = digest(relationshipReviewSubstitution.relationshipSignatureReview.rows);
+  expectCode(() => proveUniversalSemanticCoverage({
+    ...input,
+    analysis: withAnalysisDigest(relationshipReviewSubstitution),
+  }), 'UNIVERSAL_PROOF_RELATIONSHIP_REVIEW_BINDING_SUBSTITUTION');
+
   const reviewSourceTamper = withProjectionDigest({
     ...reviewProjection,
     reviewSourceSetDigest: `sha256:${'a'.repeat(64)}`,
@@ -782,9 +900,16 @@ test('independent proof accepts the corrected source-kind witness reconstruction
   assert.equal(proof.verdict, 'UNIVERSAL_SEMANTIC_GAP_AND_CROSS_PRODUCT_RECONSTRUCTION_PASS');
   assert.equal(proof.results.analysisReconstructionMismatchCount, 0);
   assert.equal(proof.results.familyReconstructionMismatchCount, 0);
-  assert.equal(proof.results.atomicEndpointAmbiguityCount, analysis.gaps.filter(({ code }) => (
-    code.startsWith('UNIVERSAL_ATOMIC_CANDIDATE_')
-  )).length);
+  const endpointGapCodes = new Set([
+    'UNIVERSAL_ATOMIC_CANDIDATE_SUBJECT_CLASS_ABSENT',
+    'UNIVERSAL_ATOMIC_CANDIDATE_SUBJECT_CLASS_MULTIPLE',
+    'UNIVERSAL_ATOMIC_CANDIDATE_OBJECT_CLASS_ABSENT',
+    'UNIVERSAL_ATOMIC_CANDIDATE_OBJECT_CLASS_MULTIPLE',
+    'UNIVERSAL_ATOMIC_CANDIDATE_LITERAL_DATATYPE_ABSENT',
+    'UNIVERSAL_ATOMIC_CANDIDATE_OBJECT_TERM_KIND_UNSUPPORTED',
+  ]);
+  assert.equal(proof.results.atomicEndpointAmbiguityCount,
+    analysis.gaps.filter(({ code }) => endpointGapCodes.has(code)).length);
   assert.equal(proof.results.unresolvedAtomicCandidateCount, analysis.atomicCandidateCount);
   assert.equal(proof.results.unresolvedRelationshipSignatureCount,
     analysis.relationshipSignatureDispositionPartition.AUTHORITY_REVIEW_REQUIRED);
@@ -948,6 +1073,92 @@ test('atomic relationship discovery is mechanical and endpoint defects have exac
     assert.equal(rejected.gaps[0].subjectClassCount,
       ({ ...base, ...mutation }).subjectClassIris.length);
   }
+});
+
+test('atomic candidate projection reconciles exact, missing, stale, duplicate and orphan states', () => {
+  const candidate = analysis.atomicCandidates[0];
+  assert.ok(candidate);
+  const exactRecord = projectedAtomicCandidate(candidate);
+  const exact = universalSemanticCoverageInternals.atomicCandidateProjectionState(
+    [candidate], { familyCandidates: [exactRecord] },
+  );
+  assert.equal(exact.expectedCount, 1);
+  assert.equal(exact.projectedCount, 1);
+  assert.equal(exact.currentCount, 1);
+  assert.equal(exact.missingCount + exact.orphanCount + exact.duplicateCount
+    + exact.staleOrInvalidCount, 0);
+  assert.deepEqual(exact.gaps, []);
+  assert.equal(exact.rowSetDigest, digest(exact.rows));
+
+  const cases = [
+    ['UNIVERSAL_ATOMIC_CANDIDATE_MISSING', []],
+    ['UNIVERSAL_ATOMIC_CANDIDATE_STALE_OR_INVALID', [projectedAtomicCandidate(candidate, {
+      terminalClassIris: candidate.terminalClassIri ? [`${O}Port`] : [],
+      terminalDatatypeIris: candidate.terminalDatatypeIri ? ['http://www.w3.org/2001/XMLSchema#integer'] : [],
+    })]],
+    ['UNIVERSAL_ATOMIC_CANDIDATE_DUPLICATE', [exactRecord, structuredClone(exactRecord)]],
+    ['UNIVERSAL_ATOMIC_CANDIDATE_ORPHAN', [projectedAtomicCandidate(candidate, {
+      candidateIri: `urn:usf:permutationfamilycandidate:${'f'.repeat(64)}`,
+    })]],
+  ];
+  for (const [code, familyCandidates] of cases) {
+    const result = universalSemanticCoverageInternals.atomicCandidateProjectionState(
+      [candidate], { familyCandidates },
+    );
+    assert.equal(result.gaps.some((gap) => gap.code === code), true, code);
+  }
+});
+
+test('relationship reviews bind exact signatures and remain non-authorising', () => {
+  const candidate = analysis.atomicCandidates[0];
+  assert.ok(candidate);
+  const signature = inventory.relationshipSignatures.find(({ relationshipSignatureIri }) => (
+    relationshipSignatureIri === candidate.relationshipSignatureIri
+  ));
+  assert.ok(signature);
+  const review = projectedRelationshipReview({ candidate, signature });
+  const scopedInventory = { ...inventory, relationshipSignatures: [signature] };
+  const signatureWitnesses = { records: [], setDigest: digest([]), witnessCount: 0 };
+  const state = universalSemanticCoverageInternals.relationshipSignatureReviewState({
+    atomicCandidates: [candidate], inventory: scopedInventory, registry,
+    reviewProjection: { relationshipSignatureReviews: [review] }, signatureWitnesses,
+  });
+  assert.equal(state.currentReviewCount, 1);
+  assert.equal(state.missingReviewCount + state.duplicateReviewCount
+    + state.orphanReviewCount + state.staleOrInvalidReviewCount, 0);
+  assert.deepEqual(state.gaps, []);
+
+  const disposition = universalSemanticCoverageInternals.relationshipSignatureDispositions(
+    scopedInventory, signatureWitnesses, state,
+  );
+  assert.equal(disposition.dispositions[0].disposition,
+    'AUTHORITY_REVIEWED_SEMANTIC_CORRECTION_REQUIRED');
+  assert.equal(disposition.gaps[0].code, 'UNIVERSAL_RELATIONSHIP_SEMANTIC_CORRECTION_REQUIRED');
+
+  const missingCandidateBinding = projectedRelationshipReview({
+    candidate, signature, overrides: { candidateDigests: [], candidateIris: [] },
+  });
+  const stale = universalSemanticCoverageInternals.relationshipSignatureReviewState({
+    atomicCandidates: [candidate], inventory: scopedInventory, registry,
+    reviewProjection: { relationshipSignatureReviews: [missingCandidateBinding] }, signatureWitnesses,
+  });
+  assert.equal(stale.staleOrInvalidReviewCount, 1);
+  assert.deepEqual(stale.gaps.map(({ code }) => code),
+    ['UNIVERSAL_RELATIONSHIP_REVIEW_STALE_OR_INVALID']);
+
+  const missing = universalSemanticCoverageInternals.relationshipSignatureReviewState({
+    atomicCandidates: [candidate], inventory: scopedInventory, registry,
+    reviewProjection: { relationshipSignatureReviews: [] }, signatureWitnesses,
+  });
+  assert.deepEqual(missing.gaps.map(({ code }) => code), ['UNIVERSAL_RELATIONSHIP_REVIEW_MISSING']);
+
+  const duplicateReview = { ...structuredClone(review), reviewIri: 'urn:usf:test:relationship-signature-review:two' };
+  duplicateReview.projectionRecordDigest = digest((({ projectionRecordDigest, ...core }) => core)(duplicateReview));
+  const duplicate = universalSemanticCoverageInternals.relationshipSignatureReviewState({
+    atomicCandidates: [candidate], inventory: scopedInventory, registry,
+    reviewProjection: { relationshipSignatureReviews: [review, duplicateReview] }, signatureWitnesses,
+  });
+  assert.deepEqual(duplicate.gaps.map(({ code }) => code), ['UNIVERSAL_RELATIONSHIP_REVIEW_DUPLICATE']);
 });
 
 test('foundation and authority bindings fail with exact reasons', () => {

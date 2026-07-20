@@ -5650,6 +5650,18 @@ usf:PermutationFamilySignatureReview a owl:Class;
     rdfs:subClassOf usf:DerivedEntity;
     rdfs:label "Permutation family signature review";
     rdfs:comment "A non-authorising review of the exact registered subject, ordered dimension bindings and applicability rule of one permutation family under one authority and registry digest.".
+usf:PermutationRelationshipSignature a owl:Class;
+    rdfs:subClassOf usf:DerivedEntity;
+    rdfs:label "Permutation relationship signature";
+    rdfs:comment "A digest-bound subject-local relationship identity reconstructed from one predicate, exact endpoint typing, RDF object term kind and occurrence set; it is an inventory fact rather than semantic authority.".
+usf:PermutationRelationshipSignatureReview a owl:Class;
+    rdfs:subClassOf usf:DerivedEntity;
+    rdfs:label "Permutation relationship signature review";
+    rdfs:comment "A non-authorising, evidence-bound disposition of one exact current relationship signature. Review observations identify required semantic correction but cannot create a family, declare behaviour inapplicable or authorise a realisation.".
+usf:PermutationRelationshipReviewDisposition a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation relationship review disposition";
+    rdfs:comment "Closed classification used by independent review to distinguish reusable foundation primitives, capability relationships, non-applicability, derivation, external decisions, optional extensions and invalid or redundant concepts.".
 usf:PermutationFamilyModelReviewDisposition a owl:Class;
     rdfs:subClassOf usf:ControlledValue;
     rdfs:label "Permutation family model review disposition";
@@ -5667,6 +5679,14 @@ usf:PermutationAxisBindingClassification a owl:Class;
 usf:PermutationFamilyCandidateClassification a owl:Class;
     rdfs:subClassOf usf:ControlledValue;
     rdfs:label "Permutation family candidate classification".
+usf:PermutationFamilyCandidateKind a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation family candidate kind";
+    rdfs:comment "Closed structural kind distinguishing a reviewed multi-axis proposal from mechanically reconstructed object-relationship and datatype-relationship proposals.".
+usf:PermutationRelationshipObjectTermKind a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation relationship object term kind";
+    rdfs:comment "Closed RDF object-term category recorded by a relationship-signature review without treating parser-specific labels as semantic identity.".
 usf:TokenAudience a owl:Class;
     rdfs:subClassOf usf:ControlledValue;
     rdfs:label "Token audience".
@@ -5931,6 +5951,87 @@ usf:familySignatureReviewDigest a owl:DatatypeProperty, owl:FunctionalProperty;
 usf:familySignatureReviewDisposition a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationFamilySignatureReview;
     rdfs:range usf:PermutationFamilyModelReviewDisposition.
+usf:reviewedRelationshipSignature a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range usf:PermutationRelationshipSignature.
+usf:reviewedRelationshipSignatureDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range xsd:string.
+usf:reviewedRelationshipPredicate a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range rdf:Property.
+usf:reviewedRelationshipDirection a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range usf:PermutationPathDirection.
+usf:reviewedRelationshipSubjectTermKind a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range usf:PermutationRelationshipObjectTermKind.
+usf:reviewedRelationshipSubjectClass a owl:ObjectProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range owl:Class.
+usf:reviewedRelationshipSubjectClassSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range xsd:string.
+usf:reviewedRelationshipObjectTermKind a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range usf:PermutationRelationshipObjectTermKind.
+usf:reviewedRelationshipObjectClass a owl:ObjectProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range owl:Class.
+usf:reviewedRelationshipObjectClassSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range xsd:string.
+usf:reviewedRelationshipObjectDatatype a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range rdfs:Datatype.
+usf:reviewedRelationshipActiveOccurrenceCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range xsd:nonNegativeInteger.
+usf:reviewedRelationshipActiveOccurrenceSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range xsd:string.
+usf:reviewedRelationshipWitnessDigest a owl:DatatypeProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range xsd:string.
+usf:reviewedRelationshipWitnessSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range xsd:string.
+usf:relationshipSignatureReviewCandidate a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range usf:PermutationFamilyCandidate.
+usf:relationshipSignatureReviewCandidateDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range xsd:string.
+usf:relationshipSignatureReviewDisposition a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range usf:PermutationRelationshipReviewDisposition.
+usf:relationshipSignatureReviewReasonCode a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range xsd:string.
+usf:relationshipSignatureReviewAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the pre-projection semantic authority; review resources never contribute to this binding.".
+usf:relationshipSignatureReviewInventoryDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the exact semantic-input inventory excluding review and candidate outputs.".
+usf:relationshipSignatureReviewRegistryDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the independently reconstructed family registry used to determine exact selector witnesses.".
+usf:relationshipSignatureReviewEvidenceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the independent review evidence; a generated candidate or analyzer output cannot satisfy this evidence binding.".
+usf:relationshipSignatureReviewAlgorithmDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the independently implemented review method, distinct from the candidate generator and independent verifier.".
+usf:relationshipSignatureReviewDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRelationshipSignatureReview;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the relationship-signature review core excluding this property itself.".
 usf:candidateFamilySubjectClass a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationFamilyCandidate;
     rdfs:range owl:Class.
@@ -5940,6 +6041,27 @@ usf:candidateFamilyAxisClass a owl:ObjectProperty;
 usf:candidateFamilySelectorProperty a owl:ObjectProperty;
     rdfs:domain usf:PermutationFamilyCandidate;
     rdfs:range rdf:Property.
+usf:candidateFamilyKind a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range usf:PermutationFamilyCandidateKind.
+usf:candidateRelationshipSignature a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range usf:PermutationRelationshipSignature.
+usf:candidateRelationshipSignatureDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range xsd:string.
+usf:candidateRelationshipDirection a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range usf:PermutationPathDirection.
+usf:candidateRelationshipPredicate a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range rdf:Property.
+usf:candidateRelationshipTerminalClass a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range owl:Class.
+usf:candidateRelationshipTerminalDatatype a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range rdfs:Datatype.
 usf:candidateFamilyClassification a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationFamilyCandidate;
     rdfs:range usf:PermutationFamilyCandidateClassification.
@@ -5967,11 +6089,16 @@ usf:candidateFamilyEmptyAxisCount a owl:DatatypeProperty, owl:FunctionalProperty
 usf:SemanticTermPermutationReview usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:PermutationReviewCoverage usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:PermutationFamilySignatureReview usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationRelationshipSignature usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationRelationshipSignatureReview usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationRelationshipReviewDisposition usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:PermutationFamilyModelReviewDisposition usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:PermutationFamilyCandidate usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:PermutationParticipationClassification usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:PermutationAxisBindingClassification usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:PermutationFamilyCandidateClassification usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationFamilyCandidateKind usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationRelationshipObjectTermKind usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:reviewedSemanticTerm usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:termPermutationParticipation usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:termPermutationAxisBinding usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
@@ -6000,6 +6127,38 @@ usf:familySignatureReviewRegistryDigest usf:termUsageState <urn:usf:termusagesta
 usf:reviewedFamilySignatureDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:familySignatureReviewDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:familySignatureReviewDisposition usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedRelationshipSignature usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedRelationshipSignatureDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedRelationshipPredicate usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedRelationshipDirection usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedRelationshipSubjectTermKind usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedRelationshipSubjectClass usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedRelationshipSubjectClassSetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedRelationshipObjectTermKind usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedRelationshipObjectClass usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedRelationshipObjectClassSetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedRelationshipObjectDatatype usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedRelationshipActiveOccurrenceCount usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedRelationshipActiveOccurrenceSetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedRelationshipWitnessDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedRelationshipWitnessSetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:relationshipSignatureReviewCandidate usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:relationshipSignatureReviewCandidateDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:relationshipSignatureReviewDisposition usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:relationshipSignatureReviewReasonCode usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:relationshipSignatureReviewAuthorityDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:relationshipSignatureReviewInventoryDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:relationshipSignatureReviewRegistryDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:relationshipSignatureReviewEvidenceDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:relationshipSignatureReviewAlgorithmDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:relationshipSignatureReviewDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateFamilyKind usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateRelationshipSignature usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateRelationshipSignatureDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateRelationshipDirection usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateRelationshipPredicate usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateRelationshipTerminalClass usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateRelationshipTerminalDatatype usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:candidateFamilySubjectClass usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:candidateFamilyAxisClass usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:candidateFamilySelectorProperty usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.

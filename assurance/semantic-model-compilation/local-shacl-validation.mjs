@@ -112,14 +112,28 @@ const PLANTED_FIXTURE_PYTHON_SOURCE = `def planted_fixture_evidence(authored_dat
     participation = URIRef("urn:usf:permutationparticipationclassification:metadataprovenancenonaxis")
     axis_binding = URIRef("urn:usf:permutationaxisbindingclassification:notanaxis")
     not_candidate = URIRef("urn:usf:permutationfamilycandidateclassification:notafamilycandidate")
+    review_candidate = URIRef("urn:usf:permutationfamilycandidateclassification:authorityreviewrequired")
     warranted_candidate = URIRef("urn:usf:permutationfamilycandidateclassification:warranted")
     warranted_family = URIRef("urn:usf:permutationfamilymodelreviewdisposition:warranted")
+    multi_axis_kind = URIRef("urn:usf:permutationfamilycandidatekind:multiaxisfamily")
+    object_relationship_kind = URIRef("urn:usf:permutationfamilycandidatekind:objectrelationship")
+    datatype_relationship_kind = URIRef("urn:usf:permutationfamilycandidatekind:datatyperelationship")
+    named_node_kind = URIRef("urn:usf:permutationrelationshipobjecttermkind:namednode")
+    literal_kind = URIRef("urn:usf:permutationrelationshipobjecttermkind:literal")
+    redundant_relationship = URIRef("urn:usf:permutationrelationshipreviewdisposition:invalidorredundant")
     required_controlled_values = (
         (participation, USF.PermutationParticipationClassification),
         (axis_binding, USF.PermutationAxisBindingClassification),
         (not_candidate, USF.PermutationFamilyCandidateClassification),
+        (review_candidate, USF.PermutationFamilyCandidateClassification),
         (warranted_candidate, USF.PermutationFamilyCandidateClassification),
         (warranted_family, USF.PermutationFamilyModelReviewDisposition),
+        (multi_axis_kind, USF.PermutationFamilyCandidateKind),
+        (object_relationship_kind, USF.PermutationFamilyCandidateKind),
+        (datatype_relationship_kind, USF.PermutationFamilyCandidateKind),
+        (named_node_kind, USF.PermutationRelationshipObjectTermKind),
+        (literal_kind, USF.PermutationRelationshipObjectTermKind),
+        (redundant_relationship, USF.PermutationRelationshipReviewDisposition),
     )
     missing_controlled_values = [str(value) for value, kind in required_controlled_values if (value, RDF.type, kind) not in data]
     if missing_controlled_values:
@@ -192,6 +206,7 @@ const PLANTED_FIXTURE_PYTHON_SOURCE = `def planted_fixture_evidence(authored_dat
     def add_candidate(identifier, classification=warranted_candidate, missing_count=0, authorisation_claim=False):
         candidate = node(identifier)
         identify(candidate, USF.PermutationFamilyCandidate, identifier)
+        add(candidate, USF.candidateFamilyKind, multi_axis_kind)
         add(candidate, USF.candidateFamilySubjectClass, USF.Capability)
         add(candidate, USF.candidateFamilyAxisClass, USF.Role)
         add(candidate, USF.candidateFamilySelectorProperty, USF.requiresPermission)
@@ -205,6 +220,57 @@ const PLANTED_FIXTURE_PYTHON_SOURCE = `def planted_fixture_evidence(authored_dat
         if authorisation_claim:
             add(candidate, USF.establishesSemanticTruth, Literal(True))
         return candidate
+
+    def add_atomic_candidate(identifier, kind, terminal, add_axis=False):
+        candidate = node(identifier)
+        identify(candidate, USF.PermutationFamilyCandidate, identifier)
+        add(candidate, USF.candidateFamilyKind, kind)
+        add(candidate, USF.candidateFamilySubjectClass, USF.Capability)
+        add(candidate, USF.candidateRelationshipSignature, node(identifier + ":signature"))
+        add(candidate, USF.candidateRelationshipSignatureDigest, digest(identifier + ":signature"))
+        add(candidate, USF.candidateRelationshipDirection, URIRef("urn:usf:permutationpathdirection:outbound"))
+        add(candidate, USF.candidateRelationshipPredicate, USF.requiresPermission)
+        if kind == object_relationship_kind:
+            add(candidate, USF.candidateRelationshipTerminalClass, terminal)
+        else:
+            add(candidate, USF.candidateRelationshipTerminalDatatype, terminal)
+        if add_axis:
+            add(candidate, USF.candidateFamilyAxisClass, USF.Role)
+        add(candidate, USF.candidateFamilyClassification, review_candidate)
+        add(candidate, USF.candidateFamilyReasonCode, Literal("UNIVERSAL_RELATIONSHIP_SIGNATURE_UNDISPOSITIONED"))
+        add(candidate, USF.candidateFamilyAuthorityDigest, digest(identifier + ":authority"))
+        add(candidate, USF.candidateFamilyInventoryDigest, digest(identifier + ":inventory"))
+        add(candidate, USF.candidateFamilyDigest, digest(identifier + ":candidate"))
+        return candidate
+
+    def add_relationship_review(identifier, omit_signature=False, authorisation_claim=False):
+        review = node(identifier)
+        identify(review, USF.PermutationRelationshipSignatureReview, identifier)
+        if not omit_signature:
+            add(review, USF.reviewedRelationshipSignature, node(identifier + ":signature"))
+        add(review, USF.reviewedRelationshipSignatureDigest, digest(identifier + ":signature"))
+        add(review, USF.reviewedRelationshipPredicate, USF.requiresPermission)
+        add(review, USF.reviewedRelationshipDirection, URIRef("urn:usf:permutationpathdirection:outbound"))
+        add(review, USF.reviewedRelationshipSubjectTermKind, named_node_kind)
+        add(review, USF.reviewedRelationshipSubjectClass, USF.Operation)
+        add(review, USF.reviewedRelationshipSubjectClassSetDigest, digest(identifier + ":subjects"))
+        add(review, USF.reviewedRelationshipObjectTermKind, named_node_kind)
+        add(review, USF.reviewedRelationshipObjectClass, USF.Permission)
+        add(review, USF.reviewedRelationshipObjectClassSetDigest, digest(identifier + ":objects"))
+        add(review, USF.reviewedRelationshipActiveOccurrenceCount, Literal(1, datatype=rdflib.XSD.nonNegativeInteger))
+        add(review, USF.reviewedRelationshipActiveOccurrenceSetDigest, digest(identifier + ":occurrences"))
+        add(review, USF.reviewedRelationshipWitnessSetDigest, digest(identifier + ":witnesses"))
+        add(review, USF.relationshipSignatureReviewDisposition, redundant_relationship)
+        add(review, USF.relationshipSignatureReviewReasonCode, Literal("UNIVERSAL_REVIEW_INVALID_OR_REDUNDANT"))
+        add(review, USF.relationshipSignatureReviewAuthorityDigest, digest(identifier + ":authority"))
+        add(review, USF.relationshipSignatureReviewInventoryDigest, digest(identifier + ":inventory"))
+        add(review, USF.relationshipSignatureReviewRegistryDigest, digest(identifier + ":registry"))
+        add(review, USF.relationshipSignatureReviewEvidenceDigest, digest(identifier + ":evidence"))
+        add(review, USF.relationshipSignatureReviewAlgorithmDigest, digest(identifier + ":algorithm"))
+        add(review, USF.relationshipSignatureReviewDigest, digest(identifier + ":review"))
+        if authorisation_claim:
+            add(review, USF.establishesSemanticTruth, Literal(True))
+        return review
 
     catalogue = []
 
@@ -226,10 +292,20 @@ const PLANTED_FIXTURE_PYTHON_SOURCE = `def planted_fixture_evidence(authored_dat
         positive_term, positive_family, USF.Capability,
     )
     positive_candidate = add_candidate("positive-family-candidate")
+    positive_object_candidate = add_atomic_candidate(
+        "positive-object-candidate", object_relationship_kind, USF.Permission,
+    )
+    positive_datatype_candidate = add_atomic_candidate(
+        "positive-datatype-candidate", datatype_relationship_kind, rdflib.XSD.string,
+    )
+    positive_relationship_review = add_relationship_review("positive-relationship-review")
     expected("positive-term-review", positive_term, [])
     expected("positive-family-review", positive_family, [])
     expected("positive-review-coverage", positive_coverage, [])
     expected("positive-family-candidate", positive_candidate, [])
+    expected("positive-object-candidate", positive_object_candidate, [])
+    expected("positive-datatype-candidate", positive_datatype_candidate, [])
+    expected("positive-relationship-review", positive_relationship_review, [])
 
     missing_term = add_term_review("missing-reviewed-term", digest("missing-term:authority"), digest("missing-term:inventory"), omit_term=True)
     expected("missing-reviewed-term", missing_term, ["UNIVERSAL_REVIEW_TERM_ABSENT"])
@@ -272,6 +348,39 @@ const PLANTED_FIXTURE_PYTHON_SOURCE = `def planted_fixture_evidence(authored_dat
 
     authorising_candidate = add_candidate("candidate-authorisation-prohibited", authorisation_claim=True)
     expected("candidate-authorisation-prohibited", authorising_candidate, ["UNIVERSAL_CANDIDATE_AUTHORISATION_PROHIBITED"])
+
+    missing_candidate_kind = add_candidate("candidate-kind-absent")
+    data.remove((missing_candidate_kind, USF.candidateFamilyKind, None))
+    fixture.remove((missing_candidate_kind, USF.candidateFamilyKind, None))
+    expected("candidate-kind-absent", missing_candidate_kind, ["UNIVERSAL_CANDIDATE_KIND_ABSENT"])
+
+    conflicting_endpoint = add_atomic_candidate(
+        "candidate-object-endpoint-conflict", object_relationship_kind, USF.Permission,
+    )
+    add(conflicting_endpoint, USF.candidateRelationshipTerminalDatatype, rdflib.XSD.string)
+    expected("candidate-object-endpoint-conflict", conflicting_endpoint, ["UNIVERSAL_CANDIDATE_ENDPOINT_MODE_INVALID"])
+
+    missing_datatype = add_atomic_candidate(
+        "candidate-datatype-endpoint-absent", datatype_relationship_kind, rdflib.XSD.string,
+    )
+    data.remove((missing_datatype, USF.candidateRelationshipTerminalDatatype, None))
+    fixture.remove((missing_datatype, USF.candidateRelationshipTerminalDatatype, None))
+    expected("candidate-datatype-endpoint-absent", missing_datatype, ["UNIVERSAL_CANDIDATE_ENDPOINT_MODE_INVALID"])
+
+    mixed_candidate = add_atomic_candidate(
+        "candidate-form-component-conflict", object_relationship_kind, USF.Permission, add_axis=True,
+    )
+    expected("candidate-form-component-conflict", mixed_candidate, ["UNIVERSAL_CANDIDATE_FORM_COMPONENT_CONFLICT"])
+
+    missing_relationship_signature = add_relationship_review(
+        "relationship-review-signature-absent", omit_signature=True,
+    )
+    expected("relationship-review-signature-absent", missing_relationship_signature, ["PERMUTATION_RELATIONSHIP_REVIEW_SIGNATURE_ABSENT"])
+
+    authorising_relationship_review = add_relationship_review(
+        "relationship-review-authorisation-prohibited", authorisation_claim=True,
+    )
+    expected("relationship-review-authorisation-prohibited", authorising_relationship_review, ["PERMUTATION_RELATIONSHIP_REVIEW_AUTHORISATION_PROHIBITED"])
 
     catalogue.sort(key=lambda item: item["id"])
     focus_nodes = [item["focusNode"] for item in catalogue]

@@ -936,7 +936,7 @@ rr:unsignedevidence a usf:ReadinessReason;
     usf:standardIdentifier "W3C RDF Schema 1.1";
     usf:standardEdition "2014-02-25 Recommendation";
     usf:latestStableEdition true;
-    usf:standardDefinesSemanticClass rdfs:Resource;
+    usf:standardDefinesSemanticClass rdfs:Datatype, rdfs:Resource;
     usf:standardDefinesSemanticProperty rdfs:comment, rdfs:domain, rdfs:label,
         rdfs:range, rdfs:subClassOf, rdfs:subPropertyOf.
 <urn:usf:standard:owl2> a usf:TechnicalStandard;

@@ -96,8 +96,13 @@ test('effective harness binds one in-memory planted-fixture contract with exact 
     'PERMUTATION_FAMILY_SIGNATURE_SUBJECT_ABSENT',
     'PERMUTATION_FAMILY_SIGNATURE_COMPONENT_MISMATCH',
     'UNIVERSAL_CANDIDATE_SUBJECT_ABSENT',
+    'UNIVERSAL_CANDIDATE_KIND_ABSENT',
+    'UNIVERSAL_CANDIDATE_ENDPOINT_MODE_INVALID',
+    'UNIVERSAL_CANDIDATE_FORM_COMPONENT_CONFLICT',
     'UNIVERSAL_CANDIDATE_WARRANTED_WITH_GAPS',
     'UNIVERSAL_CANDIDATE_AUTHORISATION_PROHIBITED',
+    'PERMUTATION_RELATIONSHIP_REVIEW_SIGNATURE_ABSENT',
+    'PERMUTATION_RELATIONSHIP_REVIEW_AUTHORISATION_PROHIBITED',
   ]) {
     assert.equal(effectiveLocalShaclPythonSource.includes(code), true, code);
   }
@@ -127,5 +132,5 @@ test('effective harness isolates optional review observations from authored sema
 test('review and candidate authorisation guards use SHACL-SPARQL-compatible predicate filters', () => {
   const shapes = readFileSync(new URL('../../semantic-model/shapes/permutation.ttl', import.meta.url), 'utf8');
   assert.equal(shapes.includes('VALUES ?predicate { usf:establishesSemanticTruth'), false);
-  assert.equal((shapes.match(/FILTER \(\?predicate IN \(usf:establishesSemanticTruth,/gu) ?? []).length, 4);
+  assert.equal((shapes.match(/FILTER \(\?predicate IN \(usf:establishesSemanticTruth,/gu) ?? []).length, 5);
 });
