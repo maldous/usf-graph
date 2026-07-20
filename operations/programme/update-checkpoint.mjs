@@ -236,11 +236,23 @@ const universalProofRecord = currentWaveArtifacts.universalProof.record;
 const universalRegistryRecord = currentWaveArtifacts.universalRegistry.record;
 const universalReviewProjectionRecord = currentWaveArtifacts.universalReviewProjection.record;
 
+// Family-model review verdicts form the closed set WARRANTED | SEMANTIC_CORRECTION_REQUIRED,
+// and WARRANTED holds exactly when the defect-code field is empty. A refuted finding is
+// re-recorded as WARRANTED through the independent-review process; no review-process
+// meta-verdict exists in this vocabulary — refutation provenance belongs to the review
+// record, never to the current observation set. The five permission-atom "mismatch"
+// findings were refuted and re-recorded: pd:closurepermissionatom intentionally enumerates
+// precursor usf:Permission definitions; usf:PermissionAtom is a DERIVED output
+// (Permission -> PermissionAtomCandidate -> admitted PermissionAtom; see
+// atomSupersedesPermission and the universe-generator collect/finalisePermissionAtomCandidates
+// stages), and family-model.test.mjs:363-376 forbids any classinstances value source rooted
+// at PermissionAtom. Lexical "...permissionatom..." identifiers denote the derived-output
+// role, never the input-axis class; an axis-root mismatch must not be inferred from a name.
 const familyModelReviewObservationPath = '.work/programme/family-model-review-observations.tsv';
 const familyModelReviewObservationDigest = digestWorkingPath(familyModelReviewObservationPath);
 requireEqual(
   familyModelReviewObservationDigest,
-  'sha256:de02beded68b2ff8e112240ca874ec4ae5de198c5773c88750895c4dcbf53b14',
+  'sha256:d69f9b07362563ea1b8b688e3ffef5bfe292cda6265bc1b5d6de317b9143d31f',
   'family-model review observation byte binding',
 );
 const familyModelReviewLines = readFileSync(join(repositoryRoot, familyModelReviewObservationPath), 'utf8')
@@ -283,8 +295,8 @@ const familyModelReviewWarrantedCount = familyModelReviewObservations
   .filter(({ signatureVerdict }) => signatureVerdict === 'WARRANTED').length;
 const familyModelReviewCorrectionCount = familyModelReviewObservations
   .filter(({ signatureVerdict }) => signatureVerdict === 'SEMANTIC_CORRECTION_REQUIRED').length;
-requireEqual(familyModelReviewWarrantedCount, 96, 'warranted family-model review observation count');
-requireEqual(familyModelReviewCorrectionCount, 12, 'correction-required family-model review observation count');
+requireEqual(familyModelReviewWarrantedCount, 101, 'warranted family-model review observation count');
+requireEqual(familyModelReviewCorrectionCount, 7, 'correction-required family-model review observation count');
 
 const localShaclObservation = {
   actualServiceAlgebraNodes: 0,
@@ -326,9 +338,9 @@ const universalReconstructionMismatchCount = universalProofMismatchFields
   .reduce((sum, field) => sum + universalProofRecord.results[field], 0);
 
 const nextExactAction = directiveReconciled ? {
-  action: 'Split the overloaded Permission source axis from the admitted PermissionAtom axis for the five affected family signatures, update generator and independent-verifier consumers without admitting candidate atoms, then run the focused family-model and universe tests.',
+  action: 'Independent review refuted the five permission-atom axis findings and re-recorded those signatures as warranted (pd:closurepermissionatom enumerates precursor usf:Permission by design; usf:PermissionAtom is a derived output). Evaluate each of the seven remaining SEMANTIC_CORRECTION_REQUIRED findings against executable semantics (dimensionAxisClassClosure, valueSourceClassIri, ontology domain/range, generator derivation, family-model invariants) before any implementation; do not assume validity from the finding alone.',
   authorityDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
-  command: "node --test assurance/permutation-closure/family-model.test.mjs assurance/permutation-closure/universe-generator.test.mjs assurance/permutation-closure/universe-proof.test.mjs",
+  command: "node --test assurance/permutation-closure/family-model.test.mjs assurance/permutation-closure/universe-generator.test.mjs",
   preconditions: [
     'authority digest and authority packet/projection byte digests remain exact',
     'no authority mutation transaction or modifying worker is active',
@@ -372,7 +384,7 @@ const dependencyNodes = [
     prerequisites: ['DIRECTIVE_AND_CHECKPOINT_RECONCILIATION'],
     state: directiveReconciled ? 'COMPLETE' : 'BLOCKED_BY_RECONCILIATION',
   },
-  { blockerCode: 'LOCAL_SEMANTIC_REVIEW_AND_IMPLEMENTATION', id: 'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE', prerequisites: ['FOUNDATION_DOMAIN_CLOSURE'], state: directiveReconciled ? 'IN_PROGRESS_12_SIGNATURE_CORRECTIONS_REQUIRED' : 'BLOCKED_BY_RECONCILIATION' },
+  { blockerCode: 'LOCAL_SEMANTIC_REVIEW_AND_IMPLEMENTATION', id: 'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE', prerequisites: ['FOUNDATION_DOMAIN_CLOSURE'], state: directiveReconciled ? 'IN_PROGRESS_7_SIGNATURE_CORRECTIONS_REQUIRED' : 'BLOCKED_BY_RECONCILIATION' },
   { blockerCode: 'LOCAL_SEMANTIC_IMPLEMENTATION', id: 'CAPABILITY_CLASSIFICATION_AND_FOUNDATION_APPLICATION', prerequisites: ['UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE'], state: 'BLOCKED_BY_UNIVERSAL_FAMILY_MODEL_REVIEW' },
   { blockerCode: 'LOCAL_SEMANTIC_IMPLEMENTATION', id: 'SERVICE_FUNCTION_AND_OPERATION_CLOSURE', prerequisites: ['CAPABILITY_CLASSIFICATION_AND_FOUNDATION_APPLICATION'], state: 'BLOCKED_BY_CAPABILITY_CLASSIFICATION' },
   { blockerCode: 'LOCAL_SEMANTIC_IMPLEMENTATION', id: 'IDENTITY_RESOURCE_AUTHORISATION_CLOSURE', prerequisites: ['SERVICE_FUNCTION_AND_OPERATION_CLOSURE'], state: 'BLOCKED_BY_SERVICE_FUNCTION_CLOSURE' },
@@ -388,7 +400,7 @@ const dependencyNodes = [
 ];
 
 const currentItem = directiveReconciled
-  ? { id: 'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE', state: 'IN_PROGRESS_12_SIGNATURE_CORRECTIONS_REQUIRED' }
+  ? { id: 'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE', state: 'IN_PROGRESS_7_SIGNATURE_CORRECTIONS_REQUIRED' }
   : { id: 'DIRECTIVE_AND_CHECKPOINT_RECONCILIATION', state: 'REOPENED_GOAL_DIGEST_CHANGED' };
 const currentPhase = 'OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE';
 
@@ -412,7 +424,7 @@ const gateSummary = [
   { id: 'DELIVERABLE_AND_LAYOUT_AUTHORITY', state: 'VERIFIED_CURRENT' },
   { id: 'REALISATION_OPTION_EVALUATION_CLOSURE', state: 'PARTIALLY_DELIVERED_RAW_ACQUISITION_CURRENT_SIGNED_EVIDENCE_PENDING' },
   { id: 'FOUNDATION_DOMAIN_CLOSURE', state: 'VERIFIED_CURRENT_LOCAL_CANDIDATE' },
-  { id: 'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE', state: 'IN_PROGRESS_96_WARRANTED_12_CORRECTIONS_REQUIRED' },
+  { id: 'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE', state: 'IN_PROGRESS_101_WARRANTED_7_CORRECTIONS_REQUIRED' },
   { id: 'CAPABILITY_SEMANTIC_APPLICATION_AND_CLASSIFICATION', state: 'BLOCKED_BY_UNIVERSAL_FAMILY_MODEL_REVIEW' },
   { id: 'SERVICE_FUNCTION_IDENTITY_RESOURCE_DATA_AND_INTERACTION_CLOSURE', state: 'BLOCKED_BY_CAPABILITY_SEMANTIC_APPLICATION' },
   { id: 'SERVICE_REQUIREMENT_AND_PRODUCTION_PROFILE_CLOSURE', state: 'BLOCKED_BY_CAPABILITY_SEMANTICS' },
@@ -470,7 +482,7 @@ const permutationClosure = {
       recordCount: familyModelReviewObservations.length,
       reviewedRegistryFileDigest: 'sha256:48a591a52d84a4522b8b7ba0bf29b96f7c12fdff13a38482b8d01ec3c7f876ff',
       semanticCorrectionRequiredCount: familyModelReviewCorrectionCount,
-      state: 'COMPLETE_OBSERVATION_SET_NOT_SEMANTIC_AUTHORITY_POST_CORRECTION_REVIEW_REQUIRED',
+      state: 'CURRENT_COMPLETE_OBSERVATION_SET_NOT_SEMANTIC_AUTHORITY_SEVEN_CORRECTIONS_OUTSTANDING',
       warrantedCount: familyModelReviewWarrantedCount,
     },
     gapCount: universalAnalysisRecord.gapCount,
