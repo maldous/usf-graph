@@ -12,6 +12,7 @@ import { DataFactory, Parser, Store, Writer } from 'n3';
 import * as rdfCanonize from 'rdf-canonize';
 import {
   authoredLoadList,
+  reviewLoadList,
   shapesGraph,
   managedGraphs,
   clearableGraphs,
@@ -195,6 +196,7 @@ function registryParityFailures(manifest) {
   };
   add(manifest.definitions, 'definitiongraph');
   add(manifest.authored, 'authoredgraph');
+  add(manifest.reviews, 'observedgraph');
   add(manifest.shapes, 'shapegraph');
   add(manifest.derived, 'derivedgraph');
   for (const graph of expected.keys()) if (!registryRows.has(graph)) failures.push(`manifest graph absent from RDF registry: ${graph}`);
@@ -254,6 +256,7 @@ export function checkLocal(manifest) {
   const all = [
     ...manifest.definitions,
     ...manifest.authored,
+    ...manifest.reviews,
     ...manifest.shapes,
     ...manifest.rules,
     ...manifest.derived,
@@ -327,17 +330,25 @@ export function checkLocal(manifest) {
   const dupAuthored = authoredGraphs.filter((g, i) => authoredGraphs.indexOf(g) !== i);
   if (dupAuthored.length) fail(`duplicate authored graph IRI: ${[...new Set(dupAuthored)].join(', ')}`);
 
+  const reviewGraphs = reviewLoadList(manifest).map((e) => e.graph);
+  const dupReviews = reviewGraphs.filter((g, i) => reviewGraphs.indexOf(g) !== i);
+  if (dupReviews.length) fail(`duplicate review graph IRI: ${[...new Set(dupReviews)].join(', ')}`);
+
   const derivedGraphs = manifest.derived.map((d) => d.graph);
   const dupDerived = derivedGraphs.filter((g, i) => derivedGraphs.indexOf(g) !== i);
   if (dupDerived.length) fail(`duplicate derived graph IRI: ${[...new Set(dupDerived)].join(', ')}`);
 
   for (const g of authoredGraphs) {
     if (derivedGraphs.includes(g)) fail(`graph IRI used as both authored and derived: ${g}`);
+    if (reviewGraphs.includes(g)) fail(`graph IRI used as both authored and review: ${g}`);
+  }
+  for (const g of reviewGraphs) {
+    if (derivedGraphs.includes(g)) fail(`graph IRI used as both review and derived: ${g}`);
   }
   const retiredGraphs = manifest.retired.map((entry) => entry.graph);
   const duplicateRetired = retiredGraphs.filter((graph, index) => retiredGraphs.indexOf(graph) !== index);
   if (duplicateRetired.length) fail(`duplicate retired graph IRI: ${[...new Set(duplicateRetired)].join(', ')}`);
-  const currentGraphs = new Set([...authoredGraphs, ...derivedGraphs, shapesGraph(manifest)]);
+  const currentGraphs = new Set([...authoredGraphs, ...reviewGraphs, ...derivedGraphs, shapesGraph(manifest)]);
   for (const graph of retiredGraphs) {
     if (currentGraphs.has(graph)) fail(`retired graph IRI remains current: ${graph}`);
   }
@@ -347,6 +358,7 @@ export function checkLocal(manifest) {
   // graph and therefore one order.
   const orderedGraphEntries = [
     ...authoredLoadList(manifest),
+    ...reviewLoadList(manifest),
     manifest.shapes[0],
     ...manifest.derived,
   ].filter(Boolean);
@@ -391,6 +403,7 @@ export function checkLocal(manifest) {
     ok: true,
     files: all.length,
     authoredGraphs: authoredGraphs.length,
+    reviewGraphs: reviewGraphs.length,
     derivedGraphs: derivedGraphs.length,
     inactiveSources: manifest.inactiveSources.length,
     originIndependenceDigest: originResult.resultDigest,
@@ -408,8 +421,16 @@ export function buildPlan(manifest) {
   for (const g of clearableGraphs(manifest)) plan.push({ op: 'clear', graph: g });
   for (const e of authoredLoadList(manifest)) plan.push({ op: 'load', graph: e.graph, file: e.file });
   const sg = shapesGraph(manifest);
-  for (const s of manifest.shapes) plan.push({ op: 'loadShapes', graph: sg, file: s.file });
-  plan.push({ op: 'validate', state: 'authored' });
+  const reviews = reviewLoadList(manifest);
+  if (reviews.length) {
+    plan.push({ op: 'validate', state: 'authored' });
+    for (const e of reviews) plan.push({ op: 'loadReview', graph: e.graph, file: e.file });
+    plan.push({ op: 'validate', state: 'review' });
+    for (const s of manifest.shapes) plan.push({ op: 'loadShapes', graph: sg, file: s.file });
+  } else {
+    for (const s of manifest.shapes) plan.push({ op: 'loadShapes', graph: sg, file: s.file });
+    plan.push({ op: 'validate', state: 'authored' });
+  }
   for (const r of derivationRules(manifest)) plan.push({ op: 'derive', rule: r.file, graph: r.output });
   plan.push({ op: 'validate', state: 'derived' });
   plan.push({ op: 'integrity' });
@@ -641,6 +662,7 @@ export async function compile({
   };
   let commitOutcome;
   let authoredValidationReceipt;
+  let reviewValidationReceipt;
   let derivedValidationReceipt;
   let tx;
 
@@ -686,6 +708,41 @@ export async function compile({
       throw new CompilerError('authored state failed SHACL validation', { phase: 'validate:authored', report });
     }
     authoredValidationReceipt = validatedReceipt(authoredReceipt, shapes, 'validate:authored-receipt');
+
+    // Review records are validated observations, not authorising semantic
+    // inputs. Load them only after the authored-only state has conformed, then
+    // validate the enriched pre-derivation state as a distinct evidence scope.
+    const reviews = reviewLoadList(manifest);
+    if (reviews.length) {
+      const reviewTransport = [];
+      for (const entry of reviews) {
+        try {
+          reviewTransport.push(...recordCandidate(readText(entry.path), entry.contentType, entry.graph));
+        } catch (error) {
+          if (error instanceof CompilerError) throw error;
+          throw new CompilerError(error.message, {
+            phase: 'load:review-prepare', file: entry.file, graph: entry.graph,
+          });
+        }
+      }
+      try {
+        await client.addData(tx, await nquadsFor(reviewTransport), NQUADS, null);
+      } catch (error) {
+        throw new CompilerError(error.message, {
+          phase: 'load:review',
+          file: reviews.map((entry) => entry.file).join(','),
+          graph: 'registered-review-graphs',
+        });
+      }
+      const reviewReceipt = await client.validateInTransactionWithReceipt(tx, shapes);
+      if (reviewReceipt?.conforms !== true) {
+        const report = await client.reportInTransaction(tx, shapes);
+        throw new CompilerError('review-enriched state failed SHACL validation', {
+          phase: 'validate:review', report,
+        });
+      }
+      reviewValidationReceipt = validatedReceipt(reviewReceipt, shapes, 'validate:review-receipt');
+    }
 
     // Replace the configured constraint graph in one complete upload. Loading
     // modules one at a time exposes an invalid partial constraints graph to
@@ -766,6 +823,13 @@ export async function compile({
     for (const e of authoredLoadList(manifest)) {
       if ((await countInTx(client, tx, e.graph)) === 0) {
         throw new CompilerError(`authored graph is empty after load: ${e.graph}`, {
+          phase: 'verifyCounts',
+        });
+      }
+    }
+    for (const e of reviewLoadList(manifest)) {
+      if ((await countInTx(client, tx, e.graph)) === 0) {
+        throw new CompilerError(`review graph is empty after load: ${e.graph}`, {
           phase: 'verifyCounts',
         });
       }
@@ -880,6 +944,7 @@ export async function compile({
     }
     const liveValidationCore = {
       authored: authoredValidationReceipt,
+      ...(reviewValidationReceipt ? { review: reviewValidationReceipt } : {}),
       derived: derivedValidationReceipt,
       validatedDocumentCount: manifest.shapes.length,
       validatedDocumentSetDigest: authoredValidationReceipt.validatedDocumentSetDigest,
@@ -888,6 +953,7 @@ export async function compile({
       ok: true,
       graphsCleared: clearableGraphs(manifest).length,
       authoredLoaded: authoredLoadList(manifest).length,
+      reviewLoaded: reviewLoadList(manifest).length,
       shapesLoaded: manifest.shapes.length,
       derived: derivedTriples,
       contaminationCount: 0,

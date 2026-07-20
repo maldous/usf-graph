@@ -323,7 +323,7 @@ function loadDataset(repositoryRoot) {
   const root = realpathSync(repositoryRoot);
   const manifest = YAML.parse(readFileSync(join(root, 'semantic-model/manifest.yaml'), 'utf8'));
   if (manifest?.version !== 1) fail('UNIVERSAL_PROOF_MANIFEST_INVALID', 'manifest version is unsupported');
-  const entries = ['definitionGraphs', 'authoredGraphs', 'derivedGraphs', 'shapeGraphs'].flatMap((manifestGroup) => (
+  const entries = ['definitionGraphs', 'authoredGraphs', 'reviewGraphs', 'derivedGraphs', 'shapeGraphs'].flatMap((manifestGroup) => (
     (manifest[manifestGroup] ?? []).map((entry) => ({ ...entry, manifestGroup }))
   )).sort((a, b) => compare(`${a.file}\0${a.graph}`, `${b.file}\0${b.graph}`));
   const identities = entries.map(({ file, graph }) => `${file}\0${graph}`);
@@ -352,7 +352,7 @@ function loadDataset(repositoryRoot) {
     && record.occurrenceDigest === records[index - 1].occurrenceDigest);
   const canonicalRecords = records.filter((record, index) => index === 0
     || record.occurrenceDigest !== records[index - 1].occurrenceDigest);
-  sourceRecords.sort((a, b) => compare(a.path, b.path));
+  sourceRecords.sort((a, b) => compare(canonicalJson(a), canonicalJson(b)));
   return {
     duplicates,
     records: canonicalRecords,
@@ -569,7 +569,9 @@ function reconstructInventory(dataset, authorityBinding, authorityInputVerificat
     'authoredGraphs', 'definitionGraphs',
   ].includes(manifestGroup));
   const shapeRecords = dataset.records.filter(({ manifestGroup }) => manifestGroup === 'shapeGraphs');
-  const occurrenceRecords = dataset.records.filter(({ manifestGroup }) => manifestGroup !== 'shapeGraphs');
+  const occurrenceRecords = dataset.records.filter(({ manifestGroup }) => [
+    'authoredGraphs', 'conformanceFixture', 'definitionGraphs', 'derivedGraphs',
+  ].includes(manifestGroup));
   const valueIndex = objectIndex(semanticRecords);
   const typeIndex = explicitTypes(semanticRecords);
   const occurrences = occurrenceIndexes(occurrenceRecords);
@@ -720,8 +722,11 @@ function reconstructInventory(dataset, authorityBinding, authorityInputVerificat
     controlledValueCount: individuals.filter(({ controlledValue }) => controlledValue).length,
     controlledValueSetDigest: digest(individuals.filter(({ controlledValue }) => controlledValue)
       .map(({ recordDigest }) => recordDigest)),
-    duplicateOccurrenceCount: dataset.duplicates.length,
+    duplicateOccurrenceCount: dataset.duplicates.filter(({ manifestGroup }) => (
+      manifestGroup !== 'reviewGraphs'
+    )).length,
     duplicateOccurrenceSetDigest: digest(uniqueSorted(dataset.duplicates
+      .filter(({ manifestGroup }) => manifestGroup !== 'reviewGraphs')
       .map(({ occurrenceDigest }) => occurrenceDigest))),
     externalStandardBindings: { classes: classBindings, properties: propertyBindings },
     fixtureSourceDigest: dataset.sourceRecords.find(({ path }) => path === FIXTURE_PATH)?.contentDigest ?? null,
@@ -739,7 +744,7 @@ function reconstructInventory(dataset, authorityBinding, authorityInputVerificat
     relationshipSignatures,
     relationshipSignatureSetDigest: digest(relationshipSignatures.map(({ relationshipSignatureDigest }) => relationshipSignatureDigest)),
     schemaVersion: 4,
-    excludedSourceGroups: ['conformanceFixture', 'derivedGraphs', 'rules', 'shapeGraphs'],
+    excludedSourceGroups: ['conformanceFixture', 'derivedGraphs', 'reviewGraphs', 'rules', 'shapeGraphs'],
     semanticInputSourceSetDigest: sourceSetDigest,
     sourceRecords,
     sourceSetDigest,
@@ -760,8 +765,8 @@ function reconstructInventory(dataset, authorityBinding, authorityInputVerificat
 }
 
 function directFamilySignatures(dataset, candidateRegistry) {
-  const records = dataset.records.filter(({ manifestGroup }) => ![
-    'conformanceFixture', 'derivedGraphs',
+  const records = dataset.records.filter(({ manifestGroup }) => [
+    'authoredGraphs', 'definitionGraphs',
   ].includes(manifestGroup));
   const index = objectIndex(records);
   const literals = new Map();
@@ -981,9 +986,24 @@ function compact(value) {
 }
 
 function reconstructReviewProjection(dataset, inventory, registry, analyzerSourceDigest) {
-  const records = dataset.records.filter(({ manifestGroup }) => [
-    'authoredGraphs', 'definitionGraphs',
-  ].includes(manifestGroup));
+  const allTypes = explicitTypes(dataset.records);
+  const reviewClassIris = new Set([
+    TERM_REVIEW_CLASS, REVIEW_COVERAGE_CLASS, FAMILY_REVIEW_CLASS, FAMILY_CANDIDATE_CLASS,
+  ]);
+  const reviewResourceIris = uniqueSorted([...allTypes.entries()]
+    .filter(([, typeIris]) => typeIris.some((typeIri) => reviewClassIris.has(typeIri)))
+    .map(([iri]) => iri));
+  const invalidReviewResourcePlanes = reviewResourceIris.flatMap((iri) => {
+    const planes = uniqueSorted(dataset.records.filter(({ subject }) => (
+      subject.termType === 'NamedNode' && subject.value === iri
+    )).map(({ manifestGroup }) => manifestGroup));
+    return canonicalJson(planes) === canonicalJson(['reviewGraphs']) ? [] : [{ iri, planes }];
+  });
+  if (invalidReviewResourcePlanes.length) {
+    fail('UNIVERSAL_PROOF_REVIEW_RESOURCE_PLANE_INVALID',
+      'review resources must be isolated in registered review graphs', { invalidReviewResourcePlanes });
+  }
+  const records = dataset.records.filter(({ manifestGroup }) => manifestGroup === 'reviewGraphs');
   const objects = objectIndex(records);
   const literals = literalIndex(records);
   const types = explicitTypes(records);
@@ -1050,6 +1070,9 @@ function reconstructReviewProjection(dataset, inventory, registry, analyzerSourc
   const semanticSourceRecords = dataset.sourceRecords.filter(({ manifestGroup }) => [
     'authoredGraphs', 'definitionGraphs',
   ].includes(manifestGroup));
+  const reviewSourceRecords = dataset.sourceRecords.filter(({ manifestGroup }) => (
+    manifestGroup === 'reviewGraphs'
+  ));
   const core = {
     authorityDigest: inventory.authorityBinding.authorityDigest,
     coverageCount: coverages.length,
@@ -1062,7 +1085,10 @@ function reconstructReviewProjection(dataset, inventory, registry, analyzerSourc
     inventoryDigest: inventory.inventoryDigest,
     recordKind: 'USF_UNIVERSAL_REVIEW_PROJECTION',
     projectionAlgorithmSourceDigest: analyzerSourceDigest,
-    schemaVersion: 1,
+    reviewSourceCount: reviewSourceRecords.length,
+    reviewSourceRecords,
+    reviewSourceSetDigest: digest(reviewSourceRecords),
+    schemaVersion: 2,
     semanticInputSourceSetDigest: digest(semanticSourceRecords),
     termReviewCount: termReviews.length,
     termReviews,
@@ -1633,6 +1659,13 @@ export function proveUniversalSemanticCoverage({
     registry,
     analyzerSourceDigest,
   );
+  if (canonicalJson(reviewProjection.reviewSourceRecords)
+      !== canonicalJson(independentReviewProjection.reviewSourceRecords)
+    || reviewProjection.reviewSourceCount !== independentReviewProjection.reviewSourceCount
+    || reviewProjection.reviewSourceSetDigest !== independentReviewProjection.reviewSourceSetDigest) {
+    fail('UNIVERSAL_PROOF_REVIEW_SOURCE_BINDING_MISMATCH',
+      'review source records differ from independently rebound review graph bytes');
+  }
   if (canonicalJson(independentReviewProjection) !== canonicalJson(reviewProjection)) {
     fail('UNIVERSAL_PROOF_REVIEW_PROJECTION_RECONSTRUCTION_MISMATCH',
       'review projection differs from current semantic source bytes');
@@ -1722,6 +1755,7 @@ export function proveUniversalSemanticCoverage({
       analysisReconstructionMismatchCount: 0,
       familyReconstructionMismatchCount: 0,
       inventoryReconstructionMismatchCount: 0,
+      reviewSourceReconstructionMismatchCount: 0,
       reviewProjectionReconstructionMismatchCount: 0,
       unresolvedFamilyReviewCount: reconstructed.registeredFamilyModelReview.rows
         .filter(({ reviewState }) => reviewState !== 'REVIEW_CURRENT').length,
@@ -1729,7 +1763,8 @@ export function proveUniversalSemanticCoverage({
         .filter(({ disposition }) => disposition === 'AUTHORITY_REVIEW_REQUIRED').length,
     },
     reviewProjectionDigest: reviewProjection.reviewProjectionDigest,
-    schemaVersion: 2,
+    reviewSourceSetDigest: independentReviewProjection.reviewSourceSetDigest,
+    schemaVersion: 3,
     sourceSetDigest: independent.sourceSetDigest,
     verdict: 'UNIVERSAL_SEMANTIC_GAP_AND_CROSS_PRODUCT_RECONSTRUCTION_PASS',
   };

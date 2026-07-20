@@ -1743,7 +1743,12 @@ export function realisationOptionShaclFocusRoots(store) {
 export function loadSemanticStore(repositoryRoot) {
   const root = resolve(repositoryRoot);
   const manifest = parseYaml(readFileSync(join(root, 'semantic-model', 'manifest.yaml'), 'utf8'));
-  const entries = [...manifest.definitionGraphs, ...manifest.authoredGraphs, ...manifest.derivedGraphs];
+  const entries = [
+    ...manifest.definitionGraphs,
+    ...manifest.authoredGraphs,
+    ...(manifest.reviewGraphs ?? []),
+    ...manifest.derivedGraphs,
+  ];
   const store = new Store();
   const records = [];
   for (const entry of entries) {

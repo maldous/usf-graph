@@ -31,6 +31,7 @@ export const ROLES = Object.freeze([
   'rules',
   'derived',
   'permutation',
+  'review',
 ]);
 
 // The one required derivation order. Obligations → evidence → surfaces →
@@ -94,6 +95,9 @@ function roleFor(section, file) {
       return 'rules';
     case 'derived':
       return 'derived';
+    case 'review':
+      if (first === 'permutation') return 'review';
+      throw new ManifestError(`Cannot derive role for review file ${file}`);
     case 'definition':
       if (base === 'ontology.ttl') return 'ontology';
       if (base === 'vocabulary.ttl' || base === 'taxonomy.ttl') return 'vocabulary';
@@ -190,6 +194,7 @@ export function loadManifest(graphDir) {
     entry('definition', r, root, r.loadOrder)
   );
   const authored = (doc.authoredGraphs || []).map((r) => entry('authored', r, root, r.loadOrder));
+  const reviews = (doc.reviewGraphs || []).map((r) => entry('review', r, root, r.loadOrder));
   if (Array.isArray(doc.observedGraphs) && doc.observedGraphs.length > 0) {
     throw new ManifestError('observedGraphs is retired; current evidence enters through registered authored resources');
   }
@@ -215,6 +220,7 @@ export function loadManifest(graphDir) {
     baseIri: doc.baseIri,
     definitions: Object.freeze(definitions),
     authored: Object.freeze(authored),
+    reviews: Object.freeze(reviews),
     shapes: Object.freeze(shapes),
     rules: Object.freeze(rules),
     derived: Object.freeze(derived),
@@ -225,11 +231,17 @@ export function loadManifest(graphDir) {
   });
 }
 
-// The ordered set of authored inputs actually loaded as data (definitions then
-// authored graphs, by declared load order). Derived and fixture data are never
-// part of this list.
+// The ordered semantic inputs loaded as authorising data. Derived, review and
+// fixture data are never part of this list.
 export function authoredLoadList(manifest) {
   return [...manifest.definitions, ...manifest.authored].sort((a, b) => a.order - b.order);
+}
+
+// Review records are managed, validated observations. They are deliberately
+// separate from authoredLoadList so their bytes cannot author or recursively
+// change the semantic inventory that they review.
+export function reviewLoadList(manifest) {
+  return [...manifest.reviews].sort((a, b) => a.order - b.order);
 }
 
 // The single shapes graph IRI (all shape files register into one graph).
@@ -240,12 +252,13 @@ export function shapesGraph(manifest) {
 }
 
 // Every named graph the compiler is permitted to clear and (re)write: the
-// authored graphs, the shapes graph, and the derived graphs. This is the
+// semantic-input and review graphs, the shapes graph, and the derived graphs. This is the
 // closed allow-list for named-graph clearing — nothing else may be touched,
 // and the whole database is never cleared.
 export function managedGraphs(manifest) {
   const set = new Set();
   for (const e of authoredLoadList(manifest)) set.add(e.graph);
+  for (const e of reviewLoadList(manifest)) set.add(e.graph);
   set.add(shapesGraph(manifest));
   for (const d of manifest.derived) set.add(d.graph);
   for (const r of manifest.rules) if (r.output) set.add(r.output);

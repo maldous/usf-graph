@@ -24,7 +24,14 @@ const realGraphAbsent = (t) => {
 };
 
 
-import { loadManifest, managedGraphs, clearableGraphs, ManifestError } from './manifest.mjs';
+import {
+  authoredLoadList,
+  clearableGraphs,
+  loadManifest,
+  managedGraphs,
+  ManifestError,
+  reviewLoadList,
+} from './manifest.mjs';
 import {
   checkLocal,
   compile,
@@ -110,6 +117,30 @@ rl:r5 a usf:DerivationRule ; usf:canonicalName "readiness" ; usf:inNamedGraph ng
     'derived/readiness.trig': 'GRAPH <urn:usf:graph:derived:readiness> { <urn:usf:x> a <urn:usf:ontology:Readiness> . }\n',
     'fixtures/conforming/sample.ttl': '# fixture, never loaded as authority\n<urn:usf:x> a <urn:usf:ontology:Thing> .\n',
   };
+}
+
+function withReviewGraph() {
+  const spec = baseSpec();
+  spec['manifest.yaml'] = spec['manifest.yaml']
+    .replace(
+      'shapeGraphs:',
+      'reviewGraphs:\n  - { file: permutation/reviews.trig, graph: "urn:usf:graph:permutation-reviews", loadOrder: 4, validationOrder: 4 }\nshapeGraphs:',
+    )
+    .replace(
+      'file: shapes.ttl, graph: "urn:usf:graph:shapes", loadOrder: 4, validationOrder: 4',
+      'file: shapes.ttl, graph: "urn:usf:graph:shapes", loadOrder: 5, validationOrder: 5',
+    );
+  spec['registry.ttl'] = spec['registry.ttl']
+    .replace(
+      'ng:s a usf:NamedGraph',
+      'ng:v a usf:NamedGraph ; usf:canonicalName "permutationreviews" ; usf:graphIri "urn:usf:graph:permutation-reviews" ; usf:graphClass gcl:observedgraph ; usf:loadOrder 4 ; usf:graphValidationOrder 4 .\nng:s a usf:NamedGraph',
+    )
+    .replace(
+      'usf:graphClass gcl:shapegraph ; usf:loadOrder 4 ; usf:graphValidationOrder 4',
+      'usf:graphClass gcl:shapegraph ; usf:loadOrder 5 ; usf:graphValidationOrder 5',
+    );
+  spec['permutation/reviews.trig'] = 'GRAPH <urn:usf:graph:permutation-reviews> { <urn:usf:review:test> a <urn:usf:ontology:Thing> . }\n';
+  return spec;
 }
 
 // A validator asserting a CompilerError whose failure list mentions `substr`.
@@ -260,6 +291,35 @@ test('checkLocal: the base graph passes', () => {
   const dir = writeGraph(baseSpec());
   const m = loadManifest(dir);
   assert.equal(checkLocal(m).ok, true);
+});
+
+test('review graphs are managed observed inputs but never authored semantic inputs', () => {
+  const manifest = loadManifest(writeGraph(withReviewGraph()));
+  assert.equal(checkLocal(manifest).ok, true);
+  assert.deepEqual(reviewLoadList(manifest).map(({ role }) => role), ['review']);
+  assert.deepEqual(reviewLoadList(manifest).map(({ graph }) => graph), [
+    'urn:usf:graph:permutation-reviews',
+  ]);
+  assert.equal(authoredLoadList(manifest).some(({ graph }) => (
+    graph === 'urn:usf:graph:permutation-reviews'
+  )), false);
+  assert.equal(managedGraphs(manifest).includes('urn:usf:graph:permutation-reviews'), true);
+  const plan = buildPlan(manifest);
+  assert.ok(plan.some(({ op, state }) => op === 'validate' && state === 'authored'));
+  assert.ok(plan.some(({ op, state }) => op === 'validate' && state === 'review'));
+  assert.ok(plan.some(({ op, graph }) => (
+    op === 'loadReview' && graph === 'urn:usf:graph:permutation-reviews'
+  )));
+});
+
+test('review graphs fail closed when the registry promotes them to authored authority', () => {
+  const spec = withReviewGraph();
+  spec['registry.ttl'] = spec['registry.ttl'].replace(
+    'usf:graphClass gcl:observedgraph',
+    'usf:graphClass gcl:authoredgraph',
+  );
+  assert.throws(() => checkLocal(loadManifest(writeGraph(spec))),
+    hasFailure('registry graph class mismatch'));
 });
 
 test('checkLocal: a duplicate authored graph IRI fails', () => {
@@ -466,6 +526,24 @@ test('compile: commits after full success', async () => {
   assert.equal(rec.rolledBack, false);
   assert.equal(result.commitOutcome.state, 'confirmed-response');
   assert.equal(result.commitOutcome.exactCandidateStateVerified, true);
+});
+
+test('compile: validates review observations in a distinct pre-derivation phase', async () => {
+  const manifest = loadManifest(writeGraph(withReviewGraph()));
+  const { client, rec } = fakeClient();
+  const validate = client.validateInTransactionWithReceipt.bind(client);
+  let validationCount = 0;
+  client.validateInTransactionWithReceipt = async (...args) => {
+    validationCount += 1;
+    return validate(...args);
+  };
+  const result = await compileCandidate({ manifest, client });
+  assert.equal(result.reviewLoaded, 1);
+  assert.equal(validationCount, 3);
+  assert.ok(result.liveValidation.review);
+  assert.equal(rec.added.some(({ content }) => content.includes(
+    '<urn:usf:graph:permutation-reviews>',
+  )), true);
 });
 
 test('compile: validates the exact candidate and rolls back without publication', async () => {

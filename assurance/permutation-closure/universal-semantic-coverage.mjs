@@ -320,7 +320,7 @@ function readGovernedDataset(repositoryRoot) {
   const manifestBytes = readFileSync(manifestPath);
   const manifest = YAML.parse(manifestBytes.toString('utf8'));
   if (manifest?.version !== 1) fail('UNIVERSAL_MANIFEST_INVALID', 'semantic manifest version is unsupported');
-  const entries = ['definitionGraphs', 'authoredGraphs', 'derivedGraphs', 'shapeGraphs']
+  const entries = ['definitionGraphs', 'authoredGraphs', 'reviewGraphs', 'derivedGraphs', 'shapeGraphs']
     .flatMap((manifestGroup) => (manifest[manifestGroup] ?? [])
       .map((entry) => ({ ...entry, manifestGroup })))
     .sort((left, right) => compare(`${left.file}\0${left.graph}`, `${right.file}\0${right.graph}`));
@@ -412,11 +412,9 @@ function readGovernedDataset(repositoryRoot) {
   const canonicalRecords = records.filter((record, index) => (
     index === 0 || record.occurrenceDigest !== records[index - 1].occurrenceDigest
   ));
-  sourceRecords.sort((left, right) => compare(left.path, right.path));
+  sourceRecords.sort((left, right) => compare(canonicalJson(left), canonicalJson(right)));
   return {
-    duplicateOccurrenceCount: duplicateOccurrences.length,
-    duplicateOccurrenceSetDigest: digest(uniqueSorted(duplicateOccurrences
-      .map(({ occurrenceDigest }) => occurrenceDigest))),
+    duplicateOccurrences,
     manifest,
     records: canonicalRecords,
     ruleDependencyRecords: ruleDependencies.records,
@@ -661,12 +659,14 @@ export function buildUniversalSemanticInventory({ authorityBinding, authorityInp
     fail('UNIVERSAL_AUTHORITY_INPUT_VERIFICATION_REQUIRED', 'digest-valid packet and projection verification is required');
   }
   const {
-    duplicateOccurrenceCount,
-    duplicateOccurrenceSetDigest,
+    duplicateOccurrences,
     records,
     ruleDependencyRecords,
     sourceRecords,
   } = readGovernedDataset(repositoryRoot);
+  const inventoryDuplicateOccurrences = duplicateOccurrences.filter(({ manifestGroup }) => (
+    manifestGroup !== 'reviewGraphs'
+  ));
   // Generated projections are observations, never semantic inventory inputs.
   // Excluding them from the inventory identity prevents a review projection
   // from recursively changing the term set or digest that it describes.
@@ -674,7 +674,9 @@ export function buildUniversalSemanticInventory({ authorityBinding, authorityInp
     'authoredGraphs', 'definitionGraphs',
   ].includes(manifestGroup));
   const shapeRecords = records.filter(({ manifestGroup }) => manifestGroup === 'shapeGraphs');
-  const occurrenceRecords = records.filter(({ manifestGroup }) => manifestGroup !== 'shapeGraphs');
+  const occurrenceRecords = records.filter(({ manifestGroup }) => [
+    'authoredGraphs', 'conformanceFixture', 'definitionGraphs', 'derivedGraphs',
+  ].includes(manifestGroup));
   const types = explicitTypes(semanticRecords);
   const occurrences = occurrenceIndexes(occurrenceRecords);
   const values = objectValueIndex(semanticRecords);
@@ -815,8 +817,9 @@ export function buildUniversalSemanticInventory({ authorityBinding, authorityInp
     controlledValueCount: individuals.filter(({ controlledValue }) => controlledValue).length,
     controlledValueSetDigest: digest(individuals.filter(({ controlledValue }) => controlledValue)
       .map(({ recordDigest }) => recordDigest)),
-    duplicateOccurrenceCount,
-    duplicateOccurrenceSetDigest,
+    duplicateOccurrenceCount: inventoryDuplicateOccurrences.length,
+    duplicateOccurrenceSetDigest: digest(uniqueSorted(inventoryDuplicateOccurrences
+      .map(({ occurrenceDigest }) => occurrenceDigest))),
     externalStandardBindings: {
       classes: externalClassBindings.sort((left, right) => compare(canonicalJson(left), canonicalJson(right))),
       properties: externalPropertyBindings.sort((left, right) => compare(canonicalJson(left), canonicalJson(right))),
@@ -836,7 +839,7 @@ export function buildUniversalSemanticInventory({ authorityBinding, authorityInp
     relationshipSignatures: signatureRecords,
     relationshipSignatureSetDigest: digest(signatureRecords.map(({ relationshipSignatureDigest }) => relationshipSignatureDigest)),
     schemaVersion: 4,
-    excludedSourceGroups: ['conformanceFixture', 'derivedGraphs', 'rules', 'shapeGraphs'],
+    excludedSourceGroups: ['conformanceFixture', 'derivedGraphs', 'reviewGraphs', 'rules', 'shapeGraphs'],
     semanticInputSourceSetDigest: sourceSetDigest,
     sourceRecords: governedSourceRecords,
     sourceSetDigest,
@@ -867,9 +870,27 @@ export function loadUniversalReviewProjection({ inventory, registry, repositoryR
     fail('UNIVERSAL_REVIEW_PROJECTION_SOURCE_DRIFT',
       'semantic input bytes changed between inventory and review projection');
   }
-  const records = dataset.records.filter(({ manifestGroup }) => [
-    'authoredGraphs', 'definitionGraphs',
-  ].includes(manifestGroup));
+  const allTypes = explicitTypes(dataset.records);
+  const reviewClassIris = new Set([
+    TERM_REVIEW_CLASS, REVIEW_COVERAGE_CLASS, FAMILY_REVIEW_CLASS, FAMILY_CANDIDATE_CLASS,
+  ]);
+  const reviewResourceIris = uniqueSorted([...allTypes.entries()]
+    .filter(([, classIris]) => classIris.some((classIri) => reviewClassIris.has(classIri)))
+    .map(([iri]) => iri));
+  const invalidReviewResourcePlanes = reviewResourceIris.flatMap((iri) => {
+    const planes = uniqueSorted(dataset.records.filter(({ subject }) => (
+      subject.termType === 'NamedNode' && subject.value === iri
+    )).map(({ manifestGroup }) => manifestGroup));
+    return canonicalJson(planes) === canonicalJson(['reviewGraphs']) ? [] : [{ iri, planes }];
+  });
+  if (invalidReviewResourcePlanes.length) {
+    fail('UNIVERSAL_REVIEW_RESOURCE_PLANE_INVALID',
+      'review resources must be isolated in registered review graphs', { invalidReviewResourcePlanes });
+  }
+  const records = dataset.records.filter(({ manifestGroup }) => manifestGroup === 'reviewGraphs');
+  const reviewSourceRecords = dataset.sourceRecords.filter(({ manifestGroup }) => (
+    manifestGroup === 'reviewGraphs'
+  ));
   const objects = objectValueIndex(records);
   const literals = literalValueIndex(records);
   const types = explicitTypes(records);
@@ -950,7 +971,10 @@ export function loadUniversalReviewProjection({ inventory, registry, repositoryR
     inventoryDigest: inventory.inventoryDigest,
     recordKind: 'USF_UNIVERSAL_REVIEW_PROJECTION',
     projectionAlgorithmSourceDigest: ANALYZER_SOURCE_DIGEST,
-    schemaVersion: 1,
+    reviewSourceCount: reviewSourceRecords.length,
+    reviewSourceRecords,
+    reviewSourceSetDigest: digest(reviewSourceRecords),
+    schemaVersion: 2,
     semanticInputSourceSetDigest,
     termReviewCount: termReviews.length,
     termReviews,
@@ -1683,6 +1707,7 @@ export function analyseUniversalFamilyCompleteness({
   );
   if (!reviewProjection
     || reviewProjection.recordKind !== 'USF_UNIVERSAL_REVIEW_PROJECTION'
+    || reviewProjection.schemaVersion !== 2
     || reviewProjection.authorityDigest !== inventory.authorityBinding.authorityDigest
     || reviewProjection.inventoryDigest !== inventory.inventoryDigest
     || reviewProjection.familyRegistryDigest !== registry.registryDigest
@@ -1692,9 +1717,21 @@ export function analyseUniversalFamilyCompleteness({
     || reviewProjection.familySignatureReviewCount !== reviewProjection.familySignatureReviews?.length
     || reviewProjection.coverageCount !== reviewProjection.coverages?.length
     || reviewProjection.familyCandidateCount !== reviewProjection.familyCandidates?.length
+    || reviewProjection.reviewSourceCount !== reviewProjection.reviewSourceRecords?.length
+    || reviewProjection.reviewSourceSetDigest !== digest(reviewProjection.reviewSourceRecords ?? [])
     || reviewProjection.reviewProjectionDigest
       !== digest((({ reviewProjectionDigest, ...core }) => core)(reviewProjection))) {
     fail('UNIVERSAL_REVIEW_PROJECTION_INVALID', 'a digest-valid exact review projection is required');
+  }
+  const wrongPlaneResources = [
+    ...reviewProjection.termReviews.map(({ reviewIri, sourcePlanes }) => ({ iri: reviewIri, sourcePlanes })),
+    ...reviewProjection.familySignatureReviews.map(({ reviewIri, sourcePlanes }) => ({ iri: reviewIri, sourcePlanes })),
+    ...reviewProjection.coverages.map(({ coverageIri, sourcePlanes }) => ({ iri: coverageIri, sourcePlanes })),
+    ...reviewProjection.familyCandidates.map(({ candidateIri, sourcePlanes }) => ({ iri: candidateIri, sourcePlanes })),
+  ].filter(({ sourcePlanes }) => canonicalJson(sourcePlanes) !== canonicalJson(['reviewGraphs']));
+  if (wrongPlaneResources.length) {
+    fail('UNIVERSAL_REVIEW_RESOURCE_PLANE_INVALID',
+      'projected review resources must remain isolated from semantic inputs', { wrongPlaneResources });
   }
   const witnessIndex = buildExactCoverageWitnessIndex(inventory, registry);
   const dispositionResult = termDispositions(inventory, witnessIndex, reviewProjection);

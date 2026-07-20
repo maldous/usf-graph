@@ -107,6 +107,23 @@ test('effective harness binds one in-memory planted-fixture contract with exact 
   assert.equal(effectiveLocalShaclPythonSource.includes('multipleCodeCount'), true);
 });
 
+test('effective harness isolates optional review observations from authored semantic inputs', () => {
+  assert.equal(localShaclPythonSource.includes('"reviewGraphs"'), false);
+  assert.equal(effectiveLocalShaclPythonSource.includes(
+    'for group in ("definitionGraphs", "authoredGraphs", "reviewGraphs", "derivedGraphs"):'
+  ), true);
+  assert.equal(effectiveLocalShaclPythonSource.includes(
+    'if group in ("definitionGraphs", "authoredGraphs"):'
+  ), true);
+  assert.equal(effectiveLocalShaclPythonSource.includes(
+    'if manifest.get("reviewGraphs", []):'
+  ), true);
+  assert.equal(effectiveLocalShaclPythonSource.includes('"AFFECTED_REVIEW_ENRICHED"'), true);
+  assert.equal(effectiveLocalShaclPythonSource.includes(
+    '"reviewEnrichedDataTripleCount": len(review_data)'
+  ), true);
+});
+
 test('review and candidate authorisation guards use SHACL-SPARQL-compatible predicate filters', () => {
   const shapes = readFileSync(new URL('../../semantic-model/shapes/permutation.ttl', import.meta.url), 'utf8');
   assert.equal(shapes.includes('VALUES ?predicate { usf:establishesSemanticTruth'), false);

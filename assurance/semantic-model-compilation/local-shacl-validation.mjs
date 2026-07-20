@@ -373,10 +373,58 @@ function injectPythonFixtureContract(source) {
   return result;
 }
 
-export const effectiveLocalShaclPythonSource = injectPythonFixtureContract(extendPythonPredicateTuple(
-  extendPythonPredicateTuple(localShaclPythonSource, 'FORWARD_PREDICATES', STRUCTURED_PERMUTATION_FORWARD_PREDICATES),
-  'INVERSE_PREDICATES',
-  STRUCTURED_PERMUTATION_INVERSE_PREDICATES,
+function injectReviewGraphPlane(source) {
+  let result = replacePythonMarkerExactly(
+    source,
+    '    authored = Graph()\n    data = Graph()\n',
+    '    authored = Graph()\n    reviewed = Graph()\n    data = Graph()\n',
+    'review graph accumulator',
+  );
+  result = replacePythonMarkerExactly(
+    result,
+    '    for group in ("definitionGraphs", "authoredGraphs", "derivedGraphs"):\n        for entry in manifest[group]:\n',
+    '    for group in ("definitionGraphs", "authoredGraphs", "reviewGraphs", "derivedGraphs"):\n        for entry in manifest.get(group, []):\n',
+    'review graph manifest plane',
+  );
+  result = replacePythonMarkerExactly(
+    result,
+    '                if group != "derivedGraphs":\n                    authored.add((subject, predicate, obj))\n',
+    '                if group in ("definitionGraphs", "authoredGraphs"):\n                    authored.add((subject, predicate, obj))\n                if group != "derivedGraphs":\n                    reviewed.add((subject, predicate, obj))\n',
+    'review graph semantic-input separation',
+  );
+  result = replacePythonMarkerExactly(
+    result,
+    '    return authored, data, sorted(records, key=lambda item: item["path"])\n',
+    '    return authored, reviewed, data, sorted(records, key=lambda item: item["path"])\n',
+    'review graph dataset return',
+  );
+  result = replacePythonMarkerExactly(
+    result,
+    '    authored_data, data, data_sources = load_dataset(model_root, manifest)\n',
+    '    authored_data, review_data, data, data_sources = load_dataset(model_root, manifest)\n',
+    'review graph dataset binding',
+  );
+  result = replacePythonMarkerExactly(
+    result,
+    '        planted_fixtures = planted_fixture_evidence(authored_data, constraints["graph"])\n        phase_results = [\n            validate_phase(authored_data, constraints["graph"], focus_nodes, "AFFECTED_AUTHORED"),\n            validate_phase(data, constraints["graph"], focus_nodes, "AFFECTED_REGISTERED_DERIVED_SNAPSHOT"),\n        ]\n',
+    '        planted_fixtures = planted_fixture_evidence(authored_data, constraints["graph"])\n        phase_results = [validate_phase(authored_data, constraints["graph"], focus_nodes, "AFFECTED_AUTHORED")]\n        if manifest.get("reviewGraphs", []):\n            phase_results.append(validate_phase(review_data, constraints["graph"], focus_nodes, "AFFECTED_REVIEW_ENRICHED"))\n        phase_results.append(validate_phase(data, constraints["graph"], focus_nodes, "AFFECTED_REGISTERED_DERIVED_SNAPSHOT"))\n',
+    'review graph validation phase',
+  );
+  result = replacePythonMarkerExactly(
+    result,
+    '        "authoredDataTripleCount": len(authored_data),\n',
+    '        "authoredDataTripleCount": len(authored_data),\n        "reviewEnrichedDataTripleCount": len(review_data),\n',
+    'review graph evidence count',
+  );
+  return result;
+}
+
+export const effectiveLocalShaclPythonSource = injectReviewGraphPlane(injectPythonFixtureContract(
+  extendPythonPredicateTuple(
+    extendPythonPredicateTuple(localShaclPythonSource, 'FORWARD_PREDICATES', STRUCTURED_PERMUTATION_FORWARD_PREDICATES),
+    'INVERSE_PREDICATES',
+    STRUCTURED_PERMUTATION_INVERSE_PREDICATES,
+  ),
 ));
 
 const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;

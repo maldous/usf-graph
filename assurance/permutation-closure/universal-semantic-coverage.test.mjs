@@ -3,6 +3,7 @@ import {
   chmodSync,
   existsSync,
   mkdtempSync,
+  mkdirSync,
   readFileSync,
   rmSync,
   statSync,
@@ -134,6 +135,42 @@ function withProjectionDigest(value) {
   return { ...core, reviewProjectionDigest: digest(core) };
 }
 
+function createReviewPlaneRepository() {
+  const root = mkdtempSync(join(tmpdir(), 'usf-universal-review-plane-'));
+  const modelRoot = join(root, 'semantic-model');
+  const write = (relativePath, bytes) => {
+    const path = join(modelRoot, relativePath);
+    mkdirSync(join(path, '..'), { recursive: true });
+    writeFileSync(path, bytes);
+  };
+  write('manifest.yaml', `version: 1
+definitionGraphs:
+  - { file: ontology.ttl, graph: "urn:usf:graph:test-ontology", loadOrder: 1, validationOrder: 1 }
+authoredGraphs:
+  - { file: model.trig, graph: "urn:usf:graph:test-model", loadOrder: 2, validationOrder: 2 }
+reviewGraphs:
+  - { file: permutation/reviews.trig, graph: "urn:usf:graph:test-reviews", loadOrder: 3, validationOrder: 3 }
+shapeGraphs: []
+rules: []
+derivedGraphs: []
+`);
+  write('ontology.ttl', `@prefix owl: <http://www.w3.org/2002/07/owl#> .
+<urn:usf:test:ReviewedClass> a owl:Class .
+`);
+  write('model.trig', 'GRAPH <urn:usf:graph:test-model> { <urn:usf:test:item> a <urn:usf:test:ReviewedClass> . }\n');
+  write('permutation/reviews.trig', `GRAPH <urn:usf:graph:test-reviews> {
+  <urn:usf:test:review> a <urn:usf:ontology:SemanticTermPermutationReview> .
+}
+`);
+  write('fixtures/conforming/universal-service-foundation.trig',
+    'GRAPH <urn:usf:graph:foundation-conformance-fixture> { <urn:usf:test:fixture> a <urn:usf:test:ReviewedClass> . }\n');
+  return {
+    root,
+    write,
+    cleanup: () => rmSync(root, { force: true, recursive: true }),
+  };
+}
+
 const repositoryRoot = process.cwd();
 const authorityInputVerification = verifyUniversalAuthorityInputs({
   authorityBinding: AUTHORITY_BINDING,
@@ -226,8 +263,12 @@ test('fresh inventory and registry use exact current sources without census or g
   assert.equal(inventory.termCount, inventory.classCount + inventory.propertyCount + inventory.individualCount);
   assert.equal(inventory.sourceRecords.some(({ manifestGroup }) => manifestGroup === 'derivedGraphs'), false);
   assert.deepEqual(inventory.excludedSourceGroups, [
-    'conformanceFixture', 'derivedGraphs', 'rules', 'shapeGraphs',
+    'conformanceFixture', 'derivedGraphs', 'reviewGraphs', 'rules', 'shapeGraphs',
   ]);
+  assert.equal(reviewProjection.schemaVersion, 2);
+  assert.equal(reviewProjection.reviewSourceCount, 0);
+  assert.deepEqual(reviewProjection.reviewSourceRecords, []);
+  assert.equal(reviewProjection.reviewSourceSetDigest, digest([]));
   assert.equal(inventory.semanticInputSourceSetDigest, inventory.sourceSetDigest);
   assert.ok(inventory.individualCount > 0);
   assert.ok(inventory.controlledValueCount > 0);
@@ -269,6 +310,66 @@ test('fresh inventory and registry use exact current sources without census or g
     )).map(({ object }) => object.value).sort();
     assert.deepEqual(family.orderedBindings.map(({ bindingIri }) => bindingIri).sort(), authoredBindingIris,
       `${family.familyIri} must retain exact authored binding IRIs`);
+  }
+});
+
+test('review graph bytes are separately bound and cannot recursively alter semantic inventory', () => {
+  const fixture = createReviewPlaneRepository();
+  try {
+    const firstInventory = buildUniversalSemanticInventory({
+      authorityBinding: AUTHORITY_BINDING,
+      authorityInputVerification,
+      repositoryRoot: fixture.root,
+    });
+    const candidateRegistry = { registryDigest: `sha256:${'7'.repeat(64)}` };
+    const firstReview = loadUniversalReviewProjection({
+      inventory: firstInventory,
+      registry: candidateRegistry,
+      repositoryRoot: fixture.root,
+    });
+    assert.equal(firstReview.reviewSourceCount, 1);
+    assert.equal(firstReview.reviewSourceRecords[0].manifestGroup, 'reviewGraphs');
+    assert.deepEqual(firstReview.termReviews[0].sourcePlanes, ['reviewGraphs']);
+    assert.equal(firstInventory.sourceRecords.some(({ manifestGroup }) => (
+      manifestGroup === 'reviewGraphs'
+    )), false);
+
+    fixture.write('permutation/reviews.trig', `GRAPH <urn:usf:graph:test-reviews> {
+  <urn:usf:test:review> a <urn:usf:ontology:SemanticTermPermutationReview>;
+    <urn:usf:ontology:termPermutationReasonCode> "changed-review-bytes" .
+}
+`);
+    const secondInventory = buildUniversalSemanticInventory({
+      authorityBinding: AUTHORITY_BINDING,
+      authorityInputVerification,
+      repositoryRoot: fixture.root,
+    });
+    const secondReview = loadUniversalReviewProjection({
+      inventory: secondInventory,
+      registry: candidateRegistry,
+      repositoryRoot: fixture.root,
+    });
+    assert.equal(secondInventory.inventoryDigest, firstInventory.inventoryDigest);
+    assert.notEqual(secondReview.reviewSourceSetDigest, firstReview.reviewSourceSetDigest);
+    assert.notEqual(secondReview.reviewProjectionDigest, firstReview.reviewProjectionDigest);
+
+    fixture.write('model.trig', `GRAPH <urn:usf:graph:test-model> {
+  <urn:usf:test:item> a <urn:usf:test:ReviewedClass> .
+  <urn:usf:test:misplaced-review> a <urn:usf:ontology:SemanticTermPermutationReview> .
+}
+`);
+    const misplacedInventory = buildUniversalSemanticInventory({
+      authorityBinding: AUTHORITY_BINDING,
+      authorityInputVerification,
+      repositoryRoot: fixture.root,
+    });
+    expectCode(() => loadUniversalReviewProjection({
+      inventory: misplacedInventory,
+      registry: candidateRegistry,
+      repositoryRoot: fixture.root,
+    }), 'UNIVERSAL_REVIEW_RESOURCE_PLANE_INVALID');
+  } finally {
+    fixture.cleanup();
   }
 });
 
@@ -354,7 +455,7 @@ test('review projection is mandatory and one exact family review closes only its
     reviewDigests: [digest(decisionCore)],
     reviewIri: 'urn:usf:test:family-signature-review:one',
     signatureDigests: [family.familyRecordDigest],
-    sourcePlanes: ['authoredGraphs'],
+    sourcePlanes: ['reviewGraphs'],
     subjectRegistrationIris: [family.registrationIri],
   };
   const reviewRecord = {
@@ -438,7 +539,7 @@ test('a non-axis term review cannot override exact family coverage', () => {
     reviewDigests: [digest(reviewCore)],
     reviewIri: 'urn:usf:test:term-review:conflict',
     reviewedTermIris: [reviewCore.reviewedTermIri],
-    sourcePlanes: ['authoredGraphs'],
+    sourcePlanes: ['reviewGraphs'],
     statedSourcePlanes: [reviewCore.sourcePlane],
   };
   const result = universalSemanticCoverageInternals.termDispositions({
@@ -473,6 +574,26 @@ test('independent proof reconstructs full subject-local family semantics and rej
   const proof = proveUniversalSemanticCoverage(input);
   assert.equal(proof.verdict, 'UNIVERSAL_SEMANTIC_GAP_AND_CROSS_PRODUCT_RECONSTRUCTION_PASS');
   assert.equal(proof.results.familyReconstructionMismatchCount, 0);
+  assert.equal(proof.results.reviewSourceReconstructionMismatchCount, 0);
+  assert.equal(proof.reviewSourceSetDigest, reviewProjection.reviewSourceSetDigest);
+
+  const reviewSourceTamper = withProjectionDigest({
+    ...reviewProjection,
+    reviewSourceSetDigest: `sha256:${'a'.repeat(64)}`,
+  });
+  const { analysisDigest: omittedAnalysisDigest, ...tamperedAnalysisCore } = {
+    ...analysis,
+    reviewProjectionDigest: reviewSourceTamper.reviewProjectionDigest,
+  };
+  const tamperedAnalysis = {
+    ...tamperedAnalysisCore,
+    analysisDigest: digest(tamperedAnalysisCore),
+  };
+  expectCode(() => proveUniversalSemanticCoverage({
+    ...input,
+    analysis: tamperedAnalysis,
+    reviewProjection: reviewSourceTamper,
+  }), 'UNIVERSAL_PROOF_REVIEW_SOURCE_BINDING_MISMATCH');
 
   for (const [field, code] of [
     ['authorityPacketPath', 'UNIVERSAL_PROOF_AUTHORITY_PACKET_INVALID'],
