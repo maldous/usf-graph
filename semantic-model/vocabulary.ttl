@@ -928,7 +928,34 @@ rr:unsignedevidence a usf:ReadinessReason;
     usf:canonicalName "rdf11";
     usf:standardIdentifier "W3C RDF 1.1";
     usf:standardEdition "2014-02-25 Recommendation";
-    usf:latestStableEdition true.
+    usf:latestStableEdition true;
+    usf:standardDefinesSemanticClass rdf:List, rdf:Property;
+    usf:standardDefinesSemanticProperty rdf:type, rdf:first, rdf:rest.
+<urn:usf:standard:rdfs11> a usf:TechnicalStandard;
+    usf:canonicalName "rdfs11";
+    usf:standardIdentifier "W3C RDF Schema 1.1";
+    usf:standardEdition "2014-02-25 Recommendation";
+    usf:latestStableEdition true;
+    usf:standardDefinesSemanticClass rdfs:Resource;
+    usf:standardDefinesSemanticProperty rdfs:comment, rdfs:domain, rdfs:label,
+        rdfs:range, rdfs:subClassOf, rdfs:subPropertyOf.
+<urn:usf:standard:owl2> a usf:TechnicalStandard;
+    usf:canonicalName "owl2";
+    usf:standardIdentifier "W3C OWL 2 Web Ontology Language";
+    usf:standardEdition "2012-12-11 Second Edition Recommendation";
+    usf:latestStableEdition true;
+    usf:standardDefinesSemanticClass owl:AnnotationProperty, owl:Class,
+        owl:DatatypeProperty, owl:DeprecatedProperty, owl:FunctionalProperty,
+        owl:ObjectProperty, owl:Ontology;
+    usf:standardDefinesSemanticProperty owl:deprecated, owl:inverseOf.
+<urn:usf:standard:xmlschema11datatypes> a usf:TechnicalStandard;
+    usf:canonicalName "xmlschema11datatypes";
+    usf:standardIdentifier "W3C XML Schema 1.1 Datatypes";
+    usf:standardEdition "2012-04-05 Recommendation";
+    usf:latestStableEdition true;
+    usf:standardDefinesSemanticClass xsd:anyURI, xsd:boolean, xsd:date, xsd:dateTime,
+        xsd:decimal, xsd:duration, xsd:integer, xsd:language,
+        xsd:nonNegativeInteger, xsd:positiveInteger, xsd:string.
 <urn:usf:standard:sparql11query> a usf:TechnicalStandard;
     usf:canonicalName "sparql11query";
     usf:standardIdentifier "W3C SPARQL 1.1 Query Language";
@@ -1205,7 +1232,18 @@ permutation:notapplicablewithprovenconstraint a usf:PermutationDisposition;
 <urn:usf:validationlayer:evaluator> a usf:ValidationLayer; usf:canonicalName "evaluator".
 <urn:usf:validationlayer:shacl> a usf:ValidationLayer; usf:canonicalName "shacl".
 <urn:usf:validationlayer:integrity> a usf:ValidationLayer; usf:canonicalName "integrity".
-<urn:usf:mappingstate:active> a usf:ControlledValue; usf:canonicalName "active".
+<urn:usf:mappingstate:active> a usf:MappingState; usf:canonicalName "active".
+<urn:usf:mappingstate:invalidated> a usf:MappingState; usf:canonicalName "invalidated".
+<urn:usf:mappingstate:superseded> a usf:MappingState; usf:canonicalName "superseded".
+<urn:usf:componentmappingtargetkind:implementation> a usf:ComponentMappingTargetKind; usf:canonicalName "implementation".
+<urn:usf:componentmappingtargetkind:adapter> a usf:ComponentMappingTargetKind; usf:canonicalName "adapter".
+<urn:usf:componentmappingtargetkind:providerbinding> a usf:ComponentMappingTargetKind; usf:canonicalName "providerbinding".
+<urn:usf:componentmappingtargetkind:dependencybinding> a usf:ComponentMappingTargetKind; usf:canonicalName "dependencybinding".
+<urn:usf:processdependencyrequirementkind:runtime> a usf:ProcessDependencyRequirementKind; usf:canonicalName "runtime"; usf:definition "The source process requires the target while executing product behaviour.".
+<urn:usf:processdependencyrequirementkind:readiness> a usf:ProcessDependencyRequirementKind; usf:canonicalName "readiness"; usf:definition "The target's usability is a declared condition of source-process readiness.".
+<urn:usf:processdependencyrequirementkind:persistence> a usf:ProcessDependencyRequirementKind; usf:canonicalName "persistence"; usf:definition "The target owns persistent state required by the source process.".
+<urn:usf:processdependencyrequirementkind:authoritycontrol> a usf:ProcessDependencyRequirementKind; usf:canonicalName "authoritycontrol"; usf:definition "The target provides a controlled semantic-authority or policy decision boundary.".
+<urn:usf:processdependencyrequirementkind:observability> a usf:ProcessDependencyRequirementKind; usf:canonicalName "observability"; usf:definition "The target receives declared operational signals without becoming a product-runtime owner.".
 <urn:usf:realisationclass:livestardogwithisolatedexport> a usf:RealisationClass; usf:canonicalName "livestardogwithisolatedexport".
 <urn:usf:realisationclass:livestardogwithoutisolatedexport> a usf:RealisationClass; usf:canonicalName "livestardogwithoutisolatedexport".
 <urn:usf:realisationclass:otherlivesemanticauthority> a usf:RealisationClass; usf:canonicalName "otherlivesemanticauthority".

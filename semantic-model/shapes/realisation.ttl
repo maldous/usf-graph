@@ -48,9 +48,8 @@ shp:ServiceShape a sh:NodeShape;
     usf:canonicalName "serviceshape";
     sh:targetClass usf:Service.
 _:b41_b41_n3-766 sh:path usf:dependsOnService;
-    sh:nodeKind sh:IRI;
-    sh:class usf:Service;
-    sh:message "servicedependency: a service dependency must reference a declared service".
+    sh:maxCount 0;
+    sh:message "servicedependencysuperseded: broad service dependencies are prohibited; use an explicit DeployableProcessDependency".
 shp:ServiceShape sh:property _:b41_b41_n3-766.
 shp:AdapterShape a sh:NodeShape;
     usf:canonicalName "adaptershape";
@@ -75,12 +74,26 @@ _:b41_b41_n3-769 sh:path usf:bindsPort;
     sh:class usf:Port;
     sh:message "bindingport: binding must name exactly one port".
 shp:BindingShape sh:property _:b41_b41_n3-769.
-_:b41_b41_n3-770 sh:path usf:bindsProvider;
+_:b41_b41_n3-770 sh:path usf:bindingProvider;
     sh:minCount 1;
     sh:maxCount 1;
     sh:class usf:Provider;
     sh:message "bindingprovider: binding must name exactly one provider".
 shp:BindingShape sh:property _:b41_b41_n3-770.
+_:binding_environment sh:path usf:bindingEnvironment;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:Environment;
+    sh:message "BINDING_ENVIRONMENT_MISSING: binding must name exactly one typed runtime environment".
+shp:BindingShape sh:property _:binding_environment.
+_:binding_generic_provider_prohibited sh:path usf:bindsProvider;
+    sh:maxCount 0;
+    sh:message "BINDING_GENERIC_PROVIDER_PROHIBITED: binding provider identity must use the typed bindingProvider relation".
+shp:BindingShape sh:property _:binding_generic_provider_prohibited.
+_:binding_generic_environment_prohibited sh:path usf:inEnvironment;
+    sh:maxCount 0;
+    sh:message "BINDING_GENERIC_ENVIRONMENT_PROHIBITED: runtime binding environment must use the typed bindingEnvironment relation".
+shp:BindingShape sh:property _:binding_generic_environment_prohibited.
 _:b41_b41_n3-771 sh:path usf:hasProviderMode;
     sh:minCount 1;
     sh:maxCount 1;
@@ -93,3 +106,19 @@ _:b41_b41_n3-772 sh:path usf:bindingState;
     sh:class usf:BindingState;
     sh:message "bindingstate: binding must declare exactly one lifecycle state".
 shp:BindingShape sh:property _:b41_b41_n3-772.
+_:binding_provider_port_coherence sh:prefixes usf:prefixes;
+    sh:message "BINDING_PROVIDER_PORT_MISMATCH: the selected provider must fulfil the bound port";
+    sh:select "SELECT $this WHERE { $this usf:bindingProvider ?provider ; usf:bindsPort ?port . FILTER NOT EXISTS { ?provider usf:fulfilsPort ?port } }".
+shp:BindingShape sh:sparql _:binding_provider_port_coherence.
+_:binding_provider_mode_coherence sh:prefixes usf:prefixes;
+    sh:message "BINDING_PROVIDER_MODE_MISMATCH: the selected provider must declare the binding provider mode";
+    sh:select "SELECT $this WHERE { $this usf:bindingProvider ?provider ; usf:hasProviderMode ?mode . FILTER NOT EXISTS { ?provider usf:hasProviderMode ?mode } }".
+shp:BindingShape sh:sparql _:binding_provider_mode_coherence.
+_:binding_port_mode_coherence sh:prefixes usf:prefixes;
+    sh:message "BINDING_PORT_MODE_PROHIBITED: the bound port must permit the binding provider mode";
+    sh:select "SELECT $this WHERE { $this usf:bindsPort ?port ; usf:hasProviderMode ?mode . FILTER NOT EXISTS { ?port usf:permitsProviderMode ?mode } }".
+shp:BindingShape sh:sparql _:binding_port_mode_coherence.
+_:binding_environment_mode_coherence sh:prefixes usf:prefixes;
+    sh:message "BINDING_ENVIRONMENT_MODE_PROHIBITED: the binding environment must permit the binding provider mode";
+    sh:select "SELECT $this WHERE { $this usf:bindingEnvironment ?environment ; usf:hasProviderMode ?mode . FILTER NOT EXISTS { ?environment usf:permitsProviderMode ?mode } }".
+shp:BindingShape sh:sparql _:binding_environment_mode_coherence.

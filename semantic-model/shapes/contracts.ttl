@@ -245,12 +245,32 @@ _:b33_b33_n3-282 sh:path usf:eventForContract;
 shp:EventShape sh:property _:b33_b33_n3-282.
 _:b33_b33_n3-283 sh:path usf:requiredPublisher;
     sh:minCount 1;
+    sh:maxCount 1;
     sh:class usf:Capability.
 shp:EventShape sh:property _:b33_b33_n3-283.
 _:b33_b33_n3-284 sh:path usf:requiredConsumer;
     sh:minCount 1;
+    sh:maxCount 1;
     sh:class usf:Capability.
 shp:EventShape sh:property _:b33_b33_n3-284.
+_:event_delivery_form sh:path usf:eventDeliveryForm;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:EventDeliveryForm;
+    sh:in (<urn:usf:eventdeliveryform:messageenvelope> <urn:usf:eventdeliveryform:directnotification>);
+    sh:message "EVENT_DELIVERY_FORM_INVALID: event requires one explicit finite delivery form".
+shp:EventShape sh:property _:event_delivery_form.
+_:event_message_type sh:path usf:carriesMessage;
+    sh:maxCount 1;
+    sh:class usf:Message;
+    sh:message "EVENT_MESSAGE_INVALID: an event may carry at most one explicitly typed message".
+shp:EventShape sh:property _:event_message_type.
+_:event_message_envelope_cardinality sh:message "EVENT_MESSAGE_ENVELOPE_CARDINALITY: message-envelope events require exactly one message and direct notifications require none";
+    sh:select "PREFIX usf: <urn:usf:ontology:>\nSELECT $this WHERE { $this usf:eventDeliveryForm ?form . FILTER((?form = <urn:usf:eventdeliveryform:messageenvelope> && NOT EXISTS { $this usf:carriesMessage ?message }) || (?form = <urn:usf:eventdeliveryform:directnotification> && EXISTS { $this usf:carriesMessage ?message }) || (?form NOT IN (<urn:usf:eventdeliveryform:messageenvelope>, <urn:usf:eventdeliveryform:directnotification>))) }".
+shp:EventShape sh:sparql _:event_message_envelope_cardinality.
+_:event_message_contract_coherence sh:message "EVENT_MESSAGE_CONTRACT_MISMATCH: an event and its carried message must bind the same exact semantic contract";
+    sh:select "PREFIX usf: <urn:usf:ontology:>\nSELECT $this WHERE { $this usf:carriesMessage ?message; usf:eventForContract ?eventContract . FILTER NOT EXISTS { ?message usf:messageForContract ?eventContract } }".
+shp:EventShape sh:sparql _:event_message_contract_coherence.
 shp:DataModelShape a sh:NodeShape;
     usf:canonicalName "datamodelshape";
     sh:targetClass usf:DataModel.
@@ -406,6 +426,35 @@ _:b33_b33_n3-312 sh:path usf:processLifecycleRequirement;
     sh:datatype xsd:string;
     sh:minLength 1.
 shp:DeployableProcessShape sh:property _:b33_b33_n3-312.
+_:deployableprocesslifecycle1 sh:path usf:processLifecycleObligation;
+    sh:minCount 1;
+    sh:class usf:LifecycleObligationKind;
+    sh:message "PROCESS_LIFECYCLE_OBLIGATION_ABSENT: every deployable process must bind finite lifecycle obligations rather than prose alone".
+shp:DeployableProcessShape sh:property _:deployableprocesslifecycle1.
+_:deployableprocesslifecycle2 sh:path usf:processLifecycleObligation;
+    sh:hasValue <urn:usf:permutationdimensionvalue:lifecycleobligationinitialise>;
+    sh:message "PROCESS_INITIALISE_OBLIGATION_ABSENT: every deployable process must initialise declared dependencies".
+shp:DeployableProcessShape sh:property _:deployableprocesslifecycle2.
+_:deployableprocesslifecycle3 sh:path usf:processLifecycleObligation;
+    sh:hasValue <urn:usf:permutationdimensionvalue:lifecycleobligationconfigure>;
+    sh:message "PROCESS_CONFIGURE_OBLIGATION_ABSENT: every deployable process must validate and apply configuration".
+shp:DeployableProcessShape sh:property _:deployableprocesslifecycle3.
+_:deployableprocesslifecycle4 sh:path usf:processLifecycleObligation;
+    sh:hasValue <urn:usf:permutationdimensionvalue:lifecycleobligationstart>;
+    sh:message "PROCESS_START_OBLIGATION_ABSENT: every deployable process must define start behaviour".
+shp:DeployableProcessShape sh:property _:deployableprocesslifecycle4.
+_:deployableprocesslifecycle5 sh:path usf:processLifecycleObligation;
+    sh:hasValue <urn:usf:permutationdimensionvalue:lifecycleobligationbecomeready>;
+    sh:message "PROCESS_READINESS_OBLIGATION_ABSENT: every deployable process must distinguish readiness from liveness".
+shp:DeployableProcessShape sh:property _:deployableprocesslifecycle5.
+_:deployableprocesslifecycle6 sh:path usf:processLifecycleObligation;
+    sh:hasValue <urn:usf:permutationdimensionvalue:lifecycleobligationdrain>;
+    sh:message "PROCESS_DRAIN_OBLIGATION_ABSENT: every deployable process must define drain behaviour".
+shp:DeployableProcessShape sh:property _:deployableprocesslifecycle6.
+_:deployableprocesslifecycle7 sh:path usf:processLifecycleObligation;
+    sh:hasValue <urn:usf:permutationdimensionvalue:lifecycleobligationstop>;
+    sh:message "PROCESS_STOP_OBLIGATION_ABSENT: every deployable process must define stop behaviour".
+shp:DeployableProcessShape sh:property _:deployableprocesslifecycle7.
 _:b33_b33_n3-313 sh:path usf:processTenantSecuritySeparationRequirement;
     sh:minCount 1;
     sh:maxCount 1;
@@ -434,6 +483,34 @@ _:b33_b33_n3-318 sh:prefixes usf:prefixes;
     sh:message "process ownership and interfaces must remain inside explicit capability contracts";
     sh:select "SELECT $this WHERE {\n        { $this usf:processOwnsCapability ?capability . FILTER NOT EXISTS { $this usf:processForCapability ?capability } }\n        UNION\n        { $this usf:processOwnsCapability ?capability . FILTER NOT EXISTS { ?capability usf:accountableProcessBoundary $this } }\n        UNION\n        { $this usf:processProvidesInterface ?interface .\n          FILTER NOT EXISTS {\n            ?interface usf:interfaceForContract ?contract .\n            ?capability usf:hasContract ?contract .\n            $this usf:processForCapability ?capability .\n          }\n        }\n      }".
 shp:DeployableProcessShape sh:sparql _:b33_b33_n3-318.
+shp:DeployableProcessDependencyShape a sh:NodeShape;
+    usf:canonicalName "deployableprocessdependencyshape";
+    sh:targetClass usf:DeployableProcessDependency;
+    sh:property [ sh:path usf:processDependencySource; sh:minCount 1; sh:maxCount 1; sh:class usf:DeployableProcess; sh:message "processdependencysourcecardinality: process dependency requires exactly one source process" ],
+        [ sh:path usf:processDependencyTarget; sh:minCount 1; sh:maxCount 1; sh:class usf:DeployableProcess; sh:message "processdependencytargetcardinality: process dependency requires exactly one target process" ],
+        [ sh:path usf:processDependencyInterface; sh:minCount 1; sh:maxCount 1; sh:class usf:Interface; sh:message "processdependencyinterfacecardinality: process dependency requires exactly one consumed interface" ],
+        [ sh:path usf:processDependencyEnvironment; sh:minCount 1; sh:maxCount 1; sh:class usf:Environment; sh:message "processdependencyenvironmentcardinality: process dependency requires exactly one environment binding" ],
+        [ sh:path usf:processDependencyProviderMode; sh:minCount 1; sh:maxCount 1; sh:class usf:ProviderMode; sh:message "processdependencyprovidermodecardinality: process dependency requires exactly one provider mode" ],
+        [ sh:path usf:processDependencyRequirementKind; sh:minCount 1; sh:maxCount 1; sh:class usf:ProcessDependencyRequirementKind; sh:message "processdependencyrequirementkindcardinality: process dependency requires exactly one requirement kind" ],
+        [ sh:path usf:processDependencyFailureHandling; sh:minCount 1; sh:maxCount 1; sh:class usf:ProcessDependencyFailureHandling; sh:message "processdependencyfailurehandlingcardinality: process dependency requires exactly one failure-handling record" ].
+_:deployableprocessdependencycoherence sh:prefixes usf:prefixes;
+    sh:message "processdependencyboundaryincoherent: source and target must be distinct and bind the exact interface, environment, provider mode and inverse dependency";
+    sh:select "SELECT $this WHERE {\n  $this usf:processDependencySource ?source ; usf:processDependencyTarget ?target ; usf:processDependencyInterface ?interface ; usf:processDependencyEnvironment ?environment ; usf:processDependencyProviderMode ?mode ; usf:processDependencyFailureHandling ?handling .\n  FILTER(?source = ?target || NOT EXISTS { ?source usf:hasProcessDependency $this ; usf:processConsumesInterface ?interface ; usf:processSupportsEnvironment ?environment ; usf:processProviderMode ?mode } || NOT EXISTS { ?target usf:processProvidesInterface ?interface ; usf:processSupportsEnvironment ?environment ; usf:processProviderMode ?mode } || NOT EXISTS { ?handling usf:failureHandlingForProcessDependency $this })\n}".
+shp:DeployableProcessDependencyShape sh:sparql _:deployableprocessdependencycoherence.
+
+shp:ProcessDependencyFailureHandlingShape a sh:NodeShape;
+    usf:canonicalName "processdependencyfailurehandlingshape";
+    sh:targetClass usf:ProcessDependencyFailureHandling;
+    sh:property [ sh:path usf:failureHandlingForProcessDependency; sh:minCount 1; sh:maxCount 1; sh:class usf:DeployableProcessDependency; sh:message "processfailurehandlingdependencycardinality: failure handling requires exactly one process dependency" ],
+        [ sh:path usf:processDependencyFailureMode; sh:minCount 1; sh:maxCount 1; sh:class usf:FailureMode; sh:message "processfailurehandlingmodecardinality: failure handling requires exactly one failure mode" ],
+        [ sh:path usf:processDependencyRecoveryAction; sh:minCount 1; sh:maxCount 1; sh:class usf:RecoveryAction; sh:message "processfailurehandlingrecoverycardinality: failure handling requires exactly one recovery action" ],
+        [ sh:path usf:processDependencyTimeoutPolicy; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:minLength 1; sh:message "processfailurehandlingtimeoutcardinality: failure handling requires one bounded timeout policy" ],
+        [ sh:path usf:processDependencyRetryPolicy; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:minLength 1; sh:message "processfailurehandlingretrycardinality: failure handling requires one bounded retry policy" ],
+        [ sh:path usf:processDependencyFailurePropagation; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:minLength 1; sh:message "processfailurehandlingpropagationcardinality: failure handling requires one propagation rule" ].
+_:processdependencyfailurehandlingcoherence sh:prefixes usf:prefixes;
+    sh:message "processfailurehandlinginverseincoherent: the process dependency and failure-handling record must reference each other";
+    sh:select "SELECT $this WHERE { $this usf:failureHandlingForProcessDependency ?dependency . FILTER NOT EXISTS { ?dependency usf:processDependencyFailureHandling $this } }".
+shp:ProcessDependencyFailureHandlingShape sh:sparql _:processdependencyfailurehandlingcoherence.
 shp:EnvironmentTopologyShape a sh:NodeShape;
     usf:canonicalName "environmenttopologyshape";
     sh:targetClass usf:EnvironmentTopology.
@@ -466,6 +543,19 @@ shp:CurrentWorkflowShape sh:sparql _:b33_b33_n3-323.
 shp:CurrentMessageShape a sh:NodeShape;
     usf:canonicalName "currentmessageshape";
     sh:targetClass usf:Message.
+_:current_message_contract sh:path usf:messageForContract;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:SemanticContract;
+    sh:message "MESSAGE_CONTRACT_INVALID: current message requires exactly one semantic contract".
+shp:CurrentMessageShape sh:property _:current_message_contract.
+_:current_message_schema sh:path usf:messageSchemaRequirement;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:datatype xsd:string;
+    sh:minLength 1;
+    sh:message "MESSAGE_SCHEMA_INVALID: current message requires one non-empty schema requirement".
+shp:CurrentMessageShape sh:property _:current_message_schema.
 _:b33_b33_n3-324 sh:prefixes usf:prefixes;
     sh:message "current message requires contract ownership and a complete schema requirement";
     sh:select "SELECT $this WHERE {\n        FILTER NOT EXISTS { $this usf:semanticAdequacyDisposition ?disposition . FILTER(?disposition != <urn:usf:semanticadequacydisposition:independentlywarrantedretained>) }\n        FILTER(NOT EXISTS { $this usf:messageForContract ?contract } || NOT EXISTS { $this usf:messageSchemaRequirement ?schema })\n      }".
@@ -491,6 +581,11 @@ _:b33_b33_n3-327 sh:path usf:signalKind;
     sh:maxCount 1;
     sh:class usf:SignalKind.
 shp:ObservabilitySignalShape sh:property _:b33_b33_n3-327.
+_:observability_signal_audit_correlation sh:path usf:correlatesWith;
+    sh:nodeKind sh:IRI;
+    sh:class usf:AuditEvent;
+    sh:message "OBSERVABILITY_SIGNAL_AUDIT_CORRELATION_INVALID: every observability correlation must reference a declared AuditEvent".
+shp:ObservabilitySignalShape sh:property _:observability_signal_audit_correlation.
 shp:JourneyShape a sh:NodeShape;
     usf:canonicalName "journeyshape";
     sh:targetClass usf:Journey.

@@ -180,17 +180,19 @@ const reconciledGoalDigest = 'sha256:3e6aaebdb730dbed3a6506bb53bbf008c96a00acfd4
 const directiveReconciled = goalDigest === reconciledGoalDigest;
 
 const nextExactAction = directiveReconciled ? {
-  action: 'Produce the authority-bound permutation-family census across every active capability, contract and mandatory facet, then deliver the permutation meta-model, complete action/transport catalogue, permission and token closure, deterministic universe generation, fixtures, generated tests and independent proof.',
+  action: 'Run the one pending integrated local permutation and universal-semantic wave gate against the committed candidate before regenerating stale option-evaluation evidence or entering family-model review closure.',
   authorityDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
-  command: 'npm run authority:drift && npm test',
+  command: 'node --test assurance/permutation-closure/family-census.test.mjs assurance/permutation-closure/family-model.test.mjs assurance/permutation-closure/foundation-domain-closure.test.mjs assurance/permutation-closure/universal-semantic-coverage.test.mjs assurance/permutation-closure/universe-generator.test.mjs assurance/semantic-model-compilation/compiler-proof.test.mjs assurance/semantic-model-compilation/local-shacl-validation.test.mjs',
   preconditions: [
-    'authority digest remains exact and the semantic-model source retains zero live drift',
+    'authority digest and authority packet/projection byte digests remain exact',
     'no authority mutation transaction or modifying worker is active',
-    'no permission, operation-catalogue, access-token or overall completion claim closes before the permutation gate passes',
+    'foundation-domain closure assessment and independent proof remain current',
+    'narrow family-census and universal-semantic gates remain current at 15/15 and 9/9',
+    'candidate reviews remain unpublished and cannot establish semantic truth',
   ],
   semanticIdentifiers: [
     'OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE',
-    'PERMUTATION_FAMILY_CENSUS',
+    'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE',
   ],
 } : {
   action: 'Read the changed GOAL.md completely, update this tracked checkpoint generator and any directive validators to the current dependency order, then regenerate the checkpoint before trusting any generated next action.',
@@ -216,19 +218,22 @@ const dependencyNodes = [
     state: directiveReconciled ? 'COMPLETE' : 'REOPENED_GOAL_DIGEST_CHANGED',
   },
   {
-    blockerCode: 'LOCAL_SEMANTIC_IMPLEMENTATION',
-    id: 'OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE',
+    blockerCode: 'NONE',
+    id: 'FOUNDATION_DOMAIN_CLOSURE',
     prerequisites: ['DIRECTIVE_AND_CHECKPOINT_RECONCILIATION'],
-    state: directiveReconciled ? 'UNBLOCKED' : 'BLOCKED_BY_RECONCILIATION',
+    state: directiveReconciled ? 'COMPLETE' : 'BLOCKED_BY_RECONCILIATION',
   },
-  { blockerCode: 'LOCAL_PROOF_REFRESH', id: 'COMPILER_GENERATOR_AND_PROOF_REFRESH', prerequisites: ['OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE'], state: 'BLOCKED_BY_PERMUTATION_CLOSURE' },
+  { blockerCode: 'LOCAL_SEMANTIC_REVIEW_AND_IMPLEMENTATION', id: 'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE', prerequisites: ['FOUNDATION_DOMAIN_CLOSURE'], state: directiveReconciled ? 'UNBLOCKED' : 'BLOCKED_BY_RECONCILIATION' },
+  { blockerCode: 'LOCAL_SEMANTIC_IMPLEMENTATION', id: 'CAPABILITY_PERMUTATION_CLOSURE', prerequisites: ['UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE'], state: 'BLOCKED_BY_UNIVERSAL_FAMILY_MODEL_REVIEW' },
+  { blockerCode: 'LOCAL_SEMANTIC_IMPLEMENTATION', id: 'OPERATIONAL_PERMISSION_AND_TOKEN_CLOSURE', prerequisites: ['CAPABILITY_PERMUTATION_CLOSURE'], state: 'BLOCKED_BY_CAPABILITY_PERMUTATION_CLOSURE' },
+  { blockerCode: 'LOCAL_PROOF_REFRESH', id: 'COMPILER_GENERATOR_AND_PROOF_REFRESH', prerequisites: ['OPERATIONAL_PERMISSION_AND_TOKEN_CLOSURE'], state: 'BLOCKED_BY_PERMUTATION_CLOSURE' },
   { blockerCode: 'LOCAL_IMPLEMENTATION', id: 'EXECUTABLE_ENVIRONMENT_DELIVERY', prerequisites: ['COMPILER_GENERATOR_AND_PROOF_REFRESH'], state: 'BLOCKED_BY_PERMUTATION_CLOSURE' },
   { blockerCode: 'LOCAL_VALIDATION', id: 'BIDIRECTIONAL_TRACEABILITY_CLOSURE', prerequisites: ['EXECUTABLE_ENVIRONMENT_DELIVERY'], state: 'BLOCKED_BY_DELIVERY' },
   { blockerCode: 'LOCAL_VALIDATION_THEN_AUTHORITY_PUBLICATION_REQUIRED', id: 'FINAL_HERMETIC_SYSTEM_GATES', prerequisites: ['BIDIRECTIONAL_TRACEABILITY_CLOSURE'], state: 'BLOCKED_BY_DELIVERY' },
 ];
 
 const currentItem = directiveReconciled
-  ? { id: 'OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE', state: 'UNBLOCKED' }
+  ? { id: 'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE', state: 'UNBLOCKED' }
   : { id: 'DIRECTIVE_AND_CHECKPOINT_RECONCILIATION', state: 'REOPENED_GOAL_DIGEST_CHANGED' };
 const currentPhase = 'OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE';
 
@@ -242,7 +247,7 @@ const stateClassifications = {
     'OPERATION_CATALOGUE_COMPLETENESS',
   ],
   SUPERSEDED_OR_INVALIDATED: ['REJECTED_EXECUTABLE_REALISATION', 'STALE_MIXED_SCOPE_COMPILER_PROOF', 'REFERENCE_OR_HISTORICAL_SOURCE_COMPLETION'],
-  VERIFIED_CURRENT: ['SEMANTIC_ADEQUACY_AND_CONTAMINATION_WITHIN_UNCHANGED_DEPENDENCY_SCOPE', 'DELIVERABLE_AND_LAYOUT_AUTHORITY', 'SOURCE_LIVE_PARITY', 'MILESTONE_GIT_PUBLICATION', 'REALISATION_OPTION_EVALUATION_CLOSURE', 'CANONICAL_COMPILER_SOLE_PATH'],
+  VERIFIED_CURRENT: ['SEMANTIC_ADEQUACY_AND_CONTAMINATION_WITHIN_UNCHANGED_DEPENDENCY_SCOPE', 'DELIVERABLE_AND_LAYOUT_AUTHORITY', 'MILESTONE_GIT_PUBLICATION', 'REALISATION_OPTION_EVALUATION_CLOSURE', 'CANONICAL_COMPILER_SOLE_PATH', 'FOUNDATION_DOMAIN_CLOSURE', 'UNIVERSAL_SEMANTIC_GAP_RECONSTRUCTION'],
 };
 
 const gateSummary = [
@@ -250,7 +255,9 @@ const gateSummary = [
   { id: 'SEMANTIC_ADEQUACY', state: 'VERIFIED_CURRENT_EXCEPT_REOPENED_OPERATION_UNIVERSE_SCOPE' },
   { id: 'DELIVERABLE_AND_LAYOUT_AUTHORITY', state: 'VERIFIED_CURRENT' },
   { id: 'REALISATION_OPTION_EVALUATION_CLOSURE', state: 'VERIFIED_CURRENT' },
-  { id: 'PERMUTATION_AND_AUTHORISATION_CLOSURE', state: 'REMAINING_ACTIONABLE' },
+  { id: 'FOUNDATION_DOMAIN_CLOSURE', state: 'VERIFIED_CURRENT_LOCAL_CANDIDATE' },
+  { id: 'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE', state: 'REMAINING_ACTIONABLE' },
+  { id: 'CAPABILITY_PERMUTATION_CLOSURE', state: 'BLOCKED_BY_UNIVERSAL_FAMILY_MODEL_REVIEW' },
   { id: 'COMPILER_PROOF_ADMISSION', state: 'PARTIALLY_DELIVERED_REOPENED_IMPLEMENTATION_BINDING' },
   { id: 'CANONICAL_COMPILER_SOLE_PATH', state: 'VERIFIED_CURRENT' },
   { id: 'EXECUTABLE_ENVIRONMENTS', state: 'BLOCKED_BY_PERMUTATION_CLOSURE' },
@@ -258,9 +265,78 @@ const gateSummary = [
 ];
 
 const permutationClosure = {
+  foundationDomain: {
+    assessmentDigest: 'sha256:9261fccdbf0f4e4a70338ea3167e0ed968be8c67780915e7d2ce92724a40def0',
+    assessmentFileDigest: 'sha256:0088a03a961ef6f4b2a35f32e18b27367bbdab21cb1aac8c9fe7882c11c9bdc9',
+    assessmentPath: '.work/generated/foundation-domain-closure-assessment-0088a03a961ef6f4b2a35f32e18b27367bbdab21cb1aac8c9fe7882c11c9bdc9.json',
+    dimensionBindingOccurrenceCount: 304,
+    emptyDomainCount: 0,
+    familyCount: 108,
+    fixtureCombinationCount: 80911,
+    proofDigest: 'sha256:3af4cb5a377a6001207d5bf9495f8bc0cd0decf1b8744898f064166bd0330df9',
+    proofFileDigest: 'sha256:743677482dbca73d9538b3a07d4e51aa440b4d277993c80bc59195422046ff3a',
+    proofPath: '.work/generated/foundation-domain-closure-proof-743677482dbca73d9538b3a07d4e51aa440b4d277993c80bc59195422046ff3a.json',
+    proofVerdict: 'FOUNDATION_DOMAIN_CLOSURE_PROOF_PASS',
+    uniqueDimensionCount: 245,
+    verdict: 'FOUNDATION_DOMAIN_CLOSURE_COMPLETE',
+  },
+  supersededProjectionBindings: {
+    familyCount34: 'SUPERSEDED',
+    familyReviewCount2176: 'SUPERSEDED',
+    candidateUniverseCount9899563: 'SUPERSEDED',
+    segmentCount990: 'SUPERSEDED',
+    finiteDomainGapCount371: 'SUPERSEDED',
+  },
+  universalFamilyModel: {
+    analysisDigest: 'sha256:73d21ad9c5be29fd9419bf5728a7162136e1695b4329ea24949caff9ed35455a',
+    analysisFileDigest: 'sha256:dc6ba08e7e4146e7ae88485bbdb93e2f51a19f4a89a07c3249250cf6845acb42',
+    analysisPath: '.work/generated/universal-family-completeness-analysis-dc6ba08e7e4146e7ae88485bbdb93e2f51a19f4a89a07c3249250cf6845acb42.json',
+    atomicCandidateCount: 1555,
+    authorityReviewRequiredTermCount: 8519,
+    familyCount: 108,
+    gapCount: 29424,
+    independentProofDigest: 'sha256:c697729ba1561c5625bf05961a701fc9dc7815c6abdc925ae536e5ae402eab5a',
+    independentProofFileDigest: 'sha256:8f19e116af820aebe20205eda5323687dc6cde355ea3621d76987c7d0c462601',
+    independentProofPath: '.work/generated/universal-semantic-coverage-proof-8f19e116af820aebe20205eda5323687dc6cde355ea3621d76987c7d0c462601.json',
+    independentProofVerdict: 'UNIVERSAL_SEMANTIC_GAP_AND_CROSS_PRODUCT_RECONSTRUCTION_PASS',
+    inventoryDigest: 'sha256:502165e6a717d859ffa981903b6b712f782041885f3dfdcf6ae18d7dd358068d',
+    inventoryFileDigest: 'sha256:e6bf9c5b8459eaa863b4048165291aa1c43d3b0bbf79aa0399bd2375d553040c',
+    inventoryPath: '.work/generated/universal-semantic-inventory-e6bf9c5b8459eaa863b4048165291aa1c43d3b0bbf79aa0399bd2375d553040c.json',
+    missingFamilyReviewCount: 108,
+    registryDigest: 'sha256:a33f4aa299d5a988ee8ac264e33e448532d429b2af5dd0996620c096689d612b',
+    registryFileDigest: 'sha256:c6550a6355a56687d1854eaf18ac002d951b43fc8a8155df831a3cd05d0471df',
+    registryPath: '.work/generated/universal-family-registry-c6550a6355a56687d1854eaf18ac002d951b43fc8a8155df831a3cd05d0471df.json',
+    relationshipSignatureReviewRequiredCount: 2025,
+    reviewProjectionDigest: 'sha256:daf768ce098a4689e6a8efb476f03f0b7a3c8be1cfb597e87f7673b80654e53c',
+    reviewProjectionFileDigest: 'sha256:29b6c68a0c231989444274e4dc834a60d5b4bbb2e73c0550295d949db5c85e22',
+    reviewProjectionPath: '.work/generated/universal-review-projection-29b6c68a0c231989444274e4dc834a60d5b4bbb2e73c0550295d949db5c85e22.json',
+    verdict: 'UNIVERSAL_FAMILY_MODEL_INCOMPLETE',
+  },
   verdict: 'PERMUTATION_CLOSURE_INCOMPLETE',
   verdictKind: 'INTERMEDIATE_NEVER_OVERALL_TERMINAL',
 };
+
+const currentWaveArtifactBindings = [
+  { fileDigest: permutationClosure.foundationDomain.assessmentFileDigest, internalDigest: permutationClosure.foundationDomain.assessmentDigest, internalField: 'assessmentDigest', path: permutationClosure.foundationDomain.assessmentPath },
+  { fileDigest: permutationClosure.foundationDomain.proofFileDigest, internalDigest: permutationClosure.foundationDomain.proofDigest, internalField: 'proofDigest', path: permutationClosure.foundationDomain.proofPath },
+  { fileDigest: permutationClosure.universalFamilyModel.inventoryFileDigest, internalDigest: permutationClosure.universalFamilyModel.inventoryDigest, internalField: 'inventoryDigest', path: permutationClosure.universalFamilyModel.inventoryPath },
+  { fileDigest: permutationClosure.universalFamilyModel.registryFileDigest, internalDigest: permutationClosure.universalFamilyModel.registryDigest, internalField: 'registryDigest', path: permutationClosure.universalFamilyModel.registryPath },
+  { fileDigest: permutationClosure.universalFamilyModel.reviewProjectionFileDigest, internalDigest: permutationClosure.universalFamilyModel.reviewProjectionDigest, internalField: 'reviewProjectionDigest', path: permutationClosure.universalFamilyModel.reviewProjectionPath },
+  { fileDigest: permutationClosure.universalFamilyModel.analysisFileDigest, internalDigest: permutationClosure.universalFamilyModel.analysisDigest, internalField: 'analysisDigest', path: permutationClosure.universalFamilyModel.analysisPath },
+  { fileDigest: permutationClosure.universalFamilyModel.independentProofFileDigest, internalDigest: permutationClosure.universalFamilyModel.independentProofDigest, internalField: 'proofDigest', path: permutationClosure.universalFamilyModel.independentProofPath },
+  { fileDigest: 'sha256:2b557090632299e1b28feef07f4f770cdd1b9229019a4586824cc06a9fdb4739', internalDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd', internalField: 'authorityDigest', path: '.work/generated/permutation-authority-packet-2b557090632299e1b28feef07f4f770cdd1b9229019a4586824cc06a9fdb4739.json' },
+  { fileDigest: 'sha256:886abdaedb6bb18f82bb90a218a525d64bd1027b999f49f0dc11e001df4e1c16', internalDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd', internalField: 'authorityDigest', path: '.work/generated/permutation-authority-projection-886abdaedb6bb18f82bb90a218a525d64bd1027b999f49f0dc11e001df4e1c16.json' },
+];
+for (const binding of currentWaveArtifactBindings) {
+  const observedFileDigest = digestWorkingPath(binding.path);
+  if (observedFileDigest !== binding.fileDigest) throw new Error(`current wave artefact byte digest mismatch: ${binding.path}`);
+  const record = JSON.parse(readFileSync(join(repositoryRoot, binding.path), 'utf8'));
+  if (record[binding.internalField] !== binding.internalDigest) throw new Error(`current wave artefact internal digest mismatch: ${binding.path}:${binding.internalField}`);
+}
+const authorityProjectionRecord = JSON.parse(readFileSync(join(repositoryRoot, '.work/generated/permutation-authority-projection-886abdaedb6bb18f82bb90a218a525d64bd1027b999f49f0dc11e001df4e1c16.json'), 'utf8'));
+if (authorityProjectionRecord.basePacketDigest !== 'sha256:2b557090632299e1b28feef07f4f770cdd1b9229019a4586824cc06a9fdb4739') {
+  throw new Error('current authority projection does not bind the verified authority packet');
+}
 
 const dependencyReviewPath = join(stateRoot, 'compiler-cutover-dependency-review.json');
 const dependencyReviewDigest = existsSync(dependencyReviewPath) ? sha256(readFileSync(dependencyReviewPath)) : null;
@@ -284,11 +360,12 @@ const changedPathsDigest = atomicWrite(join(stateRoot, 'changed-paths.json'), ca
 
 const ledger = {
   authority: {
-    currentDigest: 'sha256:d24b641a3136cb73d73b354b11bcb839d4714d38c8c4ba905128039547575b8f',
-    graphCount: 36,
-    nonPublicationDependencyDigest: 'sha256:1b7147be19433f3c0420c0d08559554b7a90e30d02b73cb12f508211916f588c',
-    sourceLiveDrift: 'ZERO_BOTH_GOVERNED_MIRRORS',
-    tripleCount: 61704,
+    currentDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
+    inputPacketDigest: 'sha256:2b557090632299e1b28feef07f4f770cdd1b9229019a4586824cc06a9fdb4739',
+    inputProjectionDigest: 'sha256:886abdaedb6bb18f82bb90a218a525d64bd1027b999f49f0dc11e001df4e1c16',
+    localCandidateState: 'UNPUBLISHED_NOT_SEMANTIC_AUTHORITY',
+    sourceLiveDrift: 'NOT_ASSERTED_FOR_UNPUBLISHED_CANDIDATE',
+    tripleCount: 86536,
   },
   completedBoundaries: [
     'REJECTED_REALISATION_REMOVED_AND_INVALIDATED',
@@ -299,6 +376,8 @@ const ledger = {
     'COMPILER_PROOF_SCOPES_SEPARATED_AND_ADMITTED',
     'COMPILER_CONTRACT_ACTIVE_REALISATION_IMPLEMENTABLE',
     'MILESTONE_COMMITTED_AND_PUSHED',
+    'FOUNDATION_DOMAIN_CLOSURE_COMPLETE',
+    'UNIVERSAL_SEMANTIC_GAP_RECONSTRUCTION_PASS',
   ],
   dependencyNodes,
   gateSummary,
@@ -316,7 +395,7 @@ const ledger = {
   nextExactAction,
   recordKind: 'USF_PROGRAMME_LEDGER',
   recordedAt,
-  schemaVersion: 1,
+  schemaVersion: 2,
   stateClassifications,
   userReportedExecutionMetric: {
     sessions: 1,
@@ -334,16 +413,19 @@ if (!statusStableBeforeCheckpoint) {
 const checkpoint = {
   activeWorkPackets: [],
   authority: {
-    currentDigest: 'sha256:d24b641a3136cb73d73b354b11bcb839d4714d38c8c4ba905128039547575b8f',
-    graphCount: 36,
-    managedCandidateDigest: 'sha256:6220e75969e28cee9a35aa5d6e78b7d2754a0fcbcdefb6fbdf42c73b6bd7ba2d',
-    nonPublicationDependencyDigest: 'sha256:1b7147be19433f3c0420c0d08559554b7a90e30d02b73cb12f508211916f588c',
-    sourceLiveDrift: {
-      graph: 0,
-      semanticModel: 0,
-      state: 'ZERO',
+    currentDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
+    inputPacket: {
+      digest: 'sha256:2b557090632299e1b28feef07f4f770cdd1b9229019a4586824cc06a9fdb4739',
+      path: '.work/generated/permutation-authority-packet-2b557090632299e1b28feef07f4f770cdd1b9229019a4586824cc06a9fdb4739.json',
     },
-    tripleCount: 61704,
+    inputProjection: {
+      digest: 'sha256:886abdaedb6bb18f82bb90a218a525d64bd1027b999f49f0dc11e001df4e1c16',
+      path: '.work/generated/permutation-authority-projection-886abdaedb6bb18f82bb90a218a525d64bd1027b999f49f0dc11e001df4e1c16.json',
+      scope: 'BOUNDED_USF_MCP_SELECT_NOT_FULL_TERM_PARITY',
+    },
+    localCandidateState: 'UNPUBLISHED_NOT_SEMANTIC_AUTHORITY',
+    sourceLiveDrift: 'NOT_ASSERTED_FOR_UNPUBLISHED_CANDIDATE',
+    tripleCount: 86536,
   },
   cas: {
     descriptors: [
@@ -394,6 +476,8 @@ const checkpoint = {
   goalDigest,
   gateSummary,
   inventories: {
+    foundationDomain: permutationClosure.foundationDomain,
+    universalSemanticCoverage: permutationClosure.universalFamilyModel,
     contamination: {
       independentReviewFileDigest: 'sha256:081b775881fac9c72fd0eb3bef6e7a8bdc23e2bbd009c6ad60d888dcdf4b7427',
       internalDigest: 'sha256:8008ce6eebb6f854543df7dbf4833eb8d067be11d80581bd3bab5f9e627f19e2',
@@ -450,6 +534,11 @@ const checkpoint = {
     ownedAuthorityMutationProcessIds: [],
   },
   sidecars: [
+    ...currentWaveArtifactBindings.map(({ fileDigest, path }) => ({
+      digest: fileDigest,
+      path,
+      schema: 'DIGEST_BOUND_CURRENT_WAVE_ARTIFACT',
+    })),
     ...(dependencyReviewDigest ? [{
       digest: dependencyReviewDigest,
       path: '.work/programme/compiler-cutover-dependency-review.json',
@@ -462,18 +551,22 @@ const checkpoint = {
     },
   ],
   proofState: {
-    candidateAuthorityDigest: 'sha256:014a7547a9e2d1973f15fdceb4ae5d2578e16be12b5ab7bc6569f159b70e97b7',
-    exactEvidenceSetDigest: 'sha256:2049d80e0725b70c02a6f269d6819a3a36b4cb19745fcc2c5cb0015c52b5b737',
-    hermeticScopedEvidenceDigest: 'sha256:72605408479efedbc873c44c3d5a7dcf2add80084cdb3c0244e52ffde77f4a67',
-    implementationSourceDigest: 'sha256:05323e8c4b7e6b21d16e5e679c30cd80154b0bbb12907dcf05944b4cc2c00e4a',
-    liveAuthorityScopedEvidenceDigest: 'sha256:38f69d84d7a60372de291bacc755ea105c99ee2a04cbca5e64c9206574109748',
-    proofAlgorithmDigest: 'sha256:1d2db0368372a56356717073eaa4c40def2a256df0d95b01d5daa460b7aed024',
-    resultIdentifiers: [
-      'urn:usf:proofresult:compilercontractbehaviour',
-      'urn:usf:proofresult:compilerhermeticsubstitute',
-      'urn:usf:proofresult:compilerliveauthoritycontrol',
-    ],
-    state: 'ADMITTED_FOR_PREVIOUS_IMPLEMENTATION_BINDING_REOPENED_BY_LOCAL_CUTOVER',
+    compiler: {
+      state: 'ADMITTED_FOR_PREVIOUS_IMPLEMENTATION_BINDING_REOPENED_BY_CURRENT_LOCAL_SOURCE_CHANGE',
+    },
+    foundationDomain: {
+      proofDigest: permutationClosure.foundationDomain.proofDigest,
+      state: 'CURRENT_LOCAL_INDEPENDENT_PROOF_NOT_PUBLISHED',
+      verdict: permutationClosure.foundationDomain.proofVerdict,
+    },
+    universalSemanticCoverage: {
+      proofDigest: permutationClosure.universalFamilyModel.independentProofDigest,
+      reconstructionMismatchCount: 0,
+      state: 'CURRENT_LOCAL_INDEPENDENT_RECONSTRUCTION_NOT_CLOSURE_PROOF',
+      unresolvedFamilyReviewCount: 108,
+      unresolvedSemanticTermCount: 8519,
+      verdict: permutationClosure.universalFamilyModel.independentProofVerdict,
+    },
   },
   publishedSemanticResources: [
     'urn:usf:evidenceresult:compilerhermeticsubstituteruntime',
@@ -486,34 +579,67 @@ const checkpoint = {
     'urn:usf:realisationdecision:semanticmodelcompilationrealisation',
   ],
   publication: {
-    commitOutcome: 'CONFIRMED_RESPONSE_EXACT_CANDIDATE_STATE_VERIFIED',
-    currentAuthorityDigest: 'sha256:d24b641a3136cb73d73b354b11bcb839d4714d38c8c4ba905128039547575b8f',
-    evaluatedAuthorityDigest: 'sha256:dd3a24e0ad666a94c51988fe92a1083cfe0e35de1247e5f7884ff2eacabf0573',
-    managedCandidateDigest: 'sha256:6220e75969e28cee9a35aa5d6e78b7d2754a0fcbcdefb6fbdf42c73b6bd7ba2d',
-    resultPath: '.work/materialisation/compiler-wave-4fe1a272/compiler-publication-result.json',
+    currentWave: {
+      allowed: false,
+      authorityMutation: 'CLOSED_NONE_OWNED',
+      mutationOutcomeAmbiguous: false,
+      reason: 'UNIVERSAL_FAMILY_MODEL_INCOMPLETE',
+      state: 'PROHIBITED_NOT_ATTEMPTED',
+    },
+    historicalCompilerPublication: {
+      state: 'PRESERVED_HISTORICAL_BINDING_NOT_CURRENT_WAVE_AUTHORITY',
+    },
   },
   recordKind: 'USF_RECOVERY_CHECKPOINT',
   recordedAt,
-  schemaVersion: 1,
+  schemaVersion: 2,
   stateClassifications,
   transactionState: {
     authorityMutation: 'CLOSED_NONE_OWNED',
-    lastKnownPublicationOutcome: 'CONFIRMED_RESPONSE_EXACT_CANDIDATE_STATE_VERIFIED',
+    lastKnownPublicationOutcome: 'CURRENT_WAVE_NOT_ATTEMPTED',
     mutationOutcomeAmbiguous: false,
     queryOwnership: 'NONE_OWNED',
   },
-  unresolvedFindings: dependencyNodes.map(({ blockerCode, id, state }) => ({ blockerCode, id, state })),
+  unresolvedFindings: dependencyNodes.filter(({ state }) => state !== 'COMPLETE')
+    .map(({ blockerCode, id, state }) => ({ blockerCode, id, state })),
   userReportedExecutionMetric: {
     sessions: 1,
     source: 'USER_REPORTED_NOT_SYSTEM_VERIFIED',
     tokens: 500000000,
   },
   validation: {
-    compilerSuite: { failed: 0, passed: 121 },
-    localShacl: { actualServiceAlgebraNodes: 0, evaluatedConstraints: 79, registeredConstraints: 79, substringExclusions: 0, unexpectedExclusions: 0, violations: 0 },
-    rootSuite: { failed: 0, inventoryDigest: 'sha256:600d1663e33fa723efe6a917734d35e410fb67e778bbeb181d1ddee5dc95d47d', nodeVersion: '22.23.1', passed: 71 },
-    semanticCheck: { authoredGraphCount: 30, derivedGraphCount: 5, fileCount: 53, state: 'PASSED' },
-    sourceLiveDrift: 'ZERO_ACROSS_36_REGISTERED_GRAPHS',
+    compilerSuite: { failed: 0, focusedPassed: 14, state: 'FOCUSED_CURRENT_FULL_INTEGRATED_GATE_PENDING' },
+    localShacl: {
+      actualServiceAlgebraNodes: 0,
+      candidateViolations: 0,
+      evaluatedConstraints: 228,
+      evidenceDigest: 'sha256:7e8e7c176fc0fc2c61721bfb4f2828d0d038fe7b730c4ba53f9e1abd30d79272',
+      harnessSourceDigest: 'sha256:52db9580c0878d698439f4d680120e282de6f824caa8f8b01c914648e088ed85',
+      plantedFixtureEvidenceDigest: 'sha256:f16f512282fa44474d2e0aaf8c32262526efdf7c05d30e24853b6191beae1164',
+      plantedFixtures: { cases: 12, negative: 8, positive: 4, unexpectedCodes: 0, missingCodes: 0, multipleCodes: 0 },
+      registeredConstraints: 228,
+      substringExclusions: 0,
+      unexpectedExclusions: 0,
+    },
+    narrowPermutationAndUniversal: {
+      familyCensus: { failed: 0, passed: 15 },
+      universalSemanticCoverage: { failed: 0, passed: 9 },
+      state: 'CURRENT_FOCUSED_PASS',
+    },
+    rootSuite: {
+      discoveredFileCount: 19,
+      inventoryDigest: 'sha256:5e74513d538d9a0e3d7dbd32cceb3e5c908eaf9a4535a989f4e4a7897d15c72a',
+      reasonCodes: [
+        'DEPENDENCY_SET_DIGEST_MISMATCH',
+        'DETERMINISTIC_EVALUATION_SCOPE_INVALID',
+        'IMPLEMENTATION_SOURCE_DIGEST_MISMATCH',
+        'REPOSITORY_SECURITY_SCAN_INVALID',
+        'SOURCE_RECORD_DRIFT',
+      ],
+      state: 'STALE_OPTION_EVALUATION_EVIDENCE_REGENERATION_REQUIRED_AFTER_SOURCE_FREEZE',
+    },
+    semanticCheck: { state: 'CURRENT_LOCAL_SHACL_PASS_FULL_INTEGRATED_GATE_PENDING' },
+    sourceLiveDrift: 'NOT_ASSERTED_FOR_UNPUBLISHED_CANDIDATE',
   },
 };
 

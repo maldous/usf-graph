@@ -29,6 +29,7 @@ const { compile, checkLocal } = await import(canonicalModule('capabilities/seman
 const { loadAuthorityDataset } = await import(canonicalModule('processes/semantic-assurance/authority-dataset.mjs'));
 const { loadManifest } = await import(canonicalModule('capabilities/semantic-model-compilation/manifest.mjs'));
 const { createClient } = await import(canonicalModule('provider-bindings/stardog/stardog-read-gateway.mjs'));
+const { readSemanticAuthorityWitness } = await import(canonicalModule('processes/semantic-assurance/semantic-authority-gateway.mjs'));
 const {
   digest, jcs, layoutContext, projectContract,
 } = await import(canonicalModule('processes/semantic-assurance/repository-materialisation-gateway.mjs'));
@@ -109,7 +110,14 @@ record('candidate-contract-active', ACTIVE, oneObject(candidateDataset.store, co
 record('candidate-contract-relies-on-current-proof', proofResult, oneObject(candidateDataset.store, contract, 'urn:usf:ontology:reliesOnProofResult'));
 record('candidate-realisation-implementable', 'urn:usf:realisationstate:implementable', oneObject(candidateDataset.store, realisation, 'urn:usf:ontology:realisationState'));
 
-const candidate = await compile({ manifest, client, publicationMode: 'validate' });
+const publicationAuthorityWitness = await readSemanticAuthorityWitness(client);
+const candidate = await compile({
+  authorityWitness: publicationAuthorityWitness,
+  client,
+  manifest,
+  publicationBudgetPolicy: manifest.publicationBudget,
+  publicationMode: 'validate',
+});
 record('candidate-transaction-rolled-back', 'validated-rolled-back', candidate.commitOutcome.state);
 record('candidate-exact-state-verified', true, candidate.commitOutcome.exactCandidateStateVerified);
 const candidateGraphInventory = candidate.commitOutcome.candidateGraphs;

@@ -37,6 +37,7 @@ test('validates the canonical semantic model with an exact authority binding', a
   assert.equal(result.evaluatedAuthorityDigest, authorityDigest);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].publicationMode, 'validate');
+  assert.equal(calls[0].authorityWitness.digest, authorityDigest);
   assert.ok(calls[0].manifest.path.endsWith(`/${SEMANTIC_MODEL_PATH}`));
 });
 

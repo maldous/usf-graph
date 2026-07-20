@@ -71,6 +71,21 @@ _:b36_b36_n3-377 sh:path usf:hasComponent;
     sh:minCount 1;
     sh:class usf:Component.
 shape:ViewModelShape sh:property _:b36_b36_n3-377.
+_:viewmodel_interface_binding sh:path usf:bindsInterface;
+    sh:nodeKind sh:IRI;
+    sh:class usf:Interface;
+    sh:message "VIEW_MODEL_INTERFACE_BINDING_INVALID: every interface binding must reference a declared Interface".
+shape:ViewModelShape sh:property _:viewmodel_interface_binding.
+_:viewmodel_event_binding sh:path usf:hasEventBinding;
+    sh:nodeKind sh:IRI;
+    sh:class usf:Event;
+    sh:message "VIEW_MODEL_EVENT_BINDING_INVALID: every event binding must reference a declared Event".
+shape:ViewModelShape sh:property _:viewmodel_event_binding.
+_:viewmodel_state_binding sh:path usf:hasStateBinding;
+    sh:nodeKind sh:IRI;
+    sh:class usf:State;
+    sh:message "VIEW_MODEL_STATE_BINDING_INVALID: every state binding must reference a declared State".
+shape:ViewModelShape sh:property _:viewmodel_state_binding.
 shape:SurfaceShape a sh:NodeShape;
     sh:targetSubjectsOf usf:surfaceKind.
 _:b36_b36_n3-378 sh:path usf:surfaceKind;

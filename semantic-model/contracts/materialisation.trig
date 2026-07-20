@@ -225,6 +225,17 @@ actor:externalservice a usf:Entity;
     usf:coordinatorOnly true;
     usf:maximumInputBytes 65536;
     usf:maximumOutputBytes 16384.
+<urn:usf:gatewayoperation:layoutcontext> usf:gatewayOperationForCapability <urn:usf:capability:repositoryexternalartefactmaterialisation>.
+<urn:usf:gatewayoperation:layoutplan> usf:gatewayOperationForCapability <urn:usf:capability:repositoryexternalartefactmaterialisation>.
+<urn:usf:gatewayoperation:layoutvalidate> usf:gatewayOperationForCapability <urn:usf:capability:repositoryexternalartefactmaterialisation>.
+<urn:usf:gatewayoperation:materialise> usf:gatewayOperationForCapability <urn:usf:capability:repositoryexternalartefactmaterialisation>.
+<urn:usf:gatewayoperation:artifactdescribe> usf:gatewayOperationForCapability <urn:usf:capability:repositoryexternalartefactmaterialisation>.
+<urn:usf:gatewayoperation:artifactverify> usf:gatewayOperationForCapability <urn:usf:capability:repositoryexternalartefactmaterialisation>.
+<urn:usf:gatewayoperation:contractproject> usf:gatewayOperationForCapability <urn:usf:capability:repositoryexternalartefactmaterialisation>.
+<urn:usf:gatewayoperation:workplan> usf:gatewayOperationForCapability <urn:usf:capability:repositoryexternalartefactmaterialisation>.
+<urn:usf:gatewayoperation:evidenceadmit> usf:gatewayOperationForCapability <urn:usf:capability:repositoryexternalartefactmaterialisation>.
+<urn:usf:gatewayoperation:proofevaluate> usf:gatewayOperationForCapability <urn:usf:capability:repositoryexternalartefactmaterialisation>.
+<urn:usf:gatewayoperation:validationrecord> usf:gatewayOperationForCapability <urn:usf:capability:repositoryexternalartefactmaterialisation>.
 <urn:usf:proofobligation:repositoryexternalartefactmaterialisation> a usf:ProofObligation;
     usf:canonicalName "repositoryexternalartefactmaterialisation";
     usf:obligationFor <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation>;

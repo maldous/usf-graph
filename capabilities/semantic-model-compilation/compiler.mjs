@@ -6,7 +6,7 @@
 // and authored graph files are never modified during normal execution.
 
 import { createHash } from 'node:crypto';
-import { readFileSync, statSync, readdirSync } from 'node:fs';
+import { readFileSync, statSync, lstatSync, realpathSync, readdirSync } from 'node:fs';
 import { basename, dirname, join, relative, sep } from 'node:path';
 import { DataFactory, Parser, Store, Writer } from 'n3';
 import * as rdfCanonize from 'rdf-canonize';
@@ -294,11 +294,29 @@ export function checkLocal(manifest) {
 
   // No unregistered loadable file exists outside the fixtures directory.
   const registered = new Set(all.map((e) => e.path).filter(Boolean));
+  const inactive = new Set(manifest.inactiveSources.map((source) => source.path));
+  for (const source of manifest.inactiveSources) {
+    if (registered.has(source.path)) fail(`inactive source is also registered as authority: ${source.file}`);
+    let status;
+    try {
+      status = lstatSync(source.path);
+    } catch {
+      fail(`inactive source missing: ${source.file}`);
+      continue;
+    }
+    if (!status.isFile() || status.isSymbolicLink() || realpathSync(source.path) !== source.path) {
+      fail(`inactive source is not an independent regular file: ${source.file}`);
+      continue;
+    }
+    const digest = `sha256:${createHash('sha256').update(readFileSync(source.path)).digest('hex')}`;
+    if (digest !== source.contentDigest) fail(`inactive source digest mismatch: ${source.file}`);
+  }
   const fixturesRoot = manifest.fixtures
     ? join(manifest.root, 'fixtures')
     : null;
   for (const path of listLoadable(manifest.root)) {
     if (registered.has(path)) continue;
+    if (inactive.has(path)) continue;
     if (fixturesRoot && (path === fixturesRoot || path.startsWith(fixturesRoot + sep))) continue;
     fail(`unregistered loadable file: ${relative(manifest.root, path)}`);
   }
@@ -374,6 +392,7 @@ export function checkLocal(manifest) {
     files: all.length,
     authoredGraphs: authoredGraphs.length,
     derivedGraphs: derivedGraphs.length,
+    inactiveSources: manifest.inactiveSources.length,
     originIndependenceDigest: originResult.resultDigest,
     originIndependenceScannedFiles: originResult.scannedFileCount,
   };
@@ -446,6 +465,117 @@ async function candidateGraphWitness(stores) {
   };
 }
 
+function candidateStatementWitness(stores) {
+  const graphs = [...stores.entries()].sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+    .map(([graph, store]) => ({ graph, triples: store.size }));
+  return {
+    algorithm: 'managed-candidate-statement-count-v1',
+    digest: sha256(canonicalJson(graphs)),
+    graphs,
+  };
+}
+
+export function publicationBudgetWitness({ authorityWitness, candidateWitness, policy }) {
+  const authorityDigest = authorityWitness?.digest?.startsWith('sha256:')
+    ? authorityWitness.digest
+    : typeof authorityWitness?.digest === 'string' ? `sha256:${authorityWitness.digest}` : null;
+  if (!SHA256.test(authorityDigest || '')
+    || !Number.isSafeInteger(authorityWitness?.triples) || authorityWitness.triples < 0
+    || !Array.isArray(authorityWitness?.inventory)) {
+    throw new CompilerError('publication baseline witness is invalid', {
+      code: 'PUBLICATION_BASELINE_WITNESS_INVALID',
+      phase: 'publication:budget',
+    });
+  }
+  const baselineGraphs = new Set();
+  let inventoryStatementCount = 0;
+  for (const record of authorityWitness.inventory) {
+    if (typeof record?.graph !== 'string' || baselineGraphs.has(record.graph)
+      || !Number.isSafeInteger(record?.triples) || record.triples < 0) {
+      throw new CompilerError('publication baseline graph inventory is invalid', {
+        code: 'PUBLICATION_BASELINE_WITNESS_INVALID',
+        phase: 'publication:budget',
+      });
+    }
+    baselineGraphs.add(record.graph);
+    inventoryStatementCount += record.triples;
+  }
+  if (!Number.isSafeInteger(inventoryStatementCount) || inventoryStatementCount > authorityWitness.triples) {
+    throw new CompilerError('publication baseline statement arithmetic is invalid', {
+      code: 'PUBLICATION_BUDGET_ARITHMETIC_INVALID',
+      phase: 'publication:budget',
+    });
+  }
+  if (!policy || policy.provider !== 'stardogcloudfree'
+    || policy.hardStatementLimit !== 1_000_000
+    || !Number.isSafeInteger(policy.reserveStatementCount) || policy.reserveStatementCount < 1
+    || policy.maximumProjectedStatementCount !== policy.hardStatementLimit - policy.reserveStatementCount
+    || typeof policy.policyIri !== 'string'
+    || !policy.policyIri.startsWith('urn:usf:permutationpublicationbudget:')) {
+    throw new CompilerError('publication budget policy is invalid', {
+      code: 'PUBLICATION_BUDGET_POLICY_INVALID',
+      phase: 'publication:budget',
+    });
+  }
+  if (!candidateWitness || !SHA256.test(candidateWitness.digest || '') || !Array.isArray(candidateWitness.graphs)) {
+    throw new CompilerError('publication candidate graph witness is invalid', {
+      code: 'PUBLICATION_CANDIDATE_GRAPH_SET_MISMATCH',
+      phase: 'publication:budget',
+    });
+  }
+  const candidateGraphs = new Set();
+  let candidateStatementCount = 0;
+  for (const record of candidateWitness.graphs) {
+    if (typeof record?.graph !== 'string' || candidateGraphs.has(record.graph)
+      || !Number.isSafeInteger(record?.triples) || record.triples < 0) {
+      throw new CompilerError('publication candidate graph inventory is invalid', {
+        code: 'PUBLICATION_CANDIDATE_GRAPH_SET_MISMATCH',
+        phase: 'publication:budget',
+      });
+    }
+    candidateGraphs.add(record.graph);
+    candidateStatementCount += record.triples;
+  }
+  const projectedStatementUpperBound = authorityWitness.triples + candidateStatementCount;
+  if (!Number.isSafeInteger(candidateStatementCount) || !Number.isSafeInteger(projectedStatementUpperBound)) {
+    throw new CompilerError('publication candidate statement arithmetic is invalid', {
+      code: 'PUBLICATION_BUDGET_ARITHMETIC_INVALID',
+      phase: 'publication:budget',
+    });
+  }
+  const core = {
+    authorityDigest,
+    baselineStatementCount: authorityWitness.triples,
+    candidateGraphWitnessDigest: candidateWitness.digest,
+    candidateStatementCount,
+    conservativeNoReplacementCredit: true,
+    hardStatementLimit: policy.hardStatementLimit,
+    maximumProjectedStatementCount: policy.maximumProjectedStatementCount,
+    policyDigest: sha256(canonicalJson(policy)),
+    policyIri: policy.policyIri,
+    projectedStatementUpperBound,
+    provider: policy.provider,
+    reserveStatementCount: policy.reserveStatementCount,
+  };
+  return {
+    ...core,
+    budgetDigest: sha256(canonicalJson(core)),
+    result: projectedStatementUpperBound <= policy.maximumProjectedStatementCount ? 'PASS' : 'REJECTED',
+  };
+}
+
+function enforcePublicationBudget(input) {
+  const witness = publicationBudgetWitness(input);
+  if (witness.result !== 'PASS') {
+    throw new CompilerError('candidate publication exceeds the fail-closed statement budget', {
+      ...witness,
+      code: 'PUBLICATION_TRIPLE_BUDGET_EXCEEDED',
+      phase: 'publication:budget',
+    });
+  }
+  return witness;
+}
+
 async function liveManagedGraphWitness(manifest, client) {
   const graphs = [];
   for (const graph of [...managedGraphs(manifest)].sort()) {
@@ -474,6 +604,8 @@ export async function compile({
   manifest,
   client,
   publicationMode = 'commit',
+  authorityWitness,
+  publicationBudgetPolicy = manifest?.publicationBudget,
 }) {
   if (!['commit', 'validate'].includes(publicationMode)) {
     throw new CompilerError('unsupported compiler publication mode', {
@@ -491,10 +623,20 @@ export async function compile({
   const integrity = integrityRules(manifest);
   const derivedTriples = {};
   const candidateStores = candidateGraphStores(manifest);
+  let publicationBudget = enforcePublicationBudget({
+    authorityWitness,
+    candidateWitness: candidateStatementWitness(candidateStores),
+    policy: publicationBudgetPolicy,
+  });
   let candidateScope = 0;
   const recordCandidate = (content, contentType, graph) => {
     const transport = addCandidateContent(candidateStores, content, contentType, graph, `load${candidateScope}`);
     candidateScope += 1;
+    publicationBudget = enforcePublicationBudget({
+      authorityWitness,
+      candidateWitness: candidateStatementWitness(candidateStores),
+      policy: publicationBudgetPolicy,
+    });
     return transport;
   };
   let commitOutcome;
@@ -523,6 +665,7 @@ export async function compile({
       try {
         authoredTransport.push(...recordCandidate(content, e.contentType, e.graph));
       } catch (error) {
+        if (error instanceof CompilerError) throw error;
         throw new CompilerError(error.message, { phase: 'load:authored-prepare', file: e.file, graph: e.graph });
       }
     }
@@ -570,8 +713,8 @@ export async function compile({
       for (const block of blocks) {
         const turtle = await client.constructInTransaction(tx, block);
         if (turtle && turtle.trim()) {
-          await client.addData(tx, turtle, 'text/turtle', rule.output);
-          recordCandidate(turtle, 'text/turtle', rule.output);
+          const transport = recordCandidate(turtle, 'text/turtle', rule.output);
+          await client.addData(tx, await nquadsFor(transport), NQUADS, null);
         }
       }
       derivedTriples[rule.output] = await countInTx(client, tx, rule.output);
@@ -635,6 +778,11 @@ export async function compile({
       }
     }
     const candidateWitness = await candidateGraphWitness(candidateStores);
+    publicationBudget = enforcePublicationBudget({
+      authorityWitness,
+      candidateWitness,
+      policy: publicationBudgetPolicy,
+    });
     if (publicationMode === 'validate') {
       await client.rollback(tx);
       tx = null;
@@ -643,6 +791,7 @@ export async function compile({
         exactCandidateStateVerified: true,
         candidateDigest: candidateWitness.digest,
         candidateGraphs: candidateWitness.graphs,
+        publicationBudget,
       };
     } else try {
       await client.commit(tx);
@@ -651,6 +800,7 @@ export async function compile({
         state: 'confirmed-response',
         exactCandidateStateVerified: true,
         candidateDigest: candidateWitness.digest,
+        publicationBudget,
       };
     } catch (commitError) {
       let rollbackError;
@@ -742,6 +892,7 @@ export async function compile({
       derived: derivedTriples,
       contaminationCount: 0,
       commitOutcome,
+      publicationBudget,
       liveValidation: {
         ...liveValidationCore,
         receiptDigest: sha256(canonicalJson(liveValidationCore)),

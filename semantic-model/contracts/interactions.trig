@@ -959,7 +959,8 @@ evt:notificationsendrequested a usf:Event;
     usf:timeoutMilliseconds 10000;
     usf:retryBehaviour "Retry only transient identity-directory failures; invalid identity, host or permission context is terminal.";
     usf:concurrencyBehaviour "Tenant and actor context are immutable for one request and cannot be client-overridden.";
-    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.".
+    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.";
+    usf:scheduleTriggerKind <urn:usf:scheduletriggerkind:conditionaldueinstant>.
 wf:authenticationidentitycontext usf:repositoryName "authenticationidentitycontext";
     usf:definition "Durable state-transition workflow owned by authentication platform.";
     usf:workflowForContract <urn:usf:semanticcontract:authenticationplatform>;
@@ -972,7 +973,8 @@ wf:authenticationidentitycontext usf:repositoryName "authenticationidentityconte
     usf:timeoutMilliseconds 10000;
     usf:retryBehaviour "Retry only transient provider transport failure; invalid credentials and policy denials are terminal.";
     usf:concurrencyBehaviour "One login result per challenge identifier; replayed completed challenges are rejected.";
-    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.".
+    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.";
+    usf:scheduleTriggerKind <urn:usf:scheduletriggerkind:conditionaldueinstant>.
 wf:authenticationlogin usf:repositoryName "authenticationlogin";
     usf:definition "Durable state-transition workflow owned by authentication platform.";
     usf:workflowForContract <urn:usf:semanticcontract:authenticationplatform>;
@@ -985,7 +987,8 @@ wf:authenticationlogin usf:repositoryName "authenticationlogin";
     usf:timeoutMilliseconds 300000;
     usf:retryBehaviour "Retry only transient provider failures with bounded exponential backoff; validation and authorisation failures are terminal.";
     usf:concurrencyBehaviour "One active operation per tenant and idempotency key; conflicting writes fail closed.";
-    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.".
+    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.";
+    usf:scheduleTriggerKind <urn:usf:scheduletriggerkind:conditionaldueinstant>.
 wf:bulkoperationlifecycle usf:repositoryName "bulkoperation-lifecycle";
     usf:definition "Durable state-transition workflow owned by workflow engine scheduled jobs approvals.";
     usf:workflowForContract <urn:usf:semanticcontract:workflowenginescheduledjobsapprovals>;
@@ -998,7 +1001,8 @@ wf:bulkoperationlifecycle usf:repositoryName "bulkoperation-lifecycle";
     usf:timeoutMilliseconds 86400000;
     usf:retryBehaviour "Persist before acknowledgement; retry transient delivery failures and dead-letter after the final attempt.";
     usf:concurrencyBehaviour "Optimistic version check per workflow instance; duplicate signals are idempotent.";
-    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.".
+    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.";
+    usf:scheduleTriggerKind <urn:usf:scheduletriggerkind:conditionaldueinstant>.
 wf:durableworkflowapproval usf:repositoryName "durableworkflowapproval";
     usf:definition "Durable state-transition workflow owned by workflow engine scheduled jobs approvals.";
     usf:workflowForContract <urn:usf:semanticcontract:workflowenginescheduledjobsapprovals>;
@@ -1048,7 +1052,8 @@ wf:durableworkflowapproval usf:hasState stt:durableworkflowapprovalrequested, st
     usf:timeoutMilliseconds 300000;
     usf:retryBehaviour "Lease, retry transient execution failures with bounded exponential backoff, then dead-letter with the original cause.";
     usf:concurrencyBehaviour "One active lease per job; lease expiry permits recovery and duplicate completion is rejected idempotently.";
-    usf:scheduleBehaviour "Persist the due instant in UTC, claim due work atomically, tolerate clock skew, emit one idempotent trigger, and recover missed schedules after restart.".
+    usf:scheduleBehaviour "Persist the due instant in UTC, claim due work atomically, tolerate clock skew, emit one idempotent trigger, and recover missed schedules after restart.";
+    usf:scheduleTriggerKind <urn:usf:scheduletriggerkind:fixedinstant>.
 wf:jobexecution usf:repositoryName "jobexecution";
     usf:definition "Durable state-transition workflow owned by background workers job runner.";
     usf:workflowForContract <urn:usf:semanticcontract:backgroundworkersjobrunner>;
@@ -1143,7 +1148,8 @@ wf:jobexecution usf:hasState stt:jobexecutioncreated, stt:jobexecutionscheduled,
     usf:timeoutMilliseconds 60000;
     usf:retryBehaviour "Retry transient channel failures with bounded exponential backoff; permanent address or policy failures are terminal.";
     usf:concurrencyBehaviour "One delivery per notification, channel and idempotency key; terminal state updates use optimistic concurrency.";
-    usf:scheduleBehaviour "Persist the due instant in UTC, claim due work atomically, tolerate clock skew, emit one idempotent trigger, and recover missed schedules after restart.".
+    usf:scheduleBehaviour "Persist the due instant in UTC, claim due work atomically, tolerate clock skew, emit one idempotent trigger, and recover missed schedules after restart.";
+    usf:scheduleTriggerKind <urn:usf:scheduletriggerkind:fixedinstant>.
 wf:notificationdelivery usf:repositoryName "notificationdelivery";
     usf:definition "Durable state-transition workflow owned by notification delivery preferences channels.";
     usf:workflowForContract <urn:usf:semanticcontract:notificationdeliveryandpreferencesandchannels>;
@@ -1254,7 +1260,8 @@ wf:notificationdelivery usf:hasState stt:notificationdeliverycreated, stt:notifi
     usf:timeoutMilliseconds 900000;
     usf:retryBehaviour "No automatic decision retry; stale digests require explicit re-pin and renewed review.";
     usf:concurrencyBehaviour "One current review per authority and implementation digest tuple.";
-    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.".
+    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.";
+    usf:scheduleTriggerKind <urn:usf:scheduletriggerkind:conditionaldueinstant>.
 wf:proofreviewoperatorcontrol usf:repositoryName "proofreviewoperatorcontrol";
     usf:definition "Durable state-transition workflow owned by repository external artefact materialisation.";
     usf:workflowForContract <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation>;
@@ -1632,6 +1639,65 @@ evt:workflowstarted usf:repositoryName "workflowstarted";
     usf:eventForContract <urn:usf:semanticcontract:workflowenginescheduledjobsapprovals>;
     usf:requiredPublisher cap:workflowenginescheduledjobsapprovals;
     usf:requiredConsumer cap:workflowenginescheduledjobsapprovals.
+
+# Delivery form is explicit. The direct-notification classification is warranted
+# by each event's current definition as an immutable state-change occurrence;
+# it is not inferred from the absence of a message edge.
+evt:notificationsent usf:eventDeliveryForm <urn:usf:eventdeliveryform:messageenvelope>.
+evt:tenantcontextaccepted usf:eventDeliveryForm <urn:usf:eventdeliveryform:messageenvelope>.
+evt:authenticationlogin usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:authorizationdecision usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:breakglassgranted usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:bulkoperationapproved usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:bulkoperationcancelled usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:bulkoperationcompleted usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:bulkoperationcreated usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:bulkoperationdenied usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:bulkoperationfailed usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:bulkoperationpreviewed usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:bulkoperationpurged usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:bulkoperationrolledback usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:bulkoperationstarted usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:bulkoperationvalidated usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:dataexported usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:eventauthenticationloginaudit usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:evidencepackagecreated usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:export usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:fileuploaded usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:import usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:jobcancelled usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:jobcompleted usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:jobcreated usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:jobdeadlettered usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:jobdenied usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:jobfailed usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:jobleased usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:jobretrying usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:jobscheduled usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:jobstarted usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:notificationcancelled usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:notificationcreated usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:notificationdeadlettered usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:notificationdenied usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:notificationfailed usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:notificationqueued usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:notificationread usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:notificationrendered usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:notificationretrying usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:notificationscheduled usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:notificationsendrequested usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:notificationsuppressed usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:proofreviewaccepted usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:proofreviewrejected usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:proofreviewrepinned usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:proofreviewrequested usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:providerconfigured usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:workflowapprovalapproved usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:workflowapprovalrejected usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:workflowapprovalrequested usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:workflowcancelled usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:workflowsignalled usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
+evt:workflowstarted usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>.
 msg:mailmessage usf:repositoryName "mailmessage";
     usf:definition "Versioned transport payload owned by notification delivery preferences channels.";
     usf:messageForContract <urn:usf:semanticcontract:notificationdeliveryandpreferencesandchannels>;
@@ -1665,7 +1731,8 @@ evt:notificationsendrequested a usf:Event;
     usf:timeoutMilliseconds 10000;
     usf:retryBehaviour "Retry only transient identity-directory failures; invalid identity, host or permission context is terminal.";
     usf:concurrencyBehaviour "Tenant and actor context are immutable for one request and cannot be client-overridden.";
-    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.".
+    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.";
+    usf:scheduleTriggerKind <urn:usf:scheduletriggerkind:conditionaldueinstant>.
 wf:authenticationidentitycontext usf:repositoryName "authenticationidentitycontext";
     usf:definition "Durable state-transition workflow owned by authentication platform.";
     usf:workflowForContract <urn:usf:semanticcontract:authenticationplatform>;
@@ -1678,7 +1745,8 @@ wf:authenticationidentitycontext usf:repositoryName "authenticationidentityconte
     usf:timeoutMilliseconds 10000;
     usf:retryBehaviour "Retry only transient provider transport failure; invalid credentials and policy denials are terminal.";
     usf:concurrencyBehaviour "One login result per challenge identifier; replayed completed challenges are rejected.";
-    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.".
+    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.";
+    usf:scheduleTriggerKind <urn:usf:scheduletriggerkind:conditionaldueinstant>.
 wf:authenticationlogin usf:repositoryName "authenticationlogin";
     usf:definition "Durable state-transition workflow owned by authentication platform.";
     usf:workflowForContract <urn:usf:semanticcontract:authenticationplatform>;
@@ -1691,7 +1759,8 @@ wf:authenticationlogin usf:repositoryName "authenticationlogin";
     usf:timeoutMilliseconds 300000;
     usf:retryBehaviour "Retry only transient provider failures with bounded exponential backoff; validation and authorisation failures are terminal.";
     usf:concurrencyBehaviour "One active operation per tenant and idempotency key; conflicting writes fail closed.";
-    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.".
+    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.";
+    usf:scheduleTriggerKind <urn:usf:scheduletriggerkind:conditionaldueinstant>.
 wf:bulkoperationlifecycle usf:repositoryName "bulkoperation-lifecycle";
     usf:definition "Durable state-transition workflow owned by workflow engine scheduled jobs approvals.";
     usf:workflowForContract <urn:usf:semanticcontract:workflowenginescheduledjobsapprovals>;
@@ -1704,7 +1773,8 @@ wf:bulkoperationlifecycle usf:repositoryName "bulkoperation-lifecycle";
     usf:timeoutMilliseconds 86400000;
     usf:retryBehaviour "Persist before acknowledgement; retry transient delivery failures and dead-letter after the final attempt.";
     usf:concurrencyBehaviour "Optimistic version check per workflow instance; duplicate signals are idempotent.";
-    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.".
+    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.";
+    usf:scheduleTriggerKind <urn:usf:scheduletriggerkind:conditionaldueinstant>.
 wf:durableworkflowapproval usf:repositoryName "durableworkflowapproval";
     usf:definition "Durable state-transition workflow owned by workflow engine scheduled jobs approvals.";
     usf:workflowForContract <urn:usf:semanticcontract:workflowenginescheduledjobsapprovals>;
@@ -1754,7 +1824,8 @@ wf:durableworkflowapproval usf:hasState stt:durableworkflowapprovalrequested, st
     usf:timeoutMilliseconds 300000;
     usf:retryBehaviour "Lease, retry transient execution failures with bounded exponential backoff, then dead-letter with the original cause.";
     usf:concurrencyBehaviour "One active lease per job; lease expiry permits recovery and duplicate completion is rejected idempotently.";
-    usf:scheduleBehaviour "Persist the due instant in UTC, claim due work atomically, tolerate clock skew, emit one idempotent trigger, and recover missed schedules after restart.".
+    usf:scheduleBehaviour "Persist the due instant in UTC, claim due work atomically, tolerate clock skew, emit one idempotent trigger, and recover missed schedules after restart.";
+    usf:scheduleTriggerKind <urn:usf:scheduletriggerkind:fixedinstant>.
 wf:jobexecution usf:repositoryName "jobexecution";
     usf:definition "Durable state-transition workflow owned by background workers job runner.";
     usf:workflowForContract <urn:usf:semanticcontract:backgroundworkersjobrunner>;
@@ -1849,7 +1920,8 @@ wf:jobexecution usf:hasState stt:jobexecutioncreated, stt:jobexecutionscheduled,
     usf:timeoutMilliseconds 60000;
     usf:retryBehaviour "Retry transient channel failures with bounded exponential backoff; permanent address or policy failures are terminal.";
     usf:concurrencyBehaviour "One delivery per notification, channel and idempotency key; terminal state updates use optimistic concurrency.";
-    usf:scheduleBehaviour "Persist the due instant in UTC, claim due work atomically, tolerate clock skew, emit one idempotent trigger, and recover missed schedules after restart.".
+    usf:scheduleBehaviour "Persist the due instant in UTC, claim due work atomically, tolerate clock skew, emit one idempotent trigger, and recover missed schedules after restart.";
+    usf:scheduleTriggerKind <urn:usf:scheduletriggerkind:fixedinstant>.
 wf:notificationdelivery usf:repositoryName "notificationdelivery";
     usf:definition "Durable state-transition workflow owned by notification delivery preferences channels.";
     usf:workflowForContract <urn:usf:semanticcontract:notificationdeliveryandpreferencesandchannels>;
@@ -1960,7 +2032,8 @@ wf:notificationdelivery usf:hasState stt:notificationdeliverycreated, stt:notifi
     usf:timeoutMilliseconds 900000;
     usf:retryBehaviour "No automatic decision retry; stale digests require explicit re-pin and renewed review.";
     usf:concurrencyBehaviour "One current review per authority and implementation digest tuple.";
-    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.".
+    usf:scheduleBehaviour "Not time-triggered unless an explicit due instant is part of the workflow request; no hidden host scheduler is permitted.";
+    usf:scheduleTriggerKind <urn:usf:scheduletriggerkind:conditionaldueinstant>.
 wf:proofreviewoperatorcontrol usf:repositoryName "proofreviewoperatorcontrol";
     usf:definition "Durable state-transition workflow owned by repository external artefact materialisation.";
     usf:workflowForContract <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation>;

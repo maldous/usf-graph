@@ -183,12 +183,24 @@ usf:PermutationCondition a owl:Class;
 usf:PermutationEquivalenceProof a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Permutation equivalence proof".
-usf:SelectedOptionRealisationMapping a owl:Class;
+usf:ConcreteRealisationMapping a owl:Class;
     rdfs:subClassOf usf:Entity;
+    rdfs:label "Concrete realisation mapping";
+    rdfs:comment "A digest-bound mapping from an evaluated selected option or component to its exact authorised concrete realisation.".
+usf:SelectedOptionRealisationMapping a owl:Class;
+    rdfs:subClassOf usf:ConcreteRealisationMapping;
     rdfs:label "Selected option realisation mapping".
 usf:SelectedComponentConcreteMapping a owl:Class;
-    rdfs:subClassOf usf:Entity;
+    rdfs:subClassOf usf:ConcreteRealisationMapping;
     rdfs:label "Selected component concrete mapping".
+usf:MappingState a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Mapping state";
+    rdfs:comment "Finite lifecycle state for a selected-option or selected-component concrete mapping.".
+usf:ComponentMappingTargetKind a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Component mapping target kind";
+    rdfs:comment "Finite identity of the one concrete target representation selected for an option component.".
 usf:DependencyBinding a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Dependency binding";
@@ -758,7 +770,8 @@ usf:reopeningCondition a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:range xsd:string.
 usf:hasOptionComponent a owl:ObjectProperty;
     rdfs:domain usf:ComposedRealisationOption;
-    rdfs:range usf:OptionComponent.
+    rdfs:range usf:OptionComponent;
+    owl:inverseOf usf:componentForOption.
 usf:componentForOption a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:OptionComponent;
     rdfs:range usf:ComposedRealisationOption.
@@ -833,7 +846,8 @@ usf:componentReplacementBoundary a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:range xsd:string.
 usf:hasComponentResponsibility a owl:ObjectProperty;
     rdfs:domain usf:ComposedRealisationOption;
-    rdfs:range usf:ComponentResponsibility.
+    rdfs:range usf:ComponentResponsibility;
+    owl:inverseOf usf:responsibilityOwner.
 usf:responsibilityForComponent a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:ComponentResponsibility;
     rdfs:range usf:OptionComponent.
@@ -842,7 +856,7 @@ usf:responsibilityForRequirement a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:range usf:Entity.
 usf:responsibilityOwner a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:ComponentResponsibility;
-    rdfs:range usf:Entity.
+    rdfs:range usf:ComposedRealisationOption.
 usf:responsibilityCoordinationRule a owl:DatatypeProperty;
     rdfs:domain usf:ComponentResponsibility;
     rdfs:range xsd:string.
@@ -1167,6 +1181,9 @@ usf:componentMappingForOption a owl:ObjectProperty, owl:FunctionalProperty;
 usf:componentMappingForComponent a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:SelectedComponentConcreteMapping;
     rdfs:range usf:OptionComponent.
+usf:componentMappingTargetKind a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SelectedComponentConcreteMapping;
+    rdfs:range usf:ComponentMappingTargetKind.
 usf:componentMappingToImplementation a owl:ObjectProperty;
     rdfs:domain usf:SelectedComponentConcreteMapping;
     rdfs:range usf:Implementation.
@@ -1201,13 +1218,17 @@ usf:dependencyBindingMaterialisationRule a owl:DatatypeProperty, owl:FunctionalP
     rdfs:domain usf:DependencyBinding;
     rdfs:range xsd:string.
 usf:mappingAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ConcreteRealisationMapping;
     rdfs:range xsd:string.
 usf:mappingEvaluationDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ConcreteRealisationMapping;
     rdfs:range xsd:string.
 usf:mappingImplementationSourceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ConcreteRealisationMapping;
     rdfs:range xsd:string.
 usf:mappingState a owl:ObjectProperty, owl:FunctionalProperty;
-    rdfs:range usf:ControlledValue.
+    rdfs:domain usf:ConcreteRealisationMapping;
+    rdfs:range usf:MappingState.
 usf:failureCodeLiteral a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:ValidationFailureCode;
     rdfs:range xsd:string.
@@ -1388,12 +1409,20 @@ usf:Port a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Port";
     rdfs:comment "A semantic boundary through which a service interacts with a provider or peer.".
-usf:Interface a owl:Class;
+usf:ProtocolSurface a owl:Class;
     rdfs:subClassOf usf:Entity;
+    rdfs:label "Protocol surface";
+    rdfs:comment "An explicitly exposed callable or navigable interaction boundary with transport, direction, authentication and operation semantics; concrete interface and route kinds remain distinct.".
+usf:Interface a owl:Class;
+    rdfs:subClassOf usf:ProtocolSurface;
     rdfs:label "Interface";
     rdfs:comment "A callable contract surface grouping related operations.".
-usf:Operation a owl:Class;
+usf:ExecutionPolicyBearingSubject a owl:Class;
     rdfs:subClassOf usf:Entity;
+    rdfs:label "Execution policy bearing subject";
+    rdfs:comment "An operation or workflow execution policy with explicit bounded timeout and concurrency semantics; it is an abstract owner, not an independently deployed runtime concept.".
+usf:Operation a owl:Class;
+    rdfs:subClassOf usf:ExecutionPolicyBearingSubject;
     rdfs:label "Operation";
     rdfs:comment "A single callable action of an interface.".
 usf:Command a owl:Class;
@@ -1405,17 +1434,29 @@ usf:Query a owl:Class;
     rdfs:label "Query";
     rdfs:comment "An operation that reads state without mutation.".
 usf:Event a owl:Class;
-    rdfs:subClassOf usf:Entity;
+    rdfs:subClassOf usf:MessageDeliverySubject;
     rdfs:label "Event";
     rdfs:comment "A semantic occurrence that records or communicates a state change.".
+usf:EventDeliveryForm a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Event delivery form";
+    rdfs:comment "Finite classification distinguishing an event carried by an explicit Message from a direct notification that has no message-envelope axis.".
 usf:Message a owl:Class;
-    rdfs:subClassOf usf:Entity;
+    rdfs:subClassOf usf:MessageDeliverySubject;
     rdfs:label "Message";
     rdfs:comment "A transport payload conveyed over a bus, distinct from the occurrence it carries.".
+usf:MessageDeliverySubject a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Message delivery subject";
+    rdfs:comment "A finite delivery-model subject covering semantic events and transport messages while preserving their distinct identities and responsibilities.".
 usf:Workflow a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Workflow";
     rdfs:comment "An ordered or conditional orchestration of operations and events across capabilities.".
+usf:ScheduledJob a owl:Class;
+    rdfs:subClassOf usf:Workflow;
+    rdfs:label "Scheduled job";
+    rdfs:comment "A workflow whose declared execution policy contains a finite schedule trigger; membership is derived from that semantic relationship, never from prose or a process name.".
 usf:State a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "State";
@@ -1428,6 +1469,18 @@ usf:Provider a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Provider";
     rdfs:comment "A dependency that fulfils a port under a provider mode.".
+usf:ExternalDependency a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "External dependency";
+    rdfs:comment "A provider-backed dependency outside the owning process boundary with explicit port, failure, recovery, security and continuity semantics; externality is never inferred from a provider name.".
+usf:FailureMode a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Failure mode";
+    rdfs:comment "A finite semantic classification of how a dependency or operation can fail; it is distinct from the recovery action selected for that failure.".
+usf:RecoveryAction a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Recovery action";
+    rdfs:comment "A finite semantic classification of the bounded response to a declared failure mode.".
 usf:ProviderMode a owl:Class;
     rdfs:subClassOf usf:ControlledValue;
     rdfs:label "ProviderMode";
@@ -1449,7 +1502,7 @@ usf:ConfigurationKey a owl:Class;
     rdfs:label "ConfigurationKey";
     rdfs:comment "A typed configuration setting that influences behaviour, generated from a manifest.".
 usf:DataModel a owl:Class;
-    rdfs:subClassOf usf:Entity;
+    rdfs:subClassOf usf:Entity, usf:RollbackGovernedSubject;
     rdfs:label "DataModel";
     rdfs:comment "A persistence contract for records, identifiers and relationships backing a capability.".
 usf:PersistenceContract a owl:Class;
@@ -1822,8 +1875,14 @@ usf:hasDeliverySemantics a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:range usf:DeliverySemantics;
     rdfs:label "hasDeliverySemantics".
 usf:carriesMessage a owl:ObjectProperty;
+    rdfs:domain usf:Event;
     rdfs:range usf:Message;
     rdfs:label "carriesMessage".
+usf:eventDeliveryForm a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:Event;
+    rdfs:range usf:EventDeliveryForm;
+    rdfs:label "event delivery form";
+    rdfs:comment "Selects exactly one finite delivery form so absence of carriesMessage is never interpreted as closed-world non-applicability.".
 usf:partOfWorkflow a owl:ObjectProperty;
     rdfs:range usf:Workflow;
     rdfs:label "partOfWorkflow".
@@ -1867,6 +1926,11 @@ usf:implementsPort a owl:ObjectProperty, owl:FunctionalProperty;
 usf:bindsProvider a owl:ObjectProperty;
     rdfs:range usf:Provider;
     rdfs:label "bindsProvider".
+usf:bindingProvider a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:Binding;
+    rdfs:range usf:Provider;
+    rdfs:label "binding provider";
+    rdfs:comment "The exact provider selected by one runtime binding; this typed relation supersedes generic bindsProvider for binding semantics.".
 usf:bindsPort a owl:ObjectProperty;
     rdfs:domain usf:Binding;
     rdfs:range usf:Port;
@@ -1875,6 +1939,23 @@ usf:bindingState a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:Binding;
     rdfs:range usf:BindingState;
     rdfs:label "bindingState".
+usf:bindingEnvironment a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:Binding;
+    rdfs:range usf:Environment;
+    rdfs:label "binding environment";
+    rdfs:comment "The runtime environment in which one provider binding applies; assurance evidence and proofs retain their separately typed environment relationships.".
+usf:externalDependencyAtPort a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ExternalDependency;
+    rdfs:range usf:Port.
+usf:externalDependencyProvider a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ExternalDependency;
+    rdfs:range usf:Provider.
+usf:externalDependencyFailureMode a owl:ObjectProperty;
+    rdfs:domain usf:ExternalDependency;
+    rdfs:range usf:FailureMode.
+usf:externalDependencyRecoveryAction a owl:ObjectProperty;
+    rdfs:domain usf:ExternalDependency;
+    rdfs:range usf:RecoveryAction.
 usf:hasEnvironmentClass a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:Environment;
     rdfs:range usf:EnvironmentClass;
@@ -2190,7 +2271,9 @@ usf:serves a owl:ObjectProperty;
 usf:dependsOnService a owl:ObjectProperty;
     rdfs:domain usf:Service;
     rdfs:range usf:Service;
-    rdfs:label "dependsOnService".
+    rdfs:label "dependsOnService";
+    rdfs:comment "Superseded broad dependency relation retained only for lineage. Current process dependencies use DeployableProcessDependency with explicit interface, environment, provider, failure and recovery semantics.";
+    owl:deprecated true.
 usf:realisesContract a owl:ObjectProperty;
     rdfs:domain usf:Realisation;
     rdfs:range usf:SemanticContract;
@@ -3134,6 +3217,14 @@ usf:canonicalExtension a owl:DatatypeProperty, owl:FunctionalProperty;
 usf:definedByStandard a owl:ObjectProperty;
     rdfs:domain usf:RepresentationFormat;
     rdfs:range usf:TechnicalStandard.
+usf:standardDefinesSemanticClass a owl:ObjectProperty;
+    rdfs:domain usf:TechnicalStandard;
+    rdfs:range owl:Class;
+    rdfs:comment "Binds a retained standard edition to an exact external class used by the current semantic model; namespace membership alone never establishes this dependency.".
+usf:standardDefinesSemanticProperty a owl:ObjectProperty;
+    rdfs:domain usf:TechnicalStandard;
+    rdfs:range rdf:Property;
+    rdfs:comment "Binds a retained standard edition to an exact external property used by the current semantic model; namespace membership alone never establishes this dependency.".
 usf:standardIdentifier a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:TechnicalStandard;
     rdfs:range xsd:string.
@@ -3221,6 +3312,10 @@ usf:coordinatorOnly a owl:DatatypeProperty, owl:FunctionalProperty;
 usf:gatewayOperationIdentifier a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:GatewayOperation;
     rdfs:range xsd:string.
+usf:gatewayOperationForCapability a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:GatewayOperation;
+    rdfs:range usf:Capability;
+    rdfs:comment "Attributes one semantic gateway operation to its accountable capability so bounded authority projections need no out-of-band capability binding.".
 usf:maximumInputBytes a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:GatewayOperation;
     rdfs:range xsd:nonNegativeInteger.
@@ -3814,7 +3909,7 @@ usf:ViewModel a owl:Class;
     rdfs:label "View model";
     rdfs:comment "A framework-neutral semantic projection of state, data, operations, errors, validation, and components for one or more surfaces.".
 usf:Route a owl:Class;
-    rdfs:subClassOf usf:Entity;
+    rdfs:subClassOf usf:ProtocolSurface;
     rdfs:label "Route";
     rdfs:comment "A navigable UI route with one deterministic route pattern and route kind; it is distinct from a service Interface.".
 usf:Surface a owl:Class;
@@ -4469,8 +4564,10 @@ usf:configures usf:termUsageState <urn:usf:termusagestate:zeroinstancebydesign>;
     usf:termUsageRationale "The reified realisation, interface and workflow resources are the canonical carriers of this relationship; the direct shortcut stays declared for future derivation use.".
 usf:consumesArtefact usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
     usf:termUsageRationale "Reserved for the clean room generation and release lifecycle; instances are produced by compiler generation runs, not authored in the semantic graph.".
-usf:consumesEvent usf:termUsageState <urn:usf:termusagestate:zeroinstancebydesign>;
-    usf:termUsageRationale "The reified realisation, interface and workflow resources are the canonical carriers of this relationship; the direct shortcut stays declared for future derivation use.".
+usf:consumesEvent usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageRationale "Current process semantics explicitly identify consumed events so consumer ownership and delivery obligations can be closed without inferring them from a capability name.".
+usf:producesEvent usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageRationale "Current process semantics explicitly identify produced events so publisher ownership and delivery obligations can be closed without inferring them from an implementation path.".
 usf:containsArtefact usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
     usf:termUsageRationale "Reserved for the clean room generation and release lifecycle; instances are produced by compiler generation runs, not authored in the semantic graph.".
 usf:containsModule usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
@@ -4959,6 +5056,18 @@ usf:DeployableProcess a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Deployable process";
     rdfs:comment "An independently startable, health-checked and operable process boundary assembled from capability interfaces.".
+usf:DeployableProcessDependency a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Deployable process dependency";
+    rdfs:comment "An explicit directed dependency between independently operable process boundaries, including its interface, environment, provider mode and requirement kind.".
+usf:ProcessDependencyFailureHandling a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Process dependency failure handling";
+    rdfs:comment "The bounded failure and recovery responsibility for one deployable-process dependency.".
+usf:ProcessDependencyRequirementKind a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Process dependency requirement kind";
+    rdfs:comment "A finite classification of why one deployable process depends on another.".
 usf:ProcessBoundaryClass a owl:Class;
     rdfs:subClassOf usf:ControlledValue;
     rdfs:label "Process boundary class";
@@ -4967,8 +5076,12 @@ usf:EnvironmentTopology a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Environment topology";
     rdfs:comment "A complete repository-local execution topology for a semantic environment purpose.".
-usf:SchemaChangeSeries a owl:Class;
+usf:RollbackGovernedSubject a owl:Class;
     rdfs:subClassOf usf:Entity;
+    rdfs:label "Rollback governed subject";
+    rdfs:comment "An abstract semantic owner whose state or schema evolution requires an explicit rollback or forward-recovery obligation.".
+usf:SchemaChangeSeries a owl:Class;
+    rdfs:subClassOf usf:Entity, usf:RollbackGovernedSubject;
     rdfs:label "Schema change series";
     rdfs:comment "An owner-scoped, append-only, checksum-immutable and rollback-governed sequence of persistent-state changes.".
 usf:TransactionBoundary a owl:Class;
@@ -4980,9 +5093,13 @@ usf:RepresentativeDataSet a owl:Class;
     rdfs:label "Representative data set";
     rdfs:comment "Deterministic non-secret data that exercises normal, boundary and recovery behaviour for a data owner.".
 usf:WorkflowExecutionPolicy a owl:Class;
-    rdfs:subClassOf usf:Policy;
+    rdfs:subClassOf usf:Policy, usf:ExecutionPolicyBearingSubject;
     rdfs:label "Workflow execution policy";
     rdfs:comment "The timeout, retry, idempotency, concurrency and persistence rules for a workflow.".
+usf:ScheduleTriggerKind a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Schedule trigger kind";
+    rdfs:comment "A finite schedule-capable trigger classification; its presence on a workflow policy means that the workflow can create scheduled work without relying on prose inspection.".
 usf:ConfigurationValueType a owl:Class;
     rdfs:subClassOf usf:ControlledValue;
     rdfs:label "Configuration value type".
@@ -5023,6 +5140,54 @@ usf:processBoundaryClass a owl:ObjectProperty, owl:FunctionalProperty;
 usf:processProvidesInterface a owl:ObjectProperty;
     rdfs:domain usf:DeployableProcess;
     rdfs:range usf:Interface.
+usf:processConsumesInterface a owl:ObjectProperty;
+    rdfs:domain usf:DeployableProcess;
+    rdfs:range usf:Interface;
+    rdfs:comment "An interface consumed by the process through an explicit process dependency.".
+usf:hasProcessDependency a owl:ObjectProperty;
+    rdfs:domain usf:DeployableProcess;
+    rdfs:range usf:DeployableProcessDependency;
+    owl:inverseOf usf:processDependencySource.
+usf:processDependencySource a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DeployableProcessDependency;
+    rdfs:range usf:DeployableProcess.
+usf:processDependencyTarget a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DeployableProcessDependency;
+    rdfs:range usf:DeployableProcess.
+usf:processDependencyInterface a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DeployableProcessDependency;
+    rdfs:range usf:Interface.
+usf:processDependencyEnvironment a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DeployableProcessDependency;
+    rdfs:range usf:Environment.
+usf:processDependencyProviderMode a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DeployableProcessDependency;
+    rdfs:range usf:ProviderMode.
+usf:processDependencyRequirementKind a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DeployableProcessDependency;
+    rdfs:range usf:ProcessDependencyRequirementKind.
+usf:processDependencyFailureHandling a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DeployableProcessDependency;
+    rdfs:range usf:ProcessDependencyFailureHandling;
+    owl:inverseOf usf:failureHandlingForProcessDependency.
+usf:failureHandlingForProcessDependency a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProcessDependencyFailureHandling;
+    rdfs:range usf:DeployableProcessDependency.
+usf:processDependencyFailureMode a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProcessDependencyFailureHandling;
+    rdfs:range usf:FailureMode.
+usf:processDependencyRecoveryAction a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProcessDependencyFailureHandling;
+    rdfs:range usf:RecoveryAction.
+usf:processDependencyTimeoutPolicy a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProcessDependencyFailureHandling;
+    rdfs:range xsd:string.
+usf:processDependencyRetryPolicy a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProcessDependencyFailureHandling;
+    rdfs:range xsd:string.
+usf:processDependencyFailurePropagation a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProcessDependencyFailureHandling;
+    rdfs:range xsd:string.
 usf:processRunsWorkflow a owl:ObjectProperty;
     rdfs:domain usf:DeployableProcess;
     rdfs:range usf:Workflow.
@@ -5068,10 +5233,13 @@ usf:hasRepresentativeDataSet a owl:ObjectProperty, owl:FunctionalProperty;
 usf:ownedByCapability a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:range usf:Capability.
 usf:rollbackRequirement a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:RollbackGovernedSubject;
     rdfs:range xsd:string.
 usf:recoveryRequirement a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DataModel;
     rdfs:range xsd:string.
 usf:transactionRequirement a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:TransactionBoundary;
     rdfs:range xsd:string.
 usf:workflowExecutionPolicy a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:Workflow;
@@ -5080,11 +5248,13 @@ usf:maximumAttempts a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:WorkflowExecutionPolicy;
     rdfs:range xsd:integer.
 usf:timeoutMilliseconds a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ExecutionPolicyBearingSubject;
     rdfs:range xsd:integer.
 usf:retryBehaviour a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:WorkflowExecutionPolicy;
     rdfs:range xsd:string.
 usf:concurrencyBehaviour a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ExecutionPolicyBearingSubject;
     rdfs:range xsd:string.
 usf:idempotencyKeyRequired a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:Operation;
@@ -5113,6 +5283,48 @@ usf:requiredPublisher a owl:ObjectProperty;
 usf:requiredConsumer a owl:ObjectProperty;
     rdfs:domain usf:Event;
     rdfs:range usf:Capability.
+usf:requiredPublishPermission a owl:ObjectProperty;
+    rdfs:domain usf:Event;
+    rdfs:range usf:Permission.
+usf:requiredSubscribePermission a owl:ObjectProperty;
+    rdfs:domain usf:Event;
+    rdfs:range usf:Permission.
+usf:requiredConsumePermission a owl:ObjectProperty;
+    rdfs:domain usf:Event;
+    rdfs:range usf:Permission.
+usf:requiredAcknowledgePermission a owl:ObjectProperty;
+    rdfs:domain usf:Event;
+    rdfs:range usf:Permission.
+usf:requiredReplayPermission a owl:ObjectProperty;
+    rdfs:domain usf:Event;
+    rdfs:range usf:Permission.
+usf:requiredDeadLetterPermission a owl:ObjectProperty;
+    rdfs:domain usf:Event;
+    rdfs:range usf:Permission.
+usf:requiredSubscriptionAdministrationPermission a owl:ObjectProperty;
+    rdfs:domain usf:Event;
+    rdfs:range usf:Permission.
+usf:requiredEventMetadataViewPermission a owl:ObjectProperty;
+    rdfs:domain usf:Event;
+    rdfs:range usf:Permission.
+usf:eventPublisherPrincipalKind a owl:ObjectProperty;
+    rdfs:domain usf:Event;
+    rdfs:range usf:PrincipalKind.
+usf:eventConsumerPrincipalKind a owl:ObjectProperty;
+    rdfs:domain usf:Event;
+    rdfs:range usf:PrincipalKind.
+usf:eventTenantBoundary a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:Event;
+    rdfs:range usf:TenantBoundary.
+usf:eventDeliveryTransport a owl:ObjectProperty;
+    rdfs:domain usf:Event;
+    rdfs:range usf:Transport.
+usf:eventPayloadResourceClassIri a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:Event;
+    rdfs:range xsd:anyURI.
+usf:eventMetadataResourceClassIri a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:Event;
+    rdfs:range xsd:anyURI.
 usf:messageSchemaRequirement a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:Message;
     rdfs:range xsd:string.
@@ -5131,6 +5343,12 @@ usf:providerMaximumAttempts a owl:DatatypeProperty, owl:FunctionalProperty;
 usf:scheduleBehaviour a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:WorkflowExecutionPolicy;
     rdfs:range xsd:string.
+usf:scheduleTriggerKind a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:WorkflowExecutionPolicy;
+    rdfs:range usf:ScheduleTriggerKind.
+usf:onOperation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:Transition;
+    rdfs:range usf:Operation.
 
 # ── Permutation closure meta-model ─────────────────────────────────────────
 # Semantic meta-layer for operational-permutation and authorisation closure.
@@ -5140,7 +5358,7 @@ usf:scheduleBehaviour a owl:DatatypeProperty, owl:FunctionalProperty;
 usf:PermutationUniverse a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Permutation universe";
-    rdfs:comment "The complete finite, deterministic, digest-bound candidate universe across all permutation families for one authority digest.".
+    rdfs:comment "The complete finite, deterministic, digest-bound logical candidate universe across all permutation families for one authority digest; logical candidates need not each be RDF resources.".
 usf:PermutationFamily a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Permutation family";
@@ -5149,6 +5367,14 @@ usf:PermutationFamilyDimensionBinding a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Permutation family dimension binding";
     rdfs:comment "Orders one dimension within one family and records whether it is conditionally active.".
+usf:PermutationClassClosure a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation class closure";
+    rdfs:comment "A finite digest-bound named-class closure used explicitly by one or more permutation registrations, selectors, axes or class-bearing derivations; no omitted closure has an implicit default.".
+usf:PermutationClassClosurePolicy a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation class closure policy";
+    rdfs:comment "The closed policy vocabulary selecting either the declared root alone or the root plus every declared transitive named subclass.".
 usf:PermutationDimensionValue a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Permutation dimension value".
@@ -5156,14 +5382,68 @@ usf:DimensionValueSource a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Dimension value source";
     rdfs:comment "The closed, validated, digest-bound source from which one dimension's finite values are derived.".
+usf:PermutationValueDerivation a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation value derivation";
+    rdfs:comment "A finite expression in the closed permutation-value algebra. It derives a value set from a registered semantic subject without implementation-name dispatch, query text or fallback vocabulary.".
+usf:PermutationValueDerivationOperand a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation value derivation operand".
+usf:PermutationValueDerivationOperator a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation value derivation operator".
+usf:PermutationValueDerivationInputScope a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation value derivation input scope".
+usf:PermutationValueTerminalKind a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation value terminal kind".
 usf:PermutationApplicabilityRule a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Permutation applicability rule";
     rdfs:comment "An explicit, proved rule excluding or including candidate combinations; exclusions are never silent.".
+usf:PermutationSubjectRegistration a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation subject registration";
+    rdfs:comment "Binds one permutation family to the exact semantic subject class and runtime-or-assurance plane over which applicability is evaluated.".
+usf:PermutationFamilyPlane a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation family plane";
+    rdfs:comment "Closed separation between product-runtime behaviour and assurance obligations; the two planes never satisfy each other's closure counts.".
+usf:PermutationSignalSelector a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation signal selector";
+    rdfs:comment "A bounded, structured semantic selector over a registered subject class; arbitrary query text and implementation-name dispatch are prohibited.".
+usf:PermutationSignalPathStep a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation signal path step".
+usf:PermutationPathDirection a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation path direction".
+usf:PermutationSignalAggregation a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation signal aggregation".
+usf:PermutationApplicabilityClause a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation applicability clause";
+    rdfs:comment "One node in a finite, acyclic applicability expression tree using only controlled operators and registered selectors.".
+usf:PermutationApplicabilityOperand a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation applicability operand".
+usf:PermutationApplicabilityOperator a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation applicability operator".
+usf:PermutationApplicabilityReason a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation applicability reason".
+usf:RequiredPermutation a owl:Class;
+    rdfs:subClassOf usf:DerivedEntity;
+    rdfs:label "Required permutation";
+    rdfs:comment "A digest-keyed required or allowed logical permutation that creates test, evidence and proof obligations without asserting that those obligations have passed.".
 usf:PermutationCell a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Permutation cell";
-    rdfs:comment "Exactly one materialised candidate combination with exactly one closure disposition.".
+    rdfs:comment "One explicitly materialised operational required or allowed combination, or an exceptional non-operational combination carrying a current proof warrant.".
 usf:PermutationClosureDisposition a owl:Class;
     rdfs:subClassOf usf:PermutationDisposition;
     rdfs:label "Permutation closure disposition";
@@ -5192,7 +5472,29 @@ usf:PermutationProof a owl:Class;
 usf:PermutationPartition a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Permutation partition";
-    rdfs:comment "Deterministic partition of the universe by family and capability for bounded storage and query.".
+    rdfs:comment "Deterministic partition of the universe by family and capability; the complete raw projection may be digest-addressed outside semantic authority.".
+usf:PermutationClosureRepresentation a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation closure representation".
+usf:PermutationCoverageRule a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation coverage rule";
+    rdfs:comment "A deterministic authority-backed symbolic rule covering a forbidden or not-applicable region without materialising every logical cell.".
+usf:PermutationCoverageRegion a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation coverage region".
+usf:PermutationRuleCoverageRegion a owl:Class;
+    rdfs:subClassOf usf:PermutationCoverageRegion;
+    rdfs:label "Permutation rule coverage region".
+usf:PermutationPendingCoverageRegion a owl:Class;
+    rdfs:subClassOf usf:PermutationCoverageRegion;
+    rdfs:label "Permutation pending coverage region".
+usf:PermutationPublicationBudget a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation publication budget".
+usf:PermutationPublicationBudgetAssessment a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Permutation publication budget assessment".
 usf:PermissionAtom a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Permission atom";
@@ -5204,10 +5506,27 @@ usf:AuthorisationPath a owl:Class;
 usf:AuthorisationConditionProfile a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Authorisation condition profile";
-    rdfs:comment "A finite named conjunction of authorisation conditions referenced by conditional grants.".
+    rdfs:comment "A finite named, structured composition of authorisation clauses referenced by conditional grants; arbitrary executable expressions are prohibited.".
+usf:AuthorisationConditionClause a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Authorisation condition clause";
+    rdfs:comment "One positionally ordered clause using a controlled predicate and operator with a bounded IRI value or presence test.".
+usf:AuthorisationConditionPredicate a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Authorisation condition predicate".
+usf:AuthorisationConditionOperator a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Authorisation condition operator".
+usf:AuthorisationConditionComposition a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Authorisation condition composition".
 usf:PrincipalKind a owl:Class;
     rdfs:subClassOf usf:ControlledValue;
     rdfs:label "Principal kind".
+usf:ServiceIdentity a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Service identity";
+    rdfs:comment "A non-human principal with exact capability, environment and integrity bindings; declaring an identity never grants it a permission.".
 usf:RolePermissionDisposition a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Role permission disposition";
@@ -5243,6 +5562,14 @@ usf:TokenProfile a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Token profile";
     rdfs:comment "A least-privilege token projection derived only from active required or allowed authorisation cells.".
+usf:TokenProfileTemplate a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Token profile template";
+    rdfs:comment "A non-authorising finite profile form used to evaluate token semantics before any operational token scope is derived.".
+usf:TokenProfileTemplateSecurityBinding a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Token profile template security binding";
+    rdfs:comment "A non-authorising finite security tuple for one token profile template; it cannot grant a permission, create a token scope or establish an authorisation path.".
 usf:BreakGlassTokenProfile a owl:Class;
     rdfs:subClassOf usf:TokenProfile;
     rdfs:label "Break-glass token profile";
@@ -5254,6 +5581,92 @@ usf:TokenScope a owl:Class;
 usf:TokenClaimConstraint a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Token claim constraint".
+usf:TokenClaimConstraintTemplate a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Token claim constraint template";
+    rdfs:comment "A non-authorising controlled claim-constraint form; an operational constraint must bind a derived token profile and scope.".
+usf:DataField a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Data field";
+    rdfs:comment "A stable semantic field owned by a data model with explicit privacy, tenancy, mutability, action, masking, encryption, retention and audit obligations.".
+usf:FieldTenancyClassification a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Field tenancy classification".
+usf:FieldMutability a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Field mutability".
+usf:ActionReachability a owl:Class;
+    rdfs:subClassOf usf:DerivedEntity;
+    rdfs:label "Action reachability";
+    rdfs:comment "A digest-keyed derived path classification from a role or service identity through permission, condition, boundary, environment and operation to a capability action; it never creates a grant.".
+usf:ActionReachabilityState a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Action reachability state".
+usf:LifecycleObligationKind a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Lifecycle obligation kind".
+usf:DimensionValueSourceScope a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Dimension value source scope".
+usf:FoundationConformanceFixture a owl:Class;
+    rdfs:subClassOf usf:Fixture;
+    rdfs:label "Foundation conformance fixture";
+    rdfs:comment "A non-operational semantic input used by an independent proof to establish that every permutation family and finite domain can express at least one legitimate universal-service scenario; the fixture itself proves nothing.".
+usf:FoundationActionReachabilityWitness a owl:Class;
+    rdfs:subClassOf usf:Fixture;
+    rdfs:label "Foundation action reachability witness";
+    rdfs:comment "A non-authorising conformance witness carrying the relationships required to express action reachability without asserting a current derived reachability result.".
+usf:FoundationPermissionAtomWitness a owl:Class;
+    rdfs:subClassOf usf:Fixture;
+    rdfs:label "Foundation permission atom witness";
+    rdfs:comment "A non-authorising conformance witness for the permission-atom position of a reachability tuple; it is never an operational permission atom or grant.".
+usf:FoundationRequiredPermutationWitness a owl:Class;
+    rdfs:subClassOf usf:Fixture, usf:RequiredPermutation;
+    rdfs:label "Foundation required permutation witness";
+    rdfs:comment "A conformance-only required-combination witness used to exercise assurance-obligation derivation without becoming a live permutation cell.".
+usf:FoundationConformanceProjectionRule a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Foundation conformance projection rule";
+    rdfs:comment "A digest-bound structural-only rule projecting a non-authorising fixture witness into an ephemeral selector input; projected nodes are never semantic authority or publication material.".
+usf:FoundationConformancePredicateMapping a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Foundation conformance predicate mapping";
+    rdfs:comment "One ordered source-to-target predicate mapping within a structural-only foundation projection rule.".
+usf:FoundationProjectionIdentityMode a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Foundation projection identity mode".
+usf:FoundationDomainClosureAssessment a owl:Class;
+    rdfs:subClassOf usf:DerivedEntity;
+    rdfs:label "Foundation domain closure assessment".
+usf:SemanticTermPermutationReview a owl:Class;
+    rdfs:subClassOf usf:DerivedEntity;
+    rdfs:label "Semantic term permutation review";
+    rdfs:comment "A digest-bound disposition proving how one current semantic class or relationship participates in permutation closure; it may identify an authority decision but cannot create a family or authorise behaviour.".
+usf:PermutationReviewCoverage a owl:Class;
+    rdfs:subClassOf usf:DerivedEntity;
+    rdfs:label "Permutation review coverage";
+    rdfs:comment "A non-authorising, digest-bound exact-set witness joining one semantic-term inventory to exactly one review per term and one registered-family set to exactly one signature review per family. Generated review outputs are excluded from the semantic-input inventory digest they describe.".
+usf:PermutationFamilySignatureReview a owl:Class;
+    rdfs:subClassOf usf:DerivedEntity;
+    rdfs:label "Permutation family signature review";
+    rdfs:comment "A non-authorising review of the exact registered subject, ordered dimension bindings and applicability rule of one permutation family under one authority and registry digest.".
+usf:PermutationFamilyModelReviewDisposition a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation family model review disposition";
+    rdfs:comment "Closed, non-authorising classification of an independent review of an exact registered-family leaf signature.".
+usf:PermutationFamilyCandidate a owl:Class;
+    rdfs:subClassOf usf:DerivedEntity;
+    rdfs:label "Permutation family candidate";
+    rdfs:comment "A digest-bound, non-authorising cross-product proposal reconstructed from the complete current semantic inventory. It remains inactive until a semantic decision warrants or rejects it.".
+usf:PermutationParticipationClassification a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation participation classification".
+usf:PermutationAxisBindingClassification a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation axis binding classification".
+usf:PermutationFamilyCandidateClassification a owl:Class;
+    rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Permutation family candidate classification".
 usf:TokenAudience a owl:Class;
     rdfs:subClassOf usf:ControlledValue;
     rdfs:label "Token audience".
@@ -5261,13 +5674,13 @@ usf:TokenIssuerClass a owl:Class;
     rdfs:subClassOf usf:ControlledValue;
     rdfs:label "Token issuer class".
 usf:DelegationConstraint a owl:Class;
-    rdfs:subClassOf usf:Entity;
+    rdfs:subClassOf usf:ControlledValue;
     rdfs:label "Delegation constraint".
 usf:ResourceSelectorConstraint a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Resource selector constraint".
 usf:TokenLifetimePolicy a owl:Class;
-    rdfs:subClassOf usf:Entity;
+    rdfs:subClassOf usf:ControlledValue;
     rdfs:label "Token lifetime policy".
 usf:AuthenticationStrengthRequirement a owl:Class;
     rdfs:subClassOf usf:ControlledValue;
@@ -5276,7 +5689,7 @@ usf:ProofOfPossessionRequirement a owl:Class;
     rdfs:subClassOf usf:ControlledValue;
     rdfs:label "Proof-of-possession requirement".
 usf:RevocationPolicy a owl:Class;
-    rdfs:subClassOf usf:Entity;
+    rdfs:subClassOf usf:ControlledValue;
     rdfs:label "Revocation policy".
 
 usf:actionLabel a owl:DatatypeProperty, owl:FunctionalProperty;
@@ -5297,16 +5710,22 @@ usf:methodToken a owl:DatatypeProperty, owl:FunctionalProperty;
 usf:familyOfUniverse a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationFamily;
     rdfs:range usf:PermutationUniverse.
-usf:familySubjectKind a owl:DatatypeProperty, owl:FunctionalProperty;
+usf:familySubjectRegistration a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationFamily;
-    rdfs:range xsd:string.
+    rdfs:range usf:PermutationSubjectRegistration.
+usf:registeredSubjectClass a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationSubjectRegistration;
+    rdfs:range owl:Class.
+usf:subjectClassClosure a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationSubjectRegistration;
+    rdfs:range usf:PermutationClassClosure.
+usf:registeredFamilyPlane a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationSubjectRegistration;
+    rdfs:range usf:PermutationFamilyPlane.
+usf:familyApplicabilityRule a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamily;
+    rdfs:range usf:PermutationApplicabilityRule.
 usf:familyStableKeyAlgorithm a owl:DatatypeProperty, owl:FunctionalProperty;
-    rdfs:domain usf:PermutationFamily;
-    rdfs:range xsd:string.
-usf:familyGenerationAlgorithm a owl:DatatypeProperty, owl:FunctionalProperty;
-    rdfs:domain usf:PermutationFamily;
-    rdfs:range xsd:string.
-usf:familyPartitionRule a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationFamily;
     rdfs:range xsd:string.
 usf:familyClosureRequirement a owl:DatatypeProperty;
@@ -5321,6 +5740,9 @@ usf:hasFamilyDimensionBinding a owl:ObjectProperty;
 usf:bindsDimension a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationFamilyDimensionBinding;
     rdfs:range usf:PermutationDimension.
+usf:dimensionAxisClassClosure a owl:ObjectProperty;
+    rdfs:domain usf:PermutationFamilyDimensionBinding;
+    rdfs:range usf:PermutationClassClosure.
 usf:dimensionPosition a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationFamilyDimensionBinding;
     rdfs:range xsd:integer.
@@ -5339,6 +5761,289 @@ usf:valueSourceClassIri a owl:DatatypeProperty, owl:FunctionalProperty;
 usf:valueSourceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:DimensionValueSource;
     rdfs:range xsd:string.
+usf:valueSourceScope a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DimensionValueSource;
+    rdfs:range usf:DimensionValueSourceScope.
+usf:valueSourceDerivationPredicate a owl:ObjectProperty;
+    rdfs:domain usf:DimensionValueSource;
+    rdfs:range rdf:Property.
+usf:valueSourceSelector a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DimensionValueSource;
+    rdfs:range usf:PermutationSignalSelector;
+    rdfs:comment "The exact ordered and directed selector which derives values from a registered permutation subject; predicate summaries remain descriptive and never replace this executable path.".
+usf:valueSourceSubjectClass a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DimensionValueSource;
+    rdfs:range owl:Class;
+    rdfs:comment "The exact registered subject class accepted by a semantic value derivation.".
+usf:valueSourceDerivationRoot a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DimensionValueSource;
+    rdfs:range usf:PermutationValueDerivation;
+    rdfs:comment "The root of the complete finite expression that derives this source's values.".
+usf:valueSourceTerminalClass a owl:ObjectProperty;
+    rdfs:domain usf:DimensionValueSource;
+    rdfs:range owl:Class.
+usf:valueSourceTerminalKind a owl:ObjectProperty;
+    rdfs:domain usf:DimensionValueSource;
+    rdfs:range usf:PermutationValueTerminalKind.
+usf:valueDerivationOperator a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationValueDerivation;
+    rdfs:range usf:PermutationValueDerivationOperator.
+usf:valueDerivationOperand a owl:ObjectProperty;
+    rdfs:domain usf:PermutationValueDerivation;
+    rdfs:range usf:PermutationValueDerivationOperand.
+usf:valueDerivationOperandIndex a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationValueDerivationOperand;
+    rdfs:range xsd:positiveInteger.
+usf:valueDerivationOperandExpression a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationValueDerivationOperand;
+    rdfs:range usf:PermutationValueDerivation.
+usf:valueDerivationPredicate a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationValueDerivation;
+    rdfs:range rdf:Property.
+usf:valueDerivationClass a owl:ObjectProperty;
+    rdfs:domain usf:PermutationValueDerivation;
+    rdfs:range owl:Class.
+usf:valueDerivationClassClosure a owl:ObjectProperty;
+    rdfs:domain usf:PermutationValueDerivation;
+    rdfs:range usf:PermutationClassClosure.
+usf:valueDerivationPathStep a owl:ObjectProperty;
+    rdfs:domain usf:PermutationValueDerivation;
+    rdfs:range usf:PermutationSignalPathStep.
+usf:valueDerivationAllowedValue a owl:ObjectProperty;
+    rdfs:domain usf:PermutationValueDerivation;
+    rdfs:range rdfs:Resource.
+usf:valueDerivationInputScope a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationValueDerivation;
+    rdfs:range usf:PermutationValueDerivationInputScope.
+usf:valueDerivationDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationValueDerivation;
+    rdfs:range xsd:string.
+usf:classClosureRootClass a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationClassClosure;
+    rdfs:range owl:Class.
+usf:classClosurePolicy a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationClassClosure;
+    rdfs:range usf:PermutationClassClosurePolicy.
+usf:classClosureMemberClass a owl:ObjectProperty;
+    rdfs:domain usf:PermutationClassClosure;
+    rdfs:range owl:Class.
+usf:classClosureMemberSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationClassClosure;
+    rdfs:range xsd:string.
+usf:classClosureEdgeSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationClassClosure;
+    rdfs:range xsd:string.
+usf:classClosureDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationClassClosure;
+    rdfs:range xsd:string.
+usf:reviewedSemanticTerm a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticTermPermutationReview;
+    rdfs:range rdfs:Resource.
+usf:termPermutationParticipation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticTermPermutationReview;
+    rdfs:range usf:PermutationParticipationClassification.
+usf:termPermutationAxisBinding a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticTermPermutationReview;
+    rdfs:range usf:PermutationAxisBindingClassification.
+usf:termPermutationFamilyCandidateState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticTermPermutationReview;
+    rdfs:range usf:PermutationFamilyCandidateClassification.
+usf:termPermutationReasonCode a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticTermPermutationReview;
+    rdfs:range xsd:string.
+usf:termPermutationSourcePlane a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticTermPermutationReview;
+    rdfs:range xsd:string.
+usf:termPermutationAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticTermPermutationReview;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the pre-projection authority input; review outputs never contribute to this binding.".
+usf:termPermutationInventoryDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticTermPermutationReview;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the exact semantic-input term inventory, excluding conformance fixtures, derived graphs and review outputs.".
+usf:termPermutationReviewDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticTermPermutationReview;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the semantic-term review record core excluding termPermutationReviewDigest itself.".
+usf:permutationReviewAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationReviewCoverage;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the pre-projection authority input; it is never the digest of an authority graph containing this review projection.".
+usf:permutationReviewInventoryDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationReviewCoverage;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of semantic-input records only; conformance fixtures and derived graphs are excluded.".
+usf:permutationReviewFamilyRegistryDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationReviewCoverage;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the exact family-registry input projection, excluding review resources.".
+usf:permutationReviewTermSetAlgorithm a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationReviewCoverage;
+    rdfs:range xsd:string.
+usf:permutationReviewFamilySignatureAlgorithm a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationReviewCoverage;
+    rdfs:range xsd:string.
+usf:permutationReviewExpectedTerm a owl:ObjectProperty;
+    rdfs:domain usf:PermutationReviewCoverage;
+    rdfs:range rdfs:Resource.
+usf:permutationReviewTermReview a owl:ObjectProperty;
+    rdfs:domain usf:PermutationReviewCoverage;
+    rdfs:range usf:SemanticTermPermutationReview.
+usf:permutationReviewExpectedFamily a owl:ObjectProperty;
+    rdfs:domain usf:PermutationReviewCoverage;
+    rdfs:range usf:PermutationFamily.
+usf:permutationReviewFamilySignatureReview a owl:ObjectProperty;
+    rdfs:domain usf:PermutationReviewCoverage;
+    rdfs:range usf:PermutationFamilySignatureReview.
+usf:permutationReviewDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationReviewCoverage;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the coverage record core excluding permutationReviewDigest itself.".
+usf:reviewedPermutationFamily a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilySignatureReview;
+    rdfs:range usf:PermutationFamily.
+usf:reviewedFamilySubjectRegistration a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilySignatureReview;
+    rdfs:range usf:PermutationSubjectRegistration.
+usf:reviewedFamilyDimensionBinding a owl:ObjectProperty;
+    rdfs:domain usf:PermutationFamilySignatureReview;
+    rdfs:range usf:PermutationFamilyDimensionBinding.
+usf:reviewedFamilyApplicabilityRule a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilySignatureReview;
+    rdfs:range usf:PermutationApplicabilityRule.
+usf:familySignatureReviewAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilySignatureReview;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the pre-projection authority input; it is not recomputed over the containing review output.".
+usf:familySignatureReviewRegistryDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilySignatureReview;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the exact input registry projection, excluding family-signature review resources.".
+usf:reviewedFamilySignatureDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilySignatureReview;
+    rdfs:range xsd:string;
+    rdfs:comment "SHA-256 digest of the registered family leaf record only: subject registration, ordered dimension bindings and applicability rule.".
+usf:familySignatureReviewDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilySignatureReview;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the signature-review record core excluding familySignatureReviewDigest itself.".
+usf:familySignatureReviewDisposition a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilySignatureReview;
+    rdfs:range usf:PermutationFamilyModelReviewDisposition.
+usf:candidateFamilySubjectClass a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range owl:Class.
+usf:candidateFamilyAxisClass a owl:ObjectProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range owl:Class.
+usf:candidateFamilySelectorProperty a owl:ObjectProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range rdf:Property.
+usf:candidateFamilyClassification a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range usf:PermutationFamilyCandidateClassification.
+usf:candidateFamilyReasonCode a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range xsd:string.
+usf:candidateFamilyAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the pre-projection authority input; generated family candidates never contribute to it.".
+usf:candidateFamilyInventoryDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the exact semantic-input inventory from which the candidate was derived, excluding candidate outputs.".
+usf:candidateFamilyDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range xsd:string;
+    rdfs:comment "Digest of the candidate record core excluding candidateFamilyDigest itself.".
+usf:candidateFamilyMissingTermCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range xsd:nonNegativeInteger.
+usf:candidateFamilyEmptyAxisCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationFamilyCandidate;
+    rdfs:range xsd:nonNegativeInteger.
+usf:SemanticTermPermutationReview usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationReviewCoverage usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationFamilySignatureReview usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationFamilyModelReviewDisposition usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationFamilyCandidate usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationParticipationClassification usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationAxisBindingClassification usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationFamilyCandidateClassification usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedSemanticTerm usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:termPermutationParticipation usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:termPermutationAxisBinding usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:termPermutationFamilyCandidateState usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:termPermutationReasonCode usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:termPermutationSourcePlane usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:termPermutationAuthorityDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:termPermutationInventoryDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:termPermutationReviewDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:permutationReviewAuthorityDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:permutationReviewInventoryDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:permutationReviewFamilyRegistryDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:permutationReviewTermSetAlgorithm usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:permutationReviewFamilySignatureAlgorithm usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:permutationReviewExpectedTerm usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:permutationReviewTermReview usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:permutationReviewExpectedFamily usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:permutationReviewFamilySignatureReview usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:permutationReviewDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedPermutationFamily usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedFamilySubjectRegistration usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedFamilyDimensionBinding usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedFamilyApplicabilityRule usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:familySignatureReviewAuthorityDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:familySignatureReviewRegistryDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:reviewedFamilySignatureDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:familySignatureReviewDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:familySignatureReviewDisposition usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateFamilySubjectClass usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateFamilyAxisClass usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateFamilySelectorProperty usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateFamilyClassification usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateFamilyReasonCode usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateFamilyAuthorityDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateFamilyInventoryDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateFamilyDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateFamilyMissingTermCount usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:candidateFamilyEmptyAxisCount usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationValueDerivation usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationValueDerivationOperand usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationValueDerivationOperator usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationValueDerivationInputScope usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationValueTerminalKind usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationClassClosure usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:PermutationClassClosurePolicy usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:subjectClassClosure usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:selectorSubjectClassClosure usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:selectorTerminalClassClosure usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:dimensionAxisClassClosure usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:valueDerivationClassClosure usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:classClosureRootClass usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:classClosurePolicy usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:classClosureMemberClass usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:classClosureMemberSetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:classClosureEdgeSetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:classClosureDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:valueSourceSubjectClass usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:valueSourceDerivationRoot usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:valueSourceTerminalClass usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:valueSourceTerminalKind usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:valueDerivationOperator usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:valueDerivationOperand usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:valueDerivationOperandIndex usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:valueDerivationOperandExpression usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:valueDerivationPredicate usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:valueDerivationClass usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:valueDerivationPathStep usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:valueDerivationAllowedValue usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:valueDerivationInputScope usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:valueDerivationDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:atomResourceClass usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:atomResourceClassIri usf:termUsageState <urn:usf:termusagestate:zeroinstancebydesign>.
 usf:hasDimensionValue a owl:ObjectProperty;
     rdfs:domain usf:PermutationDimension;
     rdfs:range usf:PermutationDimensionValue.
@@ -5348,20 +6053,92 @@ usf:dimensionValueKey a owl:DatatypeProperty, owl:FunctionalProperty;
 usf:dimensionValueResourceIri a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationDimensionValue;
     rdfs:range xsd:anyURI.
-usf:applicabilityRuleForFamily a owl:ObjectProperty, owl:FunctionalProperty;
-    rdfs:domain usf:PermutationApplicabilityRule;
-    rdfs:range usf:PermutationFamily.
-usf:applicabilityRulePriority a owl:DatatypeProperty, owl:FunctionalProperty;
-    rdfs:domain usf:PermutationApplicabilityRule;
-    rdfs:range xsd:integer.
-usf:applicabilityRuleEffect a owl:DatatypeProperty, owl:FunctionalProperty;
-    rdfs:domain usf:PermutationApplicabilityRule;
-    rdfs:range xsd:string.
-usf:applicabilityRuleExpression a owl:DatatypeProperty, owl:FunctionalProperty;
-    rdfs:domain usf:PermutationApplicabilityRule;
-    rdfs:range xsd:string.
 usf:applicabilityRuleDigest a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationApplicabilityRule;
+    rdfs:range xsd:string.
+usf:applicabilityRootClause a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationApplicabilityRule;
+    rdfs:range usf:PermutationApplicabilityClause.
+usf:applicabilitySatisfiedDisposition a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationApplicabilityRule;
+    rdfs:range usf:PermutationFamilyReviewDisposition.
+usf:applicabilityUnsatisfiedDisposition a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationApplicabilityRule;
+    rdfs:range usf:PermutationFamilyReviewDisposition.
+usf:applicabilityUnsatisfiedReason a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationApplicabilityRule;
+    rdfs:range usf:PermutationApplicabilityReason.
+usf:applicabilityClauseOperator a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationApplicabilityClause;
+    rdfs:range usf:PermutationApplicabilityOperator.
+usf:applicabilityClauseOperand a owl:ObjectProperty;
+    rdfs:domain usf:PermutationApplicabilityClause;
+    rdfs:range usf:PermutationApplicabilityOperand.
+usf:applicabilityOperandIndex a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationApplicabilityOperand;
+    rdfs:range xsd:positiveInteger.
+usf:applicabilityOperandClause a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationApplicabilityOperand;
+    rdfs:range usf:PermutationApplicabilityClause.
+usf:applicabilitySignalSelector a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationApplicabilityClause;
+    rdfs:range usf:PermutationSignalSelector.
+usf:applicabilityThreshold a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationApplicabilityClause;
+    rdfs:range xsd:nonNegativeInteger.
+usf:applicabilityExpectedValue a owl:ObjectProperty;
+    rdfs:domain usf:PermutationApplicabilityClause;
+    rdfs:range rdfs:Resource.
+usf:selectorSubjectClass a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationSignalSelector;
+    rdfs:range owl:Class.
+usf:selectorSubjectClassClosure a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationSignalSelector;
+    rdfs:range usf:PermutationClassClosure.
+usf:selectorPathStep a owl:ObjectProperty;
+    rdfs:domain usf:PermutationSignalSelector;
+    rdfs:range usf:PermutationSignalPathStep.
+usf:selectorTerminalClass a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationSignalSelector;
+    rdfs:range owl:Class.
+usf:selectorTerminalClassClosure a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationSignalSelector;
+    rdfs:range usf:PermutationClassClosure.
+usf:selectorAggregation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationSignalSelector;
+    rdfs:range usf:PermutationSignalAggregation.
+usf:selectorDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationSignalSelector;
+    rdfs:range xsd:string.
+usf:signalPathStepIndex a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationSignalPathStep;
+    rdfs:range xsd:positiveInteger.
+usf:signalPathStepPredicate a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationSignalPathStep;
+    rdfs:range rdf:Property.
+usf:signalPathStepDirection a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationSignalPathStep;
+    rdfs:range usf:PermutationPathDirection.
+usf:coverageRuleForFamily a owl:ObjectProperty;
+    rdfs:domain usf:PermutationCoverageRule;
+    rdfs:range usf:PermutationFamily.
+usf:coverageRuleDisposition a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRule;
+    rdfs:range usf:PermutationClosureDisposition.
+usf:coverageRuleReasonCode a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRule;
+    rdfs:range xsd:string.
+usf:coverageRuleKind a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRule;
+    rdfs:range xsd:string.
+usf:coverageRuleAuthorityPredicate a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRule;
+    rdfs:range xsd:anyURI.
+usf:coverageRuleTestedDimensionKey a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRule;
+    rdfs:range xsd:string.
+usf:coverageRuleDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRule;
     rdfs:range xsd:string.
 usf:cellOfFamily a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationCell;
@@ -5432,6 +6209,12 @@ usf:universeCellCount a owl:DatatypeProperty, owl:FunctionalProperty;
 usf:universeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationUniverse;
     rdfs:range xsd:string.
+usf:universeClosureRepresentation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationUniverse;
+    rdfs:range usf:PermutationClosureRepresentation.
+usf:universePublicationBudget a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationUniverse;
+    rdfs:range usf:PermutationPublicationBudget.
 usf:partitionOfUniverse a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationPartition;
     rdfs:range usf:PermutationUniverse.
@@ -5450,6 +6233,99 @@ usf:partitionCellCount a owl:DatatypeProperty, owl:FunctionalProperty;
 usf:partitionDigest a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationPartition;
     rdfs:range xsd:string.
+usf:coverageRegionOfUniverse a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRegion;
+    rdfs:range usf:PermutationUniverse.
+usf:coverageRegionForFamily a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRegion;
+    rdfs:range usf:PermutationFamily.
+usf:coverageRegionForSubject a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRegion;
+    rdfs:range usf:Entity.
+usf:coverageRegionDisposition a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRegion;
+    rdfs:range usf:PermutationClosureDisposition.
+usf:coverageRegionDispositionReason a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRegion;
+    rdfs:range usf:PermutationDispositionReason.
+usf:coverageRegionAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRegion;
+    rdfs:range xsd:string.
+usf:coverageRegionDomainScopeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRegion;
+    rdfs:range xsd:string.
+usf:coverageRegionMemberCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRegion;
+    rdfs:range xsd:nonNegativeInteger.
+usf:coverageRegionMemberKeyDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRegion;
+    rdfs:range xsd:string.
+usf:coverageRegionProvenanceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRegion;
+    rdfs:range xsd:string.
+usf:coverageRegionDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRegion;
+    rdfs:range xsd:string.
+usf:coverageRegionRule a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRuleCoverageRegion;
+    rdfs:range usf:PermutationCoverageRule.
+usf:coverageRegionEvaluationDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationRuleCoverageRegion;
+    rdfs:range xsd:string.
+usf:coverageRegionAuthorising a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRegion;
+    rdfs:range xsd:boolean.
+usf:coverageRegionProofResult a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCoverageRegion;
+    rdfs:range usf:ProofResult.
+usf:publicationBudgetForProvider a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationPublicationBudget;
+    rdfs:range xsd:string.
+usf:publicationHardStatementLimit a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationPublicationBudget;
+    rdfs:range xsd:nonNegativeInteger.
+usf:publicationReservedStatementCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationPublicationBudget;
+    rdfs:range xsd:nonNegativeInteger.
+usf:publicationMaximumProjectedStatementCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationPublicationBudget;
+    rdfs:range xsd:nonNegativeInteger.
+usf:publicationFixedManifestStatementUpperBound a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationPublicationBudget;
+    rdfs:range xsd:nonNegativeInteger.
+usf:publicationOperationalCellStatementUpperBound a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationPublicationBudget;
+    rdfs:range xsd:nonNegativeInteger.
+usf:publicationCoverageRegionStatementUpperBound a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationPublicationBudget;
+    rdfs:range xsd:nonNegativeInteger.
+usf:publicationBudgetFailClosed a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationPublicationBudget;
+    rdfs:range xsd:boolean.
+usf:publicationBudgetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationPublicationBudget;
+    rdfs:range xsd:string.
+usf:assessmentOfPublicationBudget a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationPublicationBudgetAssessment;
+    rdfs:range usf:PermutationPublicationBudget.
+usf:publicationBaselineStatementCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationPublicationBudgetAssessment;
+    rdfs:range xsd:nonNegativeInteger.
+usf:publicationCandidateStatementUpperBound a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationPublicationBudgetAssessment;
+    rdfs:range xsd:nonNegativeInteger.
+usf:publicationProjectedStatementUpperBound a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationPublicationBudgetAssessment;
+    rdfs:range xsd:nonNegativeInteger.
+usf:publicationBudgetAssessmentAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationPublicationBudgetAssessment;
+    rdfs:range xsd:string.
+usf:publicationBudgetAssessmentDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationPublicationBudgetAssessment;
+    rdfs:range xsd:string.
+usf:publicationBudgetSatisfied a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationPublicationBudgetAssessment;
+    rdfs:range xsd:boolean.
 usf:reviewOfSubject a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationFamilyReview;
     rdfs:range usf:Entity.
@@ -5474,9 +6350,15 @@ usf:hasOperationalSurfaceClassification a owl:ObjectProperty;
 usf:atomCapability a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermissionAtom;
     rdfs:range usf:Capability.
+usf:atomResourceClass a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermissionAtom;
+    rdfs:range owl:Class;
+    rdfs:comment "The exact semantic resource class governed by a permission atom. The class is a named semantic resource, not an untyped lexical IRI.".
 usf:atomResourceClassIri a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermissionAtom;
-    rdfs:range xsd:anyURI.
+    rdfs:range xsd:anyURI;
+    owl:deprecated true;
+    rdfs:comment "Superseded historical lexical representation. Current permission atoms use usf:atomResourceClass and current derivations must not consume this property.".
 usf:atomAction a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermissionAtom;
     rdfs:range usf:ActionKind.
@@ -5534,11 +6416,285 @@ usf:rolePermissionTenantBoundary a owl:ObjectProperty, owl:FunctionalProperty;
 usf:rolePermissionStableKey a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:RolePermissionDisposition;
     rdfs:range xsd:string.
-usf:conditionProfileExpression a owl:DatatypeProperty, owl:FunctionalProperty;
+usf:conditionProfileExpression a owl:DeprecatedProperty, owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:AuthorisationConditionProfile;
+    rdfs:range xsd:string;
+    rdfs:comment "Deprecated candidate property retained only for lineage; current profiles use structured clauses and no executable expression.".
+usf:conditionProfileClause a owl:ObjectProperty;
+    rdfs:domain usf:AuthorisationConditionProfile;
+    rdfs:range usf:AuthorisationConditionClause.
+usf:conditionProfileComposition a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:AuthorisationConditionProfile;
+    rdfs:range usf:AuthorisationConditionComposition.
+usf:conditionProfileSatisfiable a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:AuthorisationConditionProfile;
+    rdfs:range xsd:boolean.
+usf:conditionProfileSatisfiabilityProofDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:AuthorisationConditionProfile;
+    rdfs:range xsd:string.
+usf:conditionClausePosition a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:AuthorisationConditionClause;
+    rdfs:range xsd:positiveInteger.
+usf:conditionClausePredicate a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:AuthorisationConditionClause;
+    rdfs:range usf:AuthorisationConditionPredicate.
+usf:conditionClauseOperator a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:AuthorisationConditionClause;
+    rdfs:range usf:AuthorisationConditionOperator.
+usf:conditionClauseValueIri a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:AuthorisationConditionClause;
+    rdfs:range xsd:anyURI.
+usf:conditionClauseDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:AuthorisationConditionClause;
     rdfs:range xsd:string.
 usf:conditionProfileDigest a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:AuthorisationConditionProfile;
+    rdfs:range xsd:string.
+usf:dataFieldForModel a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DataField;
+    rdfs:range usf:DataModel.
+usf:hasDataField a owl:ObjectProperty;
+    rdfs:domain usf:DataModel;
+    rdfs:range usf:DataField;
+    owl:inverseOf usf:dataFieldForModel.
+usf:dataFieldPropertyIri a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DataField;
+    rdfs:range xsd:anyURI.
+usf:dataFieldValueClassIri a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DataField;
+    rdfs:range xsd:anyURI.
+usf:dataFieldTenancyClassification a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DataField;
+    rdfs:range usf:FieldTenancyClassification.
+usf:dataFieldMutability a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DataField;
+    rdfs:range usf:FieldMutability.
+usf:dataFieldPermittedAction a owl:ObjectProperty;
+    rdfs:domain usf:DataField;
+    rdfs:range usf:ActionKind.
+usf:dataFieldMaskingRequired a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DataField;
+    rdfs:range xsd:boolean.
+usf:dataFieldEncryptionRequired a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DataField;
+    rdfs:range xsd:boolean.
+usf:dataFieldSearchable a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DataField;
+    rdfs:range xsd:boolean.
+usf:dataFieldExportable a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DataField;
+    rdfs:range xsd:boolean.
+usf:dataFieldRedactionRequired a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DataField;
+    rdfs:range xsd:boolean.
+usf:dataFieldLegalHoldApplicable a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DataField;
+    rdfs:range xsd:boolean.
+usf:dataFieldRetentionPolicy a owl:ObjectProperty;
+    rdfs:domain usf:DataField;
+    rdfs:range usf:RetentionPolicy.
+usf:dataFieldAuditCategory a owl:ObjectProperty;
+    rdfs:domain usf:DataField;
+    rdfs:range usf:AuditCategory.
+usf:dataFieldDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:DataField;
+    rdfs:range xsd:string.
+usf:reachabilityForCapability a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ActionReachability;
+    rdfs:range usf:Capability.
+usf:reachabilityForRole a owl:ObjectProperty;
+    rdfs:domain usf:ActionReachability;
+    rdfs:range usf:Role.
+usf:reachabilityForPrincipalKind a owl:ObjectProperty;
+    rdfs:domain usf:ActionReachability;
+    rdfs:range usf:PrincipalKind.
+usf:reachabilityOperation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ActionReachability;
+    rdfs:range usf:Operation.
+usf:reachabilityPermissionAtom a owl:ObjectProperty;
+    rdfs:domain usf:ActionReachability;
+    rdfs:range usf:PermissionAtom.
+usf:reachabilityConditionProfile a owl:ObjectProperty;
+    rdfs:domain usf:ActionReachability;
+    rdfs:range usf:AuthorisationConditionProfile.
+usf:reachabilityState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ActionReachability;
+    rdfs:range usf:ActionReachabilityState.
+usf:reachabilityAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ActionReachability;
+    rdfs:range xsd:string.
+usf:reachabilityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ActionReachability;
+    rdfs:range xsd:string.
+usf:serviceIdentityForCapability a owl:ObjectProperty;
+    rdfs:domain usf:ServiceIdentity;
+    rdfs:range usf:Capability.
+usf:serviceIdentityPrincipalKind a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ServiceIdentity;
+    rdfs:range usf:PrincipalKind.
+usf:serviceIdentityEnvironmentClass a owl:ObjectProperty;
+    rdfs:domain usf:ServiceIdentity;
+    rdfs:range usf:EnvironmentClass.
+usf:serviceIdentityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ServiceIdentity;
+    rdfs:range xsd:string.
+usf:cellForSubject a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationCell;
+    rdfs:range usf:Entity.
+usf:cellForCapability a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:subPropertyOf usf:cellForSubject;
+    rdfs:domain usf:PermutationCell;
+    rdfs:range usf:Capability.
+usf:requiredPermutationTestObligation a owl:ObjectProperty;
+    rdfs:domain usf:PermutationCell;
+    rdfs:range usf:TestObligation.
+usf:requiredPermutationEvidenceRequirement a owl:ObjectProperty;
+    rdfs:domain usf:PermutationCell;
+    rdfs:range usf:EvidenceRequirement.
+usf:requiredPermutationProofObligation a owl:ObjectProperty;
+    rdfs:domain usf:PermutationCell;
+    rdfs:range usf:ProofObligation.
+usf:foundationConformanceOnly a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationConformanceFixture;
+    rdfs:range xsd:boolean.
+usf:foundationFixtureCoversFamily a owl:ObjectProperty;
+    rdfs:domain usf:FoundationConformanceFixture;
+    rdfs:range usf:PermutationFamily.
+usf:foundationFixturePrimaryCapability a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:subPropertyOf usf:foundationFixturePrimarySubject;
+    rdfs:domain usf:FoundationConformanceFixture;
+    rdfs:range usf:Capability;
+    rdfs:comment "The one representative fixture subject for the Capability family subject class; other fixture capabilities may exist to model independent process ownership.".
+usf:foundationFixturePrimarySubject a owl:ObjectProperty;
+    rdfs:domain usf:FoundationConformanceFixture;
+    rdfs:range usf:Entity;
+    rdfs:comment "Selects exactly one representative fixture subject for each distinct subject class used by the registered family model; selection is class-based and does not assert family applicability.".
+usf:foundationFixtureDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationConformanceFixture;
+    rdfs:range xsd:string.
+usf:foundationWitnessDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:Entity;
+    rdfs:range xsd:string.
+usf:portPermitsActionKind a owl:ObjectProperty;
+    rdfs:domain usf:Port;
+    rdfs:range usf:ActionKind;
+    rdfs:comment "Declares an action kind which the semantic responsibility of a port can carry. It is a port contract boundary, not a role or principal grant.".
+usf:foundationReachabilityForCapability a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationActionReachabilityWitness;
+    rdfs:range usf:Capability.
+usf:foundationReachabilityForRole a owl:ObjectProperty;
+    rdfs:domain usf:FoundationActionReachabilityWitness;
+    rdfs:range usf:Role.
+usf:foundationReachabilityForPrincipalKind a owl:ObjectProperty;
+    rdfs:domain usf:FoundationActionReachabilityWitness;
+    rdfs:range usf:PrincipalKind.
+usf:foundationReachabilityOperation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationActionReachabilityWitness;
+    rdfs:range usf:Operation.
+usf:foundationReachabilityPermission a owl:ObjectProperty;
+    rdfs:domain usf:FoundationActionReachabilityWitness;
+    rdfs:range usf:Permission.
+usf:foundationReachabilityPermissionAtomWitness a owl:ObjectProperty;
+    rdfs:domain usf:FoundationActionReachabilityWitness;
+    rdfs:range usf:FoundationPermissionAtomWitness.
+usf:foundationReachabilityConditionProfile a owl:ObjectProperty;
+    rdfs:domain usf:FoundationActionReachabilityWitness;
+    rdfs:range usf:AuthorisationConditionProfile.
+usf:foundationReachabilityState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationActionReachabilityWitness;
+    rdfs:range usf:ActionReachabilityState.
+usf:foundationPermissionRequirement a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationPermissionAtomWitness;
+    rdfs:range usf:Permission.
+usf:foundationPermissionLifecycleRestriction a owl:ObjectProperty;
+    rdfs:domain usf:FoundationPermissionAtomWitness;
+    rdfs:range usf:State;
+    rdfs:comment "Carries a fixture-only lifecycle restriction into a structural PermissionAtom projection without asserting an operational permission atom.".
+usf:foundationPermissionTransportRestriction a owl:ObjectProperty;
+    rdfs:domain usf:FoundationPermissionAtomWitness;
+    rdfs:range usf:Transport;
+    rdfs:comment "Carries a fixture-only transport restriction into a structural PermissionAtom projection without asserting an operational permission atom.".
+usf:foundationProjectionSourceClass a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationConformanceProjectionRule;
+    rdfs:range owl:Class.
+usf:foundationProjectionTargetClass a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationConformanceProjectionRule;
+    rdfs:range owl:Class.
+usf:foundationProjectionPredicateMapping a owl:ObjectProperty;
+    rdfs:domain usf:FoundationConformanceProjectionRule;
+    rdfs:range usf:FoundationConformancePredicateMapping.
+usf:foundationProjectionIdentityMode a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationConformanceProjectionRule;
+    rdfs:range usf:FoundationProjectionIdentityMode.
+usf:foundationProjectionStructuralOnly a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationConformanceProjectionRule;
+    rdfs:range xsd:boolean.
+usf:foundationProjectionRuleDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationConformanceProjectionRule;
+    rdfs:range xsd:string.
+usf:foundationProjectionMappingPosition a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationConformancePredicateMapping;
+    rdfs:range xsd:positiveInteger.
+usf:foundationProjectionSourcePredicate a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationConformancePredicateMapping;
+    rdfs:range rdf:Property.
+usf:foundationProjectionTargetPredicate a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationConformancePredicateMapping;
+    rdfs:range rdf:Property.
+usf:foundationProjectionMappingDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationConformancePredicateMapping;
+    rdfs:range xsd:string.
+usf:foundationPermutationForSubject a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationRequiredPermutationWitness;
+    rdfs:range usf:Entity.
+usf:foundationPermutationForCapability a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:subPropertyOf usf:foundationPermutationForSubject;
+    rdfs:domain usf:FoundationRequiredPermutationWitness;
+    rdfs:range usf:Capability.
+usf:foundationPermutationOfFamily a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationRequiredPermutationWitness;
+    rdfs:range usf:PermutationFamily.
+usf:foundationPermutationExpectedDisposition a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationRequiredPermutationWitness;
+    rdfs:range usf:PermutationClosureDisposition.
+usf:foundationPermutationTestObligation a owl:ObjectProperty;
+    rdfs:domain usf:FoundationRequiredPermutationWitness;
+    rdfs:range usf:TestObligation.
+usf:foundationPermutationEvidenceRequirement a owl:ObjectProperty;
+    rdfs:domain usf:FoundationRequiredPermutationWitness;
+    rdfs:range usf:EvidenceRequirement.
+usf:foundationPermutationProofObligation a owl:ObjectProperty;
+    rdfs:domain usf:FoundationRequiredPermutationWitness;
+    rdfs:range usf:ProofObligation.
+usf:foundationDomainClosureDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationDomainClosureAssessment;
+    rdfs:range xsd:string.
+usf:foundationDomainClosureComplete a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationDomainClosureAssessment;
+    rdfs:range xsd:boolean.
+usf:foundationAssessmentFixtureInputDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationDomainClosureAssessment;
+    rdfs:range xsd:string.
+usf:foundationAssessmentAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationDomainClosureAssessment;
+    rdfs:range xsd:string.
+usf:foundationAssessmentMetaModelDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationDomainClosureAssessment;
+    rdfs:range xsd:string.
+usf:foundationAssessmentFamilyCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationDomainClosureAssessment;
+    rdfs:range xsd:integer.
+usf:foundationAssessmentUniqueDimensionCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationDomainClosureAssessment;
+    rdfs:range xsd:integer.
+usf:foundationAssessmentBindingCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationDomainClosureAssessment;
+    rdfs:range xsd:integer.
+usf:foundationAssessmentNonClaim a owl:DatatypeProperty;
+    rdfs:domain usf:FoundationDomainClosureAssessment;
+    rdfs:range xsd:string.
+usf:foundationAssessmentVerdict a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:FoundationDomainClosureAssessment;
     rdfs:range xsd:string.
 usf:pathOperation a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:AuthorisationPath;
@@ -5624,12 +6780,72 @@ usf:profileRevocationPolicy a owl:ObjectProperty, owl:FunctionalProperty;
 usf:profileDelegationConstraint a owl:ObjectProperty;
     rdfs:domain usf:TokenProfile;
     rdfs:range usf:DelegationConstraint.
+usf:tokenProfileTemplateKind a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:TokenProfileTemplate;
+    rdfs:range xsd:string.
+usf:tokenProfileTemplateClaimConstraint a owl:ObjectProperty;
+    rdfs:domain usf:TokenProfileTemplate;
+    rdfs:range usf:TokenClaimConstraintTemplate.
+usf:tokenProfileTemplateNonTokenMode a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:TokenProfileTemplate;
+    rdfs:range xsd:boolean.
+usf:tokenProfileTemplateDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:TokenProfileTemplate;
+    rdfs:range xsd:string.
+usf:securityBindingForTokenProfileTemplate a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:TokenProfileTemplateSecurityBinding;
+    rdfs:range usf:TokenProfileTemplate.
+usf:securityBindingIssuerClass a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:TokenProfileTemplateSecurityBinding;
+    rdfs:range usf:TokenIssuerClass.
+usf:securityBindingAudience a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:TokenProfileTemplateSecurityBinding;
+    rdfs:range usf:TokenAudience.
+usf:securityBindingLifetimePolicy a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:TokenProfileTemplateSecurityBinding;
+    rdfs:range usf:TokenLifetimePolicy.
+usf:securityBindingAuthenticationStrength a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:TokenProfileTemplateSecurityBinding;
+    rdfs:range usf:AuthenticationStrengthRequirement.
+usf:securityBindingProofOfPossession a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:TokenProfileTemplateSecurityBinding;
+    rdfs:range usf:ProofOfPossessionRequirement.
+usf:securityBindingRevocationPolicy a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:TokenProfileTemplateSecurityBinding;
+    rdfs:range usf:RevocationPolicy.
+usf:securityBindingDelegationConstraint a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:TokenProfileTemplateSecurityBinding;
+    rdfs:range usf:DelegationConstraint.
+usf:tokenProfileTemplateSecurityBindingDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:TokenProfileTemplateSecurityBinding;
+    rdfs:range xsd:string.
+usf:claimConstraintTemplateKind a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:TokenClaimConstraintTemplate;
+    rdfs:range xsd:string.
+usf:claimConstraintTemplateDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:TokenClaimConstraintTemplate;
+    rdfs:range xsd:string.
 usf:maximumLifetimeSeconds a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:TokenLifetimePolicy;
     rdfs:range xsd:integer.
 usf:refreshable a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:TokenLifetimePolicy;
     rdfs:range xsd:boolean.
+usf:processLifecycleObligation a owl:ObjectProperty;
+    rdfs:domain usf:DeployableProcess;
+    rdfs:range usf:LifecycleObligationKind.
+usf:processPrincipalKind a owl:ObjectProperty;
+    rdfs:domain usf:DeployableProcess;
+    rdfs:range usf:PrincipalKind.
+usf:processServiceIdentity a owl:ObjectProperty;
+    rdfs:domain usf:DeployableProcess;
+    rdfs:range usf:ServiceIdentity.
+usf:processProviderMode a owl:ObjectProperty;
+    rdfs:domain usf:DeployableProcess;
+    rdfs:range usf:ProviderMode.
+usf:processEnvironmentClass a owl:ObjectProperty;
+    rdfs:domain usf:DeployableProcess;
+    rdfs:range usf:EnvironmentClass.
 usf:coverageOfCell a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationCoverage;
     rdfs:range usf:PermutationCell.
@@ -5666,3 +6882,60 @@ usf:provenControlledValueDigest a owl:DatatypeProperty, owl:FunctionalProperty;
 usf:provenApplicabilityRuleDigest a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:PermutationProof;
     rdfs:range xsd:string.
+usf:provesPermutationUniverse a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range usf:PermutationUniverse.
+usf:provenRawCandidateCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:provenApplicableCandidateCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:provenSatisfiableCandidateCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:provenOperationalCellCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:provenRuleCoveredForbiddenCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:provenRuleCoveredNotApplicableCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:provenDeferredCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:provenUnresolvedCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:provenUnclassifiedCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:provenOverlapCount a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:nonNegativeInteger.
+usf:provenFiniteDomainDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:string.
+usf:provenGeneratorDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:string.
+usf:provenIndependentVerifierDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:string.
+usf:provenSparseManifestDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:string.
+usf:provenOperationalCellSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:string.
+usf:provenCoverageRegionDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:string.
+usf:provenClosureEquationDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range xsd:string.
+usf:provenPublicationBudgetAssessment a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PermutationProof;
+    rdfs:range usf:PermutationPublicationBudgetAssessment.

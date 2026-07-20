@@ -367,7 +367,7 @@ test('composition defects reach exact precedence branches', () => {
       remove(store, item, term('componentEnvironmentBinding'), missingEnvironment);
       const mapping = subjects(store, term('componentMappingForComponent'), item)[0];
       for (const binding of objects(store, item, term('componentProviderBinding'))
-        .filter((candidate) => objects(store, candidate, term('inEnvironment')).some(({ value }) => value === missingEnvironment.value))) {
+        .filter((candidate) => objects(store, candidate, term('bindingEnvironment')).some(({ value }) => value === missingEnvironment.value))) {
         remove(store, item, term('componentProviderBinding'), binding);
         if (mapping) remove(store, mapping, term('componentMappingToProviderBinding'), binding);
       }

@@ -6,8 +6,130 @@
 @prefix rsk: <urn:usf:resourceselectorkind:>.
 @prefix osc: <urn:usf:operationalsurfaceclassification:>.
 @prefix pdr: <urn:usf:permutationdispositionreason:>.
+@prefix pcr: <urn:usf:permutationclosurerepresentation:>.
+@prefix dvss: <urn:usf:dimensionvaluesourcescope:>.
+@prefix ppc: <urn:usf:permutationparticipationclassification:>.
+@prefix pabc: <urn:usf:permutationaxisbindingclassification:>.
+@prefix pfcc: <urn:usf:permutationfamilycandidateclassification:>.
+@prefix pfmrd: <urn:usf:permutationfamilymodelreviewdisposition:>.
+@prefix acp: <urn:usf:authorisationconditionprofile:>.
+@prefix acc: <urn:usf:authorisationconditionclause:>.
+@prefix acpred: <urn:usf:authorisationconditionpredicate:>.
+@prefix acop: <urn:usf:authorisationconditionoperator:>.
+@prefix accomp: <urn:usf:authorisationconditioncomposition:>.
+@prefix ars: <urn:usf:actionreachabilitystate:>.
+@prefix ftc: <urn:usf:fieldtenancyclassification:>.
+@prefix fm: <urn:usf:fieldmutability:>.
+@prefix pc: <urn:usf:privacyclassification:>.
+@prefix tpt: <urn:usf:tokenprofiletemplate:>.
+@prefix tcct: <urn:usf:tokenclaimconstrainttemplate:>.
+@prefix stk: <urn:usf:scheduletriggerkind:>.
+@prefix pfp: <urn:usf:permutationfamilyplane:>.
+@prefix pao: <urn:usf:permutationapplicabilityoperator:>.
+@prefix ppd: <urn:usf:permutationpathdirection:>.
+@prefix psa: <urn:usf:permutationsignalaggregation:>.
+@prefix par: <urn:usf:permutationapplicabilityreason:>.
+@prefix ta: <urn:usf:tokenaudience:>.
+@prefix tic: <urn:usf:tokenissuerclass:>.
+@prefix asr: <urn:usf:authenticationstrengthrequirement:>.
+@prefix popr: <urn:usf:proofofpossessionrequirement:>.
+@prefix tlp: <urn:usf:tokenlifetimepolicy:>.
+@prefix rvp: <urn:usf:revocationpolicy:>.
+@prefix dc: <urn:usf:delegationconstraint:>.
+@prefix tptsb: <urn:usf:tokenprofiletemplatesecuritybinding:>.
+@prefix ccp: <urn:usf:classclosurepolicy:>.
 
 <urn:usf:graph:permutation-vocabulary> {
+ccp:exactdeclaredclass a usf:PermutationClassClosurePolicy;
+    usf:canonicalName "exactdeclaredclass";
+    usf:definition "The closure contains only its explicitly named root class. This policy is selected explicitly and is never an omitted-policy default.".
+ccp:declaredtransitivesubclass a usf:PermutationClassClosurePolicy;
+    usf:canonicalName "declaredtransitivesubclass";
+    usf:definition "The closure contains its root and every named class reachable downwards through one or more declared rdfs:subClassOf edges. Blank-node expressions, upward supertype inference and cycles are prohibited.".
+
+pcr:sparsesymbolic a usf:PermutationClosureRepresentation;
+    usf:canonicalName "sparsesymbolic";
+    usf:definition "The complete raw Cartesian universe remains a reproducible digest-bound external projection; required and allowed operational points may be RDF cells, forbidden and not-applicable regions require authority-backed symbolic rules, and deferred or unresolved regions remain explicit non-authorising digest commitments.".
+
+pfp:runtimebehaviour a usf:PermutationFamilyPlane;
+    usf:canonicalName "runtimebehaviour";
+    usf:definition "Product, operator or control-plane behaviour that must have an executing runtime owner.".
+pfp:assuranceobligation a usf:PermutationFamilyPlane;
+    usf:canonicalName "assuranceobligation";
+    usf:definition "Evidence, proof, validation or readiness behaviour whose owner validates rather than executes product runtime.".
+
+pao:true a usf:PermutationApplicabilityOperator; usf:canonicalName "true"; usf:definition "The registered subject class is always applicable.".
+pao:allof a usf:PermutationApplicabilityOperator; usf:canonicalName "allof"; usf:definition "Every ordered operand clause must hold.".
+pao:anyof a usf:PermutationApplicabilityOperator; usf:canonicalName "anyof"; usf:definition "At least one ordered operand clause must hold.".
+pao:not a usf:PermutationApplicabilityOperator; usf:canonicalName "not"; usf:definition "The single operand clause must not hold.".
+pao:countatleast a usf:PermutationApplicabilityOperator; usf:canonicalName "countatleast"; usf:definition "The registered selector must yield at least the non-negative threshold.".
+pao:countexactly a usf:PermutationApplicabilityOperator; usf:canonicalName "countexactly"; usf:definition "The registered selector must yield exactly the non-negative threshold.".
+pao:valueequals a usf:PermutationApplicabilityOperator; usf:canonicalName "valueequals"; usf:definition "The selector result must equal the single declared value.".
+pao:valueindeclaredset a usf:PermutationApplicabilityOperator; usf:canonicalName "valueindeclaredset"; usf:definition "At least one selector result must belong to the finite declared value set.".
+
+ppd:outbound a usf:PermutationPathDirection; usf:canonicalName "outbound".
+ppd:inbound a usf:PermutationPathDirection; usf:canonicalName "inbound".
+psa:distinctvalues a usf:PermutationSignalAggregation; usf:canonicalName "distinctvalues".
+psa:countdistinct a usf:PermutationSignalAggregation; usf:canonicalName "countdistinct".
+
+par:subjectclassmismatch a usf:PermutationApplicabilityReason; usf:canonicalName "subjectclassmismatch"; usf:definition "The resource is not an instance of the family's registered subject class.".
+par:nointerfacesdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "nointerfacesdeclared".
+par:nooperationsdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "nooperationsdeclared".
+par:nopermissionatomsdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "nopermissionatomsdeclared".
+par:nostatesdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "nostatesdeclared".
+par:notransitionsdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "notransitionsdeclared".
+par:noportsdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "noportsdeclared".
+par:noexternaldependenciesdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "noexternaldependenciesdeclared"; usf:definition "The capability has no explicit ExternalDependency reachable through its contract ports; port presence alone does not activate the family.".
+par:noeventsdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "noeventsdeclared".
+par:nodatamodelsdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "nodatamodelsdeclared".
+par:noconfigurationkeysdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "noconfigurationkeysdeclared".
+par:nosecretconfigurationkeysdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "nosecretconfigurationkeysdeclared".
+par:nouisurfacesdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "nouisurfacesdeclared".
+par:noformsdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "noformsdeclared".
+par:noworkflowsdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "noworkflowsdeclared".
+par:noprotocolsurfacesdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "noprotocolsurfacesdeclared".
+par:componentoptionabsent a usf:PermutationApplicabilityReason;
+    usf:canonicalName "componentoptionabsent";
+    usf:definition "The option component has no owning composed realisation option and therefore cannot participate in composition coverage.".
+
+ta:foundationapi a usf:TokenAudience; usf:canonicalName "foundationapi"; usf:definition "A first-party foundation API surface.".
+ta:tenantservice a usf:TokenAudience; usf:canonicalName "tenantservice"; usf:definition "A named tenant-scoped service audience.".
+ta:externalcallback a usf:TokenAudience; usf:canonicalName "externalcallback"; usf:definition "A bounded external callback audience selected by an admitted provider binding.".
+tic:platformidentityauthority a usf:TokenIssuerClass; usf:canonicalName "platformidentityauthority"; usf:definition "The platform's selected identity-authority class.".
+tic:workloadidentityauthority a usf:TokenIssuerClass; usf:canonicalName "workloadidentityauthority"; usf:definition "An issuer class dedicated to non-human workload identities.".
+tic:externalfederatedauthority a usf:TokenIssuerClass; usf:canonicalName "externalfederatedauthority"; usf:definition "An explicitly trusted federated issuer class.".
+asr:authenticated a usf:AuthenticationStrengthRequirement; usf:canonicalName "authenticated"; usf:definition "A currently authenticated principal is required.".
+asr:strongauthentication a usf:AuthenticationStrengthRequirement; usf:canonicalName "strongauthentication"; usf:definition "A phishing-resistant or equivalently strong authentication method is required.".
+asr:multifactor a usf:AuthenticationStrengthRequirement; usf:canonicalName "multifactor"; usf:definition "Two independently controlled authentication factors are required.".
+popr:bearerpermitted a usf:ProofOfPossessionRequirement; usf:canonicalName "bearerpermitted"; usf:definition "Bearer presentation is permitted only where the selected profile and risk policy allow it.".
+popr:confirmationkeyrequired a usf:ProofOfPossessionRequirement; usf:canonicalName "confirmationkeyrequired"; usf:definition "The token must be cryptographically bound to a confirmation key presented by the caller.".
+tlp:boundedaccess a usf:TokenLifetimePolicy; usf:canonicalName "boundedaccess"; usf:definition "A bounded access-token lifetime with refresh governed separately."; usf:maximumLifetimeSeconds 3600; usf:refreshable true.
+tlp:boundedservice a usf:TokenLifetimePolicy; usf:canonicalName "boundedservice"; usf:definition "A bounded workload-token lifetime requiring periodic re-issuance."; usf:maximumLifetimeSeconds 900; usf:refreshable false.
+tlp:shortlivedoperator a usf:TokenLifetimePolicy; usf:canonicalName "shortlivedoperator"; usf:definition "A short-lived non-refreshable operator-token lifetime."; usf:maximumLifetimeSeconds 600; usf:refreshable false.
+tlp:shortlivedbreakglass a usf:TokenLifetimePolicy; usf:canonicalName "shortlivedbreakglass"; usf:definition "A short-lived non-refreshable emergency-token lifetime."; usf:maximumLifetimeSeconds 300; usf:refreshable false.
+rvp:revocablebeforeexpiry a usf:RevocationPolicy; usf:canonicalName "revocablebeforeexpiry"; usf:definition "The issuer can revoke the token before its bounded expiry.".
+rvp:boundedexpirynorefresh a usf:RevocationPolicy; usf:canonicalName "boundedexpirynorefresh"; usf:definition "The token cannot be refreshed and expires within its bounded lifetime.".
+dc:delegationprohibited a usf:DelegationConstraint; usf:canonicalName "delegationprohibited"; usf:definition "No actor may exchange or delegate the token.".
+dc:boundeddelegation a usf:DelegationConstraint; usf:canonicalName "boundeddelegation"; usf:definition "Delegation is permitted only through a bounded, auditable delegation chain.".
+<urn:usf:eventdeliveryform:messageenvelope> a usf:EventDeliveryForm; usf:canonicalName "messageenvelope"; usf:definition "The event is carried in one explicitly modelled Message envelope.".
+<urn:usf:eventdeliveryform:directnotification> a usf:EventDeliveryForm; usf:canonicalName "directnotification"; usf:definition "The event is delivered directly without a separately modelled Message envelope.".
+par:eventdirectnotification a usf:PermutationApplicabilityReason; usf:canonicalName "eventdirectnotification"; usf:definition "The event explicitly uses direct-notification delivery, so a Message-envelope family is not applicable.".
+par:nocomponentproviderbindingdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "nocomponentproviderbindingdeclared"; usf:definition "The option component has no explicit provider binding; absence does not create provider semantics.".
+par:noeventpermissionsdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "noeventpermissionsdeclared"; usf:definition "The event declares no permission profile; absence does not invent an event permission requirement.".
+par:noauditeventsdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "noauditeventsdeclared"; usf:definition "The operation declares no emitted audit event; absence does not create an audit-event relationship.".
+par:nocomponentdependencydeclared a usf:PermutationApplicabilityReason; usf:canonicalName "nocomponentdependencydeclared"; usf:definition "The option component has no explicit dependency edge; absence does not create a dependency permutation.".
+par:mappingtargetkindmismatch a usf:PermutationApplicabilityReason; usf:canonicalName "mappingtargetkindmismatch"; usf:definition "The concrete mapping selects another controlled target kind, so this target-specific mapping family is not applicable.".
+par:noprocessserviceidentitydeclared a usf:PermutationApplicabilityReason; usf:canonicalName "noprocessserviceidentitydeclared"; usf:definition "The deployable process has no explicit service-identity binding; absence does not invent an execution identity.".
+par:noreachabilityroledeclared a usf:PermutationApplicabilityReason; usf:canonicalName "noreachabilityroledeclared"; usf:definition "The action-reachability record is expressed for another principal form and has no explicit role binding.".
+par:noreachabilityprincipalkinddeclared a usf:PermutationApplicabilityReason; usf:canonicalName "noreachabilityprincipalkinddeclared"; usf:definition "The action-reachability record is expressed for another principal form and has no explicit principal-kind binding.".
+par:noreachabilitypermissionatomdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "noreachabilitypermissionatomdeclared"; usf:definition "The reachability state has no admitted permission-atom path; absence must not create a grant.".
+par:noreachabilityconditionprofiledeclared a usf:PermutationApplicabilityReason; usf:canonicalName "noreachabilityconditionprofiledeclared"; usf:definition "The reachability state has no explicit conditional-authorisation profile.".
+tptsb:accesstoken a usf:TokenProfileTemplateSecurityBinding; usf:canonicalName "accesstoken"; usf:securityBindingForTokenProfileTemplate tpt:accesstoken; usf:securityBindingIssuerClass tic:platformidentityauthority; usf:securityBindingAudience ta:foundationapi; usf:securityBindingLifetimePolicy tlp:boundedaccess; usf:securityBindingAuthenticationStrength asr:authenticated; usf:securityBindingProofOfPossession popr:bearerpermitted; usf:securityBindingRevocationPolicy rvp:revocablebeforeexpiry; usf:securityBindingDelegationConstraint dc:delegationprohibited; usf:tokenProfileTemplateSecurityBindingDigest "sha256:861cb1189cd7964448af7664a616a954048daf917868fc2755f9b69414b3963e".
+tptsb:servicetoken a usf:TokenProfileTemplateSecurityBinding; usf:canonicalName "servicetoken"; usf:securityBindingForTokenProfileTemplate tpt:servicetoken; usf:securityBindingIssuerClass tic:workloadidentityauthority; usf:securityBindingAudience ta:tenantservice; usf:securityBindingLifetimePolicy tlp:boundedservice; usf:securityBindingAuthenticationStrength asr:strongauthentication; usf:securityBindingProofOfPossession popr:confirmationkeyrequired; usf:securityBindingRevocationPolicy rvp:boundedexpirynorefresh; usf:securityBindingDelegationConstraint dc:delegationprohibited; usf:tokenProfileTemplateSecurityBindingDigest "sha256:6ba252ff82ccf99e4190337692728525de4db2311d405adc3012e6dc87e130fa".
+tptsb:delegatedtoken a usf:TokenProfileTemplateSecurityBinding; usf:canonicalName "delegatedtoken"; usf:securityBindingForTokenProfileTemplate tpt:delegatedtoken; usf:securityBindingIssuerClass tic:platformidentityauthority; usf:securityBindingAudience ta:tenantservice; usf:securityBindingLifetimePolicy tlp:boundedaccess; usf:securityBindingAuthenticationStrength asr:strongauthentication; usf:securityBindingProofOfPossession popr:confirmationkeyrequired; usf:securityBindingRevocationPolicy rvp:revocablebeforeexpiry; usf:securityBindingDelegationConstraint dc:boundeddelegation; usf:tokenProfileTemplateSecurityBindingDigest "sha256:ff83482a5e9dc80fdfce58ccfdc7f06a41c454f15dd869020646ee91544ae3c1".
+tptsb:shortlivedoperatortoken a usf:TokenProfileTemplateSecurityBinding; usf:canonicalName "shortlivedoperatortoken"; usf:securityBindingForTokenProfileTemplate tpt:shortlivedoperatortoken; usf:securityBindingIssuerClass tic:platformidentityauthority; usf:securityBindingAudience ta:foundationapi; usf:securityBindingLifetimePolicy tlp:shortlivedoperator; usf:securityBindingAuthenticationStrength asr:multifactor; usf:securityBindingProofOfPossession popr:confirmationkeyrequired; usf:securityBindingRevocationPolicy rvp:revocablebeforeexpiry; usf:securityBindingDelegationConstraint dc:delegationprohibited; usf:tokenProfileTemplateSecurityBindingDigest "sha256:dc8cea11a857e982db38176b13a1f0a90d3127c214cb3a0131fad42370849eb4".
+tptsb:breakglasstoken a usf:TokenProfileTemplateSecurityBinding; usf:canonicalName "breakglasstoken"; usf:securityBindingForTokenProfileTemplate tpt:breakglasstoken; usf:securityBindingIssuerClass tic:platformidentityauthority; usf:securityBindingAudience ta:foundationapi; usf:securityBindingLifetimePolicy tlp:shortlivedbreakglass; usf:securityBindingAuthenticationStrength asr:multifactor; usf:securityBindingProofOfPossession popr:confirmationkeyrequired; usf:securityBindingRevocationPolicy rvp:boundedexpirynorefresh; usf:securityBindingDelegationConstraint dc:delegationprohibited; usf:tokenProfileTemplateSecurityBindingDigest "sha256:f18f5f92efa4ad18d5160686ba64e6d051584604f6dcf799b6cf954eaa3f6a92".
+
 pcd:required a usf:PermutationClosureDisposition;
     usf:canonicalName "required";
     usf:definition "The combination must exist and behave; it requires executable behaviour, a permission atom, a satisfiable principal path, coverage, evidence and proof.".
@@ -113,4 +235,163 @@ pdr:notapplicablebytransportabsence a usf:PermutationDispositionReason; usf:cano
 pdr:notapplicablebyuinonexposure a usf:PermutationDispositionReason; usf:canonicalName "notapplicablebyuinonexposure"; usf:definition "The capability is explicitly internal and authorises no UI exposure.".
 pdr:deferredbyauthoritydecision a usf:PermutationDispositionReason; usf:canonicalName "deferredbyauthoritydecision"; usf:definition "Current authority explicitly defers the capability or contract scope.".
 pdr:unresolvedpendingsemanticdecision a usf:PermutationDispositionReason; usf:canonicalName "unresolvedpendingsemanticdecision"; usf:definition "A missing semantic decision has been identified and must be resolved through evidence and publication.".
+
+dvss:foundationcatalogue a usf:DimensionValueSourceScope;
+    usf:canonicalName "foundationcatalogue";
+    usf:definition "A finite reusable foundation taxonomy independent of current capability instances.".
+dvss:authorityinstanceset a usf:DimensionValueSourceScope;
+    usf:canonicalName "authorityinstanceset";
+    usf:definition "A finite exact set of current authority instances; conformance-only fixtures never enter operational generation.".
+dvss:capabilityrelationship a usf:DimensionValueSourceScope;
+    usf:canonicalName "capabilityrelationship";
+    usf:definition "Values derived only through declared relationships within the reviewed capability boundary.".
+dvss:downstreamclosure a usf:DimensionValueSourceScope;
+    usf:canonicalName "downstreamclosure";
+    usf:definition "Values derived from an earlier digest-bound closure result rather than invented as an input vocabulary.".
+dvss:registeredsubjectrelationship a usf:DimensionValueSourceScope;
+    usf:canonicalName "registeredsubjectrelationship";
+    usf:definition "Values are derived only by an ordered registered selector from the current registered family subject.".
+
+ppc:operationalaxis a usf:PermutationParticipationClassification; usf:canonicalName "operationalaxis"; usf:definition "The reviewed term supplies an independently varying operational dimension when a warranted family binds it.".
+ppc:assuranceaxis a usf:PermutationParticipationClassification; usf:canonicalName "assuranceaxis"; usf:definition "The reviewed term supplies an independently varying evidence, proof or validation dimension when a warranted family binds it.".
+ppc:structuralselector a usf:PermutationParticipationClassification; usf:canonicalName "structuralselector"; usf:definition "The reviewed term selects subjects or values for a family without independently becoming a permutation axis.".
+ppc:lifecyclederivationinput a usf:PermutationParticipationClassification; usf:canonicalName "lifecyclederivationinput"; usf:definition "The reviewed term influences lifecycle applicability or derivation without independently becoming an axis.".
+ppc:metadataprovenancenonaxis a usf:PermutationParticipationClassification; usf:canonicalName "metadataprovenancenonaxis"; usf:definition "The reviewed term records metadata or provenance and has no independent behavioural cross-product.".
+ppc:authoritydecisionrequired a usf:PermutationParticipationClassification; usf:canonicalName "authoritydecisionrequired"; usf:definition "Current semantic evidence cannot yet prove whether the reviewed term warrants a new axis or family.".
+
+pabc:existingaxis a usf:PermutationAxisBindingClassification; usf:canonicalName "existingaxis"; usf:definition "The reviewed term is already represented by a registered finite dimension or its declared selector.".
+pabc:unregisteredcontrolledaxis a usf:PermutationAxisBindingClassification; usf:canonicalName "unregisteredcontrolledaxis"; usf:definition "The reviewed controlled domain may vary independently but has no accepted registered axis decision.".
+pabc:notanaxis a usf:PermutationAxisBindingClassification; usf:canonicalName "notanaxis"; usf:definition "The reviewed term is structurally or semantically relevant but does not independently vary as a permutation axis.".
+
+pfcc:notafamilycandidate a usf:PermutationFamilyCandidateClassification; usf:canonicalName "notafamilycandidate"; usf:definition "The reviewed term cannot independently warrant a permutation family under the current participation rules.".
+pfcc:authorityreviewrequired a usf:PermutationFamilyCandidateClassification; usf:canonicalName "authorityreviewrequired"; usf:definition "A bounded semantic decision must determine whether this candidate represents a genuinely independent behavioural cross-product.".
+pfcc:warranted a usf:PermutationFamilyCandidateClassification; usf:canonicalName "warranted"; usf:definition "Current accepted semantic authority warrants a distinct permutation family.".
+pfcc:rejected a usf:PermutationFamilyCandidateClassification; usf:canonicalName "rejected"; usf:definition "Current accepted semantic authority proves that the candidate is covered, dependent, non-behavioural or otherwise not a distinct family.".
+
+pfmrd:warranted a usf:PermutationFamilyModelReviewDisposition;
+    usf:canonicalName "warranted";
+    usf:definition "Independent review accepts the exact leaf signature of an already-authored registered family; this classification creates no family, behaviour, permission, evidence admission, proof or contract activation.".
+
+accomp:all a usf:AuthorisationConditionComposition; usf:canonicalName "all"; usf:definition "Every ordered clause must be satisfied.".
+accomp:any a usf:AuthorisationConditionComposition; usf:canonicalName "any"; usf:definition "At least one ordered clause must be satisfied; each alternative remains explicit.".
+acop:present a usf:AuthorisationConditionOperator; usf:canonicalName "present"; usf:definition "The bounded context claim or state must be present.".
+acop:equals a usf:AuthorisationConditionOperator; usf:canonicalName "equals"; usf:definition "The bounded context value must equal the declared value IRI.".
+acop:memberof a usf:AuthorisationConditionOperator; usf:canonicalName "memberof"; usf:definition "The principal or resource must be a member of the declared finite set.".
+acop:atleast a usf:AuthorisationConditionOperator; usf:canonicalName "atleast"; usf:definition "The ordered assurance or authentication value must meet the declared minimum.".
+acop:withinscope a usf:AuthorisationConditionOperator; usf:canonicalName "withinscope"; usf:definition "The value must remain within a declared tenant, environment, network or delegation scope.".
+acop:before a usf:AuthorisationConditionOperator; usf:canonicalName "before"; usf:definition "The evaluated instant must precede a bounded declared instant.".
+acop:after a usf:AuthorisationConditionOperator; usf:canonicalName "after"; usf:definition "The evaluated instant must follow a bounded declared instant.".
+
+acpred:tenantmembership a usf:AuthorisationConditionPredicate; usf:canonicalName "tenantmembership"; usf:definition "The principal has current membership in the bounded tenant.".
+acpred:tenantadministrator a usf:AuthorisationConditionPredicate; usf:canonicalName "tenantadministrator"; usf:definition "The principal holds current tenant-administrator authority within the bounded tenant.".
+acpred:resourceownership a usf:AuthorisationConditionPredicate; usf:canonicalName "resourceownership"; usf:definition "The principal owns or is explicitly related to the selected resource.".
+acpred:serviceidentity a usf:AuthorisationConditionPredicate; usf:canonicalName "serviceidentity"; usf:definition "The principal is a declared service identity rather than a human role.".
+acpred:authenticationstrength a usf:AuthorisationConditionPredicate; usf:canonicalName "authenticationstrength"; usf:definition "Authentication meets the required finite strength classification.".
+acpred:platformscope a usf:AuthorisationConditionPredicate; usf:canonicalName "platformscope"; usf:definition "The operation is confined to the declared platform control boundary.".
+acpred:productionenvironment a usf:AuthorisationConditionPredicate; usf:canonicalName "productionenvironment"; usf:definition "The execution environment is production-class and subject to production controls.".
+acpred:coordinatorprincipal a usf:AuthorisationConditionPredicate; usf:canonicalName "coordinatorprincipal"; usf:definition "The principal is the single declared semantic-authority coordinator.".
+acpred:boundeddelegation a usf:AuthorisationConditionPredicate; usf:canonicalName "boundeddelegation"; usf:definition "An explicit finite delegation chain authorises the operation and selector.".
+acpred:breakglassapproval a usf:AuthorisationConditionPredicate; usf:canonicalName "breakglassapproval"; usf:definition "A current break-glass approval exists.".
+acpred:breakglassreason a usf:AuthorisationConditionPredicate; usf:canonicalName "breakglassreason"; usf:definition "A bounded auditable break-glass reason is present.".
+acpred:legalholdapproval a usf:AuthorisationConditionPredicate; usf:canonicalName "legalholdapproval"; usf:definition "The required legal-hold approval is current.".
+acpred:environmentbinding a usf:AuthorisationConditionPredicate; usf:canonicalName "environmentbinding"; usf:definition "The authorisation is bound to the declared environment class.".
+acpred:trustedexecution a usf:AuthorisationConditionPredicate; usf:canonicalName "trustedexecution"; usf:definition "Execution occurs in a declared trusted execution boundary.".
+acpred:requestorigin a usf:AuthorisationConditionPredicate; usf:canonicalName "requestorigin"; usf:definition "The request originates within an allowed finite network or transport boundary.".
+acpred:lifecyclestate a usf:AuthorisationConditionPredicate; usf:canonicalName "lifecyclestate"; usf:definition "The governed resource is in an allowed lifecycle state.".
+acpred:resourceclassification a usf:AuthorisationConditionPredicate; usf:canonicalName "resourceclassification"; usf:definition "The selected resource has an allowed finite classification.".
+acpred:consent a usf:AuthorisationConditionPredicate; usf:canonicalName "consent"; usf:definition "Required consent is present and current.".
+acpred:entitlement a usf:AuthorisationConditionPredicate; usf:canonicalName "entitlement"; usf:definition "The principal has the required current entitlement.".
+acpred:approval a usf:AuthorisationConditionPredicate; usf:canonicalName "approval"; usf:definition "The required bounded approval is present.".
+acpred:quotawithinlimit a usf:AuthorisationConditionPredicate; usf:canonicalName "quotawithinlimit"; usf:definition "The applicable quota remains within its declared limit.".
+acpred:timewindow a usf:AuthorisationConditionPredicate; usf:canonicalName "timewindow"; usf:definition "Execution occurs inside a declared bounded time window.".
+
+acc:tenantmember1 a usf:AuthorisationConditionClause; usf:canonicalName "tenantmember1"; usf:conditionClausePosition 1; usf:conditionClausePredicate acpred:tenantmembership; usf:conditionClauseOperator acop:present; usf:conditionClauseDigest "sha256:22b8d214e112ab4b36ea48f706fa7eb0662ca391dfac70a2e5f71ee8ff6640bc".
+acc:tenantadmin1 a usf:AuthorisationConditionClause; usf:canonicalName "tenantadmin1"; usf:conditionClausePosition 1; usf:conditionClausePredicate acpred:tenantadministrator; usf:conditionClauseOperator acop:present; usf:conditionClauseDigest "sha256:9c24af96650bfbe2dda2e180f899b945b7e9ae517c94a6d43e185989fe240e2b".
+acc:resourceowner1 a usf:AuthorisationConditionClause; usf:canonicalName "resourceowner1"; usf:conditionClausePosition 1; usf:conditionClausePredicate acpred:resourceownership; usf:conditionClauseOperator acop:present; usf:conditionClauseDigest "sha256:2e8d897a3ae58a5f7a6d6db0e91b7f382232c42ded94d25a334408276018f334".
+acc:serviceidentity1 a usf:AuthorisationConditionClause; usf:canonicalName "serviceidentity1"; usf:conditionClausePosition 1; usf:conditionClausePredicate acpred:serviceidentity; usf:conditionClauseOperator acop:present; usf:conditionClauseDigest "sha256:a13d7ff2c5524d441938f5221ca8f33ae9a7b573d72b432bb6a035721c304f00".
+acc:strongauthentication1 a usf:AuthorisationConditionClause; usf:canonicalName "strongauthentication1"; usf:conditionClausePosition 1; usf:conditionClausePredicate acpred:authenticationstrength; usf:conditionClauseOperator acop:present; usf:conditionClauseDigest "sha256:dc73d01e6e87023f29f9685859fa76069c07bca76d86f20a1af1e21409cdb963".
+acc:productionoperator1 a usf:AuthorisationConditionClause; usf:canonicalName "productionoperator1"; usf:conditionClausePosition 1; usf:conditionClausePredicate acpred:platformscope; usf:conditionClauseOperator acop:present; usf:conditionClauseDigest "sha256:50c187b65a5375a7650ca17dccb069601c6a5069613d6671aaf7db7af0d84fc1".
+acc:productionoperator2 a usf:AuthorisationConditionClause; usf:canonicalName "productionoperator2"; usf:conditionClausePosition 2; usf:conditionClausePredicate acpred:productionenvironment; usf:conditionClauseOperator acop:present; usf:conditionClauseDigest "sha256:0113ca3023e75e96223f89a795a882dfa88010b5b6fda98515f452515dedce6b".
+acc:coordinatoronly1 a usf:AuthorisationConditionClause; usf:canonicalName "coordinatoronly1"; usf:conditionClausePosition 1; usf:conditionClausePredicate acpred:coordinatorprincipal; usf:conditionClauseOperator acop:present; usf:conditionClauseDigest "sha256:349454212344cde6c20034ca050562f5550010c371906800cdf86649a39cc0e9".
+acc:boundeddelegation1 a usf:AuthorisationConditionClause; usf:canonicalName "boundeddelegation1"; usf:conditionClausePosition 1; usf:conditionClausePredicate acpred:boundeddelegation; usf:conditionClauseOperator acop:present; usf:conditionClauseDigest "sha256:bf73c2c6a24bdfe2df78a0b54fdd238b9cbaf34744e538943cba09f4b1d9d633".
+acc:breakglass1 a usf:AuthorisationConditionClause; usf:canonicalName "breakglass1"; usf:conditionClausePosition 1; usf:conditionClausePredicate acpred:breakglassapproval; usf:conditionClauseOperator acop:present; usf:conditionClauseDigest "sha256:3331d5b25251136e9e9c1da23b610eaca1d7ceeb985c2754f95892ea719acff3".
+acc:breakglass2 a usf:AuthorisationConditionClause; usf:canonicalName "breakglass2"; usf:conditionClausePosition 2; usf:conditionClausePredicate acpred:breakglassreason; usf:conditionClauseOperator acop:present; usf:conditionClauseDigest "sha256:f19285161cd9245cec0d57c743fdaac07da0956f0b931ae65658e6f033f8cfb3".
+acc:legalholdapproved1 a usf:AuthorisationConditionClause; usf:canonicalName "legalholdapproved1"; usf:conditionClausePosition 1; usf:conditionClausePredicate acpred:legalholdapproval; usf:conditionClauseOperator acop:present; usf:conditionClauseDigest "sha256:13cf3f37d2fa102be1224f742247e206650c9a4e79a1bdf97fa90c197d60b1a0".
+acc:tenantandenvironmentbound2 a usf:AuthorisationConditionClause; usf:canonicalName "tenantandenvironmentbound2"; usf:conditionClausePosition 2; usf:conditionClausePredicate acpred:environmentbinding; usf:conditionClauseOperator acop:present; usf:conditionClauseDigest "sha256:4d76ff925d1183d45f0e30a62b210fc3c9b34db535978f34a360e913e1e8b722".
+
+acp:tenantmember a usf:AuthorisationConditionProfile; usf:canonicalName "tenantmember"; usf:conditionProfileClause acc:tenantmember1; usf:conditionProfileComposition accomp:all; usf:conditionProfileSatisfiable true; usf:conditionProfileDigest "sha256:39b239a371497f6f4c927401261e2beba3b566a287d5d5181cfc27f324f03a18"; usf:conditionProfileSatisfiabilityProofDigest "sha256:5bb5ebb3ed5491975464bc7b37d9ff95b6cca486a8d139e5297ed1065549841c".
+acp:tenantadmin a usf:AuthorisationConditionProfile; usf:canonicalName "tenantadmin"; usf:conditionProfileClause acc:tenantadmin1; usf:conditionProfileComposition accomp:all; usf:conditionProfileSatisfiable true; usf:conditionProfileDigest "sha256:7968483b849cba47462213e4fabb4b86528ec10ab7980395bb1da0171f51171d"; usf:conditionProfileSatisfiabilityProofDigest "sha256:f9b8100cc70b8e77ce3fb300874cfa20ddafaa39e1a63703db9c960d4fd70f14".
+acp:resourceowner a usf:AuthorisationConditionProfile; usf:canonicalName "resourceowner"; usf:conditionProfileClause acc:resourceowner1; usf:conditionProfileComposition accomp:all; usf:conditionProfileSatisfiable true; usf:conditionProfileDigest "sha256:50f4d75fa30194ae98fd1b3edaffe8c3a32e2d743fff9cefd4f08e5acd5150de"; usf:conditionProfileSatisfiabilityProofDigest "sha256:a9deba7be635f903b8881fee26f4ad473dfe101ed698f0464a64b8add9bb4d3d".
+acp:serviceidentity a usf:AuthorisationConditionProfile; usf:canonicalName "serviceidentity"; usf:conditionProfileClause acc:serviceidentity1; usf:conditionProfileComposition accomp:all; usf:conditionProfileSatisfiable true; usf:conditionProfileDigest "sha256:0c0ace4e53540ed5f6e161e4bf69dcbb60b281d22ef6049fef55f1621a03dae1"; usf:conditionProfileSatisfiabilityProofDigest "sha256:21f3395b461a6fdc8adb352a18186585b2ec590b452468ea715c1cce87bc7374".
+acp:strongauthentication a usf:AuthorisationConditionProfile; usf:canonicalName "strongauthentication"; usf:conditionProfileClause acc:strongauthentication1; usf:conditionProfileComposition accomp:all; usf:conditionProfileSatisfiable true; usf:conditionProfileDigest "sha256:8d0a766c4b2826a797d654b83b95159d8bd5e96dda021b0b9acd265c7cbdf19b"; usf:conditionProfileSatisfiabilityProofDigest "sha256:646382f4b60bfeb5f3a697e7693aa1af08c565b33db4913800803fcf75cde02c".
+acp:productionoperator a usf:AuthorisationConditionProfile; usf:canonicalName "productionoperator"; usf:conditionProfileClause acc:productionoperator1, acc:productionoperator2; usf:conditionProfileComposition accomp:all; usf:conditionProfileSatisfiable true; usf:conditionProfileDigest "sha256:4a9016ffa6c1cc7d9f77d1fc2e3ca9b139ca651c385a9c18f252c9e17bde8bb8"; usf:conditionProfileSatisfiabilityProofDigest "sha256:230ccaf215dcd5a1849331ecccbccbe46e3c7beacd760ee85c2c42c4beeb4f35".
+acp:coordinatoronly a usf:AuthorisationConditionProfile; usf:canonicalName "coordinatoronly"; usf:conditionProfileClause acc:coordinatoronly1; usf:conditionProfileComposition accomp:all; usf:conditionProfileSatisfiable true; usf:conditionProfileDigest "sha256:bcad32884323e2b48231308b0adcd207415d6ab8e2775daf4acfd06a1899356b"; usf:conditionProfileSatisfiabilityProofDigest "sha256:0d6b3018dbb8b407ea3cf2a1f569a58e39384565e0d549ba0ec47593e6ee85e5".
+acp:boundeddelegation a usf:AuthorisationConditionProfile; usf:canonicalName "boundeddelegation"; usf:conditionProfileClause acc:boundeddelegation1; usf:conditionProfileComposition accomp:all; usf:conditionProfileSatisfiable true; usf:conditionProfileDigest "sha256:d9896dc9405c577c3fa562ec7d3e4841f23d73f47272d52d9505616037227142"; usf:conditionProfileSatisfiabilityProofDigest "sha256:7328a170d70ec286eb85a1852abeb36d8433bd92a0dad9dc2ef84048377afdcf".
+acp:breakglass a usf:AuthorisationConditionProfile; usf:canonicalName "breakglass"; usf:conditionProfileClause acc:breakglass1, acc:breakglass2; usf:conditionProfileComposition accomp:all; usf:conditionProfileSatisfiable true; usf:conditionProfileDigest "sha256:07603effd1ed0a4968ec3a26ff51788cee581847e43c547f4690b03ffc9d5d85"; usf:conditionProfileSatisfiabilityProofDigest "sha256:b7ad0939d223de29fcb8995e28c6ac0720f425c3558f02a4828d837ac21bc68a".
+acp:legalholdapproved a usf:AuthorisationConditionProfile; usf:canonicalName "legalholdapproved"; usf:conditionProfileClause acc:legalholdapproved1; usf:conditionProfileComposition accomp:all; usf:conditionProfileSatisfiable true; usf:conditionProfileDigest "sha256:7eac69a681af0ecee0abc0ff1c80a331c42f96b713d7c6f5363047a4e19f6862"; usf:conditionProfileSatisfiabilityProofDigest "sha256:2e015b920e0c9e35f04a34c5a8af6c65a0af689af425c93054486a68939d9a7a".
+acp:tenantandenvironmentbound a usf:AuthorisationConditionProfile; usf:canonicalName "tenantandenvironmentbound"; usf:conditionProfileClause acc:tenantmember1, acc:tenantandenvironmentbound2; usf:conditionProfileComposition accomp:all; usf:conditionProfileSatisfiable true; usf:conditionProfileDigest "sha256:7e6b3c1b2658e9a71ba651089a146e433b7ffe0fc4e6f920ab1bad6f459e6ad7"; usf:conditionProfileSatisfiabilityProofDigest "sha256:267cc20ab8b73114b49eeef8d0e42d6699ee3ccee5be05a9fd3dc7427d45ad79".
+
+ars:reachable a usf:ActionReachabilityState; usf:canonicalName "reachable"; usf:definition "An exact unconditional authority path reaches the action.".
+ars:conditionallyreachable a usf:ActionReachabilityState; usf:canonicalName "conditionallyreachable"; usf:definition "The action is reachable only while its finite condition profile is satisfied.".
+ars:delegatedonly a usf:ActionReachabilityState; usf:canonicalName "delegatedonly"; usf:definition "Only an explicit bounded delegation reaches the action.".
+ars:serviceidentityonly a usf:ActionReachabilityState; usf:canonicalName "serviceidentityonly"; usf:definition "Only a declared service identity reaches the action.".
+ars:breakglassonly a usf:ActionReachabilityState; usf:canonicalName "breakglassonly"; usf:definition "Only the controlled break-glass path reaches the action.".
+ars:forbidden a usf:ActionReachabilityState; usf:canonicalName "forbidden"; usf:definition "Current authority explicitly forbids every path to the action.".
+ars:notapplicable a usf:ActionReachabilityState; usf:canonicalName "notapplicable"; usf:definition "The action is semantically inapplicable to the role and capability under an explicit proof.".
+ars:unresolved a usf:ActionReachabilityState; usf:canonicalName "unresolved"; usf:definition "Current authority does not yet warrant a positive, negative or inapplicable reachability result.".
+
+ftc:tenantowned a usf:FieldTenancyClassification; usf:canonicalName "tenantowned"; usf:definition "The field value is owned within one tenant boundary.".
+ftc:platformowned a usf:FieldTenancyClassification; usf:canonicalName "platformowned"; usf:definition "The field value is owned by the platform control boundary.".
+ftc:sharedreference a usf:FieldTenancyClassification; usf:canonicalName "sharedreference"; usf:definition "The field is a controlled shared reference and carries no tenant-owned payload.".
+fm:immutable a usf:FieldMutability; usf:canonicalName "immutable"; usf:definition "The field is immutable after creation.".
+fm:mutable a usf:FieldMutability; usf:canonicalName "mutable"; usf:definition "The field may change through explicitly authorised operations.".
+fm:appendonly a usf:FieldMutability; usf:canonicalName "appendonly"; usf:definition "The field may only be appended under the owning transaction semantics.".
+
+stk:fixedinstant a usf:ScheduleTriggerKind; usf:canonicalName "fixedinstant"; usf:definition "One scheduled execution at an explicit instant.".
+stk:recurringcalendar a usf:ScheduleTriggerKind; usf:canonicalName "recurringcalendar"; usf:definition "Recurring scheduled execution selected by a finite calendar expression.".
+stk:recurringinterval a usf:ScheduleTriggerKind; usf:canonicalName "recurringinterval"; usf:definition "Recurring scheduled execution selected by a bounded interval.".
+stk:conditionaldueinstant a usf:ScheduleTriggerKind; usf:canonicalName "conditionaldueinstant"; usf:definition "A workflow request is immediately executable unless it carries an explicit due instant, in which case durable scheduled execution is required.".
+
+pc:public a usf:PrivacyClassification; usf:canonicalName "public"; usf:definition "Information intentionally exposed to unauthenticated or public recipients.".
+pc:internal a usf:PrivacyClassification; usf:canonicalName "internal"; usf:definition "Information limited to authenticated foundation participants.".
+pc:confidential a usf:PrivacyClassification; usf:canonicalName "confidential"; usf:definition "Information requiring explicit permission and bounded disclosure.".
+pc:secret a usf:PrivacyClassification; usf:canonicalName "secret"; usf:definition "Secret material that must never be returned through ordinary read, list, search or export surfaces.".
+pc:personal a usf:PrivacyClassification; usf:canonicalName "personal"; usf:definition "Personal information identifying or describing an individual.".
+pc:sensitivepersonal a usf:PrivacyClassification; usf:canonicalName "sensitivepersonal"; usf:definition "Sensitive personal information requiring stronger access, audit and retention controls.".
+pc:authenticationsecret a usf:PrivacyClassification; usf:canonicalName "authenticationsecret"; usf:definition "Credential or authentication secret material.".
+pc:financial a usf:PrivacyClassification; usf:canonicalName "financial"; usf:definition "Financial or payment-related information.".
+pc:audit a usf:PrivacyClassification; usf:canonicalName "audit"; usf:definition "Audit evidence whose integrity and bounded access must be preserved.".
+
+tcct:issuer a usf:TokenClaimConstraintTemplate; usf:canonicalName "issuer"; usf:claimConstraintTemplateKind "issuer"; usf:claimConstraintTemplateDigest "sha256:f00a6cbb90d813fbdf4aa6a08f8d398b64ad16a40d9bc1bc7cb9ef4ea38a5947".
+tcct:audience a usf:TokenClaimConstraintTemplate; usf:canonicalName "audience"; usf:claimConstraintTemplateKind "audience"; usf:claimConstraintTemplateDigest "sha256:c6e1acfbdcf08955dfd63a88a4700e19092b400db9921ffe3307478437d30588".
+tcct:subject a usf:TokenClaimConstraintTemplate; usf:canonicalName "subject"; usf:claimConstraintTemplateKind "subject"; usf:claimConstraintTemplateDigest "sha256:1dfdd7b94c321517b57663fcc3180eaeeb8732bb3e98bf600f5b8c8c5077c04b".
+tcct:actor a usf:TokenClaimConstraintTemplate; usf:canonicalName "actor"; usf:claimConstraintTemplateKind "actor"; usf:claimConstraintTemplateDigest "sha256:4bb9c9ea3ad9bc296896446844749c9ba311edd367135689981bd7d6efed1ee9".
+tcct:principalkind a usf:TokenClaimConstraintTemplate; usf:canonicalName "principalkind"; usf:claimConstraintTemplateKind "principalkind"; usf:claimConstraintTemplateDigest "sha256:bdca3e669a791f57304fc9b2944abccaba8048ae4fbf56772b72e96d4e0b0841".
+tcct:role a usf:TokenClaimConstraintTemplate; usf:canonicalName "role"; usf:claimConstraintTemplateKind "role"; usf:claimConstraintTemplateDigest "sha256:a677ee3065e4eb5f1741a9ee2aebe3eb81cf0d78807eb2374dba5da6dcc69eed".
+tcct:tenant a usf:TokenClaimConstraintTemplate; usf:canonicalName "tenant"; usf:claimConstraintTemplateKind "tenant"; usf:claimConstraintTemplateDigest "sha256:73cd87eb6851386dce3debad3a121214a1324c764fb782e7291705651465e5e0".
+tcct:organisation a usf:TokenClaimConstraintTemplate; usf:canonicalName "organisation"; usf:claimConstraintTemplateKind "organisation"; usf:claimConstraintTemplateDigest "sha256:5a8c265033288e731915f989c2e224155a74f6b55007f58d2c66fbadc96e9b51".
+tcct:environment a usf:TokenClaimConstraintTemplate; usf:canonicalName "environment"; usf:claimConstraintTemplateKind "environment"; usf:claimConstraintTemplateDigest "sha256:ef55129cddc2c25753e95ab51118c7ee5bb1ebcbfe1693eaa86f8934748b4c4e".
+tcct:capability a usf:TokenClaimConstraintTemplate; usf:canonicalName "capability"; usf:claimConstraintTemplateKind "capability"; usf:claimConstraintTemplateDigest "sha256:05bb4135e7fdd53b59fd17fa3d6e587ca17b96365321f96a565373631290478b".
+tcct:resourceclass a usf:TokenClaimConstraintTemplate; usf:canonicalName "resourceclass"; usf:claimConstraintTemplateKind "resourceclass"; usf:claimConstraintTemplateDigest "sha256:efcb5bfbb14490457e6389424810dca1d4a825f2c183557532b56734e27adb31".
+tcct:action a usf:TokenClaimConstraintTemplate; usf:canonicalName "action"; usf:claimConstraintTemplateKind "action"; usf:claimConstraintTemplateDigest "sha256:0cd86179b7d46928af38646d6773eeef25a9bf196c531e58920fd1199f01a4da".
+tcct:selector a usf:TokenClaimConstraintTemplate; usf:canonicalName "selector"; usf:claimConstraintTemplateKind "selector"; usf:claimConstraintTemplateDigest "sha256:411e4d43cccef7c50bffe9871fab578bf24c9ac25dae48c9bb32a00d7c0a0a1b".
+tcct:transport a usf:TokenClaimConstraintTemplate; usf:canonicalName "transport"; usf:claimConstraintTemplateKind "transport"; usf:claimConstraintTemplateDigest "sha256:0774b0c78ae2f20e4c130b204aaa4ec021cc808f53bed7d9de1da1223f35b09f".
+tcct:lifecycle a usf:TokenClaimConstraintTemplate; usf:canonicalName "lifecycle"; usf:claimConstraintTemplateKind "lifecycle"; usf:claimConstraintTemplateDigest "sha256:1414909870fda9f86bb3ea46505fcc12df2b3d5fad0930316fa64914ca78f120".
+tcct:conditionprofile a usf:TokenClaimConstraintTemplate; usf:canonicalName "conditionprofile"; usf:claimConstraintTemplateKind "conditionprofile"; usf:claimConstraintTemplateDigest "sha256:0f06c1f213baddee0ced0665eb3cf7990d49ae55ed5c920a5888e4ee07bc2a8e".
+tcct:delegationchain a usf:TokenClaimConstraintTemplate; usf:canonicalName "delegationchain"; usf:claimConstraintTemplateKind "delegationchain"; usf:claimConstraintTemplateDigest "sha256:4fb31cb8d2f1c54b7c3e2c02566218607538795e316ae970007e2aad426cba51".
+tcct:authenticationstrength a usf:TokenClaimConstraintTemplate; usf:canonicalName "authenticationstrength"; usf:claimConstraintTemplateKind "authenticationstrength"; usf:claimConstraintTemplateDigest "sha256:5df4dfed9eeabab423f7db17874fa9dd525fe991476e9d2732073b2d3901908c".
+tcct:issuedat a usf:TokenClaimConstraintTemplate; usf:canonicalName "issuedat"; usf:claimConstraintTemplateKind "issuedat"; usf:claimConstraintTemplateDigest "sha256:7f22421a6da7d80695c9448e9d8c01ba5d2a2921b118304aca6a9a081a79da70".
+tcct:notbefore a usf:TokenClaimConstraintTemplate; usf:canonicalName "notbefore"; usf:claimConstraintTemplateKind "notbefore"; usf:claimConstraintTemplateDigest "sha256:42d18d2ecfe056d7f3793ec008d743c9a8864dc6acf8573abee57e75ffedf07d".
+tcct:expiry a usf:TokenClaimConstraintTemplate; usf:canonicalName "expiry"; usf:claimConstraintTemplateKind "expiry"; usf:claimConstraintTemplateDigest "sha256:1ca5e5b93dccb29e4a6850df854afdc91c08436efaa498b8bd34a2b7bed953e3".
+tcct:tokenidentifier a usf:TokenClaimConstraintTemplate; usf:canonicalName "tokenidentifier"; usf:claimConstraintTemplateKind "tokenidentifier"; usf:claimConstraintTemplateDigest "sha256:793cc8589363463949bdb77bd52cd6bcc4f6b09e214485ac8d31ba98fd5be856".
+tcct:proofofpossession a usf:TokenClaimConstraintTemplate; usf:canonicalName "proofofpossession"; usf:claimConstraintTemplateKind "proofofpossession"; usf:claimConstraintTemplateDigest "sha256:373c940353da6fd3153e367475b5eae811a963ef9bec36d0568fb3f32ce05f59".
+tcct:revocation a usf:TokenClaimConstraintTemplate; usf:canonicalName "revocation"; usf:claimConstraintTemplateKind "revocation"; usf:claimConstraintTemplateDigest "sha256:d561ba1672a423c84b782f02b2a79284cbb1d75c50df44ac63bac31c19cb7366".
+tcct:breakglassreason a usf:TokenClaimConstraintTemplate; usf:canonicalName "breakglassreason"; usf:claimConstraintTemplateKind "breakglassreason"; usf:claimConstraintTemplateDigest "sha256:6c52ebebb9ab6c21c6c829d2716e558a066345afd15825b1aa52f0ae35524082".
+
+tpt:accesstoken a usf:TokenProfileTemplate; usf:canonicalName "accesstoken"; usf:tokenProfileTemplateKind "accesstoken"; usf:tokenProfileTemplateClaimConstraint tcct:issuer, tcct:audience, tcct:subject, tcct:expiry; usf:tokenProfileTemplateNonTokenMode false; usf:tokenProfileTemplateDigest "sha256:fd8d2c8a0c58a55803caa3adf520625472badd14b26288f5022b7dc406afe4c9".
+tpt:servicetoken a usf:TokenProfileTemplate; usf:canonicalName "servicetoken"; usf:tokenProfileTemplateKind "servicetoken"; usf:tokenProfileTemplateClaimConstraint tcct:issuer, tcct:audience, tcct:principalkind, tcct:capability, tcct:expiry; usf:tokenProfileTemplateNonTokenMode false; usf:tokenProfileTemplateDigest "sha256:0185d6f7b8b909f660d183f43b191788a203cf6bf25d0d11725fcd7a40511c65".
+tpt:delegatedtoken a usf:TokenProfileTemplate; usf:canonicalName "delegatedtoken"; usf:tokenProfileTemplateKind "delegatedtoken"; usf:tokenProfileTemplateClaimConstraint tcct:issuer, tcct:audience, tcct:actor, tcct:delegationchain, tcct:expiry; usf:tokenProfileTemplateNonTokenMode false; usf:tokenProfileTemplateDigest "sha256:e24e07d9a80814497b94648c8b9863c871a281fe45421f5794597d11b3c6067c".
+tpt:shortlivedoperatortoken a usf:TokenProfileTemplate; usf:canonicalName "shortlivedoperatortoken"; usf:tokenProfileTemplateKind "shortlivedoperatortoken"; usf:tokenProfileTemplateClaimConstraint tcct:issuer, tcct:audience, tcct:role, tcct:environment, tcct:expiry; usf:tokenProfileTemplateNonTokenMode false; usf:tokenProfileTemplateDigest "sha256:6aaba0802e857a6952845abbff68fb1c0c53b6b09c22441da8945e854f583e03".
+tpt:breakglasstoken a usf:TokenProfileTemplate; usf:canonicalName "breakglasstoken"; usf:tokenProfileTemplateKind "breakglasstoken"; usf:tokenProfileTemplateClaimConstraint tcct:issuer, tcct:audience, tcct:breakglassreason, tcct:expiry; usf:tokenProfileTemplateNonTokenMode false; usf:tokenProfileTemplateDigest "sha256:9a1b21e88edafe6421ed6641da4f4390aef11d4850da5d0befe1c8d12dc2f0c2".
+tpt:nontokenexecutionmode a usf:TokenProfileTemplate; usf:canonicalName "nontokenexecutionmode"; usf:tokenProfileTemplateKind "nontokenexecutionmode"; usf:tokenProfileTemplateNonTokenMode true; usf:tokenProfileTemplateDigest "sha256:034228310489e62e8255aa9a2778f25eb37dc3e067c7771cb2ba2f1991b5fa62".
 }

@@ -42,6 +42,13 @@ const HERMETIC_MANIFEST_FIELDS = [
   'localShaclFocusNodeCount', 'localShaclFocusNodeDigest', 'localShaclFocusRootCount',
   'localShaclFocusRootDigest', 'localShaclHarnessSourceDigest',
   'localShaclLiveServiceConstraintSetDigest', 'localShaclLocallyEvaluatedConstraintCount',
+  'localShaclPlantedFixtureCatalogueDigest', 'localShaclPlantedFixtureCaseCount',
+  'localShaclPlantedFixtureEvidenceDigest', 'localShaclPlantedFixtureFixtureGraphDigest',
+  'localShaclPlantedFixtureFocusNodeSetDigest', 'localShaclPlantedFixtureMissingExpectedCount',
+  'localShaclPlantedFixtureMultipleCodeCount', 'localShaclPlantedFixtureNegativeControlCount',
+  'localShaclPlantedFixturePositiveControlCount', 'localShaclPlantedFixtureReasonCodeSetDigest',
+  'localShaclPlantedFixtureResultDigest', 'localShaclPlantedFixtureUnexpectedCodeCount',
+  'localShaclPlantedFixtureUnrecognisedResultCount',
   'localShaclPrefixInjectionAlgorithmDigest', 'localShaclPythonDependencyByteSetDigest',
   'localShaclRegisteredConstraintCount', 'localShaclRegisteredConstraintSetDigest',
   'localShaclShapeSourceSetDigest',
@@ -441,6 +448,9 @@ function validateEvidenceManifest(manifest) {
       'localShaclExpectedShapeSourceSetDigest',
       'localShaclFocusNodeDigest', 'localShaclFocusRootDigest', 'localShaclHarnessSourceDigest',
       'localShaclLiveServiceConstraintSetDigest',
+      'localShaclPlantedFixtureCatalogueDigest', 'localShaclPlantedFixtureEvidenceDigest',
+      'localShaclPlantedFixtureFixtureGraphDigest', 'localShaclPlantedFixtureFocusNodeSetDigest',
+      'localShaclPlantedFixtureReasonCodeSetDigest', 'localShaclPlantedFixtureResultDigest',
       'localShaclPrefixInjectionAlgorithmDigest', 'localShaclPythonDependencyByteSetDigest',
       'localShaclRegisteredConstraintSetDigest', 'localShaclServiceClassificationAlgorithmDigest',
       'localShaclShapeSourceSetDigest',
@@ -467,7 +477,14 @@ function validateEvidenceManifest(manifest) {
         || manifest.snapshotPolicy !== 'EPHEMERAL_DELETE_AFTER_EXECUTION'
         || manifest.invocationMode !== 'NODE_TEST_PROGRAMMATIC_EXACT_FILES'
         || manifest.isolationMode !== 'none'
-        || manifest.networkIsolation !== 'LINUX_NETWORK_NAMESPACE') {
+        || manifest.networkIsolation !== 'LINUX_NETWORK_NAMESPACE'
+        || manifest.localShaclPlantedFixtureCaseCount !== 12
+        || manifest.localShaclPlantedFixturePositiveControlCount !== 4
+        || manifest.localShaclPlantedFixtureNegativeControlCount !== 8
+        || manifest.localShaclPlantedFixtureMissingExpectedCount !== 0
+        || manifest.localShaclPlantedFixtureUnexpectedCodeCount !== 0
+        || manifest.localShaclPlantedFixtureMultipleCodeCount !== 0
+        || manifest.localShaclPlantedFixtureUnrecognisedResultCount !== 0) {
       throw new Error('hermetic evidence manifest test execution bindings are inconsistent');
     }
     if (!Array.isArray(manifest.stagedFileDigests) || manifest.stagedFileDigests.length !== manifest.snapshotFileCount
@@ -622,6 +639,104 @@ function validateCompositeScopes(manifests) {
   return true;
 }
 
+function validatePlantedFixtureEvidence(evidence) {
+  const expectedCodes = [
+    'PERMUTATION_FAMILY_SIGNATURE_COMPONENT_MISMATCH',
+    'PERMUTATION_FAMILY_SIGNATURE_SUBJECT_ABSENT',
+    'PERMUTATION_REVIEW_TERM_ALGORITHM_ABSENT',
+    'PERMUTATION_REVIEW_TERM_SET_MISMATCH',
+    'UNIVERSAL_CANDIDATE_AUTHORISATION_PROHIBITED',
+    'UNIVERSAL_CANDIDATE_SUBJECT_ABSENT',
+    'UNIVERSAL_CANDIDATE_WARRANTED_WITH_GAPS',
+    'UNIVERSAL_REVIEW_TERM_ABSENT',
+  ];
+  const fields = [
+    'caseCount', 'catalogue', 'catalogueDigest', 'contractConforms', 'evidenceDigest',
+    'fixtureGraphDigest', 'fixtureIsolation', 'fixtureTripleCount', 'focusNodeSetDigest',
+    'missingExpectedCount', 'multipleCodeCount', 'negativeControlCount', 'positiveControlCount',
+    'rawValidationConforms', 'reasonCodeSet', 'reasonCodeSetDigest', 'resultDigest',
+    'resultRecords', 'schemaVersion', 'unexpectedCodeCount', 'unrecognisedResultCount',
+    'validationScope',
+  ];
+  if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)
+      || canonicalJson(Object.keys(evidence).sort()) !== canonicalJson(fields)
+      || evidence.schemaVersion !== 1
+      || evidence.validationScope !== 'PLANTED_PERMUTATION_REVIEW_FIXTURES'
+      || evidence.fixtureIsolation !== 'IN_MEMORY_UNPUBLISHED_CANDIDATE'
+      || evidence.caseCount !== 12
+      || evidence.positiveControlCount !== 4
+      || evidence.negativeControlCount !== 8
+      || !Array.isArray(evidence.catalogue)
+      || !Array.isArray(evidence.resultRecords)
+      || !Array.isArray(evidence.reasonCodeSet)
+      || evidence.catalogue.length !== evidence.caseCount
+      || evidence.resultRecords.length !== evidence.caseCount
+      || canonicalJson(evidence.reasonCodeSet) !== canonicalJson(expectedCodes)
+      || evidence.catalogueDigest !== sha256(canonicalJson(evidence.catalogue))
+      || evidence.resultDigest !== sha256(canonicalJson(evidence.resultRecords))
+      || evidence.reasonCodeSetDigest !== sha256(canonicalJson(evidence.reasonCodeSet))
+      || !SHA256.test(evidence.fixtureGraphDigest || '')
+      || !SHA256.test(evidence.focusNodeSetDigest || '')
+      || !Number.isInteger(evidence.fixtureTripleCount) || evidence.fixtureTripleCount < 1
+      || evidence.rawValidationConforms !== false
+      || evidence.missingExpectedCount !== 0
+      || evidence.unexpectedCodeCount !== 0
+      || evidence.multipleCodeCount !== 0
+      || evidence.unrecognisedResultCount !== 0
+      || evidence.contractConforms !== true) {
+    throw new Error('local SHACL planted-fixture evidence does not close exact reason-code precedence');
+  }
+  const { evidenceDigest, ...core } = evidence;
+  if (!SHA256.test(evidenceDigest || '') || evidenceDigest !== sha256(canonicalJson(core))) {
+    throw new Error('local SHACL planted-fixture evidence digest mismatch');
+  }
+  const catalogueById = new Map();
+  const focusNodes = [];
+  let positiveCount = 0;
+  let negativeCount = 0;
+  for (const record of evidence.catalogue) {
+    if (!record || typeof record !== 'object' || Array.isArray(record)
+        || canonicalJson(Object.keys(record).sort()) !== canonicalJson(['expectedReasonCodes', 'expectedResult', 'focusNode', 'id'])
+        || typeof record.id !== 'string' || record.id.length < 1
+        || typeof record.focusNode !== 'string' || !record.focusNode.startsWith('urn:usf:fixture:permutation-review:')
+        || !Array.isArray(record.expectedReasonCodes)
+        || !['ACCEPTED', 'REJECTED'].includes(record.expectedResult)
+        || (record.expectedResult === 'ACCEPTED' && record.expectedReasonCodes.length !== 0)
+        || (record.expectedResult === 'REJECTED' && record.expectedReasonCodes.length !== 1)
+        || record.expectedReasonCodes.some((code) => !expectedCodes.includes(code))
+        || catalogueById.has(record.id)) {
+      throw new Error('local SHACL planted-fixture catalogue is not exact');
+    }
+    catalogueById.set(record.id, record);
+    focusNodes.push(record.focusNode);
+    if (record.expectedResult === 'ACCEPTED') positiveCount += 1;
+    else negativeCount += 1;
+  }
+  if (new Set(focusNodes).size !== focusNodes.length
+      || evidence.focusNodeSetDigest !== sha256(canonicalJson([...focusNodes].sort()))
+      || positiveCount !== evidence.positiveControlCount
+      || negativeCount !== evidence.negativeControlCount) {
+    throw new Error('local SHACL planted-fixture inventory is not exact');
+  }
+  const resultIds = new Set();
+  for (const record of evidence.resultRecords) {
+    const expected = catalogueById.get(record?.id);
+    if (!expected || resultIds.has(record.id)
+        || canonicalJson(Object.keys(record).sort()) !== canonicalJson(['actualReasonCodes', 'actualResult', 'expectedReasonCodes', 'expectedResult', 'focusNode', 'id', 'resultCount'])
+        || record.focusNode !== expected.focusNode
+        || record.expectedResult !== expected.expectedResult
+        || canonicalJson(record.expectedReasonCodes) !== canonicalJson(expected.expectedReasonCodes)
+        || canonicalJson(record.actualReasonCodes) !== canonicalJson(expected.expectedReasonCodes)
+        || record.actualResult !== expected.expectedResult
+        || record.resultCount !== expected.expectedReasonCodes.length) {
+      throw new Error('local SHACL planted-fixture result does not match its exact expected branch');
+    }
+    resultIds.add(record.id);
+  }
+  if (resultIds.size !== catalogueById.size) throw new Error('local SHACL planted-fixture results are incomplete');
+  return evidence;
+}
+
 function validateLocalShaclEvidence(result) {
   if (result?.deterministicRegenerationCount !== 2
       || !SHA256.test(result?.deterministicOutputDigest || '')
@@ -648,12 +763,13 @@ function validateLocalShaclEvidence(result) {
     'harnessSourceDigest', 'liveServiceConstraintSetDigest', 'originalQuerySetDigest',
     'prefixContextSetDigest', 'prefixInjectionAlgorithmDigest', 'pythonDependencyByteSetDigest',
     'pythonExecutableDigest', 'registeredConstraintSetDigest', 'representativeEquivalenceDigest',
-    'semanticManifestDigest', 'serviceClassificationAlgorithmDigest', 'serviceClassifierSelfTestDigest',
+    'plantedFixtureEvidenceDigest', 'semanticManifestDigest', 'serviceClassificationAlgorithmDigest', 'serviceClassifierSelfTestDigest',
     'shapeSourceSetDigest', 'transformedQuerySetDigest', 'validationPhaseResultDigest',
   ];
   for (const field of digestFields) if (!SHA256.test(evidence?.[field] || '')) throw new Error(`local SHACL evidence requires ${field}`);
   const { evidenceDigest, ...core } = evidence;
   if (evidenceDigest !== sha256(canonicalJson(core))) throw new Error('local SHACL evidence digest does not match its canonical claims');
+  const plantedFixtureEvidence = validatePlantedFixtureEvidence(evidence.plantedFixtureEvidence);
   if (evidence.evidenceScope !== HERMETIC_SCOPE
       || evidence.validationScope !== 'LOCAL_PYSHACL_COMPATIBLE_AFFECTED_CLOSURE'
       || evidence.localCompatibleConforms !== true
@@ -685,6 +801,7 @@ function validateLocalShaclEvidence(result) {
       || evidence.serviceClassifierSelfTestCount !== 7
       || !Array.isArray(evidence.serviceClassifierSelfTests)
       || evidence.serviceClassifierSelfTests.some(({ expectedLiveDependent, actualLiveDependent }) => expectedLiveDependent !== actualLiveDependent)
+      || evidence.plantedFixtureEvidenceDigest !== plantedFixtureEvidence.evidenceDigest
       || evidence.pyshaclVersion !== '0.40.0'
       || evidence.rdflibVersion !== '7.6.0'
       || evidence.pyyamlVersion !== '6.0.3') {
@@ -923,6 +1040,19 @@ export async function evaluateCompilerSemanticEnforcement({
     localShaclHarnessSourceDigest: localShacl.harnessSourceDigest,
     localShaclLiveServiceConstraintSetDigest: localShacl.liveServiceConstraintSetDigest,
     localShaclLocallyEvaluatedConstraintCount: localShacl.locallyEvaluatedConstraintCount,
+    localShaclPlantedFixtureCatalogueDigest: localShacl.plantedFixtureEvidence.catalogueDigest,
+    localShaclPlantedFixtureCaseCount: localShacl.plantedFixtureEvidence.caseCount,
+    localShaclPlantedFixtureEvidenceDigest: localShacl.plantedFixtureEvidence.evidenceDigest,
+    localShaclPlantedFixtureFixtureGraphDigest: localShacl.plantedFixtureEvidence.fixtureGraphDigest,
+    localShaclPlantedFixtureFocusNodeSetDigest: localShacl.plantedFixtureEvidence.focusNodeSetDigest,
+    localShaclPlantedFixtureMissingExpectedCount: localShacl.plantedFixtureEvidence.missingExpectedCount,
+    localShaclPlantedFixtureMultipleCodeCount: localShacl.plantedFixtureEvidence.multipleCodeCount,
+    localShaclPlantedFixtureNegativeControlCount: localShacl.plantedFixtureEvidence.negativeControlCount,
+    localShaclPlantedFixturePositiveControlCount: localShacl.plantedFixtureEvidence.positiveControlCount,
+    localShaclPlantedFixtureReasonCodeSetDigest: localShacl.plantedFixtureEvidence.reasonCodeSetDigest,
+    localShaclPlantedFixtureResultDigest: localShacl.plantedFixtureEvidence.resultDigest,
+    localShaclPlantedFixtureUnexpectedCodeCount: localShacl.plantedFixtureEvidence.unexpectedCodeCount,
+    localShaclPlantedFixtureUnrecognisedResultCount: localShacl.plantedFixtureEvidence.unrecognisedResultCount,
     localShaclPrefixInjectionAlgorithmDigest: localShacl.prefixInjectionAlgorithmDigest,
     localShaclPythonDependencyByteSetDigest: localShacl.pythonDependencyByteSetDigest,
     localShaclRegisteredConstraintSetDigest: localShacl.registeredConstraintSetDigest,

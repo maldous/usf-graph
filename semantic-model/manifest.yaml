@@ -1,6 +1,11 @@
 version: 1
 database: USF
 baseIri: "urn:usf:"
+authorityPublicationBudget:
+  provider: stardogcloudfree
+  policyIri: "urn:usf:permutationpublicationbudget:stardogcloudfreeauthoritycapacity"
+  hardStatementLimit: 1000000
+  reserveStatementCount: 200000
 definitionGraphs:
   - file: ontology.ttl
     graph: "urn:usf:graph:ontology"
@@ -251,6 +256,11 @@ retiredGraphs:
     supersededBy: "urn:usf:semanticcorrectiondecision:importedauthoritycounterfactual"
   - graph: "urn:usf:graph:derived:repositorystructure"
     supersededBy: "urn:usf:semanticcorrectiondecision:importedauthoritycounterfactual"
+inactiveSources:
+  - file: permutation/permission-atoms.trig
+    contentDigest: "sha256:a2468945fb77483d26d8ce985a290a2d45d6c03805a777b78160488390b98dd4"
+    disposition: CANDIDATE_MIGRATION_MATERIAL
+    authorityEligible: false
 fixtures:
   conforming: fixtures/conforming
   defects: fixtures/defects

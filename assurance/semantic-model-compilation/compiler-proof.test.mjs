@@ -183,12 +183,71 @@ function rebindOptionClosure(overrides = {}, omitted = []) {
   return candidate;
 }
 
+function plantedFixtureEvidence(overrides = {}) {
+  const cases = [
+    ['candidate-authorisation-prohibited', 'UNIVERSAL_CANDIDATE_AUTHORISATION_PROHIBITED'],
+    ['candidate-missing-subject', 'UNIVERSAL_CANDIDATE_SUBJECT_ABSENT'],
+    ['candidate-warranted-with-gaps', 'UNIVERSAL_CANDIDATE_WARRANTED_WITH_GAPS'],
+    ['mismatched-family-components', 'PERMUTATION_FAMILY_SIGNATURE_COMPONENT_MISMATCH'],
+    ['missing-family-subject', 'PERMUTATION_FAMILY_SIGNATURE_SUBJECT_ABSENT'],
+    ['missing-reviewed-term', 'UNIVERSAL_REVIEW_TERM_ABSENT'],
+    ['missing-term-algorithm', 'PERMUTATION_REVIEW_TERM_ALGORITHM_ABSENT'],
+    ['positive-family-candidate', null],
+    ['positive-family-review', null],
+    ['positive-review-coverage', null],
+    ['positive-term-review', null],
+    ['term-set-mismatch', 'PERMUTATION_REVIEW_TERM_SET_MISMATCH'],
+  ];
+  const catalogue = cases.map(([id, code]) => ({
+    id,
+    focusNode: `urn:usf:fixture:permutation-review:${id.replaceAll('-', '')}`,
+    expectedResult: code ? 'REJECTED' : 'ACCEPTED',
+    expectedReasonCodes: code ? [code] : [],
+  }));
+  const resultRecords = catalogue.map((record) => ({
+    id: record.id,
+    focusNode: record.focusNode,
+    expectedResult: record.expectedResult,
+    actualResult: record.expectedResult,
+    expectedReasonCodes: record.expectedReasonCodes,
+    actualReasonCodes: record.expectedReasonCodes,
+    resultCount: record.expectedReasonCodes.length,
+  }));
+  const reasonCodeSet = [...new Set(catalogue.flatMap(({ expectedReasonCodes }) => expectedReasonCodes))].sort();
+  const core = {
+    schemaVersion: 1,
+    validationScope: 'PLANTED_PERMUTATION_REVIEW_FIXTURES',
+    fixtureIsolation: 'IN_MEMORY_UNPUBLISHED_CANDIDATE',
+    caseCount: catalogue.length,
+    positiveControlCount: 4,
+    negativeControlCount: 8,
+    catalogue,
+    catalogueDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(catalogue)),
+    focusNodeSetDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(catalogue.map(({ focusNode }) => focusNode).sort())),
+    fixtureTripleCount: 96,
+    fixtureGraphDigest: compilerProofInternals.sha256('fixture-graph'),
+    rawValidationConforms: false,
+    resultRecords,
+    resultDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(resultRecords)),
+    reasonCodeSet,
+    reasonCodeSetDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(reasonCodeSet)),
+    missingExpectedCount: 0,
+    unexpectedCodeCount: 0,
+    multipleCodeCount: 0,
+    unrecognisedResultCount: 0,
+    contractConforms: true,
+    ...overrides,
+  };
+  return { ...core, evidenceDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(core)) };
+}
+
 function localShaclResult(overrides = {}) {
   const focusRootDigest = compilerProofInternals.sha256('focus-roots');
   const classifier = [
     'via-service-predicate', 'managed-service-token', 'service-string-literal', 'service-comment',
     'service-variable-name', 'service-iri', 'service-clause',
   ].map((id) => ({ id, expectedLiveDependent: id === 'service-clause', actualLiveDependent: id === 'service-clause' }));
+  const plantedFixtures = plantedFixtureEvidence();
   const evidence = {
     schemaVersion: 1,
     evidenceScope: 'HERMETIC_SUBSTITUTE',
@@ -214,6 +273,8 @@ function localShaclResult(overrides = {}) {
     focusNodeDigest: compilerProofInternals.sha256('focus-nodes'),
     serviceClassifierSelfTestCount: 7,
     serviceClassifierSelfTests: classifier,
+    plantedFixtureEvidence: plantedFixtures,
+    plantedFixtureEvidenceDigest: plantedFixtures.evidenceDigest,
     pyshaclVersion: '0.40.0',
     rdflibVersion: '7.6.0',
     pyyamlVersion: '6.0.3',
@@ -348,6 +409,10 @@ test('emits digest-bound evidence and a verified deterministic integrity envelop
   assert.equal(hermetic.localShaclRegisteredConstraintCount, 125);
   assert.equal(hermetic.localShaclActualServiceAlgebraNodeCount, 0);
   assert.equal(hermetic.localShaclValidationPhaseResultDigest, localShaclResult().evidence.validationPhaseResultDigest);
+  assert.equal(hermetic.localShaclPlantedFixtureCaseCount, 12);
+  assert.equal(hermetic.localShaclPlantedFixtureNegativeControlCount, 8);
+  assert.equal(hermetic.localShaclPlantedFixturePositiveControlCount, 4);
+  assert.equal(hermetic.localShaclPlantedFixtureEvidenceDigest, localShaclResult().evidence.plantedFixtureEvidence.evidenceDigest);
   assert.equal(authorityControl.liveServiceConstraintCount, 0);
   assert.equal(authorityControl.liveServiceConstraintSetDigest, hermetic.localShaclLiveServiceConstraintSetDigest);
   assert.equal(Object.hasOwn(authorityControl, 'snapshotManifestDigest'), false);
@@ -451,6 +516,42 @@ test('rejects incomplete or broadened local SHACL validation phases before live 
     realisationOptionClosure: optionClosureResult(),
   }), /does not close the exact compatible affected constraint scope/);
   assert.equal(liveClientCreated, false);
+});
+
+test('rejects malformed planted-fixture evidence with exact outer digest bindings', () => {
+  for (const mutation of [
+    { unexpectedCodeCount: 1, contractConforms: false },
+    { missingExpectedCount: 1, contractConforms: false },
+    { multipleCodeCount: 1, contractConforms: false },
+    { unrecognisedResultCount: 1, contractConforms: false },
+  ]) {
+    const planted = plantedFixtureEvidence(mutation);
+    const local = localShaclResult({
+      plantedFixtureEvidence: planted,
+      plantedFixtureEvidenceDigest: planted.evidenceDigest,
+    });
+    assert.throws(
+      () => compilerProofInternals.validateLocalShaclEvidence(local),
+      /planted-fixture evidence does not close exact reason-code precedence/,
+    );
+  }
+
+  const valid = plantedFixtureEvidence();
+  const alteredResults = valid.resultRecords.map((record, index) => index === 0
+    ? { ...record, actualReasonCodes: [], actualResult: 'ACCEPTED', resultCount: 0 }
+    : record);
+  const substituted = plantedFixtureEvidence({
+    resultRecords: alteredResults,
+    resultDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(alteredResults)),
+  });
+  const substitutedLocal = localShaclResult({
+    plantedFixtureEvidence: substituted,
+    plantedFixtureEvidenceDigest: substituted.evidenceDigest,
+  });
+  assert.throws(
+    () => compilerProofInternals.validateLocalShaclEvidence(substitutedLocal),
+    /result does not match its exact expected branch/,
+  );
 });
 
 test('rejects incomplete realisation-option closure before focused tests or live access', async () => {
@@ -669,6 +770,19 @@ test('rejects mixed, mislabeled, live-claiming and self-referential evidence', (
     localShaclHarnessSourceDigest: compilerProofInternals.sha256('harness'),
     localShaclLiveServiceConstraintSetDigest: compilerProofInternals.EMPTY_SET_DIGEST,
     localShaclLocallyEvaluatedConstraintCount: 125,
+    localShaclPlantedFixtureCatalogueDigest: compilerProofInternals.sha256('fixture-catalogue'),
+    localShaclPlantedFixtureCaseCount: 12,
+    localShaclPlantedFixtureEvidenceDigest: compilerProofInternals.sha256('fixture-evidence'),
+    localShaclPlantedFixtureFixtureGraphDigest: compilerProofInternals.sha256('fixture-graph'),
+    localShaclPlantedFixtureFocusNodeSetDigest: compilerProofInternals.sha256('fixture-focus'),
+    localShaclPlantedFixtureMissingExpectedCount: 0,
+    localShaclPlantedFixtureMultipleCodeCount: 0,
+    localShaclPlantedFixtureNegativeControlCount: 8,
+    localShaclPlantedFixturePositiveControlCount: 4,
+    localShaclPlantedFixtureReasonCodeSetDigest: compilerProofInternals.sha256('fixture-codes'),
+    localShaclPlantedFixtureResultDigest: compilerProofInternals.sha256('fixture-results'),
+    localShaclPlantedFixtureUnexpectedCodeCount: 0,
+    localShaclPlantedFixtureUnrecognisedResultCount: 0,
     localShaclPrefixInjectionAlgorithmDigest: compilerProofInternals.sha256('prefix-algorithm'),
     localShaclPythonDependencyByteSetDigest: compilerProofInternals.sha256('python-dependencies'),
     localShaclRegisteredConstraintSetDigest: compilerProofInternals.sha256('constraint-set'),

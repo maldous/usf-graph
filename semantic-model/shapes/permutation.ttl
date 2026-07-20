@@ -19,19 +19,211 @@ _:pf2 sh:path usf:familyOfUniverse;
     sh:message "permutationfamilyuniverse: family must belong to exactly one universe".
 shp:PermutationFamilyShape sh:property _:pf2.
 _:pf3 sh:path usf:hasFamilyDimensionBinding;
-    sh:minCount 2;
+    sh:minCount 1;
     sh:class usf:PermutationFamilyDimensionBinding;
-    sh:message "permutationfamilydimensions: family must bind at least two ordered dimensions".
+    sh:message "PERMUTATION_FAMILY_DIMENSION_SET_EMPTY: a family must bind at least one ordered semantic axis in addition to its registered subject identity".
 shp:PermutationFamilyShape sh:property _:pf3.
 _:pf4 sh:path usf:familyStableKeyAlgorithm;
     sh:minCount 1;
     sh:maxCount 1;
-    sh:message "permutationfamilystablekey: family must declare its stable-key algorithm".
+    sh:hasValue "family-subject-ordered-dimension-identity-v1";
+    sh:message "PERMUTATION_CELL_IDENTITY_ALGORITHM_MISMATCH: family must declare the canonical family-subject ordered-dimension algorithm".
 shp:PermutationFamilyShape sh:property _:pf4.
 _:pf5 sh:prefixes usf:prefixes;
-    sh:message "permutationfamilypositions: family dimension positions must be unique per family";
+    sh:message "PERMUTATION_FAMILY_DIMENSION_POSITION_DUPLICATE: family dimension positions must be unique per family";
     sh:select "SELECT $this WHERE {\n      $this usf:hasFamilyDimensionBinding ?left, ?right .\n      ?left usf:dimensionPosition ?position .\n      ?right usf:dimensionPosition ?position .\n      FILTER (?left != ?right)\n    }".
 shp:PermutationFamilyShape sh:sparql _:pf5.
+_:pf6 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_FAMILY_DIMENSION_POSITION_NOT_CONTIGUOUS: family dimension positions must be contiguous from one";
+    sh:select "SELECT $this WHERE { $this usf:hasFamilyDimensionBinding ?binding . ?binding usf:dimensionPosition ?position . FILTER (?position < 1 || (?position > 1 && NOT EXISTS { $this usf:hasFamilyDimensionBinding/usf:dimensionPosition ?previous . FILTER (?previous = ?position - 1) })) }".
+shp:PermutationFamilyShape sh:sparql _:pf6.
+_:pf_subject_registration sh:path usf:familySubjectRegistration;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:PermutationSubjectRegistration;
+    sh:message "FAMILY_SUBJECT_REGISTRATION_CARDINALITY: family must bind exactly one semantic subject registration".
+shp:PermutationFamilyShape sh:property _:pf_subject_registration.
+_:pf_applicability_rule sh:path usf:familyApplicabilityRule;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:PermutationApplicabilityRule;
+    sh:message "FAMILY_APPLICABILITY_RULE_CARDINALITY: family must bind exactly one structured applicability rule".
+shp:PermutationFamilyShape sh:property _:pf_applicability_rule.
+
+shp:PermutationSubjectRegistrationShape a sh:NodeShape;
+    usf:canonicalName "permutationsubjectregistrationshape";
+    sh:targetClass usf:PermutationSubjectRegistration.
+_:psr_class sh:path usf:registeredSubjectClass; sh:minCount 1; sh:maxCount 1; sh:class <http://www.w3.org/2002/07/owl#Class>;
+    sh:message "FAMILY_SUBJECT_CLASS_CARDINALITY: subject registration must name exactly one declared class".
+shp:PermutationSubjectRegistrationShape sh:property _:psr_class.
+_:psr_plane sh:path usf:registeredFamilyPlane; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationFamilyPlane;
+    sh:in (<urn:usf:permutationfamilyplane:runtimebehaviour> <urn:usf:permutationfamilyplane:assuranceobligation>);
+    sh:message "FAMILY_PLANE_CARDINALITY: subject registration must name exactly one controlled runtime or assurance plane".
+shp:PermutationSubjectRegistrationShape sh:property _:psr_plane.
+_:psr_class_closure sh:path usf:subjectClassClosure; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationClassClosure;
+    sh:message "CLASS_CLOSURE_POLICY_MISSING: subject registration requires one explicit class closure".
+shp:PermutationSubjectRegistrationShape sh:property _:psr_class_closure.
+_:psr_class_closure_root sh:prefixes usf:prefixes;
+    sh:message "REGISTERED_SUBJECT_CLASS_CLOSURE_MISMATCH: registration class and closure root must match";
+    sh:select "SELECT $this WHERE { $this usf:registeredSubjectClass ?class ; usf:subjectClassClosure ?closure . FILTER NOT EXISTS { ?closure usf:classClosureRootClass ?class } }".
+shp:PermutationSubjectRegistrationShape sh:sparql _:psr_class_closure_root.
+
+shp:PermutationClassClosureShape a sh:NodeShape;
+    usf:canonicalName "permutationclassclosureshape";
+    sh:targetClass usf:PermutationClassClosure.
+_:pcc_root sh:path usf:classClosureRootClass; sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "CLASS_CLOSURE_ROOT_CARDINALITY: class closure requires one named root class".
+shp:PermutationClassClosureShape sh:property _:pcc_root.
+_:pcc_policy sh:path usf:classClosurePolicy; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationClassClosurePolicy;
+    sh:in (<urn:usf:classclosurepolicy:exactdeclaredclass> <urn:usf:classclosurepolicy:declaredtransitivesubclass>);
+    sh:message "CLASS_CLOSURE_POLICY_UNCONTROLLED: class closure requires one controlled policy".
+shp:PermutationClassClosureShape sh:property _:pcc_policy.
+_:pcc_member sh:path usf:classClosureMemberClass; sh:minCount 1; sh:nodeKind sh:IRI;
+    sh:message "CLASS_CLOSURE_MEMBER_MISSING: class closure requires its exact finite member set".
+shp:PermutationClassClosureShape sh:property _:pcc_member.
+_:pcc_member_digest sh:path usf:classClosureMemberSetDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "CLASS_CLOSURE_MEMBER_SET_DIGEST_MISMATCH: member set requires one digest".
+shp:PermutationClassClosureShape sh:property _:pcc_member_digest.
+_:pcc_edge_digest sh:path usf:classClosureEdgeSetDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "CLASS_CLOSURE_EDGE_SET_DIGEST_MISMATCH: subclass edge set requires one digest".
+shp:PermutationClassClosureShape sh:property _:pcc_edge_digest.
+_:pcc_digest sh:path usf:classClosureDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "CLASS_CLOSURE_DIGEST_MISMATCH: closure requires one canonical digest".
+shp:PermutationClassClosureShape sh:property _:pcc_digest.
+_:pcc_missing_member sh:prefixes usf:prefixes;
+    sh:message "CLASS_CLOSURE_MEMBER_MISSING: closure omits a member required by its controlled policy";
+    sh:select "SELECT $this WHERE { $this usf:classClosureRootClass ?root ; usf:classClosurePolicy ?policy . { BIND(?root AS ?required) } UNION { FILTER(?policy = <urn:usf:classclosurepolicy:declaredtransitivesubclass>) ?required rdfs:subClassOf+ ?root . FILTER(isIRI(?required)) } FILTER NOT EXISTS { $this usf:classClosureMemberClass ?required } }".
+shp:PermutationClassClosureShape sh:sparql _:pcc_missing_member.
+_:pcc_unexpected_member sh:prefixes usf:prefixes;
+    sh:message "CLASS_CLOSURE_MEMBER_UNEXPECTED: closure contains a member not warranted by its controlled policy";
+    sh:select "SELECT $this WHERE { $this usf:classClosureRootClass ?root ; usf:classClosurePolicy ?policy ; usf:classClosureMemberClass ?member . FILTER((?policy = <urn:usf:classclosurepolicy:exactdeclaredclass> && ?member != ?root) || (?policy = <urn:usf:classclosurepolicy:declaredtransitivesubclass> && ?member != ?root && NOT EXISTS { ?member rdfs:subClassOf+ ?root })) }".
+shp:PermutationClassClosureShape sh:sparql _:pcc_unexpected_member.
+_:pcc_cycle sh:prefixes usf:prefixes;
+    sh:message "CLASS_CLOSURE_CYCLE: transitive class closure must be acyclic";
+    sh:select "SELECT $this WHERE { $this usf:classClosurePolicy <urn:usf:classclosurepolicy:declaredtransitivesubclass> ; usf:classClosureMemberClass ?member . ?member rdfs:subClassOf+ ?member }".
+shp:PermutationClassClosureShape sh:sparql _:pcc_cycle.
+_:pcc_duplicate_root sh:prefixes usf:prefixes;
+    sh:message "CLASS_CLOSURE_POLICY_MULTIPLE: one root class may have only one closure resource";
+    sh:select "SELECT $this WHERE { $this usf:classClosureRootClass ?root . ?other a usf:PermutationClassClosure ; usf:classClosureRootClass ?root . FILTER(?other != $this) }".
+shp:PermutationClassClosureShape sh:sparql _:pcc_duplicate_root.
+_:pcc_orphan sh:prefixes usf:prefixes;
+    sh:message "ORPHAN_CLASS_CLOSURE: every class closure requires an explicit semantic owner";
+    sh:select "SELECT $this WHERE { FILTER NOT EXISTS { ?owner ?predicate $this . FILTER(?predicate IN (usf:subjectClassClosure, usf:selectorSubjectClassClosure, usf:selectorTerminalClassClosure, usf:dimensionAxisClassClosure, usf:valueDerivationClassClosure)) } }".
+shp:PermutationClassClosureShape sh:sparql _:pcc_orphan.
+
+shp:PermutationApplicabilityRuleShape a sh:NodeShape;
+    usf:canonicalName "permutationapplicabilityruleshape";
+    sh:targetClass usf:PermutationApplicabilityRule.
+_:par_root sh:path usf:applicabilityRootClause; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationApplicabilityClause;
+    sh:message "APPLICABILITY_ROOT_CLAUSE_CARDINALITY: rule must bind exactly one structured root clause".
+shp:PermutationApplicabilityRuleShape sh:property _:par_root.
+_:par_satisfied sh:path usf:applicabilitySatisfiedDisposition; sh:minCount 1; sh:maxCount 1; sh:hasValue <urn:usf:familyreviewdisposition:matrixrequired>;
+    sh:message "APPLICABILITY_SATISFIED_DISPOSITION_INVALID: a satisfied family applicability rule must require the matrix".
+shp:PermutationApplicabilityRuleShape sh:property _:par_satisfied.
+_:par_unsatisfied sh:path usf:applicabilityUnsatisfiedDisposition; sh:minCount 1; sh:maxCount 1; sh:hasValue <urn:usf:familyreviewdisposition:matrixnotapplicable>;
+    sh:message "APPLICABILITY_UNSATISFIED_DISPOSITION_INVALID: an unsatisfied rule must create explicit matrix non-applicability".
+shp:PermutationApplicabilityRuleShape sh:property _:par_unsatisfied.
+_:par_reason sh:path usf:applicabilityUnsatisfiedReason; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationApplicabilityReason;
+    sh:message "APPLICABILITY_REASON_MISSING: an unsatisfied rule requires one controlled reason".
+shp:PermutationApplicabilityRuleShape sh:property _:par_reason.
+_:par_digest sh:path usf:applicabilityRuleDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "APPLICABILITY_RULE_DIGEST_MISSING: structured rule bytes require one content digest".
+shp:PermutationApplicabilityRuleShape sh:property _:par_digest.
+_:par_legacy_expression sh:path usf:applicabilityRuleExpression; sh:maxCount 0;
+    sh:message "APPLICABILITY_FREE_TEXT_EXPRESSION_PROHIBITED: executable applicability may not be supplied by free text".
+shp:PermutationApplicabilityRuleShape sh:property _:par_legacy_expression.
+
+shp:PermutationApplicabilityClauseShape a sh:NodeShape;
+    usf:canonicalName "permutationapplicabilityclauseshape";
+    sh:targetClass usf:PermutationApplicabilityClause.
+_:pac_operator sh:path usf:applicabilityClauseOperator; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationApplicabilityOperator;
+    sh:message "APPLICABILITY_OPERATOR_CARDINALITY: clause must name exactly one controlled operator".
+shp:PermutationApplicabilityClauseShape sh:property _:pac_operator.
+_:pac_operator_closed_set sh:prefixes usf:prefixes;
+    sh:message "APPLICABILITY_OPERATOR_UNSUPPORTED: applicability clauses use only the closed operator vocabulary";
+    sh:select "SELECT $this WHERE { $this usf:applicabilityClauseOperator ?operator . FILTER(?operator NOT IN (<urn:usf:permutationapplicabilityoperator:true>, <urn:usf:permutationapplicabilityoperator:allof>, <urn:usf:permutationapplicabilityoperator:anyof>, <urn:usf:permutationapplicabilityoperator:not>, <urn:usf:permutationapplicabilityoperator:countatleast>, <urn:usf:permutationapplicabilityoperator:countexactly>, <urn:usf:permutationapplicabilityoperator:valueequals>, <urn:usf:permutationapplicabilityoperator:valueindeclaredset>)) }".
+shp:PermutationApplicabilityClauseShape sh:sparql _:pac_operator_closed_set.
+_:pac_operand_arity sh:prefixes usf:prefixes;
+    sh:message "APPLICABILITY_OPERATOR_ARITY_INVALID: operator operand cardinality must be exact";
+    sh:select "SELECT $this WHERE { $this usf:applicabilityClauseOperator ?operator . FILTER(?operator IN (<urn:usf:permutationapplicabilityoperator:true>, <urn:usf:permutationapplicabilityoperator:allof>, <urn:usf:permutationapplicabilityoperator:anyof>, <urn:usf:permutationapplicabilityoperator:not>, <urn:usf:permutationapplicabilityoperator:countatleast>, <urn:usf:permutationapplicabilityoperator:countexactly>, <urn:usf:permutationapplicabilityoperator:valueequals>, <urn:usf:permutationapplicabilityoperator:valueindeclaredset>)) { FILTER(?operator IN (<urn:usf:permutationapplicabilityoperator:true>, <urn:usf:permutationapplicabilityoperator:countatleast>, <urn:usf:permutationapplicabilityoperator:countexactly>, <urn:usf:permutationapplicabilityoperator:valueequals>, <urn:usf:permutationapplicabilityoperator:valueindeclaredset>)) FILTER EXISTS { $this usf:applicabilityClauseOperand ?operand } } UNION { FILTER(?operator = <urn:usf:permutationapplicabilityoperator:not>) FILTER(NOT EXISTS { $this usf:applicabilityClauseOperand ?operand } || EXISTS { $this usf:applicabilityClauseOperand ?left, ?right . FILTER(?left != ?right) }) } UNION { FILTER(?operator IN (<urn:usf:permutationapplicabilityoperator:allof>, <urn:usf:permutationapplicabilityoperator:anyof>)) FILTER NOT EXISTS { $this usf:applicabilityClauseOperand ?left, ?right . FILTER(?left != ?right) } } }".
+shp:PermutationApplicabilityClauseShape sh:sparql _:pac_operand_arity.
+_:pac_selector_cardinality sh:prefixes usf:prefixes;
+    sh:message "APPLICABILITY_SELECTOR_CARDINALITY_INVALID: signal-consuming operators require exactly one selector and all other operators prohibit selectors";
+    sh:select "SELECT $this WHERE { $this usf:applicabilityClauseOperator ?operator . FILTER(?operator IN (<urn:usf:permutationapplicabilityoperator:true>, <urn:usf:permutationapplicabilityoperator:allof>, <urn:usf:permutationapplicabilityoperator:anyof>, <urn:usf:permutationapplicabilityoperator:not>, <urn:usf:permutationapplicabilityoperator:countatleast>, <urn:usf:permutationapplicabilityoperator:countexactly>, <urn:usf:permutationapplicabilityoperator:valueequals>, <urn:usf:permutationapplicabilityoperator:valueindeclaredset>)) { FILTER(?operator IN (<urn:usf:permutationapplicabilityoperator:countatleast>, <urn:usf:permutationapplicabilityoperator:countexactly>, <urn:usf:permutationapplicabilityoperator:valueequals>, <urn:usf:permutationapplicabilityoperator:valueindeclaredset>)) FILTER(NOT EXISTS { $this usf:applicabilitySignalSelector ?selector } || EXISTS { $this usf:applicabilitySignalSelector ?left, ?right . FILTER(?left != ?right) }) } UNION { FILTER(?operator IN (<urn:usf:permutationapplicabilityoperator:true>, <urn:usf:permutationapplicabilityoperator:allof>, <urn:usf:permutationapplicabilityoperator:anyof>, <urn:usf:permutationapplicabilityoperator:not>)) FILTER EXISTS { $this usf:applicabilitySignalSelector ?selector } } }".
+shp:PermutationApplicabilityClauseShape sh:sparql _:pac_selector_cardinality.
+_:pac_threshold_cardinality sh:prefixes usf:prefixes;
+    sh:message "APPLICABILITY_THRESHOLD_INVALID: count operators require exactly one non-negative threshold and all other operators prohibit thresholds";
+    sh:select "SELECT $this WHERE { $this usf:applicabilityClauseOperator ?operator . FILTER(?operator IN (<urn:usf:permutationapplicabilityoperator:true>, <urn:usf:permutationapplicabilityoperator:allof>, <urn:usf:permutationapplicabilityoperator:anyof>, <urn:usf:permutationapplicabilityoperator:not>, <urn:usf:permutationapplicabilityoperator:countatleast>, <urn:usf:permutationapplicabilityoperator:countexactly>, <urn:usf:permutationapplicabilityoperator:valueequals>, <urn:usf:permutationapplicabilityoperator:valueindeclaredset>)) { FILTER(?operator IN (<urn:usf:permutationapplicabilityoperator:countatleast>, <urn:usf:permutationapplicabilityoperator:countexactly>)) FILTER(NOT EXISTS { $this usf:applicabilityThreshold ?threshold } || EXISTS { $this usf:applicabilityThreshold ?left, ?right . FILTER(?left != ?right) } || EXISTS { $this usf:applicabilityThreshold ?threshold . FILTER(!isLiteral(?threshold) || ?threshold < 0) }) } UNION { FILTER(?operator NOT IN (<urn:usf:permutationapplicabilityoperator:countatleast>, <urn:usf:permutationapplicabilityoperator:countexactly>)) FILTER EXISTS { $this usf:applicabilityThreshold ?threshold } } }".
+shp:PermutationApplicabilityClauseShape sh:sparql _:pac_threshold_cardinality.
+_:pac_expected_value_cardinality sh:prefixes usf:prefixes;
+    sh:message "APPLICABILITY_EXPECTED_VALUE_INVALID: value operators require their exact expected-value cardinality and all other operators prohibit values";
+    sh:select "SELECT $this WHERE { $this usf:applicabilityClauseOperator ?operator . FILTER(?operator IN (<urn:usf:permutationapplicabilityoperator:true>, <urn:usf:permutationapplicabilityoperator:allof>, <urn:usf:permutationapplicabilityoperator:anyof>, <urn:usf:permutationapplicabilityoperator:not>, <urn:usf:permutationapplicabilityoperator:countatleast>, <urn:usf:permutationapplicabilityoperator:countexactly>, <urn:usf:permutationapplicabilityoperator:valueequals>, <urn:usf:permutationapplicabilityoperator:valueindeclaredset>)) { FILTER(?operator = <urn:usf:permutationapplicabilityoperator:valueequals>) FILTER(NOT EXISTS { $this usf:applicabilityExpectedValue ?value } || EXISTS { $this usf:applicabilityExpectedValue ?left, ?right . FILTER(?left != ?right) }) } UNION { FILTER(?operator = <urn:usf:permutationapplicabilityoperator:valueindeclaredset>) FILTER NOT EXISTS { $this usf:applicabilityExpectedValue ?value } } UNION { FILTER(?operator NOT IN (<urn:usf:permutationapplicabilityoperator:valueequals>, <urn:usf:permutationapplicabilityoperator:valueindeclaredset>)) FILTER EXISTS { $this usf:applicabilityExpectedValue ?value } } }".
+shp:PermutationApplicabilityClauseShape sh:sparql _:pac_expected_value_cardinality.
+_:pac_cycle sh:prefixes usf:prefixes;
+    sh:message "APPLICABILITY_EXPRESSION_CYCLE: applicability expression trees must be acyclic";
+    sh:select "SELECT $this WHERE { $this (usf:applicabilityClauseOperand/usf:applicabilityOperandClause)+ $this }".
+shp:PermutationApplicabilityClauseShape sh:sparql _:pac_cycle.
+_:pac_operand_index sh:prefixes usf:prefixes;
+    sh:message "APPLICABILITY_OPERAND_POSITION_INVALID: operand indexes must be unique and contiguous from one";
+    sh:select "SELECT $this WHERE { { $this usf:applicabilityClauseOperand ?left, ?right . ?left usf:applicabilityOperandIndex ?index . ?right usf:applicabilityOperandIndex ?index . FILTER(?left != ?right) } UNION { $this usf:applicabilityClauseOperand ?operand . ?operand usf:applicabilityOperandIndex ?index . FILTER(?index < 1 || EXISTS { FILTER(?index > 1) FILTER NOT EXISTS { $this usf:applicabilityClauseOperand/usf:applicabilityOperandIndex ?previous . FILTER(?previous = ?index - 1) } }) } }".
+shp:PermutationApplicabilityClauseShape sh:sparql _:pac_operand_index.
+
+shp:PermutationApplicabilityOperandShape a sh:NodeShape;
+    usf:canonicalName "permutationapplicabilityoperandshape";
+    sh:targetClass usf:PermutationApplicabilityOperand.
+_:pao_index sh:path usf:applicabilityOperandIndex; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:positiveInteger;
+    sh:message "APPLICABILITY_OPERAND_INDEX_CARDINALITY: operand requires one positive index".
+shp:PermutationApplicabilityOperandShape sh:property _:pao_index.
+_:pao_clause sh:path usf:applicabilityOperandClause; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationApplicabilityClause;
+    sh:message "APPLICABILITY_OPERAND_CLAUSE_CARDINALITY: operand requires one child clause".
+shp:PermutationApplicabilityOperandShape sh:property _:pao_clause.
+
+shp:PermutationSignalSelectorShape a sh:NodeShape;
+    usf:canonicalName "permutationsignalselectorshape";
+    sh:targetClass usf:PermutationSignalSelector.
+_:pss_subject sh:path usf:selectorSubjectClass; sh:minCount 1; sh:maxCount 1; sh:class <http://www.w3.org/2002/07/owl#Class>;
+    sh:message "SIGNAL_SELECTOR_SUBJECT_CLASS_MISSING: selector requires one declared subject class".
+shp:PermutationSignalSelectorShape sh:property _:pss_subject.
+_:pss_terminal sh:path usf:selectorTerminalClass; sh:minCount 1; sh:maxCount 1; sh:class <http://www.w3.org/2002/07/owl#Class>;
+    sh:message "SIGNAL_SELECTOR_TERMINAL_CLASS_MISSING: selector requires one declared terminal class".
+shp:PermutationSignalSelectorShape sh:property _:pss_terminal.
+_:pss_path sh:path usf:selectorPathStep; sh:minCount 1; sh:class usf:PermutationSignalPathStep;
+    sh:message "SIGNAL_SELECTOR_PATH_MISSING: selector requires at least one structured path step".
+shp:PermutationSignalSelectorShape sh:property _:pss_path.
+_:pss_aggregation sh:path usf:selectorAggregation; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationSignalAggregation;
+    sh:message "SIGNAL_SELECTOR_AGGREGATION_MISSING: selector requires one controlled aggregation".
+shp:PermutationSignalSelectorShape sh:property _:pss_aggregation.
+_:pss_digest sh:path usf:selectorDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "SIGNAL_SELECTOR_DIGEST_MISSING: selector requires one content digest".
+shp:PermutationSignalSelectorShape sh:property _:pss_digest.
+_:pss_subject_closure sh:path usf:selectorSubjectClassClosure; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationClassClosure;
+    sh:message "CLASS_CLOSURE_POLICY_MISSING: selector requires one explicit subject closure".
+shp:PermutationSignalSelectorShape sh:property _:pss_subject_closure.
+_:pss_terminal_closure sh:path usf:selectorTerminalClassClosure; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationClassClosure;
+    sh:message "CLASS_CLOSURE_POLICY_MISSING: selector requires one explicit terminal closure".
+shp:PermutationSignalSelectorShape sh:property _:pss_terminal_closure.
+_:pss_subject_closure_root sh:prefixes usf:prefixes;
+    sh:message "SELECTOR_SUBJECT_CLASS_CLOSURE_MISMATCH: selector subject class and closure root must match";
+    sh:select "SELECT $this WHERE { $this usf:selectorSubjectClass ?class ; usf:selectorSubjectClassClosure ?closure . FILTER NOT EXISTS { ?closure usf:classClosureRootClass ?class } }".
+shp:PermutationSignalSelectorShape sh:sparql _:pss_subject_closure_root.
+_:pss_terminal_closure_root sh:prefixes usf:prefixes;
+    sh:message "SELECTOR_TERMINAL_CLASS_CLOSURE_MISMATCH: selector terminal class and closure root must match";
+    sh:select "SELECT $this WHERE { $this usf:selectorTerminalClass ?class ; usf:selectorTerminalClassClosure ?closure . FILTER NOT EXISTS { ?closure usf:classClosureRootClass ?class } }".
+shp:PermutationSignalSelectorShape sh:sparql _:pss_terminal_closure_root.
+_:pss_steps sh:prefixes usf:prefixes;
+    sh:message "SIGNAL_SELECTOR_PATH_POSITION_INVALID: path-step indexes must be unique and contiguous from one";
+    sh:select "SELECT $this WHERE { { $this usf:selectorPathStep ?left, ?right . ?left usf:signalPathStepIndex ?index . ?right usf:signalPathStepIndex ?index . FILTER(?left != ?right) } UNION { $this usf:selectorPathStep ?step . ?step usf:signalPathStepIndex ?index . FILTER(?index < 1 || EXISTS { FILTER(?index > 1) FILTER NOT EXISTS { $this usf:selectorPathStep/usf:signalPathStepIndex ?previous . FILTER(?previous = ?index - 1) } }) } }".
+shp:PermutationSignalSelectorShape sh:sparql _:pss_steps.
+
+shp:PermutationSignalPathStepShape a sh:NodeShape;
+    usf:canonicalName "permutationsignalpathstepshape";
+    sh:targetClass usf:PermutationSignalPathStep.
+_:psp_index sh:path usf:signalPathStepIndex; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:positiveInteger; sh:message "SIGNAL_PATH_STEP_INDEX_CARDINALITY: path step requires one positive index".
+shp:PermutationSignalPathStepShape sh:property _:psp_index.
+_:psp_predicate sh:path usf:signalPathStepPredicate; sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI; sh:message "SIGNAL_PATH_STEP_PREDICATE_CARDINALITY: path step requires one semantic predicate".
+shp:PermutationSignalPathStepShape sh:property _:psp_predicate.
+_:psp_direction sh:path usf:signalPathStepDirection; sh:minCount 1; sh:maxCount 1; sh:in (<urn:usf:permutationpathdirection:outbound> <urn:usf:permutationpathdirection:inbound>); sh:message "SIGNAL_PATH_STEP_DIRECTION_INVALID: path step requires one controlled direction".
+shp:PermutationSignalPathStepShape sh:property _:psp_direction.
 
 shp:PermutationFamilyDimensionBindingShape a sh:NodeShape;
     usf:canonicalName "permutationfamilydimensionbindingshape";
@@ -49,6 +241,9 @@ _:pb2 sh:path usf:dimensionPosition;
     sh:minInclusive 1;
     sh:message "permutationbindingposition: binding must carry exactly one 1-based position".
 shp:PermutationFamilyDimensionBindingShape sh:property _:pb2.
+_:pb_class_closure sh:path usf:dimensionAxisClassClosure; sh:minCount 1; sh:class usf:PermutationClassClosure;
+    sh:message "CLASS_CLOSURE_POLICY_MISSING: every dimension binding requires explicit axis class closure".
+shp:PermutationFamilyDimensionBindingShape sh:property _:pb_class_closure.
 
 shp:ClosureDimensionSourceShape a sh:NodeShape;
     usf:canonicalName "closuredimensionsourceshape";
@@ -69,10 +264,278 @@ _:vs1 sh:path usf:valueSourceKind;
     sh:in ("classinstances" "controlledlist" "derivedselector");
     sh:message "valuesourcekind: value source must declare exactly one controlled kind".
 shp:DimensionValueSourceShape sh:property _:vs1.
+_:vs0 sh:path usf:valueSourceScope;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:in (<urn:usf:dimensionvaluesourcescope:foundationcatalogue> <urn:usf:dimensionvaluesourcescope:authorityinstanceset> <urn:usf:dimensionvaluesourcescope:capabilityrelationship> <urn:usf:dimensionvaluesourcescope:downstreamclosure> <urn:usf:dimensionvaluesourcescope:registeredsubjectrelationship>);
+    sh:message "FOUNDATION_VALUE_SOURCE_SCOPE_INVALID: value source must declare exactly one controlled evaluation scope".
+shp:DimensionValueSourceShape sh:property _:vs0.
 _:vs2 sh:prefixes usf:prefixes;
-    sh:message "valuesourceclassiri: class-instance value sources must name their class IRI";
-    sh:select "SELECT $this WHERE {\n      $this usf:valueSourceKind \"classinstances\" .\n      FILTER NOT EXISTS { $this usf:valueSourceClassIri ?class }\n    }".
+    sh:message "FOUNDATION_VALUE_SOURCE_CLASS_IRI_CARDINALITY_INVALID: class-instance sources require exactly one class IRI and other modes prohibit it";
+    sh:select "SELECT $this WHERE { $this usf:valueSourceKind ?kind . { FILTER(?kind = \"classinstances\") { FILTER NOT EXISTS { $this usf:valueSourceClassIri ?class } } UNION { $this usf:valueSourceClassIri ?left, ?right . FILTER(?left != ?right) } } UNION { FILTER(?kind != \"classinstances\") $this usf:valueSourceClassIri ?class } }".
 shp:DimensionValueSourceShape sh:sparql _:vs2.
+_:vs3 sh:prefixes usf:prefixes;
+    sh:message "FOUNDATION_VALUE_SOURCE_SCOPE_KIND_MISMATCH: source kind and evaluation scope must form an authorised pair";
+    sh:select "SELECT $this WHERE { $this usf:valueSourceKind ?kind ; usf:valueSourceScope ?scope . FILTER ((?kind = \"controlledlist\" && ?scope != <urn:usf:dimensionvaluesourcescope:foundationcatalogue>) || (?kind = \"classinstances\" && ?scope NOT IN (<urn:usf:dimensionvaluesourcescope:foundationcatalogue>, <urn:usf:dimensionvaluesourcescope:authorityinstanceset>)) || (?kind = \"derivedselector\" && ?scope NOT IN (<urn:usf:dimensionvaluesourcescope:capabilityrelationship>, <urn:usf:dimensionvaluesourcescope:downstreamclosure>, <urn:usf:dimensionvaluesourcescope:registeredsubjectrelationship>))) }".
+shp:DimensionValueSourceShape sh:sparql _:vs3.
+_:vs4 sh:prefixes usf:prefixes;
+    sh:message "FOUNDATION_DERIVED_SOURCE_EXECUTION_MODE_CARDINALITY: a derived source must carry exactly one structured path selector or semantic derivation root and other source kinds carry neither";
+    sh:select "SELECT $this WHERE { $this usf:valueSourceKind ?kind . { FILTER(?kind = \"derivedselector\") { FILTER NOT EXISTS { $this usf:valueSourceSelector|usf:valueSourceDerivationRoot ?binding } } UNION { $this usf:valueSourceSelector ?selector ; usf:valueSourceDerivationRoot ?root } UNION { $this usf:valueSourceSelector ?left, ?right . FILTER(?left != ?right) } UNION { $this usf:valueSourceDerivationRoot ?left, ?right . FILTER(?left != ?right) } } UNION { FILTER(?kind != \"derivedselector\") $this usf:valueSourceSelector|usf:valueSourceDerivationRoot ?binding } }".
+shp:DimensionValueSourceShape sh:sparql _:vs4.
+_:vs5 sh:prefixes usf:prefixes;
+    sh:message "FOUNDATION_VALUE_SOURCE_SELECTOR_CARDINALITY_INVALID: registered-subject derivation requires exactly one selector";
+    sh:select "SELECT $this WHERE { $this usf:valueSourceScope <urn:usf:dimensionvaluesourcescope:registeredsubjectrelationship> . { FILTER NOT EXISTS { $this usf:valueSourceSelector ?selector } } UNION { $this usf:valueSourceSelector ?left, ?right . FILTER(?left != ?right) } }".
+shp:DimensionValueSourceShape sh:sparql _:vs5.
+_:vs6 sh:prefixes usf:prefixes;
+    sh:message "FOUNDATION_VALUE_SOURCE_SELECTOR_SCOPE_INVALID: only registered-subject derivations may carry executable selectors";
+    sh:select "SELECT $this WHERE { $this usf:valueSourceSelector ?selector ; usf:valueSourceScope ?scope . FILTER(?scope != <urn:usf:dimensionvaluesourcescope:registeredsubjectrelationship>) }".
+shp:DimensionValueSourceShape sh:sparql _:vs6.
+_:vs7 sh:prefixes usf:prefixes;
+    sh:message "FOUNDATION_VALUE_SOURCE_SELECTOR_AGGREGATION_INVALID: a dimension selector must return distinct values";
+    sh:select "SELECT $this WHERE { $this usf:valueSourceSelector ?selector . FILTER NOT EXISTS { ?selector usf:selectorAggregation <urn:usf:permutationsignalaggregation:distinctvalues> } }".
+shp:DimensionValueSourceShape sh:sparql _:vs7.
+_:vs8 sh:prefixes usf:prefixes;
+    sh:message "FOUNDATION_VALUE_SOURCE_SELECTOR_SUBJECT_CLASS_MISMATCH: selector and family registration must use one subject class";
+    sh:select "SELECT $this WHERE { ?dimension usf:dimensionValueSource $this . ?binding usf:bindsDimension ?dimension . ?family usf:hasFamilyDimensionBinding ?binding ; usf:familySubjectRegistration/usf:registeredSubjectClass ?familyClass . $this usf:valueSourceSelector/usf:selectorSubjectClass ?selectorClass . FILTER(?familyClass != ?selectorClass) }".
+shp:DimensionValueSourceShape sh:sparql _:vs8.
+_:vs9 sh:prefixes usf:prefixes;
+    sh:message "FOUNDATION_VALUE_SOURCE_SELECTOR_PREDICATE_MISMATCH: predicate summary must equal the selector path predicate set";
+    sh:select "SELECT $this WHERE { $this usf:valueSourceSelector ?selector . { $this usf:valueSourceDerivationPredicate ?predicate . FILTER NOT EXISTS { ?selector usf:selectorPathStep/usf:signalPathStepPredicate ?predicate } } UNION { ?selector usf:selectorPathStep/usf:signalPathStepPredicate ?predicate . FILTER NOT EXISTS { $this usf:valueSourceDerivationPredicate ?predicate } } }".
+shp:DimensionValueSourceShape sh:sparql _:vs9.
+_:vs10 sh:prefixes usf:prefixes;
+    sh:message "FOUNDATION_VALUE_SOURCE_DERIVATION_SCOPE_INVALID: registered-subject sources use path selectors and other derived scopes use semantic expression roots";
+    sh:select "SELECT $this WHERE { $this usf:valueSourceKind \"derivedselector\" ; usf:valueSourceScope ?scope . { FILTER(?scope = <urn:usf:dimensionvaluesourcescope:registeredsubjectrelationship>) $this usf:valueSourceDerivationRoot ?root } UNION { FILTER(?scope != <urn:usf:dimensionvaluesourcescope:registeredsubjectrelationship>) $this usf:valueSourceSelector ?selector } }".
+shp:DimensionValueSourceShape sh:sparql _:vs10.
+_:vs11 sh:prefixes usf:prefixes;
+    sh:message "FOUNDATION_VALUE_SOURCE_EXPRESSION_BINDING_INCOMPLETE: expression-backed sources require one subject class, one-or-more terminal classes, named-node terminal kind and one source digest";
+    sh:select "SELECT $this WHERE { $this usf:valueSourceDerivationRoot ?root . { FILTER NOT EXISTS { $this usf:valueSourceSubjectClass ?subjectClass } } UNION { $this usf:valueSourceSubjectClass ?left, ?right . FILTER(?left != ?right) } UNION { FILTER NOT EXISTS { $this usf:valueSourceTerminalClass ?terminalClass } } UNION { FILTER NOT EXISTS { $this usf:valueSourceTerminalKind <urn:usf:permutationvalueterminalkind:namednode> } } UNION { $this usf:valueSourceTerminalKind ?unexpected . FILTER(?unexpected != <urn:usf:permutationvalueterminalkind:namednode>) } UNION { FILTER NOT EXISTS { $this usf:valueSourceDigest ?digest . FILTER(REGEX(STR(?digest), \"^sha256:[0-9a-f]{64}$\")) } } UNION { $this usf:valueSourceDigest ?left, ?right . FILTER(?left != ?right) } }".
+shp:DimensionValueSourceShape sh:sparql _:vs11.
+_:vs12 sh:prefixes usf:prefixes;
+    sh:message "FOUNDATION_VALUE_SOURCE_SUBJECT_CLASS_MISMATCH: expression source and family registration must use one subject class";
+    sh:select "SELECT $this WHERE { ?dimension usf:dimensionValueSource $this . ?binding usf:bindsDimension ?dimension . ?family usf:hasFamilyDimensionBinding ?binding ; usf:familySubjectRegistration/usf:registeredSubjectClass ?familyClass . $this usf:valueSourceSubjectClass ?sourceClass . FILTER(?familyClass != ?sourceClass) }".
+shp:DimensionValueSourceShape sh:sparql _:vs12.
+_:vs_subject_class sh:path usf:valueSourceSubjectClass; sh:nodeKind sh:IRI; sh:class <http://www.w3.org/2002/07/owl#Class>;
+    sh:message "FOUNDATION_VALUE_SOURCE_SUBJECT_CLASS_INVALID: expression source subject classes must be declared class IRIs".
+shp:DimensionValueSourceShape sh:property _:vs_subject_class.
+_:vs_terminal_class sh:path usf:valueSourceTerminalClass; sh:nodeKind sh:IRI;
+    sh:message "FOUNDATION_VALUE_SOURCE_TERMINAL_CLASS_INVALID: expression source terminal classes must be IRIs".
+shp:DimensionValueSourceShape sh:property _:vs_terminal_class.
+_:vs_terminal_declared sh:prefixes usf:prefixes;
+    sh:message "FOUNDATION_VALUE_SOURCE_TERMINAL_CLASS_UNDECLARED: expression terminal classes must be declared classes";
+    sh:select "SELECT $this WHERE { $this usf:valueSourceTerminalClass ?class . FILTER(?class != <http://www.w3.org/2002/07/owl#Class>) FILTER NOT EXISTS { ?class a <http://www.w3.org/2002/07/owl#Class> } }".
+shp:DimensionValueSourceShape sh:sparql _:vs_terminal_declared.
+
+shp:PermutationValueDerivationShape a sh:NodeShape;
+    usf:canonicalName "permutationvaluederivationshape";
+    sh:targetClass usf:PermutationValueDerivation.
+_:pvd_operator sh:path usf:valueDerivationOperator; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationValueDerivationOperator;
+    sh:in (<urn:usf:permutationvaluederivationoperator:subject> <urn:usf:permutationvaluederivationoperator:classinstances> <urn:usf:permutationvaluederivationoperator:outbound> <urn:usf:permutationvaluederivationoperator:inbound> <urn:usf:permutationvaluederivationoperator:union> <urn:usf:permutationvaluederivationoperator:filtertypeany> <urn:usf:permutationvaluederivationoperator:filterpathexists> <urn:usf:permutationvaluederivationoperator:filterpathvaluein>);
+    sh:message "VALUE_DERIVATION_OPERATOR_UNCONTROLLED: derivation requires one controlled operator".
+shp:PermutationValueDerivationShape sh:property _:pvd_operator.
+_:pvd_scope sh:path usf:valueDerivationInputScope; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationValueDerivationInputScope;
+    sh:in (<urn:usf:permutationvaluederivationinputscope:all> <urn:usf:permutationvaluederivationinputscope:liveauthority> <urn:usf:permutationvaluederivationinputscope:foundationconformancefixture>);
+    sh:message "VALUE_DERIVATION_INPUT_SCOPE_UNCONTROLLED: derivation requires one controlled input scope".
+shp:PermutationValueDerivationShape sh:property _:pvd_scope.
+_:pvd_operand sh:path usf:valueDerivationOperand; sh:class usf:PermutationValueDerivationOperand;
+    sh:message "VALUE_DERIVATION_OPERAND_TYPE_INVALID: derivation operands must be structured resources".
+shp:PermutationValueDerivationShape sh:property _:pvd_operand.
+_:pvd_path sh:path usf:valueDerivationPathStep; sh:class usf:PermutationSignalPathStep;
+    sh:message "VALUE_DERIVATION_PATH_STEP_TYPE_INVALID: filter paths must use structured path steps".
+shp:PermutationValueDerivationShape sh:property _:pvd_path.
+_:pvd_root_digest sh:prefixes usf:prefixes; sh:message "VALUE_DERIVATION_DIGEST_MISSING: every source root requires one canonical digest";
+    sh:select "SELECT $this WHERE { ?source usf:valueSourceDerivationRoot $this . { FILTER NOT EXISTS { $this usf:valueDerivationDigest ?digest . FILTER(REGEX(STR(?digest), \"^sha256:[0-9a-f]{64}$\")) } } UNION { $this usf:valueDerivationDigest ?left, ?right . FILTER(?left != ?right) } }".
+shp:PermutationValueDerivationShape sh:sparql _:pvd_root_digest.
+_:pvd_cycle sh:prefixes usf:prefixes; sh:message "VALUE_DERIVATION_EXPRESSION_CYCLE: derivation expressions must be acyclic";
+    sh:select "SELECT $this WHERE { $this (usf:valueDerivationOperand/usf:valueDerivationOperandExpression)+ $this }".
+shp:PermutationValueDerivationShape sh:sparql _:pvd_cycle.
+_:pvd_arity sh:prefixes usf:prefixes; sh:message "VALUE_DERIVATION_OPERATOR_ARITY_INVALID: operator operand cardinality must be exact";
+    sh:select "SELECT $this WHERE { $this usf:valueDerivationOperator ?operator . { FILTER(?operator IN (<urn:usf:permutationvaluederivationoperator:subject>, <urn:usf:permutationvaluederivationoperator:classinstances>)) $this usf:valueDerivationOperand ?operand } UNION { FILTER(?operator IN (<urn:usf:permutationvaluederivationoperator:outbound>, <urn:usf:permutationvaluederivationoperator:inbound>, <urn:usf:permutationvaluederivationoperator:filtertypeany>, <urn:usf:permutationvaluederivationoperator:filterpathexists>, <urn:usf:permutationvaluederivationoperator:filterpathvaluein>)) { FILTER NOT EXISTS { $this usf:valueDerivationOperand ?operand } } UNION { $this usf:valueDerivationOperand ?left, ?right . FILTER(?left != ?right) } } UNION { FILTER(?operator = <urn:usf:permutationvaluederivationoperator:union>) { FILTER NOT EXISTS { $this usf:valueDerivationOperand ?operand } } UNION { $this usf:valueDerivationOperand ?only . FILTER NOT EXISTS { $this usf:valueDerivationOperand ?other . FILTER(?other != ?only) } } } }".
+shp:PermutationValueDerivationShape sh:sparql _:pvd_arity.
+_:pvd_contract sh:prefixes usf:prefixes; sh:message "VALUE_DERIVATION_OPERATOR_CONTRACT_INVALID: predicate, class, filter path and allowed values must match the operator";
+    sh:select "SELECT $this WHERE { $this usf:valueDerivationOperator ?operator . { FILTER(?operator IN (<urn:usf:permutationvaluederivationoperator:outbound>, <urn:usf:permutationvaluederivationoperator:inbound>)) { FILTER NOT EXISTS { $this usf:valueDerivationPredicate ?predicate } } UNION { $this usf:valueDerivationPredicate ?left, ?right . FILTER(?left != ?right) } } UNION { FILTER(?operator NOT IN (<urn:usf:permutationvaluederivationoperator:outbound>, <urn:usf:permutationvaluederivationoperator:inbound>)) $this usf:valueDerivationPredicate ?predicate } UNION { FILTER(?operator = <urn:usf:permutationvaluederivationoperator:classinstances>) { FILTER NOT EXISTS { $this usf:valueDerivationClass ?class } } UNION { $this usf:valueDerivationClass ?left, ?right . FILTER(?left != ?right) } } UNION { FILTER(?operator = <urn:usf:permutationvaluederivationoperator:filtertypeany>) FILTER NOT EXISTS { $this usf:valueDerivationClass ?class } } UNION { FILTER(?operator NOT IN (<urn:usf:permutationvaluederivationoperator:classinstances>, <urn:usf:permutationvaluederivationoperator:filtertypeany>)) $this usf:valueDerivationClass ?class } UNION { FILTER(?operator IN (<urn:usf:permutationvaluederivationoperator:filterpathexists>, <urn:usf:permutationvaluederivationoperator:filterpathvaluein>)) FILTER NOT EXISTS { $this usf:valueDerivationPathStep ?step } } UNION { FILTER(?operator NOT IN (<urn:usf:permutationvaluederivationoperator:filterpathexists>, <urn:usf:permutationvaluederivationoperator:filterpathvaluein>)) $this usf:valueDerivationPathStep ?step } UNION { FILTER(?operator = <urn:usf:permutationvaluederivationoperator:filterpathvaluein>) FILTER NOT EXISTS { $this usf:valueDerivationAllowedValue ?value } } UNION { FILTER(?operator != <urn:usf:permutationvaluederivationoperator:filterpathvaluein>) $this usf:valueDerivationAllowedValue ?value } }".
+shp:PermutationValueDerivationShape sh:sparql _:pvd_contract.
+_:pvd_operand_index sh:prefixes usf:prefixes; sh:message "VALUE_DERIVATION_OPERAND_INDEX_INVALID: operand indexes must be unique and contiguous from one";
+    sh:select "SELECT $this WHERE { { $this usf:valueDerivationOperand ?left, ?right . ?left usf:valueDerivationOperandIndex ?index . ?right usf:valueDerivationOperandIndex ?index . FILTER(?left != ?right) } UNION { $this usf:valueDerivationOperand ?operand . ?operand usf:valueDerivationOperandIndex ?index . FILTER(?index < 1 || EXISTS { FILTER(?index > 1) FILTER NOT EXISTS { $this usf:valueDerivationOperand/usf:valueDerivationOperandIndex ?previous . FILTER(?previous = ?index - 1) } }) } }".
+shp:PermutationValueDerivationShape sh:sparql _:pvd_operand_index.
+_:pvd_path_index sh:prefixes usf:prefixes; sh:message "VALUE_DERIVATION_PATH_STEP_INDEX_INVALID: filter path indexes must be unique and contiguous from one";
+    sh:select "SELECT $this WHERE { { $this usf:valueDerivationPathStep ?left, ?right . ?left usf:signalPathStepIndex ?index . ?right usf:signalPathStepIndex ?index . FILTER(?left != ?right) } UNION { $this usf:valueDerivationPathStep ?step . ?step usf:signalPathStepIndex ?index . FILTER(?index < 1 || EXISTS { FILTER(?index > 1) FILTER NOT EXISTS { $this usf:valueDerivationPathStep/usf:signalPathStepIndex ?previous . FILTER(?previous = ?index - 1) } }) } }".
+shp:PermutationValueDerivationShape sh:sparql _:pvd_path_index.
+_:pvd_predicate_iri sh:path usf:valueDerivationPredicate; sh:nodeKind sh:IRI;
+    sh:message "VALUE_DERIVATION_PREDICATE_IRI_INVALID: traversal predicates must be IRIs".
+shp:PermutationValueDerivationShape sh:property _:pvd_predicate_iri.
+_:pvd_class_iri sh:path usf:valueDerivationClass; sh:nodeKind sh:IRI; sh:class <http://www.w3.org/2002/07/owl#Class>;
+    sh:message "VALUE_DERIVATION_CLASS_IRI_INVALID: class filters must reference declared class IRIs".
+shp:PermutationValueDerivationShape sh:property _:pvd_class_iri.
+_:pvd_class_closure sh:path usf:valueDerivationClassClosure; sh:class usf:PermutationClassClosure;
+    sh:message "VALUE_DERIVATION_CLASS_CLOSURE_MISMATCH: derivation class closures must be declared closure resources".
+shp:PermutationValueDerivationShape sh:property _:pvd_class_closure.
+_:pvd_class_closure_contract sh:prefixes usf:prefixes;
+    sh:message "VALUE_DERIVATION_CLASS_CLOSURE_MISMATCH: class-bearing derivations require exact closure roots and other operators prohibit them";
+    sh:select "SELECT $this WHERE { $this usf:valueDerivationOperator ?operator . { FILTER(?operator IN (<urn:usf:permutationvaluederivationoperator:classinstances>, <urn:usf:permutationvaluederivationoperator:filtertypeany>)) { $this usf:valueDerivationClass ?class . FILTER NOT EXISTS { $this usf:valueDerivationClassClosure/usf:classClosureRootClass ?class } } UNION { $this usf:valueDerivationClassClosure/usf:classClosureRootClass ?root . FILTER NOT EXISTS { $this usf:valueDerivationClass ?root } } } UNION { FILTER(?operator NOT IN (<urn:usf:permutationvaluederivationoperator:classinstances>, <urn:usf:permutationvaluederivationoperator:filtertypeany>)) $this usf:valueDerivationClassClosure ?closure } }".
+shp:PermutationValueDerivationShape sh:sparql _:pvd_class_closure_contract.
+
+shp:PermutationValueDerivationOperandShape a sh:NodeShape; usf:canonicalName "permutationvaluederivationoperandshape"; sh:targetClass usf:PermutationValueDerivationOperand.
+_:pvdo_index sh:path usf:valueDerivationOperandIndex; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:positiveInteger; sh:message "VALUE_DERIVATION_OPERAND_INDEX_INVALID: operand requires one positive index".
+shp:PermutationValueDerivationOperandShape sh:property _:pvdo_index.
+_:pvdo_expression sh:path usf:valueDerivationOperandExpression; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationValueDerivation; sh:message "VALUE_DERIVATION_OPERAND_EXPRESSION_CARDINALITY: operand requires one child expression".
+shp:PermutationValueDerivationOperandShape sh:property _:pvdo_expression.
+
+shp:PermutationUniverseShape a sh:NodeShape;
+    usf:canonicalName "permutationuniverseshape";
+    sh:targetClass usf:PermutationUniverse.
+_:pu1 sh:path usf:universeClosureRepresentation;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:hasValue <urn:usf:permutationclosurerepresentation:sparsesymbolic>;
+    sh:message "PERMUTATION_UNIVERSE_REPRESENTATION_MISSING: universe must use the authorised sparse symbolic representation".
+shp:PermutationUniverseShape sh:property _:pu1.
+_:pu2 sh:path usf:universePublicationBudget;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:PermutationPublicationBudget;
+    sh:message "PERMUTATION_PUBLICATION_BUDGET_MISSING: universe must bind exactly one publication budget".
+shp:PermutationUniverseShape sh:property _:pu2.
+
+shp:PermutationCoverageRuleShape a sh:NodeShape;
+    usf:canonicalName "permutationcoverageruleshape";
+    sh:targetClass usf:PermutationCoverageRule.
+_:pcr1 sh:path usf:coverageRuleForFamily; sh:minCount 1; sh:class usf:PermutationFamily;
+    sh:message "PERMUTATION_SYMBOLIC_COVERAGE_RULE_UNREGISTERED: rule must bind at least one family".
+shp:PermutationCoverageRuleShape sh:property _:pcr1.
+_:pcr2 sh:path usf:coverageRuleDisposition; sh:minCount 1; sh:maxCount 1;
+    sh:in (<urn:usf:permutationclosuredisposition:forbidden> <urn:usf:permutationclosuredisposition:notapplicable>);
+    sh:message "PERMUTATION_RULE_REGION_DISPOSITION_INVALID: symbolic rules may cover only forbidden or not-applicable regions".
+shp:PermutationCoverageRuleShape sh:property _:pcr2.
+_:pcr3 sh:path usf:coverageRuleReasonCode; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:message "PERMUTATION_SYMBOLIC_COVERAGE_RULE_UNREGISTERED: rule must carry one controlled reason code".
+shp:PermutationCoverageRuleShape sh:property _:pcr3.
+_:pcr4 sh:path usf:coverageRuleKind; sh:minCount 1; sh:maxCount 1;
+    sh:in ("AUTHORITY_SET_NON_MEMBERSHIP" "AUTHORITY_BOOLEAN_TRUE_GUARD");
+    sh:message "PERMUTATION_SYMBOLIC_COVERAGE_RULE_UNREGISTERED: rule kind is not registered".
+shp:PermutationCoverageRuleShape sh:property _:pcr4.
+_:pcr5 sh:path usf:coverageRuleAuthorityPredicate; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:anyURI;
+    sh:message "PERMUTATION_SYMBOLIC_COVERAGE_RULE_UNREGISTERED: rule must bind an authority predicate".
+shp:PermutationCoverageRuleShape sh:property _:pcr5.
+_:pcr6 sh:path usf:coverageRuleTestedDimensionKey; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:message "PERMUTATION_SYMBOLIC_COVERAGE_RULE_UNREGISTERED: rule must bind one tested dimension".
+shp:PermutationCoverageRuleShape sh:property _:pcr6.
+_:pcr7 sh:path usf:coverageRuleDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_SYMBOLIC_COVERAGE_RULE_UNREGISTERED: rule must carry one exact digest".
+shp:PermutationCoverageRuleShape sh:property _:pcr7.
+
+shp:PermutationCoverageRegionShape a sh:NodeShape;
+    usf:canonicalName "permutationcoverageregionshape";
+    sh:targetClass usf:PermutationCoverageRegion.
+_:pgr1 sh:path usf:coverageRegionOfUniverse; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationUniverse;
+    sh:message "PERMUTATION_COVERAGE_REGION_BINDING_INCOMPLETE: region must bind one universe".
+shp:PermutationCoverageRegionShape sh:property _:pgr1.
+_:pgr2 sh:path usf:coverageRegionForFamily; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationFamily;
+    sh:message "PERMUTATION_COVERAGE_REGION_BINDING_INCOMPLETE: region must bind one family".
+shp:PermutationCoverageRegionShape sh:property _:pgr2.
+_:pgr3 sh:path usf:coverageRegionForSubject; sh:minCount 1; sh:maxCount 1;
+    sh:message "PERMUTATION_COVERAGE_REGION_BINDING_INCOMPLETE: region must bind one semantic subject".
+shp:PermutationCoverageRegionShape sh:property _:pgr3.
+_:pgr4 sh:path usf:coverageRegionDisposition; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationClosureDisposition;
+    sh:message "PERMUTATION_COVERAGE_REGION_BINDING_INCOMPLETE: region must bind one disposition".
+shp:PermutationCoverageRegionShape sh:property _:pgr4.
+_:pgr5 sh:path usf:coverageRegionAuthorityDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_COVERAGE_REGION_BINDING_INCOMPLETE: region must bind one authority digest".
+shp:PermutationCoverageRegionShape sh:property _:pgr5.
+_:pgr6 sh:path usf:coverageRegionDomainScopeDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_COVERAGE_REGION_BINDING_INCOMPLETE: region must bind its domain scope".
+shp:PermutationCoverageRegionShape sh:property _:pgr6.
+_:pgr7 sh:path usf:coverageRegionMemberCount; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:nonNegativeInteger;
+    sh:message "PERMUTATION_COVERAGE_REGION_BINDING_INCOMPLETE: region must bind its member count".
+shp:PermutationCoverageRegionShape sh:property _:pgr7.
+_:pgr8 sh:path usf:coverageRegionMemberKeyDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_COVERAGE_REGION_BINDING_INCOMPLETE: region must bind its member-key digest".
+shp:PermutationCoverageRegionShape sh:property _:pgr8.
+_:pgr9 sh:path usf:coverageRegionDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_COVERAGE_REGION_BINDING_INCOMPLETE: region must bind its descriptor digest".
+shp:PermutationCoverageRegionShape sh:property _:pgr9.
+_:pgr10 sh:path usf:coverageRegionAuthorising; sh:minCount 1; sh:maxCount 1; sh:hasValue false;
+    sh:message "PERMUTATION_COVERAGE_REGION_AUTHORISING_PROHIBITED: symbolic and pending regions are never authorising".
+shp:PermutationCoverageRegionShape sh:property _:pgr10.
+_:pgr11 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_COVERAGE_REGION_KIND_INVALID: region must have exactly one rule or pending subtype";
+    sh:select "SELECT $this WHERE { FILTER ((EXISTS { $this a usf:PermutationRuleCoverageRegion } && EXISTS { $this a usf:PermutationPendingCoverageRegion }) || (NOT EXISTS { $this a usf:PermutationRuleCoverageRegion } && NOT EXISTS { $this a usf:PermutationPendingCoverageRegion })) }".
+shp:PermutationCoverageRegionShape sh:sparql _:pgr11.
+
+shp:PermutationRuleCoverageRegionShape a sh:NodeShape;
+    usf:canonicalName "permutationrulecoverageregionshape";
+    sh:targetClass usf:PermutationRuleCoverageRegion.
+_:prg1 sh:path usf:coverageRegionRule; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationCoverageRule;
+    sh:message "PERMUTATION_SYMBOLIC_COVERAGE_RULE_UNREGISTERED: rule region must bind one registered rule".
+shp:PermutationRuleCoverageRegionShape sh:property _:prg1.
+_:prg2 sh:path usf:coverageRegionEvaluationDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_COVERAGE_REGION_BINDING_INCOMPLETE: rule region must bind its evaluation".
+shp:PermutationRuleCoverageRegionShape sh:property _:prg2.
+
+shp:PermutationPendingCoverageRegionShape a sh:NodeShape;
+    usf:canonicalName "permutationpendingcoverageregionshape";
+    sh:targetClass usf:PermutationPendingCoverageRegion.
+_:ppg1 sh:path usf:coverageRegionDisposition;
+    sh:in (<urn:usf:permutationclosuredisposition:deferred> <urn:usf:permutationclosuredisposition:unresolved>);
+    sh:message "PERMUTATION_PENDING_REGION_DISPOSITION_INVALID: pending regions may contain only deferred or unresolved points".
+shp:PermutationPendingCoverageRegionShape sh:property _:ppg1.
+_:ppg2 sh:path usf:coverageRegionRule; sh:maxCount 0;
+    sh:message "PERMUTATION_PENDING_REGION_DISPOSITION_INVALID: pending regions cannot claim symbolic rule coverage".
+shp:PermutationPendingCoverageRegionShape sh:property _:ppg2.
+
+shp:PermutationPublicationBudgetShape a sh:NodeShape;
+    usf:canonicalName "permutationpublicationbudgetshape";
+    sh:targetClass usf:PermutationPublicationBudget.
+_:pub1 sh:path usf:publicationBudgetForProvider; sh:minCount 1; sh:maxCount 1; sh:hasValue "stardogcloudfree";
+    sh:message "PERMUTATION_PUBLICATION_BUDGET_INVALID: budget must bind the declared authority provider".
+shp:PermutationPublicationBudgetShape sh:property _:pub1.
+_:pub2 sh:path usf:publicationHardStatementLimit; sh:minCount 1; sh:maxCount 1; sh:hasValue 1000000;
+    sh:message "PERMUTATION_PUBLICATION_BUDGET_INVALID: provider hard limit must be exactly one million statements".
+shp:PermutationPublicationBudgetShape sh:property _:pub2.
+_:pub3 sh:path usf:publicationReservedStatementCount; sh:minCount 1; sh:maxCount 1; sh:hasValue 200000;
+    sh:message "PERMUTATION_PUBLICATION_BUDGET_INVALID: publication reserve must be exactly two hundred thousand statements".
+shp:PermutationPublicationBudgetShape sh:property _:pub3.
+_:pub4 sh:path usf:publicationMaximumProjectedStatementCount; sh:minCount 1; sh:maxCount 1; sh:hasValue 800000;
+    sh:message "PERMUTATION_PUBLICATION_BUDGET_INVALID: maximum projected count must preserve the reserve".
+shp:PermutationPublicationBudgetShape sh:property _:pub4.
+_:pub5 sh:path usf:publicationBudgetFailClosed; sh:minCount 1; sh:maxCount 1; sh:hasValue true;
+    sh:message "PERMUTATION_PUBLICATION_BUDGET_INVALID: publication budget must fail closed".
+shp:PermutationPublicationBudgetShape sh:property _:pub5.
+_:pub6 sh:path usf:publicationBudgetDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_PUBLICATION_BUDGET_INVALID: budget must carry one exact digest".
+shp:PermutationPublicationBudgetShape sh:property _:pub6.
+_:pub7 sh:path usf:publicationFixedManifestStatementUpperBound; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:integer; sh:minInclusive 0;
+    sh:message "PERMUTATION_PUBLICATION_BUDGET_INVALID: fixed manifest statement bound is required".
+shp:PermutationPublicationBudgetShape sh:property _:pub7.
+_:pub8 sh:path usf:publicationOperationalCellStatementUpperBound; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:integer; sh:minInclusive 0;
+    sh:message "PERMUTATION_PUBLICATION_BUDGET_INVALID: operational-cell statement bound is required".
+shp:PermutationPublicationBudgetShape sh:property _:pub8.
+_:pub9 sh:path usf:publicationCoverageRegionStatementUpperBound; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:integer; sh:minInclusive 0;
+    sh:message "PERMUTATION_PUBLICATION_BUDGET_INVALID: coverage-region statement bound is required".
+shp:PermutationPublicationBudgetShape sh:property _:pub9.
+
+shp:PermutationPublicationBudgetAssessmentShape a sh:NodeShape;
+    usf:canonicalName "permutationpublicationbudgetassessmentshape";
+    sh:targetClass usf:PermutationPublicationBudgetAssessment.
+_:pba1 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_PUBLICATION_BUDGET_INVALID: assessment must bind its policy, authority, exact counts, digest and satisfied state";
+    sh:select "SELECT $this WHERE { FILTER (NOT EXISTS { $this usf:assessmentOfPublicationBudget ?budget } || NOT EXISTS { $this usf:publicationBaselineStatementCount ?baseline } || NOT EXISTS { $this usf:publicationCandidateStatementUpperBound ?candidate } || NOT EXISTS { $this usf:publicationProjectedStatementUpperBound ?projected } || NOT EXISTS { $this usf:publicationBudgetAssessmentAuthorityDigest ?authority } || NOT EXISTS { $this usf:publicationBudgetAssessmentDigest ?digest } || NOT EXISTS { $this usf:publicationBudgetSatisfied true }) }".
+shp:PermutationPublicationBudgetAssessmentShape sh:sparql _:pba1.
+_:pba2 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_PUBLICATION_BUDGET_EXCEEDED: projected candidate authority must equal baseline plus candidate and remain within the policy maximum";
+    sh:select "SELECT $this WHERE { $this usf:assessmentOfPublicationBudget ?budget ; usf:publicationBaselineStatementCount ?baseline ; usf:publicationCandidateStatementUpperBound ?candidate ; usf:publicationProjectedStatementUpperBound ?projected . ?budget usf:publicationMaximumProjectedStatementCount ?maximum . FILTER (?projected != ?baseline + ?candidate || ?projected > ?maximum) }".
+shp:PermutationPublicationBudgetAssessmentShape sh:sparql _:pba2.
+
+shp:PermutationSparseProofShape a sh:NodeShape;
+    usf:canonicalName "permutationsparseproofshape";
+    sh:targetClass usf:PermutationProof.
+_:psp1 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_SPARSE_PROOF_BINDING_INCOMPLETE: sparse proof must bind authority inputs, algorithms, manifest, regions, operational bytes and publication budget";
+    sh:select "SELECT $this WHERE { FILTER (NOT EXISTS { $this usf:provesPermutationUniverse ?universe } || NOT EXISTS { $this usf:provenCandidateUniverseDigest ?raw } || NOT EXISTS { $this usf:provenFiniteDomainDigest ?domains } || NOT EXISTS { $this usf:provenApplicabilityRuleDigest ?rules } || NOT EXISTS { $this usf:provenGeneratorDigest ?generator } || NOT EXISTS { $this usf:provenIndependentVerifierDigest ?verifier } || NOT EXISTS { $this usf:provenSparseManifestDigest ?manifest } || NOT EXISTS { $this usf:provenOperationalCellSetDigest ?cells } || NOT EXISTS { $this usf:provenCoverageRegionDigest ?regions } || NOT EXISTS { $this usf:provenClosureEquationDigest ?equation } || NOT EXISTS { $this usf:provenPublicationBudgetAssessment ?budget }) }".
+shp:PermutationSparseProofShape sh:sparql _:psp1.
+_:psp2 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_SPARSE_PARTITION_MISMATCH: raw candidates must equal operational plus forbidden-rule, not-applicable-rule, deferred and unresolved counts";
+    sh:select "SELECT $this WHERE { $this usf:provenRawCandidateCount ?raw ; usf:provenApplicableCandidateCount ?applicable ; usf:provenSatisfiableCandidateCount ?satisfiable ; usf:provenOperationalCellCount ?operational ; usf:provenRuleCoveredForbiddenCount ?forbidden ; usf:provenRuleCoveredNotApplicableCount ?notApplicable ; usf:provenDeferredCount ?deferred ; usf:provenUnresolvedCount ?unresolved ; usf:provenUnclassifiedCount ?unclassified ; usf:provenOverlapCount ?overlap . FILTER (?raw != ?operational + ?forbidden + ?notApplicable + ?deferred + ?unresolved || ?applicable != ?operational + ?forbidden || ?satisfiable != ?operational || ?unclassified != 0 || ?overlap != 0) }".
+shp:PermutationSparseProofShape sh:sparql _:psp2.
 
 shp:PermutationCellShape a sh:NodeShape;
     usf:canonicalName "permutationcellshape";
@@ -83,16 +546,29 @@ _:pc1 sh:path usf:cellOfFamily;
     sh:class usf:PermutationFamily;
     sh:message "permutationcellfamily: cell must belong to exactly one family".
 shp:PermutationCellShape sh:property _:pc1.
+_:pc_subject sh:path usf:cellForSubject;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:Entity;
+    sh:message "PERMUTATION_CELL_SUBJECT_CARDINALITY: cell must bind exactly one registered semantic subject".
+shp:PermutationCellShape sh:property _:pc_subject.
 _:pc2 sh:path usf:cellStableKey;
     sh:minCount 1;
     sh:maxCount 1;
+    sh:datatype xsd:string;
     sh:message "permutationcellstablekey: cell must carry exactly one stable key".
 shp:PermutationCellShape sh:property _:pc2.
 _:pc3 sh:path usf:cellDisposition;
     sh:minCount 1;
     sh:maxCount 1;
     sh:class usf:PermutationClosureDisposition;
-    sh:message "permutationcelldisposition: cell must carry exactly one closure disposition".
+    sh:in (<urn:usf:permutationclosuredisposition:required>
+           <urn:usf:permutationclosuredisposition:allowed>
+           <urn:usf:permutationclosuredisposition:forbidden>
+           <urn:usf:permutationclosuredisposition:notapplicable>
+           <urn:usf:permutationclosuredisposition:deferred>
+           <urn:usf:permutationclosuredisposition:unresolved>);
+    sh:message "PERMUTATION_CELL_DISPOSITION_OUTSIDE_CLOSED_SET: cell must carry exactly one of the six closure dispositions".
 shp:PermutationCellShape sh:property _:pc3.
 _:pc4 sh:path usf:cellAuthorityDigest;
     sh:minCount 1;
@@ -113,9 +589,42 @@ _:pc7 sh:prefixes usf:prefixes;
     sh:select "SELECT $this WHERE {\n      $this usf:cellDisposition <urn:usf:permutationclosuredisposition:forbidden> ;\n            usf:cellAuthorisationPath ?path .\n      ?path usf:pathSatisfiable true .\n    }".
 shp:PermutationCellShape sh:sparql _:pc7.
 _:pc8 sh:prefixes usf:prefixes;
-    sh:message "duplicatepermutationcellkey: no two cells of one family may share a stable key";
-    sh:select "SELECT $this WHERE {\n      $this usf:cellOfFamily ?family ; usf:cellStableKey ?key .\n      ?other usf:cellOfFamily ?family ; usf:cellStableKey ?key .\n      FILTER (?other != $this)\n    }".
+    sh:message "PERMUTATION_CELL_IDENTITY_DUPLICATE: no two cells may share a stable key";
+    sh:select "SELECT $this WHERE {\n      $this usf:cellStableKey ?key .\n      ?other usf:cellStableKey ?key .\n      FILTER (?other != $this)\n    }".
 shp:PermutationCellShape sh:sparql _:pc8.
+_:pc9 sh:path usf:cellDigest;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_CELL_IDENTITY_DIGEST_MISMATCH: cell must carry exactly one SHA-256 digest".
+shp:PermutationCellShape sh:property _:pc9.
+_:pc10 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_CELL_IDENTITY_DIGEST_MISMATCH: stable key, digest and cell IRI must agree";
+    sh:select "SELECT $this WHERE {\n      $this usf:cellStableKey ?key ; usf:cellDigest ?digest .\n      BIND (SHA256(STR(?key)) AS ?hex)\n      FILTER (STR(?digest) != CONCAT(\"sha256:\", ?hex) || STR($this) != CONCAT(\"urn:usf:permutationcell:\", ?hex))\n    }".
+shp:PermutationCellShape sh:sparql _:pc10.
+_:pc12 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_NON_OPERATIONAL_CELL_MATERIALISATION_UNWARRANTED: forbidden, not-applicable, deferred or unresolved cells require an exceptional current proof warrant";
+    sh:select "SELECT $this WHERE { $this usf:cellDisposition ?disposition . FILTER (?disposition != <urn:usf:permutationclosuredisposition:required> && ?disposition != <urn:usf:permutationclosuredisposition:allowed>) FILTER (NOT EXISTS { $this usf:cellProofResult ?proof } || NOT EXISTS { $this usf:cellDispositionReason ?reason } || NOT EXISTS { $this usf:cellProvenanceRule ?provenance }) }".
+shp:PermutationCellShape sh:sparql _:pc12.
+
+shp:PermutationClosureDispositionShape a sh:NodeShape;
+    usf:canonicalName "permutationclosuredispositionshape";
+    sh:targetClass usf:PermutationClosureDisposition;
+    sh:in (<urn:usf:permutationclosuredisposition:required>
+           <urn:usf:permutationclosuredisposition:allowed>
+           <urn:usf:permutationclosuredisposition:forbidden>
+           <urn:usf:permutationclosuredisposition:notapplicable>
+           <urn:usf:permutationclosuredisposition:deferred>
+           <urn:usf:permutationclosuredisposition:unresolved>);
+    sh:message "PERMUTATION_DISPOSITION_OUTSIDE_CLOSED_SET: no additional closure disposition is permitted".
+
+shp:PermutationDispositionVocabularyShape a sh:NodeShape;
+    usf:canonicalName "permutationdispositionvocabularyshape";
+    sh:targetNode <urn:usf:permutationuniverse:closure>;
+    sh:sparql _:pc11.
+_:pc11 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_DISPOSITION_SET_INCOMPLETE: all six closure dispositions must exist";
+    sh:select "SELECT $this WHERE {\n      FILTER (\n        NOT EXISTS { <urn:usf:permutationclosuredisposition:required> a usf:PermutationClosureDisposition } ||\n        NOT EXISTS { <urn:usf:permutationclosuredisposition:allowed> a usf:PermutationClosureDisposition } ||\n        NOT EXISTS { <urn:usf:permutationclosuredisposition:forbidden> a usf:PermutationClosureDisposition } ||\n        NOT EXISTS { <urn:usf:permutationclosuredisposition:notapplicable> a usf:PermutationClosureDisposition } ||\n        NOT EXISTS { <urn:usf:permutationclosuredisposition:deferred> a usf:PermutationClosureDisposition } ||\n        NOT EXISTS { <urn:usf:permutationclosuredisposition:unresolved> a usf:PermutationClosureDisposition }\n      )\n    }".
 
 shp:PermutationFamilyReviewShape a sh:NodeShape;
     usf:canonicalName "permutationfamilyreviewshape";
@@ -137,6 +646,10 @@ _:pr3 sh:path usf:reviewDisposition;
     sh:class usf:PermutationFamilyReviewDisposition;
     sh:message "reviewdisposition: review must carry exactly one disposition".
 shp:PermutationFamilyReviewShape sh:property _:pr3.
+_:pr3Closed sh:path usf:reviewDisposition;
+    sh:in (<urn:usf:familyreviewdisposition:matrixrequired> <urn:usf:familyreviewdisposition:matrixnotapplicable>);
+    sh:message "PERMUTATION_FAMILY_REVIEW_DISPOSITION_OUTSIDE_CLOSED_SET: family review disposition must be matrixrequired or matrixnotapplicable".
+shp:PermutationFamilyReviewShape sh:property _:pr3Closed.
 _:pr4 sh:prefixes usf:prefixes;
     sh:message "matrixnotapplicablewithoutproof: matrix-not-applicable reviews must carry a reason code and signal digest";
     sh:select "SELECT $this WHERE {\n      $this usf:reviewDisposition <urn:usf:familyreviewdisposition:matrixnotapplicable> .\n      FILTER (NOT EXISTS { $this usf:reviewReasonCode ?code } || NOT EXISTS { $this usf:reviewSignalDigest ?digest })\n    }".
@@ -179,6 +692,27 @@ _:pa6 sh:path usf:atomSelectorKind;
     sh:class usf:ResourceSelectorKind;
     sh:message "permissionatomselector: atom must bind at least one resource selector kind".
 shp:PermissionAtomShape sh:property _:pa6.
+_:pa_resource sh:path usf:atomResourceClass;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:nodeKind sh:IRI;
+    sh:class <http://www.w3.org/2002/07/owl#Class>;
+    sh:message "PERMISSION_ATOM_RESOURCE_CLASS_INVALID: atom must bind exactly one declared resource class".
+shp:PermissionAtomShape sh:property _:pa_resource.
+_:pa_legacy_resource sh:path usf:atomResourceClassIri;
+    sh:maxCount 0;
+    sh:message "PERMISSION_ATOM_LEXICAL_RESOURCE_CLASS_PROHIBITED: current atoms must not use the superseded lexical class reference".
+shp:PermissionAtomShape sh:property _:pa_legacy_resource.
+_:pa_lifecycle_restriction sh:path usf:atomLifecycleRestriction;
+    sh:nodeKind sh:IRI;
+    sh:class usf:State;
+    sh:message "PERMISSION_ATOM_LIFECYCLE_RESTRICTION_INVALID: every lifecycle restriction must be a declared State".
+shp:PermissionAtomShape sh:property _:pa_lifecycle_restriction.
+_:pa_transport_restriction sh:path usf:atomTransportRestriction;
+    sh:nodeKind sh:IRI;
+    sh:class usf:Transport;
+    sh:message "PERMISSION_ATOM_TRANSPORT_RESTRICTION_INVALID: every transport restriction must be a declared Transport".
+shp:PermissionAtomShape sh:property _:pa_transport_restriction.
 _:pa7 sh:prefixes usf:prefixes;
     sh:message "orphanpermissionatom: atom must supersede a permission or be referenced by a disposition or authorisation path";
     sh:select "SELECT $this WHERE {\n      FILTER NOT EXISTS { $this usf:atomSupersedesPermission ?permission }\n      FILTER NOT EXISTS { ?disposition usf:rolePermissionAtom $this }\n      FILTER NOT EXISTS { ?path usf:pathPermissionAtom $this }\n    }".
@@ -252,10 +786,10 @@ shp:AuthorisationPathShape sh:sparql _:ap5.
 shp:AuthorisationConditionProfileShape a sh:NodeShape;
     usf:canonicalName "authorisationconditionprofileshape";
     sh:targetClass usf:AuthorisationConditionProfile.
-_:cp1 sh:path usf:conditionProfileExpression;
+_:cp1 sh:path usf:conditionProfileClause;
     sh:minCount 1;
-    sh:maxCount 1;
-    sh:message "conditionprofileexpression: profile must carry exactly one expression".
+    sh:class usf:AuthorisationConditionClause;
+    sh:message "AUTHORISATION_CONDITION_PROFILE_CLAUSE_ABSENT: profile must carry at least one structured clause".
 shp:AuthorisationConditionProfileShape sh:property _:cp1.
 _:cp2 sh:path usf:conditionProfileDigest;
     sh:minCount 1;
@@ -263,6 +797,44 @@ _:cp2 sh:path usf:conditionProfileDigest;
     sh:pattern "^sha256:[0-9a-f]{64}$";
     sh:message "conditionprofiledigest: profile must carry exactly one exact digest".
 shp:AuthorisationConditionProfileShape sh:property _:cp2.
+_:cp3 sh:path usf:conditionProfileComposition;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:AuthorisationConditionComposition;
+    sh:message "AUTHORISATION_CONDITION_PROFILE_COMPOSITION_INVALID: profile must carry one finite composition".
+shp:AuthorisationConditionProfileShape sh:property _:cp3.
+_:cp4 sh:path usf:conditionProfileSatisfiable;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:hasValue true;
+    sh:message "AUTHORISATION_CONDITION_PROFILE_UNPROVEN: reusable profile must be structurally satisfiable".
+shp:AuthorisationConditionProfileShape sh:property _:cp4.
+_:cp5 sh:path usf:conditionProfileSatisfiabilityProofDigest;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "AUTHORISATION_CONDITION_PROFILE_UNPROVEN: profile must bind its deterministic satisfiability proof".
+shp:AuthorisationConditionProfileShape sh:property _:cp5.
+_:cp6 sh:path usf:conditionProfileExpression;
+    sh:maxCount 0;
+    sh:message "AUTHORISATION_CONDITION_EXECUTABLE_EXPRESSION_PROHIBITED: current profiles cannot use arbitrary expression strings".
+shp:AuthorisationConditionProfileShape sh:property _:cp6.
+
+shp:AuthorisationConditionClauseShape a sh:NodeShape;
+    usf:canonicalName "authorisationconditionclauseshape";
+    sh:targetClass usf:AuthorisationConditionClause.
+_:cc1 sh:path usf:conditionClausePosition; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:positiveInteger;
+    sh:message "AUTHORISATION_CONDITION_CLAUSE_POSITION_INVALID: clause needs one positive position".
+shp:AuthorisationConditionClauseShape sh:property _:cc1.
+_:cc2 sh:path usf:conditionClausePredicate; sh:minCount 1; sh:maxCount 1; sh:class usf:AuthorisationConditionPredicate;
+    sh:message "AUTHORISATION_CONDITION_CLAUSE_PREDICATE_INVALID: clause needs one controlled predicate".
+shp:AuthorisationConditionClauseShape sh:property _:cc2.
+_:cc3 sh:path usf:conditionClauseOperator; sh:minCount 1; sh:maxCount 1; sh:class usf:AuthorisationConditionOperator;
+    sh:message "AUTHORISATION_CONDITION_CLAUSE_OPERATOR_INVALID: clause needs one controlled operator".
+shp:AuthorisationConditionClauseShape sh:property _:cc3.
+_:cc4 sh:path usf:conditionClauseDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "AUTHORISATION_CONDITION_CLAUSE_DIGEST_INVALID: clause needs one exact digest".
+shp:AuthorisationConditionClauseShape sh:property _:cc4.
 
 shp:TokenScopeShape a sh:NodeShape;
     usf:canonicalName "tokenscopeshape";
@@ -278,8 +850,8 @@ _:ts2 sh:path usf:scopePermissionAtom;
     sh:message "tokenscopeatom: scope must map to at least one permission atom".
 shp:TokenScopeShape sh:property _:ts2.
 _:ts3 sh:prefixes usf:prefixes;
-    sh:message "tokenscopeforbiddenatom: scope must not map to an atom that only forbidden cells reference";
-    sh:select "SELECT $this WHERE {\n      $this usf:scopePermissionAtom ?atom .\n      ?cell usf:cellPermissionAtom ?atom ; usf:cellDisposition <urn:usf:permutationclosuredisposition:forbidden> .\n      FILTER NOT EXISTS {\n        ?live usf:cellPermissionAtom ?atom ; usf:cellDisposition ?ok .\n        FILTER (?ok IN (<urn:usf:permutationclosuredisposition:required>, <urn:usf:permutationclosuredisposition:allowed>))\n      }\n    }".
+    sh:message "PERMUTATION_TOKEN_SCOPE_WITHOUT_OPERATIONAL_CELL: every scoped permission atom requires a positive required or allowed operational-cell witness";
+    sh:select "SELECT $this WHERE {\n      $this usf:scopePermissionAtom ?atom .\n      FILTER NOT EXISTS {\n        ?live usf:cellPermissionAtom ?atom ; usf:cellDisposition ?ok .\n        FILTER (?ok = <urn:usf:permutationclosuredisposition:required> || ?ok = <urn:usf:permutationclosuredisposition:allowed>)\n      }\n    }".
 shp:TokenScopeShape sh:sparql _:ts3.
 
 shp:TokenProfileShape a sh:NodeShape;
@@ -307,3 +879,572 @@ _:tp4 sh:path usf:profileScope;
     sh:class usf:TokenScope;
     sh:message "tokenprofilescope: profile must bind at least one token scope".
 shp:TokenProfileShape sh:property _:tp4.
+
+shp:TokenProfileTemplateShape a sh:NodeShape;
+    usf:canonicalName "tokenprofiletemplateshape";
+    sh:targetClass usf:TokenProfileTemplate.
+_:tpt1 sh:path usf:tokenProfileTemplateKind; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:minLength 1;
+    sh:message "TOKEN_PROFILE_TEMPLATE_KIND_INVALID: template must declare one finite kind".
+shp:TokenProfileTemplateShape sh:property _:tpt1.
+_:tpt2 sh:path usf:tokenProfileTemplateNonTokenMode; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:boolean;
+    sh:message "TOKEN_PROFILE_TEMPLATE_EXECUTION_MODE_INVALID: template must distinguish token and non-token execution".
+shp:TokenProfileTemplateShape sh:property _:tpt2.
+_:tpt3 sh:path usf:tokenProfileTemplateDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "TOKEN_PROFILE_TEMPLATE_DIGEST_INVALID: template must bind its exact structured digest".
+shp:TokenProfileTemplateShape sh:property _:tpt3.
+_:tpt4 sh:prefixes usf:prefixes;
+    sh:message "TOKEN_PROFILE_TEMPLATE_CONSTRAINT_INVALID: token templates require claim constraints and non-token templates prohibit them";
+    sh:select "SELECT $this WHERE { $this usf:tokenProfileTemplateNonTokenMode ?nonToken . FILTER ((?nonToken = true && EXISTS { $this usf:tokenProfileTemplateClaimConstraint ?constraint }) || (?nonToken = false && NOT EXISTS { $this usf:tokenProfileTemplateClaimConstraint ?constraint })) }".
+shp:TokenProfileTemplateShape sh:sparql _:tpt4.
+_:tpt5 sh:prefixes usf:prefixes;
+    sh:message "TOKEN_PROFILE_TEMPLATE_SECURITY_BINDING_INVALID: token templates require at least one non-authorising security binding and non-token templates prohibit one";
+    sh:select "SELECT $this WHERE { $this usf:tokenProfileTemplateNonTokenMode ?nonToken . FILTER ((?nonToken = false && NOT EXISTS { ?binding a usf:TokenProfileTemplateSecurityBinding; usf:securityBindingForTokenProfileTemplate $this }) || (?nonToken = true && EXISTS { ?binding a usf:TokenProfileTemplateSecurityBinding; usf:securityBindingForTokenProfileTemplate $this })) }".
+shp:TokenProfileTemplateShape sh:sparql _:tpt5.
+
+shp:TokenProfileTemplateSecurityBindingShape a sh:NodeShape;
+    usf:canonicalName "tokenprofiletemplatesecuritybindingshape";
+    sh:targetClass usf:TokenProfileTemplateSecurityBinding.
+_:tptsb1 sh:path usf:securityBindingForTokenProfileTemplate; sh:minCount 1; sh:maxCount 1; sh:class usf:TokenProfileTemplate;
+    sh:message "TOKEN_TEMPLATE_SECURITY_PROFILE_INVALID: security binding requires one token template".
+shp:TokenProfileTemplateSecurityBindingShape sh:property _:tptsb1.
+_:tptsb2 sh:path usf:securityBindingIssuerClass; sh:minCount 1; sh:maxCount 1; sh:class usf:TokenIssuerClass;
+    sh:message "TOKEN_TEMPLATE_SECURITY_ISSUER_INVALID: security binding requires one issuer class".
+shp:TokenProfileTemplateSecurityBindingShape sh:property _:tptsb2.
+_:tptsb3 sh:path usf:securityBindingAudience; sh:minCount 1; sh:maxCount 1; sh:class usf:TokenAudience;
+    sh:message "TOKEN_TEMPLATE_SECURITY_AUDIENCE_INVALID: security binding requires one audience".
+shp:TokenProfileTemplateSecurityBindingShape sh:property _:tptsb3.
+_:tptsb4 sh:path usf:securityBindingLifetimePolicy; sh:minCount 1; sh:maxCount 1; sh:class usf:TokenLifetimePolicy;
+    sh:message "TOKEN_TEMPLATE_SECURITY_LIFETIME_INVALID: security binding requires one lifetime policy".
+shp:TokenProfileTemplateSecurityBindingShape sh:property _:tptsb4.
+_:tptsb5 sh:path usf:securityBindingAuthenticationStrength; sh:minCount 1; sh:maxCount 1; sh:class usf:AuthenticationStrengthRequirement;
+    sh:message "TOKEN_TEMPLATE_SECURITY_AUTHENTICATION_INVALID: security binding requires one authentication-strength requirement".
+shp:TokenProfileTemplateSecurityBindingShape sh:property _:tptsb5.
+_:tptsb6 sh:path usf:securityBindingProofOfPossession; sh:minCount 1; sh:maxCount 1; sh:class usf:ProofOfPossessionRequirement;
+    sh:message "TOKEN_TEMPLATE_SECURITY_PROOF_OF_POSSESSION_INVALID: security binding requires one proof-of-possession requirement".
+shp:TokenProfileTemplateSecurityBindingShape sh:property _:tptsb6.
+_:tptsb7 sh:path usf:securityBindingRevocationPolicy; sh:minCount 1; sh:maxCount 1; sh:class usf:RevocationPolicy;
+    sh:message "TOKEN_TEMPLATE_SECURITY_REVOCATION_INVALID: security binding requires one revocation policy".
+shp:TokenProfileTemplateSecurityBindingShape sh:property _:tptsb7.
+_:tptsb8 sh:path usf:securityBindingDelegationConstraint; sh:minCount 1; sh:maxCount 1; sh:class usf:DelegationConstraint;
+    sh:message "TOKEN_TEMPLATE_SECURITY_DELEGATION_INVALID: security binding requires one delegation constraint".
+shp:TokenProfileTemplateSecurityBindingShape sh:property _:tptsb8.
+_:tptsb9 sh:path usf:tokenProfileTemplateSecurityBindingDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "TOKEN_TEMPLATE_SECURITY_DIGEST_INVALID: security binding requires one exact digest".
+shp:TokenProfileTemplateSecurityBindingShape sh:property _:tptsb9.
+_:tptsb10 sh:prefixes usf:prefixes;
+    sh:message "NON_TOKEN_TEMPLATE_HAS_SECURITY_BINDING: a non-token template cannot receive token security semantics";
+    sh:select "SELECT $this WHERE { $this usf:securityBindingForTokenProfileTemplate ?template . ?template usf:tokenProfileTemplateNonTokenMode true }".
+shp:TokenProfileTemplateSecurityBindingShape sh:sparql _:tptsb10.
+
+shp:TokenClaimConstraintTemplateShape a sh:NodeShape;
+    usf:canonicalName "tokenclaimconstrainttemplateshape";
+    sh:targetClass usf:TokenClaimConstraintTemplate.
+_:tcct1 sh:path usf:claimConstraintTemplateKind; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:minLength 1;
+    sh:message "TOKEN_CLAIM_CONSTRAINT_TEMPLATE_KIND_INVALID: template must declare one finite claim kind".
+shp:TokenClaimConstraintTemplateShape sh:property _:tcct1.
+_:tcct2 sh:path usf:claimConstraintTemplateDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "TOKEN_CLAIM_CONSTRAINT_TEMPLATE_DIGEST_INVALID: template must bind one exact digest".
+shp:TokenClaimConstraintTemplateShape sh:property _:tcct2.
+
+shp:EventPermissionProfileShape a sh:NodeShape;
+    usf:canonicalName "eventpermissionprofileshape";
+    sh:targetClass usf:Event.
+_:ep_publish sh:path usf:requiredPublishPermission; sh:maxCount 1; sh:class usf:Permission; sh:message "EVENT_PUBLISH_PERMISSION_INVALID: publish permission must be one typed permission".
+shp:EventPermissionProfileShape sh:property _:ep_publish.
+_:ep_subscribe sh:path usf:requiredSubscribePermission; sh:maxCount 1; sh:class usf:Permission; sh:message "EVENT_SUBSCRIBE_PERMISSION_INVALID: subscribe permission must be one typed permission".
+shp:EventPermissionProfileShape sh:property _:ep_subscribe.
+_:ep_consume sh:path usf:requiredConsumePermission; sh:maxCount 1; sh:class usf:Permission; sh:message "EVENT_CONSUME_PERMISSION_INVALID: consume permission must be one typed permission".
+shp:EventPermissionProfileShape sh:property _:ep_consume.
+_:ep_acknowledge sh:path usf:requiredAcknowledgePermission; sh:maxCount 1; sh:class usf:Permission; sh:message "EVENT_ACKNOWLEDGE_PERMISSION_INVALID: acknowledge permission must be one typed permission".
+shp:EventPermissionProfileShape sh:property _:ep_acknowledge.
+_:ep_replay sh:path usf:requiredReplayPermission; sh:maxCount 1; sh:class usf:Permission; sh:message "EVENT_REPLAY_PERMISSION_INVALID: replay permission must be one typed permission".
+shp:EventPermissionProfileShape sh:property _:ep_replay.
+_:ep_dead_letter sh:path usf:requiredDeadLetterPermission; sh:maxCount 1; sh:class usf:Permission; sh:message "EVENT_DEAD_LETTER_PERMISSION_INVALID: dead-letter permission must be one typed permission".
+shp:EventPermissionProfileShape sh:property _:ep_dead_letter.
+_:ep_subscription_administration sh:path usf:requiredSubscriptionAdministrationPermission; sh:maxCount 1; sh:class usf:Permission; sh:message "EVENT_SUBSCRIPTION_ADMINISTRATION_PERMISSION_INVALID: subscription administration permission must be one typed permission".
+shp:EventPermissionProfileShape sh:property _:ep_subscription_administration.
+_:ep_metadata_view sh:path usf:requiredEventMetadataViewPermission; sh:maxCount 1; sh:class usf:Permission; sh:message "EVENT_METADATA_VIEW_PERMISSION_INVALID: metadata-view permission must be one typed permission".
+shp:EventPermissionProfileShape sh:property _:ep_metadata_view.
+_:ep1 sh:prefixes usf:prefixes;
+    sh:message "EVENT_PERMISSION_PROFILE_INCOMPLETE: an event declaring any event permission must declare all eight exact permission roles";
+    sh:select "SELECT $this WHERE { FILTER ((EXISTS { $this usf:requiredPublishPermission ?permission } || EXISTS { $this usf:requiredSubscribePermission ?permission } || EXISTS { $this usf:requiredConsumePermission ?permission } || EXISTS { $this usf:requiredAcknowledgePermission ?permission } || EXISTS { $this usf:requiredReplayPermission ?permission } || EXISTS { $this usf:requiredDeadLetterPermission ?permission } || EXISTS { $this usf:requiredSubscriptionAdministrationPermission ?permission } || EXISTS { $this usf:requiredEventMetadataViewPermission ?permission }) && (NOT EXISTS { $this usf:requiredPublishPermission ?publish } || NOT EXISTS { $this usf:requiredSubscribePermission ?subscribe } || NOT EXISTS { $this usf:requiredConsumePermission ?consume } || NOT EXISTS { $this usf:requiredAcknowledgePermission ?acknowledge } || NOT EXISTS { $this usf:requiredReplayPermission ?replay } || NOT EXISTS { $this usf:requiredDeadLetterPermission ?deadLetter } || NOT EXISTS { $this usf:requiredSubscriptionAdministrationPermission ?subscriptionAdministration } || NOT EXISTS { $this usf:requiredEventMetadataViewPermission ?metadataView })) }".
+shp:EventPermissionProfileShape sh:sparql _:ep1.
+_:ep2 sh:prefixes usf:prefixes;
+    sh:message "EVENT_PERMISSION_CONTEXT_INCOMPLETE: permission-bearing events need principal, tenant, transport, payload and metadata boundaries";
+    sh:select "SELECT $this WHERE { FILTER ((EXISTS { $this usf:requiredPublishPermission ?permission } || EXISTS { $this usf:requiredSubscribePermission ?permission } || EXISTS { $this usf:requiredConsumePermission ?permission } || EXISTS { $this usf:requiredAcknowledgePermission ?permission } || EXISTS { $this usf:requiredReplayPermission ?permission } || EXISTS { $this usf:requiredDeadLetterPermission ?permission } || EXISTS { $this usf:requiredSubscriptionAdministrationPermission ?permission } || EXISTS { $this usf:requiredEventMetadataViewPermission ?permission }) && (NOT EXISTS { $this usf:eventPublisherPrincipalKind ?publisherKind } || NOT EXISTS { $this usf:eventConsumerPrincipalKind ?consumerKind } || NOT EXISTS { $this usf:eventTenantBoundary ?tenantBoundary } || NOT EXISTS { $this usf:eventDeliveryTransport ?transport } || NOT EXISTS { $this usf:eventPayloadResourceClassIri ?payloadClass } || NOT EXISTS { $this usf:eventMetadataResourceClassIri ?metadataClass })) }".
+shp:EventPermissionProfileShape sh:sparql _:ep2.
+
+shp:DataFieldShape a sh:NodeShape;
+    usf:canonicalName "datafieldshape";
+    sh:targetClass usf:DataField.
+_:df1 sh:path usf:dataFieldForModel; sh:minCount 1; sh:maxCount 1; sh:class usf:DataModel; sh:message "DATA_FIELD_MODEL_ABSENT: field must bind one owning data model".
+shp:DataFieldShape sh:property _:df1.
+_:df2 sh:path usf:dataFieldPropertyIri; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:anyURI; sh:message "DATA_FIELD_IDENTITY_ABSENT: field must bind one semantic property IRI".
+shp:DataFieldShape sh:property _:df2.
+_:df3 sh:path usf:hasPrivacyClassification; sh:minCount 1; sh:maxCount 1; sh:class usf:PrivacyClassification; sh:message "DATA_FIELD_PRIVACY_CLASSIFICATION_ABSENT: field must bind one privacy class".
+shp:DataFieldShape sh:property _:df3.
+_:df4 sh:path usf:dataFieldTenancyClassification; sh:minCount 1; sh:maxCount 1; sh:class usf:FieldTenancyClassification; sh:message "DATA_FIELD_TENANCY_CLASSIFICATION_ABSENT: field must bind one tenancy class".
+shp:DataFieldShape sh:property _:df4.
+_:df5 sh:path usf:dataFieldMutability; sh:minCount 1; sh:maxCount 1; sh:class usf:FieldMutability; sh:message "DATA_FIELD_MUTABILITY_ABSENT: field must bind one mutability class".
+shp:DataFieldShape sh:property _:df5.
+_:df6 sh:path usf:dataFieldPermittedAction; sh:minCount 1; sh:class usf:ActionKind; sh:message "DATA_FIELD_ACTION_SEMANTICS_ABSENT: field must declare its finite permitted action set".
+shp:DataFieldShape sh:property _:df6.
+_:df7 sh:path usf:dataFieldMaskingRequired; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:boolean; sh:message "DATA_FIELD_MASKING_OBLIGATION_ABSENT: field must state masking".
+shp:DataFieldShape sh:property _:df7.
+_:df8 sh:path usf:dataFieldEncryptionRequired; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:boolean; sh:message "DATA_FIELD_ENCRYPTION_OBLIGATION_ABSENT: field must state encryption".
+shp:DataFieldShape sh:property _:df8.
+_:df9 sh:path usf:dataFieldDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$"; sh:message "DATA_FIELD_DIGEST_ABSENT: field must bind one exact semantic digest".
+shp:DataFieldShape sh:property _:df9.
+_:df10 sh:path usf:dataFieldSearchable; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:boolean; sh:message "DATA_FIELD_SEARCH_SEMANTICS_ABSENT: field must state searchability".
+shp:DataFieldShape sh:property _:df10.
+_:df11 sh:path usf:dataFieldExportable; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:boolean; sh:message "DATA_FIELD_EXPORT_SEMANTICS_ABSENT: field must state exportability".
+shp:DataFieldShape sh:property _:df11.
+_:df12 sh:path usf:dataFieldRedactionRequired; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:boolean; sh:message "DATA_FIELD_REDACTION_SEMANTICS_ABSENT: field must state redaction".
+shp:DataFieldShape sh:property _:df12.
+_:df13 sh:path usf:dataFieldLegalHoldApplicable; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:boolean; sh:message "DATA_FIELD_LEGAL_HOLD_SEMANTICS_ABSENT: field must state legal-hold applicability".
+shp:DataFieldShape sh:property _:df13.
+
+shp:ActionReachabilityShape a sh:NodeShape;
+    usf:canonicalName "actionreachabilityshape";
+    sh:targetClass usf:ActionReachability.
+_:ar1 sh:path usf:reachabilityForCapability; sh:minCount 1; sh:maxCount 1; sh:class usf:Capability; sh:message "ACTION_REACHABILITY_CAPABILITY_ABSENT: reachability must bind one capability".
+shp:ActionReachabilityShape sh:property _:ar1.
+_:ar2 sh:path usf:reachabilityOperation; sh:minCount 1; sh:maxCount 1; sh:class usf:Operation; sh:message "ACTION_REACHABILITY_OPERATION_ABSENT: reachability must bind one operation".
+shp:ActionReachabilityShape sh:property _:ar2.
+_:ar3 sh:path usf:reachabilityState; sh:minCount 1; sh:maxCount 1; sh:class usf:ActionReachabilityState; sh:message "ACTION_REACHABILITY_STATE_ABSENT: reachability must bind one finite state".
+shp:ActionReachabilityShape sh:property _:ar3.
+_:ar4 sh:path usf:reachabilityAuthorityDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$"; sh:message "ACTION_REACHABILITY_AUTHORITY_BINDING_ABSENT: reachability must bind current authority".
+shp:ActionReachabilityShape sh:property _:ar4.
+_:ar5 sh:path usf:reachabilityDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$"; sh:message "ACTION_REACHABILITY_DIGEST_ABSENT: reachability must bind one exact digest".
+shp:ActionReachabilityShape sh:property _:ar5.
+_:ar6 sh:prefixes usf:prefixes; sh:message "ACTION_REACHABILITY_PRINCIPAL_ABSENT: reachability must bind a role or principal kind";
+    sh:select "SELECT $this WHERE { FILTER (NOT EXISTS { $this usf:reachabilityForRole ?role } && NOT EXISTS { $this usf:reachabilityForPrincipalKind ?kind }) }".
+shp:ActionReachabilityShape sh:sparql _:ar6.
+
+shp:ServiceIdentityShape a sh:NodeShape;
+    usf:canonicalName "serviceidentityshape";
+    sh:targetClass usf:ServiceIdentity.
+_:si1 sh:path usf:serviceIdentityForCapability; sh:minCount 1; sh:class usf:Capability; sh:message "SERVICE_IDENTITY_CAPABILITY_ABSENT: identity needs an accountable capability".
+shp:ServiceIdentityShape sh:property _:si1.
+_:si2 sh:path usf:serviceIdentityPrincipalKind; sh:minCount 1; sh:maxCount 1; sh:hasValue <urn:usf:principalkind:serviceidentity>; sh:message "SERVICE_IDENTITY_PRINCIPAL_KIND_INVALID: identity must carry the service-identity principal kind".
+shp:ServiceIdentityShape sh:property _:si2.
+_:si3 sh:path usf:serviceIdentityEnvironmentClass; sh:minCount 1; sh:class usf:EnvironmentClass; sh:message "SERVICE_IDENTITY_ENVIRONMENT_ABSENT: identity needs an environment class".
+shp:ServiceIdentityShape sh:property _:si3.
+_:si4 sh:path usf:serviceIdentityDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$"; sh:message "SERVICE_IDENTITY_DIGEST_ABSENT: identity needs one exact digest".
+shp:ServiceIdentityShape sh:property _:si4.
+
+shp:FoundationProcessLifecycleShape a sh:NodeShape;
+    usf:canonicalName "foundationprocesslifecycleshape";
+    sh:targetSubjectsOf usf:processLifecycleObligation.
+_:fpl1 sh:path usf:processForCapability; sh:minCount 1; sh:class usf:Capability; sh:message "FOUNDATION_PROCESS_CAPABILITY_ABSENT: lifecycle-bearing process needs an owned capability".
+shp:FoundationProcessLifecycleShape sh:property _:fpl1.
+_:fpl2 sh:path usf:processProvidesInterface; sh:minCount 1; sh:class usf:Interface; sh:message "FOUNDATION_PROCESS_INTERFACE_ABSENT: lifecycle-bearing process needs an interface responsibility".
+shp:FoundationProcessLifecycleShape sh:property _:fpl2.
+_:fpl3 sh:path usf:processPrincipalKind; sh:minCount 1; sh:class usf:PrincipalKind; sh:message "FOUNDATION_PROCESS_PRINCIPAL_ABSENT: lifecycle-bearing process needs a principal kind".
+shp:FoundationProcessLifecycleShape sh:property _:fpl3.
+_:fpl4 sh:path usf:processEnvironmentClass; sh:minCount 1; sh:class usf:EnvironmentClass; sh:message "FOUNDATION_PROCESS_ENVIRONMENT_ABSENT: lifecycle-bearing process needs an environment class".
+shp:FoundationProcessLifecycleShape sh:property _:fpl4.
+_:fpl5 sh:path usf:processProviderMode; sh:minCount 1; sh:class usf:ProviderMode; sh:message "FOUNDATION_PROCESS_PROVIDER_MODE_ABSENT: lifecycle-bearing process needs a provider mode".
+shp:FoundationProcessLifecycleShape sh:property _:fpl5.
+
+shp:RequiredPermutationAssuranceShape a sh:NodeShape;
+    usf:canonicalName "requiredpermutationassuranceshape";
+    sh:targetClass usf:PermutationCell.
+_:rpa1 sh:prefixes usf:prefixes;
+    sh:message "REQUIRED_PERMUTATION_ASSURANCE_OBLIGATIONS_ABSENT: required or allowed operational cells need test, evidence and proof obligations";
+    sh:select "SELECT $this WHERE { $this usf:cellDisposition ?disposition . FILTER (?disposition IN (<urn:usf:permutationclosuredisposition:required>, <urn:usf:permutationclosuredisposition:allowed>)) FILTER (NOT EXISTS { $this usf:requiredPermutationTestObligation ?test } || NOT EXISTS { $this usf:requiredPermutationEvidenceRequirement ?evidence } || NOT EXISTS { $this usf:requiredPermutationProofObligation ?proof }) }".
+shp:RequiredPermutationAssuranceShape sh:sparql _:rpa1.
+
+shp:ScheduleTriggerShape a sh:NodeShape;
+    usf:canonicalName "scheduletriggershape";
+    sh:targetSubjectsOf usf:scheduleTriggerKind.
+_:stk1 sh:path usf:scheduleTriggerKind; sh:minCount 1; sh:maxCount 1; sh:class usf:ScheduleTriggerKind;
+    sh:message "SCHEDULE_TRIGGER_KIND_INVALID: a scheduled policy must bind one finite trigger kind".
+shp:ScheduleTriggerShape sh:property _:stk1.
+
+shp:FoundationConformanceFixtureShape a sh:NodeShape;
+    usf:canonicalName "foundationconformancefixtureshape";
+    sh:targetClass usf:FoundationConformanceFixture.
+_:fcf1 sh:path usf:foundationConformanceOnly; sh:minCount 1; sh:maxCount 1; sh:hasValue true;
+    sh:message "FOUNDATION_FIXTURE_SCOPE_INVALID: fixture must be explicitly conformance-only".
+shp:FoundationConformanceFixtureShape sh:property _:fcf1.
+_:fcf2 sh:path usf:foundationFixtureCoversFamily; sh:minCount 1; sh:class usf:PermutationFamily;
+    sh:message "FOUNDATION_FIXTURE_FAMILY_COVERAGE_ABSENT: fixture must declare its covered family set".
+shp:FoundationConformanceFixtureShape sh:property _:fcf2.
+_:fcfprimary sh:path usf:foundationFixturePrimaryCapability; sh:minCount 1; sh:maxCount 1; sh:class usf:Capability;
+    sh:message "FOUNDATION_FIXTURE_PRIMARY_CAPABILITY_INVALID: fixture must select exactly one capability as the family-domain proof subject".
+shp:FoundationConformanceFixtureShape sh:property _:fcfprimary.
+_:fcfsubjects sh:path usf:foundationFixturePrimarySubject; sh:minCount 1; sh:nodeKind sh:IRI;
+    sh:message "FOUNDATION_FIXTURE_PRIMARY_SUBJECT_SET_INVALID: fixture must select registered semantic subjects".
+shp:FoundationConformanceFixtureShape sh:property _:fcfsubjects.
+_:fcfsubjectclasses sh:prefixes usf:prefixes;
+    sh:message "FOUNDATION_FIXTURE_PRIMARY_SUBJECT_CLASS_CARDINALITY: fixture must select exactly one subject for every registered family subject class";
+    sh:select "SELECT $this ?class WHERE { ?registration a usf:PermutationSubjectRegistration ; usf:registeredSubjectClass ?class . { SELECT $this ?class (COUNT(DISTINCT ?subject) AS ?count) WHERE { ?registration a usf:PermutationSubjectRegistration ; usf:registeredSubjectClass ?class . OPTIONAL { $this usf:foundationFixturePrimarySubject ?subject . { ?subject a ?class } UNION { ?projection a usf:FoundationConformanceProjectionRule ; usf:foundationProjectionSourceClass ?sourceClass ; usf:foundationProjectionTargetClass ?class ; usf:foundationProjectionStructuralOnly true . ?subject a ?sourceClass } } } GROUP BY $this ?class } FILTER(?count != 1) }".
+shp:FoundationConformanceFixtureShape sh:sparql _:fcfsubjectclasses.
+_:fcfsubjectextra sh:prefixes usf:prefixes;
+    sh:message "FOUNDATION_FIXTURE_PRIMARY_SUBJECT_UNREGISTERED: every selected fixture subject must match a registered family subject class";
+    sh:select "SELECT $this WHERE { $this usf:foundationFixturePrimarySubject ?subject . FILTER NOT EXISTS { ?registration a usf:PermutationSubjectRegistration ; usf:registeredSubjectClass ?class . { ?subject a ?class } UNION { ?projection a usf:FoundationConformanceProjectionRule ; usf:foundationProjectionSourceClass ?sourceClass ; usf:foundationProjectionTargetClass ?class ; usf:foundationProjectionStructuralOnly true . ?subject a ?sourceClass } } }".
+shp:FoundationConformanceFixtureShape sh:sparql _:fcfsubjectextra.
+_:fcfsubjectcapability sh:prefixes usf:prefixes;
+    sh:message "FOUNDATION_FIXTURE_PRIMARY_SUBJECT_SET_INVALID: the primary capability must be the Capability-class primary subject";
+    sh:select "SELECT $this WHERE { $this usf:foundationFixturePrimaryCapability ?capability . FILTER NOT EXISTS { $this usf:foundationFixturePrimarySubject ?capability . ?capability a usf:Capability } }".
+shp:FoundationConformanceFixtureShape sh:sparql _:fcfsubjectcapability.
+_:fcf3 sh:path usf:foundationFixtureDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "FOUNDATION_FIXTURE_DIGEST_MISMATCH: fixture must bind one canonical digest".
+shp:FoundationConformanceFixtureShape sh:property _:fcf3.
+
+shp:FoundationActionReachabilityWitnessShape a sh:NodeShape;
+    usf:canonicalName "foundationactionreachabilitywitnessshape";
+    sh:targetClass usf:FoundationActionReachabilityWitness.
+_:far1 sh:path usf:foundationReachabilityForCapability; sh:minCount 1; sh:maxCount 1; sh:class usf:Capability;
+    sh:message "FOUNDATION_REACHABILITY_CAPABILITY_ABSENT: witness needs one capability".
+shp:FoundationActionReachabilityWitnessShape sh:property _:far1.
+_:far2 sh:path usf:foundationReachabilityForRole; sh:minCount 1; sh:class usf:Role;
+    sh:message "FOUNDATION_REACHABILITY_PRINCIPAL_ABSENT: witness needs a role".
+shp:FoundationActionReachabilityWitnessShape sh:property _:far2.
+_:far2principal sh:path usf:foundationReachabilityForPrincipalKind; sh:minCount 1; sh:class usf:PrincipalKind;
+    sh:message "FOUNDATION_REACHABILITY_PRINCIPAL_KIND_ABSENT: witness needs a finite principal kind".
+shp:FoundationActionReachabilityWitnessShape sh:property _:far2principal.
+_:far3 sh:path usf:foundationReachabilityOperation; sh:minCount 1; sh:maxCount 1; sh:class usf:Operation;
+    sh:message "FOUNDATION_REACHABILITY_OPERATION_ABSENT: witness needs one operation".
+shp:FoundationActionReachabilityWitnessShape sh:property _:far3.
+_:far4 sh:path usf:foundationReachabilityPermission; sh:minCount 1; sh:class usf:Permission;
+    sh:message "FOUNDATION_REACHABILITY_PERMISSION_ABSENT: witness needs a non-grant permission requirement".
+shp:FoundationActionReachabilityWitnessShape sh:property _:far4.
+_:far4atom sh:path usf:foundationReachabilityPermissionAtomWitness; sh:minCount 1; sh:maxCount 1; sh:class usf:FoundationPermissionAtomWitness;
+    sh:message "FOUNDATION_REACHABILITY_PERMISSION_ATOM_WITNESS_ABSENT: structural permission-atom coverage needs one non-authorising witness".
+shp:FoundationActionReachabilityWitnessShape sh:property _:far4atom.
+_:far4condition sh:path usf:foundationReachabilityConditionProfile; sh:minCount 1; sh:maxCount 1; sh:class usf:AuthorisationConditionProfile;
+    sh:message "FOUNDATION_REACHABILITY_CONDITION_PROFILE_ABSENT: structural conditional reachability needs one finite profile".
+shp:FoundationActionReachabilityWitnessShape sh:property _:far4condition.
+_:far5 sh:path usf:foundationReachabilityState; sh:minCount 1; sh:maxCount 1; sh:class usf:ActionReachabilityState;
+    sh:message "FOUNDATION_REACHABILITY_STATE_ABSENT: witness needs one finite state".
+shp:FoundationActionReachabilityWitnessShape sh:property _:far5.
+_:far6 sh:path usf:foundationWitnessDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "FOUNDATION_WITNESS_DIGEST_ABSENT: witness needs one exact digest".
+shp:FoundationActionReachabilityWitnessShape sh:property _:far6.
+
+shp:FoundationPermissionAtomWitnessShape a sh:NodeShape;
+    usf:canonicalName "foundationpermissionatomwitnessshape";
+    sh:targetClass usf:FoundationPermissionAtomWitness.
+_:fpaw1 sh:path usf:foundationPermissionRequirement; sh:minCount 1; sh:maxCount 1; sh:class usf:Permission;
+    sh:message "FOUNDATION_PERMISSION_ATOM_REQUIREMENT_ABSENT: witness needs one non-grant permission requirement".
+shp:FoundationPermissionAtomWitnessShape sh:property _:fpaw1.
+_:fpaw2 sh:path usf:foundationWitnessDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "FOUNDATION_WITNESS_DIGEST_ABSENT: permission-atom witness needs one exact digest".
+shp:FoundationPermissionAtomWitnessShape sh:property _:fpaw2.
+_:fpaw3 sh:path usf:foundationPermissionLifecycleRestriction; sh:minCount 1; sh:class usf:State;
+    sh:message "FOUNDATION_PERMISSION_ATOM_LIFECYCLE_RESTRICTION_ABSENT: structural permission-atom coverage needs a finite lifecycle restriction".
+shp:FoundationPermissionAtomWitnessShape sh:property _:fpaw3.
+_:fpaw4 sh:path usf:foundationPermissionTransportRestriction; sh:minCount 1; sh:class usf:Transport;
+    sh:message "FOUNDATION_PERMISSION_ATOM_TRANSPORT_RESTRICTION_ABSENT: structural permission-atom coverage needs a finite transport restriction".
+shp:FoundationPermissionAtomWitnessShape sh:property _:fpaw4.
+
+shp:FoundationConformanceProjectionRuleShape a sh:NodeShape;
+    usf:canonicalName "foundationconformanceprojectionruleshape";
+    sh:targetClass usf:FoundationConformanceProjectionRule.
+_:fcpr1 sh:path usf:foundationProjectionSourceClass; sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "FOUNDATION_PROJECTION_RULE_CARDINALITY: one source fixture class is required".
+shp:FoundationConformanceProjectionRuleShape sh:property _:fcpr1.
+_:fcpr2 sh:path usf:foundationProjectionTargetClass; sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "FOUNDATION_PROJECTION_RULE_CARDINALITY: one structural target class is required".
+shp:FoundationConformanceProjectionRuleShape sh:property _:fcpr2.
+_:fcpr3 sh:path usf:foundationProjectionIdentityMode; sh:minCount 1; sh:maxCount 1; sh:class usf:FoundationProjectionIdentityMode;
+    sh:message "FOUNDATION_PROJECTION_RULE_CARDINALITY: one controlled identity mode is required".
+shp:FoundationConformanceProjectionRuleShape sh:property _:fcpr3.
+_:fcpr4 sh:path usf:foundationProjectionStructuralOnly; sh:minCount 1; sh:maxCount 1; sh:hasValue true;
+    sh:message "FOUNDATION_PROJECTION_RULE_SCOPE_INVALID: projection must be structural-only".
+shp:FoundationConformanceProjectionRuleShape sh:property _:fcpr4.
+_:fcpr5 sh:path usf:foundationProjectionPredicateMapping; sh:class usf:FoundationConformancePredicateMapping;
+    sh:message "FOUNDATION_PROJECTION_MAPPING_INCOMPLETE: mappings must be typed structural mappings".
+shp:FoundationConformanceProjectionRuleShape sh:property _:fcpr5.
+_:fcpr6 sh:path usf:foundationProjectionRuleDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "FOUNDATION_PROJECTION_DIGEST_MISMATCH: projection rule needs one exact digest".
+shp:FoundationConformanceProjectionRuleShape sh:property _:fcpr6.
+_:fcpr7 sh:prefixes usf:prefixes;
+    sh:message "FOUNDATION_PROJECTION_MAPPING_INCOMPLETE: digest-shadow rules need mappings and only the permission-atom structural alias may carry mappings";
+    sh:select "SELECT $this WHERE { $this usf:foundationProjectionIdentityMode ?mode . { FILTER (?mode = <urn:usf:foundationprojectionidentitymode:digestshadow>) FILTER NOT EXISTS { $this usf:foundationProjectionPredicateMapping ?mapping } } UNION { FILTER (?mode = <urn:usf:foundationprojectionidentitymode:sourcealias>) $this usf:foundationProjectionPredicateMapping ?mapping . FILTER NOT EXISTS { $this usf:foundationProjectionSourceClass usf:FoundationPermissionAtomWitness; usf:foundationProjectionTargetClass usf:PermissionAtom } } UNION { FILTER (?mode = <urn:usf:foundationprojectionidentitymode:sourcealias>) $this usf:foundationProjectionSourceClass usf:FoundationPermissionAtomWitness; usf:foundationProjectionTargetClass usf:PermissionAtom . FILTER NOT EXISTS { $this usf:foundationProjectionPredicateMapping ?mapping } } }".
+shp:FoundationConformanceProjectionRuleShape sh:sparql _:fcpr7.
+
+shp:FoundationConformancePredicateMappingShape a sh:NodeShape;
+    usf:canonicalName "foundationconformancepredicatemappingshape";
+    sh:targetClass usf:FoundationConformancePredicateMapping.
+_:fcpm1 sh:path usf:foundationProjectionMappingPosition; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:positiveInteger;
+    sh:message "FOUNDATION_PROJECTION_MAPPING_INCOMPLETE: mapping needs one positive position".
+shp:FoundationConformancePredicateMappingShape sh:property _:fcpm1.
+_:fcpm2 sh:path usf:foundationProjectionSourcePredicate; sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "FOUNDATION_PROJECTION_MAPPING_INCOMPLETE: mapping needs one source predicate".
+shp:FoundationConformancePredicateMappingShape sh:property _:fcpm2.
+_:fcpm3 sh:path usf:foundationProjectionTargetPredicate; sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "FOUNDATION_PROJECTION_MAPPING_INCOMPLETE: mapping needs one target predicate".
+shp:FoundationConformancePredicateMappingShape sh:property _:fcpm3.
+_:fcpm4 sh:path usf:foundationProjectionMappingDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "FOUNDATION_PROJECTION_DIGEST_MISMATCH: mapping needs one exact digest".
+shp:FoundationConformancePredicateMappingShape sh:property _:fcpm4.
+
+shp:FoundationRequiredPermutationWitnessShape a sh:NodeShape;
+    usf:canonicalName "foundationrequiredpermutationwitnessshape";
+    sh:targetClass usf:FoundationRequiredPermutationWitness.
+_:frp1 sh:path usf:foundationPermutationForSubject; sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "FOUNDATION_REQUIRED_PERMUTATION_SUBJECT_ABSENT: witness needs one registered semantic subject".
+shp:FoundationRequiredPermutationWitnessShape sh:property _:frp1.
+_:frp2 sh:path usf:foundationPermutationOfFamily; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationFamily;
+    sh:message "FOUNDATION_REQUIRED_PERMUTATION_FAMILY_ABSENT: witness needs one family".
+shp:FoundationRequiredPermutationWitnessShape sh:property _:frp2.
+_:frp3 sh:path usf:foundationPermutationExpectedDisposition; sh:minCount 1; sh:maxCount 1;
+    sh:in (<urn:usf:permutationclosuredisposition:required> <urn:usf:permutationclosuredisposition:allowed>);
+    sh:message "FOUNDATION_REQUIRED_PERMUTATION_DISPOSITION_INVALID: witness must require positive assurance".
+shp:FoundationRequiredPermutationWitnessShape sh:property _:frp3.
+_:frp4 sh:path usf:foundationPermutationTestObligation; sh:minCount 1; sh:class usf:TestObligation;
+    sh:message "FOUNDATION_REQUIRED_PERMUTATION_TEST_ABSENT: witness needs a test obligation".
+shp:FoundationRequiredPermutationWitnessShape sh:property _:frp4.
+_:frp5 sh:path usf:foundationPermutationEvidenceRequirement; sh:minCount 1; sh:class usf:EvidenceRequirement;
+    sh:message "FOUNDATION_REQUIRED_PERMUTATION_EVIDENCE_ABSENT: witness needs an evidence requirement".
+shp:FoundationRequiredPermutationWitnessShape sh:property _:frp5.
+_:frp6 sh:path usf:foundationPermutationProofObligation; sh:minCount 1; sh:class usf:ProofObligation;
+    sh:message "FOUNDATION_REQUIRED_PERMUTATION_PROOF_ABSENT: witness needs a proof obligation".
+shp:FoundationRequiredPermutationWitnessShape sh:property _:frp6.
+_:frp7 sh:path usf:foundationWitnessDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "FOUNDATION_WITNESS_DIGEST_ABSENT: witness needs one exact digest".
+shp:FoundationRequiredPermutationWitnessShape sh:property _:frp7.
+
+shp:FoundationDomainClosureAssessmentShape a sh:NodeShape;
+    usf:canonicalName "foundationdomainclosureassessmentshape";
+    sh:targetClass usf:FoundationDomainClosureAssessment.
+_:fdca1 sh:path usf:foundationAssessmentFixtureInputDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "FOUNDATION_ASSESSMENT_FIXTURE_BINDING_ABSENT: assessment needs the fixture-input digest".
+shp:FoundationDomainClosureAssessmentShape sh:property _:fdca1.
+_:fdca2 sh:path usf:foundationAssessmentAuthorityDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "FOUNDATION_ASSESSMENT_AUTHORITY_BINDING_ABSENT: assessment needs the baseline authority digest".
+shp:FoundationDomainClosureAssessmentShape sh:property _:fdca2.
+_:fdca3 sh:path usf:foundationAssessmentMetaModelDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "FOUNDATION_ASSESSMENT_MODEL_BINDING_ABSENT: assessment needs the candidate meta-model digest".
+shp:FoundationDomainClosureAssessmentShape sh:property _:fdca3.
+_:fdca4 sh:path usf:foundationDomainClosureComplete; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:boolean;
+    sh:message "FOUNDATION_ASSESSMENT_CLOSURE_STATE_ABSENT: assessment needs one closure state".
+shp:FoundationDomainClosureAssessmentShape sh:property _:fdca4.
+_:fdca5 sh:path usf:foundationDomainClosureDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "FOUNDATION_ASSESSMENT_DIGEST_MISMATCH: assessment needs one exact digest".
+shp:FoundationDomainClosureAssessmentShape sh:property _:fdca5.
+_:fdca6 sh:path usf:foundationAssessmentNonClaim; sh:minCount 1; sh:datatype xsd:string;
+    sh:message "FOUNDATION_ASSESSMENT_NONCLAIM_ABSENT: assessment must state its bounded nonclaims".
+shp:FoundationDomainClosureAssessmentShape sh:property _:fdca6.
+
+shp:SemanticTermPermutationReviewShape a sh:NodeShape;
+    usf:canonicalName "semantictermpermutationreviewshape";
+    sh:targetClass usf:SemanticTermPermutationReview.
+_:stpr1 sh:path usf:reviewedSemanticTerm; sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "UNIVERSAL_REVIEW_TERM_ABSENT: one reviewed semantic term is required".
+shp:SemanticTermPermutationReviewShape sh:property _:stpr1.
+_:stpr2 sh:path usf:termPermutationParticipation; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationParticipationClassification;
+    sh:message "UNIVERSAL_REVIEW_PARTICIPATION_ABSENT: one controlled participation classification is required".
+shp:SemanticTermPermutationReviewShape sh:property _:stpr2.
+_:stpr2Closed sh:path usf:termPermutationParticipation;
+    sh:in (<urn:usf:permutationparticipationclassification:operationalaxis> <urn:usf:permutationparticipationclassification:assuranceaxis> <urn:usf:permutationparticipationclassification:structuralselector> <urn:usf:permutationparticipationclassification:lifecyclederivationinput> <urn:usf:permutationparticipationclassification:metadataprovenancenonaxis> <urn:usf:permutationparticipationclassification:authoritydecisionrequired>);
+    sh:message "UNIVERSAL_REVIEW_PARTICIPATION_OUTSIDE_CLOSED_SET: participation classification must be one of the six controlled values".
+shp:SemanticTermPermutationReviewShape sh:property _:stpr2Closed.
+_:stpr3 sh:path usf:termPermutationAxisBinding; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationAxisBindingClassification;
+    sh:message "UNIVERSAL_REVIEW_AXIS_BINDING_ABSENT: one controlled axis binding is required".
+shp:SemanticTermPermutationReviewShape sh:property _:stpr3.
+_:stpr3Closed sh:path usf:termPermutationAxisBinding;
+    sh:in (<urn:usf:permutationaxisbindingclassification:existingaxis> <urn:usf:permutationaxisbindingclassification:unregisteredcontrolledaxis> <urn:usf:permutationaxisbindingclassification:notanaxis>);
+    sh:message "UNIVERSAL_REVIEW_AXIS_BINDING_OUTSIDE_CLOSED_SET: axis binding must be one of the three controlled values".
+shp:SemanticTermPermutationReviewShape sh:property _:stpr3Closed.
+_:stpr4 sh:path usf:termPermutationFamilyCandidateState; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationFamilyCandidateClassification;
+    sh:message "UNIVERSAL_REVIEW_FAMILY_STATE_ABSENT: one controlled family-candidate classification is required".
+shp:SemanticTermPermutationReviewShape sh:property _:stpr4.
+_:stpr4Closed sh:path usf:termPermutationFamilyCandidateState;
+    sh:in (<urn:usf:permutationfamilycandidateclassification:notafamilycandidate> <urn:usf:permutationfamilycandidateclassification:authorityreviewrequired> <urn:usf:permutationfamilycandidateclassification:warranted> <urn:usf:permutationfamilycandidateclassification:rejected>);
+    sh:message "UNIVERSAL_REVIEW_FAMILY_STATE_OUTSIDE_CLOSED_SET: family-candidate classification must be one of the four controlled values".
+shp:SemanticTermPermutationReviewShape sh:property _:stpr4Closed.
+_:stpr5 sh:path usf:termPermutationReasonCode; sh:minCount 1; sh:maxCount 1; sh:pattern "^UNIVERSAL_[A-Z0-9_]+$";
+    sh:message "UNIVERSAL_REVIEW_REASON_CODE_INVALID: one stable reason code is required".
+shp:SemanticTermPermutationReviewShape sh:property _:stpr5.
+_:stpr6 sh:path usf:termPermutationSourcePlane; sh:minCount 1; sh:maxCount 1; sh:minLength 1;
+    sh:message "UNIVERSAL_REVIEW_SOURCE_PLANE_ABSENT: one source plane is required".
+shp:SemanticTermPermutationReviewShape sh:property _:stpr6.
+_:stpr7 sh:path usf:termPermutationAuthorityDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "UNIVERSAL_REVIEW_AUTHORITY_BINDING_ABSENT: one exact authority digest is required".
+shp:SemanticTermPermutationReviewShape sh:property _:stpr7.
+_:stpr8 sh:path usf:termPermutationInventoryDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "UNIVERSAL_REVIEW_INVENTORY_BINDING_ABSENT: one exact inventory digest is required".
+shp:SemanticTermPermutationReviewShape sh:property _:stpr8.
+_:stpr9 sh:path usf:termPermutationReviewDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "UNIVERSAL_REVIEW_DIGEST_ABSENT: one exact review digest is required".
+shp:SemanticTermPermutationReviewShape sh:property _:stpr9.
+_:stpr10 sh:prefixes usf:prefixes;
+    sh:message "UNIVERSAL_REVIEW_AUTHORISATION_PROHIBITED: a semantic-term review cannot establish truth, activate a contract, admit evidence or establish proof directly";
+    sh:select "SELECT $this WHERE { $this ?predicate ?value . FILTER (?predicate IN (usf:establishesSemanticTruth, usf:directlyActivatesContract, usf:directlyAdmitsEvidence, usf:directlyEstablishesProof)) } LIMIT 1".
+shp:SemanticTermPermutationReviewShape sh:sparql _:stpr10.
+
+shp:PermutationReviewCoverageShape a sh:NodeShape;
+    usf:canonicalName "permutationreviewcoverageshape";
+    sh:targetClass usf:PermutationReviewCoverage.
+_:prc1 sh:path usf:permutationReviewAuthorityDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_REVIEW_AUTHORITY_BINDING_ABSENT: coverage needs one exact authority digest".
+shp:PermutationReviewCoverageShape sh:property _:prc1.
+_:prc2 sh:path usf:permutationReviewInventoryDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_REVIEW_INVENTORY_BINDING_ABSENT: coverage needs one exact semantic-input inventory digest".
+shp:PermutationReviewCoverageShape sh:property _:prc2.
+_:prc3 sh:path usf:permutationReviewFamilyRegistryDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_REVIEW_REGISTRY_BINDING_ABSENT: coverage needs one exact family-registry digest".
+shp:PermutationReviewCoverageShape sh:property _:prc3.
+_:prc4 sh:path usf:permutationReviewTermSetAlgorithm; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:message "PERMUTATION_REVIEW_TERM_ALGORITHM_ABSENT: coverage needs one deterministic term-set algorithm identity".
+shp:PermutationReviewCoverageShape sh:property _:prc4.
+_:prc4Exact sh:path usf:permutationReviewTermSetAlgorithm; sh:in ("semantic-input-term-key-set-v1");
+    sh:message "PERMUTATION_REVIEW_TERM_ALGORITHM_MISMATCH: term-set algorithm must be semantic-input-term-key-set-v1".
+shp:PermutationReviewCoverageShape sh:property _:prc4Exact.
+_:prc5 sh:path usf:permutationReviewFamilySignatureAlgorithm; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:message "PERMUTATION_REVIEW_FAMILY_ALGORITHM_ABSENT: coverage needs one deterministic family-signature algorithm identity".
+shp:PermutationReviewCoverageShape sh:property _:prc5.
+_:prc5Exact sh:path usf:permutationReviewFamilySignatureAlgorithm; sh:in ("family-record-canonical-json-sha256-v1");
+    sh:message "PERMUTATION_REVIEW_FAMILY_ALGORITHM_MISMATCH: family-signature algorithm must be family-record-canonical-json-sha256-v1".
+shp:PermutationReviewCoverageShape sh:property _:prc5Exact.
+_:prc6 sh:path usf:permutationReviewExpectedTerm; sh:minCount 1; sh:nodeKind sh:IRI;
+    sh:message "PERMUTATION_REVIEW_EXPECTED_TERM_SET_EMPTY: coverage needs the complete expected term set".
+shp:PermutationReviewCoverageShape sh:property _:prc6.
+_:prc7 sh:path usf:permutationReviewTermReview; sh:minCount 1; sh:class usf:SemanticTermPermutationReview;
+    sh:message "PERMUTATION_REVIEW_TERM_REVIEW_SET_EMPTY: coverage needs its exact term-review set".
+shp:PermutationReviewCoverageShape sh:property _:prc7.
+_:prc8 sh:path usf:permutationReviewExpectedFamily; sh:minCount 1; sh:class usf:PermutationFamily;
+    sh:message "PERMUTATION_REVIEW_EXPECTED_FAMILY_SET_EMPTY: coverage needs the complete registered-family set".
+shp:PermutationReviewCoverageShape sh:property _:prc8.
+_:prc9 sh:path usf:permutationReviewFamilySignatureReview; sh:minCount 1; sh:class usf:PermutationFamilySignatureReview;
+    sh:message "PERMUTATION_REVIEW_FAMILY_REVIEW_SET_EMPTY: coverage needs its exact family-signature review set".
+shp:PermutationReviewCoverageShape sh:property _:prc9.
+_:prc10 sh:path usf:permutationReviewDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_REVIEW_COVERAGE_DIGEST_ABSENT: coverage needs one exact digest".
+shp:PermutationReviewCoverageShape sh:property _:prc10.
+_:prc11 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_REVIEW_TERM_SET_MISMATCH: expected terms and reviewed terms must be identical";
+    sh:select "SELECT $this WHERE { $this usf:permutationReviewExpectedTerm ?expectedWitness; usf:permutationReviewTermReview ?reviewWitness . { $this usf:permutationReviewExpectedTerm ?term . FILTER NOT EXISTS { $this usf:permutationReviewTermReview ?review . ?review usf:reviewedSemanticTerm ?term } } UNION { $this usf:permutationReviewTermReview ?review . ?review usf:reviewedSemanticTerm ?term . FILTER NOT EXISTS { $this usf:permutationReviewExpectedTerm ?term } } } LIMIT 1".
+shp:PermutationReviewCoverageShape sh:sparql _:prc11.
+_:prc12 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_REVIEW_TERM_DUPLICATE: each expected semantic term must have exactly one linked review";
+    sh:select "SELECT $this WHERE { $this usf:permutationReviewTermReview ?left, ?right . ?left usf:reviewedSemanticTerm ?term . ?right usf:reviewedSemanticTerm ?term . FILTER (?left != ?right) } LIMIT 1".
+shp:PermutationReviewCoverageShape sh:sparql _:prc12.
+_:prc13 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_REVIEW_TERM_BINDING_MISMATCH: linked term reviews must share the coverage authority and inventory digests";
+    sh:select "SELECT $this WHERE { $this usf:permutationReviewAuthorityDigest ?authority; usf:permutationReviewInventoryDigest ?inventory; usf:permutationReviewTermReview ?review . ?review usf:termPermutationAuthorityDigest ?reviewAuthority; usf:termPermutationInventoryDigest ?reviewInventory . FILTER (?authority != ?reviewAuthority || ?inventory != ?reviewInventory) } LIMIT 1".
+shp:PermutationReviewCoverageShape sh:sparql _:prc13.
+_:prc14 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_REVIEW_FAMILY_SET_MISMATCH: expected families and reviewed family signatures must be identical";
+    sh:select "SELECT $this WHERE { $this usf:permutationReviewExpectedFamily ?expectedWitness; usf:permutationReviewFamilySignatureReview ?reviewWitness . { $this usf:permutationReviewExpectedFamily ?family . FILTER NOT EXISTS { $this usf:permutationReviewFamilySignatureReview ?review . ?review usf:reviewedPermutationFamily ?family } } UNION { $this usf:permutationReviewFamilySignatureReview ?review . ?review usf:reviewedPermutationFamily ?family . FILTER NOT EXISTS { $this usf:permutationReviewExpectedFamily ?family } } } LIMIT 1".
+shp:PermutationReviewCoverageShape sh:sparql _:prc14.
+_:prc15 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_REVIEW_FAMILY_DUPLICATE: each expected family must have exactly one linked signature review";
+    sh:select "SELECT $this WHERE { $this usf:permutationReviewFamilySignatureReview ?left, ?right . ?left usf:reviewedPermutationFamily ?family . ?right usf:reviewedPermutationFamily ?family . FILTER (?left != ?right) } LIMIT 1".
+shp:PermutationReviewCoverageShape sh:sparql _:prc15.
+_:prc16 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_REVIEW_FAMILY_BINDING_MISMATCH: linked family-signature reviews must share the coverage authority and registry digests";
+    sh:select "SELECT $this WHERE { $this usf:permutationReviewAuthorityDigest ?authority; usf:permutationReviewFamilyRegistryDigest ?registry; usf:permutationReviewFamilySignatureReview ?review . ?review usf:familySignatureReviewAuthorityDigest ?reviewAuthority; usf:familySignatureReviewRegistryDigest ?reviewRegistry . FILTER (?authority != ?reviewAuthority || ?registry != ?reviewRegistry) } LIMIT 1".
+shp:PermutationReviewCoverageShape sh:sparql _:prc16.
+_:prc17 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_REVIEW_COVERAGE_DUPLICATE: one authority, semantic-input inventory and family-registry tuple may have only one coverage resource";
+    sh:select "SELECT $this WHERE { $this usf:permutationReviewAuthorityDigest ?authority; usf:permutationReviewInventoryDigest ?inventory; usf:permutationReviewFamilyRegistryDigest ?registry . ?other a usf:PermutationReviewCoverage; usf:permutationReviewAuthorityDigest ?authority; usf:permutationReviewInventoryDigest ?inventory; usf:permutationReviewFamilyRegistryDigest ?registry . FILTER (?other != $this) } LIMIT 1".
+shp:PermutationReviewCoverageShape sh:sparql _:prc17.
+_:prc18 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_REVIEW_AUTHORISATION_PROHIBITED: a coverage projection cannot establish truth, activate a contract, admit evidence or establish proof directly";
+    sh:select "SELECT $this WHERE { $this ?predicate ?value . FILTER (?predicate IN (usf:establishesSemanticTruth, usf:directlyActivatesContract, usf:directlyAdmitsEvidence, usf:directlyEstablishesProof)) } LIMIT 1".
+shp:PermutationReviewCoverageShape sh:sparql _:prc18.
+
+shp:PermutationFamilySignatureReviewShape a sh:NodeShape;
+    usf:canonicalName "permutationfamilysignaturereviewshape";
+    sh:targetClass usf:PermutationFamilySignatureReview.
+_:pfsr1 sh:path usf:reviewedPermutationFamily; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationFamily;
+    sh:message "PERMUTATION_FAMILY_SIGNATURE_FAMILY_ABSENT: signature review needs exactly one registered family".
+shp:PermutationFamilySignatureReviewShape sh:property _:pfsr1.
+_:pfsr2 sh:path usf:reviewedFamilySubjectRegistration; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationSubjectRegistration;
+    sh:message "PERMUTATION_FAMILY_SIGNATURE_SUBJECT_ABSENT: signature review needs the exact subject registration".
+shp:PermutationFamilySignatureReviewShape sh:property _:pfsr2.
+_:pfsr3 sh:path usf:reviewedFamilyDimensionBinding; sh:minCount 1; sh:class usf:PermutationFamilyDimensionBinding;
+    sh:message "PERMUTATION_FAMILY_SIGNATURE_DIMENSION_SET_EMPTY: signature review needs every ordered dimension binding".
+shp:PermutationFamilySignatureReviewShape sh:property _:pfsr3.
+_:pfsr4 sh:path usf:reviewedFamilyApplicabilityRule; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationApplicabilityRule;
+    sh:message "PERMUTATION_FAMILY_SIGNATURE_APPLICABILITY_ABSENT: signature review needs the exact applicability rule".
+shp:PermutationFamilySignatureReviewShape sh:property _:pfsr4.
+_:pfsr5 sh:path usf:familySignatureReviewAuthorityDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_FAMILY_SIGNATURE_AUTHORITY_BINDING_ABSENT: signature review needs one exact authority digest".
+shp:PermutationFamilySignatureReviewShape sh:property _:pfsr5.
+_:pfsr6 sh:path usf:familySignatureReviewRegistryDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_FAMILY_SIGNATURE_REGISTRY_BINDING_ABSENT: signature review needs one exact registry digest".
+shp:PermutationFamilySignatureReviewShape sh:property _:pfsr6.
+_:pfsr7 sh:path usf:reviewedFamilySignatureDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_FAMILY_SIGNATURE_DIGEST_ABSENT: signature review needs the independently calculated family signature digest".
+shp:PermutationFamilySignatureReviewShape sh:property _:pfsr7.
+_:pfsr8 sh:path usf:familySignatureReviewDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PERMUTATION_FAMILY_SIGNATURE_REVIEW_DIGEST_ABSENT: signature review needs one exact review digest".
+shp:PermutationFamilySignatureReviewShape sh:property _:pfsr8.
+_:pfsrDisposition sh:path usf:familySignatureReviewDisposition; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationFamilyModelReviewDisposition;
+    sh:message "PERMUTATION_FAMILY_SIGNATURE_DISPOSITION_ABSENT: signature review needs exactly one controlled disposition".
+shp:PermutationFamilySignatureReviewShape sh:property _:pfsrDisposition.
+_:pfsrDispositionClosed sh:path usf:familySignatureReviewDisposition;
+    sh:in (<urn:usf:permutationfamilymodelreviewdisposition:warranted>);
+    sh:message "PERMUTATION_FAMILY_SIGNATURE_DISPOSITION_OUTSIDE_CLOSED_SET: only the warranted exact-signature review state is permitted".
+shp:PermutationFamilySignatureReviewShape sh:property _:pfsrDispositionClosed.
+_:pfsr9 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_FAMILY_SIGNATURE_COMPONENT_MISMATCH: reviewed subject, dimension and applicability components must exactly equal the registered family";
+    sh:select "SELECT $this WHERE { $this usf:reviewedPermutationFamily ?family; usf:reviewedFamilySubjectRegistration ?subjectWitness; usf:reviewedFamilyDimensionBinding ?dimensionWitness; usf:reviewedFamilyApplicabilityRule ?applicabilityWitness . ?family usf:familySubjectRegistration ?familySubjectWitness; usf:hasFamilyDimensionBinding ?familyDimensionWitness; usf:familyApplicabilityRule ?familyApplicabilityWitness . { ?family usf:familySubjectRegistration ?component . FILTER NOT EXISTS { $this usf:reviewedFamilySubjectRegistration ?component } } UNION { $this usf:reviewedFamilySubjectRegistration ?component . FILTER NOT EXISTS { ?family usf:familySubjectRegistration ?component } } UNION { ?family usf:hasFamilyDimensionBinding ?component . FILTER NOT EXISTS { $this usf:reviewedFamilyDimensionBinding ?component } } UNION { $this usf:reviewedFamilyDimensionBinding ?component . FILTER NOT EXISTS { ?family usf:hasFamilyDimensionBinding ?component } } UNION { ?family usf:familyApplicabilityRule ?component . FILTER NOT EXISTS { $this usf:reviewedFamilyApplicabilityRule ?component } } UNION { $this usf:reviewedFamilyApplicabilityRule ?component . FILTER NOT EXISTS { ?family usf:familyApplicabilityRule ?component } } } LIMIT 1".
+shp:PermutationFamilySignatureReviewShape sh:sparql _:pfsr9.
+_:pfsr10 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_FAMILY_SIGNATURE_DUPLICATE: one family and authority/registry snapshot may have only one signature review";
+    sh:select "SELECT $this WHERE { $this usf:reviewedPermutationFamily ?family; usf:familySignatureReviewAuthorityDigest ?authority; usf:familySignatureReviewRegistryDigest ?registry . ?other a usf:PermutationFamilySignatureReview; usf:reviewedPermutationFamily ?family; usf:familySignatureReviewAuthorityDigest ?authority; usf:familySignatureReviewRegistryDigest ?registry . FILTER (?other != $this) } LIMIT 1".
+shp:PermutationFamilySignatureReviewShape sh:sparql _:pfsr10.
+_:pfsr11 sh:prefixes usf:prefixes;
+    sh:message "PERMUTATION_FAMILY_SIGNATURE_AUTHORISATION_PROHIBITED: a signature review cannot establish truth, activate a contract, admit evidence or establish proof directly";
+    sh:select "SELECT $this WHERE { $this ?predicate ?value . FILTER (?predicate IN (usf:establishesSemanticTruth, usf:directlyActivatesContract, usf:directlyAdmitsEvidence, usf:directlyEstablishesProof)) } LIMIT 1".
+shp:PermutationFamilySignatureReviewShape sh:sparql _:pfsr11.
+
+shp:PermutationFamilyCandidateShape a sh:NodeShape;
+    usf:canonicalName "permutationfamilycandidateshape";
+    sh:targetClass usf:PermutationFamilyCandidate.
+_:pfcr1 sh:path usf:candidateFamilySubjectClass; sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "UNIVERSAL_CANDIDATE_SUBJECT_ABSENT: one exact semantic subject class is required".
+shp:PermutationFamilyCandidateShape sh:property _:pfcr1.
+_:pfcr2 sh:path usf:candidateFamilyAxisClass; sh:minCount 1; sh:nodeKind sh:IRI;
+    sh:message "UNIVERSAL_CANDIDATE_AXIS_SET_EMPTY: at least one independently reviewed axis class is required in addition to the candidate subject class".
+shp:PermutationFamilyCandidateShape sh:property _:pfcr2.
+_:pfcr3 sh:path usf:candidateFamilySelectorProperty; sh:minCount 1; sh:nodeKind sh:IRI;
+    sh:message "UNIVERSAL_CANDIDATE_SELECTOR_ABSENT: at least one current semantic selector is required".
+shp:PermutationFamilyCandidateShape sh:property _:pfcr3.
+_:pfcr4 sh:path usf:candidateFamilyClassification; sh:minCount 1; sh:maxCount 1; sh:class usf:PermutationFamilyCandidateClassification;
+    sh:message "UNIVERSAL_CANDIDATE_CLASSIFICATION_ABSENT: one controlled authority-review state is required".
+shp:PermutationFamilyCandidateShape sh:property _:pfcr4.
+_:pfcr4Closed sh:path usf:candidateFamilyClassification;
+    sh:in (<urn:usf:permutationfamilycandidateclassification:notafamilycandidate> <urn:usf:permutationfamilycandidateclassification:authorityreviewrequired> <urn:usf:permutationfamilycandidateclassification:warranted> <urn:usf:permutationfamilycandidateclassification:rejected>);
+    sh:message "UNIVERSAL_CANDIDATE_CLASSIFICATION_OUTSIDE_CLOSED_SET: candidate classification must be one of the four controlled values".
+shp:PermutationFamilyCandidateShape sh:property _:pfcr4Closed.
+_:pfcr5 sh:path usf:candidateFamilyReasonCode; sh:minCount 1; sh:maxCount 1; sh:pattern "^UNIVERSAL_[A-Z0-9_]+$";
+    sh:message "UNIVERSAL_CANDIDATE_REASON_INVALID: one stable reason code is required".
+shp:PermutationFamilyCandidateShape sh:property _:pfcr5.
+_:pfcr6 sh:path usf:candidateFamilyAuthorityDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "UNIVERSAL_CANDIDATE_AUTHORITY_BINDING_ABSENT: one exact authority digest is required".
+shp:PermutationFamilyCandidateShape sh:property _:pfcr6.
+_:pfcr7 sh:path usf:candidateFamilyInventoryDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "UNIVERSAL_CANDIDATE_INVENTORY_BINDING_ABSENT: one exact inventory digest is required".
+shp:PermutationFamilyCandidateShape sh:property _:pfcr7.
+_:pfcr8 sh:path usf:candidateFamilyDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "UNIVERSAL_CANDIDATE_DIGEST_ABSENT: one exact candidate digest is required".
+shp:PermutationFamilyCandidateShape sh:property _:pfcr8.
+_:pfcr9 sh:path usf:candidateFamilyMissingTermCount; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:nonNegativeInteger;
+    sh:message "UNIVERSAL_CANDIDATE_MISSING_TERM_COUNT_ABSENT: one exact missing-term count is required".
+shp:PermutationFamilyCandidateShape sh:property _:pfcr9.
+_:pfcr10 sh:path usf:candidateFamilyEmptyAxisCount; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:nonNegativeInteger;
+    sh:message "UNIVERSAL_CANDIDATE_EMPTY_AXIS_COUNT_ABSENT: one exact empty-axis count is required".
+shp:PermutationFamilyCandidateShape sh:property _:pfcr10.
+_:pfcr11 sh:prefixes usf:prefixes;
+    sh:message "UNIVERSAL_CANDIDATE_WARRANTED_WITH_GAPS: a warranted family candidate cannot retain missing terms or empty finite axes";
+    sh:select """
+      SELECT $this WHERE {
+        $this usf:candidateFamilyClassification <urn:usf:permutationfamilycandidateclassification:warranted>;
+              usf:candidateFamilyMissingTermCount ?missing;
+              usf:candidateFamilyEmptyAxisCount ?empty.
+        FILTER (?missing != 0 || ?empty != 0)
+      }
+    """.
+shp:PermutationFamilyCandidateShape sh:sparql _:pfcr11.
+_:pfcr12 sh:prefixes usf:prefixes;
+    sh:message "UNIVERSAL_CANDIDATE_AUTHORISATION_PROHIBITED: a family candidate cannot establish truth, activate a contract, admit evidence or establish proof directly";
+    sh:select "SELECT $this WHERE { $this ?predicate ?value . FILTER (?predicate IN (usf:establishesSemanticTruth, usf:directlyActivatesContract, usf:directlyAdmitsEvidence, usf:directlyEstablishesProof)) } LIMIT 1".
+shp:PermutationFamilyCandidateShape sh:sparql _:pfcr12.

@@ -25,7 +25,13 @@ const realGraphAbsent = (t) => {
 
 
 import { loadManifest, managedGraphs, clearableGraphs, ManifestError } from './manifest.mjs';
-import { checkLocal, compile, buildPlan, CompilerError } from './compiler.mjs';
+import {
+  checkLocal,
+  compile,
+  buildPlan,
+  CompilerError,
+  publicationBudgetWitness,
+} from './compiler.mjs';
 
 // --- Fixtures --------------------------------------------------------------
 
@@ -37,6 +43,11 @@ function baseSpec() {
     'manifest.yaml': `version: 1
 database: USF
 baseIri: "urn:usf:"
+authorityPublicationBudget:
+  provider: stardogcloudfree
+  policyIri: "urn:usf:permutationpublicationbudget:stardogcloudfreeauthoritycapacity"
+  hardStatementLimit: 1000000
+  reserveStatementCount: 200000
 definitionGraphs:
   - { file: ontology.ttl, graph: "urn:usf:graph:ontology", loadOrder: 1, validationOrder: 1 }
   - { file: registry.ttl, graph: "urn:usf:graph:registry", loadOrder: 2, validationOrder: 2 }
@@ -212,6 +223,18 @@ function fakeClient(overrides = {}) {
   return { client: Object.assign(client, overrides), rec };
 }
 
+const TEST_AUTHORITY_WITNESS = Object.freeze({
+  algorithm: 'sha256-rdfc10-graph-inventory-v2',
+  digest: `sha256:${'a'.repeat(64)}`,
+  inventory: Object.freeze([]),
+  triples: 0,
+});
+const compileCandidate = (input) => compile({
+  authorityWitness: TEST_AUTHORITY_WITNESS,
+  publicationBudgetPolicy: input.manifest.publicationBudget,
+  ...input,
+});
+
 // --- manifest and local validation ---------------------------------------------
 
 test('manifest: a missing manifest file throws', () => {
@@ -281,6 +304,41 @@ test('checkLocal: an unexpected unregistered graph file fails', () => {
   assert.throws(() => checkLocal(loadManifest(dir)), hasFailure('unregistered loadable file'));
 });
 
+test('checkLocal: an exact inactive candidate source is retained without becoming authority', () => {
+  const spec = baseSpec();
+  const bytes = '<urn:usf:candidate:x> a <urn:usf:ontology:Thing> .\n';
+  const digest = `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+  spec['candidate.trig'] = bytes;
+  spec['manifest.yaml'] = spec['manifest.yaml'].replace(
+    'retiredGraphs:',
+    `inactiveSources:\n  - file: candidate.trig\n    contentDigest: "${digest}"\n    disposition: CANDIDATE_MIGRATION_MATERIAL\n    authorityEligible: false\nretiredGraphs:`,
+  );
+  const manifest = loadManifest(writeGraph(spec));
+  const result = checkLocal(manifest);
+  assert.equal(result.inactiveSources, 1);
+  assert.equal(managedGraphs(manifest).some((graph) => graph.includes('candidate')), false);
+});
+
+test('checkLocal: an inactive candidate with drifted bytes fails closed', () => {
+  const spec = baseSpec();
+  spec['candidate.trig'] = '<urn:usf:candidate:x> a <urn:usf:ontology:Thing> .\n';
+  spec['manifest.yaml'] = spec['manifest.yaml'].replace(
+    'retiredGraphs:',
+    `inactiveSources:\n  - file: candidate.trig\n    contentDigest: "sha256:${'0'.repeat(64)}"\n    disposition: CANDIDATE_MIGRATION_MATERIAL\n    authorityEligible: false\nretiredGraphs:`,
+  );
+  assert.throws(() => checkLocal(loadManifest(writeGraph(spec))), hasFailure('inactive source digest mismatch'));
+});
+
+test('manifest: an inactive source cannot be authority eligible', () => {
+  const spec = baseSpec();
+  spec['candidate.trig'] = '<urn:usf:candidate:x> a <urn:usf:ontology:Thing> .\n';
+  spec['manifest.yaml'] = spec['manifest.yaml'].replace(
+    'retiredGraphs:',
+    `inactiveSources:\n  - file: candidate.trig\n    contentDigest: "sha256:${'0'.repeat(64)}"\n    disposition: CANDIDATE_MIGRATION_MATERIAL\n    authorityEligible: true\nretiredGraphs:`,
+  );
+  assert.throws(() => loadManifest(writeGraph(spec)), ManifestError);
+});
+
 test('checkLocal: malformed RDF fails before any live transaction', () => {
   const spec = baseSpec();
   spec['providers.ttl'] = '<urn:usf:broken';
@@ -325,7 +383,7 @@ test('compile: only current and exact retired manifest graphs are cleared, and n
   const dir = writeGraph(baseSpec());
   const m = loadManifest(dir);
   const { client, rec } = fakeClient();
-  await compile({ manifest: m, client });
+  await compileCandidate({ manifest: m, client });
   assert.deepEqual([...rec.cleared].sort(), [...clearableGraphs(m)].sort());
   assert.equal(managedGraphs(m).includes('urn:usf:graph:derived:retiredfixture'), false);
   assert.equal(clearableGraphs(m).includes('urn:usf:graph:derived:retiredfixture'), true);
@@ -333,11 +391,76 @@ test('compile: only current and exact retired manifest graphs are cleared, and n
   assert.equal(typeof client.clearDatabase, 'undefined');
 });
 
+test('publication budget witness is deterministic and conservative at the exact boundary', () => {
+  const policy = loadManifest(writeGraph(baseSpec())).publicationBudget;
+  const candidateWitness = {
+    digest: `sha256:${'b'.repeat(64)}`,
+    graphs: [{ graph: 'urn:test:graph', triples: 10 }],
+  };
+  const authorityWitness = {
+    ...TEST_AUTHORITY_WITNESS,
+    inventory: [{ graph: 'urn:test:existing', triples: 799_990 }],
+    triples: 799_990,
+  };
+  const first = publicationBudgetWitness({ authorityWitness, candidateWitness, policy });
+  const second = publicationBudgetWitness({ authorityWitness, candidateWitness, policy });
+  assert.deepEqual(second, first);
+  assert.equal(first.projectedStatementUpperBound, 800_000);
+  assert.equal(first.result, 'PASS');
+  assert.match(first.budgetDigest, /^sha256:[0-9a-f]{64}$/);
+  assert.equal(publicationBudgetWitness({
+    authorityWitness: { ...authorityWitness, inventory: [{ graph: 'urn:test:existing', triples: 799_991 }], triples: 799_991 },
+    candidateWitness,
+    policy,
+  }).result, 'REJECTED');
+});
+
+test('compile: rejects an over-budget candidate before uploading candidate bytes', async () => {
+  const manifest = loadManifest(writeGraph(baseSpec()));
+  const { client, rec } = fakeClient();
+  await assert.rejects(
+    () => compileCandidate({
+      authorityWitness: {
+        ...TEST_AUTHORITY_WITNESS,
+        inventory: [{ graph: 'urn:test:existing', triples: 800_000 }],
+        triples: 800_000,
+      },
+      client,
+      manifest,
+    }),
+    (error) => error instanceof CompilerError
+      && error.code === 'PUBLICATION_TRIPLE_BUDGET_EXCEEDED'
+      && error.phase === 'publication:budget',
+  );
+  assert.equal(rec.began, true);
+  assert.equal(rec.rolledBack, true);
+  assert.equal(rec.added.length, 0);
+});
+
+test('compile: rejects absent baseline and malformed budget inputs before a transaction', async () => {
+  const manifest = loadManifest(writeGraph(baseSpec()));
+  const { client, rec } = fakeClient();
+  await assert.rejects(
+    () => compile({ client, manifest, publicationBudgetPolicy: manifest.publicationBudget }),
+    (error) => error.code === 'PUBLICATION_BASELINE_WITNESS_INVALID',
+  );
+  await assert.rejects(
+    () => compile({
+      authorityWitness: TEST_AUTHORITY_WITNESS,
+      client,
+      manifest,
+      publicationBudgetPolicy: { ...manifest.publicationBudget, hardStatementLimit: 2_000_000 },
+    }),
+    (error) => error.code === 'PUBLICATION_BUDGET_POLICY_INVALID',
+  );
+  assert.equal(rec.began, false);
+});
+
 test('compile: commits after full success', async () => {
   const dir = writeGraph(baseSpec());
   const m = loadManifest(dir);
   const { client, rec } = fakeClient();
-  const result = await compile({ manifest: m, client });
+  const result = await compileCandidate({ manifest: m, client });
   assert.equal(result.ok, true);
   assert.equal(rec.committed, true);
   assert.equal(rec.rolledBack, false);
@@ -349,7 +472,7 @@ test('compile: validates the exact candidate and rolls back without publication'
   const dir = writeGraph(baseSpec());
   const m = loadManifest(dir);
   const { client, rec } = fakeClient();
-  const result = await compile({ manifest: m, client, publicationMode: 'validate' });
+  const result = await compileCandidate({ manifest: m, client, publicationMode: 'validate' });
   assert.equal(result.ok, true);
   assert.equal(rec.committed, false);
   assert.equal(rec.rolledBack, true);
@@ -364,7 +487,7 @@ test('compile: rejects an unknown publication mode before opening a transaction'
   const m = loadManifest(dir);
   const { client, rec } = fakeClient();
   await assert.rejects(
-    () => compile({ manifest: m, client, publicationMode: 'preview' }),
+    () => compileCandidate({ manifest: m, client, publicationMode: 'preview' }),
     (error) => error instanceof CompilerError && error.phase === 'compile:configuration',
   );
   assert.equal(rec.began, false);
@@ -390,7 +513,7 @@ test('compile: reconciles an exact committed graph state after a lost commit res
     return selectInTransaction(...args);
   };
   client.isTransactionClosedError = (error) => error.status === 400;
-  const result = await compile({ manifest, client });
+  const result = await compileCandidate({ manifest, client });
   assert.equal(rec.committed, true);
   assert.equal(rec.rolledBack, true);
   assert.equal(result.commitOutcome.state, 'reconciled-committed');
@@ -413,7 +536,7 @@ test('compile: fails closed with both errors when commit and rollback fail witho
   client.isTransactionClosedError = (error) => error.status === 400;
   client.construct = async () => '<urn:usf:different> <urn:usf:p> <urn:usf:o> .\n';
   await assert.rejects(
-    () => compile({ manifest, client }),
+    () => compileCandidate({ manifest, client }),
     (error) => error instanceof CompilerError
       && error.phase === 'compile:commit-outcome'
       && error.rollbackConfirmed === false
@@ -433,7 +556,7 @@ test('compile: retries rollback after a verified-open pre-commit failure', async
       if (rollbackCalls === 1) throw new Error('transient rollback failure');
     },
   });
-  await assert.rejects(() => compile({ manifest, client }), /primary load failure/);
+  await assert.rejects(() => compileCandidate({ manifest, client }), /primary load failure/);
   assert.equal(rollbackCalls, 2);
 });
 
@@ -451,7 +574,7 @@ test('compile: accepts verified transaction closure after a pre-commit rollback 
     },
     isTransactionClosedError(error) { return error.status === 400; },
   });
-  await assert.rejects(() => compile({ manifest, client }), /primary load failure/);
+  await assert.rejects(() => compileCandidate({ manifest, client }), /primary load failure/);
   assert.equal(rollbackCalls, 1);
 });
 
@@ -466,7 +589,7 @@ test('compile: preserves the primary pre-commit failure and both rollback failur
     },
   });
   await assert.rejects(
-    () => compile({ manifest, client }),
+    () => compileCandidate({ manifest, client }),
     (error) => error instanceof CompilerError
       && error.rollbackConfirmed === false
       && error.errors.map((item) => item.message).join('|') === 'primary load failure|rollback failure 1|rollback failure 2'
@@ -483,7 +606,7 @@ test('compile: rolls back after a load failure', async () => {
       throw new Error('load boom');
     },
   });
-  await assert.rejects(() => compile({ manifest: m, client }), CompilerError);
+  await assert.rejects(() => compileCandidate({ manifest: m, client }), CompilerError);
   assert.equal(rec.rolledBack, true);
   assert.equal(rec.committed, false);
 });
@@ -497,7 +620,7 @@ test('compile: rolls back after a validation failure', async () => {
       return { conforms: false, validatedDocumentCount: inputs.length };
     },
   });
-  await assert.rejects(() => compile({ manifest: m, client }), /SHACL validation/);
+  await assert.rejects(() => compileCandidate({ manifest: m, client }), /SHACL validation/);
   assert.equal(rec.rolledBack, true);
   assert.equal(rec.committed, false);
 });
@@ -510,7 +633,7 @@ test('compile: rolls back after a derivation failure', async () => {
       throw new Error('derive boom');
     },
   });
-  await assert.rejects(() => compile({ manifest: m, client }), CompilerError);
+  await assert.rejects(() => compileCandidate({ manifest: m, client }), CompilerError);
   assert.equal(rec.rolledBack, true);
   assert.equal(rec.committed, false);
 });
@@ -525,7 +648,7 @@ test('compile: rolls back after an integrity violation', async () => {
       return [{ c: { value: '5' } }];
     },
   });
-  await assert.rejects(() => compile({ manifest: m, client }), /integrity/);
+  await assert.rejects(() => compileCandidate({ manifest: m, client }), /integrity/);
   assert.equal(rec.rolledBack, true);
 });
 
@@ -538,7 +661,7 @@ test('compile: an error never carries the token', async () => {
     },
   });
   await assert.rejects(
-    () => compile({ manifest: m, client }),
+    () => compileCandidate({ manifest: m, client }),
     (e) => !JSON.stringify({ m: e.message, ...e }).includes('super-secret-token')
   );
 });

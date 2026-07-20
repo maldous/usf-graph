@@ -1,267 +1,504 @@
 // Deterministic permutation-family census generator (GOAL.md §16).
-// Assigns exactly one family-applicability disposition per capability per
-// census family, bound to the current authority digest, from observed
-// repository-local semantic signals only. No timestamps, no randomness.
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+// Assigns exactly one family-applicability disposition per registered subject
+// per census family, bound to a verified live-authority projection. Authored
+// RDF is never consulted for subject or applicability truth.
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   canonicalJson,
-  evaluationInternals,
-  loadSemanticStore,
   sha256,
 } from '../semantic-model-compilation/realisation-option-evaluation.mjs';
+import {
+  evaluateFamilyRule,
+  loadPermutationFamilyRegistry,
+} from './family-registry.mjs';
 
-const { RDF_TYPE, term, iri, objects, subjects, has } = evaluationInternals;
+const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
+const O = 'urn:usf:ontology:';
+const VERIFIED_AUTHORITY_INPUTS = new WeakSet();
+
+export class PermutationInputError extends Error {
+  constructor(code, message, details = {}) {
+    super(`${code}: ${message}`);
+    this.name = 'PermutationInputError';
+    this.code = code;
+    this.details = details;
+  }
+}
+
+const fail = (code, message, details) => {
+  throw new PermutationInputError(code, message, details);
+};
+
+const assertSha256 = (value, code, label) => {
+  if (!/^sha256:[0-9a-f]{64}$/.test(String(value))) fail(code, `${label} must be sha256:<64 lowercase hex>`);
+};
+
+const uniqueSorted = (values) => [...new Set(values)].sort();
+const isUniqueSorted = (values) => values.length === new Set(values).size
+  && values.every((value, index) => index === 0 || values[index - 1] < value);
+const contentAddressFromName = (path) => basename(path).match(/-([0-9a-f]{64})\.json$/)?.[1] ?? null;
 
 export const DISPOSITIONS = Object.freeze({
   required: 'MATRIX_REQUIRED',
   notApplicable: 'MATRIX_NOT_APPLICABLE',
 });
 
-// Provider modes that are deterministic, repository-local substitutes. Any
-// port permitting a mode outside this set declares an external dependency.
-const DETERMINISTIC_PROVIDER_MODES = Object.freeze([
-  'urn:usf:providermode:deterministictestsubstitute',
-  'urn:usf:providermode:repositorylocalservice',
-]);
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+export const familyRegistry = loadPermutationFamilyRegistry({ repositoryRoot });
+export const censusFamilies = familyRegistry.families;
 
-const SECRET_CLASSIFICATION = 'urn:usf:secretclassification:secret';
-const NOT_TIME_TRIGGERED_PREFIX = 'Not time-triggered';
+export class AuthorityProjectionIndex {
+  constructor(projection) {
+    this.projectedClassIris = new Set(projection.projectedClassIris);
+    this.projectedPredicateIris = new Set(projection.projectedPredicateIris);
+    this.bySubjectPredicate = new Map();
+    this.byPredicateObject = new Map();
+    this.gatewayOperationsByCapability = new Map();
+    this.operationClasses = new Map();
+    this.operationInstances = new Set();
 
-const familyRecord = (key, title, applicabilitySignal) => Object.freeze({
-  key,
-  canonicalName: title.toLowerCase().replace(/[^a-z0-9]/g, ''),
-  title,
-  orderedDimensions: Object.freeze(title.split(' × ').map((part) => part.trim())),
-  applicabilitySignal,
-});
+    for (const [subject, predicate, objectType, value, datatype, language] of projection.triples) {
+      const object = Object.freeze({ datatype, language, type: objectType, value });
+      const subjectKey = `${subject}\u0000${predicate}`;
+      const reverseKey = `${predicate}\u0000${objectType}\u0000${value}`;
+      if (!this.bySubjectPredicate.has(subjectKey)) this.bySubjectPredicate.set(subjectKey, []);
+      if (!this.byPredicateObject.has(reverseKey)) this.byPredicateObject.set(reverseKey, []);
+      this.bySubjectPredicate.get(subjectKey).push(object);
+      this.byPredicateObject.get(reverseKey).push(subject);
+    }
+    for (const values of this.bySubjectPredicate.values()) values.sort((a, b) => a.value.localeCompare(b.value, 'en'));
+    for (const values of this.byPredicateObject.values()) values.sort((a, b) => a.localeCompare(b, 'en'));
 
-export const censusFamilies = Object.freeze([
-  familyRecord('f01', 'Capability × Resource × Action', 'ALWAYS_APPLICABLE'),
-  familyRecord('f02', 'Capability × Interface × Operation', 'INTERFACES_OR_GATEWAY_OPERATIONS'),
-  familyRecord('f03', 'Interface × Transport × InteractionPattern × Direction × SessionModel', 'INTERFACES'),
-  familyRecord('f04', 'Operation × PermissionAtom', 'OPERATIONS_OR_GATEWAY_OPERATIONS'),
-  familyRecord('f05', 'Operation × Role × ConditionProfile', 'OPERATIONS_OR_GATEWAY_OPERATIONS'),
-  familyRecord('f06', 'PermissionAtom × Role × TenantBoundary', 'PERMISSION_BEARING_OPERATIONS'),
-  familyRecord('f07', 'PermissionAtom × PrincipalKind × EnvironmentClass', 'PERMISSION_BEARING_OPERATIONS'),
-  familyRecord('f08', 'PermissionAtom × ResourceSelectorKind', 'PERMISSION_BEARING_OPERATIONS'),
-  familyRecord('f09', 'Operation × SourceState × TargetState', 'STATES_AND_TRANSITIONS'),
-  familyRecord('f10', 'Transition × Trigger × PermissionAtom × PrincipalKind', 'STATES_AND_TRANSITIONS'),
-  familyRecord('f11', 'Port × Action × ProviderMode × EnvironmentClass', 'PORTS'),
-  familyRecord('f12', 'Event × Publisher × Consumer × DeliverySemantics', 'EVENTS_OR_MESSAGES'),
-  familyRecord('f13', 'Event × PublishPermission × SubscribePermission × ConsumePermission', 'EVENTS_OR_MESSAGES'),
-  familyRecord('f14', 'Queue/Event × AckMode × RetryMode × ReplayMode × DeadLetterMode', 'EVENTS_OR_MESSAGES'),
-  familyRecord('f15', 'DataModel × Action × PrivacyClassification × TenantBoundary', 'DATA_MODELS'),
-  familyRecord('f16', 'ConfigurationKey × Action × Role × EnvironmentClass', 'CONFIGURATION_KEYS'),
-  familyRecord('f17', 'SecretClass × Action × PrincipalKind × EnvironmentClass', 'SECRET_CONFIGURATION_KEYS'),
-  familyRecord('f18', 'UI Surface × Action × PermissionAtom × RouteKind', 'UI_SURFACES_OR_ROUTES'),
-  familyRecord('f19', 'Form/View × Operation × PermissionAtom', 'FORMS_OR_VIEW_MODELS'),
-  familyRecord('f20', 'TokenProfile × PermissionAtom × ClaimConstraint', 'PERMISSION_BEARING_OPERATIONS'),
-  familyRecord('f21', 'Operation × ExpectedOutcome × ErrorClass', 'OPERATIONS_OR_GATEWAY_OPERATIONS'),
-  familyRecord('f22', 'Operation × AuditEvent × AuditOutcome', 'OPERATIONS_OR_GATEWAY_OPERATIONS'),
-  familyRecord('f23', 'Capability × ProviderMode × ProofRung × EnvironmentClass', 'ALWAYS_APPLICABLE'),
-  familyRecord('f24', 'RequiredPermutation × Test × Evidence × Proof', 'ALWAYS_APPLICABLE'),
-  familyRecord('f25', 'Role × Capability × Action reachability', 'ALWAYS_APPLICABLE'),
-  familyRecord('f26', 'Service/Process × Capability × Interface × LifecycleObligation', 'ALWAYS_APPLICABLE'),
-  familyRecord('f27', 'ScheduledJob × Action × Role/ServiceIdentity × EnvironmentClass', 'SCHEDULED_WORKFLOWS'),
-  familyRecord('f28', 'API/Command × RateLimitPolicy × PermissionAtom × TenantBoundary', 'OPERATIONS_OR_GATEWAY_OPERATIONS'),
-  familyRecord('f29', 'Resource × DataField × Action × PrivacyClassification', 'DATA_MODELS'),
-  familyRecord('f30', 'ExternalDependency × Operation × FailureMode × RecoveryAction', 'EXTERNAL_DEPENDENCY_PORTS'),
-  familyRecord('f31', 'API/ProtocolSurface × Action × AuthenticationMode', 'INTERFACES_OR_ROUTES'),
-  familyRecord('f32', 'Resource × Action × RetentionState × LegalHoldState', 'DATA_MODELS'),
-  familyRecord('f33', 'PermissionAtom × DelegationMode × AuthenticationStrength', 'PERMISSION_BEARING_OPERATIONS'),
-  familyRecord('f34', 'Operation × RateLimitClass × QuotaState × Outcome', 'OPERATIONS_OR_GATEWAY_OPERATIONS'),
-]);
+    for (const [capability, operation] of projection.gatewayOperationCapabilityBindings) {
+      if (!this.gatewayOperationsByCapability.has(capability)) this.gatewayOperationsByCapability.set(capability, []);
+      this.gatewayOperationsByCapability.get(capability).push(operation);
+      const predicate = `${O}gatewayOperationForCapability`;
+      const subjectKey = `${operation}\u0000${predicate}`;
+      const reverseKey = `${predicate}\u0000iri\u0000${capability}`;
+      if (!this.bySubjectPredicate.has(subjectKey)) this.bySubjectPredicate.set(subjectKey, []);
+      if (!this.byPredicateObject.has(reverseKey)) this.byPredicateObject.set(reverseKey, []);
+      this.bySubjectPredicate.get(subjectKey).push(Object.freeze({
+        datatype: null,
+        language: null,
+        type: 'iri',
+        value: capability,
+      }));
+      this.byPredicateObject.get(reverseKey).push(operation);
+    }
+    for (const values of this.gatewayOperationsByCapability.values()) values.sort();
+    this.projectedPredicateIris.add(`${O}gatewayOperationForCapability`);
 
-// Explicit applicability rule table: one entry per family. Each entry names
-// the observed signals it consults, the predicate over those signals, and the
-// controlled reason code recorded when the family is not applicable.
-const rule = (signalKeys, applies, reasonCode) => Object.freeze({ signalKeys: Object.freeze(signalKeys), applies, reasonCode });
-const always = () => rule([], () => true, null);
-const FAMILY_RULES = Object.freeze({
-  f01: always(),
-  f02: rule(['interfaces', 'gatewayOperations'], (s) => s.interfaces > 0 || s.gatewayOperations > 0, 'NO_INTERFACES_DECLARED'),
-  f03: rule(['interfaces'], (s) => s.interfaces > 0, 'NO_INTERFACES_DECLARED'),
-  f04: rule(['operations', 'gatewayOperations'], (s) => s.operations + s.gatewayOperations > 0, 'NO_OPERATIONS_DECLARED'),
-  f05: rule(['operations', 'gatewayOperations'], (s) => s.operations + s.gatewayOperations > 0, 'NO_OPERATIONS_DECLARED'),
-  f06: rule(['operations', 'gatewayOperations'], (s) => s.operations > 0 || s.gatewayOperations > 0, 'NO_PERMISSION_ATOMS_DECLARED'),
-  f07: rule(['operations', 'gatewayOperations'], (s) => s.operations > 0 || s.gatewayOperations > 0, 'NO_PERMISSION_ATOMS_DECLARED'),
-  f08: rule(['operations', 'gatewayOperations'], (s) => s.operations > 0 || s.gatewayOperations > 0, 'NO_PERMISSION_ATOMS_DECLARED'),
-  f09: rule(['states', 'transitions'], (s) => s.states > 0 && s.transitions > 0, 'NO_STATES_DECLARED'),
-  f10: rule(['states', 'transitions'], (s) => s.states > 0 && s.transitions > 0, 'NO_TRANSITIONS_DECLARED'),
-  f11: rule(['ports'], (s) => s.ports > 0, 'NO_PORTS_DECLARED'),
-  f12: rule(['events', 'messages'], (s) => s.events > 0 || s.messages > 0, 'NO_EVENTS_DECLARED'),
-  f13: rule(['events', 'messages'], (s) => s.events > 0 || s.messages > 0, 'NO_EVENTS_DECLARED'),
-  f14: rule(['events', 'messages'], (s) => s.events > 0 || s.messages > 0, 'NO_EVENTS_DECLARED'),
-  f15: rule(['dataModels'], (s) => s.dataModels > 0, 'NO_DATA_MODELS_DECLARED'),
-  f16: rule(['configurationKeys'], (s) => s.configurationKeys > 0, 'NO_CONFIGURATION_KEYS_DECLARED'),
-  f17: rule(['secretConfigurationKeys'], (s) => s.secretConfigurationKeys > 0, 'NO_SECRET_CONFIGURATION_KEYS_DECLARED'),
-  f18: rule(['uiSurfaces', 'routes'], (s) => s.uiSurfaces > 0 || s.routes > 0, 'NO_UI_SURFACES_DECLARED'),
-  f19: rule(['forms', 'viewModels'], (s) => s.forms > 0 || s.viewModels > 0, 'NO_FORMS_DECLARED'),
-  f20: rule(['operations', 'gatewayOperations'], (s) => s.operations > 0 || s.gatewayOperations > 0, 'NO_PERMISSION_ATOMS_DECLARED'),
-  f21: rule(['operations', 'gatewayOperations'], (s) => s.operations + s.gatewayOperations > 0, 'NO_OPERATIONS_DECLARED'),
-  f22: rule(['operations', 'gatewayOperations'], (s) => s.operations + s.gatewayOperations > 0, 'NO_OPERATIONS_DECLARED'),
-  f23: always(),
-  f24: always(),
-  f25: always(),
-  f26: always(),
-  f27: rule(['scheduledWorkflows'], (s) => s.scheduledWorkflows > 0, 'NO_SCHEDULED_WORKFLOWS_DECLARED'),
-  f28: rule(['operations', 'gatewayOperations'], (s) => s.operations > 0 || s.gatewayOperations > 0, 'NO_OPERATIONS_DECLARED'),
-  f29: rule(['dataModels'], (s) => s.dataModels > 0, 'NO_DATA_MODELS_DECLARED'),
-  f30: rule(['externalDependencyPorts'], (s) => s.externalDependencyPorts > 0, 'NO_EXTERNAL_DEPENDENCY_PORTS_DECLARED'),
-  f31: rule(['interfaces', 'routes'], (s) => s.interfaces > 0 || s.routes > 0, 'NO_PROTOCOL_SURFACES_DECLARED'),
-  f32: rule(['dataModels'], (s) => s.dataModels > 0, 'NO_DATA_MODELS_DECLARED'),
-  f33: rule(['operations', 'gatewayOperations'], (s) => s.operations > 0 || s.gatewayOperations > 0, 'NO_PERMISSION_ATOMS_DECLARED'),
-  f34: rule(['operations', 'gatewayOperations'], (s) => s.operations + s.gatewayOperations > 0, 'NO_OPERATIONS_DECLARED'),
-});
+    for (const [operationClass, operation] of projection.operationClassBindings ?? []) {
+      if (!this.operationClasses.has(operationClass)) this.operationClasses.set(operationClass, []);
+      if (operation !== null) {
+        this.operationClasses.get(operationClass).push(operation);
+        this.operationInstances.add(operation);
+      }
+    }
+    for (const values of this.operationClasses.values()) values.sort();
+  }
 
-const values = (terms) => [...new Set(terms.map(({ value }) => value))].sort();
-const isType = (store, subjectIri, className) => has(store, iri(subjectIri), RDF_TYPE, term(className));
+  objects(subject, predicate) {
+    return this.bySubjectPredicate.get(`${subject}\u0000${predicate}`) ?? [];
+  }
 
-function contractForCapability(store, capabilityIri) {
-  const contracts = values(objects(store, iri(capabilityIri), term('hasContract')));
-  if (contracts.length === 0) throw new Error(`capability ${capabilityIri} declares no usf:hasContract`);
+  values(subject, predicate) {
+    return uniqueSorted(this.objects(subject, predicate).map(({ value }) => value));
+  }
+
+  subjects(predicate, objectIri) {
+    return this.byPredicateObject.get(`${predicate}\u0000iri\u0000${objectIri}`) ?? [];
+  }
+
+  instances(classIri) {
+    if (!this.projectedClassIris.has(classIri) && !this.operationClasses.has(classIri)) {
+      fail('AUTHORITY_CLASS_NOT_PROJECTED', `class ${classIri} is not present in the bounded projection`);
+    }
+    return uniqueSorted([
+      ...this.subjects(RDF_TYPE, classIri),
+      ...(this.operationClasses.get(classIri) ?? []),
+    ]);
+  }
+
+  isType(subject, classIri) {
+    return this.values(subject, RDF_TYPE).includes(classIri)
+      || (this.operationClasses.get(classIri) ?? []).includes(subject);
+  }
+}
+
+export function instancesForClassClosure(index, closure) {
+  const values = [];
+  for (const classIri of closure.memberClassIris) {
+    try {
+      values.push(...index.instances(classIri));
+    } catch (error) {
+      if (error?.code === 'AUTHORITY_CLASS_NOT_PROJECTED') {
+        fail('CLASS_CLOSURE_MEMBER_NOT_PROJECTED', `${closure.iri} member ${classIri} is absent from the bounded projection`);
+      }
+      throw error;
+    }
+  }
+  return uniqueSorted(values);
+}
+
+export function isTypeInClassClosure(index, subject, closure) {
+  return closure.memberClassIris.some((classIri) => index.isType(subject, classIri));
+}
+
+function readVerifiedJson(path, expectedDigest, kind) {
+  assertSha256(expectedDigest, `${kind}_DIGEST_INVALID`, `${kind} digest`);
+  const bytes = readFileSync(path);
+  const actualDigest = sha256(bytes);
+  if (actualDigest !== expectedDigest) fail(`${kind}_FILE_DIGEST_MISMATCH`, `${path} digest ${actualDigest} does not equal ${expectedDigest}`);
+  const nameDigest = contentAddressFromName(path);
+  if (!nameDigest || `sha256:${nameDigest}` !== expectedDigest) {
+    fail(`${kind}_CONTENT_ADDRESS_MISMATCH`, `${path} filename is not bound to its exact bytes`);
+  }
+  let value;
+  try { value = JSON.parse(bytes.toString('utf8')); } catch (error) {
+    fail(`${kind}_JSON_INVALID`, error.message);
+  }
+  return { actualDigest, bytes, value };
+}
+
+const exactCount = (index, className, expected, signal) => {
+  const actual = index.instances(`${O}${className}`).length;
+  if (actual !== expected) fail('AUTHORITY_PACKET_PROJECTION_MISMATCH', `${signal}: packet=${expected}, projection=${actual}`);
+};
+
+export function loadVerifiedAuthorityInputs({
+  authorityDigest,
+  authorityPacketDigest,
+  authorityPacketPath,
+  authorityProjectionDigest,
+  authorityProjectionPath,
+}) {
+  assertSha256(authorityDigest, 'AUTHORITY_DIGEST_INVALID', 'authority digest');
+  const packetFile = readVerifiedJson(authorityPacketPath, authorityPacketDigest, 'AUTHORITY_PACKET');
+  const projectionFile = readVerifiedJson(authorityProjectionPath, authorityProjectionDigest, 'AUTHORITY_PROJECTION');
+  const packet = packetFile.value;
+  const projection = projectionFile.value;
+
+  if (packet.recordKind !== 'USF_PERMUTATION_AUTHORITY_INPUT_PACKET' || packet.packetSchemaVersion !== 1) {
+    fail('AUTHORITY_PACKET_SCHEMA_INVALID', 'unexpected authority packet kind or schema');
+  }
+  if (projection.recordKind !== 'USF_PERMUTATION_AUTHORITY_PROJECTION' || projection.schemaVersion !== 1) {
+    fail('AUTHORITY_PROJECTION_SCHEMA_INVALID', 'unexpected authority projection kind or schema');
+  }
+  if (packet.authorityDigest !== authorityDigest || projection.authorityDigest !== authorityDigest) {
+    fail('AUTHORITY_DIGEST_MISMATCH', 'packet, projection and expected live witness must bind one authority digest');
+  }
+  if (projection.basePacketDigest !== authorityPacketDigest) {
+    fail('AUTHORITY_PROJECTION_PACKET_BINDING_MISMATCH', 'projection does not bind the verified authority packet');
+  }
+  if (projection.projectionMethod !== 'BOUNDED_USF_MCP_SELECT') {
+    fail('AUTHORITY_PROJECTION_PROVENANCE_INVALID', 'projection method is not the bounded USF MCP read path');
+  }
+  if (!Array.isArray(projection.triples) || projection.triples.length === 0) {
+    fail('AUTHORITY_PACKET_PROJECTION_INCOMPLETE', 'projection contains no exact authority records');
+  }
+  if (!isUniqueSorted(projection.projectedClassIris) || !isUniqueSorted(projection.projectedPredicateIris)) {
+    fail('AUTHORITY_PROJECTION_REGISTRY_INVALID', 'projected class and predicate registries must be unique and canonically sorted');
+  }
+  const tripleKeys = projection.triples.map((triple) => canonicalJson(triple));
+  if (!isUniqueSorted(tripleKeys)) fail('AUTHORITY_PROJECTION_RECORD_SET_INVALID', 'authority records must be unique and canonically sorted');
+  const gatewayBindings = projection.gatewayOperationCapabilityBindings;
+  const gatewayKeys = Array.isArray(gatewayBindings)
+    ? gatewayBindings.map((binding) => canonicalJson(binding))
+    : [];
+  if (!Array.isArray(gatewayBindings)
+    || !gatewayBindings.every((binding) => Array.isArray(binding)
+      && binding.length === 3
+      && binding.every((value) => typeof value === 'string' && value.length > 0))
+    || !isUniqueSorted(gatewayKeys)) {
+    fail('AUTHORITY_GATEWAY_BINDING_INVALID', 'gateway bindings must be typed, unique and canonically sorted');
+  }
+  const operationClassBindings = projection.operationClassBindings;
+  const operationClassKeys = Array.isArray(operationClassBindings)
+    ? operationClassBindings.map((binding) => canonicalJson(binding))
+    : [];
+  if (!Array.isArray(operationClassBindings)
+    || !operationClassBindings.every((binding) => Array.isArray(binding)
+      && binding.length === 2
+      && typeof binding[0] === 'string'
+      && binding[0].length > 0
+      && (binding[1] === null || (typeof binding[1] === 'string' && binding[1].length > 0)))
+    || !isUniqueSorted(operationClassKeys)) {
+    fail('AUTHORITY_OPERATION_CLASS_BINDING_INVALID', 'operation class bindings must be typed, unique and canonically sorted');
+  }
+  if (!operationClassBindings.some(([classIri]) => classIri === `${O}Operation`)) {
+    fail('OPERATION_CLASS_CLOSURE_INVALID', 'operation class bindings do not include the Operation root');
+  }
+
+  const index = new AuthorityProjectionIndex(projection);
+  exactCount(index, 'Capability', packet.liveSignals.capabilities, 'capabilities');
+  exactCount(index, 'SemanticContract', packet.activeIdentities.contractCount, 'contracts');
+  exactCount(index, 'Query', packet.liveSignals.operationTypes.Query, 'queries');
+  exactCount(index, 'Command', packet.liveSignals.operationTypes.Command, 'commands');
+  exactCount(index, 'GatewayOperation', packet.liveSignals.gatewayOperations, 'gateway operations');
+  exactCount(index, 'Role', packet.liveSignals.roles, 'roles');
+  exactCount(index, 'Permission', packet.liveSignals.permissions, 'permissions');
+  exactCount(index, 'Port', packet.liveSignals.ports, 'ports');
+  exactCount(index, 'Event', packet.liveSignals.events, 'events');
+  exactCount(index, 'State', packet.liveSignals.states, 'states');
+  exactCount(index, 'Transition', packet.liveSignals.transitions, 'transitions');
+  exactCount(index, 'EnvironmentClass', packet.liveSignals.environmentClasses, 'environment classes');
+
+  const projectedRoles = index.instances(`${O}Role`);
+  const packetRoles = packet.controlledDimensions.roles.map((name) => `urn:usf:role:${name}`).sort();
+  if (canonicalJson(projectedRoles) !== canonicalJson(packetRoles)) {
+    fail('AUTHORITY_PACKET_PROJECTION_MISMATCH', 'role identities differ between witness packet and exact projection');
+  }
+
+  const inputs = Object.freeze({
+    authorityDigest,
+    authorityPacket: packet,
+    authorityPacketDigest,
+    authorityPacketPath,
+    authorityProjection: projection,
+    authorityProjectionDigest,
+    authorityProjectionPath,
+    index,
+  });
+  VERIFIED_AUTHORITY_INPUTS.add(inputs);
+  return inputs;
+}
+
+export function assertVerifiedAuthorityInputs(inputs) {
+  if (!inputs || !VERIFIED_AUTHORITY_INPUTS.has(inputs)) fail('UNVERIFIED_AUTHORITY_INPUTS', 'use loadVerifiedAuthorityInputs before generation');
+  return inputs;
+}
+
+function contractForCapability(index, capabilityIri) {
+  const contracts = index.values(capabilityIri, `${O}hasContract`);
+  if (contracts.length !== 1) {
+    fail('CAPABILITY_CONTRACT_CARDINALITY', `${capabilityIri} must declare exactly one contract`, { contracts });
+  }
   return contracts[0];
 }
 
-export function computeCapabilitySignals(store, capabilityIri) {
-  const capability = iri(capabilityIri);
-  const contract = iri(contractForCapability(store, capabilityIri));
-
-  const interfaces = values(subjects(store, term('interfaceForContract'), contract));
-  const operations = values(interfaces.flatMap((surface) => objects(store, iri(surface), term('hasOperation'))));
-  const auditEmittingOperations = operations.filter((operation) => has(store, iri(operation), term('emitsAuditEvent')));
-
-  // Gateway operations carry no contract predicate; they are attributed to
-  // the capability declared inside the same named graph.
-  const gatewayOperations = values(store
-    .getQuads(null, RDF_TYPE, term('GatewayOperation'), null)
-    .filter((quad) => store.countQuads(capability, RDF_TYPE, term('Capability'), quad.graph) > 0)
-    .map(({ subject }) => subject));
-
-  const ports = values(subjects(store, term('portForContract'), contract));
-  const portModes = ports.map((port) => values(objects(store, iri(port), term('permitsProviderMode'))));
-  const providerModePermits = portModes.reduce((total, modes) => total + modes.length, 0);
-  const externalDependencyPorts = portModes
-    .filter((modes) => modes.some((mode) => !DETERMINISTIC_PROVIDER_MODES.includes(mode))).length;
-
-  const events = values(subjects(store, term('eventForContract'), contract));
-  const messages = values(subjects(store, term('messageForContract'), contract));
-
-  const workflows = values(subjects(store, term('workflowForContract'), contract));
-  const states = values(workflows.flatMap((workflow) => objects(store, iri(workflow), term('hasState'))));
-  const transitions = values(workflows.flatMap((workflow) => objects(store, iri(workflow), term('hasTransition'))));
-  const scheduledWorkflows = workflows.filter((workflow) => values(objects(store, iri(workflow), term('workflowExecutionPolicy')))
-    .flatMap((policy) => objects(store, iri(policy), term('scheduleBehaviour')).map(({ value }) => value))
-    .some((behaviour) => !behaviour.startsWith(NOT_TIME_TRIGGERED_PREFIX)));
-
-  // Data models bind to their owning capability through usf:backsCapability;
-  // usf:ownedByCapability is used by schema-change/transaction/data-set
-  // subjects. Accept both spellings, then keep typed data models only.
-  const dataModels = values([
-    ...subjects(store, term('backsCapability'), capability),
-    ...subjects(store, term('ownedByCapability'), capability),
-  ]).filter((subject) => isType(store, subject, 'DataModel'));
-
-  const configurationKeys = values(subjects(store, term('configures'), capability))
-    .filter((subject) => isType(store, subject, 'ConfigurationKey'));
-  const secretConfigurationKeys = configurationKeys.filter((key) => values(objects(store, iri(key), term('hasSecretClassification')))
-    .includes(SECRET_CLASSIFICATION));
-
-  const uiModels = values(objects(store, capability, term('hasUISemanticModel')));
-  const viewModels = values(uiModels.flatMap((model) => objects(store, iri(model), term('hasViewModel'))));
-  const declaredSurfaces = values(uiModels.flatMap((model) => objects(store, iri(model), term('hasSurface'))));
-  const uiSurfaces = declaredSurfaces.filter((subject) => isType(store, subject, 'Surface'));
-  const forms = values([
-    ...declaredSurfaces.filter((subject) => isType(store, subject, 'Form')).map((value) => ({ value })),
-    ...viewModels.flatMap((viewModel) => objects(store, iri(viewModel), term('hasForm'))),
-  ]);
-  const routes = values(uiSurfaces.flatMap((surface) => objects(store, iri(surface), term('surfaceRoute'))))
-    .filter((subject) => isType(store, subject, 'Route'));
-
-  return {
-    interfaces: interfaces.length,
-    operations: operations.length,
-    gatewayOperations: gatewayOperations.length,
-    ports: ports.length,
-    events: events.length,
-    messages: messages.length,
-    states: states.length,
-    transitions: transitions.length,
-    workflows: workflows.length,
-    scheduledWorkflows: scheduledWorkflows.length,
-    dataModels: dataModels.length,
-    configurationKeys: configurationKeys.length,
-    secretConfigurationKeys: secretConfigurationKeys.length,
-    uiSurfaces: uiSurfaces.length,
-    routes: routes.length,
-    forms: forms.length,
-    viewModels: viewModels.length,
-    auditEmittingOperations: auditEmittingOperations.length,
-    providerModePermits,
-    externalDependencyPorts,
-  };
-}
-
-export function evaluateFamilyApplicability(familyKey, signals) {
-  const familyRule = FAMILY_RULES[familyKey];
-  if (!familyRule) throw new Error(`unknown census family ${familyKey}`);
-  const observedSignals = Object.fromEntries(familyRule.signalKeys.map((key) => {
-    if (!Number.isInteger(signals[key])) throw new Error(`signal ${key} missing for family ${familyKey}`);
-    return [key, signals[key]];
-  }));
-  const applicable = familyRule.applies(signals);
-  return {
-    disposition: applicable ? DISPOSITIONS.required : DISPOSITIONS.notApplicable,
-    reasonCode: applicable ? null : familyRule.reasonCode,
-    observedSignals,
-  };
-}
-
-export function generateFamilyCensus({ repositoryRoot, authorityDigest }) {
-  if (!/^sha256:[0-9a-f]{64}$/.test(String(authorityDigest))) {
-    throw new Error('authorityDigest must be sha256:<64 lowercase hex>');
+function evaluateSelector(index, selector, subjectIri) {
+  if (!index.projectedClassIris.has(selector.subjectClassIri)) {
+    fail('AUTHORITY_SELECTOR_SUBJECT_CLASS_NOT_PROJECTED', `${selector.subjectClassIri} is absent from the authority projection`);
   }
-  const { store } = loadSemanticStore(repositoryRoot);
-  const capabilities = values(subjects(store, RDF_TYPE, term('Capability')));
+  if (!index.projectedClassIris.has(selector.terminalClassIri)) {
+    fail('AUTHORITY_SELECTOR_TERMINAL_CLASS_NOT_PROJECTED', `${selector.terminalClassIri} is absent from the authority projection`);
+  }
+  if (!index.projectedPredicateIris.has(RDF_TYPE)) {
+    fail('AUTHORITY_SELECTOR_PATH_PREDICATE_NOT_PROJECTED', `${RDF_TYPE} is absent from the authority projection`);
+  }
+  for (const step of selector.steps) {
+    if (!index.projectedPredicateIris.has(step.predicateIri)) {
+      fail('AUTHORITY_SELECTOR_PATH_PREDICATE_NOT_PROJECTED', `${step.predicateIri} is absent from the authority projection`);
+    }
+  }
+  if (!isTypeInClassClosure(index, subjectIri, selector.subjectClassClosure)) {
+    fail('SELECTOR_SUBJECT_CLASS_MISMATCH', `${subjectIri} is not a ${selector.subjectClassIri}`);
+  }
+  let values = [subjectIri];
+  for (const step of selector.steps) {
+    values = uniqueSorted(values.flatMap((value) => (
+      step.directionIri === 'urn:usf:permutationpathdirection:outbound'
+        ? index.values(value, step.predicateIri)
+        : index.subjects(step.predicateIri, value)
+    )));
+  }
+  const terminalValues = values.filter((value) => isTypeInClassClosure(index, value, selector.terminalClassClosure));
+  if (selector.aggregationIri === 'urn:usf:permutationsignalaggregation:countdistinct') {
+    return terminalValues.length;
+  }
+  if (selector.aggregationIri === 'urn:usf:permutationsignalaggregation:distinctvalues') {
+    return terminalValues;
+  }
+  fail('SELECTOR_AGGREGATION_UNCONTROLLED', `${selector.iri} has unsupported aggregation`);
+}
+
+function familyRuleSelectors(family) {
+  const selectors = new Set();
+  const visit = (clause) => {
+    if (clause.selectorIri) selectors.add(clause.selectorIri);
+    for (const { clause: nested } of clause.operands) visit(nested);
+  };
+  visit(family.rule.rootClause);
+  return [...selectors].sort();
+}
+
+export function computeSubjectSelectorValues(authorityInputs, family, subjectIri) {
+  const { index } = assertVerifiedAuthorityInputs(authorityInputs);
+  if (!isTypeInClassClosure(index, subjectIri, family.subjectClassClosure)) {
+    fail('SELECTOR_SUBJECT_CLASS_MISMATCH', `${subjectIri} is not a ${family.subjectClassIri}`);
+  }
+  return new Map(familyRuleSelectors(family).map((selectorIri) => {
+    const selector = familyRegistry.selectors.get(selectorIri);
+    return [
+    selectorIri,
+    evaluateSelector(index, selector, subjectIri),
+    ];
+  }));
+}
+
+export function computeCapabilitySelectorValues(authorityInputs, capabilityIri) {
+  const { index } = assertVerifiedAuthorityInputs(authorityInputs);
+  contractForCapability(index, capabilityIri);
+  const values = new Map();
+  for (const family of censusFamilies.filter(({ subjectClassIri }) => subjectClassIri === `${O}Capability`)) {
+    for (const [selectorIri, value] of computeSubjectSelectorValues(authorityInputs, family, capabilityIri)) {
+      if (values.has(selectorIri) && canonicalJson(values.get(selectorIri)) !== canonicalJson(value)) {
+        fail('SELECTOR_VALUE_INCONSISTENT', `${selectorIri} differs across capability families`);
+      }
+      values.set(selectorIri, value);
+    }
+  }
+  return values;
+}
+
+export function computeCapabilitySignals(authorityInputs, capabilityIri) {
+  const values = computeCapabilitySelectorValues(authorityInputs, capabilityIri);
+  return Object.freeze(Object.fromEntries([...values].map(([selectorIri, value]) => [
+    familyRegistry.selectors.get(selectorIri).canonicalName,
+    value,
+  ]).sort(([left], [right]) => left.localeCompare(right, 'en'))));
+}
+
+export function evaluateFamilyApplicability(familyIdentity, signals) {
+  const family = censusFamilies.find(({ iri, key }) => familyIdentity === iri || familyIdentity === key);
+  if (!family) fail('CENSUS_FAMILY_UNKNOWN', `unknown census family ${familyIdentity}`);
+  const selectorValues = new Map([...familyRegistry.selectors].map(([selectorIri, selector]) => [
+    selectorIri,
+    signals[selector.canonicalName],
+  ]));
+  const result = evaluateFamilyRule(family, selectorValues);
+  const observedSignals = Object.fromEntries(Object.entries(result.observedSelectors).map(([selectorIri, value]) => [
+    familyRegistry.selectors.get(selectorIri).canonicalName,
+    value,
+  ]).sort(([left], [right]) => left.localeCompare(right, 'en')));
+  return {
+    disposition: result.applicable ? DISPOSITIONS.required : DISPOSITIONS.notApplicable,
+    observedSignals,
+    reasonCode: result.reasonIri,
+    reasonIri: result.reasonIri,
+    ruleDigest: family.rule.ruleDigest,
+  };
+}
+
+export function generateFamilyCensus({ authorityInputs }) {
+  const verified = assertVerifiedAuthorityInputs(authorityInputs);
+  const { authorityDigest, authorityPacketDigest, authorityProjectionDigest, index } = verified;
   const records = [];
   const dispositionCounts = { [DISPOSITIONS.required]: 0, [DISPOSITIONS.notApplicable]: 0 };
-  for (const capability of capabilities) {
-    const contract = contractForCapability(store, capability);
-    const signals = computeCapabilitySignals(store, capability);
-    for (const family of censusFamilies) {
-      const { disposition, reasonCode, observedSignals } = evaluateFamilyApplicability(family.key, signals);
+  const subjectCountsByRegistration = {};
+  const subjectSetDigestsByRegistration = {};
+  const subjectClassClosureDigestsByRegistration = {};
+  const allSubjects = new Set();
+  for (const family of censusFamilies) {
+    if (Object.hasOwn(subjectCountsByRegistration, family.registrationIri)) continue;
+    const subjects = instancesForClassClosure(index, family.subjectClassClosure);
+    subjectCountsByRegistration[family.registrationIri] = subjects.length;
+    subjectSetDigestsByRegistration[family.registrationIri] = sha256(canonicalJson(subjects));
+    subjectClassClosureDigestsByRegistration[family.registrationIri] = family.subjectClassClosure.digest;
+  }
+  for (const family of censusFamilies) {
+    const subjects = instancesForClassClosure(index, family.subjectClassClosure);
+    for (const subject of subjects) {
+      allSubjects.add(subject);
+      const contract = family.subjectClassIri === `${O}Capability`
+        ? contractForCapability(index, subject) : null;
+      const selectorValues = computeSubjectSelectorValues(verified, family, subject);
+      const signals = Object.fromEntries([...selectorValues].map(([selectorIri, value]) => [
+        familyRegistry.selectors.get(selectorIri).canonicalName,
+        value,
+      ]).sort(([left], [right]) => left.localeCompare(right, 'en')));
+      const {
+        disposition, reasonCode, observedSignals, ruleDigest,
+      } = evaluateFamilyApplicability(family.key, signals);
       dispositionCounts[disposition] += 1;
       records.push({
-        capability,
+        capability: family.subjectClassIri === `${O}Capability` ? subject : null,
         contract,
-        family: family.key,
+        family: family.iri,
+        familyKey: family.key,
         canonicalName: family.canonicalName,
         disposition,
         reasonCode,
+        registrationIri: family.registrationIri,
+        ruleDigest,
         signals: observedSignals,
+        subject,
+        subjectClass: family.subjectClassIri,
+        subjectClassClosureDigest: family.subjectClassClosure.digest,
+        provenance: {
+          authorityDigest,
+          authorityProjectionDigest,
+          familyRegistryDigest: familyRegistry.registryDigest,
+          kind: 'LIVE_AUTHORITY_PROJECTION',
+          signalKeys: Object.keys(observedSignals).sort(),
+        },
       });
     }
   }
+  records.sort((left, right) => {
+    const leftKey = canonicalJson([left.family, left.subject]);
+    const rightKey = canonicalJson([right.family, right.subject]);
+    return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+  });
+  const pairKeys = records.map(({ family, subject }) => `${family}\u0000${subject}`);
+  const expectedPairCount = pairKeys.length;
+  const pairSetDigest = sha256(canonicalJson(pairKeys));
+  const recordsDigest = sha256(canonicalJson(records));
+  const subjectCount = allSubjects.size;
   return {
     recordKind: 'USF_PERMUTATION_FAMILY_CENSUS',
-    schemaVersion: 1,
+    schemaVersion: 4,
     authorityDigest,
-    subjectCount: capabilities.length,
+    authorityPacketDigest,
+    authorityProjectionDigest,
+    familyRegistryDigest: familyRegistry.registryDigest,
+    expectedPairCount,
+    pairSetDigest,
+    subjectCount,
+    subjectCountsByRegistration,
+    subjectSetDigestsByRegistration,
+    subjectClassClosureDigestsByRegistration,
     familyCount: censusFamilies.length,
     records,
     dispositionCounts,
-    censusDigest: sha256(canonicalJson(records)),
+    recordsDigest,
+    censusDigest: sha256(canonicalJson({
+      authorityDigest,
+      authorityPacketDigest,
+      authorityProjectionDigest,
+      familyRegistryDigest: familyRegistry.registryDigest,
+      dispositionCounts,
+      expectedPairCount,
+      familyCount: censusFamilies.length,
+      recordsDigest,
+      pairSetDigest,
+      subjectCount,
+      subjectCountsByRegistration,
+      subjectSetDigestsByRegistration,
+      subjectClassClosureDigestsByRegistration,
+    })),
   };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  const prefix = '--authority-digest=';
-  const supplied = process.argv.filter((value) => value.startsWith(prefix));
-  if (supplied.length !== 1) throw new Error(`exactly one ${prefix}sha256:<digest> argument is required`);
+  const exactArg = (name) => {
+    const prefix = `--${name}=`;
+    const supplied = process.argv.filter((value) => value.startsWith(prefix));
+    if (supplied.length !== 1) fail('EXACT_INPUT_PATH_REQUIRED', `exactly one ${prefix}<value> argument is required`);
+    return supplied[0].slice(prefix.length);
+  };
   const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-  const census = generateFamilyCensus({ repositoryRoot, authorityDigest: supplied[0].slice(prefix.length) });
+  const authorityInputs = loadVerifiedAuthorityInputs({
+    authorityDigest: exactArg('authority-digest'),
+    authorityPacketDigest: exactArg('authority-packet-digest'),
+    authorityPacketPath: resolve(repositoryRoot, exactArg('authority-packet')),
+    authorityProjectionDigest: exactArg('authority-projection-digest'),
+    authorityProjectionPath: resolve(repositoryRoot, exactArg('authority-projection')),
+  });
+  const census = generateFamilyCensus({ authorityInputs });
   const content = `${canonicalJson(census)}\n`;
   const relativeOutputPath = join('.work', 'generated', `permutation-family-census-${sha256(content).slice('sha256:'.length)}.json`);
   mkdirSync(dirname(join(repositoryRoot, relativeOutputPath)), { recursive: true });

@@ -48,6 +48,31 @@ const CONTENT_TYPES = Object.freeze({
   '.trig': 'application/trig',
   '.rq': 'application/sparql-query',
 });
+const PROVIDER_STATEMENT_LIMITS = Object.freeze({ stardogcloudfree: 1_000_000 });
+
+function authorityPublicationBudget(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new ManifestError('authorityPublicationBudget is required');
+  }
+  const provider = raw.provider;
+  const hardStatementLimit = raw.hardStatementLimit;
+  const reserveStatementCount = raw.reserveStatementCount;
+  const policyIri = raw.policyIri;
+  const providerLimit = PROVIDER_STATEMENT_LIMITS[provider];
+  if (!providerLimit || hardStatementLimit !== providerLimit
+    || !Number.isSafeInteger(reserveStatementCount) || reserveStatementCount < 1
+    || reserveStatementCount >= hardStatementLimit
+    || typeof policyIri !== 'string' || !policyIri.startsWith('urn:usf:permutationpublicationbudget:')) {
+    throw new ManifestError('authorityPublicationBudget is invalid or exceeds the supported provider limit');
+  }
+  return Object.freeze({
+    hardStatementLimit,
+    maximumProjectedStatementCount: hardStatementLimit - reserveStatementCount,
+    policyIri,
+    provider,
+    reserveStatementCount,
+  });
+}
 
 function contentTypeFor(file) {
   const dot = file.lastIndexOf('.');
@@ -135,6 +160,26 @@ function retiredGraph(raw) {
   return Object.freeze({ graph: raw.graph, supersededBy: raw.supersededBy });
 }
 
+function inactiveSource(raw, graphDir) {
+  if (!raw || typeof raw.file !== 'string') {
+    throw new ManifestError('Malformed inactive source entry: exact file is required');
+  }
+  if (raw.disposition !== 'CANDIDATE_MIGRATION_MATERIAL' || raw.authorityEligible !== false) {
+    throw new ManifestError(`Inactive source ${raw.file} must be non-authorising candidate migration material`);
+  }
+  if (typeof raw.contentDigest !== 'string' || !/^sha256:[0-9a-f]{64}$/.test(raw.contentDigest)) {
+    throw new ManifestError(`Inactive source ${raw.file} requires an exact sha256 content digest`);
+  }
+  return Object.freeze({
+    authorityEligible: false,
+    contentDigest: raw.contentDigest,
+    contentType: contentTypeFor(raw.file),
+    disposition: raw.disposition,
+    file: raw.file,
+    path: assertContained(graphDir, raw.file),
+  });
+}
+
 export function loadManifest(graphDir) {
   const root = normalize(isAbsolute(graphDir) ? graphDir : join(process.cwd(), graphDir));
   const text = readFileSync(join(root, 'manifest.yaml'), 'utf8');
@@ -152,6 +197,8 @@ export function loadManifest(graphDir) {
   const rules = (doc.rules || []).map((r, i) => entry('rules', r, root, i));
   const derived = (doc.derivedGraphs || []).map((r, i) => entry('derived', r, root, r.loadOrder ?? 2000 + i));
   const retired = (doc.retiredGraphs || []).map(retiredGraph);
+  const inactiveSources = (doc.inactiveSources || []).map((source) => inactiveSource(source, root));
+  const publicationBudget = authorityPublicationBudget(doc.authorityPublicationBudget);
 
   const fixtures = doc.fixtures
     ? Object.freeze({
@@ -172,6 +219,8 @@ export function loadManifest(graphDir) {
     rules: Object.freeze(rules),
     derived: Object.freeze(derived),
     retired: Object.freeze(retired),
+    inactiveSources: Object.freeze(inactiveSources),
+    publicationBudget,
     fixtures,
   });
 }

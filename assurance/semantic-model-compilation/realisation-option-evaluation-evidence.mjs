@@ -110,12 +110,13 @@ const selectedComponentDefinitions = {
     ['stardogauthorityadapter', 'repositorylocalcomponent', 'adapter', 'Enforce the declared semantic-authority port over provider-specific client behaviour', ['localdev', 'authoritycontrol', 'productionshaped']],
     ['stardogsdkpackage', 'packagecomponent', 'clientlibrary', 'Provide the locked Stardog protocol client library used only by the repository-local adapter', ['localdev', 'authoritycontrol', 'productionshaped']],
     ['yamlpackage', 'packagecomponent', 'configurationparser', 'Parse the exact semantic manifest and configuration inputs', ['localdev', 'hermetic', 'productionshaped']],
-    ['livestardogauthority', 'externalprovidercomponent', 'provider', 'Provide the sole live authority and controlled mutation boundary', ['authoritycontrol', 'productionshaped']],
+    ['livestardogauthority', 'externalprovidercomponent', 'provider', 'Provide the sole live authority and controlled mutation boundary', ['authoritycontrol']],
+    ['stardogsandboxauthority', 'externalprovidercomponent', 'provider', 'Provide production-shaped Stardog behaviour without live-authority or publication claims', ['productionshaped']],
     ['compilerfocusedtestsubstitute', 'repositorylocalcomponent', 'provider', 'Provide deterministic offline authority-control behaviour without live publication claims', ['localdev', 'hermetic']],
     ['verifiedauthorityexport', 'repositorylocalcomponent', 'authorityexport', 'Provide digest-bound read-only isolated validation input', ['localdev', 'hermetic']],
   ],
   semanticauthoritycontrolselection: [
-    ['livestardogauthority', 'externalprovidercomponent', 'provider', 'Provide the sole live authority and controlled mutation boundary', ['authoritycontrol', 'productionshaped']],
+    ['livestardogauthority', 'externalprovidercomponent', 'provider', 'Provide the sole live authority and controlled mutation boundary', ['authoritycontrol']],
     ['verifiedauthorityexport', 'repositorylocalcomponent', 'authorityexport', 'Provide digest-bound read-only isolated validation input', ['localdev', 'hermetic']],
   ],
 };
@@ -387,6 +388,12 @@ addComponentObservation('livestardogauthority', {
   acquisitionSource: 'https://www.stardog.com/', scope: 'DECLARED_PROVIDER_METADATA_RAW',
   edition: declaredProviderAcquisition.stardog.edition, licenceType: declaredProviderAcquisition.stardog.licenceType,
 });
+addComponentObservation('stardogsandboxauthority', {
+  kind: 'ExternalProviderComponent', version: declaredProviderAcquisition.stardog.version,
+  integrity: declaredProviderAcquisition.stardog.metadataDigest, lockDigest: acquisitionPayload.acquisitionSetDigest,
+  acquisitionSource: 'https://www.stardog.com/', scope: 'DECLARED_PROVIDER_METADATA_RAW',
+  edition: declaredProviderAcquisition.stardog.edition, licenceType: declaredProviderAcquisition.stardog.licenceType,
+});
 
 function assessmentResult(decision, option, criterion) {
   if (decision.notApplicable.has(criterion)) return 'notapplicablewithjustification';
@@ -650,7 +657,7 @@ function compositionProjection(decision) {
   const entries = selectedComponentDefinitions[decision.name];
   const componentIds = entries.map(([name]) => iri('optioncomponent', `${option}${name}`));
   const componentRows = entries.map(([name, , role, responsibility, declaredEnvironments], index) => {
-    const environments = declaredEnvironments || (role === 'provider' ? ['authoritycontrol', 'productionshaped']
+    const environments = declaredEnvironments || (role === 'provider' ? ['authoritycontrol']
       : role === 'authorityexport' ? ['localdev', 'hermetic'] : ['localdev', 'hermetic', 'productionshaped']);
     return {
       id: componentIds[index],
@@ -961,7 +968,7 @@ function addComponent(option, entry, index) {
   const [name, kind, role, responsibility, declaredEnvironments] = entry;
   const component = iri('optioncomponent', `${option}${name}`);
   const identity = iri('componentidentity', name);
-  const environments = declaredEnvironments || (role === 'provider' ? ['authoritycontrol', 'productionshaped'] : role === 'authorityexport' ? ['localdev', 'hermetic'] : ['localdev', 'hermetic', 'productionshaped']);
+  const environments = declaredEnvironments || (role === 'provider' ? ['authoritycontrol'] : role === 'authorityexport' ? ['localdev', 'hermetic'] : ['localdev', 'hermetic', 'productionshaped']);
   graph.push(`<${component}> a usf:OptionComponent; usf:canonicalName ${q(`${option}${name}`)}; usf:componentForOption <${iri('realisationoption', option)}>; usf:componentIdentity <${identity}>; usf:componentRole <urn:usf:componentrole:${role}>; usf:componentResponsibility ${q(responsibility)}; usf:componentEnvironmentBinding ${environments.map((env) => `<${iri('environment', env)}>`).join(', ')}; usf:componentDataOwnershipBoundary ${q(`${name} owns only data explicitly assigned by its semantic responsibility`)}; usf:componentTransactionBoundary ${q(`${name} commits only within its declared responsibility and never spans an undeclared provider transaction`)}; usf:componentSecurityBoundary ${q(`${name} accepts only declared principals and interfaces`)}; usf:componentSecretBoundary ${q(`${name} receives credentials only through declared secret interfaces`)}; usf:componentDeploymentBoundary ${q(`${name} is deployed only in its declared environment bindings`)}; usf:componentFailurePropagation ${q(`${name} returns typed failures across declared interfaces`)}; usf:componentRetryPolicy ${q(`${name} retries only idempotent operations under contract-defined limits`)}; usf:componentTimeoutPolicy ${q(`${name} applies explicit bounded timeouts at every external interface`)}; usf:componentUpgradeCompatibility ${q(`${name} upgrades require locked compatible interfaces and current evaluation evidence`)}; usf:componentRollbackOrder ${q(`${name} rolls back after its dependants and before its dependencies`)}; usf:componentReplacementBoundary ${q(`${name} may be replaced independently only after interface-equivalent option evaluation`)} .`);
   if (option === 'nodeecmascriptsemanticmodelcompiler' || option === 'capabilitycellswithprocessassemblies' || option === 'livestardogwithverifiedreadonlyexport') return component;
   const kindClass = { repositorylocalcomponent: 'RepositoryLocalComponent', runtimecomponent: 'RuntimeComponent', externalprovidercomponent: 'ExternalProviderComponent', packagecomponent: 'PackageComponent', containerimagecomponent: 'ContainerImageComponent' }[kind];
@@ -993,17 +1000,29 @@ for (const [option, entries] of Object.entries(alternativeComponents)) {
 }
 
 const providerBindingsByComponent = new Map();
+const providerBindingSpecifications = Object.freeze({
+  compilerfocusedtestsubstitute: Object.freeze({
+    mode: 'deterministictestsubstitute', provider: 'compilerfocusedtestsubstitute', state: 'available',
+  }),
+  livestardogauthority: Object.freeze({
+    mode: 'liveauthoritycontrol', provider: 'livestardogsemanticauthority', state: 'external',
+  }),
+  stardogsandboxauthority: Object.freeze({
+    mode: 'externalsandbox', provider: 'stardogsandboxsemanticauthority', state: 'external',
+  }),
+});
 for (const decision of decisions) {
   const option = decision.selected;
   for (const [name, , role, , environments] of selectedComponentDefinitions[decision.name]) {
     if (role !== 'provider') continue;
     const component = iri('optioncomponent', `${option}${name}`);
-    const live = name === 'livestardogauthority';
-    const provider = live ? iri('provider', 'livestardogsemanticauthority') : iri('provider', 'compilerfocusedtestsubstitute');
-    const mode = live ? 'liveauthoritycontrol' : 'deterministictestsubstitute';
+    const specification = providerBindingSpecifications[name];
+    if (!specification) throw new Error(`provider binding specification missing: ${name}`);
+    const provider = iri('provider', specification.provider);
+    const mode = specification.mode;
     const bindings = environments.map((environment) => {
       const binding = iri('binding', `${option}${name}${environment}`);
-      graph.push(`<${binding}> a usf:Binding; usf:canonicalName ${q(`${option}${name}${environment}`)}; usf:bindsProvider <${provider}>; usf:bindsPort <urn:usf:port:semanticauthoritycontrol>; usf:hasProviderMode <urn:usf:providermode:${mode}>; usf:inEnvironment <${iri('environment', environment)}>; usf:bindingState <urn:usf:bindingstate:${live ? 'external' : 'available'}> .`);
+      graph.push(`<${binding}> a usf:Binding; usf:canonicalName ${q(`${option}${name}${environment}`)}; usf:bindingProvider <${provider}>; usf:bindsPort <urn:usf:port:semanticauthoritycontrol>; usf:hasProviderMode <urn:usf:providermode:${mode}>; usf:bindingEnvironment <${iri('environment', environment)}>; usf:bindingState <urn:usf:bindingstate:${specification.state}> .`);
       return binding;
     });
     graph.push(`<${component}> usf:componentProviderMode <urn:usf:providermode:${mode}>; usf:componentProviderBinding ${bindings.map((value) => `<${value}>`).join(', ')} .`);

@@ -928,13 +928,13 @@ function validateProviderRoleBindings(store, component, identity, kind, findings
     return;
   }
   for (const environment of environments) {
-    const matching = bindings.filter((binding) => has(store, binding, term('inEnvironment'), environment));
+    const matching = bindings.filter((binding) => has(store, binding, term('bindingEnvironment'), environment));
     if (matching.length !== 1) {
       addFinding(findings, 'EXTERNAL_PROVIDER_BINDING_MISSING', component, environment.value);
       continue;
     }
     const binding = matching[0];
-    const providers = objects(store, binding, term('bindsProvider'));
+    const providers = objects(store, binding, term('bindingProvider'));
     const ports = objects(store, binding, term('bindsPort'));
     const modes = objects(store, binding, term('hasProviderMode'));
     const expectedState = kind === 'ExternalProviderComponent' ? 'external' : 'available';

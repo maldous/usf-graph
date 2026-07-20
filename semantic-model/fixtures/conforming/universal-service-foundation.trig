@@ -1,0 +1,1162 @@
+@prefix usf: <urn:usf:ontology:>.
+@prefix fx: <urn:usf:foundationfixture:>.
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+
+<urn:usf:graph:fixture:universalservicefoundation> {
+fx:universalservicefoundation a usf:FoundationConformanceFixture;
+    usf:canonicalName "universalservicefoundation";
+    usf:definition "Non-authority conformance semantics exercising every registered permutation family without granting permissions or minting token scopes.";
+    usf:conforming true;
+    usf:foundationConformanceOnly true;
+    usf:foundationFixturePrimaryCapability fx:capability;
+    usf:foundationFixturePrimarySubject fx:accessibilityprofile, fx:automationworkflowcontract,
+        fx:candidatecredibilityassessment, fx:candidatesearchspace, fx:capability,
+        fx:compatibilitycontract, fx:composedoption, fx:criterionassessment,
+        fx:criterionrequirement, fx:datamodel, fx:decisionevaluation, fx:errorbinding, fx:completetransition,
+        fx:evidencerequirementscopemanifest, fx:evidenceresult, fx:event, fx:message, fx:httpapiservice,
+        fx:componentresponsibilitya, fx:form, fx:localisationprofile, fx:optioncomponenta,
+        fx:processdependency, fx:processdependencyfailurehandling, fx:proofresult, fx:providerbinding,
+        fx:readinessgate, fx:readinessgateresult, fx:readresource, fx:requestfailurealert,
+        fx:rejectionreason, fx:requiredcellevidence, fx:requiredcellproof, fx:tenantresourcefield,
+        fx:selectedoptionmapping, fx:selectedcomponentadaptermapping,
+        fx:selectedcomponentdependencybindingmapping, fx:selectedcomponentimplementationmapping,
+        fx:selectedcomponentproviderbindingmapping, fx:tenantresourcereadreachability,
+        fx:tenantresourcejourney, fx:tenantworkeridentity, fx:useremail,
+        fx:tokenprofiletemplate, fx:tokenprofilesecuritybinding,
+        fx:uimodel, fx:validatorrule, fx:viewmodel, fx:fixtureadapter,
+        fx:requestsignal, fx:resourcereadpermissionatomwitness,
+        <urn:usf:foundationrequiredpermutationwitness:readtenantresource>;
+    usf:foundationFixtureDigest "sha256:b09a017691dcd28b460bf6d7bde6c283691178d8fbe949408c5126c003b93fec";
+    usf:foundationFixtureCoversFamily
+        <urn:usf:permutationfamily:accessibilityprofilerequirementkind>,
+        <urn:usf:permutationfamily:adapterportimplementation>,
+        <urn:usf:permutationfamily:apicommandratelimitpolicypermissionatomtenantboundary>,
+        <urn:usf:permutationfamily:apiprotocolsurfaceactionauthenticationmode>,
+        <urn:usf:permutationfamily:automationworkflowtriggerpermission>,
+        <urn:usf:permutationfamily:actionreachabilitycapabilityoperationstate>,
+        <urn:usf:permutationfamily:actionreachabilityconditionprofile>,
+        <urn:usf:permutationfamily:actionreachabilitypermissionatom>,
+        <urn:usf:permutationfamily:actionreachabilityprincipalkind>,
+        <urn:usf:permutationfamily:actionreachabilityrole>,
+        <urn:usf:permutationfamily:capabilityinterfaceoperation>,
+        <urn:usf:permutationfamily:capabilitypositivepermutationcell>,
+        <urn:usf:permutationfamily:capabilityprovidermodeproofrungenvironmentclass>,
+        <urn:usf:permutationfamily:capabilityresourceaction>,
+        <urn:usf:permutationfamily:candidatecredibilityassessmentevaluationoptionstate>,
+        <urn:usf:permutationfamily:candidatesearchspacerealisationclass>,
+        <urn:usf:permutationfamily:compatibilitycontractsourceversiontargetversionstate>,
+        <urn:usf:permutationfamily:composedrealisationoptioncomponentresponsibilityinterfaceenvironmentbinding>,
+        <urn:usf:permutationfamily:componentresponsibilitycomponentrequirementowner>,
+        <urn:usf:permutationfamily:configurationkeyactionroleenvironmentclass>,
+        <urn:usf:permutationfamily:criterionassessmentevaluationoptioncriterionresult>,
+        <urn:usf:permutationfamily:criterionrequirementevaluationcriterionapplicability>,
+        <urn:usf:permutationfamily:datafieldmodelprivacytenancymutabilityaction>,
+        <urn:usf:permutationfamily:datamodelactionprivacyclassificationtenantboundary>,
+        <urn:usf:permutationfamily:datamodelpersistencecontracttransactionboundarymigrationpolicybackuprestoreschemachangeseries>,
+        <urn:usf:permutationfamily:deployableprocessboundarycapabilityprincipal>,
+        <urn:usf:permutationfamily:deployableprocessenvironmentenvironmentclassprovidermode>,
+        <urn:usf:permutationfamily:deployableprocessobservabilitysignalsignalkind>,
+        <urn:usf:permutationfamily:deployableprocessserviceidentity>,
+        <urn:usf:permutationfamily:decisionevaluationclosurestate>,
+        <urn:usf:permutationfamily:errorbindinginteractionstatepresentationkind>,
+        <urn:usf:permutationfamily:eventdeliveryform>,
+        <urn:usf:permutationfamily:eventackmoderetrymodereplaymodedeadlettermode>,
+        <urn:usf:permutationfamily:eventadvancedpermissions>,
+        <urn:usf:permutationfamily:eventcontractdeliverysemantics>,
+        <urn:usf:permutationfamily:eventmessage>,
+        <urn:usf:permutationfamily:eventpermissioncontext>,
+        <urn:usf:permutationfamily:eventproducerentity>,
+        <urn:usf:permutationfamily:eventconsumerentity>,
+        <urn:usf:permutationfamily:eventpublisherconsumerdeliverysemantics>,
+        <urn:usf:permutationfamily:eventpublishpermissionsubscribepermissionconsumepermission>,
+        <urn:usf:permutationfamily:evidenceresultadmissionfreshnessintegrity>,
+        <urn:usf:permutationfamily:evidencerequirementprovidermodeenvironmentclassstage>,
+        <urn:usf:permutationfamily:evidencescopemanifestclassificationprovideridentity>,
+        <urn:usf:permutationfamily:capabilityexternaldependencyproviderfailuremoderecoveryaction>,
+        <urn:usf:permutationfamily:formfieldkindvalidationbindingtiming>,
+        <urn:usf:permutationfamily:formviewoperationpermissionatom>,
+        <urn:usf:permutationfamily:foundationactionreachabilitywitnesscapabilityroleoperationpermissionstate>,
+        <urn:usf:permutationfamily:foundationrequiredpermutationwitnesssubjectfamilydispositionassurance>,
+        <urn:usf:permutationfamily:interfacetransportinteractionpatterndirectionsessionmodel>,
+        <urn:usf:permutationfamily:journeyaccessibilityrequirement>,
+        <urn:usf:permutationfamily:journeyconsentrequirementbasis>,
+        <urn:usf:permutationfamily:journeyinteractionstate>,
+        <urn:usf:permutationfamily:journeylocalisationrequirement>,
+        <urn:usf:permutationfamily:localisationprofilerequirementkind>,
+        <urn:usf:permutationfamily:operationauditeventauditoutcome>,
+        <urn:usf:permutationfamily:operationexpectedoutcomeerrorclass>,
+        <urn:usf:permutationfamily:operationpermissionatom>,
+        <urn:usf:permutationfamily:operationobservabilitysignalsignalkind>,
+        <urn:usf:permutationfamily:alertobservabilitysignal>,
+        <urn:usf:permutationfamily:optioncomponentidentityrole>,
+        <urn:usf:permutationfamily:optioncomponentdependencysharedinterface>,
+        <urn:usf:permutationfamily:bindingoptioncomponentproviderportprovidermodeenvironmentbindingstate>,
+        <urn:usf:permutationfamily:operationratelimitclassquotastateoutcome>,
+        <urn:usf:permutationfamily:operationroleconditionprofile>,
+        <urn:usf:permutationfamily:transitionfromstatetostate>,
+        <urn:usf:permutationfamily:observabilitysignalauditeventcorrelation>,
+        <urn:usf:permutationfamily:permissionatomdelegationmodeauthenticationstrength>,
+        <urn:usf:permutationfamily:permissionatomlifecyclerestriction>,
+        <urn:usf:permutationfamily:permissionatomprincipalkindenvironmentclass>,
+        <urn:usf:permutationfamily:permissionatomresourceselectorkind>,
+        <urn:usf:permutationfamily:permissionatomroletenantboundary>,
+        <urn:usf:permutationfamily:permissionatomtransportrestriction>,
+        <urn:usf:permutationfamily:portactionprovidermodeenvironmentclass>,
+        <urn:usf:permutationfamily:portactionprovidermodeenvironmentbindingstate>,
+        <urn:usf:permutationfamily:readinessgateresultstatereason>,
+        <urn:usf:permutationfamily:readinessgatetargetkind>,
+        <urn:usf:permutationfamily:realisationoptionrealisationclass>,
+        <urn:usf:permutationfamily:rejectionreasonoptionrejectionevaluationoptioncriterionduration>,
+        <urn:usf:permutationfamily:proofresultstateconfidenceobligation>,
+        <urn:usf:permutationfamily:proofobligationrungevidencerequirement>,
+        <urn:usf:permutationfamily:deployableprocessdependencysourcetargetinterfaceenvironmentprovidermoderequirementkind>,
+        <urn:usf:permutationfamily:processdependencyfailurehandlingdependencyfailuremoderecoveryaction>,
+        <urn:usf:permutationfamily:messageackmoderetrymodereplaymodedeadlettermode>,
+        <urn:usf:permutationfamily:messagecontract>,
+        <urn:usf:permutationfamily:resourceactionretentionstatelegalholdstate>,
+        <urn:usf:permutationfamily:scheduledjobactionroleserviceidentityenvironmentclass>,
+        <urn:usf:permutationfamily:secretclassactionprincipalkindenvironmentclass>,
+        <urn:usf:permutationfamily:selectedcomponentadaptermappingoptioncomponenttargetkindadapterstate>,
+        <urn:usf:permutationfamily:selectedcomponentdependencybindingmappingoptioncomponenttargetkindbindingstate>,
+        <urn:usf:permutationfamily:selectedcomponentimplementationmappingoptioncomponenttargetkindimplementationstate>,
+        <urn:usf:permutationfamily:selectedcomponentproviderbindingmappingoptioncomponenttargetkindbindingstate>,
+        <urn:usf:permutationfamily:selectedoptionrealisationmappingdecisionevaluationoptionrealisationstate>,
+        <urn:usf:permutationfamily:serviceidentitycapabilityprincipalkindenvironmentclass>,
+        <urn:usf:permutationfamily:serviceprocesscapabilityinterfacelifecycleobligation>,
+        <urn:usf:permutationfamily:surfacerenderercontractrenderertargetsurfacekind>,
+        <urn:usf:permutationfamily:tokenprofiletemplateclaimconstraint>,
+        <urn:usf:permutationfamily:tokenprofiletemplatesecuritybindingprofileissueraudiencelifetimeauthenticationproofrevocationdelegation>,
+        <urn:usf:permutationfamily:transitiontriggerpermissionatomprincipalkind>,
+        <urn:usf:permutationfamily:uimodelaccessibilitylocalisationprofiles>,
+        <urn:usf:permutationfamily:uimodeljourney>,
+        <urn:usf:permutationfamily:uisurfaceactionpermissionatomroutekind>,
+        <urn:usf:permutationfamily:validatorruleseverity>,
+        <urn:usf:permutationfamily:viewmodelcomponentkind>,
+        <urn:usf:permutationfamily:viewmodeldatamodelprojection>,
+        <urn:usf:permutationfamily:viewmodeleventbinding>,
+        <urn:usf:permutationfamily:viewmodelinterfacebinding>,
+        <urn:usf:permutationfamily:viewmodelstatebinding>.
+
+fx:capability a usf:Capability;
+    usf:canonicalName "capability";
+    usf:definition "Fixture-only tenant service operations spanning synchronous, streaming, event, scheduled, stateful, data and operator-control scenarios.";
+    usf:inDomain <urn:usf:capabilitydomain:foundation>;
+    usf:accountableProcessBoundary fx:httpapiservice;
+    usf:participatesInProcess fx:httpapiservice, fx:eventconsumerworker, fx:scheduledjobrunner,
+        fx:semanticcompiler, fx:publicationcoordinator, fx:databasemigrationprocess,
+        fx:backuprestoreprocess, fx:webhookdeliveryworker;
+    usf:uiExposure <urn:usf:uiexposureclass:uiexposed>;
+    usf:hasContract fx:contract;
+    usf:hasUISemanticModel fx:uimodel.
+fx:contract a usf:SemanticContract;
+    usf:canonicalName "contract";
+    usf:definition "Fixture-only semantic contract used solely to prove foundation expressiveness.";
+    usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:proposed>;
+    usf:declaresFacet fx:contractlifecyclefacet, fx:contractstatemodelfacet,
+        fx:contractpermissionsfacet, fx:contractcontractsfacet, fx:contractvalidationfacet,
+        fx:contracterrormodelfacet, fx:contractauditmodelfacet, fx:contractreadinessmodelfacet,
+        fx:contractprooffacet, fx:contractuisemanticsfacet.
+
+fx:contractlifecyclefacet a usf:ContractFacet; usf:canonicalName "contractlifecyclefacet"; usf:facetKind <urn:usf:facetkind:lifecycle>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "The conformance service has explicit process, workflow and contract lifecycle semantics.".
+fx:contractstatemodelfacet a usf:ContractFacet; usf:canonicalName "contractstatemodelfacet"; usf:facetKind <urn:usf:facetkind:statemodel>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "The conformance workflow has explicit states and transitions.".
+fx:contractpermissionsfacet a usf:ContractFacet; usf:canonicalName "contractpermissionsfacet"; usf:facetKind <urn:usf:facetkind:permissions>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "Operations name permission requirements without granting any principal those permissions.".
+fx:contractcontractsfacet a usf:ContractFacet; usf:canonicalName "contractcontractsfacet"; usf:facetKind <urn:usf:facetkind:contracts>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "Interfaces, operations, data, events and processes are bound to explicit fixture contracts.".
+fx:contractvalidationfacet a usf:ContractFacet; usf:canonicalName "contractvalidationfacet"; usf:facetKind <urn:usf:facetkind:validation>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "Positive, negative and semantic validation obligations are represented without fabricated results.".
+fx:contracterrormodelfacet a usf:ContractFacet; usf:canonicalName "contracterrormodelfacet"; usf:facetKind <urn:usf:facetkind:errormodel>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "Operations state bounded timeout, concurrency and error behaviour.".
+fx:contractauditmodelfacet a usf:ContractFacet; usf:canonicalName "contractauditmodelfacet"; usf:facetKind <urn:usf:facetkind:auditmodel>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "Mutating operations identify their required audit event.".
+fx:contractreadinessmodelfacet a usf:ContractFacet; usf:canonicalName "contractreadinessmodelfacet"; usf:facetKind <urn:usf:facetkind:readinessmodel>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "Processes declare readiness and dependency recovery obligations.".
+fx:contractprooffacet a usf:ContractFacet; usf:canonicalName "contractprooffacet"; usf:facetKind <urn:usf:facetkind:proof>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "Required combinations create pending test, evidence and proof obligations.".
+
+# Non-authorising conformance input. These template resources exercise finite token
+# semantics without minting an operational permission, scope, profile or path.
+fx:tokenprofiletemplate a usf:TokenProfileTemplate;
+    usf:canonicalName "foundationtokenprofiletemplate";
+    usf:tokenProfileTemplateKind "foundationconformanceaccesstoken";
+    usf:tokenProfileTemplateClaimConstraint
+        <urn:usf:tokenclaimconstrainttemplate:issuer>,
+        <urn:usf:tokenclaimconstrainttemplate:audience>;
+    usf:tokenProfileTemplateNonTokenMode false;
+    usf:tokenProfileTemplateDigest "sha256:aed900946665fe96fd780ca671c90485ab5a0f50e23145adbaa677ada56be9bb".
+fx:tokenprofilesecuritybinding a usf:TokenProfileTemplateSecurityBinding;
+    usf:canonicalName "foundationtokenprofilesecuritybinding";
+    usf:securityBindingForTokenProfileTemplate fx:tokenprofiletemplate;
+    usf:securityBindingIssuerClass <urn:usf:tokenissuerclass:platformidentityauthority>;
+    usf:securityBindingAudience <urn:usf:tokenaudience:foundationapi>;
+    usf:securityBindingLifetimePolicy <urn:usf:tokenlifetimepolicy:boundedaccess>;
+    usf:securityBindingAuthenticationStrength <urn:usf:authenticationstrengthrequirement:authenticated>;
+    usf:securityBindingProofOfPossession <urn:usf:proofofpossessionrequirement:bearerpermitted>;
+    usf:securityBindingRevocationPolicy <urn:usf:revocationpolicy:revocablebeforeexpiry>;
+    usf:securityBindingDelegationConstraint <urn:usf:delegationconstraint:delegationprohibited>;
+    usf:tokenProfileTemplateSecurityBindingDigest "sha256:8dc314c708e3daf90f7fefb569961cba38d9db838d0b64493c4e1f23a81889ca".
+
+fx:automationworkflowcontract a usf:AutomationWorkflowContract;
+    usf:canonicalName "automationworkflowcontract";
+    usf:definition "Fixture-only automation contract proving finite trigger and permission modelling without granting runtime authority.";
+    usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:proposed>;
+    usf:workflowTemplate <urn:usf:template:specvalidationworkflowtemplate>;
+    usf:requiredWorkflowTrigger <urn:usf:automationtrigger:pushmain>;
+    usf:requiredAutomationPermission <urn:usf:automationpermission:contentsread>;
+    usf:requiredValidatorRule <urn:usf:validatorrule:validatecontractconformance>.
+fx:contractuisemanticsfacet a usf:ContractFacet; usf:canonicalName "contractuisemanticsfacet"; usf:facetKind <urn:usf:facetkind:uisemantics>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "The UI-exposed primary capability has framework-neutral routes, surfaces, forms and view semantics.".
+
+fx:processcontract a usf:SemanticContract;
+    usf:canonicalName "processcontract";
+    usf:definition "Fixture-only contract for independent process-owned capabilities that have no user-interface exposure.";
+    usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:proposed>;
+    usf:declaresFacet fx:processlifecyclefacet, fx:processstatemodelfacet,
+        fx:processpermissionsfacet, fx:processcontractsfacet, fx:processvalidationfacet,
+        fx:processerrormodelfacet, fx:processauditmodelfacet, fx:processreadinessmodelfacet,
+        fx:processprooffacet, fx:processuisemanticsfacet.
+fx:processlifecyclefacet a usf:ContractFacet; usf:canonicalName "processlifecyclefacet"; usf:facetKind <urn:usf:facetkind:lifecycle>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "Each process exposes finite lifecycle obligations.".
+fx:processstatemodelfacet a usf:ContractFacet; usf:canonicalName "processstatemodelfacet"; usf:facetKind <urn:usf:facetkind:statemodel>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "Process lifecycle state is explicit and bounded.".
+fx:processpermissionsfacet a usf:ContractFacet; usf:canonicalName "processpermissionsfacet"; usf:facetKind <urn:usf:facetkind:permissions>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "Process principals and security boundaries are explicit without grants.".
+fx:processcontractsfacet a usf:ContractFacet; usf:canonicalName "processcontractsfacet"; usf:facetKind <urn:usf:facetkind:contracts>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "Every process has one owned capability and declared interfaces.".
+fx:processvalidationfacet a usf:ContractFacet; usf:canonicalName "processvalidationfacet"; usf:facetKind <urn:usf:facetkind:validation>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "Readiness and lifecycle behaviour are validation obligations.".
+fx:processerrormodelfacet a usf:ContractFacet; usf:canonicalName "processerrormodelfacet"; usf:facetKind <urn:usf:facetkind:errormodel>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "Failure, drain, recovery and rollback behaviour are declared.".
+fx:processauditmodelfacet a usf:ContractFacet; usf:canonicalName "processauditmodelfacet"; usf:facetKind <urn:usf:facetkind:auditmodel>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "Process lifecycle transitions require auditable evidence.".
+fx:processreadinessmodelfacet a usf:ContractFacet; usf:canonicalName "processreadinessmodelfacet"; usf:facetKind <urn:usf:facetkind:readinessmodel>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "Every process declares readiness, resource and environment obligations.".
+fx:processprooffacet a usf:ContractFacet; usf:canonicalName "processprooffacet"; usf:facetKind <urn:usf:facetkind:proof>; usf:facetStatus <urn:usf:facetstatus:complete>; usf:facetStatement "Process accountability and interface coverage are proof obligations.".
+fx:processuisemanticsfacet a usf:ContractFacet; usf:canonicalName "processuisemanticsfacet"; usf:facetKind <urn:usf:facetkind:uisemantics>; usf:facetStatus <urn:usf:facetstatus:notapplicable>; usf:facetStatement "These process-owned fixture capabilities expose no independent user interface.".
+
+fx:eventconsumercapability a usf:Capability; usf:canonicalName "eventconsumercapability"; usf:inDomain <urn:usf:capabilitydomain:eventsworkflow>; usf:hasContract fx:processcontract; usf:uiExposure <urn:usf:uiexposureclass:notexposed>; usf:accountableProcessBoundary fx:eventconsumerworker; usf:participatesInProcess fx:eventconsumerworker.
+fx:scheduledjobcapability a usf:Capability; usf:canonicalName "scheduledjobcapability"; usf:inDomain <urn:usf:capabilitydomain:eventsworkflow>; usf:hasContract fx:processcontract; usf:uiExposure <urn:usf:uiexposureclass:notexposed>; usf:accountableProcessBoundary fx:scheduledjobrunner; usf:participatesInProcess fx:scheduledjobrunner.
+fx:semanticcompilercapability a usf:Capability; usf:canonicalName "semanticcompilercapability"; usf:inDomain <urn:usf:capabilitydomain:foundation>; usf:hasContract fx:processcontract; usf:uiExposure <urn:usf:uiexposureclass:notexposed>; usf:accountableProcessBoundary fx:semanticcompiler; usf:participatesInProcess fx:semanticcompiler.
+fx:publicationcoordinationcapability a usf:Capability; usf:canonicalName "publicationcoordinationcapability"; usf:inDomain <urn:usf:capabilitydomain:foundation>; usf:hasContract fx:processcontract; usf:uiExposure <urn:usf:uiexposureclass:notexposed>; usf:accountableProcessBoundary fx:publicationcoordinator; usf:participatesInProcess fx:publicationcoordinator.
+fx:databasemigrationcapability a usf:Capability; usf:canonicalName "databasemigrationcapability"; usf:inDomain <urn:usf:capabilitydomain:dataplatform>; usf:hasContract fx:processcontract; usf:uiExposure <urn:usf:uiexposureclass:notexposed>; usf:accountableProcessBoundary fx:databasemigrationprocess; usf:participatesInProcess fx:databasemigrationprocess.
+fx:backuprestorecapability a usf:Capability; usf:canonicalName "backuprestorecapability"; usf:inDomain <urn:usf:capabilitydomain:dataplatform>; usf:hasContract fx:processcontract; usf:uiExposure <urn:usf:uiexposureclass:notexposed>; usf:accountableProcessBoundary fx:backuprestoreprocess; usf:participatesInProcess fx:backuprestoreprocess.
+fx:webhookdeliverycapability a usf:Capability; usf:canonicalName "webhookdeliverycapability"; usf:inDomain <urn:usf:capabilitydomain:eventsworkflow>; usf:hasContract fx:processcontract; usf:uiExposure <urn:usf:uiexposureclass:notexposed>; usf:accountableProcessBoundary fx:webhookdeliveryworker; usf:participatesInProcess fx:webhookdeliveryworker.
+
+fx:httpapi a usf:Interface;
+    usf:canonicalName "httpapi";
+    usf:interfaceForContract fx:contract;
+    usf:hasOperation fx:createresource, fx:readresource.
+fx:readinessinterface a usf:Interface;
+    usf:canonicalName "readinessinterface";
+    usf:interfaceForContract fx:contract;
+    usf:hasOperation fx:readreadiness.
+fx:streaminterface a usf:Interface;
+    usf:canonicalName "streaminterface";
+    usf:interfaceForContract fx:contract;
+    usf:hasOperation fx:subscribeevents.
+fx:coordinatorinterface a usf:Interface;
+    usf:canonicalName "coordinatorinterface";
+    usf:interfaceForContract fx:contract;
+    usf:hasOperation fx:publishauthority.
+
+fx:createresource a usf:Command;
+    usf:canonicalName "createresource";
+    usf:idempotent true;
+    usf:idempotencyKeyRequired true;
+    usf:timeoutMilliseconds 30000;
+    usf:concurrencyBehaviour "Serialise writes by tenant resource and idempotency key.";
+    usf:operationErrorBehaviour "Reject invalid input and unavailable persistence with a stable error classification.";
+    usf:requiresPermission fx:resourcewritepermission;
+    usf:emitsAuditEvent fx:operationauditevent.
+fx:readresource a usf:Query, usf:Operation;
+    usf:canonicalName "readresource";
+    usf:idempotent true;
+    usf:idempotencyKeyRequired false;
+    usf:timeoutMilliseconds 10000;
+    usf:concurrencyBehaviour "Permit concurrent reads while preserving tenant isolation.";
+    usf:operationErrorBehaviour "Return stable not-found, forbidden and dependency-unavailable classifications.";
+    usf:requiresPermission fx:resourcereadpermission, fx:resourceexportpermission;
+    usf:emitsAuditEvent fx:operationauditevent;
+    usf:emitsSignal fx:requestsignal.
+fx:requestsignal a usf:ObservabilitySignal;
+    usf:canonicalName "requestsignal";
+    usf:signalKind <urn:usf:signalkind:trace>;
+    usf:correlatesWith fx:operationauditevent.
+fx:requestfailurealert a usf:Alert;
+    usf:canonicalName "requestfailurealert";
+    usf:triggeredBySignal fx:requestsignal.
+fx:readreadiness a usf:Query;
+    usf:canonicalName "readreadiness";
+    usf:idempotent true;
+    usf:idempotencyKeyRequired false;
+    usf:timeoutMilliseconds 2000;
+    usf:concurrencyBehaviour "Permit concurrent probes without mutable service state.";
+    usf:operationErrorBehaviour "Report dependency-not-ready without exposing protected details.";
+    usf:requiresPermission fx:publicreadinesspermission.
+fx:subscribeevents a usf:Command;
+    usf:canonicalName "subscribeevents";
+    usf:idempotent true;
+    usf:idempotencyKeyRequired true;
+    usf:timeoutMilliseconds 30000;
+    usf:concurrencyBehaviour "Deduplicate one durable subscription per tenant, principal and subscription key.";
+    usf:operationErrorBehaviour "Reject cross-tenant, unsupported transport and duplicate incompatible subscriptions.";
+    usf:requiresPermission fx:eventsubscribepermission;
+    usf:emitsAuditEvent fx:operationauditevent.
+fx:publishauthority a usf:GatewayOperation;
+    usf:canonicalName "publishauthority";
+    usf:idempotent true;
+    usf:idempotencyKeyRequired true;
+    usf:timeoutMilliseconds 60000;
+    usf:concurrencyBehaviour "Permit one coordinator-owned semantic publication transaction at a time.";
+    usf:operationErrorBehaviour "Fail closed and roll back on stale authority, validation, proof or publication failure.";
+    usf:gatewayOperationIdentifier "usf.authority.publish";
+    usf:mutatesSemanticAuthority true;
+    usf:coordinatorOnly true;
+    usf:maximumInputBytes 16777216;
+    usf:maximumOutputBytes 16777216;
+    usf:requiresPermission fx:authoritypublishpermission.
+
+fx:resourcewritepermission a usf:Permission; usf:canonicalName "resourcewritepermission".
+fx:resourcereadpermission a usf:Permission; usf:canonicalName "resourcereadpermission".
+fx:resourceexportpermission a usf:Permission; usf:canonicalName "resourceexportpermission".
+fx:publicreadinesspermission a usf:Permission; usf:canonicalName "publicreadinesspermission".
+fx:eventpublishpermission a usf:Permission; usf:canonicalName "eventpublishpermission".
+fx:eventsubscribepermission a usf:Permission; usf:canonicalName "eventsubscribepermission".
+fx:eventconsumepermission a usf:Permission; usf:canonicalName "eventconsumepermission".
+fx:eventacknowledgepermission a usf:Permission; usf:canonicalName "eventacknowledgepermission".
+fx:eventreplaypermission a usf:Permission; usf:canonicalName "eventreplaypermission".
+fx:eventdeadletterpermission a usf:Permission; usf:canonicalName "eventdeadletterpermission".
+fx:eventsubscriptionadminpermission a usf:Permission; usf:canonicalName "eventsubscriptionadminpermission".
+fx:eventmetadataviewpermission a usf:Permission; usf:canonicalName "eventmetadataviewpermission".
+fx:authoritypublishpermission a usf:Permission; usf:canonicalName "authoritypublishpermission".
+
+<urn:usf:actionkind:create> a usf:ActionKind.
+<urn:usf:actionkind:read> a usf:ActionKind.
+<urn:usf:actionkind:list> a usf:ActionKind.
+<urn:usf:actionkind:search> a usf:ActionKind.
+<urn:usf:actionkind:export> a usf:ActionKind.
+<urn:usf:actionkind:delete> a usf:ActionKind.
+<urn:usf:actionkind:purge> a usf:ActionKind.
+<urn:usf:actionkind:publish> a usf:ActionKind.
+<urn:usf:actionkind:subscribe> a usf:ActionKind.
+<urn:usf:actionkind:consume> a usf:ActionKind.
+<urn:usf:actionkind:acknowledge> a usf:ActionKind.
+<urn:usf:actionkind:replay> a usf:ActionKind.
+<urn:usf:actionkind:update> a usf:ActionKind.
+
+<urn:usf:principalkind:humanuser> a usf:PrincipalKind.
+<urn:usf:principalkind:serviceidentity> a usf:PrincipalKind.
+<urn:usf:principalkind:coordinator> a usf:PrincipalKind.
+<urn:usf:processboundaryclass:productruntime> a usf:ProcessBoundaryClass.
+<urn:usf:authorisationconditionprofile:tenantmember> a usf:AuthorisationConditionProfile.
+fx:tenantmember a usf:Role; usf:canonicalName "tenantmember".
+fx:tenantadministrator a usf:Role; usf:canonicalName "tenantadministrator".
+fx:platformoperator a usf:Role; usf:canonicalName "platformoperator".
+fx:tenantboundary a usf:TenantBoundary; usf:canonicalName "tenantboundary".
+fx:platformboundary a usf:TenantBoundary; usf:canonicalName "platformboundary".
+<urn:usf:environmentclass:local> a usf:EnvironmentClass.
+<urn:usf:environmentclass:hermetic> a usf:EnvironmentClass.
+<urn:usf:environmentclass:productionshaped> a usf:EnvironmentClass.
+<urn:usf:providermode:deterministictestsubstitute> a usf:ProviderMode.
+<urn:usf:providermode:repositorylocalservice> a usf:ProviderMode.
+<urn:usf:providermode:externalsandbox> a usf:ProviderMode.
+<urn:usf:providermode:liveauthoritycontrol> a usf:ProviderMode.
+<urn:usf:proofrung:behaviour> a usf:ProofRung.
+<urn:usf:resourceselectorkind:tenantscope> a usf:ResourceSelectorKind.
+<urn:usf:resourceselectorkind:timewindow> a usf:ResourceSelectorKind.
+<urn:usf:transport:http> a usf:Transport.
+<urn:usf:transport:websocket> a usf:Transport.
+<urn:usf:transport:eventbus> a usf:Transport.
+<urn:usf:transport:webhookcallback> a usf:Transport.
+<urn:usf:interactionpattern:requestresponse> a usf:InteractionPattern.
+<urn:usf:interactionpattern:bidirectionalstreaming> a usf:InteractionPattern.
+<urn:usf:interactionpattern:publishsubscribe> a usf:InteractionPattern.
+<urn:usf:direction:inbound> a usf:InteractionDirection.
+<urn:usf:direction:outbound> a usf:InteractionDirection.
+<urn:usf:direction:bidirectional> a usf:InteractionDirection.
+<urn:usf:sessionmodel:stateless> a usf:SessionModel.
+<urn:usf:sessionmodel:stateful> a usf:SessionModel.
+<urn:usf:routekind:public> a usf:RouteKind.
+<urn:usf:routekind:authenticated> a usf:RouteKind.
+<urn:usf:secretclassification:secret> a usf:SecretClassification.
+fx:operationauditevent a usf:AuditEvent; usf:canonicalName "operationauditevent"; usf:auditCategory <urn:usf:auditcategory:authorization>; usf:auditSeverity <urn:usf:auditseverity:info>.
+fx:validationfailure a usf:ValidationFailureCode; usf:canonicalName "validationfailure".
+
+fx:event a usf:Event;
+    usf:canonicalName "event";
+    usf:eventDeliveryForm <urn:usf:eventdeliveryform:messageenvelope>;
+    usf:carriesMessage fx:message;
+    usf:hasDeliverySemantics <urn:usf:deliverysemantics:atleastonce>;
+    usf:eventForContract fx:contract;
+    usf:requiredPublisher fx:capability;
+    usf:requiredConsumer fx:capability;
+    usf:requiredPublishPermission fx:eventpublishpermission;
+    usf:requiredSubscribePermission fx:eventsubscribepermission;
+    usf:requiredConsumePermission fx:eventconsumepermission;
+    usf:requiredAcknowledgePermission fx:eventacknowledgepermission;
+    usf:requiredReplayPermission fx:eventreplaypermission;
+    usf:requiredDeadLetterPermission fx:eventdeadletterpermission;
+    usf:requiredSubscriptionAdministrationPermission fx:eventsubscriptionadminpermission;
+    usf:requiredEventMetadataViewPermission fx:eventmetadataviewpermission;
+    usf:eventPublisherPrincipalKind <urn:usf:principalkind:serviceidentity>;
+    usf:eventConsumerPrincipalKind <urn:usf:principalkind:serviceidentity>;
+    usf:eventTenantBoundary fx:tenantboundary;
+    usf:eventDeliveryTransport <urn:usf:transport:eventbus>;
+    usf:eventPayloadResourceClassIri "urn:usf:foundationfixture:tenantresourcepayload"^^xsd:anyURI;
+    usf:eventMetadataResourceClassIri "urn:usf:foundationfixture:eventmetadata"^^xsd:anyURI.
+fx:message a usf:Message;
+    usf:canonicalName "message";
+    usf:messageForContract fx:contract;
+    usf:messageSchemaRequirement "Finite fixture work-item schema with tenant, identifier, attempt and due-instant fields.".
+fx:directevent a usf:Event;
+    usf:canonicalName "directevent";
+    usf:eventDeliveryForm <urn:usf:eventdeliveryform:directnotification>;
+    usf:hasDeliverySemantics <urn:usf:deliverysemantics:atleastonce>;
+    usf:eventForContract fx:contract;
+    usf:requiredPublisher fx:capability;
+    usf:requiredConsumer fx:capability.
+
+fx:workflow a usf:Workflow;
+    usf:canonicalName "workflow";
+    usf:workflowForContract fx:contract;
+    usf:workflowExecutionPolicy fx:workflowpolicy;
+    usf:hasState fx:pendingstate, fx:completedstate;
+    usf:hasTransition fx:completetransition.
+fx:workflowpolicy a usf:WorkflowExecutionPolicy;
+    usf:canonicalName "workflowpolicy";
+    usf:appliesToCapability fx:capability;
+    usf:maximumAttempts 3;
+    usf:timeoutMilliseconds 30000;
+    usf:retryBehaviour "Retry bounded transient failures and preserve the terminal cause.";
+    usf:concurrencyBehaviour "One active claim per tenant resource and idempotency key.";
+    usf:scheduleBehaviour "Persist an explicit due instant and recover missed execution after restart.";
+    usf:scheduleTriggerKind <urn:usf:scheduletriggerkind:fixedinstant>.
+fx:pendingstate a usf:State.
+fx:completedstate a usf:State.
+fx:pendingstate usf:canonicalName "pendingstate".
+fx:completedstate usf:canonicalName "completedstate".
+fx:completetransition a usf:Transition;
+    usf:canonicalName "completetransition";
+    usf:fromState fx:pendingstate;
+    usf:toState fx:completedstate;
+    usf:onEvent fx:event;
+    usf:onOperation fx:createresource.
+
+fx:providerport a usf:Port;
+    usf:canonicalName "providerport";
+    usf:repositoryName "tenant-resource-store";
+    usf:portForContract fx:contract;
+    usf:permitsProviderMode <urn:usf:providermode:deterministictestsubstitute>, <urn:usf:providermode:repositorylocalservice>, <urn:usf:providermode:externalsandbox>;
+    usf:portPermitsActionKind <urn:usf:actionkind:create>, <urn:usf:actionkind:read>,
+        <urn:usf:actionkind:list>, <urn:usf:actionkind:search>, <urn:usf:actionkind:export>,
+        <urn:usf:actionkind:delete>, <urn:usf:actionkind:purge>, <urn:usf:actionkind:publish>,
+        <urn:usf:actionkind:subscribe>, <urn:usf:actionkind:consume>,
+        <urn:usf:actionkind:acknowledge>, <urn:usf:actionkind:replay>, <urn:usf:actionkind:update>;
+    usf:providerFailureBehaviour "Reject unavailable writes, bound retries and expose dependency readiness.";
+    usf:providerSecurityBoundary "Tenant data remains within the declared provider and credential boundary.";
+    usf:providerMaximumAttempts 3.
+
+fx:composedoption a usf:RealisationOption, usf:ComposedRealisationOption;
+    usf:canonicalName "composedoption";
+    usf:representsRealisationClass <urn:usf:realisationclass:repositorylocalsemanticauthority>;
+    usf:hasOptionComponent fx:optioncomponenta, fx:optioncomponentb;
+    usf:hasComponentResponsibility fx:componentresponsibilitya, fx:componentresponsibilityb.
+fx:decisionevaluation a usf:DecisionEvaluation;
+    usf:canonicalName "decisionevaluation";
+    usf:evaluationClosureState <urn:usf:evaluationclosurestate:incomplete>;
+    usf:hasCriterionRequirement fx:criterionrequirement;
+    usf:hasCriterionAssessment fx:criterionassessment;
+    usf:hasCandidateCredibilityAssessment fx:candidatecredibilityassessment.
+fx:criterionrequirement a usf:CriterionRequirement;
+    usf:canonicalName "criterionrequirement";
+    usf:criterionForEvaluation fx:decisionevaluation;
+    usf:requiresCriterion <urn:usf:evaluationcriterion:testability>;
+    usf:criterionApplicability <urn:usf:criterionapplicability:applicable>;
+    usf:criterionMandatory false.
+fx:criterionassessment a usf:CriterionAssessment;
+    usf:canonicalName "criterionassessment";
+    usf:assessmentForEvaluation fx:decisionevaluation;
+    usf:assessmentForOption fx:composedoption;
+    usf:assessmentForCriterion <urn:usf:evaluationcriterion:testability>;
+    usf:assessmentResult <urn:usf:assessmentresult:insufficientevidence>.
+fx:candidatecredibilityassessment a usf:CandidateCredibilityAssessment;
+    usf:canonicalName "candidatecredibilityassessment";
+    usf:credibilityForEvaluation fx:decisionevaluation;
+    usf:credibilityForOption fx:composedoption;
+    usf:credibilityState <urn:usf:candidatecredibilitystate:excluded>.
+fx:candidatesearchspace a usf:CandidateSearchSpace;
+    usf:canonicalName "candidatesearchspace";
+    usf:candidateDiscoveryCriteria "Search repository-local, external-provider and composed realisation classes without inherited preference.";
+    usf:searchesRealisationClass <urn:usf:realisationclass:repositorylocalsemanticauthority>,
+        <urn:usf:realisationclass:otherlivesemanticauthority>;
+    usf:candidateSearchInvalidationCondition "Re-evaluate when the semantic requirements or available realisation classes change.".
+fx:optionrejection a usf:OptionRejection;
+    usf:canonicalName "optionrejection";
+    usf:rejectionForEvaluation fx:decisionevaluation;
+    usf:rejectsOption fx:composedoption;
+    usf:hasRejectionReason fx:rejectionreason.
+fx:rejectionreason a usf:RejectionReason;
+    usf:canonicalName "rejectionreason";
+    usf:rejectionCriterion <urn:usf:evaluationcriterion:testability>;
+    usf:rejectionDuration <urn:usf:rejectionduration:conditional>;
+    usf:rejectionStatement "Fixture-only rejection remains conditional while executable evidence is unavailable.";
+    usf:reopeningCondition "Reopen when current admitted executable evidence becomes available.".
+
+fx:versionedartefact a usf:Artefact; usf:canonicalName "versionedartefact".
+fx:sourceversion a usf:Version;
+    usf:canonicalName "sourceversion";
+    usf:versionOf fx:versionedartefact;
+    usf:versionIdentifier "1.0.0".
+fx:targetversion a usf:Version;
+    usf:canonicalName "targetversion";
+    usf:versionOf fx:versionedartefact;
+    usf:versionIdentifier "1.1.0".
+fx:compatibilitycontract a usf:CompatibilityContract;
+    usf:canonicalName "compatibilitycontract";
+    usf:compatibilitySourceVersion fx:sourceversion;
+    usf:compatibilityTargetVersion fx:targetversion;
+    usf:compatibilityState <urn:usf:compatibilitystate:indeterminate>.
+fx:fixturedecision a usf:RealisationDecision; usf:canonicalName "fixturedecision".
+fx:fixturerealisation a usf:Realisation; usf:canonicalName "fixturerealisation".
+fx:fixtureimplementation a usf:Implementation; usf:canonicalName "fixtureimplementation".
+fx:fixtureadapter a usf:Adapter;
+    usf:canonicalName "fixtureadapter";
+    usf:implementsPort fx:providerport;
+    usf:bindsProvider fx:provider.
+fx:fixturedependencybinding a usf:DependencyBinding; usf:canonicalName "fixturedependencybinding".
+fx:selectedoptionmapping a usf:SelectedOptionRealisationMapping;
+    usf:canonicalName "selectedoptionmapping";
+    usf:mappingForDecision fx:fixturedecision;
+    usf:mappingForEvaluation fx:decisionevaluation;
+    usf:mappingForSelectedOption fx:composedoption;
+    usf:mappingToRealisation fx:fixturerealisation;
+    usf:mappingAuthorityDigest "sha256:6e481c97dc96664e155f6ddbf8ff29566612b9b31366d78d7c37c9d2b34f359a";
+    usf:mappingEvaluationDigest "sha256:d2aec43e03517ed5c98542fb16acef320c4968599daf8cfba8634b2ab0fd1edd";
+    usf:mappingImplementationSourceDigest "sha256:8859ba95de8b455f8a1fdbf4aa8b9d947fed06c35b2f77489f49cafb7b8b93f1";
+    usf:mappingState <urn:usf:mappingstate:invalidated>.
+fx:selectedcomponentimplementationmapping a usf:SelectedComponentConcreteMapping;
+    usf:canonicalName "selectedcomponentimplementationmapping";
+    usf:componentMappingForOption fx:composedoption;
+    usf:componentMappingForComponent fx:optioncomponenta;
+    usf:componentMappingTargetKind <urn:usf:componentmappingtargetkind:implementation>;
+    usf:componentMappingToImplementation fx:fixtureimplementation;
+    usf:mappingAuthorityDigest "sha256:f6a47ea9bb993e9d7c40c4e6838ec7a45992013f7ef56baa090dca8bdd91431d";
+    usf:mappingEvaluationDigest "sha256:c95ebb632eb28c6de185814028468b0010e1ba2ee2e9e168fd401cc2cad0e661";
+    usf:mappingImplementationSourceDigest "sha256:88505138a3c5afdf9a9b919119cc0dc2771db876175897b89bbe5c29e228d200";
+    usf:mappingState <urn:usf:mappingstate:invalidated>.
+fx:selectedcomponentadaptermapping a usf:SelectedComponentConcreteMapping;
+    usf:canonicalName "selectedcomponentadaptermapping";
+    usf:componentMappingForOption fx:composedoption;
+    usf:componentMappingForComponent fx:optioncomponentb;
+    usf:componentMappingTargetKind <urn:usf:componentmappingtargetkind:adapter>;
+    usf:componentMappingToAdapter fx:fixtureadapter;
+    usf:mappingAuthorityDigest "sha256:792f2900077a1b525ac064daeba8a481747f5fbd2a70487fb72a336478ec549d";
+    usf:mappingEvaluationDigest "sha256:a8292c4390b265e830606975ada95bff5eaf8907c59d786aa351a71f796ae759";
+    usf:mappingImplementationSourceDigest "sha256:08158d85633b977e248ecbf1912686657436d63b917ab3e418aab613eefe1136";
+    usf:mappingState <urn:usf:mappingstate:invalidated>.
+fx:selectedcomponentproviderbindingmapping a usf:SelectedComponentConcreteMapping;
+    usf:canonicalName "selectedcomponentproviderbindingmapping";
+    usf:componentMappingForOption fx:composedoption;
+    usf:componentMappingForComponent fx:optioncomponenta;
+    usf:componentMappingTargetKind <urn:usf:componentmappingtargetkind:providerbinding>;
+    usf:componentMappingToProviderBinding fx:providerbinding;
+    usf:mappingAuthorityDigest "sha256:8071a70c4b9648fec4767eb2544293cfe6e11a355b1a3907e0c54324f110e695";
+    usf:mappingEvaluationDigest "sha256:8c4310258ab98933bc6fa54a0d8ed1707b788440d2fa34b53e82fa28a996cfb3";
+    usf:mappingImplementationSourceDigest "sha256:474e6f843627d20b35e2391dfb67927677e12f5a33209ab19f94ea1ab79546a3";
+    usf:mappingState <urn:usf:mappingstate:invalidated>.
+fx:selectedcomponentdependencybindingmapping a usf:SelectedComponentConcreteMapping;
+    usf:canonicalName "selectedcomponentdependencybindingmapping";
+    usf:componentMappingForOption fx:composedoption;
+    usf:componentMappingForComponent fx:optioncomponentb;
+    usf:componentMappingTargetKind <urn:usf:componentmappingtargetkind:dependencybinding>;
+    usf:componentMappingToDependencyBinding fx:fixturedependencybinding;
+    usf:mappingAuthorityDigest "sha256:a855092cf76e0aae62e88b8f942196ec5fa3d38ed1301f4ec4c61f8ddf94f68d";
+    usf:mappingEvaluationDigest "sha256:6052e865901dc90aee1617a6314b9992233580753e6c1d942d65bfc186079896";
+    usf:mappingImplementationSourceDigest "sha256:f9ceecffadea33358d93d7c62f61322c069c965886435e29184afc1bade47004";
+    usf:mappingState <urn:usf:mappingstate:invalidated>.
+fx:optioncomponenta a usf:OptionComponent;
+    usf:canonicalName "optioncomponenta";
+    usf:componentForOption fx:composedoption;
+    usf:componentIdentity fx:componentidentitya;
+    usf:componentRole <urn:usf:componentrole:runtime>;
+    usf:componentProviderBinding fx:providerbinding, fx:providerbinding2;
+    usf:dependsOnOptionComponent fx:optioncomponentb;
+    usf:componentResponsibility "Execute the fixture capability through its declared contract and interface.";
+    usf:componentInterface fx:compositioninterface;
+    usf:componentEnvironmentBinding fx:localenvironment;
+    usf:componentDataOwnershipBoundary "Own only fixture-local data declared by the conformance contract.";
+    usf:componentTransactionBoundary "Commit only within the fixture transaction boundary.";
+    usf:componentSecurityBoundary "Accept only fixture-declared principals and interfaces.";
+    usf:componentSecretBoundary "Receive no ambient credentials.";
+    usf:componentDeploymentBoundary "Execute only in the declared fixture environment.";
+    usf:componentFailurePropagation "Return typed fixture failures across the composition interface.";
+    usf:componentRetryPolicy "Retry only declared idempotent fixture operations.";
+    usf:componentTimeoutPolicy "Apply finite declared fixture timeouts.";
+    usf:componentUpgradeCompatibility "Require composition-interface compatibility before replacement.";
+    usf:componentRollbackOrder "Roll back after fixture dependants and before dependencies.";
+    usf:componentReplacementBoundary "Replace independently only after equivalent option evaluation.".
+fx:optioncomponentb a usf:OptionComponent;
+    usf:canonicalName "optioncomponentb";
+    usf:componentForOption fx:composedoption;
+    usf:componentIdentity fx:componentidentityb;
+    usf:componentRole <urn:usf:componentrole:adapter>;
+    usf:componentResponsibility "Adapt the fixture capability to its declared provider port.";
+    usf:componentInterface fx:compositioninterface;
+    usf:componentEnvironmentBinding fx:localenvironment;
+    usf:componentDataOwnershipBoundary "Own no product data outside the fixture adapter boundary.";
+    usf:componentTransactionBoundary "Do not extend the provider transaction boundary.";
+    usf:componentSecurityBoundary "Preserve fixture tenant and provider boundaries.";
+    usf:componentSecretBoundary "Accept credentials only through the declared fixture provider binding.";
+    usf:componentDeploymentBoundary "Execute only in the declared fixture environment.";
+    usf:componentFailurePropagation "Translate provider failures into declared fixture failures.";
+    usf:componentRetryPolicy "Retry only provider operations declared safe and idempotent.";
+    usf:componentTimeoutPolicy "Apply finite provider timeouts.";
+    usf:componentUpgradeCompatibility "Require provider-port compatibility before upgrade.";
+    usf:componentRollbackOrder "Roll back before the runtime component.";
+    usf:componentReplacementBoundary "Replace independently behind the stable fixture port.".
+fx:componentidentitya a usf:ComponentIdentity; usf:canonicalName "componentidentitya".
+fx:componentidentityb a usf:ComponentIdentity; usf:canonicalName "componentidentityb".
+fx:componentresponsibilitya a usf:ComponentResponsibility;
+    usf:canonicalName "componentresponsibilitya";
+    usf:responsibilityForComponent fx:optioncomponenta;
+    usf:responsibilityForRequirement fx:contractcontractsfacet;
+    usf:responsibilityOwner fx:composedoption.
+fx:componentresponsibilityb a usf:ComponentResponsibility;
+    usf:canonicalName "componentresponsibilityb";
+    usf:responsibilityForComponent fx:optioncomponentb;
+    usf:responsibilityForRequirement fx:contractreadinessmodelfacet;
+    usf:responsibilityOwner fx:composedoption.
+fx:compositioninterface a usf:CompositionInterface;
+    usf:canonicalName "compositioninterface";
+    usf:compositionInterfaceForContract fx:contract;
+    usf:compositionInterfaceResponsibility "Connect the fixture runtime component to its provider adapter.";
+    usf:compositionInterfaceSecurityBoundary "Preserve declared tenant, principal and credential boundaries.";
+    usf:compositionInterfaceFailureBehaviour "Propagate only typed bounded fixture failures.".
+fx:localenvironment a usf:Environment;
+    usf:canonicalName "localenvironment";
+    usf:hasEnvironmentClass <urn:usf:environmentclass:local>;
+    usf:permitsProviderMode <urn:usf:providermode:repositorylocalservice>.
+<urn:usf:environment:localdev> a usf:Environment;
+    usf:canonicalName "localdev";
+    usf:hasEnvironmentClass <urn:usf:environmentclass:local>;
+    usf:permitsProviderMode <urn:usf:providermode:deterministictestsubstitute>, <urn:usf:providermode:repositorylocalservice>.
+<urn:usf:environment:hermetic> a usf:Environment;
+    usf:canonicalName "hermetic";
+    usf:hasEnvironmentClass <urn:usf:environmentclass:hermetic>;
+    usf:permitsProviderMode <urn:usf:providermode:deterministictestsubstitute>.
+<urn:usf:environment:productionshaped> a usf:Environment;
+    usf:canonicalName "productionshaped";
+    usf:hasEnvironmentClass <urn:usf:environmentclass:productionshaped>;
+    usf:permitsProviderMode <urn:usf:providermode:repositorylocalservice>.
+fx:provider a usf:Provider;
+    usf:canonicalName "provider";
+    usf:fulfilsPort fx:providerport;
+    usf:hasProviderMode <urn:usf:providermode:repositorylocalservice>.
+fx:providerbinding a usf:Binding;
+    usf:canonicalName "providerbinding";
+    usf:bindingProvider fx:provider;
+    usf:bindsPort fx:providerport;
+    usf:hasProviderMode <urn:usf:providermode:repositorylocalservice>;
+    usf:bindingEnvironment fx:localenvironment;
+    usf:bindingState <urn:usf:bindingstate:available>.
+fx:providerport2 a usf:Port;
+    usf:canonicalName "providerport2";
+    usf:repositoryName "tenant-resource-sandbox";
+    usf:portForContract fx:contract;
+    usf:permitsProviderMode <urn:usf:providermode:externalsandbox>;
+    usf:portPermitsActionKind <urn:usf:actionkind:read>;
+    usf:providerFailureBehaviour "Fail closed on sandbox unavailability without falling back to a live provider.".
+fx:sandboxenvironment a usf:Environment;
+    usf:canonicalName "sandboxenvironment";
+    usf:hasEnvironmentClass <urn:usf:environmentclass:productionshaped>;
+    usf:permitsProviderMode <urn:usf:providermode:externalsandbox>.
+fx:provider2 a usf:Provider;
+    usf:canonicalName "provider2";
+    usf:fulfilsPort fx:providerport2;
+    usf:hasProviderMode <urn:usf:providermode:externalsandbox>.
+fx:providerbinding2 a usf:Binding;
+    usf:canonicalName "providerbinding2";
+    usf:bindingProvider fx:provider2;
+    usf:bindsPort fx:providerport2;
+    usf:hasProviderMode <urn:usf:providermode:externalsandbox>;
+    usf:bindingEnvironment fx:sandboxenvironment;
+    usf:bindingState <urn:usf:bindingstate:unavailable>.
+<urn:usf:bindingstate:available> a usf:BindingState.
+<urn:usf:bindingstate:unavailable> a usf:BindingState.
+fx:externaldependency a usf:ExternalDependency;
+    usf:canonicalName "externaldependency";
+    usf:externalDependencyAtPort fx:providerport;
+    usf:externalDependencyProvider fx:provider;
+    usf:externalDependencyFailureMode <urn:usf:permutationdimensionvalue:failuremodeunavailable>;
+    usf:externalDependencyRecoveryAction <urn:usf:permutationdimensionvalue:recoveryactionretry>.
+
+fx:datamodel a usf:DataModel;
+    usf:canonicalName "datamodel";
+    usf:backsCapability fx:capability;
+    usf:enforcesTenancy fx:tenantboundary;
+    usf:tenancyStrategy <urn:usf:tenancystrategy:forcedrls>;
+    usf:hasSchemaChangeSeries fx:schemachangeseries;
+    usf:hasTransactionBoundary fx:transactionboundary;
+    usf:governedByMigrationPolicy fx:migrationpolicy;
+    usf:persistedUnder fx:persistencecontract;
+    usf:hasRepresentativeDataSet fx:representativedataset;
+    usf:protectedByRecovery fx:backuprestore;
+    usf:hasDataField fx:useremail, fx:passwordhash, fx:auditeventpayload, fx:filemetadata,
+        fx:filecontent, fx:notificationrecipient, fx:tenantidentifier,
+        fx:providercredentialreference, fx:publicdisplayname.
+fx:schemachangeseries a usf:SchemaChangeSeries; usf:canonicalName "schemachangeseries".
+fx:transactionboundary a usf:TransactionBoundary; usf:canonicalName "transactionboundary".
+fx:migrationpolicy a usf:MigrationPolicy; usf:canonicalName "migrationpolicy".
+fx:persistencecontract a usf:PersistenceContract; usf:canonicalName "persistencecontract".
+fx:representativedataset a usf:RepresentativeDataSet; usf:canonicalName "representativedataset".
+fx:backuprestore a usf:BackupRestore; usf:canonicalName "backuprestore".
+
+<urn:usf:fieldtenancyclassification:tenantowned> a usf:FieldTenancyClassification.
+<urn:usf:fieldtenancyclassification:platformowned> a usf:FieldTenancyClassification.
+<urn:usf:fieldtenancyclassification:sharedreference> a usf:FieldTenancyClassification.
+<urn:usf:fieldmutability:immutable> a usf:FieldMutability.
+<urn:usf:fieldmutability:mutable> a usf:FieldMutability.
+<urn:usf:fieldmutability:appendonly> a usf:FieldMutability.
+<urn:usf:privacyclassification:public> a usf:PrivacyClassification.
+<urn:usf:privacyclassification:internal> a usf:PrivacyClassification.
+<urn:usf:privacyclassification:confidential> a usf:PrivacyClassification.
+<urn:usf:privacyclassification:secret> a usf:PrivacyClassification.
+<urn:usf:privacyclassification:personal> a usf:PrivacyClassification.
+<urn:usf:privacyclassification:sensitivepersonal> a usf:PrivacyClassification.
+<urn:usf:privacyclassification:authenticationsecret> a usf:PrivacyClassification.
+<urn:usf:privacyclassification:financial> a usf:PrivacyClassification.
+<urn:usf:privacyclassification:audit> a usf:PrivacyClassification.
+
+fx:useremail a usf:DataField; usf:canonicalName "useremail"; usf:dataFieldForModel fx:datamodel; usf:dataFieldPropertyIri "urn:usf:foundationfixture:property:useremail"^^xsd:anyURI; usf:hasPrivacyClassification <urn:usf:privacyclassification:personal>; usf:dataFieldTenancyClassification <urn:usf:fieldtenancyclassification:tenantowned>; usf:dataFieldMutability <urn:usf:fieldmutability:mutable>; usf:dataFieldPermittedAction <urn:usf:actionkind:read>, <urn:usf:actionkind:search>, <urn:usf:actionkind:export>; usf:dataFieldMaskingRequired true; usf:dataFieldEncryptionRequired true; usf:dataFieldSearchable true; usf:dataFieldExportable true; usf:dataFieldRedactionRequired true; usf:dataFieldLegalHoldApplicable true; usf:dataFieldDigest "sha256:d1e91654401e35af0c32d690207d2d4d6f59161aa8f00a077e458b654f7c2599".
+fx:passwordhash a usf:DataField; usf:canonicalName "passwordhash"; usf:dataFieldForModel fx:datamodel; usf:dataFieldPropertyIri "urn:usf:foundationfixture:property:passwordhash"^^xsd:anyURI; usf:hasPrivacyClassification <urn:usf:privacyclassification:authenticationsecret>; usf:dataFieldTenancyClassification <urn:usf:fieldtenancyclassification:tenantowned>; usf:dataFieldMutability <urn:usf:fieldmutability:mutable>; usf:dataFieldPermittedAction <urn:usf:actionkind:create>; usf:dataFieldMaskingRequired true; usf:dataFieldEncryptionRequired true; usf:dataFieldSearchable false; usf:dataFieldExportable false; usf:dataFieldRedactionRequired true; usf:dataFieldLegalHoldApplicable false; usf:dataFieldDigest "sha256:f13bc09f25df731832951eb783284cb6469eb1e66c6da9b8eecf9b50217b6deb".
+fx:auditeventpayload a usf:DataField; usf:canonicalName "auditeventpayload"; usf:dataFieldForModel fx:datamodel; usf:dataFieldPropertyIri "urn:usf:foundationfixture:property:auditeventpayload"^^xsd:anyURI; usf:hasPrivacyClassification <urn:usf:privacyclassification:audit>; usf:dataFieldTenancyClassification <urn:usf:fieldtenancyclassification:platformowned>; usf:dataFieldMutability <urn:usf:fieldmutability:appendonly>; usf:dataFieldPermittedAction <urn:usf:actionkind:read>, <urn:usf:actionkind:export>; usf:dataFieldMaskingRequired true; usf:dataFieldEncryptionRequired true; usf:dataFieldSearchable true; usf:dataFieldExportable true; usf:dataFieldRedactionRequired true; usf:dataFieldLegalHoldApplicable true; usf:dataFieldDigest "sha256:969cbbf68f3879afcc4c813bbd03b8967500968031c39d030d71a7d6d94e9301".
+fx:filemetadata a usf:DataField; usf:canonicalName "filemetadata"; usf:dataFieldForModel fx:datamodel; usf:dataFieldPropertyIri "urn:usf:foundationfixture:property:filemetadata"^^xsd:anyURI; usf:hasPrivacyClassification <urn:usf:privacyclassification:internal>; usf:dataFieldTenancyClassification <urn:usf:fieldtenancyclassification:tenantowned>; usf:dataFieldMutability <urn:usf:fieldmutability:mutable>; usf:dataFieldPermittedAction <urn:usf:actionkind:read>, <urn:usf:actionkind:list>, <urn:usf:actionkind:search>; usf:dataFieldMaskingRequired false; usf:dataFieldEncryptionRequired true; usf:dataFieldSearchable true; usf:dataFieldExportable true; usf:dataFieldRedactionRequired false; usf:dataFieldLegalHoldApplicable true; usf:dataFieldDigest "sha256:a90852329e76b8a6893a74aebaf1c55e1062ae678353c5bdd07a3bf45c5003dc".
+fx:filecontent a usf:DataField; usf:canonicalName "filecontent"; usf:dataFieldForModel fx:datamodel; usf:dataFieldPropertyIri "urn:usf:foundationfixture:property:filecontent"^^xsd:anyURI; usf:hasPrivacyClassification <urn:usf:privacyclassification:confidential>; usf:dataFieldTenancyClassification <urn:usf:fieldtenancyclassification:tenantowned>; usf:dataFieldMutability <urn:usf:fieldmutability:immutable>; usf:dataFieldPermittedAction <urn:usf:actionkind:read>, <urn:usf:actionkind:delete>, <urn:usf:actionkind:purge>; usf:dataFieldMaskingRequired false; usf:dataFieldEncryptionRequired true; usf:dataFieldSearchable false; usf:dataFieldExportable true; usf:dataFieldRedactionRequired false; usf:dataFieldLegalHoldApplicable true; usf:dataFieldDigest "sha256:28890adbf8fcbf9ad7af398424b672e76ba0581436975d2437f38f9d1c6bd737".
+fx:notificationrecipient a usf:DataField; usf:canonicalName "notificationrecipient"; usf:dataFieldForModel fx:datamodel; usf:dataFieldPropertyIri "urn:usf:foundationfixture:property:notificationrecipient"^^xsd:anyURI; usf:hasPrivacyClassification <urn:usf:privacyclassification:personal>; usf:dataFieldTenancyClassification <urn:usf:fieldtenancyclassification:tenantowned>; usf:dataFieldMutability <urn:usf:fieldmutability:mutable>; usf:dataFieldPermittedAction <urn:usf:actionkind:read>; usf:dataFieldMaskingRequired true; usf:dataFieldEncryptionRequired true; usf:dataFieldSearchable true; usf:dataFieldExportable true; usf:dataFieldRedactionRequired true; usf:dataFieldLegalHoldApplicable false; usf:dataFieldDigest "sha256:a292d6cc1c06526fcbd6791a5f924c37b4d1f0134f048631ed6d8d230599f22e".
+fx:tenantidentifier a usf:DataField; usf:canonicalName "tenantidentifier"; usf:dataFieldForModel fx:datamodel; usf:dataFieldPropertyIri "urn:usf:foundationfixture:property:tenantidentifier"^^xsd:anyURI; usf:hasPrivacyClassification <urn:usf:privacyclassification:internal>; usf:dataFieldTenancyClassification <urn:usf:fieldtenancyclassification:tenantowned>; usf:dataFieldMutability <urn:usf:fieldmutability:immutable>; usf:dataFieldPermittedAction <urn:usf:actionkind:read>, <urn:usf:actionkind:list>; usf:dataFieldMaskingRequired false; usf:dataFieldEncryptionRequired true; usf:dataFieldSearchable true; usf:dataFieldExportable true; usf:dataFieldRedactionRequired false; usf:dataFieldLegalHoldApplicable true; usf:dataFieldDigest "sha256:8f4fc56040123a2417de901abbe4367f03b18ee7cab7d85143401c89f72d604c".
+fx:providercredentialreference a usf:DataField; usf:canonicalName "providercredentialreference"; usf:dataFieldForModel fx:datamodel; usf:dataFieldPropertyIri "urn:usf:foundationfixture:property:providercredentialreference"^^xsd:anyURI; usf:hasPrivacyClassification <urn:usf:privacyclassification:secret>; usf:dataFieldTenancyClassification <urn:usf:fieldtenancyclassification:platformowned>; usf:dataFieldMutability <urn:usf:fieldmutability:mutable>; usf:dataFieldPermittedAction <urn:usf:actionkind:create>; usf:dataFieldMaskingRequired true; usf:dataFieldEncryptionRequired true; usf:dataFieldSearchable false; usf:dataFieldExportable false; usf:dataFieldRedactionRequired true; usf:dataFieldLegalHoldApplicable false; usf:dataFieldDigest "sha256:086e911ff7833216a67734331ba472c81bb29afd2652d8b8d79977d659d272c0".
+fx:publicdisplayname a usf:DataField; usf:canonicalName "publicdisplayname"; usf:dataFieldForModel fx:datamodel; usf:dataFieldPropertyIri "urn:usf:foundationfixture:property:publicdisplayname"^^xsd:anyURI; usf:hasPrivacyClassification <urn:usf:privacyclassification:public>; usf:dataFieldTenancyClassification <urn:usf:fieldtenancyclassification:sharedreference>; usf:dataFieldMutability <urn:usf:fieldmutability:mutable>; usf:dataFieldPermittedAction <urn:usf:actionkind:read>, <urn:usf:actionkind:search>; usf:dataFieldMaskingRequired false; usf:dataFieldEncryptionRequired false; usf:dataFieldSearchable true; usf:dataFieldExportable true; usf:dataFieldRedactionRequired false; usf:dataFieldLegalHoldApplicable false; usf:dataFieldDigest "sha256:a71d15a57fd70acde4d547fd347bc012d2e3da82aa61be71dce5b8c531f345b9".
+
+fx:ordinaryconfiguration a usf:ConfigurationKey;
+    usf:canonicalName "ordinaryconfiguration";
+    usf:configures fx:capability;
+    usf:hasSecretClassification <urn:usf:secretclassification:nonsecret>;
+    usf:configurationValueType <urn:usf:configurationvaluetype:integer>;
+    usf:configurationRequired true;
+    usf:configurationConstraint "Integer milliseconds in the inclusive range 1 through 60000.";
+    usf:configurationForEnvironment <urn:usf:environment:localdev>, <urn:usf:environment:integrationtest>, <urn:usf:environment:productionshaped>;
+    usf:secretValueMustBeReferenced false.
+fx:secretconfiguration a usf:ConfigurationKey;
+    usf:canonicalName "secretconfiguration";
+    usf:configures fx:capability;
+    usf:hasSecretClassification <urn:usf:secretclassification:secret>;
+    usf:configurationValueType <urn:usf:configurationvaluetype:secretreference>;
+    usf:configurationRequired true;
+    usf:configurationConstraint "A non-empty modelled secret reference; inline credential bytes are prohibited.";
+    usf:configurationForEnvironment <urn:usf:environment:localdev>, <urn:usf:environment:integrationtest>, <urn:usf:environment:productionshaped>;
+    usf:secretValueMustBeReferenced true.
+
+fx:uimodel a usf:UISemanticModel;
+    usf:canonicalName "uimodel";
+    usf:hasSurface fx:form, fx:readinesssurface, fx:streamsurface;
+    usf:hasViewModel fx:viewmodel;
+    usf:hasJourney fx:tenantresourcejourney;
+    usf:hasAccessibilityProfile fx:accessibilityprofile;
+    usf:hasLocalisationProfile fx:localisationprofile;
+    usf:rendererContract fx:renderercontract.
+fx:tenantresourcejourney a usf:Journey;
+    usf:canonicalName "tenantresourcejourney";
+    usf:mapsToCapability fx:capability;
+    usf:hasInteractionState fx:readyinteractionstate;
+    usf:requiresAccessibility fx:keyboardaccessibilityrequirement;
+    usf:requiresLocalisation fx:messagelocalisationrequirement;
+    usf:requiresConsent fx:tenantresourceconsentrequirement.
+fx:readyinteractionstate a usf:InteractionState; usf:canonicalName "readyinteractionstate".
+fx:tenantresourceconsentrequirement a usf:ConsentRequirement; usf:canonicalName "tenantresourceconsentrequirement"; usf:consentBasis <urn:usf:consentbasis:contract>.
+fx:accessibilityprofile a usf:AccessibilityProfile;
+    usf:canonicalName "accessibilityprofile";
+    usf:hasAccessibilityRequirement fx:keyboardaccessibilityrequirement,
+        fx:focusorderaccessibilityrequirement, fx:focusvisibleaccessibilityrequirement,
+        fx:nameaccessibilityrequirement, fx:roleaccessibilityrequirement,
+        fx:statusaccessibilityrequirement, fx:contrastaccessibilityrequirement,
+        fx:languageaccessibilityrequirement.
+fx:keyboardaccessibilityrequirement a usf:AccessibilityRequirement; usf:canonicalName "keyboardaccessibilityrequirement"; usf:accessibilityKind <urn:usf:accessibilityrequirementkind:keyboardoperable>.
+fx:focusorderaccessibilityrequirement a usf:AccessibilityRequirement; usf:canonicalName "focusorderaccessibilityrequirement"; usf:accessibilityKind <urn:usf:accessibilityrequirementkind:focusorder>.
+fx:focusvisibleaccessibilityrequirement a usf:AccessibilityRequirement; usf:canonicalName "focusvisibleaccessibilityrequirement"; usf:accessibilityKind <urn:usf:accessibilityrequirementkind:focusvisible>.
+fx:nameaccessibilityrequirement a usf:AccessibilityRequirement; usf:canonicalName "nameaccessibilityrequirement"; usf:accessibilityKind <urn:usf:accessibilityrequirementkind:accessiblename>.
+fx:roleaccessibilityrequirement a usf:AccessibilityRequirement; usf:canonicalName "roleaccessibilityrequirement"; usf:accessibilityKind <urn:usf:accessibilityrequirementkind:semanticrole>.
+fx:statusaccessibilityrequirement a usf:AccessibilityRequirement; usf:canonicalName "statusaccessibilityrequirement"; usf:accessibilityKind <urn:usf:accessibilityrequirementkind:statusannouncement>.
+fx:contrastaccessibilityrequirement a usf:AccessibilityRequirement; usf:canonicalName "contrastaccessibilityrequirement"; usf:accessibilityKind <urn:usf:accessibilityrequirementkind:contrast>.
+fx:languageaccessibilityrequirement a usf:AccessibilityRequirement; usf:canonicalName "languageaccessibilityrequirement"; usf:accessibilityKind <urn:usf:accessibilityrequirementkind:languagedeclaration>.
+fx:localisationprofile a usf:LocalisationProfile;
+    usf:canonicalName "localisationprofile";
+    usf:defaultLocale "en"^^xsd:language;
+    usf:supportedLocale "en"^^xsd:language;
+    usf:hasLocalisationRequirement fx:messagelocalisationrequirement.
+fx:messagelocalisationrequirement a usf:LocalisationRequirement;
+    usf:canonicalName "messagelocalisationrequirement";
+    usf:localisationKind <urn:usf:localisationrequirementkind:messagekey>;
+    usf:messageKey "tenantresource.title".
+fx:renderercontract a usf:RendererContract;
+    usf:canonicalName "renderercontract";
+    usf:rendererImplementation fx:renderer;
+    usf:rendererTarget <urn:usf:renderertarget:web>;
+    usf:rendererInputSchema fx:rendererinput;
+    usf:rendererOutputPlan fx:rendereroutputplan;
+    usf:supportsSurfaceKind <urn:usf:surfacekind:form>, <urn:usf:surfacekind:webroute>,
+        <urn:usf:surfacekind:queryview>.
+fx:renderer a usf:Renderer; usf:canonicalName "renderer".
+fx:rendererinput a usf:Artefact; usf:canonicalName "rendererinput".
+fx:rendereroutputplan a usf:ArtefactPlan; usf:canonicalName "rendereroutputplan".
+fx:form a usf:Form, usf:Surface;
+    usf:canonicalName "form";
+    usf:surfaceKind <urn:usf:surfacekind:form>;
+    usf:rendersViewModel fx:viewmodel;
+    usf:uiRequiresPermission fx:resourcewritepermission;
+    usf:surfaceRoute fx:authenticatedroute;
+    usf:hasField fx:tenantresourcefield;
+    usf:submitsOperation fx:createresource.
+fx:readinesssurface a usf:Surface; usf:canonicalName "readinesssurface"; usf:surfaceKind <urn:usf:surfacekind:webroute>; usf:rendersViewModel fx:viewmodel; usf:uiRequiresPermission fx:publicreadinesspermission; usf:surfaceRoute fx:publicroute.
+fx:streamsurface a usf:Surface; usf:canonicalName "streamsurface"; usf:surfaceKind <urn:usf:surfacekind:queryview>; usf:rendersViewModel fx:viewmodel; usf:uiRequiresPermission fx:eventsubscribepermission; usf:surfaceRoute fx:streamroute.
+fx:viewmodel a usf:ViewModel;
+    usf:canonicalName "viewmodel";
+    usf:hasForm fx:form;
+    usf:viewDataModel fx:datamodel;
+    usf:hasComponent fx:formactioncomponent;
+    usf:hasErrorBinding fx:errorbinding;
+    usf:loadsOperation fx:readresource;
+    usf:bindsInterface fx:httpapi;
+    usf:hasEventBinding fx:event;
+    usf:hasStateBinding fx:pendingstate.
+fx:formactioncomponent a usf:Component; usf:canonicalName "formactioncomponent"; usf:componentKind <urn:usf:componentkind:action>; usf:componentOrder 0.
+fx:tenantresourcefield a usf:FormField; usf:canonicalName "tenantresourcefield"; usf:fieldName "displayName"; usf:fieldKind <urn:usf:formfieldkind:text>; usf:fieldOrder 0; usf:fieldDataModel fx:datamodel; usf:hasValidationBinding fx:tenantresourcevalidation.
+fx:tenantresourcevalidation a usf:ValidationBinding; usf:canonicalName "tenantresourcevalidation"; usf:validationConstraint fx:tenantresourceconstraint; usf:validationTiming <urn:usf:validationtiming:submit>.
+fx:tenantresourceconstraint a usf:Constraint; usf:canonicalName "tenantresourceconstraint".
+fx:errorbinding a usf:ErrorBinding;
+    usf:canonicalName "errorbinding";
+    usf:errorCode "forbidden";
+    usf:errorState fx:forbiddeninteractionstate;
+    usf:errorPresentation <urn:usf:errorpresentationkind:forbidden>.
+fx:forbiddeninteractionstate a usf:InteractionState;
+    usf:canonicalName "forbiddeninteractionstate".
+fx:authenticatedroute a usf:Route; usf:canonicalName "authenticatedroute"; usf:routePattern "/tenant-resources"; usf:routeKind <urn:usf:routekind:authenticated>.
+fx:publicroute a usf:Route; usf:canonicalName "publicroute"; usf:routePattern "/ready"; usf:routeKind <urn:usf:routekind:public>.
+fx:streamroute a usf:Route; usf:canonicalName "streamroute"; usf:routePattern "/tenant-resources/stream"; usf:routeKind <urn:usf:routekind:tenant>.
+
+fx:tenantworkeridentity a usf:ServiceIdentity;
+    usf:canonicalName "tenantworkeridentity";
+    usf:serviceIdentityForCapability fx:capability;
+    usf:serviceIdentityPrincipalKind <urn:usf:principalkind:serviceidentity>;
+    usf:serviceIdentityEnvironmentClass <urn:usf:environmentclass:local>, <urn:usf:environmentclass:hermetic>, <urn:usf:environmentclass:productionshaped>;
+    usf:serviceIdentityDigest "sha256:69ba97e48965007a3fc3824d76963561db2830964a1f8acd57c4dd0f00e5e261".
+
+fx:processdependency a usf:DeployableProcessDependency;
+    usf:canonicalName "processdependency";
+    usf:processDependencySource fx:httpapiservice;
+    usf:processDependencyTarget fx:eventconsumerworker;
+    usf:processDependencyInterface fx:streaminterface;
+    usf:processDependencyEnvironment <urn:usf:environment:localdev>;
+    usf:processDependencyProviderMode <urn:usf:providermode:repositorylocalservice>;
+    usf:processDependencyRequirementKind <urn:usf:processdependencyrequirementkind:runtime>;
+    usf:processDependencyFailureHandling fx:processdependencyfailurehandling.
+fx:processdependencyfailurehandling a usf:ProcessDependencyFailureHandling;
+    usf:canonicalName "processdependencyfailurehandling";
+    usf:failureHandlingForProcessDependency fx:processdependency;
+    usf:processDependencyFailureMode <urn:usf:permutationdimensionvalue:failuremodeunavailable>;
+    usf:processDependencyRecoveryAction <urn:usf:permutationdimensionvalue:recoveryactionretry>;
+    usf:processDependencyTimeoutPolicy "Fail within the declared fixture timeout.";
+    usf:processDependencyRetryPolicy "Retry only declared idempotent fixture requests with a finite attempt bound.";
+    usf:processDependencyFailurePropagation "Return the declared provider-unavailable result and withhold readiness.".
+
+fx:httpapiservice a usf:DeployableProcess;
+    usf:canonicalName "httpapiservice"; usf:repositoryName "http-api-service";
+    usf:definition "Tenant HTTP API process with explicit readiness, drain and recovery obligations.";
+    usf:processBoundaryClass <urn:usf:processboundaryclass:productruntime>;
+    usf:processOwnsCapability fx:capability; usf:processForCapability fx:capability;
+    usf:processServiceIdentity fx:tenantworkeridentity;
+    usf:processProvidesInterface fx:httpapi, fx:readinessinterface;
+    usf:processConsumesInterface fx:streaminterface;
+    usf:hasProcessDependency fx:processdependency;
+    usf:processInterfaceRequirement "Serve authenticated tenant operations and a public dependency-aware readiness route.";
+    usf:processLifecycleRequirement "Initialise, configure, start, become ready, drain, stop, restart, recover, upgrade and roll back.";
+    usf:processTenantSecuritySeparationRequirement "Every tenant request remains scoped to its authenticated tenant and cross-tenant access fails closed.";
+    usf:processSupportsEnvironment <urn:usf:environment:localdev>, <urn:usf:environment:hermetic>, <urn:usf:environment:productionshaped>;
+    usf:processSecurityBoundary "Terminate authenticated HTTP at the process boundary and pass only validated tenant context inward.";
+    usf:processReadinessRequirement "Ready only after configuration and tenant data dependencies are usable.";
+    usf:processResourceLimit "Bound request bytes, concurrency, memory and graceful-drain duration.";
+    usf:emitsSignal fx:requestsignal;
+    usf:producesEvent fx:event;
+    usf:processLifecycleObligation <urn:usf:permutationdimensionvalue:lifecycleobligationinitialise>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationconfigure>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationstart>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationbecomeready>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationdrain>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationstop>;
+    usf:processPrincipalKind <urn:usf:principalkind:serviceidentity>;
+    usf:processEnvironmentClass <urn:usf:environmentclass:local>, <urn:usf:environmentclass:hermetic>, <urn:usf:environmentclass:productionshaped>;
+    usf:processProviderMode <urn:usf:providermode:deterministictestsubstitute>, <urn:usf:providermode:repositorylocalservice>.
+fx:eventconsumerworker a usf:DeployableProcess;
+    usf:canonicalName "eventconsumerworker"; usf:repositoryName "event-consumer-worker";
+    usf:definition "Durable event-consumer worker with explicit retry, acknowledgement and dead-letter behaviour.";
+    usf:processBoundaryClass <urn:usf:processboundaryclass:productruntime>;
+    usf:processOwnsCapability fx:eventconsumercapability; usf:processForCapability fx:capability, fx:eventconsumercapability;
+    usf:processProvidesInterface fx:streaminterface;
+    usf:processInterfaceRequirement "Consume tenant-scoped durable events and expose bounded streaming state.";
+    usf:processLifecycleRequirement "Start, become ready, pause, drain in-flight delivery, stop, recover and redrive.";
+    usf:processTenantSecuritySeparationRequirement "Partition subscriptions, payload access and acknowledgements by tenant.";
+    usf:processSupportsEnvironment <urn:usf:environment:localdev>, <urn:usf:environment:integrationtest>, <urn:usf:environment:productionshaped>;
+    usf:processSecurityBoundary "Only the declared service identity may consume and acknowledge bounded tenant deliveries.";
+    usf:processReadinessRequirement "Ready only while the queue substitute or production-shaped provider is reachable.";
+    usf:processResourceLimit "Bound concurrent deliveries, attempts, payload bytes and dead-letter retention.";
+    usf:consumesEvent fx:event;
+    usf:processLifecycleObligation <urn:usf:permutationdimensionvalue:lifecycleobligationinitialise>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationconfigure>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationstart>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationbecomeready>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationdrain>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationstop>;
+    usf:processPrincipalKind <urn:usf:principalkind:serviceidentity>;
+    usf:processEnvironmentClass <urn:usf:environmentclass:local>, <urn:usf:environmentclass:hermetic>, <urn:usf:environmentclass:productionshaped>;
+    usf:processProviderMode <urn:usf:providermode:deterministictestsubstitute>, <urn:usf:providermode:repositorylocalservice>.
+fx:scheduledjobrunner a usf:DeployableProcess;
+    usf:canonicalName "scheduledjobrunner"; usf:repositoryName "scheduled-job-runner";
+    usf:definition "Scheduled workflow runner that persists due work and recovers missed execution.";
+    usf:processBoundaryClass <urn:usf:processboundaryclass:productruntime>;
+    usf:processOwnsCapability fx:scheduledjobcapability; usf:processForCapability fx:capability, fx:scheduledjobcapability;
+    usf:processProvidesInterface fx:httpapi;
+    usf:processInterfaceRequirement "Execute only declared scheduled workflows and expose bounded administration through the service API.";
+    usf:processLifecycleRequirement "Start, reconcile due work, pause claims, drain, recover missed work, upgrade and roll back.";
+    usf:processTenantSecuritySeparationRequirement "Schedule ownership, claims and resulting operations remain tenant-scoped.";
+    usf:processSupportsEnvironment <urn:usf:environment:localdev>, <urn:usf:environment:integrationtest>, <urn:usf:environment:productionshaped>;
+    usf:processSecurityBoundary "Only the service identity may claim due work and every invoked operation rechecks authority.";
+    usf:processReadinessRequirement "Ready after schedule persistence and clock-control dependencies are validated.";
+    usf:processResourceLimit "Bound claim batch size, execution concurrency and retry attempts.";
+    usf:processLifecycleObligation <urn:usf:permutationdimensionvalue:lifecycleobligationinitialise>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationconfigure>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationstart>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationbecomeready>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationdrain>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationstop>;
+    usf:processPrincipalKind <urn:usf:principalkind:serviceidentity>;
+    usf:processEnvironmentClass <urn:usf:environmentclass:local>, <urn:usf:environmentclass:hermetic>, <urn:usf:environmentclass:productionshaped>;
+    usf:processProviderMode <urn:usf:providermode:deterministictestsubstitute>, <urn:usf:providermode:repositorylocalservice>.
+fx:semanticcompiler a usf:DeployableProcess;
+    usf:canonicalName "semanticcompiler"; usf:repositoryName "semantic-compiler";
+    usf:definition "Assurance control-plane process that compiles and validates bounded semantic candidates.";
+    usf:processBoundaryClass <urn:usf:processboundaryclass:assurancecontrolplane>;
+    usf:processOwnsCapability fx:semanticcompilercapability; usf:processForCapability fx:capability, fx:semanticcompilercapability;
+    usf:processProvidesInterface fx:httpapi;
+    usf:processInterfaceRequirement "Accept only digest-bound candidate input and emit deterministic validation evidence.";
+    usf:processLifecycleRequirement "Initialise locked tooling, validate, stop without mutation and reproduce identical outputs.";
+    usf:processTenantSecuritySeparationRequirement "Assurance input is bounded by authority digest and cannot become product runtime state.";
+    usf:processSupportsEnvironment <urn:usf:environment:localdev>, <urn:usf:environment:integrationtest>, <urn:usf:environment:productionshaped>;
+    usf:processSecurityBoundary "No authority mutation or ambient source access is permitted in the compiler process.";
+    usf:processReadinessRequirement "Ready only after locked parser, validator and proof inputs pass integrity checks.";
+    usf:processResourceLimit "Bound graph bytes, constraints, execution time and generated output size.";
+    usf:processLifecycleObligation <urn:usf:permutationdimensionvalue:lifecycleobligationinitialise>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationconfigure>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationstart>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationbecomeready>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationdrain>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationstop>;
+    usf:processPrincipalKind <urn:usf:principalkind:serviceidentity>;
+    usf:processEnvironmentClass <urn:usf:environmentclass:local>, <urn:usf:environmentclass:hermetic>, <urn:usf:environmentclass:productionshaped>;
+    usf:processProviderMode <urn:usf:providermode:deterministictestsubstitute>, <urn:usf:providermode:repositorylocalservice>.
+fx:publicationcoordinator a usf:DeployableProcess;
+    usf:canonicalName "publicationcoordinator"; usf:repositoryName "publication-coordinator";
+    usf:definition "Operator control-plane process that owns validated semantic publication and rollback.";
+    usf:processBoundaryClass <urn:usf:processboundaryclass:operatorcontrolplane>;
+    usf:processOwnsCapability fx:publicationcoordinationcapability; usf:processForCapability fx:capability, fx:publicationcoordinationcapability;
+    usf:processProvidesInterface fx:coordinatorinterface;
+    usf:processInterfaceRequirement "Expose only coordinator-authorised validate, publish, rollback and parity operations.";
+    usf:processLifecycleRequirement "Pin authority, open one transaction, validate, publish or roll back, prove drift and close ownership.";
+    usf:processTenantSecuritySeparationRequirement "Control-plane authority is platform-scoped and cannot inherit tenant runtime identity.";
+    usf:processSupportsEnvironment <urn:usf:environment:localdev>, <urn:usf:environment:integrationtest>, <urn:usf:environment:productionshaped>;
+    usf:processSecurityBoundary "Only the coordinator principal may access live authority mutation credentials.";
+    usf:processReadinessRequirement "Ready only with exact authority digest, closed prior transactions and verified rollback path.";
+    usf:processResourceLimit "One mutation transaction, bounded candidate bytes and bounded result bytes.";
+    usf:processLifecycleObligation <urn:usf:permutationdimensionvalue:lifecycleobligationinitialise>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationconfigure>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationstart>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationbecomeready>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationdrain>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationstop>;
+    usf:processPrincipalKind <urn:usf:principalkind:coordinator>;
+    usf:processEnvironmentClass <urn:usf:environmentclass:local>, <urn:usf:environmentclass:hermetic>, <urn:usf:environmentclass:productionshaped>;
+    usf:processProviderMode <urn:usf:providermode:deterministictestsubstitute>, <urn:usf:providermode:liveauthoritycontrol>.
+fx:databasemigrationprocess a usf:DeployableProcess;
+    usf:canonicalName "databasemigrationprocess"; usf:repositoryName "database-migration-process";
+    usf:definition "Operator process applying ordered schema changes with validation and rollback.";
+    usf:processBoundaryClass <urn:usf:processboundaryclass:operatorcontrolplane>;
+    usf:processOwnsCapability fx:databasemigrationcapability; usf:processForCapability fx:capability, fx:databasemigrationcapability;
+    usf:processProvidesInterface fx:httpapi;
+    usf:processInterfaceRequirement "Apply only digest-bound ordered schema changes against the declared data owner.";
+    usf:processLifecycleRequirement "Validate preconditions, migrate atomically, verify, roll back and reconcile version state.";
+    usf:processTenantSecuritySeparationRequirement "Migration preserves tenant isolation and never broadens data visibility.";
+    usf:processSupportsEnvironment <urn:usf:environment:localdev>, <urn:usf:environment:integrationtest>, <urn:usf:environment:productionshaped>;
+    usf:processSecurityBoundary "Migration credentials are separate, short-lived and supplied through a modelled secret interface.";
+    usf:processReadinessRequirement "Ready only when schema version, backup precondition and exclusive migration lock agree.";
+    usf:processResourceLimit "One migration transaction with bounded lock and rollback duration.";
+    usf:processLifecycleObligation <urn:usf:permutationdimensionvalue:lifecycleobligationinitialise>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationconfigure>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationstart>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationbecomeready>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationdrain>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationstop>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationmigrate>;
+    usf:processPrincipalKind <urn:usf:principalkind:serviceidentity>;
+    usf:processEnvironmentClass <urn:usf:environmentclass:local>, <urn:usf:environmentclass:hermetic>, <urn:usf:environmentclass:productionshaped>;
+    usf:processProviderMode <urn:usf:providermode:deterministictestsubstitute>, <urn:usf:providermode:repositorylocalservice>.
+fx:backuprestoreprocess a usf:DeployableProcess;
+    usf:canonicalName "backuprestoreprocess"; usf:repositoryName "backup-restore-process";
+    usf:definition "Operator process creating verified backups and restoring into an isolated validation boundary.";
+    usf:processBoundaryClass <urn:usf:processboundaryclass:operatorcontrolplane>;
+    usf:processOwnsCapability fx:backuprestorecapability; usf:processForCapability fx:capability, fx:backuprestorecapability;
+    usf:processProvidesInterface fx:httpapi;
+    usf:processInterfaceRequirement "Create, verify and restore declared data-owner snapshots through bounded administrative operations.";
+    usf:processLifecycleRequirement "Quiesce where required, back up, verify, restore, reconcile and prove rollback readiness.";
+    usf:processTenantSecuritySeparationRequirement "Backup payloads preserve tenant ownership, encryption and legal-hold boundaries.";
+    usf:processSupportsEnvironment <urn:usf:environment:localdev>, <urn:usf:environment:integrationtest>, <urn:usf:environment:productionshaped>;
+    usf:processSecurityBoundary "Backup credentials and payload access remain isolated from ordinary runtime principals.";
+    usf:processReadinessRequirement "Ready only when target storage, encryption material and restore validation are available.";
+    usf:processResourceLimit "Bound snapshot concurrency, bytes, retention and restore verification duration.";
+    usf:processLifecycleObligation <urn:usf:permutationdimensionvalue:lifecycleobligationinitialise>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationconfigure>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationstart>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationbecomeready>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationdrain>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationstop>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationbackup>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationrestore>;
+    usf:processPrincipalKind <urn:usf:principalkind:serviceidentity>;
+    usf:processEnvironmentClass <urn:usf:environmentclass:local>, <urn:usf:environmentclass:hermetic>, <urn:usf:environmentclass:productionshaped>;
+    usf:processProviderMode <urn:usf:providermode:deterministictestsubstitute>, <urn:usf:providermode:repositorylocalservice>.
+fx:webhookdeliveryworker a usf:DeployableProcess;
+    usf:canonicalName "webhookdeliveryworker"; usf:repositoryName "webhook-delivery-worker";
+    usf:definition "Tenant-scoped outbound webhook worker with bounded retries and delivery evidence.";
+    usf:processBoundaryClass <urn:usf:processboundaryclass:productruntime>;
+    usf:processOwnsCapability fx:webhookdeliverycapability; usf:processForCapability fx:capability, fx:webhookdeliverycapability;
+    usf:processProvidesInterface fx:streaminterface;
+    usf:processInterfaceRequirement "Deliver bounded event payloads only to validated tenant callback endpoints.";
+    usf:processLifecycleRequirement "Start, claim delivery, retry transient failure, drain, stop and redrive dead letters.";
+    usf:processTenantSecuritySeparationRequirement "Endpoint, payload, credential and delivery history remain tenant-scoped.";
+    usf:processSupportsEnvironment <urn:usf:environment:localdev>, <urn:usf:environment:integrationtest>, <urn:usf:environment:productionshaped>;
+    usf:processSecurityBoundary "Outbound network access is limited to validated endpoints and payload disclosure policy.";
+    usf:processReadinessRequirement "Ready only after endpoint policy, queue and credential interfaces are valid.";
+    usf:processResourceLimit "Bound outbound concurrency, payload bytes, attempts, timeouts and redrive rate.";
+    usf:processLifecycleObligation <urn:usf:permutationdimensionvalue:lifecycleobligationinitialise>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationconfigure>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationstart>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationbecomeready>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationdrain>,
+        <urn:usf:permutationdimensionvalue:lifecycleobligationstop>;
+    usf:processPrincipalKind <urn:usf:principalkind:serviceidentity>;
+    usf:processEnvironmentClass <urn:usf:environmentclass:local>, <urn:usf:environmentclass:hermetic>, <urn:usf:environmentclass:productionshaped>;
+    usf:processProviderMode <urn:usf:providermode:deterministictestsubstitute>, <urn:usf:providermode:repositorylocalservice>.
+
+fx:tenantresourcereadreachability a usf:FoundationActionReachabilityWitness;
+    usf:canonicalName "tenantresourcereadreachability";
+    usf:conforming true;
+    usf:foundationReachabilityForCapability fx:capability;
+    usf:foundationReachabilityForRole fx:tenantmember;
+    usf:foundationReachabilityForPrincipalKind <urn:usf:principalkind:humanuser>;
+    usf:foundationReachabilityOperation fx:readresource;
+    usf:foundationReachabilityPermission fx:resourcereadpermission;
+    usf:foundationReachabilityPermissionAtomWitness fx:resourcereadpermissionatomwitness;
+    usf:foundationReachabilityConditionProfile <urn:usf:authorisationconditionprofile:tenantmember>;
+    usf:foundationReachabilityState <urn:usf:actionreachabilitystate:unresolved>;
+    usf:foundationWitnessDigest "sha256:2f4b8d232bab44644da368745280ced87cccffba0e7b600a2b122e91f0b1d991".
+fx:resourcereadpermissionatomwitness a usf:FoundationPermissionAtomWitness;
+    usf:canonicalName "resourcereadpermissionatomwitness";
+    usf:conforming true;
+    usf:foundationPermissionRequirement fx:resourcereadpermission;
+    usf:foundationPermissionLifecycleRestriction fx:pendingstate;
+    usf:foundationPermissionTransportRestriction <urn:usf:transport:http>;
+    usf:foundationWitnessDigest "sha256:4ae8d7cb9a7b8be4d5dd8fd1a074c28cdb6d8ba62b59dd1f8a944d1b4e47c0d3".
+
+<urn:usf:foundationrequiredpermutationwitness:readtenantresource> a usf:FoundationRequiredPermutationWitness;
+    usf:canonicalName "readtenantresource";
+    usf:conforming true;
+    usf:foundationPermutationForCapability fx:capability;
+    usf:foundationPermutationForSubject fx:capability;
+    usf:foundationPermutationOfFamily <urn:usf:permutationfamily:operationpermissionatom>;
+    usf:foundationWitnessDigest "sha256:f36b403ef9f2689186b0c26e8bad0dff99453e7ef3f6a7d6d22c58f32d050cc7";
+    usf:foundationPermutationExpectedDisposition <urn:usf:permutationclosuredisposition:required>;
+    usf:foundationConformanceOnly true;
+    usf:foundationPermutationTestObligation fx:requiredcelltest;
+    usf:foundationPermutationEvidenceRequirement fx:requiredcellevidence;
+    usf:foundationPermutationProofObligation fx:requiredcellproof.
+fx:requiredcelltest a usf:Test, usf:TestObligation;
+    usf:canonicalName "requiredcelltest";
+    usf:testsContract fx:contract;
+    usf:obligationFor fx:contract;
+    usf:obligationEffect <urn:usf:obligationeffect:advisory>;
+    usf:usesAssuranceCell <urn:usf:assurancecell:behaviourhermetichermetic>;
+    usf:derivedFrom <urn:usf:foundationrequiredpermutationwitness:readtenantresource>.
+fx:requiredcellevidence a usf:EvidenceRequirement;
+    usf:canonicalName "requiredcellevidence";
+    usf:obligationFor fx:contract;
+    usf:obligationEffect <urn:usf:obligationeffect:advisory>;
+    usf:usesAssuranceCell <urn:usf:assurancecell:behaviourhermetichermetic>;
+    usf:requiresEvidenceKind <urn:usf:evidencekind:validationevidence>;
+    usf:requiresFreshness <urn:usf:freshness:fresh>;
+    usf:requiresProviderMode <urn:usf:providermode:deterministictestsubstitute>;
+    usf:requiresEnvironmentClass <urn:usf:environmentclass:hermetic>;
+    usf:requiresEvidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:signed>, <urn:usf:evidencestage:integrityverified>;
+    usf:derivedFrom <urn:usf:foundationrequiredpermutationwitness:readtenantresource>.
+fx:requiredcellproof a usf:ProofObligation;
+    usf:canonicalName "requiredcellproof";
+    usf:obligationFor fx:contract;
+    usf:obligationEffect <urn:usf:obligationeffect:advisory>;
+    usf:usesAssuranceCell <urn:usf:assurancecell:behaviourhermetichermetic>;
+    usf:requiresEvidence fx:requiredcellevidence;
+    usf:requiresRung <urn:usf:proofrung:behaviour>;
+    usf:derivedFrom <urn:usf:foundationrequiredpermutationwitness:readtenantresource>.
+
+fx:evidencerequirementscopemanifest a usf:EvidenceScopeManifest;
+    usf:canonicalName "evidencerequirementscopemanifest";
+    usf:evidenceScopeClassification <urn:usf:evidencescopeclassification:hermeticlocal>;
+    usf:scopeProviderIdentity <urn:usf:provideridentity:repositorylocalevaluator>;
+    usf:scopeManifestDigest "sha256:835a6bcf790cb4003a490c543f1d4f57f003d38967432a8f02f0ef1142237ec8";
+    usf:scopeDescriptorDigest "sha256:b35d44c04c6747de72e0fc3508642603d08b5c6e2c4c4fccdf2478a5942a13a6";
+    usf:scopeCollectorDigest "sha256:ed85d4e189f7c61dfd1e7b90178702288d851da83ee4d9cb6405dbf14296cc18";
+    usf:scopeClaimBoundary "Fixture-only local deterministic validation behaviour.";
+    usf:scopeProhibitedClaim "Does not claim live authority publication, rollback or parity.";
+    usf:scopeSupportsCriterion <urn:usf:evaluationcriterion:testability>.
+
+fx:readinessgate a usf:ReadinessGate;
+    usf:canonicalName "readinessgate";
+    usf:gateKind <urn:usf:readinessgatekind:artefact>;
+    usf:gateSubject fx:capability;
+    usf:hasCriterion fx:readinesscriterion.
+fx:readinesscriterion a usf:GateCriterion;
+    usf:canonicalName "readinesscriterion";
+    usf:criterionCode "foundationfixture";
+    usf:requiredByGate fx:readinessgate;
+    usf:obligationEffect <urn:usf:obligationeffect:advisory>;
+    usf:usesAssuranceCell <urn:usf:assurancecell:behaviourhermetichermetic>.
+fx:readinessgateresult a usf:ReadinessGateResult;
+    usf:canonicalName "readinessgateresult";
+    usf:gateResultOf fx:readinessgate;
+    usf:gateReadinessState <urn:usf:readinessstate:unknown>;
+    usf:gateReadinessReason <urn:usf:readinessreason:unknownevaluation>.
+
+fx:validatorrule a usf:ValidatorRule;
+    usf:canonicalName "validatorrule";
+    usf:validatorSeverity <urn:usf:severity:error>;
+    usf:resultCode "FOUNDATION_FIXTURE_VALIDATION";
+    usf:targetsGraph <urn:usf:graph:fixture:universalservicefoundation>.
+
+fx:evidenceresult a usf:EvidenceResult;
+    usf:canonicalName "evidenceresult";
+    usf:evidenceKind <urn:usf:evidencekind:validationevidence>;
+    usf:hasFreshness <urn:usf:freshness:stale>;
+    usf:evidenceForContract fx:contract;
+    usf:evidenceFor fx:contract;
+    usf:hasAdmissionState <urn:usf:evidenceadmissionstate:pending>;
+    usf:hasFreshnessState <urn:usf:evidencefreshnessstate:stale>;
+    usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid>.
+<urn:usf:evidenceadmissionstate:pending> a usf:EvidenceAdmissionState.
+<urn:usf:evidencefreshnessstate:stale> a usf:EvidenceFreshnessState.
+<urn:usf:evidenceintegritystate:valid> a usf:EvidenceIntegrityState.
+
+fx:proof a usf:Proof;
+    usf:canonicalName "proof";
+    usf:provesSubject fx:capability.
+fx:proofresult a usf:ProofResult;
+    usf:canonicalName "proofresult";
+    usf:resultForProof fx:proof;
+    usf:resultState <urn:usf:resultstate:unknown>;
+    usf:claimedRung <urn:usf:proofrung:behaviour>;
+    usf:observedRung <urn:usf:proofrung:behaviour>;
+    usf:hasFreshness <urn:usf:freshness:stale>;
+    usf:proofResultForObligation fx:requiredcellproof;
+    usf:hasProofResultState <urn:usf:proofresultstate:unknown>;
+    usf:hasConfidenceState <urn:usf:proofconfidencestate:unknown>.
+<urn:usf:proofresultstate:unknown> a usf:ProofResultState.
+<urn:usf:proofconfidencestate:unknown> a usf:ProofConfidenceState.
+}

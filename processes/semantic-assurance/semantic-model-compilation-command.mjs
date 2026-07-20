@@ -40,7 +40,8 @@ export function createSemanticModelCompilationCommand({
   return Object.freeze({
     async execute({ expectedAuthorityDigest, publicationMode = 'validate' }) {
       if (!SHA256.test(expectedAuthorityDigest || '')) throw new CompilerError('expected authority digest is required', { phase: 'authority:configuration' });
-      const before = digest(await readAuthorityWitness(client));
+      const beforeWitness = await readAuthorityWitness(client);
+      const before = digest(beforeWitness);
       if (before !== expectedAuthorityDigest) {
         throw new CompilerError('semantic authority drifted before compilation', {
           phase: 'authority:drift',
@@ -49,7 +50,13 @@ export function createSemanticModelCompilationCommand({
         });
       }
       const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
-      const result = await compileFunction({ manifest, client, publicationMode });
+      const result = await compileFunction({
+        authorityWitness: beforeWitness,
+        client,
+        manifest,
+        publicationBudgetPolicy: manifest.publicationBudget,
+        publicationMode,
+      });
       if (publicationMode === 'validate') {
         const after = digest(await readAuthorityWitness(client));
         if (after !== before) throw new CompilerError('validate-only compilation changed semantic authority', { phase: 'authority:validate-drift' });
