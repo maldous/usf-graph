@@ -200,22 +200,21 @@ if (optionAcquisitionRecord.authorityDigest !== optionAcquisition.authorityDiges
 }
 
 const nextExactAction = directiveReconciled ? {
-  action: 'Copy the operator-supplied DER PKCS#8 evidence signing key to the prescribed mode-600 path, then regenerate the signed realisation-option evidence from the verified acquisition digest.',
+  action: 'Inspect the largest current subject-local universal-review gap groups from the digest-bound analysis, then resolve the first evidence-backed group without inventing semantic decisions.',
   authorityDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
-  command: 'test -f .work/programme/realisation-option-evaluation-signing-key.pk8 && test "$(stat -c %a .work/programme/realisation-option-evaluation-signing-key.pk8)" = 600 && node assurance/semantic-model-compilation/realisation-option-evaluation-evidence.mjs --authority-digest=sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd --collected-at=2026-07-20T02:00:39Z --valid-until=2027-07-15T02:00:39Z --acquisition-digest=sha256:7d5f9939c26e1524a5d38e6eecd46d26a8bb476f69e8ad1859f459150db59a3d --signing-key=.work/programme/realisation-option-evaluation-signing-key.pk8 --cas-root=/var/lib/usf-cas --replace-bindings --replace-evidence',
+  command: "jq -r '.gaps | group_by(.code) | map({code: .[0].code, count: length}) | sort_by(-.count, .code)' .work/generated/universal-family-completeness-analysis-e3405ef0bd0c6c76e282405e4631f2b5182c068d421c2029bca85331bac7b837.json",
   preconditions: [
     'authority digest and authority packet/projection byte digests remain exact',
     'no authority mutation transaction or modifying worker is active',
     'foundation-domain closure assessment and independent proof remain current',
-    'integrated local permutation and universal-semantic wave gate remains current at 100/100',
-    'the checkpoint-bound committed source bytes remain frozen after this validation-only state update',
+    'the exact value-domain registry and subject-local witness correction remains committed and pushed',
+    'the current universal independent reconstruction has zero inventory, family, review, analysis, and source mismatches',
+    'the prior integrated 100-test result remains stale until the coherent review wave boundary',
     'candidate reviews remain unpublished and cannot establish semantic truth',
-    'an operator has supplied the DER PKCS#8 signing key through the authorised secret store interface',
-    'the signing key exists only at .work/programme/realisation-option-evaluation-signing-key.pk8 with mode 600',
   ],
   semanticIdentifiers: [
     'OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE',
-    'REALISATION_OPTION_EVALUATION_CLOSURE',
+    'UNIVERSAL_FAMILY_MODEL_REVIEW_CLOSURE',
   ],
 } : {
   action: 'Read the changed GOAL.md completely, update this tracked checkpoint generator and any directive validators to the current dependency order, then regenerate the checkpoint before trusting any generated next action.',
@@ -230,7 +229,7 @@ const nextExactAction = directiveReconciled ? {
 };
 
 const dependencyNodes = [
-  { blockerCode: 'EXTERNAL_SIGNING_CREDENTIAL_REQUIRED', id: 'REALISATION_OPTION_EVALUATION_CLOSURE', prerequisites: [], state: 'PARTIALLY_DELIVERED_RAW_ACQUISITION_CURRENT_SIGNED_EVIDENCE_PENDING' },
+  { blockerCode: 'EXTERNAL_SIGNING_CREDENTIAL_REQUIRED', id: 'REALISATION_OPTION_EVALUATION_CLOSURE', prerequisites: [], state: 'EXTERNAL_OR_HUMAN_BLOCKED_KEY_ABSENT_USER_AUTHORISED_USE' },
   { blockerCode: 'STALE_OPTION_EVALUATION_EVIDENCE', id: 'CANONICAL_COMPILER_DEPENDENCY_CLOSURE', prerequisites: ['REALISATION_OPTION_EVALUATION_CLOSURE'], state: 'PARTIALLY_DELIVERED_REOPENED_EVIDENCE_BINDING' },
   { blockerCode: 'NONE', id: 'CANONICAL_COMPILER_ENTRYPOINT_CUTOVER', prerequisites: ['CANONICAL_COMPILER_DEPENDENCY_CLOSURE'], state: 'COMPLETE' },
   { blockerCode: 'NONE', id: 'DUPLICATE_COMPILER_RETIREMENT', prerequisites: ['CANONICAL_COMPILER_ENTRYPOINT_CUTOVER'], state: 'COMPLETE' },
@@ -263,7 +262,8 @@ const currentPhase = 'OPERATIONAL_PERMUTATION_AND_AUTHORISATION_CLOSURE';
 const stateClassifications = {
   EXTERNAL_OR_HUMAN_BLOCKED: ['REALISATION_OPTION_EVALUATION_EVIDENCE_SIGNING_KEY'],
   PARTIALLY_DELIVERED: ['COMPILER_PROOF_PREVIOUS_IMPLEMENTATION_BINDING', 'HERMETIC_EXECUTABLE_SUITE'],
-  REMAINING_ACTIONABLE: dependencyNodes.filter(({ state }) => state !== 'COMPLETE').map(({ id }) => id),
+  REMAINING_ACTIONABLE: dependencyNodes.filter(({ state }) => state !== 'COMPLETE'
+    && !state.startsWith('EXTERNAL_OR_HUMAN_BLOCKED')).map(({ id }) => id),
   REOPENED_BY_DIRECTIVE: [
     'OPERATION_UNIVERSE_SEMANTIC_ADEQUACY',
     'PERMISSION_AND_TOKEN_SCOPE_CLOSURE',
@@ -311,28 +311,30 @@ const permutationClosure = {
     finiteDomainGapCount371: 'SUPERSEDED',
   },
   universalFamilyModel: {
-    analysisDigest: 'sha256:73d21ad9c5be29fd9419bf5728a7162136e1695b4329ea24949caff9ed35455a',
-    analysisFileDigest: 'sha256:dc6ba08e7e4146e7ae88485bbdb93e2f51a19f4a89a07c3249250cf6845acb42',
-    analysisPath: '.work/generated/universal-family-completeness-analysis-dc6ba08e7e4146e7ae88485bbdb93e2f51a19f4a89a07c3249250cf6845acb42.json',
+    analysisDigest: 'sha256:96538840c2fd263226861a5582d46037432b2c3a9b282698ad52f724eb82fb6f',
+    analysisFileDigest: 'sha256:e3405ef0bd0c6c76e282405e4631f2b5182c068d421c2029bca85331bac7b837',
+    analysisPath: '.work/generated/universal-family-completeness-analysis-e3405ef0bd0c6c76e282405e4631f2b5182c068d421c2029bca85331bac7b837.json',
     atomicCandidateCount: 1555,
-    authorityReviewRequiredTermCount: 8519,
+    authorityReviewRequiredTermCount: 12106,
     familyCount: 108,
-    gapCount: 29424,
-    independentProofDigest: 'sha256:c697729ba1561c5625bf05961a701fc9dc7815c6abdc925ae536e5ae402eab5a',
-    independentProofFileDigest: 'sha256:8f19e116af820aebe20205eda5323687dc6cde355ea3621d76987c7d0c462601',
-    independentProofPath: '.work/generated/universal-semantic-coverage-proof-8f19e116af820aebe20205eda5323687dc6cde355ea3621d76987c7d0c462601.json',
+    gapCount: 33011,
+    independentProofDigest: 'sha256:219bf3bd1021f3b246b3c227e462f519efee9bfe3094ad5c64fb02991405bb17',
+    independentProofFileDigest: 'sha256:5e022026b80d121320bfe4b10d7541fbfd9528366ef74fc8c9ab900c044a62ea',
+    independentProofPath: '.work/generated/universal-semantic-coverage-proof-5e022026b80d121320bfe4b10d7541fbfd9528366ef74fc8c9ab900c044a62ea.json',
     independentProofVerdict: 'UNIVERSAL_SEMANTIC_GAP_AND_CROSS_PRODUCT_RECONSTRUCTION_PASS',
-    inventoryDigest: 'sha256:502165e6a717d859ffa981903b6b712f782041885f3dfdcf6ae18d7dd358068d',
-    inventoryFileDigest: 'sha256:e6bf9c5b8459eaa863b4048165291aa1c43d3b0bbf79aa0399bd2375d553040c',
-    inventoryPath: '.work/generated/universal-semantic-inventory-e6bf9c5b8459eaa863b4048165291aa1c43d3b0bbf79aa0399bd2375d553040c.json',
+    inventoryDigest: 'sha256:52cddd70895afaf5afbb5260f0a13dd46218c1f4b24c0de89445251e8ab70759',
+    inventoryFileDigest: 'sha256:75bcaa1b84f45f026f5ec53a980f533ec40dad313d8854eacc2f87add65865c7',
+    inventoryPath: '.work/generated/universal-semantic-inventory-75bcaa1b84f45f026f5ec53a980f533ec40dad313d8854eacc2f87add65865c7.json',
     missingFamilyReviewCount: 108,
-    registryDigest: 'sha256:a33f4aa299d5a988ee8ac264e33e448532d429b2af5dd0996620c096689d612b',
-    registryFileDigest: 'sha256:c6550a6355a56687d1854eaf18ac002d951b43fc8a8155df831a3cd05d0471df',
-    registryPath: '.work/generated/universal-family-registry-c6550a6355a56687d1854eaf18ac002d951b43fc8a8155df831a3cd05d0471df.json',
+    registryDigest: 'sha256:4dc7993b6c16c548e0f33524b606b270a69b27261718f17a727bbb2bc2265fee',
+    registryFileDigest: 'sha256:70c7c319076a97bdbd4f4b1403e0ed383387d424ba186d970986393ef70020f5',
+    registryPath: '.work/generated/universal-family-registry-70c7c319076a97bdbd4f4b1403e0ed383387d424ba186d970986393ef70020f5.json',
     relationshipSignatureReviewRequiredCount: 2025,
-    reviewProjectionDigest: 'sha256:daf768ce098a4689e6a8efb476f03f0b7a3c8be1cfb597e87f7673b80654e53c',
-    reviewProjectionFileDigest: 'sha256:29b6c68a0c231989444274e4dc834a60d5b4bbb2e73c0550295d949db5c85e22',
-    reviewProjectionPath: '.work/generated/universal-review-projection-29b6c68a0c231989444274e4dc834a60d5b4bbb2e73c0550295d949db5c85e22.json',
+    reviewProjectionDigest: 'sha256:3575fd3e74633b2ff7d018bd1d92f2a7a5b2a48630ac442e1f4ba38c1a90a334',
+    reviewProjectionFileDigest: 'sha256:fe4fb5b5086dfeb8496d6f761cabe589d51f30d8bd1382dbfbee86cde4c0d788',
+    reviewProjectionPath: '.work/generated/universal-review-projection-fe4fb5b5086dfeb8496d6f761cabe589d51f30d8bd1382dbfbee86cde4c0d788.json',
+    witnessCount: 12986,
+    witnessIndexDigest: 'sha256:cb7df103e3b10e5ca4bf70feab8f8a0ea8212b1f56d9c1064dbde31b3e448347',
     verdict: 'UNIVERSAL_FAMILY_MODEL_INCOMPLETE',
   },
   verdict: 'PERMUTATION_CLOSURE_INCOMPLETE',
@@ -419,6 +421,7 @@ const ledger = {
   realisationOptionEvaluation: {
     acquisition: optionAcquisition,
     evidenceSigningKey: {
+      operatorAuthorisation: 'CURRENT_USER_AUTHORISED_USE_WHEN_KEY_AVAILABLE',
       path: '.work/programme/realisation-option-evaluation-signing-key.pk8',
       state: 'ABSENT_OPERATOR_SUPPLIED_SECRET_REQUIRED',
     },
@@ -483,7 +486,7 @@ const checkpoint = {
   currentEnvironmentState: {
     development: 'NOT_DELIVERED',
     deterministicTest: 'NOT_DELIVERED',
-    evidenceSigningKey: 'ABSENT_OPERATOR_SUPPLIED_SECRET_REQUIRED',
+    evidenceSigningKey: 'AUTHORISED_FOR_USE_BUT_SECRET_BYTES_ABSENT',
     productionShapedStaging: 'NOT_DELIVERED',
   },
   currentItem,
@@ -546,6 +549,7 @@ const checkpoint = {
   realisationOptionEvaluation: {
     acquisition: optionAcquisition,
     evidenceSigningKey: {
+      operatorAuthorisation: 'CURRENT_USER_AUTHORISED_USE_WHEN_KEY_AVAILABLE',
       path: '.work/programme/realisation-option-evaluation-signing-key.pk8',
       state: 'ABSENT_OPERATOR_SUPPLIED_SECRET_REQUIRED',
     },
@@ -603,7 +607,7 @@ const checkpoint = {
       reconstructionMismatchCount: 0,
       state: 'CURRENT_LOCAL_INDEPENDENT_RECONSTRUCTION_NOT_CLOSURE_PROOF',
       unresolvedFamilyReviewCount: 108,
-      unresolvedSemanticTermCount: 8519,
+      unresolvedSemanticTermCount: 12106,
       verdict: permutationClosure.universalFamilyModel.independentProofVerdict,
     },
   },
@@ -662,13 +666,16 @@ const checkpoint = {
     },
     narrowPermutationAndUniversal: {
       familyCensus: { failed: 0, passed: 15 },
-      universalSemanticCoverage: { failed: 0, passed: 9 },
+      familyModel: { failed: 0, passed: 21 },
+      universalSemanticCoverageTargeted: { failed: 0, passed: 3 },
+      universeGenerator: { failed: 0, passed: 39 },
       state: 'CURRENT_FOCUSED_PASS',
     },
     integratedPermutationAndUniversal: {
-      failed: 0,
-      passed: 100,
-      state: 'CURRENT_INTEGRATED_LOCAL_PASS',
+      previousFailed: 0,
+      previousPassed: 100,
+      staleCause: 'VALUE_DOMAIN_REGISTRY_AND_SUBJECT_LOCAL_WITNESS_ALGORITHM_CHANGED',
+      state: 'STALE_REQUIRES_ONE_COHERENT_WAVE_BOUNDARY_RERUN',
     },
     rootSuite: {
       discoveredFileCount: 19,
