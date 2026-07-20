@@ -865,6 +865,10 @@ function independentlyReconstructExactFamilyRegistry(repositoryRoot, analyzerSou
       const record = {
         axisClassClosures: binding.axisClassClosureDigests.map(closureRecord),
         bindingIri: binding.bindingIri,
+        controlledValueSetDigest: binding.controlledValueSetDigest,
+        controlledValues: binding.controlledValues,
+        declaredValueSetDigest: binding.declaredValueSetDigest,
+        declaredValues: binding.declaredValues,
         derivationPredicateIris: binding.derivationPredicateIris,
         dimensionIri: binding.dimensionIri,
         key: binding.key,
@@ -878,6 +882,10 @@ function independentlyReconstructExactFamilyRegistry(repositoryRoot, analyzerSou
       };
       const dimension = {
         axisClassClosures: record.axisClassClosures,
+        controlledValueSetDigest: record.controlledValueSetDigest,
+        controlledValues: record.controlledValues,
+        declaredValueSetDigest: record.declaredValueSetDigest,
+        declaredValues: record.declaredValues,
         derivationPredicateIris: record.derivationPredicateIris,
         iri: record.dimensionIri,
         key: record.key,
@@ -921,7 +929,7 @@ function independentlyReconstructExactFamilyRegistry(repositoryRoot, analyzerSou
     productionRegistryDigest: metaModel.familyRegistry.registryDigest,
     projectionAlgorithmSourceDigest: analyzerSourceDigest,
     recordKind: 'USF_UNIVERSAL_EXACT_FAMILY_REGISTRY_PROJECTION',
-    schemaVersion: 4,
+    schemaVersion: 5,
   };
   return { ...core, registryDigest: digest(core) };
 }
@@ -958,6 +966,12 @@ function familyRegistryMismatchCode(actual, expected) {
     }));
     if (canonicalJson(axis(family)) !== canonicalJson(axis(warranted))) {
       return 'UNIVERSAL_PROOF_AXIS_SUBSTITUTION';
+    }
+    const controlledDomain = (item) => item.orderedBindings.map(({
+      controlledValueSetDigest, controlledValues, declaredValueSetDigest, declaredValues,
+    }) => ({ controlledValueSetDigest, controlledValues, declaredValueSetDigest, declaredValues }));
+    if (canonicalJson(controlledDomain(family)) !== canonicalJson(controlledDomain(warranted))) {
+      return 'UNIVERSAL_PROOF_CONTROLLED_DOMAIN_SUBSTITUTION';
     }
     const derivation = (item) => item.orderedBindings.map(({
       derivationPredicateIris, sourceIri, sourceKind, sourceScopeIri,
@@ -1099,7 +1113,7 @@ function reconstructReviewProjection(dataset, inventory, registry, analyzerSourc
 function reconstructAnalysis(inventory, registry, reviewProjection) {
   const witnesses = [];
   const add = (core) => {
-    const record = compact({ inventoryDigest: inventory.inventoryDigest, registryDigest: registry.registryDigest, schemaVersion: 2, ...core });
+    const record = compact({ inventoryDigest: inventory.inventoryDigest, registryDigest: registry.registryDigest, schemaVersion: 3, ...core });
     witnesses.push({ ...record, witnessDigest: digest(record) });
   };
   const matchingIndividuals = (classIris) => {
@@ -1126,24 +1140,48 @@ function reconstructAnalysis(inventory, registry, reviewProjection) {
     for (const binding of family.orderedBindings) {
       for (const closure of binding.axisClassClosures) {
         for (const classIri of closure.memberClassIris) add({
-          bindingPosition: binding.position, closureDigest: closure.closureDigest, closureIri: closure.closureIri,
+          bindingIri: binding.bindingIri, bindingPosition: binding.position,
+          closureDigest: closure.closureDigest, closureIri: closure.closureIri,
           familyIri: family.familyIri, familyRecordDigest: family.familyRecordDigest, ownerIri: binding.dimensionIri,
-          role: 'EXPLICIT_AXIS_CLOSURE_MEMBER', termKey: `class\0${classIri}` });
-        for (const individual of matchingIndividuals(closure.memberClassIris)) add({
-          bindingPosition: binding.position, closureDigest: closure.closureDigest,
-          closureIri: closure.closureIri, familyIri: family.familyIri,
-          familyRecordDigest: family.familyRecordDigest, ownerIri: binding.dimensionIri,
-          role: 'FINITE_AXIS_VALUE_CLASSIFICATION', termKey: individual.termKey,
-        });
+          role: 'EXPLICIT_AXIS_CLOSURE_MEMBER', sourceIri: binding.sourceIri,
+          sourceKind: binding.sourceKind, termKey: `class\0${classIri}` });
+        if (binding.sourceKind === 'classinstances') {
+          for (const individual of matchingIndividuals(closure.memberClassIris)) add({
+            bindingIri: binding.bindingIri, bindingPosition: binding.position,
+            closureDigest: closure.closureDigest, closureIri: closure.closureIri,
+            dimensionIri: binding.dimensionIri, familyIri: family.familyIri,
+            familyRecordDigest: family.familyRecordDigest, ownerIri: binding.dimensionIri,
+            role: 'EXACT_CLASS_INSTANCE_VALUE_MEMBERSHIP', sourceIri: binding.sourceIri,
+            sourceKind: binding.sourceKind, sourceScopeIri: binding.sourceScopeIri,
+            termKey: individual.termKey,
+          });
+        }
       }
-      for (const step of binding.selector?.steps ?? []) add({ bindingPosition: binding.position,
+      if (binding.sourceKind === 'controlledlist') {
+        for (const value of binding.controlledValues) add({
+          bindingIri: binding.bindingIri, bindingPosition: binding.position,
+          controlledValueKey: value.key, controlledValueSetDigest: binding.controlledValueSetDigest,
+          dimensionIri: binding.dimensionIri, familyIri: family.familyIri,
+          familyRecordDigest: family.familyRecordDigest, ownerIri: binding.dimensionIri,
+          role: 'EXACT_CONTROLLED_LIST_VALUE_MEMBERSHIP', sourceIri: binding.sourceIri,
+          sourceKind: binding.sourceKind, sourceScopeIri: binding.sourceScopeIri,
+          termKey: `individual\0${value.iri}`,
+        });
+      } else if (!['classinstances', 'derivedselector'].includes(binding.sourceKind)) {
+        fail('UNIVERSAL_PROOF_VALUE_SOURCE_KIND_UNSUPPORTED', binding.sourceKind);
+      }
+      for (const step of binding.selector?.steps ?? []) add({ bindingIri: binding.bindingIri,
+        bindingPosition: binding.position, dimensionIri: binding.dimensionIri,
         directionIri: step.directionIri, familyIri: family.familyIri, familyRecordDigest: family.familyRecordDigest,
         ownerIri: binding.selector.iri, predicateIri: step.predicateIri, role: 'EXACT_DIMENSION_SELECTOR_STEP',
-        selectorDigest: binding.selector.digest, stepIndex: step.index, termKey: `property\0${step.predicateIri}` });
-      for (const predicateIri of binding.derivationPredicateIris) add({ bindingPosition: binding.position,
+        selectorDigest: binding.selector.digest, sourceIri: binding.sourceIri,
+        sourceKind: binding.sourceKind, stepIndex: step.index, termKey: `property\0${step.predicateIri}` });
+      for (const predicateIri of binding.derivationPredicateIris) add({ bindingIri: binding.bindingIri,
+        bindingPosition: binding.position, dimensionIri: binding.dimensionIri,
         familyIri: family.familyIri, familyRecordDigest: family.familyRecordDigest,
         ownerIri: binding.valueDerivationRootIri ?? binding.sourceIri, predicateIri,
-        role: 'EXACT_VALUE_DERIVATION_PREDICATE', termKey: `property\0${predicateIri}` });
+        role: 'EXACT_VALUE_DERIVATION_PREDICATE', sourceIri: binding.sourceIri,
+        sourceKind: binding.sourceKind, termKey: `property\0${predicateIri}` });
     }
     for (const selector of family.applicabilitySelectors) for (const step of selector.steps) add({
       bindingPosition: null, directionIri: step.directionIri, familyIri: family.familyIri,
@@ -1686,7 +1724,7 @@ export function proveUniversalSemanticCoverage({
     recordKind: 'USF_UNIVERSAL_EXACT_COVERAGE_WITNESS_INDEX',
     records: reconstructed.witnesses,
     registryDigest: registry.registryDigest,
-    schemaVersion: 2,
+    schemaVersion: 3,
     witnessCount: reconstructed.witnesses.length,
   };
   compareAnalysis('witnessCount', reconstructed.witnesses.length, analysis.witnessCount);

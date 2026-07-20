@@ -1006,6 +1006,10 @@ export function loadUniversalFamilyRegistry({ repositoryRoot }) {
           rootClassIri: closure.rootClassIri,
         })),
         bindingIri: binding.bindingIri,
+        controlledValueSetDigest: binding.controlledValueSetDigest,
+        controlledValues: binding.controlledValues,
+        declaredValueSetDigest: binding.declaredValueSetDigest,
+        declaredValues: binding.declaredValues,
         derivationPredicateIris: binding.derivationPredicateIris,
         dimensionIri: binding.dimensionIri,
         key: binding.key,
@@ -1035,6 +1039,10 @@ export function loadUniversalFamilyRegistry({ repositoryRoot }) {
       };
       const dimension = {
         axisClassClosures: record.axisClassClosures,
+        controlledValueSetDigest: record.controlledValueSetDigest,
+        controlledValues: record.controlledValues,
+        declaredValueSetDigest: record.declaredValueSetDigest,
+        declaredValues: record.declaredValues,
         derivationPredicateIris: record.derivationPredicateIris,
         iri: record.dimensionIri,
         key: record.key,
@@ -1098,7 +1106,7 @@ export function loadUniversalFamilyRegistry({ repositoryRoot }) {
     productionRegistryDigest: production.registryDigest,
     projectionAlgorithmSourceDigest: ANALYZER_SOURCE_DIGEST,
     recordKind: 'USF_UNIVERSAL_EXACT_FAMILY_REGISTRY_PROJECTION',
-    schemaVersion: 4,
+    schemaVersion: 5,
   };
   return { ...core, registryDigest: digest(core) };
 }
@@ -1109,11 +1117,37 @@ function witness(core) {
 }
 
 export function buildExactCoverageWitnessIndex(inventory, registry) {
+  const { registryDigest, ...registryCore } = registry;
+  if (digest(registryCore) !== registryDigest) {
+    fail('UNIVERSAL_COVERAGE_REGISTRY_DIGEST_MISMATCH',
+      'family registry projection is not bound to its current bytes');
+  }
+  for (const family of registry.families) {
+    for (const binding of family.orderedBindings) {
+      const sortedDeclared = [...binding.declaredValues]
+        .sort((left, right) => compare(left.key, right.key) || compare(left.iri, right.iri));
+      const declaredDigest = sortedDeclared.length > 0 ? digest(sortedDeclared) : null;
+      if (canonicalJson(sortedDeclared) !== canonicalJson(binding.declaredValues)
+        || new Set(sortedDeclared.map(({ iri }) => iri)).size !== sortedDeclared.length
+        || new Set(sortedDeclared.map(({ key }) => key)).size !== sortedDeclared.length
+        || declaredDigest !== binding.declaredValueSetDigest) {
+        fail('UNIVERSAL_COVERAGE_DECLARED_VALUE_BINDING_INVALID', binding.bindingIri);
+      }
+      const controlled = binding.sourceKind === 'controlledlist';
+      if ((controlled && (binding.controlledValues.length === 0
+        || canonicalJson(binding.controlledValues) !== canonicalJson(binding.declaredValues)
+        || binding.controlledValueSetDigest !== binding.declaredValueSetDigest))
+        || (!controlled && (binding.controlledValues.length !== 0
+          || binding.controlledValueSetDigest !== null))) {
+        fail('UNIVERSAL_COVERAGE_CONTROLLED_VALUE_BINDING_INVALID', binding.bindingIri);
+      }
+    }
+  }
   const records = [];
   const add = (core) => records.push(witness({
     inventoryDigest: inventory.inventoryDigest,
     registryDigest: registry.registryDigest,
-    schemaVersion: 2,
+    schemaVersion: 3,
     ...core,
   }));
   const matchingIndividuals = (memberClassIris) => {
@@ -1161,27 +1195,58 @@ export function buildExactCoverageWitnessIndex(inventory, registry) {
             bindingPosition: binding.position,
             closureDigest: closure.closureDigest,
             closureIri: closure.closureIri,
+            bindingIri: binding.bindingIri,
             familyIri: family.familyIri,
             familyRecordDigest: family.familyRecordDigest,
             ownerIri: binding.dimensionIri,
             role: 'EXPLICIT_AXIS_CLOSURE_MEMBER',
+            sourceIri: binding.sourceIri,
+            sourceKind: binding.sourceKind,
             termKey: `class\0${classIri}`,
           });
         }
-        for (const individual of matchingIndividuals(closure.memberClassIris)) add({
+        if (binding.sourceKind === 'classinstances') {
+          for (const individual of matchingIndividuals(closure.memberClassIris)) add({
+            bindingIri: binding.bindingIri,
+            bindingPosition: binding.position,
+            closureDigest: closure.closureDigest,
+            closureIri: closure.closureIri,
+            dimensionIri: binding.dimensionIri,
+            familyIri: family.familyIri,
+            familyRecordDigest: family.familyRecordDigest,
+            ownerIri: binding.dimensionIri,
+            role: 'EXACT_CLASS_INSTANCE_VALUE_MEMBERSHIP',
+            sourceIri: binding.sourceIri,
+            sourceKind: binding.sourceKind,
+            sourceScopeIri: binding.sourceScopeIri,
+            termKey: individual.termKey,
+          });
+        }
+      }
+      if (binding.sourceKind === 'controlledlist') {
+        for (const value of binding.controlledValues) add({
+          bindingIri: binding.bindingIri,
           bindingPosition: binding.position,
-          closureDigest: closure.closureDigest,
-          closureIri: closure.closureIri,
+          controlledValueKey: value.key,
+          controlledValueSetDigest: binding.controlledValueSetDigest,
+          dimensionIri: binding.dimensionIri,
           familyIri: family.familyIri,
           familyRecordDigest: family.familyRecordDigest,
           ownerIri: binding.dimensionIri,
-          role: 'FINITE_AXIS_VALUE_CLASSIFICATION',
-          termKey: individual.termKey,
+          role: 'EXACT_CONTROLLED_LIST_VALUE_MEMBERSHIP',
+          sourceIri: binding.sourceIri,
+          sourceKind: binding.sourceKind,
+          sourceScopeIri: binding.sourceScopeIri,
+          termKey: `individual\0${value.iri}`,
         });
+      } else if (!['classinstances', 'derivedselector'].includes(binding.sourceKind)) {
+        fail('UNIVERSAL_COVERAGE_VALUE_SOURCE_KIND_UNSUPPORTED', binding.sourceKind);
       }
       for (const step of binding.selector?.steps ?? []) {
         add({
+          bindingIri: binding.bindingIri,
           bindingPosition: binding.position,
+          dimensionIri: binding.dimensionIri,
           directionIri: step.directionIri,
           familyIri: family.familyIri,
           familyRecordDigest: family.familyRecordDigest,
@@ -1189,18 +1254,24 @@ export function buildExactCoverageWitnessIndex(inventory, registry) {
           predicateIri: step.predicateIri,
           role: 'EXACT_DIMENSION_SELECTOR_STEP',
           selectorDigest: binding.selector.digest,
+          sourceIri: binding.sourceIri,
+          sourceKind: binding.sourceKind,
           stepIndex: step.index,
           termKey: `property\0${step.predicateIri}`,
         });
       }
       for (const predicateIri of binding.derivationPredicateIris) {
         add({
+          bindingIri: binding.bindingIri,
           bindingPosition: binding.position,
+          dimensionIri: binding.dimensionIri,
           familyIri: family.familyIri,
           familyRecordDigest: family.familyRecordDigest,
           ownerIri: binding.valueDerivationRootIri ?? binding.sourceIri,
           predicateIri,
           role: 'EXACT_VALUE_DERIVATION_PREDICATE',
+          sourceIri: binding.sourceIri,
+          sourceKind: binding.sourceKind,
           termKey: `property\0${predicateIri}`,
         });
       }
@@ -1256,7 +1327,7 @@ export function buildExactCoverageWitnessIndex(inventory, registry) {
     recordKind: 'USF_UNIVERSAL_EXACT_COVERAGE_WITNESS_INDEX',
     records,
     registryDigest: registry.registryDigest,
-    schemaVersion: 2,
+    schemaVersion: 3,
     witnessCount: records.length,
   };
   return { ...core, witnessIndexDigest: digest(core) };
@@ -1834,7 +1905,7 @@ export function analyseUniversalFamilyCompleteness({
     relationshipSignatureWitnessCount: signatureWitnesses.witnessCount,
     relationshipSignatureWitnessSetDigest: signatureWitnesses.setDigest,
     relationshipSignatureWitnesses: signatureWitnesses.records,
-    schemaVersion: 3,
+    schemaVersion: 4,
     termDispositionPartition,
     termDispositionSetDigest: digest(dispositionResult.dispositions),
     termDispositions: dispositionResult.dispositions,

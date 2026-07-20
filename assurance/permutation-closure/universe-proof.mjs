@@ -1246,6 +1246,28 @@ function reconstructIndependentFamilyRegistry(metaModel) {
       if (!SOURCE_KIND.has(sourceKind) || !SOURCE_SCOPE.has(sourceScopeIri)) {
         fail('PERMUTATION_META_MODEL_INVALID', `${sourceIri} uses an uncontrolled source kind or scope`);
       }
+      const declaredValues = iriValues(metaModel.store, dimensionIri, 'hasDimensionValue')
+        .map((valueIri) => {
+          if (!metaInstances(metaModel.store, `${O}PermutationDimensionValue`).includes(valueIri)) {
+            fail('DIMENSION_VALUE_TYPE_INVALID', `${valueIri} is not a PermutationDimensionValue`);
+          }
+          const key = oneIndependentValue(metaModel.store, valueIri, 'dimensionValueKey',
+            'DIMENSION_VALUE_KEY_CARDINALITY');
+          if (key.length === 0) {
+            fail('DIMENSION_VALUE_KEY_CARDINALITY', `${valueIri} has an empty declared key`);
+          }
+          return { iri: valueIri, key };
+        }).sort((left, right) => compareCodeUnits(left.key, right.key)
+          || compareCodeUnits(left.iri, right.iri));
+      if (new Set(declaredValues.map(({ key }) => key)).size !== declaredValues.length) {
+        fail('DIMENSION_VALUE_KEY_DUPLICATE', `${dimensionIri} repeats a declared value key`);
+      }
+      if (sourceKind === 'controlledlist' && declaredValues.length === 0) {
+        fail('CONTROLLED_DIMENSION_VALUE_SET_EMPTY', `${dimensionIri} has no controlled values`);
+      }
+      const declaredValueSetDigest = declaredValues.length > 0 ? fullDigest(declaredValues) : null;
+      const controlledValues = sourceKind === 'controlledlist' ? declaredValues : [];
+      const controlledValueSetDigest = sourceKind === 'controlledlist' ? declaredValueSetDigest : null;
       const valueSelectorIris = iriValues(metaModel.store, sourceIri, 'valueSourceSelector');
       const derivationRootIris = iriValues(metaModel.store, sourceIri, 'valueSourceDerivationRoot');
       if (valueSelectorIris.length > 1 || derivationRootIris.length > 1) {
@@ -1286,6 +1308,10 @@ function reconstructIndependentFamilyRegistry(metaModel) {
       return {
         axisClassClosureDigests: axisClassClosures.map(({ digest }) => digest),
         bindingIri,
+        controlledValueSetDigest,
+        controlledValues,
+        declaredValueSetDigest,
+        declaredValues,
         derivationPredicateIris,
         dimensionIri,
         key: oneIndependentValue(metaModel.store, dimensionIri, 'permutationDimensionKey',
@@ -1331,7 +1357,7 @@ function reconstructIndependentFamilyRegistry(metaModel) {
       policyIri: closure.policyIri,
       rootClassIri: closure.rootClassIri,
     })).sort((left, right) => compareCodeUnits(left.closureIri, right.closureIri)),
-    schemaVersion: 4,
+    schemaVersion: 5,
   };
   return Object.freeze({
     families: Object.freeze(families),

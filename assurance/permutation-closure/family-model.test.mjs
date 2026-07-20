@@ -152,7 +152,7 @@ test('structured registry digests and runtime-assurance planes close independent
   assert.equal(familyRegistry.selectors.size, subjectsOfType('PermutationSignalSelector').length);
   assert.equal(familyRegistry.rules.size, subjectsOfType('PermutationApplicabilityRule').length);
   assert.equal(familyRegistry.registryDigest, digest(familyRegistry.registryRecord));
-  assert.equal(familyRegistry.registryRecord.schemaVersion, 4);
+  assert.equal(familyRegistry.registryRecord.schemaVersion, 5);
   for (const family of familyRegistry.families) {
     const authoredBindingIris = objectsOf(family.iri, 'hasFamilyDimensionBinding')
       .map(({ value }) => value).sort();
@@ -168,6 +168,15 @@ test('structured registry digests and runtime-assurance planes close independent
   bindingIdentityMutation.families[0].dimensions[0].bindingIri += ':mutation';
   assert.notEqual(digest(bindingIdentityMutation), familyRegistry.registryDigest,
     'registry digest must bind every authored dimension-binding identity');
+  const controlledBinding = familyRegistry.registryRecord.families
+    .flatMap(({ dimensions }) => dimensions).find(({ controlledValues }) => controlledValues.length > 0);
+  assert.ok(controlledBinding);
+  const controlledValueMutation = structuredClone(familyRegistry.registryRecord);
+  const mutationBinding = controlledValueMutation.families.flatMap(({ dimensions }) => dimensions)
+    .find(({ bindingIri }) => bindingIri === controlledBinding.bindingIri);
+  mutationBinding.controlledValues[0].iri += ':mutation';
+  assert.notEqual(digest(controlledValueMutation), familyRegistry.registryDigest,
+    'registry digest must bind exact controlled-list membership');
   const assuranceFamilies = censusFamilies
     .filter(({ planeIri }) => planeIri === FAMILY_PLANES.assurance)
     .map(({ iri }) => iri);
@@ -397,6 +406,18 @@ test('every controlledlist dimension enumerates >=2 values; delegationmode/legal
     const key = oneLiteral(source, 'canonicalName');
     const dimension = `urn:usf:permutationdimension:closure${key}`;
     const values = objectsOf(dimension, 'hasDimensionValue').map((t) => t.value);
+    const bindings = censusFamilies.flatMap(({ bindings: familyBindings }) => familyBindings)
+      .filter(({ dimensionIri }) => dimensionIri === dimension);
+    assert.ok(bindings.length > 0, `${dimension} must be used by a registered family`);
+    const expected = values.map((iri) => ({ iri, key: oneLiteral(iri, 'dimensionValueKey') }))
+      .sort((left, right) => (left.key < right.key ? -1 : left.key > right.key ? 1
+        : left.iri < right.iri ? -1 : left.iri > right.iri ? 1 : 0));
+    for (const binding of bindings) {
+      assert.deepEqual(binding.controlledValues, expected);
+      assert.deepEqual(binding.declaredValues, expected);
+      assert.equal(binding.controlledValueSetDigest, digest(expected));
+      assert.equal(binding.declaredValueSetDigest, digest(expected));
+    }
     assert.ok(values.length >= 2, `controlledlist ${key} needs >=2 values, has ${values.length}`);
     for (const value of values) {
       assert.equal(subjectsOfType('PermutationDimensionValue').includes(value), true,
@@ -407,6 +428,25 @@ test('every controlledlist dimension enumerates >=2 values; delegationmode/legal
       assert.equal(values.length, 2, `${key} must have exactly 2 values`);
     }
   }
+});
+
+test('controlled dimension declarations fail closed with exact diagnostics', () => {
+  expectRegistryCode((source) => source.replace(
+    '    usf:dimensionValueSource dvs:ackmode;\n    usf:hasDimensionValue pdv:ackmodeacknowledge, pdv:ackmodenegativeacknowledge, pdv:ackmodenone.',
+    '    usf:dimensionValueSource dvs:ackmode.',
+  ), 'CONTROLLED_DIMENSION_VALUE_SET_EMPTY');
+  expectRegistryCode((source) => source.replace(
+    'usf:hasDimensionValue pdv:ackmodeacknowledge, pdv:ackmodenegativeacknowledge, pdv:ackmodenone.',
+    'usf:hasDimensionValue pdv:ackmodeacknowledge, "not-an-iri", pdv:ackmodenone.',
+  ), 'DIMENSION_VALUE_TERM_INVALID');
+  expectRegistryCode((source) => source.replace(
+    'pdv:ackmodenegativeacknowledge a usf:PermutationDimensionValue;',
+    'pdv:ackmodenegativeacknowledge a usf:ControlledValue;',
+  ), 'DIMENSION_VALUE_TYPE_INVALID');
+  expectRegistryCode((source) => source.replace(
+    'usf:dimensionValueKey "negativeacknowledge".',
+    'usf:dimensionValueKey "acknowledge".',
+  ), 'DIMENSION_VALUE_KEY_DUPLICATE');
 });
 
 test('all registered dimension sources have one compatible controlled source scope', () => {
@@ -497,6 +537,13 @@ test('service lifecycle catalogue is the exact finite 20-obligation foundation d
     assert.equal(value, `urn:usf:permutationdimensionvalue:lifecycleobligation${key}`);
     assert.equal(oneLiteral(value, 'canonicalName'), `lifecycleobligation${key}`);
   }
+  const binding = censusFamilies.flatMap(({ bindings }) => bindings)
+    .find(({ dimensionIri }) => dimensionIri === 'urn:usf:permutationdimension:closurelifecycleobligation');
+  assert.ok(binding);
+  assert.equal(binding.sourceKind, 'derivedselector');
+  assert.equal(binding.controlledValues.length, 0,
+    'a declared derived-selector catalogue must not become an operational controlled-list domain');
+  assert.deepEqual(binding.declaredValues.map(({ key }) => key), keys);
 });
 
 test('condition, reachability and token foundation catalogues are finite and digest-bound', () => {

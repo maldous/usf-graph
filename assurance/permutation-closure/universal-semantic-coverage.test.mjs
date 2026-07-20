@@ -313,6 +313,71 @@ test('fresh inventory and registry use exact current sources without census or g
   }
 });
 
+test('value witnesses follow exact source-kind semantics without cross-dimension contamination', () => {
+  assert.equal(registry.schemaVersion, 5);
+  const controlledBindings = registry.families.flatMap(({ familyIri, orderedBindings }) => (
+    orderedBindings.filter(({ sourceKind }) => sourceKind === 'controlledlist')
+      .map((binding) => ({ ...binding, familyIri }))
+  ));
+  assert.ok(controlledBindings.length >= 2);
+  const target = controlledBindings[0];
+  const donor = controlledBindings.find(({ dimensionIri }) => dimensionIri !== target.dimensionIri);
+  assert.ok(donor);
+  assert.ok(target.controlledValues.length > 0);
+  assert.equal(target.controlledValueSetDigest, digest(target.controlledValues));
+  assert.deepEqual(target.controlledValues, target.declaredValues);
+  const targetValue = target.controlledValues[0];
+  const foreignValue = donor.controlledValues[0];
+  const exactTargetWitnesses = analysis.witnesses.filter(({ bindingIri, role }) => (
+    bindingIri === target.bindingIri && role === 'EXACT_CONTROLLED_LIST_VALUE_MEMBERSHIP'
+  ));
+  assert.equal(exactTargetWitnesses.some(({ termKey }) => (
+    termKey === `individual\0${targetValue.iri}`
+  )), true);
+  assert.equal(exactTargetWitnesses.some(({ termKey }) => (
+    termKey === `individual\0${foreignValue.iri}`
+  )), false, 'generic PermutationDimensionValue typing must not cross dimension boundaries');
+
+  const derivedLifecycle = registry.families.flatMap(({ orderedBindings }) => orderedBindings)
+    .find(({ dimensionIri }) => (
+      dimensionIri === 'urn:usf:permutationdimension:closurelifecycleobligation'
+    ));
+  assert.ok(derivedLifecycle);
+  assert.equal(derivedLifecycle.sourceKind, 'derivedselector');
+  assert.equal(derivedLifecycle.declaredValues.length, 20);
+  assert.equal(derivedLifecycle.controlledValues.length, 0);
+  assert.equal(analysis.witnesses.some(({ bindingIri, role }) => (
+    bindingIri === derivedLifecycle.bindingIri
+      && ['EXACT_CONTROLLED_LIST_VALUE_MEMBERSHIP', 'EXACT_CLASS_INSTANCE_VALUE_MEMBERSHIP'].includes(role)
+  )), false, 'a derived selector must not inherit all terminal or declared catalogue instances');
+  assert.equal(analysis.witnesses.some(({ bindingIri, role }) => (
+    bindingIri === derivedLifecycle.bindingIri && role === 'EXACT_DIMENSION_SELECTOR_STEP'
+  )), true);
+
+  const classInstanceCase = registry.families.flatMap(({ orderedBindings }) => orderedBindings)
+    .map((binding) => ({
+      binding,
+      individual: inventory.individuals.find(({ explicitTypeIris }) => binding.sourceKind === 'classinstances'
+        && explicitTypeIris.some((typeIri) => binding.axisClassClosures
+          .some(({ memberClassIris }) => memberClassIris.includes(typeIri)))),
+    })).find(({ individual }) => individual);
+  assert.ok(classInstanceCase);
+  assert.equal(analysis.witnesses.some(({ bindingIri, role, termKey }) => (
+    bindingIri === classInstanceCase.binding.bindingIri
+      && role === 'EXACT_CLASS_INSTANCE_VALUE_MEMBERSHIP'
+      && termKey === classInstanceCase.individual.termKey
+  )), true);
+
+  const stale = structuredClone(registry);
+  const staleBinding = stale.families.flatMap(({ orderedBindings }) => orderedBindings)
+    .find(({ bindingIri }) => bindingIri === target.bindingIri);
+  staleBinding.controlledValueSetDigest = `sha256:${'f'.repeat(64)}`;
+  const { registryDigest: omitted, ...staleCore } = stale;
+  stale.registryDigest = digest(staleCore);
+  expectCode(() => buildExactCoverageWitnessIndex(inventory, stale),
+    'UNIVERSAL_COVERAGE_CONTROLLED_VALUE_BINDING_INVALID');
+});
+
 test('review graph bytes are separately bound and cannot recursively alter semantic inventory', () => {
   const fixture = createReviewPlaneRepository();
   try {
@@ -673,6 +738,50 @@ test('independent proof reconstructs full subject-local family semantics and rej
       registry: rebound(mutate),
     }), code);
   }
+});
+
+test('independent proof rejects a fully redigested controlled-domain substitution', () => {
+  const controlledCandidate = structuredClone(registry);
+  const controlledBindings = controlledCandidate.families.flatMap(({ orderedBindings }) => orderedBindings)
+    .filter(({ sourceKind }) => sourceKind === 'controlledlist');
+  assert.ok(controlledBindings.length >= 2);
+  for (const field of [
+    'controlledValueSetDigest', 'controlledValues', 'declaredValueSetDigest', 'declaredValues',
+  ]) controlledBindings[0][field] = structuredClone(controlledBindings[1][field]);
+  const { registryDigest: omittedControlledDigest, ...controlledCore } = controlledCandidate;
+  controlledCandidate.registryDigest = digest(controlledCore);
+  expectCode(() => proveUniversalSemanticCoverage({
+    algorithmSourceDigest: digest('universal-controlled-domain-substitution-test'),
+    analysis,
+    authorityBinding: AUTHORITY_BINDING,
+    authorityInputRoot,
+    ...AUTHORITY_INPUT_PATHS,
+    foundationAssessment: foundation.assessment,
+    foundationProof: foundation.proof,
+    inventory,
+    reviewProjection,
+    registry: controlledCandidate,
+    repositoryRoot,
+  }), 'UNIVERSAL_PROOF_CONTROLLED_DOMAIN_SUBSTITUTION');
+});
+
+test('independent proof accepts the corrected source-kind witness reconstruction', () => {
+  const proof = proveUniversalSemanticCoverage({
+    algorithmSourceDigest: digest('universal-source-kind-witness-reconstruction-test'),
+    analysis,
+    authorityBinding: AUTHORITY_BINDING,
+    authorityInputRoot,
+    ...AUTHORITY_INPUT_PATHS,
+    foundationAssessment: foundation.assessment,
+    foundationProof: foundation.proof,
+    inventory,
+    reviewProjection,
+    registry,
+    repositoryRoot,
+  });
+  assert.equal(proof.verdict, 'UNIVERSAL_SEMANTIC_GAP_AND_CROSS_PRODUCT_RECONSTRUCTION_PASS');
+  assert.equal(proof.results.analysisReconstructionMismatchCount, 0);
+  assert.equal(proof.results.familyReconstructionMismatchCount, 0);
 });
 
 test('exact external standard dependencies fail closed when either bound term disappears', () => {

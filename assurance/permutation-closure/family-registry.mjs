@@ -23,6 +23,7 @@ const TYPES = Object.freeze({
   classClosure: `${O}PermutationClassClosure`,
   derivation: `${O}PermutationValueDerivation`,
   derivationOperand: `${O}PermutationValueDerivationOperand`,
+  dimensionValue: `${O}PermutationDimensionValue`,
   family: `${O}PermutationFamily`,
   operand: `${O}PermutationApplicabilityOperand`,
   rule: `${O}PermutationApplicabilityRule`,
@@ -48,9 +49,11 @@ const P = Object.freeze({
   dimensionKey: `${O}permutationDimensionKey`,
   dimensionPosition: `${O}dimensionPosition`,
   dimensionValueSource: `${O}dimensionValueSource`,
+  dimensionValueKey: `${O}dimensionValueKey`,
   expectedValue: `${O}applicabilityExpectedValue`,
   familyRule: `${O}familyApplicabilityRule`,
   familySubjectRegistration: `${O}familySubjectRegistration`,
+  hasDimensionValue: `${O}hasDimensionValue`,
   operandClause: `${O}applicabilityOperandClause`,
   operandIndex: `${O}applicabilityOperandIndex`,
   plane: `${O}registeredFamilyPlane`,
@@ -97,6 +100,8 @@ const CLASS_BEARING_DERIVATION_OPERATORS = new Set([
   'urn:usf:permutationvaluederivationoperator:classinstances',
   'urn:usf:permutationvaluederivationoperator:filtertypeany',
 ]);
+
+const VALUE_SOURCE_KINDS = new Set(['classinstances', 'controlledlist', 'derivedselector']);
 
 export const FAMILY_PLANES = Object.freeze({
   assurance: 'urn:usf:permutationfamilyplane:assuranceobligation',
@@ -547,8 +552,38 @@ export function loadPermutationFamilyRegistry({ repositoryRoot, verifyStoredDige
       }
       const sourceKind = exactLiteral(store, sourceIri, P.valueSourceKind,
         'VALUE_SOURCE_KIND_CARDINALITY_INVALID');
+      if (!VALUE_SOURCE_KINDS.has(sourceKind)) {
+        fail('VALUE_SOURCE_KIND_UNSUPPORTED', `${sourceIri} uses unsupported kind ${sourceKind}`);
+      }
       const sourceScopeIri = exactIri(store, sourceIri, P.valueSourceScope,
         'VALUE_SOURCE_SCOPE_CARDINALITY_INVALID');
+      const dimensionValueTerms = optionalTerms(store, dimensionIri, P.hasDimensionValue);
+      if (dimensionValueTerms.some(({ termType }) => termType !== 'NamedNode')) {
+        fail('DIMENSION_VALUE_TERM_INVALID', `${dimensionIri} has a non-IRI declared value`);
+      }
+      const declaredValues = dimensionValueTerms.map(({ value: valueIri }) => {
+          const explicitlyTyped = objects(store, valueIri, TYPE)
+            .some(({ termType, value }) => termType === 'NamedNode' && value === TYPES.dimensionValue);
+          if (!explicitlyTyped) {
+            fail('DIMENSION_VALUE_TYPE_INVALID', `${valueIri} is not a PermutationDimensionValue`);
+          }
+          const key = exactLiteral(store, valueIri, P.dimensionValueKey,
+            'DIMENSION_VALUE_KEY_CARDINALITY');
+          if (key.length === 0) {
+            fail('DIMENSION_VALUE_KEY_CARDINALITY', `${valueIri} has an empty controlled key`);
+          }
+          return { iri: valueIri, key };
+        }).sort((left, right) => compare(left.key, right.key) || compare(left.iri, right.iri));
+      if (new Set(declaredValues.map(({ key }) => key)).size !== declaredValues.length) {
+        fail('DIMENSION_VALUE_KEY_DUPLICATE', `${dimensionIri} repeats a declared value key`);
+      }
+      if (sourceKind === 'controlledlist' && declaredValues.length === 0) {
+        fail('CONTROLLED_DIMENSION_VALUE_SET_EMPTY', `${dimensionIri} has no controlled values`);
+      }
+      const declaredValueSetDigest = declaredValues.length > 0
+        ? sha256(canonicalJson(declaredValues)) : null;
+      const controlledValues = sourceKind === 'controlledlist' ? declaredValues : [];
+      const controlledValueSetDigest = sourceKind === 'controlledlist' ? declaredValueSetDigest : null;
       const derivationPredicateIris = optionalTerms(store, sourceIri, P.valueSourceDerivationPredicate)
         .map(({ value }) => value).sort(compare);
       const registeredScope = 'urn:usf:dimensionvaluesourcescope:registeredsubjectrelationship';
@@ -608,6 +643,10 @@ export function loadPermutationFamilyRegistry({ repositoryRoot, verifyStoredDige
       return {
         axisClassClosures: Object.freeze(axisClassClosures),
         bindingIri,
+        controlledValueSetDigest,
+        controlledValues: Object.freeze(controlledValues.map((value) => Object.freeze(value))),
+        declaredValueSetDigest,
+        declaredValues: Object.freeze(declaredValues.map((value) => Object.freeze(value))),
         derivationPredicateIris,
         dimensionIri,
         key: exactLiteral(store, dimensionIri, P.dimensionKey, 'FAMILY_DIMENSION_KEY_CARDINALITY'),
@@ -766,10 +805,16 @@ export function loadPermutationFamilyRegistry({ repositoryRoot, verifyStoredDige
   const familyRegistryRecord = {
     families: families.map((family) => ({
       canonicalName: family.canonicalName,
-      dimensions: family.bindings.map(({ axisClassClosures, bindingIri, derivationPredicateIris, dimensionIri, key, position, sourceIri,
+      dimensions: family.bindings.map(({ axisClassClosures, bindingIri, controlledValueSetDigest, controlledValues,
+        declaredValueSetDigest, declaredValues,
+        derivationPredicateIris, dimensionIri, key, position, sourceIri,
         sourceKind, sourceScopeIri, valueDerivationRootIri, valueSelectorIri, valueSourceDigest }) => ({
         axisClassClosureDigests: axisClassClosures.map(({ digest }) => digest),
         bindingIri,
+        controlledValueSetDigest,
+        controlledValues,
+        declaredValueSetDigest,
+        declaredValues,
         derivationPredicateIris,
         dimensionIri,
         key,
@@ -798,7 +843,7 @@ export function loadPermutationFamilyRegistry({ repositoryRoot, verifyStoredDige
       policyIri: closure.policyIri,
       rootClassIri: closure.rootClassIri,
     })).sort((left, right) => compare(left.closureIri, right.closureIri)),
-    schemaVersion: 4,
+    schemaVersion: 5,
   };
   return Object.freeze({
     families: Object.freeze(families),
