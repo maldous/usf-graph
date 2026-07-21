@@ -973,31 +973,7 @@ class FactoryEngine:
             )
         integration_failed = bool(accepted_results) and not attempt.deterministic_merge_ok
 
-        sm.transition(CycleState.REVIEWING)
-        # SUBSTANTIVE review is required for EVERY wave patch unless every
-        # selected packet is explicitly low-risk mechanical work: semantic
-        # subjects, high/protected risk, or non-mechanical medium risk all
-        # demand a real reviewer. No reviewer available => BLOCKED (fail closed);
-        # an explicit reviewer rejection also blocks.
-        needs_review = wave is not None and self._wave_requires_review(pset, by_id)
-        reviewer: Any = None
-        if needs_review and self._reviewer_factory is not None:
-            try:
-                reviewer = self._reviewer_factory()
-            except Exception:
-                reviewer = None
-        review = await (reviewer if reviewer is not None else NoopReviewer()).review(
-            pset.set_id, wave
-        )
-        self.ctx.store.put(
-            "wave_reviews",
-            f"{pset.set_id}:{review.reviewer_profile_id}",
-            review.content_dict(),
-            extra={"set_id": pset.set_id},
-        )
-        review_unavailable = needs_review and reviewer is None
-        review_rejected = needs_review and reviewer is not None and not review.approved
-
+        # VALIDATE FIRST so the reviewer receives the actual validation evidence.
         sm.transition(CycleState.VALIDATING)
         receipt = self._validate_wave(pset, wave, snap)
         self.ctx.store.put(
@@ -1007,6 +983,37 @@ class FactoryEngine:
             extra={"set_id": pset.set_id},
         )
         validation_failed = wave is not None and not receipt.all_passed
+
+        sm.transition(CycleState.REVIEWING)
+        # SUBSTANTIVE review is required for EVERY wave patch unless every
+        # selected packet is explicitly low-risk mechanical work: semantic
+        # subjects, high/protected risk, or non-mechanical medium risk all
+        # demand a real reviewer. No reviewer available => BLOCKED (fail closed);
+        # an explicit reviewer rejection also blocks. The reviewer gets the ACTUAL
+        # diff + semantic delta + validation evidence via the context bundle.
+        needs_review = wave is not None and self._wave_requires_review(pset, by_id)
+        reviewer: Any = None
+        if needs_review and self._reviewer_factory is not None:
+            try:
+                reviewer = self._reviewer_factory()
+            except Exception:
+                reviewer = None
+        bundle = (
+            self._build_review_bundle(pset, wave, receipt, accepted_results)
+            if wave is not None
+            else None
+        )
+        review = await (reviewer if reviewer is not None else NoopReviewer()).review(
+            pset.set_id, wave, bundle
+        )
+        self.ctx.store.put(
+            "wave_reviews",
+            f"{pset.set_id}:{review.reviewer_profile_id}",
+            review.content_dict(),
+            extra={"set_id": pset.set_id},
+        )
+        review_unavailable = needs_review and reviewer is None
+        review_rejected = needs_review and reviewer is not None and not review.approved
 
         # Post-wave re-snapshot (read-only) before terminal evaluation.
         try:
@@ -1087,6 +1094,42 @@ class FactoryEngine:
             accepted=len(accepted),
             no_progress=no_progress,
             blockers=blockers,
+        )
+
+    def _build_review_bundle(self, pset, wave, receipt, accepted_results=None):
+        """Bounded ReviewContextBundle carrying the ACTUAL effective diff, the
+        patch-derived semantic delta, validation gates and worker attribution."""
+        from .review import ReviewContextBundle
+        from .semantic_delta import extract_semantic_delta
+
+        diff = ""
+        if wave is not None and getattr(wave, "patch_ref", None):
+            try:
+                diff = self.ctx.store.cas_get(wave.patch_ref).decode()
+            except Exception:
+                diff = ""
+        delta = extract_semantic_delta(diff).to_dict() if diff else {}
+        by_id = {p.packet_id: p for p in pset.packets}
+        objectives = [by_id[pid].objective for pid in pset.selected_packet_ids if pid in by_id]
+        criteria = sorted(
+            {
+                c
+                for pid in pset.selected_packet_ids
+                if pid in by_id
+                for c in by_id[pid].acceptance_criteria
+            }
+        )
+        attribution = {}
+        for r in accepted_results or []:
+            attribution[r.packet_id] = f"{r.actual_provider or '?'}/{r.actual_model or '?'}"
+        return ReviewContextBundle(
+            set_id=pset.set_id,
+            packet_objectives=objectives,
+            acceptance_criteria=criteria,
+            effective_diff=diff,
+            semantic_delta=delta,
+            validation_gates=dict(receipt.gates) if receipt is not None else {},
+            worker_attribution=attribution,
         )
 
     def _wave_requires_review(self, pset: PacketSet, by_id: dict[str, Packet]) -> bool:

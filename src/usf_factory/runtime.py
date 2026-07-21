@@ -98,7 +98,13 @@ def production_reviewer_factory(ctx: RuntimeContext):
                 adapter = build_registry(ctx).adapter(profile.provider_id)
             except Exception:
                 continue
-            return AiReviewer(adapter.invoke, profile.profile_id)
+            return AiReviewer(
+                adapter.invoke,
+                profile.profile_id,
+                provider_id=profile.provider_id,
+                model_id=profile.requested_model_id,
+                adapter_id=profile.adapter,
+            )
         return None
 
     return make

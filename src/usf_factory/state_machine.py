@@ -35,9 +35,26 @@ _TRANSITIONS: dict[CycleState, set[CycleState]] = {
         CycleState.FAILED,
     },
     CycleState.EXECUTING: {CycleState.INTEGRATING, CycleState.BLOCKED, CycleState.FAILED},
-    CycleState.INTEGRATING: {CycleState.REVIEWING, CycleState.BLOCKED, CycleState.FAILED},
-    CycleState.REVIEWING: {CycleState.VALIDATING, CycleState.BLOCKED, CycleState.FAILED},
-    CycleState.VALIDATING: {CycleState.LEARNED, CycleState.BLOCKED, CycleState.FAILED},
+    # Validate BEFORE review so the reviewer receives the actual validation
+    # evidence; both orderings are permitted.
+    CycleState.INTEGRATING: {
+        CycleState.VALIDATING,
+        CycleState.REVIEWING,
+        CycleState.BLOCKED,
+        CycleState.FAILED,
+    },
+    CycleState.VALIDATING: {
+        CycleState.REVIEWING,
+        CycleState.LEARNED,
+        CycleState.BLOCKED,
+        CycleState.FAILED,
+    },
+    CycleState.REVIEWING: {
+        CycleState.VALIDATING,
+        CycleState.LEARNED,
+        CycleState.BLOCKED,
+        CycleState.FAILED,
+    },
     CycleState.LEARNED: {
         CycleState.COMPLETE,
         CycleState.READY,

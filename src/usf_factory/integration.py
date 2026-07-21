@@ -73,10 +73,67 @@ def _git_apply_index(clone: Path, patch_text: str) -> bool:
 
 class AiIntegrator(Protocol):
     async def integrate(
-        self, results: list[PacketResult], conflicts: list[str]
+        self, results: list[PacketResult], conflicts: list[str], patches: dict[str, str]
     ) -> tuple[str, dict[str, Attribution]]:
         """Return (effective_wave_patch, attributions). Billable; gated."""
         ...
+
+
+INTEGRATOR_SYSTEM = (
+    "You are a USF wave integrator. Bounded worker patches conflict semantically. "
+    "Produce ONE reconciled unified diff (git format) that resolves the conflict "
+    "while preserving every non-conflicting change. Return ONLY the diff. Do not "
+    "broaden scope, invent IRIs, or delete unrelated work."
+)
+
+
+class SemanticAiIntegrator:
+    """A qualified integrator agent that reconciles conflicting worker patches
+    into one effective wave patch. Invoked ONLY on a deterministic semantic
+    conflict; the orchestrator (not the model) applies and validates the result."""
+
+    def __init__(
+        self, invoke, agent_profile_id: str, provider_id: str = "", model_id: str = ""
+    ) -> None:
+        self._invoke = invoke
+        self.agent_profile_id = agent_profile_id
+        self.provider_id = provider_id
+        self.model_id = model_id
+
+    async def integrate(
+        self, results: list[PacketResult], conflicts: list[str], patches: dict[str, str]
+    ) -> tuple[str, dict[str, Attribution]]:
+        import json
+
+        from .models import AgentRequest
+
+        prompt = (
+            INTEGRATOR_SYSTEM
+            + "\n\nCONFLICTS:\n"
+            + json.dumps(conflicts, sort_keys=True)
+            + "\n\nWORKER PATCHES (packet_id -> diff):\n"
+            + json.dumps({k: v[:8000] for k, v in sorted(patches.items())}, sort_keys=True)
+        )
+        req = AgentRequest(
+            agent_profile_id=self.agent_profile_id,
+            packet_id="integration",
+            instructions=prompt,
+            provider_id=self.provider_id,
+            requested_model_id=self.model_id,
+        )
+        resp = await self._invoke(req)
+        effective = resp.output_text or ""
+        # Attribution: the integrator rewrote these packets' changes.
+        attrs: dict[str, Attribution] = {}
+        for r in results:
+            wp = patches.get(r.packet_id, "")
+            attrs[r.packet_id] = compute_attribution(
+                wp,
+                effective,
+                worker_patch_digest=r.patch_digest,
+                reason=f"ai-integrator reconciliation by {self.agent_profile_id}",
+            )
+        return effective, attrs
 
 
 def deterministic_preintegrate(

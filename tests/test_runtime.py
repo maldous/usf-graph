@@ -23,7 +23,8 @@ class _TestReviewer:
         self._approved = approved
         self._risk_flags = risk_flags or []
 
-    async def review(self, set_id, wave):
+    async def review(self, set_id, wave, bundle=None):
+        self.last_bundle = bundle
         return WaveReview(
             set_id=set_id,
             reviewer_profile_id="test-reviewer",
