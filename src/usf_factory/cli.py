@@ -147,8 +147,18 @@ def run(
     mode: str = typer.Option(
         "plan-only", "--mode", help="observe | plan-only | shadow | approve-wave | autonomous-safe"
     ),
+    continuous: bool = typer.Option(
+        False, "--continuous", help="loop until no-progress / quota / blocker / pause"
+    ),
+    max_cycles: int = typer.Option(20, "--max-cycles", help="hard cap for --continuous"),
 ) -> None:
-    """Run one cycle in the given mode (observe/plan-only are non-mutating)."""
+    """Run one cycle (or a bounded continuous loop) in the given mode.
+
+    ``--continuous`` (Phase 16): refresh -> snapshot -> plan -> execute ->
+    integrate analysis -> metrics, stopping on no-progress, a blocker, pause, or
+    the cycle cap. It never re-runs an unchanged packet set and keeps merge /
+    publication / terminal completion disabled. A candidate-patch flow halts at
+    AWAITING_OPERATOR_DELIVERY."""
     try:
         run_mode = RunMode(mode)
     except ValueError:
@@ -162,10 +172,96 @@ def run(
         if (ctx.paths.state / "PAUSED").exists():
             err.print("[yellow]factory is paused; run `usf-factory resume` first[/]")
             raise typer.Exit(code=1)
-        # Fully-wired production engine (worker factory + materialisation index).
-        eng = build_engine(ctx, mode=run_mode)
-        receipt = asyncio.run(eng.run_cycle(run_mode))
-    _print_receipt(receipt)
+        if not continuous:
+            eng = build_engine(ctx, mode=run_mode)
+            receipt = asyncio.run(eng.run_cycle(run_mode))
+            _print_receipt(receipt)
+            return
+        # Continuous shadow loop (bounded, fail-closed stop conditions).
+        seen_sets: set[str] = set()
+        for i in range(max(1, max_cycles)):
+            if (ctx.paths.state / "PAUSED").exists():
+                console.print("[yellow]paused; stopping continuous loop[/]")
+                break
+            eng = build_engine(ctx, mode=run_mode)
+            receipt = asyncio.run(eng.run_cycle(run_mode))
+            console.print(
+                f"cycle {i + 1}: state={receipt.state.value} "
+                f"selected={receipt.selected_packets} accepted={receipt.accepted_packets}"
+            )
+            if receipt.set_id and receipt.set_id in seen_sets:
+                console.print("[dim]same packet set as a prior cycle; stopping (no progress)[/]")
+                break
+            if receipt.set_id:
+                seen_sets.add(receipt.set_id)
+            if receipt.no_progress:
+                console.print("[dim]no progress; stopping[/]")
+                break
+            if receipt.state.value == "BLOCKED":
+                console.print(f"[yellow]blocked: {receipt.blockers}; stopping[/]")
+                break
+            if receipt.selected_packets == 0:
+                console.print("[dim]nothing to do; stopping[/]")
+                break
+
+
+@app.command()
+def activate(
+    free_only: bool = typer.Option(True, "--free-only/--no-free-only"),
+    allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
+    allow_paid_inference: bool = typer.Option(False, "--allow-paid-inference"),
+    max_cost_usd: float = typer.Option(0.0, "--max-cost-usd"),
+    max_models_per_provider: int = typer.Option(3, "--max-models-per-provider"),
+    shadow_packets: int = typer.Option(1, "--shadow-packets"),
+    candidate_packet: bool = typer.Option(False, "--candidate-packet"),
+) -> None:
+    """Run the full activation assessment: refresh -> discover -> probe ->
+    qualify -> admit -> plan-only -> shadow wave -> (optional) one candidate
+    semantic patch -> report. Default budget 0 USD (local/free only); paid
+    inference is never a silent fallback."""
+    from .activation import ActivationOptions, run_activation
+
+    opts = ActivationOptions(
+        free_only=free_only,
+        allow_subscription_inference=allow_subscription_inference,
+        allow_paid_inference=allow_paid_inference,
+        max_cost_usd=max_cost_usd,
+        max_models_per_provider=max_models_per_provider,
+        shadow_packets=shadow_packets,
+        candidate_packet=candidate_packet,
+    )
+    with _ctx() as ctx:
+        report = run_activation(ctx, opts)
+    console.print(
+        Panel(
+            f"USF ok: {report.usf_ok}  triples: {report.triples}\n"
+            f"authority: {report.authority_digest}\nsnapshot: {report.snapshot_id}\n"
+            f"repo head: {report.repository_head}",
+            title="activation — authority",
+        )
+    )
+    t = Table(title="model outcomes")
+    for col in ("provider", "model", "probes", "classification", "roles"):
+        t.add_column(col)
+    for m in report.model_outcomes:
+        t.add_row(
+            m.provider_id,
+            m.model_id[-28:],
+            f"{m.probe_passed}/{m.probe_total}",
+            m.classification,
+            ",".join(m.roles) or "-",
+        )
+    console.print(t)
+    console.print(f"admitted profiles: {len(report.admitted)}")
+    console.print(f"plan-only: {report.plan_only}")
+    console.print(f"shadow: {report.shadow}")
+    console.print(f"candidate: {report.candidate}")
+    console.print(
+        f"tokens in/out: {report.tokens_in}/{report.tokens_out}  cost: ${report.cost_usd}"
+    )
+    if report.blockers:
+        console.print(Panel("\n".join(f"- {b}" for b in report.blockers), title="blockers"))
+    console.print(Panel(report.next_action, title="next action"))
 
 
 def _print_receipt(receipt) -> None:
