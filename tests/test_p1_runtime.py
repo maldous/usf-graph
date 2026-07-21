@@ -80,7 +80,7 @@ def _agent():
     return AgentProfile(
         provider_id="openrouter",
         requested_model_id="openrouter/free",
-        adapter="brokered",
+        adapter="openai_compatible",
         auth_mode=AuthMode.API_TOKEN,
     )
 

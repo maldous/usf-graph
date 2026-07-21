@@ -336,7 +336,7 @@ async def evaluate_provider(ctx: RuntimeContext, cfg: Any, auth: EvalAuth) -> Pr
         if hasattr(adapter, "capabilities")
         else capabilities_for(adapter, cfg)
     )
-    base = base.model_copy(update={"adapter_capabilities": cap.__dict__})
+    base = base.model_copy(update={"adapter_capabilities": cap.as_dict()})
 
     from .models import AgentRequest
 

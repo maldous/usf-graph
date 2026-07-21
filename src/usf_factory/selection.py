@@ -277,16 +277,19 @@ async def assess_model(
 
 
 def _adapter_capabilities(ctx: RuntimeContext, provider_id: str):
-    from .capabilities import AdapterCapabilities, capabilities_for
+    from .capabilities import UNAVAILABLE, capabilities_for, observed_capabilities
     from .providers import build_registry
 
     try:
         adapter = build_registry(ctx).adapter(provider_id)
     except Exception:
-        return AdapterCapabilities(plain_invoke=True, bounded_patch_synthesis=True)
+        # Adapter construction failed => ineligible, never assumed capable.
+        return UNAVAILABLE
     if hasattr(adapter, "capabilities"):
-        return adapter.capabilities()
-    return capabilities_for(adapter, ctx.config.providers.by_id().get(provider_id))
+        cap = adapter.capabilities()
+    else:
+        cap = capabilities_for(adapter, ctx.config.providers.by_id().get(provider_id))
+    return cap.with_observed(observed_capabilities(ctx, provider_id))
 
 
 def _classify_error(exc: Exception) -> str:

@@ -225,6 +225,174 @@ class AiPlanner:
 
 
 # --------------------------------------------------------------------------- #
+# AI plan OPTIMIZER (bounded; never a generator).
+# --------------------------------------------------------------------------- #
+
+# Optimizer output schema: the obligation array plus an optional deletions list
+# (each deletion must carry a reason). Unknown fields rejected.
+PLAN_OPTIMIZER_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "obligations": OBLIGATION_GRAPH_SCHEMA["properties"]["obligations"],
+        "deletions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"id": {"type": "string"}, "reason": {"type": "string"}},
+                "required": ["id", "reason"],
+            },
+        },
+    },
+    "required": ["obligations"],
+}
+
+
+def _optimizer_system(task_classes: list[str]) -> str:
+    from .provider_eval import RULE_BUNDLE
+
+    return (
+        RULE_BUNDLE + "\n"
+        "You are a USF plan OPTIMIZER, NOT a generator. You are given a FIXED set of "
+        "authoritative obligations compiled deterministically from the semantic "
+        "authority. Return ONLY one JSON object matching the schema.\n"
+        "You MAY: rank the obligations by actionability (order the array), consolidate "
+        "duplicate root causes, improve acceptance_criteria, identify dependencies "
+        "(referencing only supplied ids), and mark uncertainty or human_decision_required.\n"
+        "You MUST NOT: invent an obligation whose id is not in the supplied set; alter "
+        "any id or semantic_subjects or task_class; broaden scope (never add write "
+        "scope); or return an empty obligations list while actionable obligations exist. "
+        "To drop an obligation, list it in 'deletions' as {id, reason} — never silently.\n"
+        "Permitted task classes: " + ", ".join(sorted(task_classes)) + "."
+    )
+
+
+class AiPlanOptimizer:
+    """Optimizes (ranks/consolidates/annotates) a deterministic authoritative
+    obligation graph. It can never create authority obligations, alter their ids/
+    subjects/task_class/scope, or empty an actionable graph; on any failure the
+    caller keeps the deterministic graph."""
+
+    def __init__(
+        self,
+        invoke,
+        agent_profile_id: str,
+        *,
+        task_classes: list[str] | None = None,
+        provider_id: str = "",
+        model_id: str = "",
+        adapter_id: str = "",
+    ) -> None:
+        self._invoke = invoke
+        self.agent_profile_id = agent_profile_id
+        self._task_classes = task_classes or []
+        self.provider_id = provider_id
+        self.model_id = model_id
+        self.adapter_id = adapter_id
+
+    async def optimize(self, authoritative: ObligationGraph) -> ObligationGraph:
+        """Return an optimized graph, or the authoritative graph unchanged if the
+        model fails, invents, empties, or is otherwise non-conforming."""
+        import json
+
+        from .models import AgentRequest
+
+        base = {o.id: o for o in authoritative.obligations}
+        if not base:
+            return authoritative
+        projection = [
+            {
+                "id": o.id,
+                "root_cause": o.root_cause,
+                "task_class": o.task_class,
+                "semantic_subjects": o.semantic_subjects,
+                "dependencies": o.dependencies,
+                "acceptance_criteria": o.acceptance_criteria,
+                "risk": o.risk.value if hasattr(o.risk, "value") else str(o.risk),
+            }
+            for o in authoritative.obligations
+        ]
+        prompt = (
+            _optimizer_system(self._task_classes)
+            + "\n\nAUTHORITATIVE OBLIGATIONS:\n"
+            + json.dumps({"obligations": projection}, sort_keys=True)
+            + "\n\nReturn ONLY the optimized JSON object."
+        )
+        req = AgentRequest(
+            agent_profile_id=self.agent_profile_id,
+            packet_id="plan-optimize",
+            instructions=prompt,
+            provider_id=self.provider_id,
+            requested_model_id=self.model_id,
+            adapter_id=self.adapter_id,
+            result_schema=PLAN_OPTIMIZER_SCHEMA,
+        )
+        try:
+            resp = await self._invoke(req)
+            data = json.loads(resp.output_text)
+            if not isinstance(data, dict):
+                return authoritative
+        except Exception:
+            return authoritative  # fail-open to the deterministic graph
+
+        findings = list(authoritative.critic_findings)
+        # Recorded deletions (id must be authoritative AND carry a reason).
+        deleted: set[str] = set()
+        for d in data.get("deletions") or []:
+            if isinstance(d, dict) and d.get("id") in base and str(d.get("reason") or "").strip():
+                deleted.add(str(d["id"]))
+                findings.append(f"optimizer dropped {d['id']}: {str(d['reason'])[:120]}")
+
+        merged: list[Obligation] = []
+        seen: set[str] = set()
+        allowed_ids = set(base)
+        for item in data.get("obligations") or []:
+            if not isinstance(item, dict):
+                continue
+            oid = str(item.get("id") or "")
+            if oid not in base:
+                findings.append(f"optimizer invented obligation {oid!r} — ignored")
+                continue
+            if oid in seen or oid in deleted:
+                continue
+            seen.add(oid)
+            src = base[oid]
+            # Preserve authority-owned fields EXACTLY; accept only improvements.
+            deps = [str(x) for x in (item.get("dependencies") or []) if str(x) in allowed_ids]
+            acc = [
+                str(c) for c in (item.get("acceptance_criteria") or [])
+            ] or src.acceptance_criteria
+            unc = list(dict.fromkeys([*src.uncertainties, *(item.get("uncertainties") or [])]))
+            merged.append(
+                src.model_copy(
+                    update={
+                        "root_cause": str(item.get("root_cause") or src.root_cause),
+                        "acceptance_criteria": acc,
+                        "dependencies": deps or src.dependencies,
+                        "uncertainties": [str(u) for u in unc],
+                        # never clear a human-decision flag; allow raising it.
+                        "human_decision_required": bool(item.get("human_decision_required"))
+                        or src.human_decision_required,
+                    }
+                )
+            )
+        # Never lose an authoritative obligation that was neither ranked nor validly deleted.
+        for oid, src in base.items():
+            if oid not in seen and oid not in deleted:
+                merged.append(src)
+        # Never empty an actionable graph.
+        if not merged:
+            return authoritative
+        return ObligationGraph(
+            snapshot_id=authoritative.snapshot_id,
+            obligations=merged,
+            planner_profile_id=authoritative.planner_profile_id,
+            critic_profile_id=self.agent_profile_id,
+            critic_findings=findings,
+            produced_at=utc_now_iso(),
+        )
+
+
+# --------------------------------------------------------------------------- #
 # Deterministic planner critic (DESIGN Phase 5).
 # --------------------------------------------------------------------------- #
 

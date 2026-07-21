@@ -85,6 +85,7 @@ class FactoryEngine:
         *,
         authority_factory: Callable[[], UsfAuthorityClient] = UsfAuthorityClient,
         planner: Planner | None = None,
+        plan_optimizer_factory: Callable[[], object] | None = None,
         worker_factory: Callable[..., object] | None = None,
         materialisation_index: object | None = None,
         materialisation_factory: Callable[[Path, str], object] | None = None,
@@ -97,7 +98,13 @@ class FactoryEngine:
         self._authority_factory = authority_factory
         # Production path: derive obligations deterministically from live authority
         # (ProgrammePlanner). A fixture planner is used only when injected (tests).
+        # The AUTHORITATIVE graph always comes from this deterministic planner; an
+        # AI optimizer (below) may only rank/annotate it, never generate it.
         self.planner = planner or ProgrammePlanner()
+        # plan_optimizer_factory() -> object with async optimize(graph). Optional;
+        # a failure or non-conforming optimization falls back to the deterministic
+        # authoritative graph (never zero work).
+        self._plan_optimizer_factory = plan_optimizer_factory
         self.critic = DeterministicCritic()
         self.learning = LearningEngine(ctx.store)
         # A worker_factory(mode, agent) -> Worker enables real execution. Without
@@ -118,6 +125,10 @@ class FactoryEngine:
         self._max_shadow_packets = max_shadow_packets
         self._coordinator_token: int | None = None
         self._lease_lost: bool = False
+        # Packets actually dispatched this wave (set by execute_packets). Missing-
+        # result detection compares against THIS, never the full selected set — a
+        # packet intentionally deferred by --shadow-packets is not a failure.
+        self._dispatched_packet_ids: set[str] = set()
 
     # Executing modes (perform packet work); observe/plan-only never execute.
     _EXECUTING_MODES = (RunMode.SHADOW, RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
@@ -273,25 +284,53 @@ class FactoryEngine:
     async def plan_and_compile(
         self, snap: SemanticSnapshot, cycle_id: str
     ) -> tuple[ObligationGraph, PacketSet, list[str]]:
+        # 1) AUTHORITATIVE graph: always the deterministic compiler. The AI never
+        #    replaces it.
         try:
             graph = await self.planner.plan(snap)
         except Exception as exc:
-            # A qualified AI planner that returns malformed output falls back to
-            # the deterministic ProgrammePlanner (read-only diagnostics), recorded.
             self.ctx.log_event(
-                "plan.ai_planner_failed",
+                "plan.authoritative_planner_failed",
                 stage="PLANNED",
                 cycle_id=cycle_id,
                 payload={"planner": type(self.planner).__name__, "error": str(exc)[:200]},
             )
             graph = await ProgrammePlanner().plan(snap)
-            graph = graph.model_copy(
-                update={
-                    "critic_findings": [
-                        f"AI planner failed ({type(exc).__name__}); used deterministic fallback"
-                    ]
-                }
-            )
+        authoritative_ids = {o.id for o in graph.obligations}
+        # 2) Optional AI OPTIMIZER: rank/consolidate/annotate ONLY. Any failure or
+        #    non-conforming result falls back to the authoritative graph — a
+        #    non-empty authority plan can never be reduced to zero work.
+        if self._plan_optimizer_factory is not None and graph.obligations:
+            optimizer: Any = None
+            try:
+                optimizer = self._plan_optimizer_factory()
+            except Exception:
+                optimizer = None
+            if optimizer is not None:
+                try:
+                    optimized = await optimizer.optimize(graph)
+                except Exception as exc:
+                    self.ctx.log_event(
+                        "plan.optimizer_failed",
+                        stage="PLANNED",
+                        cycle_id=cycle_id,
+                        payload={"error": str(exc)[:200]},
+                    )
+                    optimized = graph
+                # Defence in depth: the optimizer must never invent or empty.
+                opt_ids = {o.id for o in optimized.obligations}
+                if not optimized.obligations or not opt_ids.issubset(authoritative_ids):
+                    self.ctx.log_event(
+                        "plan.optimizer_rejected",
+                        stage="PLANNED",
+                        cycle_id=cycle_id,
+                        payload={
+                            "reason": "empty-or-invented",
+                            "authoritative": len(graph.obligations),
+                        },
+                    )
+                else:
+                    graph = optimized
         graph = self.critic.amend(graph)
         findings = list(graph.critic_findings) + self.critic.critique(graph)
         # Independent planner critic (Phase 5): a second, ideally provider-diverse
@@ -371,19 +410,21 @@ class FactoryEngine:
     # Phase 8 — schedule.
     # ------------------------------------------------------------------ #
 
-    # Adapter families implementing the brokered tool loop get the full broker
-    # tool set; anything else is READ-ONLY until a capability is proven. This is
-    # the honest replacement for the old fabricated tools=["*"].
-    # Full editing tool set is grantable to any adapter that can EITHER drive the
-    # brokered tool loop OR do bounded patch synthesis (CLIs). Transport is a
-    # capability, not the adapter name.
+    # Editing tools are granted to a profile whose ADAPTER CAPABILITY RECORD proves
+    # a safe edit transport (brokered tool loop OR bounded patch synthesis) — never
+    # by adapter name. Anything else is read-only.
     _BROKER_TOOLS = ("edit_file", "list_paths", "read_file", "run_focused_tests", "write_patch")
     _READONLY_TOOLS = ("list_paths", "read_file")
-    # Adapters that can produce an edit via SOME safe transport (brokered loop or
-    # bounded patch synthesis). CLIs qualify via bounded synthesis.
-    _EDIT_CAPABLE_ADAPTERS = frozenset(
-        {"brokered", "openai_compatible", "ollama", "codex_cli", "claude_cli", "anthropic"}
-    )
+
+    def _capability_tools(self, profile: AgentProfile) -> list[str]:
+        """Edit vs read-only tool set derived from the ACTUAL adapter capability
+        record for the profile's adapter kind (never an adapter-name set). An
+        unknown/unconstructable adapter is read-only (and ineligible for edit)."""
+        from .capabilities import capabilities_for_kind
+
+        cap = capabilities_for_kind(profile.adapter)
+        edit_capable = cap.brokered_tool_loop or cap.bounded_patch_synthesis
+        return list(self._BROKER_TOOLS if edit_capable else self._READONLY_TOOLS)
 
     def _model_row(self, provider_id: str, model_id: str) -> dict[str, Any] | None:
         rows = self.ctx.store.records("models", "provider_id=?", (provider_id,))
@@ -413,68 +454,93 @@ class FactoryEngine:
                 pass
         return HealthStatus.DEGRADED
 
-    def candidate_agents(self, task_class: str) -> list[SchedulableAgent]:
-        """Schedulable candidates from valid ADMISSION DECISIONS (each referencing
-        an immutable, non-expired, config-matching qualification run) + learning,
-        using RECORDED operational facts (catalogue context/pricing, provider
-        health, adapter capability, budget). Expired/superseded/mismatched
-        qualification is rejected here (the routing candidate source)."""
+    def _schedulable(self, profile: AgentProfile, task_class: str) -> SchedulableAgent | None:
+        """Build a SchedulableAgent from a profile IF it holds a valid admission;
+        else None (revalidated at dispatch time — expired/mismatched is rejected)."""
         from .admission import admission_ineligibility
 
-        provs = self.ctx.config.providers.by_id()
-        agents: list[SchedulableAgent] = []
-        for _key, profile_row in self.ctx.store.items("agent_profiles"):
-            profile = AgentProfile(**profile_row)
-            decision, run, reason = admission_ineligibility(self.ctx, profile)
-            if reason is not None or run is None or decision is None:
-                if reason and reason != "no admission decision":
-                    self.ctx.log_event(
-                        "schedule.ineligible",
-                        stage="SCHEDULED",
-                        cycle_id="-",
-                        payload={"profile_id": profile.profile_id, "reason": reason},
-                    )
-                continue
-            cfg = provs.get(profile.provider_id)
-            privacy = cfg.privacy_class if cfg else PrivacyClass.EXTERNAL_CLOUD
-            scores = dict(run.get("dimension_scores", {}))
-            scores.update(self.learning.scores_for(profile.profile_id, task_class))
-            roles = [AdmissionRole(r) for r in decision.get("roles", [])]
-
-            model_row = self._model_row(profile.provider_id, profile.requested_model_id)
-            context_tokens = model_row.get("context_tokens") if model_row else None
-            est_cost = self._estimate_model_cost(model_row)
-            # Honest quota: a model the catalogue records as PAID is schedulable
-            # only when billable inference is enabled and the estimate fits the
-            # remaining global budget (adapters enforce the gate again at invoke).
-            paid = model_row is not None and model_row.get("free") is False
-            quota_ok = True
-            if paid:
-                from .budget import BudgetLedger, BudgetLimits
-
-                limits = BudgetLimits(global_usd=self.ctx.config.budgets.billable_usd)
-                ledger = BudgetLedger(self.ctx.store, limits)
-                remaining = limits.global_usd - ledger.spent_total()
-                quota_ok = self.ctx.config.safety.allow_billable and remaining >= est_cost
-            tools = list(
-                self._BROKER_TOOLS
-                if profile.adapter in self._EDIT_CAPABLE_ADAPTERS
-                else self._READONLY_TOOLS
-            )
-            agents.append(
-                SchedulableAgent(
-                    profile=profile,
-                    provider_id=profile.provider_id,
-                    admission_roles=roles,
-                    task_scores=scores,
-                    health=self._provider_health(profile.provider_id),
-                    privacy_class=privacy,
-                    context_tokens=context_tokens,
-                    tools=tools,
-                    quota_ok=quota_ok,
-                    cost_usd=est_cost,
+        decision, run, reason = admission_ineligibility(self.ctx, profile)
+        if reason is not None or run is None or decision is None:
+            if reason and reason != "no admission decision":
+                self.ctx.log_event(
+                    "schedule.ineligible",
+                    stage="SCHEDULED",
+                    cycle_id="-",
+                    payload={"profile_id": profile.profile_id, "reason": reason},
                 )
-            )
+            return None
+        cfg = self.ctx.config.providers.by_id().get(profile.provider_id)
+        privacy = cfg.privacy_class if cfg else PrivacyClass.EXTERNAL_CLOUD
+        scores = dict(run.get("dimension_scores", {}))
+        scores.update(self.learning.scores_for(profile.profile_id, task_class))
+        roles = [AdmissionRole(r) for r in decision.get("roles", [])]
+        model_row = self._model_row(profile.provider_id, profile.requested_model_id)
+        context_tokens = model_row.get("context_tokens") if model_row else None
+        est_cost = self._estimate_model_cost(model_row)
+        paid = model_row is not None and model_row.get("free") is False
+        quota_ok = True
+        if paid:
+            from .budget import BudgetLedger, BudgetLimits
+
+            limits = BudgetLimits(global_usd=self.ctx.config.budgets.billable_usd)
+            ledger = BudgetLedger(self.ctx.store, limits)
+            remaining = limits.global_usd - ledger.spent_total()
+            quota_ok = self.ctx.config.safety.allow_billable and remaining >= est_cost
+        return SchedulableAgent(
+            profile=profile,
+            provider_id=profile.provider_id,
+            admission_roles=roles,
+            task_scores=scores,
+            health=self._provider_health(profile.provider_id),
+            privacy_class=privacy,
+            context_tokens=context_tokens,
+            tools=self._capability_tools(profile),
+            quota_ok=quota_ok,
+            cost_usd=est_cost,
+        )
+
+    def _roster_profile_ids(self, role: AdmissionRole | None) -> list[str] | None:
+        """The active roster's ordered candidate ids (primary + fallbacks) for a
+        role, or None when no active roster / no entry — meaning the caller may
+        fall back to the admitted scan (legacy / no-roster environments)."""
+        if role is None:
+            return None
+        from .roster import active_roster
+
+        r = active_roster(self.ctx)
+        if not r:
+            return None
+        entry = (r.get("entries") or {}).get(role.value) or {}
+        primary = entry.get("primary")
+        if not primary:
+            return None
+        return [primary, *[p for p in entry.get("fallbacks", []) if p != primary]]
+
+    def candidate_agents(
+        self, task_class: str, role: AdmissionRole | None = None
+    ) -> list[SchedulableAgent]:
+        """Schedulable candidates for a role. When an ACTIVE ROSTER governs the
+        role, candidates are RESTRICTED to that role's ordered entry (primary +
+        fallbacks) — never an independent scan across all admitted profiles. Only
+        when there is no active roster entry does it fall back to the admitted
+        scan. Each candidate is revalidated (immutable, non-expired, config-matching
+        qualification) and carries capability-derived tools."""
+        roster_ids = self._roster_profile_ids(role)
+        agents: list[SchedulableAgent] = []
+        if roster_ids is not None:
+            for pid in roster_ids:
+                row = self.ctx.store.get("agent_profiles", pid)
+                if not row:
+                    continue
+                agent = self._schedulable(AgentProfile(**row), task_class)
+                if agent is not None:
+                    agents.append(agent)
+            return agents
+        # No active roster entry: fall back to the admitted profiles (revalidated).
+        for _key, profile_row in self.ctx.store.items("agent_profiles"):
+            agent = self._schedulable(AgentProfile(**profile_row), task_class)
+            if agent is not None:
+                agents.append(agent)
         return agents
 
     def schedule_packets(self, pset: PacketSet, cycle_id: str) -> list[RoutingDecision]:
@@ -488,7 +554,7 @@ class FactoryEngine:
         for pid in pset.selected_packet_ids:
             packet = by_id[pid]
             role = role_for_packet(packet.task_class, bool(packet.write_paths))
-            candidates = self.candidate_agents(packet.task_class)
+            candidates = self.candidate_agents(packet.task_class, role)
             decision = scheduler.schedule(packet, role, candidates)
             self.ctx.store.put(
                 "routing_decisions",
@@ -720,11 +786,18 @@ class FactoryEngine:
         selected = [by_id[pid] for pid in pset.selected_packet_ids]
         # --shadow-packets N: deterministically cap the number of packets actually
         # dispatched in shadow mode (after eligibility/selection; packet identity
-        # unchanged — a stable-sorted prefix of the selected set).
+        # unchanged — a stable-sorted prefix of the selected set). Packets dropped
+        # by the cap are INTENTIONALLY DEFERRED, not missing (see _execute_wave).
         if mode is RunMode.SHADOW and self._max_shadow_packets is not None:
             selected = sorted(selected, key=lambda p: p.packet_id)[
                 : max(0, self._max_shadow_packets)
             ]
+        # Record the actual dispatched set so missing-result detection compares
+        # only against packets we actually tried to run.
+        self._dispatched_packet_ids = {p.packet_id for p in selected}
+        deferred_by_cap = [
+            pid for pid in pset.selected_packet_ids if pid not in self._dispatched_packet_ids
+        ]
         sem = asyncio.Semaphore(max(1, self.ctx.config.budgets.max_concurrent_workers))
 
         async def _guarded(packet: Packet) -> PacketResult | None:
@@ -737,7 +810,14 @@ class FactoryEngine:
             "execute.done",
             stage="EXECUTING",
             cycle_id=cycle_id,
-            payload={"results": len(results), "mode": mode.value},
+            payload={
+                "selected": len(pset.selected_packet_ids),
+                "dispatched": len(self._dispatched_packet_ids),
+                "deferred_by_cap": len(deferred_by_cap),
+                "deferred_packet_ids": sorted(deferred_by_cap),
+                "results": len(results),
+                "mode": mode.value,
+            },
         )
         return results
 
@@ -970,13 +1050,32 @@ class FactoryEngine:
                     "worker", r.agent_profile_id, pkt.task_class, "implementation", 0.0
                 )
 
-        # Selected packets that produced no result at all (no route / fenced / no worker).
-        missing = [pid for pid in pset.selected_packet_ids if pid not in results_by_pid]
+        # DISPATCHED packets that produced no result (no route / fenced / no worker)
+        # ARE failures. Packets intentionally deferred by the --shadow-packets cap
+        # were never dispatched, so they are NOT missing — deferred != failed.
+        dispatched = self._dispatched_packet_ids or set(pset.selected_packet_ids)
+        missing = [pid for pid in dispatched if pid not in results_by_pid]
+        deferred_by_cap = [pid for pid in pset.selected_packet_ids if pid not in dispatched]
 
-        # FAIL-CLOSED: every selected packet's result must be ACCEPTED. A recorded
+        # FAIL-CLOSED: every DISPATCHED packet's result must be ACCEPTED. A recorded
         # failure, rejection, human-decision, or skip can never yield a green
         # cycle — a failed result being durably recorded is not success.
         rejected = [q for q in quals if not q.accepted]
+
+        # Wave accounting: selected / dispatched / intentionally-deferred / completed
+        # / failed are reported distinctly (deferred is never counted as failed).
+        self.ctx.log_event(
+            "execute.accounting",
+            stage="EXECUTING",
+            cycle_id=cycle_id,
+            payload={
+                "selected": len(pset.selected_packet_ids),
+                "dispatched": len(dispatched),
+                "deferred_by_cap": sorted(deferred_by_cap),
+                "completed": sorted(q.packet_id for q in accepted),
+                "failed": sorted([*(q.packet_id for q in rejected), *missing]),
+            },
+        )
 
         sm.transition(CycleState.INTEGRATING)
         apply = mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE) and not self._lease_lost

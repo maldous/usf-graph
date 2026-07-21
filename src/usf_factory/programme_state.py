@@ -19,6 +19,17 @@ from .models import Obligation, ObligationGraph, SemanticSnapshot
 
 MAX_OBLIGATIONS = 100
 
+# Authority work-plan gap `type` -> deterministic task class. Unknown gap types
+# fall back to read-only semantic-planning (never an accidental mutation class).
+_GAP_TASK_CLASS = {
+    "missing-current-passing-validation": "semantic-planning",
+    "missing-validation": "semantic-planning",
+    "missing-proof": "semantic-planning",
+    "shacl-violation": "shacl-repair",
+    "missing-shape": "shacl-repair",
+    "missing-constraint": "sparql-authoring",
+}
+
 
 def _as_list(value: Any, *keys: str) -> list[Any]:
     if isinstance(value, list):
@@ -31,7 +42,17 @@ def _as_list(value: Any, *keys: str) -> list[Any]:
 
 
 def _obl_id(item: dict[str, Any], index: int) -> str:
-    return str(item.get("id") or item.get("iri") or item.get("obligation") or f"obl-{index}")
+    explicit = item.get("id") or item.get("iri") or item.get("obligation")
+    if explicit:
+        return str(explicit)
+    # Work-plan gaps identify by (type, subject); preserve that as provenance.
+    typ = item.get("type")
+    subj = item.get("subject")
+    if typ and subj:
+        return f"{typ}:{subj}"
+    if subj:
+        return str(subj)
+    return f"obl-{index}"
 
 
 def _deps(item: dict[str, Any]) -> list[str]:
@@ -50,19 +71,32 @@ def parse_programme_obligations(bootstrap: dict[str, Any], work_plan: Any) -> li
     """
     out: dict[str, dict[str, Any]] = {}
 
-    raw = _as_list(work_plan, "items", "plan", "workItems", "obligations", "tasks")
+    raw = _as_list(work_plan, "items", "plan", "workItems", "obligations", "tasks", "gaps")
     for i, item in enumerate(raw):
         if not isinstance(item, dict):
             continue
         oid = _obl_id(item, i)
+        gap_type = str(item.get("type") or "")
+        # A gap carries (type, subject); a richer work-plan item may carry
+        # subjects[] + taskClass. Preserve the authority subject either way.
+        subjects = [str(s) for s in _as_list(item.get("subjects"), "subjects")]
+        if not subjects and item.get("subject"):
+            subjects = [str(item["subject"])]
+        task_class = str(
+            item.get("taskClass") or _GAP_TASK_CLASS.get(gap_type, "semantic-planning")
+        )
+        root_cause = str(
+            item.get("rootCause")
+            or item.get("title")
+            or item.get("description")
+            or (f"authority gap '{gap_type}' on {item.get('subject')}" if gap_type else oid)
+        )
         out[oid] = {
             "id": oid,
-            "root_cause": str(
-                item.get("rootCause") or item.get("title") or item.get("description") or oid
-            ),
+            "root_cause": root_cause,
             "dependencies": _deps(item),
-            "semantic_subjects": [str(s) for s in _as_list(item.get("subjects"), "subjects")],
-            "task_class": str(item.get("taskClass") or "semantic-planning"),
+            "semantic_subjects": subjects,
+            "task_class": task_class,
             "acceptance_criteria": [
                 str(c) for c in _as_list(item.get("acceptanceCriteria"), "acceptanceCriteria")
             ]

@@ -136,33 +136,34 @@ def _admitted_profiles(ctx: RuntimeContext, role):
     return out
 
 
-def select_planner(ctx: RuntimeContext):
-    """A qualified AI planner if one is admitted, else None (=> deterministic
-    ProgrammePlanner + read-only diagnostics)."""
+def select_plan_optimizer(ctx: RuntimeContext):
+    """A qualified AI plan OPTIMIZER if a planner-role model is admitted, else
+    None (=> the deterministic authoritative graph is used unchanged). The
+    optimizer never generates obligations — it only ranks/consolidates/annotates
+    the deterministic authoritative graph."""
     from .enums import AdmissionRole
-    from .planner import OBLIGATION_GRAPH_SCHEMA, AiPlanner
+    from .planner import AiPlanOptimizer
     from .providers import build_registry
     from .roster import roster_profile_for
 
-    # Prefer the ACTIVE roster's planner (ranked evidence), else any admitted
-    # planner (deterministic order) — never first-found storage iteration.
-    chosen = roster_profile_for(ctx, AdmissionRole.PLANNER_CANDIDATE)
-    candidates = [chosen] if chosen else _admitted_profiles(ctx, AdmissionRole.PLANNER_CANDIDATE)
-    for profile in candidates:
-        try:
-            adapter = build_registry(ctx).adapter(profile.provider_id)
-        except Exception:
-            continue
-        planner = AiPlanner(
-            adapter.invoke,
-            profile.profile_id,
-            OBLIGATION_GRAPH_SCHEMA,
-            provider_id=profile.provider_id,
-            model_id=profile.requested_model_id,
-            adapter_id=profile.adapter,
-        )
-        return planner, profile
-    return None, None
+    # ONLY the ACTIVE roster governs the planner role — never a first-found scan.
+    profile = roster_profile_for(ctx, AdmissionRole.PLANNER_CANDIDATE)
+    if profile is None:
+        return None, None
+    try:
+        adapter = build_registry(ctx).adapter(profile.provider_id)
+    except Exception:
+        return None, None
+    task_classes = list(ctx.config.task_classes.by_name())
+    optimizer = AiPlanOptimizer(
+        adapter.invoke,
+        profile.profile_id,
+        task_classes=task_classes,
+        provider_id=profile.provider_id,
+        model_id=profile.requested_model_id,
+        adapter_id=profile.adapter,
+    )
+    return optimizer, profile
 
 
 def production_planner_critic_factory(ctx: RuntimeContext, exclude_provider: str | None = None):
@@ -196,9 +197,10 @@ def build_engine(
 ):
     """Construct a fully-wired production FactoryEngine.
 
-    Pipeline wiring: a qualified AI planner (when admitted) with an INDEPENDENT
-    planner critic (different provider where possible); the snapshot-bound
-    materialisation index; the production worker and wave-reviewer factories.
+    Pipeline wiring: the deterministic authoritative planner ALWAYS, plus an
+    optional AI plan OPTIMIZER (roster planner) with an INDEPENDENT planner critic
+    (different provider where possible); the snapshot-bound materialisation index;
+    the production worker and wave-reviewer factories.
     """
     from .engine import FactoryEngine
 
@@ -209,20 +211,25 @@ def build_engine(
         def materialisation_factory(mirror, head):
             return build_index_at(mirror, head)
 
-    planner, planner_profile = select_planner(ctx)
+    optimizer, optimizer_profile = select_plan_optimizer(ctx)
     critic_factory = production_planner_critic_factory(
-        ctx, exclude_provider=planner_profile.provider_id if planner_profile else None
+        ctx, exclude_provider=optimizer_profile.provider_id if optimizer_profile else None
     )
 
     def reviewer_factory():
         return production_reviewer_factory(ctx)()
 
+    def plan_optimizer_factory():
+        opt, _ = select_plan_optimizer(ctx)
+        return opt
+
     return FactoryEngine(
         ctx,
-        planner=planner,  # None => deterministic ProgrammePlanner (read-only diagnostics)
+        planner=None,  # deterministic ProgrammePlanner is always authoritative
+        plan_optimizer_factory=plan_optimizer_factory if optimizer is not None else None,
         worker_factory=production_worker_factory(ctx),
         materialisation_factory=materialisation_factory,
         reviewer_factory=reviewer_factory,
-        planner_critic_factory=critic_factory if planner is not None else None,
+        planner_critic_factory=critic_factory if optimizer is not None else None,
         max_shadow_packets=max_shadow_packets,
     )

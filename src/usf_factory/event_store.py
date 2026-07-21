@@ -44,6 +44,10 @@ _RECORD_TABLES: dict[str, list[str]] = {
     # One coverage row per provider per evaluation run; the active role roster.
     "provider_evaluations": ["provider_id", "eval_suite_version"],
     "role_rosters": [],
+    # Demonstrated (observed) adapter capabilities, e.g. bounded_patch_synthesis
+    # proven by a real git-derived patch; and per-profile runtime metrics.
+    "capability_observations": ["provider_id", "capability"],
+    "profile_metrics": ["agent_profile_id", "task_class"],
     "task_classes": [],
     "model_task_scores": ["agent_profile_id", "task_class", "dimension"],
     "semantic_snapshots": ["authority_digest", "repository_head"],

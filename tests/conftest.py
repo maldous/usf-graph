@@ -154,7 +154,7 @@ def fake_authority_factory():
 
 
 def seed_agent(
-    store, *, roles, scores, provider_id="test-provider", model="test-model", adapter="brokered"
+    store, *, roles, scores, provider_id="test-provider", model="test-model", adapter="ollama"
 ):
     """Persist an agent profile + an IMMUTABLE qualification run + an admission
     decision so the scheduler can route to it (the production candidate path)."""

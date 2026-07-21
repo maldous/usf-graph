@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Any
 
 from .admission import admission_ineligibility
-from .capabilities import capabilities_for, role_transport_ok
+from .capabilities import role_transport_ok
 from .clock import utc_now_iso
 from .context import RuntimeContext
 from .enums import AdmissionRole
@@ -30,15 +30,85 @@ _OPERATIONAL_ROLES = (
 )
 
 
+def _semantic_scores(ctx: RuntimeContext, provider_id: str) -> dict[str, float]:
+    """Per-provider semantic scores from the latest provider evaluation."""
+    try:
+        rows = ctx.store.records("provider_evaluations", "provider_id=?", (provider_id,))
+    except Exception:
+        return {}
+    latest = None
+    for row in rows:
+        if latest is None or row.get("evaluated_at", "") > latest.get("evaluated_at", ""):
+            latest = row
+    return dict((latest or {}).get("semantic_scores") or {})
+
+
+def _profile_metrics(ctx: RuntimeContext, profile_id: str) -> dict[str, float]:
+    """Aggregated per-profile runtime metrics (accepted-packet success, uncached
+    input per accepted packet, cache reuse, latency, cost). Empty when unproven —
+    unknown is neutral, never fabricated."""
+    try:
+        rows = ctx.store.records("profile_metrics", "agent_profile_id=?", (profile_id,))
+    except Exception:
+        rows = []
+    if not rows:
+        return {}
+    accepted = sum(int(r.get("accepted") or 0) for r in rows)
+    rejected = sum(int(r.get("rejected") or 0) for r in rows)
+    uncached = sum(float(r.get("uncached_input_tokens") or 0) for r in rows)
+    cached = sum(float(r.get("cached_input_tokens") or 0) for r in rows)
+    latency = [float(v) for r in rows if (v := r.get("latency_ms")) is not None]
+    cost = sum(float(r.get("cost_usd") or 0) for r in rows)
+    total = accepted + rejected
+    total_in = uncached + cached
+    return {
+        "accepted_success": (accepted / total) if total else 0.0,
+        "uncached_per_accepted": (uncached / accepted) if accepted else 0.0,
+        "cache_reuse": (cached / total_in) if total_in else 0.0,
+        "latency_ms": (sum(latency) / len(latency)) if latency else 0.0,
+        "cost_usd": cost,
+    }
+
+
+def _rank_key(
+    ctx: RuntimeContext, profile: AgentProfile, run: dict[str, Any] | None
+) -> tuple[Any, ...]:
+    """Lexicographic ranking key (best first when sorted ascending). Order:
+    qualification score, semantic-rule fidelity, semantic optimization, scope
+    discipline, evidence discipline, accepted-packet success, lowest uncached
+    input/accepted, highest cache reuse, latency, cost, then profile_id tie-break.
+    Higher-is-better fields are negated; lower-is-better kept; unknown is neutral."""
+    run = run or {}
+    dims = run.get("dimension_scores", {}) or {}
+    ct = int(run.get("cases_total") or 0)
+    qual = (int(run.get("cases_passed") or 0) / ct) if ct else 0.0
+    sem = _semantic_scores(ctx, profile.provider_id)
+    m = _profile_metrics(ctx, profile.profile_id)
+    return (
+        -qual,
+        -float(sem.get("semantic_rule_fidelity", 0.0)),
+        -float(sem.get("semantic_optimization", 0.0)),
+        -float(dims.get("scope_discipline", 0.0)),
+        -float(dims.get("evidence_discipline", 0.0)),
+        -float(m.get("accepted_success", 0.0)),
+        float(m.get("uncached_per_accepted", 0.0)),
+        -float(m.get("cache_reuse", 0.0)),
+        float(m.get("latency_ms", 0.0)),
+        float(m.get("cost_usd", 0.0)),
+        profile.profile_id,  # deterministic final tie-break ONLY
+    )
+
+
 def _admitted_for(
     ctx: RuntimeContext, role: AdmissionRole
 ) -> list[tuple[AgentProfile, dict[str, Any]]]:
-    """Valid admitted (profile, decision) pairs for a role, deterministically
-    ordered by profile_id (NOT storage order); transport must also be possible."""
-    out: list[tuple[AgentProfile, dict[str, Any]]] = []
+    """Valid admitted (profile, decision) pairs for a role, ranked by semantic
+    quality and token efficiency (profile_id is the final tie-break ONLY);
+    transport must also be possible."""
+    out: list[tuple[AgentProfile, dict[str, Any], tuple[Any, ...]]] = []
     for _key, row in ctx.store.items("agent_profiles"):
         profile = AgentProfile(**row)
-        decision, _run, reason = admission_ineligibility(ctx, profile)
+        decision, run, reason = admission_ineligibility(ctx, profile)
         if reason is not None or decision is None:
             continue
         if role.value not in set(decision.get("roles", [])):
@@ -46,22 +116,21 @@ def _admitted_for(
         cap = _profile_capabilities(ctx, profile)
         if not role_transport_ok(role, cap):
             continue
-        out.append((profile, decision))
-    return sorted(out, key=lambda t: t[0].profile_id)
+        out.append((profile, decision, _rank_key(ctx, profile, run)))
+    out.sort(key=lambda t: t[2])
+    return [(p, d) for p, d, _k in out]
 
 
 def _profile_capabilities(ctx: RuntimeContext, profile: AgentProfile):
-    from .providers import build_registry
+    from .capabilities import UNAVAILABLE, capabilities_for_kind, observed_capabilities
 
-    try:
-        adapter = build_registry(ctx).adapter(profile.provider_id)
-    except Exception:
-        from .capabilities import AdapterCapabilities
-
-        return AdapterCapabilities(plain_invoke=True, bounded_patch_synthesis=True)
-    if hasattr(adapter, "capabilities"):
-        return adapter.capabilities()
-    return capabilities_for(adapter, ctx.config.providers.by_id().get(profile.provider_id))
+    # Transport capability is a property of the adapter KIND (its class), derived
+    # credential-free from the real implementation — never an adapter-name set. An
+    # unknown/unbuildable adapter kind grants NO capability (ineligible).
+    cap = capabilities_for_kind(profile.adapter)
+    if cap is UNAVAILABLE:
+        return UNAVAILABLE
+    return cap.with_observed(observed_capabilities(ctx, profile.provider_id))
 
 
 def build_roster(ctx: RuntimeContext, evaluation_run_id: str = "") -> RoleRoster:
@@ -119,10 +188,44 @@ def build_roster(ctx: RuntimeContext, evaluation_run_id: str = "") -> RoleRoster
     return roster.model_copy(update={"roster_id": f"roster-{ulid()}"})
 
 
-def _config_digest(ctx: RuntimeContext) -> str:
+def _suite_digests(ctx: RuntimeContext) -> list[list[str]]:
+    try:
+        rows = [r for _k, r in ctx.store.items("qualification_suites")]
+    except Exception:
+        return []
+    return sorted(
+        [str(r.get("suite_id", "")), str(r.get("version", "")), str(r.get("suite_digest", ""))]
+        for r in rows
+    )
+
+
+def runtime_config_digest(ctx: RuntimeContext) -> str:
+    """Digest of the FULL relevant configuration the roster is bound to: provider
+    config, trust policy, routing policy, egress policy, task classes, qualification
+    suite/version, and the semantic rule-bundle digest. A roster is stale (rejected
+    at use) once any of these change."""
     from .canonical import content_digest
 
-    return content_digest({"providers": sorted(ctx.config.providers.by_id())})
+    cfg = ctx.config
+    return content_digest(
+        {
+            "providers": {
+                pid: c.model_dump(mode="json") for pid, c in cfg.providers.by_id().items()
+            },
+            "trust": cfg.trust.model_dump(mode="json"),
+            "routing": cfg.routing.model_dump(mode="json"),
+            "egress": cfg.egress.model_dump(mode="json"),
+            "task_classes": {
+                n: t.model_dump(mode="json") for n, t in cfg.task_classes.by_name().items()
+            },
+            "qualification_suites": _suite_digests(ctx),
+            "rule_bundle": _rule_digest(),
+        }
+    )
+
+
+def _config_digest(ctx: RuntimeContext) -> str:
+    return runtime_config_digest(ctx)
 
 
 def _rule_digest() -> str:
@@ -146,13 +249,38 @@ def persist_active(ctx: RuntimeContext, roster: RoleRoster) -> RoleRoster:
 
 
 def active_roster(ctx: RuntimeContext) -> dict[str, Any] | None:
-    return ctx.store.get("role_rosters", _ACTIVE_KEY)
+    """The ACTIVE roster, or None. A roster whose bound digests no longer match
+    the current configuration is STALE and is not returned (fail closed)."""
+    r = ctx.store.get("role_rosters", _ACTIVE_KEY)
+    if not r:
+        return None
+    if (
+        r.get("config_digest") != _config_digest(ctx)
+        or r.get("rule_bundle_digest") != _rule_digest()
+    ):
+        ctx.log_event(
+            "roster.stale",
+            stage="INIT",
+            cycle_id="-",
+            payload={
+                "roster_id": r.get("roster_id"),
+                "reason": "config or rule-bundle digest changed",
+            },
+        )
+        return None
+    return r
+
+
+def roster_fresh(ctx: RuntimeContext) -> bool:
+    """True iff an active roster exists and its bound digests still match."""
+    return active_roster(ctx) is not None
 
 
 def roster_profile_for(ctx: RuntimeContext, role: AdmissionRole) -> AgentProfile | None:
     """The active roster's primary profile for a role, REVALIDATED at use
-    (admission still valid, config matches). None => fall back to evidence scan."""
-    r = active_roster(ctx)
+    (admission still valid, config+rule digests match, transport still possible).
+    None => fall back to evidence scan."""
+    r = active_roster(ctx)  # already rejects a stale roster
     if not r:
         return None
     entry = (r.get("entries") or {}).get(role.value) or {}
@@ -165,6 +293,9 @@ def roster_profile_for(ctx: RuntimeContext, role: AdmissionRole) -> AgentProfile
             continue
         profile = AgentProfile(**row)
         _d, _run, reason = admission_ineligibility(ctx, profile)
-        if reason is None:
-            return profile
+        if reason is not None:
+            continue
+        if not role_transport_ok(role, _profile_capabilities(ctx, profile)):
+            continue
+        return profile
     return None
