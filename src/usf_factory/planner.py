@@ -139,6 +139,34 @@ PLANNER_SYSTEM = (
     "Express uncertainty rather than fabricating."
 )
 
+# Strict schema the AI planner must satisfy (unknown fields rejected).
+OBLIGATION_GRAPH_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "obligations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string"},
+                    "root_cause": {"type": "string"},
+                    "task_class": {"type": "string"},
+                    "risk": {"type": "string"},
+                    "semantic_subjects": {"type": "array", "items": {"type": "string"}},
+                    "dependencies": {"type": "array", "items": {"type": "string"}},
+                    "acceptance_criteria": {"type": "array", "items": {"type": "string"}},
+                    "required_outcomes": {"type": "array", "items": {"type": "string"}},
+                    "human_decision_required": {"type": "boolean"},
+                    "suggested_read_scope": {"type": "array", "items": {"type": "string"}},
+                    "suggested_write_scope": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["id", "root_cause", "task_class"],
+            },
+        }
+    },
+    "required": ["obligations"],
+}
+
 
 class AiPlanner:
     """Wraps a qualified agent adapter to produce an obligation graph."""
@@ -265,3 +293,86 @@ def _deps_of(graph: ObligationGraph, oid: str) -> list[str]:
         if o.id == oid:
             return o.dependencies
     return []
+
+
+# --------------------------------------------------------------------------- #
+# Independent AI planner critic (DESIGN Phase 5): a SECOND model, from a
+# different provider/family where possible, reviews the proposed plan for
+# over-reach, hidden coupling, and unwarranted scope. Advisory + a verdict.
+# --------------------------------------------------------------------------- #
+
+PLANNER_CRITIC_SYSTEM = (
+    "You are an INDEPENDENT critic of a proposed USF obligation graph. You did "
+    "not write it. Judge only whether the plan is safe and well-formed: no "
+    "requirement broadening beyond the snapshot, no hidden coupling between "
+    "independent obligations, human decisions flagged, acceptance criteria "
+    "present, risk classification plausible. Return ONLY JSON "
+    '{"approved": bool, "findings": [string], "risk_flags": [string]}. '
+    "Withhold approval if anything looks unwarranted."
+)
+
+
+class DeterministicCriticAdapter:
+    """Wraps DeterministicCritic as an independent-critic-shaped verdict, used
+    when no second model is available (findings are advisory, approval is granted
+    only when the deterministic critic finds no structural defect)."""
+
+    def __init__(self) -> None:
+        self._c = DeterministicCritic()
+
+    async def review_plan(
+        self, graph: ObligationGraph, projection: dict[str, Any]
+    ) -> dict[str, Any]:
+        findings = self._c.critique(graph)
+        return {
+            "approved": not findings,
+            "findings": findings,
+            "risk_flags": [],
+            "reviewer": "deterministic",
+        }
+
+
+class AiPlannerCritic:
+    """A qualified reviewer agent (ideally a different provider/family than the
+    planner) that judges the proposed plan and returns a verdict."""
+
+    def __init__(self, invoke, agent_profile_id: str) -> None:
+        self._invoke = invoke
+        self.agent_profile_id = agent_profile_id
+
+    async def review_plan(
+        self, graph: ObligationGraph, projection: dict[str, Any]
+    ) -> dict[str, Any]:
+        import json
+
+        from .models import AgentRequest
+
+        prompt = (
+            PLANNER_CRITIC_SYSTEM
+            + "\n\nSNAPSHOT:\n"
+            + json.dumps(projection, sort_keys=True)
+            + "\n\nPROPOSED GRAPH:\n"
+            + json.dumps(graph.model_dump(mode="json").get("obligations", []), sort_keys=True)[
+                :8000
+            ]
+        )
+        req = AgentRequest(
+            agent_profile_id=self.agent_profile_id, packet_id="plan-critique", instructions=prompt
+        )
+        resp = await self._invoke(req)
+        try:
+            data = json.loads(resp.output_text)
+        except (json.JSONDecodeError, TypeError):
+            # Fail closed: an unparseable critic withholds approval.
+            return {
+                "approved": False,
+                "findings": ["planner critic output was not valid JSON"],
+                "risk_flags": [],
+                "reviewer": self.agent_profile_id,
+            }
+        return {
+            "approved": bool(data.get("approved", False)),
+            "findings": list(data.get("findings", [])),
+            "risk_flags": list(data.get("risk_flags", [])),
+            "reviewer": self.agent_profile_id,
+        }

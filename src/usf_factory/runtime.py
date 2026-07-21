@@ -104,13 +104,66 @@ def production_reviewer_factory(ctx: RuntimeContext):
     return make
 
 
+def _admitted_profiles(ctx: RuntimeContext, role):
+    """Profiles holding a valid admission for ``role`` (provider-diverse selection
+    material). Returns list of (profile, provider_family)."""
+    from .admission import admission_ineligibility
+    from .models import AgentProfile
+
+    out = []
+    for _key, row in ctx.store.items("agent_profiles"):
+        profile = AgentProfile(**row)
+        decision, _run, reason = admission_ineligibility(ctx, profile)
+        if reason is not None or decision is None:
+            continue
+        if role.value in set(decision.get("roles", [])):
+            out.append(profile)
+    return out
+
+
+def select_planner(ctx: RuntimeContext):
+    """A qualified AI planner if one is admitted, else None (=> deterministic
+    ProgrammePlanner + read-only diagnostics)."""
+    from .enums import AdmissionRole
+    from .planner import OBLIGATION_GRAPH_SCHEMA, AiPlanner
+    from .providers import build_registry
+
+    for profile in _admitted_profiles(ctx, AdmissionRole.PLANNER_CANDIDATE):
+        try:
+            adapter = build_registry(ctx).adapter(profile.provider_id)
+        except Exception:
+            continue
+        return AiPlanner(adapter.invoke, profile.profile_id, OBLIGATION_GRAPH_SCHEMA), profile
+    return None, None
+
+
+def production_planner_critic_factory(ctx: RuntimeContext, exclude_provider: str | None = None):
+    """() -> planner critic. Prefers an admitted REVIEWER on a DIFFERENT provider
+    than the planner; falls back to the deterministic critic adapter."""
+    from .enums import AdmissionRole
+    from .planner import AiPlannerCritic, DeterministicCriticAdapter
+    from .providers import build_registry
+
+    def make():
+        for profile in _admitted_profiles(ctx, AdmissionRole.REVIEWER):
+            if exclude_provider and profile.provider_id == exclude_provider:
+                continue
+            try:
+                adapter = build_registry(ctx).adapter(profile.provider_id)
+            except Exception:
+                continue
+            return AiPlannerCritic(adapter.invoke, profile.profile_id)
+        return DeterministicCriticAdapter()
+
+    return make
+
+
 def build_engine(ctx: RuntimeContext, *, mode: RunMode | None = None):
     """Construct a fully-wired production FactoryEngine.
 
-    For executing modes the materialisation index is built by the ENGINE from
-    the factory mirror at the exact snapshot head (snapshot-bound => it can act
-    as the write contract for semantic packets); the production worker and
-    reviewer factories are wired in.
+    Pipeline wiring: a qualified AI planner (when admitted) with an INDEPENDENT
+    planner critic (different provider where possible); the snapshot-bound
+    materialisation index; the production worker and wave-reviewer factories.
     """
     from .engine import FactoryEngine
 
@@ -121,12 +174,19 @@ def build_engine(ctx: RuntimeContext, *, mode: RunMode | None = None):
         def materialisation_factory(mirror, head):
             return build_index_at(mirror, head)
 
+    planner, planner_profile = select_planner(ctx)
+    critic_factory = production_planner_critic_factory(
+        ctx, exclude_provider=planner_profile.provider_id if planner_profile else None
+    )
+
     def reviewer_factory():
         return production_reviewer_factory(ctx)()
 
     return FactoryEngine(
         ctx,
+        planner=planner,  # None => deterministic ProgrammePlanner (read-only diagnostics)
         worker_factory=production_worker_factory(ctx),
         materialisation_factory=materialisation_factory,
         reviewer_factory=reviewer_factory,
+        planner_critic_factory=critic_factory if planner is not None else None,
     )

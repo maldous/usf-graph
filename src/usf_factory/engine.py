@@ -89,6 +89,7 @@ class FactoryEngine:
         materialisation_index: object | None = None,
         materialisation_factory: Callable[[Path, str], object] | None = None,
         reviewer_factory: Callable[[], object] | None = None,
+        planner_critic_factory: Callable[[], object] | None = None,
     ) -> None:
         self.ctx = ctx
         self.iso = RepoIsolation(ctx.paths, ctx.usf_repo)
@@ -108,6 +109,10 @@ class FactoryEngine:
         # reviewer_factory() -> WaveReviewer. Waves that require substantive
         # review are BLOCKED when no reviewer is available (fail closed).
         self._reviewer_factory = reviewer_factory
+        # planner_critic_factory() -> object with async review_plan(graph, proj).
+        # When the planner is an AI planner, an INDEPENDENT critic (ideally a
+        # different provider/family) judges the proposed plan.
+        self._planner_critic_factory = planner_critic_factory
         self._coordinator_token: int | None = None
         self._lease_lost: bool = False
 
@@ -268,6 +273,34 @@ class FactoryEngine:
         graph = await self.planner.plan(snap)
         graph = self.critic.amend(graph)
         findings = self.critic.critique(graph)
+        # Independent planner critic (Phase 5): a second, ideally provider-diverse
+        # model judges the proposed plan. Its verdict is recorded; a rejection is
+        # surfaced as a finding (the deterministic compiler stays authoritative).
+        if self._planner_critic_factory is not None and graph.obligations:
+            from .planner import compact_projection
+
+            critic: Any = None
+            try:
+                critic = self._planner_critic_factory()
+            except Exception:
+                critic = None
+            if critic is not None:
+                verdict = await critic.review_plan(graph, compact_projection(snap))
+                findings = findings + [f"planner-critic: {f}" for f in verdict.get("findings", [])]
+                if not verdict.get("approved", False):
+                    findings.append(
+                        f"planner-critic ({verdict.get('reviewer', '?')}) withheld approval of the plan"
+                    )
+                self.ctx.log_event(
+                    "plan.critiqued",
+                    stage="PLANNED",
+                    cycle_id=cycle_id,
+                    payload={
+                        "approved": verdict.get("approved"),
+                        "reviewer": verdict.get("reviewer"),
+                        "findings": verdict.get("findings", [])[:10],
+                    },
+                )
         graph = graph.model_copy(update={"critic_findings": findings})
         self.ctx.store.put(
             "obligation_graphs",
