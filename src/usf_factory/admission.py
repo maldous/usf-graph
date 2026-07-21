@@ -243,13 +243,26 @@ async def qualify_live(
     from pathlib import Path
 
     from .errors import ProtectedActionError
-    from .probing import _authorize, _est_cost, _model_row, classify_inference_mode
+    from .probing import (
+        _authorize,
+        _model_row,
+        classify_inference_mode,
+        qualification_cost_estimate,
+    )
     from .providers import build_registry
     from .qualification import build_run, collect_answers, load_corpus
 
     model_row = _model_row(ctx, profile.provider_id, profile.requested_model_id)
     mode = classify_inference_mode(profile, model_row)
-    est = _est_cost(model_row)
+    # Load the suite FIRST so the cost bound is based on the ACTUAL case count
+    # (the sampled subset when max_cases is set), not the 10-probe estimate.
+    suite = load_corpus(
+        Path(ctx.config.qualification.corpus_dir), Path(ctx.config.qualification.holdout_dir)
+    )
+    if max_cases and max_cases < len(suite.cases):
+        sampled = sorted(suite.cases, key=lambda c: (-c.weight, c.case_id))[:max_cases]
+        suite = suite.model_copy(update={"cases": sampled})
+    est = qualification_cost_estimate(model_row, len(suite.cases), reps=1)
     ok, why = _authorize(mode, auth, est)
     if not ok:
         raise ProtectedActionError(f"live qualification not authorized ({mode}): {why}")
@@ -261,16 +274,7 @@ async def qualify_live(
     if not reserved:
         raise ProtectedActionError(f"qualification budget blocked: {rwhy}")
 
-    adapter = build_registry(ctx, allow_billable=mode in ("subscription", "paid")).adapter(
-        profile.provider_id
-    )
-    suite = load_corpus(
-        Path(ctx.config.qualification.corpus_dir), Path(ctx.config.qualification.holdout_dir)
-    )
-    if max_cases and max_cases < len(suite.cases):
-        # Deterministic weight-ordered sample (highest-weight cases first).
-        sampled = sorted(suite.cases, key=lambda c: (-c.weight, c.case_id))[:max_cases]
-        suite = suite.model_copy(update={"cases": sampled})
+    adapter = build_registry(ctx, allow_billable=True).adapter(profile.provider_id)
     actual_models: set[str] = set()
     tokens_in = tokens_out = 0
 

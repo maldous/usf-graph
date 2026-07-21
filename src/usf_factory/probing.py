@@ -83,6 +83,25 @@ def _est_cost(model_row: dict | None) -> float:
     return (pin * 5000 + pout * 2000) / 1_000_000.0
 
 
+def qualification_cost_estimate(
+    model_row: dict | None,
+    n_cases: int,
+    *,
+    reps: int = 1,
+    prompt_tokens_per_case: int = 1200,
+    output_tokens_per_case: int = 400,
+) -> float:
+    """Estimate the qualification cost from the ACTUAL number of cases, an
+    estimated prompt/output size per case, model prices, and the repetition
+    count — never reusing the 10-probe estimate for a 38-case suite."""
+    if not model_row:
+        return 0.0
+    pin = float(model_row.get("prompt_cost_per_mtok") or 0.0)
+    pout = float(model_row.get("output_cost_per_mtok") or 0.0)
+    per_case = (pin * prompt_tokens_per_case + pout * output_tokens_per_case) / 1_000_000.0
+    return per_case * max(1, n_cases) * max(1, reps)
+
+
 async def run_probe_suite(
     ctx: RuntimeContext,
     profile: AgentProfile,
