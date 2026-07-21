@@ -90,6 +90,7 @@ class FactoryEngine:
         materialisation_factory: Callable[[Path, str], object] | None = None,
         reviewer_factory: Callable[[], object] | None = None,
         planner_critic_factory: Callable[[], object] | None = None,
+        max_shadow_packets: int | None = None,
     ) -> None:
         self.ctx = ctx
         self.iso = RepoIsolation(ctx.paths, ctx.usf_repo)
@@ -113,6 +114,8 @@ class FactoryEngine:
         # When the planner is an AI planner, an INDEPENDENT critic (ideally a
         # different provider/family) judges the proposed plan.
         self._planner_critic_factory = planner_critic_factory
+        # Shadow dispatch cap (--shadow-packets); None => no cap.
+        self._max_shadow_packets = max_shadow_packets
         self._coordinator_token: int | None = None
         self._lease_lost: bool = False
 
@@ -715,6 +718,13 @@ class FactoryEngine:
 
         by_id = {p.packet_id: p for p in pset.packets}
         selected = [by_id[pid] for pid in pset.selected_packet_ids]
+        # --shadow-packets N: deterministically cap the number of packets actually
+        # dispatched in shadow mode (after eligibility/selection; packet identity
+        # unchanged — a stable-sorted prefix of the selected set).
+        if mode is RunMode.SHADOW and self._max_shadow_packets is not None:
+            selected = sorted(selected, key=lambda p: p.packet_id)[
+                : max(0, self._max_shadow_packets)
+            ]
         sem = asyncio.Semaphore(max(1, self.ctx.config.budgets.max_concurrent_workers))
 
         async def _guarded(packet: Packet) -> PacketResult | None:

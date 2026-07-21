@@ -151,6 +151,9 @@ def run(
         False, "--continuous", help="loop until no-progress / quota / blocker / pause"
     ),
     max_cycles: int = typer.Option(20, "--max-cycles", help="hard cap for --continuous"),
+    shadow_packets: int = typer.Option(
+        -1, "--shadow-packets", help="cap packets actually dispatched in shadow mode (-1=no cap)"
+    ),
 ) -> None:
     """Run one cycle (or a bounded continuous loop) in the given mode.
 
@@ -168,12 +171,13 @@ def run(
         raise typer.Exit(code=2) from None
     from .runtime import build_engine
 
+    cap = shadow_packets if shadow_packets >= 0 else None
     with _ctx() as ctx:
         if (ctx.paths.state / "PAUSED").exists():
             err.print("[yellow]factory is paused; run `usf-factory resume` first[/]")
             raise typer.Exit(code=1)
         if not continuous:
-            eng = build_engine(ctx, mode=run_mode)
+            eng = build_engine(ctx, mode=run_mode, max_shadow_packets=cap)
             receipt = asyncio.run(eng.run_cycle(run_mode))
             _print_receipt(receipt)
             return
@@ -643,6 +647,71 @@ def models_admit(
             return
         roles = admit_from_evidence(ctx, profile_id)
     console.print(f"roles computed from qualification evidence: {[r.value for r in roles]}")
+
+
+@models_app.command("evaluate-providers")
+def models_evaluate_providers(
+    allow_inference: bool = typer.Option(False, "--allow-inference"),
+    allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
+    allow_paid_inference: bool = typer.Option(False, "--allow-paid-inference"),
+    max_cost_usd: float = typer.Option(0.0, "--max-cost-usd"),
+    concurrency: int = typer.Option(4, "--concurrency"),
+    provider_timeout_s: float = typer.Option(180.0, "--provider-timeout-s"),
+    force: bool = typer.Option(False, "--force"),
+    report: str = typer.Option("docs/provider-evaluation-report.md", "--report"),
+) -> None:
+    """Single provider-coverage pass: one representative model per CONFIGURED
+    provider (every provider gets exactly one row), one compact semantic
+    evaluation, bounded concurrency, continue-on-failure. Paid inference is never
+    invoked without --allow-paid-inference."""
+    import asyncio as _asyncio
+
+    from .provider_eval import EvalAuth, evaluate_all_providers
+    from .selection_report import build_and_persist_roster, render_coverage_report, write_report
+
+    auth = EvalAuth(
+        allow_inference=allow_inference,
+        allow_subscription_inference=allow_subscription_inference,
+        allow_paid_inference=allow_paid_inference,
+        max_cost_usd=max_cost_usd,
+    )
+    with _ctx() as ctx:
+        evals = _asyncio.run(
+            evaluate_all_providers(ctx, auth, concurrency=concurrency, force=force)
+        )
+        roster = build_and_persist_roster(ctx, evals)
+        md = render_coverage_report(evals, roster)
+        path = write_report(md, report)
+    t = Table(title=f"provider coverage ({len(evals)} rows)")
+    for col in ("provider", "model", "actual", "status", "fidelity", "opt", "transport"):
+        t.add_column(col)
+    for e in sorted(evals, key=lambda x: x.provider_id):
+        caps = e.adapter_capabilities or {}
+        transport = (
+            "brokered"
+            if caps.get("brokered_tool_loop")
+            else ("bounded" if caps.get("bounded_patch_synthesis") else "-")
+        )
+        t.add_row(
+            e.provider_id,
+            (e.requested_model or "-")[-22:],
+            (e.actual_model or "-")[-18:] if e.actual_model else "unverified",
+            e.status,
+            f"{e.semantic_scores.get('semantic_rule_fidelity', 0):.2f}"
+            if e.semantic_scores
+            else "-",
+            f"{e.semantic_scores.get('semantic_optimization', 0):.2f}"
+            if e.semantic_scores
+            else "-",
+            transport,
+        )
+    console.print(t)
+    paid = sum(e.paid_api_spend_usd for e in evals)
+    sub = sum(e.subscription_reported_value_usd for e in evals)
+    console.print(
+        f"paid API spend: ${paid:.2f}  | subscription reported value: ${sub:.4f} (informational)"
+    )
+    console.print(f"[green]report written:[/] {path}")
 
 
 # Assessment order: subscription CLIs, then metadata-cheap external non-Llama.

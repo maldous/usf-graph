@@ -93,32 +93,28 @@ def production_reviewer_factory(ctx: RuntimeContext):
     reviewer exists — the engine then BLOCKS waves that require review (fail
     closed; approval is never synthesized)."""
     from .enums import AdmissionRole
-    from .models import AgentProfile
     from .providers import build_registry
     from .review import AiReviewer
 
     def make():
-        from .admission import admission_ineligibility
+        from .roster import roster_profile_for
 
-        for _key, row in ctx.store.items("agent_profiles"):
-            profile = AgentProfile(**row)
-            decision, _run, reason = admission_ineligibility(ctx, profile)
-            if reason is not None or decision is None:
-                continue
-            if AdmissionRole.REVIEWER.value not in set(decision.get("roles", [])):
-                continue
-            try:
-                adapter = build_registry(ctx).adapter(profile.provider_id)
-            except Exception:
-                continue
-            return AiReviewer(
-                adapter.invoke,
-                profile.profile_id,
-                provider_id=profile.provider_id,
-                model_id=profile.requested_model_id,
-                adapter_id=profile.adapter,
-            )
-        return None
+        # The ACTIVE roster's reviewer (built with provider independence), else
+        # any valid admitted reviewer — never first-found storage order.
+        profile = roster_profile_for(ctx, AdmissionRole.REVIEWER)
+        if profile is None:
+            return None
+        try:
+            adapter = build_registry(ctx).adapter(profile.provider_id)
+        except Exception:
+            return None
+        return AiReviewer(
+            adapter.invoke,
+            profile.profile_id,
+            provider_id=profile.provider_id,
+            model_id=profile.requested_model_id,
+            adapter_id=profile.adapter,
+        )
 
     return make
 
@@ -146,8 +142,13 @@ def select_planner(ctx: RuntimeContext):
     from .enums import AdmissionRole
     from .planner import OBLIGATION_GRAPH_SCHEMA, AiPlanner
     from .providers import build_registry
+    from .roster import roster_profile_for
 
-    for profile in _admitted_profiles(ctx, AdmissionRole.PLANNER_CANDIDATE):
+    # Prefer the ACTIVE roster's planner (ranked evidence), else any admitted
+    # planner (deterministic order) — never first-found storage iteration.
+    chosen = roster_profile_for(ctx, AdmissionRole.PLANNER_CANDIDATE)
+    candidates = [chosen] if chosen else _admitted_profiles(ctx, AdmissionRole.PLANNER_CANDIDATE)
+    for profile in candidates:
         try:
             adapter = build_registry(ctx).adapter(profile.provider_id)
         except Exception:
@@ -190,7 +191,9 @@ def production_planner_critic_factory(ctx: RuntimeContext, exclude_provider: str
     return make
 
 
-def build_engine(ctx: RuntimeContext, *, mode: RunMode | None = None):
+def build_engine(
+    ctx: RuntimeContext, *, mode: RunMode | None = None, max_shadow_packets: int | None = None
+):
     """Construct a fully-wired production FactoryEngine.
 
     Pipeline wiring: a qualified AI planner (when admitted) with an INDEPENDENT
@@ -221,4 +224,5 @@ def build_engine(ctx: RuntimeContext, *, mode: RunMode | None = None):
         materialisation_factory=materialisation_factory,
         reviewer_factory=reviewer_factory,
         planner_critic_factory=critic_factory if planner is not None else None,
+        max_shadow_packets=max_shadow_packets,
     )

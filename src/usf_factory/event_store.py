@@ -41,6 +41,9 @@ _RECORD_TABLES: dict[str, list[str]] = {
     "admission_decisions": ["agent_profile_id", "qualification_run_id"],
     # Append-only, digest-bound ownership evidence (subject -> owner path).
     "ownership_evidence": ["subject", "owner_path", "verified"],
+    # One coverage row per provider per evaluation run; the active role roster.
+    "provider_evaluations": ["provider_id", "eval_suite_version"],
+    "role_rosters": [],
     "task_classes": [],
     "model_task_scores": ["agent_profile_id", "task_class", "dimension"],
     "semantic_snapshots": ["authority_digest", "repository_head"],

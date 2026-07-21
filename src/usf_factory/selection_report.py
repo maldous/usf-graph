@@ -117,3 +117,99 @@ def write_report(md: str, path: str) -> str:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(md, encoding="utf-8")
     return str(p)
+
+
+def build_and_persist_roster(ctx: Any, evals: Any) -> dict[str, Any]:
+    """Build the active RoleRoster from current admission evidence and persist it
+    (§8). Returns the roster entries for the report."""
+    from .roster import build_roster, persist_active
+
+    roster = build_roster(ctx)
+    persist_active(ctx, roster)
+    return roster.entries
+
+
+def render_coverage_report(evals: Any, roster: dict[str, Any]) -> str:
+    """One concise provider-coverage report (final completion pass §12)."""
+    lines: list[str] = []
+    a_ = lines.append
+    a_("# Provider evaluation report")
+    a_("")
+    a_(
+        "One coverage pass — exactly one representative model per CONFIGURED "
+        "provider, one compact semantic evaluation (authority boundary, root-cause "
+        "consolidation, minimal change, uncertainty). No paid API inference. "
+        "`/usf` unchanged; all protected gates disabled."
+    )
+    a_("")
+    a_(
+        "| provider | representative requested model | actual model | status | fidelity | optimization | safe transport | uncached/cached/output tok | latency ms | blocker |"
+    )
+    a_("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
+    for e in sorted(evals, key=lambda x: x.provider_id):
+        caps = e.adapter_capabilities or {}
+        transport = (
+            "brokered_tool_loop"
+            if caps.get("brokered_tool_loop")
+            else ("bounded_patch_synthesis" if caps.get("bounded_patch_synthesis") else "-")
+        )
+        u = e.usage
+        unc = getattr(u, "uncached_input_tokens", 0) if u else 0
+        cac = getattr(u, "cached_input_tokens", 0) if u else 0
+        out = getattr(u, "output_tokens", 0) if u else 0
+        toks = f"{unc}/{cac}/{out}" if (e.status == "EVALUATED") else "UNKNOWN"
+        fid = (
+            f"{e.semantic_scores.get('semantic_rule_fidelity', 0):.2f}"
+            if e.semantic_scores
+            else "-"
+        )
+        opt = (
+            f"{e.semantic_scores.get('semantic_optimization', 0):.2f}" if e.semantic_scores else "-"
+        )
+        actual = (
+            e.actual_model if e.actual_model else ("unverified" if e.status == "EVALUATED" else "-")
+        )
+        lat = f"{e.latency_ms:.0f}" if e.latency_ms else "-"
+        a_(
+            f"| {e.provider_id} | `{e.requested_model or '-'}` | {actual} | {e.status} | "
+            f"{fid} | {opt} | {transport} | {toks} | {lat} | {e.error_classification or '-'} |"
+        )
+    a_("")
+    a_("## Active role roster")
+    a_("")
+    for role, entry in sorted(roster.items()):
+        if not entry.get("primary"):
+            a_(f"- **{role}**: NO_QUALIFIED_MODEL (unfilled; not force-filled)")
+            continue
+        indep = (
+            f"  reviewer_independence={entry['reviewer_independence']}"
+            if "reviewer_independence" in entry
+            else ""
+        )
+        a_(
+            f"- **{role}**: `{entry.get('provider')}` / `{entry.get('requested_model')}` "
+            f"(transport={entry.get('transport')}; profile={entry.get('primary')[:16]}; "
+            f"qual={entry.get('qualification_run_id') or 'none'}; fallbacks={len(entry.get('fallbacks', []))}){indep}"
+        )
+    a_("")
+    a_("## Cost accounting")
+    a_("")
+    paid = sum(e.paid_api_spend_usd for e in evals)
+    sub = sum(e.subscription_reported_value_usd for e in evals)
+    a_(f"- **paid API spend: ${paid:.2f}** (must be $0.00; no paid inference authorized)")
+    a_(f"- subscription reported value: ${sub:.4f} (informational; not against the paid budget)")
+    a_("- free inference cost: $0.00")
+    a_("")
+    a_("## Notes")
+    a_("")
+    a_(
+        "- Every configured provider has exactly one row (disabled => "
+        "DISABLED_BY_CONFIG; paid-only without paid authorization => "
+        "PAID_INFERENCE_NOT_AUTHORIZED — never omitted for un-runnable inference)."
+    )
+    a_(
+        "- Reviewer/integrator require only plain invocation; PATCH_PRODUCER "
+        "accepts brokered tool loop OR bounded patch synthesis (Claude/Codex CLIs)."
+    )
+    a_("- Auth/quota/model-id failures are classified as such — not model-quality failures.")
+    return "\n".join(lines) + "\n"

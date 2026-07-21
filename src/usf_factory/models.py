@@ -376,6 +376,45 @@ class AdmissionDecision(FactoryModel):
     _volatile_fields = frozenset({"decided_at"})
 
 
+class ProviderEvaluation(FactoryModel):
+    """One coverage row per configured provider (final completion pass §4)."""
+
+    provider_id: str
+    config_digest: str = ""
+    representative_selection_reason: str = ""
+    requested_model: str = ""
+    actual_model: str | None = None
+    actual_model_verified: bool = False
+    status: str = "NO_ELIGIBLE_MODEL"
+    error_classification: str = ""
+    adapter_capabilities: dict[str, Any] = Field(default_factory=dict)
+    semantic_scores: dict[str, float] = Field(default_factory=dict)
+    usage: TokenUsage = Field(default_factory=lambda: TokenUsage())
+    paid_api_spend_usd: float = 0.0
+    subscription_reported_value_usd: float = 0.0
+    free_inference_cost_usd: float = 0.0
+    latency_ms: float | None = None
+    evidence_cas_ref: str | None = None
+    eval_suite_version: str = ""
+    rule_bundle_digest: str = ""
+    evaluated_at: str = ""
+
+    _volatile_fields = frozenset({"evaluated_at"})
+
+
+class RoleRoster(FactoryModel):
+    """A content-addressed, activatable role roster (final completion pass §8)."""
+
+    roster_id: str = ""
+    evaluation_run_id: str = ""
+    config_digest: str = ""
+    rule_bundle_digest: str = ""
+    entries: dict[str, Any] = Field(default_factory=dict)  # role -> {primary, fallbacks, ...}
+    created_at: str = ""
+
+    _volatile_fields = frozenset({"created_at"})
+
+
 class OwnershipEvidence(FactoryModel):
     """Digest-bound evidence that a repository path OWNS a semantic subject.
 
