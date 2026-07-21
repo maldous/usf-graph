@@ -29,6 +29,7 @@ from .enums import (
     ProtectedAction,
     RunMode,
 )
+from .errors import SnapshotError
 from .isolation import RepoIsolation
 from .learning import LearningEngine
 from .models import (
@@ -358,9 +359,17 @@ class FactoryEngine:
             return self._finish(cycle_id, mode, sm.state, started, blockers=pre["blockers"])
         sm.transition(CycleState.READY)
 
-        # Snapshot.
+        # Snapshot (fails closed: a degraded/synthesized authority blocks the cycle).
         sm.transition(CycleState.SNAPSHOT)
-        snap = self.capture_snapshot(cycle_id)
+        try:
+            snap = self.capture_snapshot(cycle_id)
+        except SnapshotError as exc:
+            sm.transition(CycleState.BLOCKED)
+            blockers.append(f"snapshot failed closed: {exc}")
+            self.ctx.log_event(
+                "snapshot.blocked", stage="SNAPSHOT", cycle_id=cycle_id, payload={"error": str(exc)}
+            )
+            return self._finish(cycle_id, mode, sm.state, started, blockers=blockers)
 
         # Plan + compile.
         sm.transition(CycleState.PLANNED)

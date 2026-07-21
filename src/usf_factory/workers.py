@@ -14,6 +14,8 @@ import json
 from pathlib import Path
 from typing import Any, Protocol
 
+import jsonschema
+
 from .canonical import digest_text
 from .clock import utc_now_iso
 from .enums import FailureClass, PacketResultStatus
@@ -21,6 +23,7 @@ from .isolation import RepoIsolation
 from .models import AgentProfile, Packet, PacketResult
 from .sandbox import scan_secrets, validate_patch_scope
 
+# Strict result contract: unknown fields are rejected, status is a closed enum.
 WORKER_RESULT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -32,10 +35,11 @@ WORKER_RESULT_SCHEMA: dict[str, Any] = {
         "evidence_produced": {"type": "array", "items": {"type": "string"}},
         "obligations_closed": {"type": "array", "items": {"type": "string"}},
         "obligations_discovered": {"type": "array", "items": {"type": "string"}},
+        "validation_receipts": {"type": "array", "items": {"type": "object"}},
         "uncertainties": {"type": "array", "items": {"type": "string"}},
     },
     "required": ["status"],
-    "additionalProperties": True,
+    "additionalProperties": False,
 }
 
 
@@ -109,9 +113,10 @@ class AiWorker:
     yields a SCOPE_VIOLATION result rather than a patch.
     """
 
-    def __init__(self, invoke, isolation: RepoIsolation) -> None:
+    def __init__(self, invoke, isolation: RepoIsolation, store=None) -> None:
         self._invoke = invoke  # async callable(AgentRequest)->AgentResponse
         self._iso = isolation
+        self._store = store  # optional Store for CAS patch persistence
 
     async def execute(self, packet: Packet, workspace: Path, agent: AgentProfile) -> PacketResult:
         from .models import AgentRequest
@@ -120,6 +125,11 @@ class AiWorker:
             agent_profile_id=agent.profile_id,
             packet_id=packet.packet_id,
             instructions=build_worker_instructions(packet),
+            provider_id=agent.provider_id,
+            requested_model_id=agent.requested_model_id,
+            adapter_id=agent.adapter,
+            tool_profile_id=agent.tool_profile,
+            prompt_version=agent.prompt_version,
             packet_json={"packetId": packet.packet_id},
             permitted_tools=packet.permitted_tools,
             result_schema=WORKER_RESULT_SCHEMA,
@@ -129,7 +139,27 @@ class AiWorker:
         except Exception as exc:
             return self._failed(packet, agent, FailureClass.ADAPTER_ERROR, str(exc))
 
-        data = _parse_result(resp.output_text) or {}
+        # Strict, fail-closed parsing. Invalid/absent JSON or an unknown/missing
+        # status is a FAILURE — never a silent COMPLETED.
+        data = _parse_result(resp.output_text)
+        if data is None:
+            return self._failed(
+                packet, agent, FailureClass.WORKER_ERROR, "result was not valid JSON"
+            )
+        try:
+            jsonschema.validate(data, WORKER_RESULT_SCHEMA)
+        except jsonschema.ValidationError as exc:
+            return self._failed(
+                packet, agent, FailureClass.WORKER_ERROR, f"result schema violation: {exc.message}"
+            )
+
+        try:
+            status = PacketResultStatus(str(data["status"]))
+        except (KeyError, ValueError):
+            return self._failed(
+                packet, agent, FailureClass.WORKER_ERROR, "missing or unknown status"
+            )
+
         patch = str(data.get("patch", ""))
 
         # Deterministic sandbox enforcement (never trust the model).
@@ -137,27 +167,38 @@ class AiWorker:
             violations = validate_patch_scope(patch, packet.write_paths)
             leaks = scan_secrets(patch)
             if violations or leaks:
-                return PacketResult(
-                    packet_id=packet.packet_id,
-                    status=PacketResultStatus.FAILED,
-                    agent_profile_id=agent.profile_id,
+                return self._failed(
+                    packet,
+                    agent,
+                    FailureClass.SCOPE_VIOLATION,
+                    "; ".join(violations + leaks),
+                    scope_violation=True,
                     actual_provider=resp.actual_provider,
                     actual_model=resp.actual_model,
-                    base_head=packet.base_head,
-                    snapshot_id=packet.snapshot_id,
-                    scope_violation=True,
-                    failure_class=FailureClass.SCOPE_VIOLATION,
-                    failure_detail="; ".join(violations + leaks)[:500],
-                    produced_at=utc_now_iso(),
                 )
 
-        status_str = str(data.get("status", "COMPLETED"))
-        try:
-            status = PacketResultStatus(status_str)
-        except ValueError:
-            status = PacketResultStatus.COMPLETED
+        # A mutating packet claiming COMPLETED must produce a real patch touching
+        # at least one in-scope path. No patch => not a durable completion.
+        changed = validate_and_list(patch)
+        if status is PacketResultStatus.COMPLETED and packet.write_paths and not changed:
+            return self._failed(
+                packet,
+                agent,
+                FailureClass.WORKER_ERROR,
+                "mutating packet completed without a patch/changed paths",
+                actual_provider=resp.actual_provider,
+                actual_model=resp.actual_model,
+            )
 
-        patch_digest = digest_text(patch) if patch else None
+        # Persist the exact patch bytes in CAS (attribution + replay).
+        patch_ref = None
+        patch_digest = None
+        if patch and self._store is not None:
+            patch_ref = self._store.cas_put_text(patch)
+            patch_digest = patch_ref.split("cas:", 1)[-1]
+        elif patch:
+            patch_digest = digest_text(patch)
+
         return PacketResult(
             packet_id=packet.packet_id,
             status=status,
@@ -167,7 +208,8 @@ class AiWorker:
             base_head=packet.base_head,
             snapshot_id=packet.snapshot_id,
             patch_digest=patch_digest,
-            changed_paths=validate_and_list(patch),
+            patch_ref=patch_ref,
+            changed_paths=changed,
             semantic_subjects_changed=list(data.get("semantic_subjects_changed", [])),
             tests_run=list(data.get("tests_run", [])),
             evidence_produced=list(data.get("evidence_produced", [])),
@@ -178,14 +220,25 @@ class AiWorker:
         )
 
     def _failed(
-        self, packet: Packet, agent: AgentProfile, fc: FailureClass, detail: str
+        self,
+        packet: Packet,
+        agent: AgentProfile,
+        fc: FailureClass,
+        detail: str,
+        *,
+        scope_violation: bool = False,
+        actual_provider: str | None = None,
+        actual_model: str | None = None,
     ) -> PacketResult:
         return PacketResult(
             packet_id=packet.packet_id,
             status=PacketResultStatus.FAILED,
             agent_profile_id=agent.profile_id,
+            actual_provider=actual_provider,
+            actual_model=actual_model,
             base_head=packet.base_head,
             snapshot_id=packet.snapshot_id,
+            scope_violation=scope_violation,
             failure_class=fc,
             failure_detail=detail[:500],
             produced_at=utc_now_iso(),
@@ -199,6 +252,12 @@ def validate_and_list(patch: str) -> list[str]:
 
 
 def _parse_result(text: str) -> dict[str, Any] | None:
+    """Strict parse of a worker result.
+
+    The entire output (after stripping a single markdown fence) must be one JSON
+    object. There is NO regex "find any JSON in the prose" recovery — that path
+    is a false-success risk and is deliberately absent.
+    """
     import re
 
     text = (text or "").strip()
@@ -207,13 +266,6 @@ def _parse_result(text: str) -> dict[str, Any] | None:
         text = re.sub(r"\n?```$", "", text)
     try:
         obj = json.loads(text)
-        return obj if isinstance(obj, dict) else None
     except json.JSONDecodeError:
-        m = re.search(r"\{.*\}", text, re.DOTALL)
-        if m:
-            try:
-                obj = json.loads(m.group(0))
-                return obj if isinstance(obj, dict) else None
-            except json.JSONDecodeError:
-                return None
-    return None
+        return None
+    return obj if isinstance(obj, dict) else None

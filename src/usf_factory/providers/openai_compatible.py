@@ -176,7 +176,17 @@ class OpenAICompatibleAdapter:
 
     async def invoke(self, request: AgentRequest) -> AgentResponse:
         self._ensure_billable()
-        model_id = request.agent_profile_id.split(":", 1)[-1]
+        if request.provider_id and request.provider_id != self.config.provider_id:
+            raise AdapterError(
+                f"request provider {request.provider_id!r} does not match adapter "
+                f"{self.config.provider_id!r}"
+            )
+        model_id = request.model_id_for(request.agent_profile_id.split(":", 1)[-1])
+        if not model_id or model_id.startswith("agent-"):
+            raise AdapterError(
+                "AgentRequest.requested_model_id is required; refusing to derive a "
+                "model id from an opaque agent_profile_id"
+            )
         return await self._chat(model_id, request.instructions)
 
     async def _chat(self, model_id: str, prompt: str) -> AgentResponse:

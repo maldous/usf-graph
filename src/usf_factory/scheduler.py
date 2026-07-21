@@ -16,7 +16,6 @@ from dataclasses import dataclass, field
 
 from .config import EgressPolicy, RoutingConfig
 from .enums import (
-    ADMISSION_RANK,
     AdmissionRole,
     HealthStatus,
     PrivacyClass,
@@ -58,8 +57,15 @@ class SchedulableAgent:
         return "*" in self.tools or tool in self.tools
 
     def has_role(self, role: AdmissionRole) -> bool:
-        my_rank = max((ADMISSION_RANK[r] for r in self.admission_roles), default=0)
-        return my_rank >= ADMISSION_RANK[role]
+        """Roles are ORTHOGONAL capabilities, not a linear hierarchy. A profile
+        must be admitted to the exact role required. The sole exception is
+        READ_ONLY_ANALYST (pure reading), which any admitted role implies —
+        holding a write/specialist role never grants a *different* one."""
+        if role in self.admission_roles:
+            return True
+        if role is AdmissionRole.READ_ONLY_ANALYST:
+            return any(r is not AdmissionRole.UNQUALIFIED for r in self.admission_roles)
+        return False
 
 
 class Scheduler:

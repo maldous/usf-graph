@@ -37,8 +37,10 @@ These are enforced in code and must never be weakened by an automated change:
 
 ## Determinism rules
 
-- The control plane must be replayable from the event log. Persist a state
-  transition **before and after** every side effect.
+- The control plane must be replayable from the append-only event log. Phase
+  transitions and side-effect boundaries are recorded as events. (Strict
+  per-transition compare-and-swap with fencing tokens is a target — see
+  `docs/known-limitations.md`.)
 - No wall-clock, locale, or randomness in canonical artifact identity. Content
   addressing uses SHA-256 over canonical JSON (sorted keys, UTF-8).
 - Exploration and any stochastic routing use a **seeded** RNG derived from

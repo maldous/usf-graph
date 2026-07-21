@@ -80,7 +80,9 @@ Each wave is a **disposable antichain**; there is no pre-planned "Wave 2".
   for identical inputs (verified in `tests/test_e2e.py::test_cycle_is_deterministic`).
 - Exploration uses a **seeded** RNG derived from `(seed, snapshot_id, packet_id)`
   — routing replays identically.
-- A state transition is persisted before and after every side effect (event log).
+- Phase transitions and side-effect boundaries are recorded in the append-only
+  event log (strict per-transition CAS + fencing tokens are a target; see
+  `docs/known-limitations.md`).
 
 ## Current reality vs target
 

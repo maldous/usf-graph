@@ -150,16 +150,22 @@ def _weighted_mean(pairs: list[tuple[float, float]]) -> float:
 def score_answers(
     suite: QualificationSuite, answers: dict[str, str]
 ) -> tuple[dict[str, float], dict[str, float], int, int]:
-    """Return (dimension_scores, task_class_scores, cases_passed, cases_total)."""
+    """Return (dimension_scores, task_class_scores, cases_passed, cases_total).
+
+    Every case in the suite counts. A MISSING answer scores 0 (a model cannot
+    earn a high average by answering only the easy cases). ``total`` is the full
+    suite size, not just the answered subset.
+    """
     by_dim: dict[str, list[tuple[float, float]]] = {}
     by_tc: dict[str, list[tuple[float, float]]] = {}
     passed = 0
     total = 0
     for case in suite.cases:
-        if case.case_id not in answers:
-            continue
         total += 1
-        s = grade_case(case, answers[case.case_id])
+        if case.case_id in answers:
+            s = grade_case(case, answers[case.case_id])
+        else:
+            s = 0.0  # unanswered case scores zero (fail closed)
         if s >= PASS_THRESHOLD:
             passed += 1
         by_dim.setdefault(case.dimension, []).append((s, case.weight))

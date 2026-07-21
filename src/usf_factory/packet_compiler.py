@@ -113,10 +113,18 @@ def compile_packets(
         )
         packets.append(packet)
 
-    # Oversized packets are excluded from selection (planner should split them).
+    # Fail-open guards: a packet is only selectable when its task class is known
+    # AND it is within limits. Unknown task classes / oversized packets are
+    # excluded from execution selection (never silently run).
     selectable: list[Packet] = []
     for p in packets:
         task = tc_by_name.get(p.task_class)
+        if task is None:
+            findings.append(
+                f"packet {p.packet_id} for obligation {p.obligation_id} has unknown "
+                f"task_class '{p.task_class}'; excluded from selection"
+            )
+            continue
         if _within_limits(p, task):
             selectable.append(p)
         else:

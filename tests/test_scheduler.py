@@ -116,21 +116,38 @@ def test_ranking_prefers_higher_scores():
 @pytest.mark.unit
 def test_high_risk_always_exploits_top_ranked():
     s = _sched()
+    # High-risk PATCH_PRODUCER work needs both the PATCH_PRODUCER role and
+    # INTEGRATOR-tier trust (roles are orthogonal, not a hierarchy).
+    roles = [AdmissionRole.PATCH_PRODUCER, AdmissionRole.INTEGRATOR]
     good = _agent(
-        "good",
-        [AdmissionRole.INTEGRATOR],
-        {"structured_output": 0.95, "implementation": 0.95, "scope_discipline": 0.95},
+        "good", roles, {"structured_output": 0.95, "implementation": 0.95, "scope_discipline": 0.95}
     )
     weak = _agent(
-        "weak",
-        [AdmissionRole.INTEGRATOR],
-        {"structured_output": 0.85, "implementation": 0.7, "scope_discipline": 0.7},
+        "weak", roles, {"structured_output": 0.85, "implementation": 0.7, "scope_discipline": 0.7}
     )
     d = s.schedule(
         _packet(risk=Risk.HIGH, write=["a.py"]), AdmissionRole.PATCH_PRODUCER, [good, weak]
     )
     assert d.selection_kind == "exploit"
     assert d.selected_profile_id == good.profile_id
+
+
+@pytest.mark.unit
+def test_roles_are_orthogonal_no_write_escalation():
+    # A profile admitted only as REVIEWER/INTEGRATOR must NOT be eligible as a
+    # PATCH_PRODUCER (P0-13: no privilege escalation via rank).
+    s = _sched()
+    reviewer = _agent(
+        "rev",
+        [AdmissionRole.REVIEWER, AdmissionRole.INTEGRATOR],
+        {"structured_output": 0.95, "implementation": 0.95, "scope_discipline": 0.95},
+    )
+    d = s.schedule(_packet(write=["a.py"]), AdmissionRole.PATCH_PRODUCER, [reviewer])
+    assert d.selected_profile_id is None
+    assert any("lacks role" in r for c in d.candidates for r in c.exclusion_reasons)
+    # But any admitted role can act as a pure read-only analyst.
+    d2 = s.schedule(_packet(), AdmissionRole.READ_ONLY_ANALYST, [reviewer])
+    assert d2.selected_profile_id == reviewer.profile_id
 
 
 @pytest.mark.unit

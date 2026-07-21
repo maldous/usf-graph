@@ -10,6 +10,7 @@ facts never depend on model output.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,16 @@ from .errors import SnapshotError
 from .isolation import RepoIsolation
 from .models import SemanticSnapshot
 from .paths import USF_REPO
+
+# Tools the deterministic snapshot depends on; their absence fails closed.
+REQUIRED_TOOLS = ("usf_health", "usf_bootstrap", "usf_query")
+
+# An authority digest must be a non-trivial identifier (never manufactured).
+_DIGEST_RE = re.compile(r"^[A-Za-z0-9:_\-]{16,}$")
+
+
+def _valid_digest(value: str) -> bool:
+    return bool(value) and " " not in value and bool(_DIGEST_RE.match(value))
 
 
 def _read_digest(path: Path) -> str | None:
@@ -64,22 +75,32 @@ def compile_snapshot(
     repo = usf_repo or isolation.usf_repo or USF_REPO
 
     # --- Authority (read-only MCP) --- #
+    # FAIL CLOSED. The snapshot must never be built on synthesized or degraded
+    # authority: an authority digest is never manufactured, and required
+    # read-only tools must be present.
     tools = authority.list_tools()
+    missing_tools = [t for t in REQUIRED_TOOLS if t not in tools]
+    if missing_tools:
+        raise SnapshotError(f"USF MCP is missing required tools: {missing_tools}")
+
     health = authority.health()
     health_json = health.json() or {}
     health_ok = bool(health_json.get("ok", health.ok))
+    if not health_ok:
+        raise SnapshotError("USF authority health is not ok; refusing to snapshot")
 
     bootstrap = authority.bootstrap().json() or {}
     auth = bootstrap.get("authority") or {}
     authority_digest = str(auth.get("digest") or "").strip()
-    if not authority_digest:
-        # Fall back to a digest of the health facts so the snapshot is still
-        # content-addressable, but flag via source.
-        authority_digest = digest_text(
-            f"{health_json.get('database')}|{health_json.get('triples')}"
+    if not _valid_digest(authority_digest):
+        raise SnapshotError(
+            "USF bootstrap did not supply a valid authority digest; refusing to "
+            "synthesize one (fail closed)"
         )
     triple_count = auth.get("triples") or health_json.get("triples")
     graph_count = auth.get("coveredGraphCount")
+    if triple_count is None or graph_count is None:
+        raise SnapshotError("authority triple/graph count missing; refusing to snapshot")
 
     unresolved = _collect_obligation_ids(bootstrap)
     evidence = _collect_evidence_refs(bootstrap)

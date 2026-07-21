@@ -50,11 +50,18 @@ attributed to that process.
 
 ## 3. Repository
 
+> **Status labels (corrected per adversarial review):** version `0.1.0`;
+> **state: safe plan-only control-plane prototype**; production readiness: **not
+> ready**; autonomous-mutation readiness: **not ready**. See
+> `docs/known-limitations.md` for the authoritative current-reality / nonconformance
+> / target breakdown. The phrase "first production-quality implementation" refers
+> to engineering quality of the control plane, not operational production readiness.
+
 | Item | Value |
 | --- | --- |
 | Path | `/root/usf-factory` |
-| VCS | independent git repo, **no remote** (the pre-existing `origin` → `github.com/maldous/usf-factory.git` was removed) |
-| Initial commit | created locally after all checks passed (see `git log`); **not pushed** |
+| VCS | independent git repo. Initially delivered with **no remote**; on explicit user request the original `origin` → `github.com/maldous/usf-factory.git` was restored and `main` was pushed. |
+| Commits | `0a0a82d` (initial build) then review-fix commit(s); pushed to `origin/main`. |
 | Python | 3.11.2 (only interpreter available in the chroot; `pyproject` targets `>=3.11`) |
 | Package manager | `pip` + `venv` (no `uv` installed); reproducible lock at `requirements.lock` |
 | Source size | ~9,300 LOC across `src/` + `tests/` |
@@ -256,6 +263,28 @@ cannot weaken policy, credential-alias disagreement, publication gate disabled.
 - This is **not** autonomous-production-ready and does not claim to be.
 
 ---
+
+## 14b. Adversarial review response
+
+An external adversarial review was incorporated. Bounded P0 correctness/safety
+defects were **fixed with regression tests**:
+
+- **P0-2** snapshot fails closed (no synthesized authority digest; health + required tools + counts required);
+- **P0-3** worker results are strict/fail-closed (no default-`COMPLETED`; unknown/missing status and unknown fields → `FAILED`; mutating packets require a real patch; patches stored in CAS);
+- **P0-4** explicit `provider_id`/`requested_model_id` routing (adapters refuse an opaque `agent-…` id);
+- **P0-9** unknown task classes are excluded from selection;
+- **P0-11** qualification scores missing answers as 0 (full-suite denominator);
+- **P0-13** admission roles are orthogonal (no write-privilege escalation via rank);
+- **P0-7 (partial)** CLI subprocesses run with a sanitized, secret-free environment.
+
+Larger workstreams remain **Planned** and gated (real agent runtime, OS-level
+sandbox, USF programme-state compiler, event-sourced durable state with fencing
+tokens, real git-apply integration, concurrency, per-provider egress, calibrated
+learning, operational controls, protected PR/publication handshake). CI was added
+(`.github/workflows/ci.yml`) so results are reproduced independently. Full status:
+`docs/known-limitations.md`.
+
+Test count after fixes: **102 passed**.
 
 ## 15. Disabled protected actions (default)
 

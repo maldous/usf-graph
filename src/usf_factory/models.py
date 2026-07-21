@@ -463,10 +463,21 @@ class AgentRequest(FactoryModel):
     agent_profile_id: str
     packet_id: str
     instructions: str
+    # Explicit routing — never recovered by parsing the opaque agent_profile_id.
+    provider_id: str = ""
+    requested_model_id: str = ""
+    adapter_id: str = ""
+    tool_profile_id: str = "default"
+    prompt_version: str = "v1"
     packet_json: dict[str, Any] = Field(default_factory=dict)
     permitted_tools: list[str] = Field(default_factory=list)
     result_schema: dict[str, Any] = Field(default_factory=dict)
     max_wall_s: int = 7200
+
+    def model_id_for(self, fallback: str) -> str:
+        """The model id to send to the provider. Explicit field wins; fallback is
+        used only when the field is unset (e.g. legacy callers)."""
+        return self.requested_model_id or fallback
 
 
 class AgentResponse(FactoryModel):

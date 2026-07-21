@@ -9,6 +9,7 @@ contents). This module never modifies ~/.codex or ~/.claude.
 from __future__ import annotations
 
 import asyncio
+import os
 import shutil
 import time
 from pathlib import Path
@@ -25,6 +26,15 @@ from ..models import (
 )
 from .base import AdapterError
 
+# Only these variables are forwarded to CLI subprocesses. API-provider keys and
+# every other secret are deliberately withheld so an OIDC CLI (Codex/Claude)
+# never inherits credentials it must not see.
+_SAFE_ENV_KEYS = ("PATH", "HOME", "USER", "LOGNAME", "LANG", "LC_ALL", "TERM", "TMPDIR")
+
+
+def _sanitized_env() -> dict[str, str]:
+    return {k: os.environ[k] for k in _SAFE_ENV_KEYS if k in os.environ}
+
 
 async def _run(
     cmd: list[str], timeout_s: float = 10.0, stdin: str | None = None
@@ -34,6 +44,7 @@ async def _run(
         stdin=asyncio.subprocess.PIPE if stdin is not None else None,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
+        env=_sanitized_env(),
     )
     try:
         out, err = await asyncio.wait_for(
