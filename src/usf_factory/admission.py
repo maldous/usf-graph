@@ -230,10 +230,16 @@ async def qualify_live(
     *,
     auth: Any,
     probe_run_id: str = "",
+    max_cases: int = 0,
 ) -> Any:
     """Run the qualification suite against the LIVE model and persist an immutable
     run. Inference is gated by the InferenceAuthorization and a budget
-    reservation (same rules as probing). A refusal persists NOTHING."""
+    reservation (same rules as probing). A refusal persists NOTHING.
+
+    ``max_cases`` (>0) qualifies against a DETERMINISTIC bounded sample of the
+    corpus — genuine model answers over a smaller, weight-ordered subset — which
+    keeps slow local inference tractable. The run records cases_total so the
+    sampling is explicit, never hidden."""
     from pathlib import Path
 
     from .errors import ProtectedActionError
@@ -261,6 +267,10 @@ async def qualify_live(
     suite = load_corpus(
         Path(ctx.config.qualification.corpus_dir), Path(ctx.config.qualification.holdout_dir)
     )
+    if max_cases and max_cases < len(suite.cases):
+        # Deterministic weight-ordered sample (highest-weight cases first).
+        sampled = sorted(suite.cases, key=lambda c: (-c.weight, c.case_id))[:max_cases]
+        suite = suite.model_copy(update={"cases": sampled})
     actual_models: set[str] = set()
     tokens_in = tokens_out = 0
 

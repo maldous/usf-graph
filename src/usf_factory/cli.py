@@ -214,6 +214,12 @@ def activate(
     max_models_per_provider: int = typer.Option(3, "--max-models-per-provider"),
     shadow_packets: int = typer.Option(1, "--shadow-packets"),
     candidate_packet: bool = typer.Option(False, "--candidate-packet"),
+    providers: str = typer.Option(
+        "", "--providers", help="comma-separated provider ids to bound the run (default: all)"
+    ),
+    max_qual_cases: int = typer.Option(
+        0, "--max-qual-cases", help="bound qualification cases per model (0=full corpus)"
+    ),
 ) -> None:
     """Run the full activation assessment: refresh -> discover -> probe ->
     qualify -> admit -> plan-only -> shadow wave -> (optional) one candidate
@@ -229,6 +235,8 @@ def activate(
         max_models_per_provider=max_models_per_provider,
         shadow_packets=shadow_packets,
         candidate_packet=candidate_packet,
+        providers=[p.strip() for p in providers.split(",") if p.strip()],
+        max_qual_cases=max_qual_cases,
     )
     with _ctx() as ctx:
         report = run_activation(ctx, opts)

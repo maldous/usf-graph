@@ -32,6 +32,12 @@ class ActivationOptions:
     max_models_per_provider: int = 3
     shadow_packets: int = 1
     candidate_packet: bool = False
+    # Restrict the assessment to these provider ids (empty => all enabled). Lets
+    # a controlled first activation bound itself to e.g. local Ollama.
+    providers: list[str] = field(default_factory=list)
+    # Bound qualification cases per model (0 => full corpus). Keeps slow local
+    # inference tractable; the sampling is recorded explicitly in the run.
+    max_qual_cases: int = 0
 
 
 @dataclass
@@ -81,12 +87,14 @@ def _candidate_models(ctx: RuntimeContext, opts: ActivationOptions) -> list[tupl
     --allow-paid-inference. Capped per provider."""
     provs = ctx.config.providers.by_id()
     per_provider: dict[str, int] = {}
-    out: list[tuple[str, str]] = []
+    out: list[tuple[str, str, int]] = []
     for row in ctx.store.records("models"):
         pid = row.get("provider_id", "")
         mid = row.get("requested_model_id", "")
         cfg = provs.get(pid)
         if not cfg or not mid:
+            continue
+        if opts.providers and pid not in opts.providers:
             continue
         mode = _mode_for(cfg.auth_mode, row)
         if mode == "paid" and not opts.allow_paid_inference:
@@ -95,11 +103,17 @@ def _candidate_models(ctx: RuntimeContext, opts: ActivationOptions) -> list[tupl
             continue
         if opts.free_only and mode != "free":
             continue
+        out.append((pid, mid, int((row.get("raw") or {}).get("size") or 0)))
+    # Prefer smaller (faster) models first, then cap per provider — so a bounded
+    # local run exercises the fast model rather than the largest one.
+    out.sort(key=lambda t: (t[0], t[2], t[1]))
+    capped: list[tuple[str, str]] = []
+    for pid, mid, _size in out:
         if per_provider.get(pid, 0) >= opts.max_models_per_provider:
             continue
         per_provider[pid] = per_provider.get(pid, 0) + 1
-        out.append((pid, mid))
-    return out
+        capped.append((pid, mid))
+    return capped
 
 
 def _mode_for(auth_mode: AuthMode, model_row: dict[str, Any]) -> str:
@@ -112,13 +126,17 @@ def _mode_for(auth_mode: AuthMode, model_row: dict[str, Any]) -> str:
     return "paid"
 
 
-async def _refresh_and_discover(ctx: RuntimeContext, report: ActivationReport) -> None:
+async def _refresh_and_discover(
+    ctx: RuntimeContext, report: ActivationReport, opts: ActivationOptions
+) -> None:
     from .clock import utc_now_iso
     from .enums import HealthStatus
     from .providers import build_registry
 
     reg = build_registry(ctx)
     ids = reg.enabled_ids()
+    if opts.providers:
+        ids = [i for i in ids if i in opts.providers]
     outcomes = await reg.discover_all(ids)
     for pid, o in outcomes.items():
         report.providers_refreshed[pid] = "ok" if o.ok else (o.error or "failed")[:60]
@@ -162,7 +180,7 @@ def run_activation(ctx: RuntimeContext, opts: ActivationOptions) -> ActivationRe
 
     # 3-4. Provider refresh + discovery.
     try:
-        asyncio.run(_refresh_and_discover(ctx, report))
+        asyncio.run(_refresh_and_discover(ctx, report, opts))
     except Exception as exc:
         report.blockers.append(f"provider refresh failed: {exc}")
 
@@ -184,7 +202,9 @@ def run_activation(ctx: RuntimeContext, opts: ActivationOptions) -> ActivationRe
                 outcome.classification = "FAILED_QUALIFICATION"
                 outcome.detail = "structural probes failed"
             else:
-                run = asyncio.run(_qualify(ctx, profile, infer_auth, probe.run_id))
+                run = asyncio.run(
+                    _qualify(ctx, profile, infer_auth, probe.run_id, opts.max_qual_cases)
+                )
                 report.tokens_in += run.tokens_in
                 report.tokens_out += run.tokens_out
                 report.cost_usd += run.cost_usd
@@ -227,10 +247,14 @@ def run_activation(ctx: RuntimeContext, opts: ActivationOptions) -> ActivationRe
     return report
 
 
-async def _qualify(ctx: RuntimeContext, profile: Any, auth: Any, probe_run_id: str) -> Any:
+async def _qualify(
+    ctx: RuntimeContext, profile: Any, auth: Any, probe_run_id: str, max_cases: int = 0
+) -> Any:
     from .admission import qualify_live
 
-    return await qualify_live(ctx, profile, auth=auth, probe_run_id=probe_run_id)
+    return await qualify_live(
+        ctx, profile, auth=auth, probe_run_id=probe_run_id, max_cases=max_cases
+    )
 
 
 def _classify_roles(roles: list[AdmissionRole]) -> str:
