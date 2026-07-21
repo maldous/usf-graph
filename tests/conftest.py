@@ -180,7 +180,7 @@ def seed_agent(
     store.put(
         "qualification_runs",
         run.run_id,
-        run.content_dict(),
+        run.model_dump(mode="json"),
         extra={"agent_profile_id": profile.profile_id, "expires_at": far_future},
     )
     decision = AdmissionDecision(
@@ -196,7 +196,7 @@ def seed_agent(
     store.put(
         "admission_decisions",
         decision.decision_id,
-        decision.content_dict(),
+        decision.model_dump(mode="json"),
         extra={"agent_profile_id": profile.profile_id, "qualification_run_id": run.run_id},
     )
     return profile

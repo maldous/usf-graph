@@ -162,7 +162,7 @@ async def run_probe_suite(
     ctx.store.put(
         "probe_runs",
         run.run_id,
-        run.content_dict(),
+        run.model_dump(mode="json"),  # id-keyed record: preserve timestamps
         extra={"agent_profile_id": profile.profile_id},
     )
     return run

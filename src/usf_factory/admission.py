@@ -71,13 +71,16 @@ def _expiry(ctx: RuntimeContext, days: int | None = None) -> str:
 
 
 def record_qualification(ctx: RuntimeContext, run: Any) -> str:
-    """Persist a qualification run IMMUTABLY under its own run_id. Returns the id."""
+    """Persist a qualification run IMMUTABLY under its own run_id. Returns the id.
+
+    Stored via ``model_dump`` (not ``content_dict``) so timestamps/expiry — which
+    are volatile for content addressing — are preserved in this id-keyed record."""
     if not run.expires_at:
         run = run.model_copy(update={"expires_at": _expiry(ctx)})
     ctx.store.put(
         "qualification_runs",
         run.run_id,
-        run.content_dict(),
+        run.model_dump(mode="json"),
         extra={"agent_profile_id": run.agent_profile_id, "expires_at": run.expires_at},
     )
     return run.run_id
@@ -119,7 +122,7 @@ def admit_from_evidence(ctx: RuntimeContext, profile_id: str) -> list[AdmissionR
     ctx.store.put(
         "admission_decisions",
         decision.decision_id,
-        decision.content_dict(),
+        decision.model_dump(mode="json"),
         extra={
             "agent_profile_id": profile_id,
             "qualification_run_id": decision.qualification_run_id,
@@ -158,7 +161,7 @@ def grant_role_operator_override(
     ctx.store.put(
         "admission_decisions",
         decision.decision_id,
-        decision.content_dict(),
+        decision.model_dump(mode="json"),
         extra={
             "agent_profile_id": profile_id,
             "qualification_run_id": decision.qualification_run_id,

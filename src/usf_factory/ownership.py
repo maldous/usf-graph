@@ -54,7 +54,7 @@ def record_operator_approval(
     ctx.store.put(
         "ownership_evidence",
         ev.evidence_id + ":" + ev.verified_at,  # append-only key (never overwrite)
-        ev.content_dict(),
+        ev.model_dump(mode="json"),  # id-keyed record: preserve verified_at/expiry
         extra={"subject": subject, "owner_path": owner_path, "verified": "true"},
     )
     ctx.log_event(
