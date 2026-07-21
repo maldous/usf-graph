@@ -436,7 +436,9 @@ def test_repeated_evidence_required_for_critical_role(ctx, monkeypatch):
             # Round 1: everything passes. Round 2: strict_json fails (flaky).
             fail = rounds["n"] >= 10 and probe.kind.value == "strict_json"
             return ProbeResult(
-                kind=probe.kind, version=probe.version, passed=not fail,
+                kind=probe.kind,
+                version=probe.version,
+                passed=not fail,
                 usage=TokenUsage(actual_model=model_id),
             )
 
@@ -462,8 +464,11 @@ def test_repeated_evidence_required_for_critical_role(ctx, monkeypatch):
     profile = ensure_profile(ctx, "openrouter", "x/y:free")
     a = asyncio.run(
         assess_model(
-            ctx, "openrouter", "x/y:free",
-            auth=InferenceAuthorization(allow_inference=True, max_cost_usd=0.0), repeats=2,
+            ctx,
+            "openrouter",
+            "x/y:free",
+            auth=InferenceAuthorization(allow_inference=True, max_cost_usd=0.0),
+            repeats=2,
         )
     )
     assert a.structural_ok is False  # a single good round is not enough
