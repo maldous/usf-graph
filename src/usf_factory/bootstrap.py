@@ -93,8 +93,10 @@ def _first_local_model(ctx: RuntimeContext) -> str | None:
 def _auth_for(mode: str, max_cost_usd: float):
     from .probing import InferenceAuthorization
 
+    # allow_inference is the master switch (required for every mode); the
+    # subscription switch additionally authorizes OIDC-CLI subscription inference.
     return InferenceAuthorization(
-        allow_inference=mode in ("free", "local"),
+        allow_inference=True,
         allow_subscription_inference=mode == "subscription",
         allow_paid_inference=False,
         max_cost_usd=max_cost_usd,

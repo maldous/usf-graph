@@ -94,16 +94,26 @@ def parse_programme_obligations(bootstrap: dict[str, Any], work_plan: Any) -> li
             or item.get("description")
             or (f"authority gap '{gap_type}' on {item.get('subject')}" if gap_type else oid)
         )
+        acceptance = [
+            str(c) for c in _as_list(item.get("acceptanceCriteria"), "acceptanceCriteria")
+        ] or [
+            "Produce a bounded read-only FINDING (durable evidence): state the current "
+            "validation status of the subject, its canonical owner path, and the smallest "
+            "validation/change that would close the gap. Return COMPLETED with "
+            "evidence_produced. Do NOT request a human decision unless an authority fact "
+            "required for the finding is genuinely unobtainable. Propose no mutation unless "
+            "an authorised owner write scope is provided.",
+        ]
         out[oid] = {
             "id": oid,
             "root_cause": root_cause,
+            "required_outcomes": [
+                f"bounded finding on the current state of {item.get('subject') or oid}"
+            ],
             "dependencies": _deps(item),
             "semantic_subjects": subjects,
             "task_class": task_class,
-            "acceptance_criteria": [
-                str(c) for c in _as_list(item.get("acceptanceCriteria"), "acceptanceCriteria")
-            ]
-            or ["bounded analysis; no mutation without an authorised subject->file mapping"],
+            "acceptance_criteria": acceptance,
             "risk": str(item.get("risk") or "low"),
             "human_decision_required": bool(item.get("humanDecisionRequired", False)),
         }

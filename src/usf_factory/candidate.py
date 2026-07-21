@@ -204,7 +204,8 @@ def attempt_candidate_packet(ctx: RuntimeContext, opts: Any) -> dict[str, Any]:
     from .enums import RunMode
     from .runtime import build_engine
 
-    eng = build_engine(ctx, mode=RunMode.APPROVE_WAVE)
+    allow_billable = bool(getattr(opts, "allow_billable", False))
+    eng = build_engine(ctx, mode=RunMode.APPROVE_WAVE, allow_billable=allow_billable)
     receipt = asyncio.run(eng.run_cycle(RunMode.APPROVE_WAVE))
     produced = receipt.accepted_packets > 0
     return {

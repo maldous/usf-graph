@@ -71,20 +71,38 @@ def _profile_metrics(ctx: RuntimeContext, profile_id: str) -> dict[str, float]:
 
 
 def _rank_key(
-    ctx: RuntimeContext, profile: AgentProfile, run: dict[str, Any] | None
+    ctx: RuntimeContext,
+    profile: AgentProfile,
+    run: dict[str, Any] | None,
+    role: AdmissionRole | None = None,
+    cap: Any = None,
 ) -> tuple[Any, ...]:
     """Lexicographic ranking key (best first when sorted ascending). Order:
-    qualification score, semantic-rule fidelity, semantic optimization, scope
-    discipline, evidence discipline, accepted-packet success, lowest uncached
-    input/accepted, highest cache reuse, latency, cost, then profile_id tie-break.
-    Higher-is-better fields are negated; lower-is-better kept; unknown is neutral."""
+    (producer-only) source-containment, qualification score, semantic-rule
+    fidelity, semantic optimization, scope discipline, evidence discipline,
+    accepted-packet success, lowest uncached input/accepted, highest cache reuse,
+    latency, cost, then profile_id tie-break. Higher-is-better fields are negated;
+    lower-is-better kept; unknown is neutral."""
     run = run or {}
     dims = run.get("dimension_scores", {}) or {}
     ct = int(run.get("cases_total") or 0)
     qual = (int(run.get("cases_passed") or 0) / ct) if ct else 0.0
     sem = _semantic_scores(ctx, profile.provider_id)
     m = _profile_metrics(ctx, profile.profile_id)
+    # Roles that RECEIVE the source context pack (produce/analyse/integrate source)
+    # must prefer a source-contained provider; an uncontained provider (e.g. Codex)
+    # can only receive metadata. The reviewer is exempt (it judges a bounded diff,
+    # which the spec explicitly permits for Codex). Leading key; neutral otherwise.
+    _SOURCE_ROLES = (
+        AdmissionRole.PATCH_PRODUCER,
+        AdmissionRole.READ_ONLY_ANALYST,
+        AdmissionRole.INTEGRATOR,
+    )
+    contained_pref = 0
+    if role in _SOURCE_ROLES and cap is not None:
+        contained_pref = 0 if getattr(cap, "source_contained", False) else 1
     return (
+        contained_pref,
         -qual,
         -float(sem.get("semantic_rule_fidelity", 0.0)),
         -float(sem.get("semantic_optimization", 0.0)),
@@ -104,7 +122,8 @@ def _admitted_for(
 ) -> list[tuple[AgentProfile, dict[str, Any]]]:
     """Valid admitted (profile, decision) pairs for a role, ranked by semantic
     quality and token efficiency (profile_id is the final tie-break ONLY);
-    transport must also be possible."""
+    transport must also be possible. For PATCH_PRODUCER, source-contained
+    providers rank first."""
     out: list[tuple[AgentProfile, dict[str, Any], tuple[Any, ...]]] = []
     for _key, row in ctx.store.items("agent_profiles"):
         profile = AgentProfile(**row)
@@ -116,7 +135,7 @@ def _admitted_for(
         cap = _profile_capabilities(ctx, profile)
         if not role_transport_ok(role, cap):
             continue
-        out.append((profile, decision, _rank_key(ctx, profile, run)))
+        out.append((profile, decision, _rank_key(ctx, profile, run, role, cap)))
     out.sort(key=lambda t: t[2])
     return [(p, d) for p, d, _k in out]
 

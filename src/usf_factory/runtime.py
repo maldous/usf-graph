@@ -38,11 +38,16 @@ class _UnsupportedWorker:
         )
 
 
-def production_worker_factory(ctx: RuntimeContext):
-    """(mode, agent) -> Worker, using the provider adapter's tool-loop chat."""
+def production_worker_factory(ctx: RuntimeContext, *, allow_billable: bool = False):
+    """(mode, agent) -> Worker, using the provider adapter's tool-loop chat.
+
+    ``allow_billable`` authorizes SUBSCRIPTION (OIDC-CLI) + free inference for the
+    run without enabling the paid-inference gate: paid API models are still
+    quota-blocked at scheduling (safety.allow_billable stays false) and none is on
+    the roster, so only Claude/Codex/local are actually invoked."""
     from .providers import build_registry
 
-    reg = build_registry(ctx)
+    reg = build_registry(ctx, allow_billable=allow_billable)
 
     def make(mode: RunMode, agent: AgentProfile):
         from .capabilities import capabilities_for
@@ -99,7 +104,7 @@ def production_worker_factory(ctx: RuntimeContext):
     return make
 
 
-def production_reviewer_factory(ctx: RuntimeContext):
+def production_reviewer_factory(ctx: RuntimeContext, *, allow_billable: bool = False):
     """() -> WaveReviewer | raises. Returns a factory yielding an AiReviewer
     backed by an ADMITTED reviewer-role profile, or None when no qualified
     reviewer exists — the engine then BLOCKS waves that require review (fail
@@ -117,7 +122,9 @@ def production_reviewer_factory(ctx: RuntimeContext):
         if profile is None:
             return None
         try:
-            adapter = build_registry(ctx).adapter(profile.provider_id)
+            adapter = build_registry(ctx, allow_billable=allow_billable).adapter(
+                profile.provider_id
+            )
         except Exception:
             return None
         return AiReviewer(
@@ -148,7 +155,7 @@ def _admitted_profiles(ctx: RuntimeContext, role):
     return out
 
 
-def select_plan_optimizer(ctx: RuntimeContext):
+def select_plan_optimizer(ctx: RuntimeContext, *, allow_billable: bool = False):
     """A qualified AI plan OPTIMIZER if a planner-role model is admitted, else
     None (=> the deterministic authoritative graph is used unchanged). The
     optimizer never generates obligations — it only ranks/consolidates/annotates
@@ -163,7 +170,7 @@ def select_plan_optimizer(ctx: RuntimeContext):
     if profile is None:
         return None, None
     try:
-        adapter = build_registry(ctx).adapter(profile.provider_id)
+        adapter = build_registry(ctx, allow_billable=allow_billable).adapter(profile.provider_id)
     except Exception:
         return None, None
     task_classes = list(ctx.config.task_classes.by_name())
@@ -178,7 +185,9 @@ def select_plan_optimizer(ctx: RuntimeContext):
     return optimizer, profile
 
 
-def production_planner_critic_factory(ctx: RuntimeContext, exclude_provider: str | None = None):
+def production_planner_critic_factory(
+    ctx: RuntimeContext, exclude_provider: str | None = None, *, allow_billable: bool = False
+):
     """() -> planner critic. Prefers an admitted REVIEWER on a DIFFERENT provider
     than the planner; falls back to the deterministic critic adapter."""
     from .enums import AdmissionRole
@@ -190,7 +199,9 @@ def production_planner_critic_factory(ctx: RuntimeContext, exclude_provider: str
             if exclude_provider and profile.provider_id == exclude_provider:
                 continue
             try:
-                adapter = build_registry(ctx).adapter(profile.provider_id)
+                adapter = build_registry(ctx, allow_billable=allow_billable).adapter(
+                    profile.provider_id
+                )
             except Exception:
                 continue
             return AiPlannerCritic(
@@ -205,14 +216,19 @@ def production_planner_critic_factory(ctx: RuntimeContext, exclude_provider: str
 
 
 def build_engine(
-    ctx: RuntimeContext, *, mode: RunMode | None = None, max_shadow_packets: int | None = None
+    ctx: RuntimeContext,
+    *,
+    mode: RunMode | None = None,
+    max_shadow_packets: int | None = None,
+    allow_billable: bool = False,
 ):
     """Construct a fully-wired production FactoryEngine.
 
     Pipeline wiring: the deterministic authoritative planner ALWAYS, plus an
     optional AI plan OPTIMIZER (roster planner) with an INDEPENDENT planner critic
     (different provider where possible); the snapshot-bound materialisation index;
-    the production worker and wave-reviewer factories.
+    the production worker and wave-reviewer factories. ``allow_billable`` authorizes
+    subscription/free inference for this run (the paid-inference gate stays off).
     """
     from .engine import FactoryEngine
 
@@ -223,23 +239,25 @@ def build_engine(
         def materialisation_factory(mirror, head):
             return build_index_at(mirror, head)
 
-    optimizer, optimizer_profile = select_plan_optimizer(ctx)
+    optimizer, optimizer_profile = select_plan_optimizer(ctx, allow_billable=allow_billable)
     critic_factory = production_planner_critic_factory(
-        ctx, exclude_provider=optimizer_profile.provider_id if optimizer_profile else None
+        ctx,
+        exclude_provider=optimizer_profile.provider_id if optimizer_profile else None,
+        allow_billable=allow_billable,
     )
 
     def reviewer_factory():
-        return production_reviewer_factory(ctx)()
+        return production_reviewer_factory(ctx, allow_billable=allow_billable)()
 
     def plan_optimizer_factory():
-        opt, _ = select_plan_optimizer(ctx)
+        opt, _ = select_plan_optimizer(ctx, allow_billable=allow_billable)
         return opt
 
     return FactoryEngine(
         ctx,
         planner=None,  # deterministic ProgrammePlanner is always authoritative
         plan_optimizer_factory=plan_optimizer_factory if optimizer is not None else None,
-        worker_factory=production_worker_factory(ctx),
+        worker_factory=production_worker_factory(ctx, allow_billable=allow_billable),
         materialisation_factory=materialisation_factory,
         reviewer_factory=reviewer_factory,
         planner_critic_factory=critic_factory if optimizer is not None else None,

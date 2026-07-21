@@ -154,6 +154,18 @@ def run(
     shadow_packets: int = typer.Option(
         -1, "--shadow-packets", help="cap packets actually dispatched in shadow mode (-1=no cap)"
     ),
+    allow_subscription_inference: bool = typer.Option(
+        False,
+        "--allow-subscription-inference",
+        help="authorize subscription (Claude/Codex CLI) + free inference for this run "
+        "(the paid-inference gate stays off)",
+    ),
+    approve_source_provider: list[str] = typer.Option(
+        [],
+        "--approve-source-provider",
+        help="audited: approve a proven-contained provider to receive raw source for "
+        "this run only (in-memory; never committed)",
+    ),
 ) -> None:
     """Run one cycle (or a bounded continuous loop) in the given mode.
 
@@ -176,8 +188,22 @@ def run(
         if (ctx.paths.state / "PAUSED").exists():
             err.print("[yellow]factory is paused; run `usf-factory resume` first[/]")
             raise typer.Exit(code=1)
+        if approve_source_provider:
+            ctx.config.egress.source_egress_enabled = True
+            overrides = dict(ctx.config.egress.provider_overrides or {})
+            for pid in approve_source_provider:
+                overrides[pid] = sorted({*overrides.get(pid, []), "private-source"})
+            ctx.config.egress.provider_overrides = overrides
+            console.print(
+                f"[yellow]audited source-egress approval for: {approve_source_provider}[/]"
+            )
         if not continuous:
-            eng = build_engine(ctx, mode=run_mode, max_shadow_packets=cap)
+            eng = build_engine(
+                ctx,
+                mode=run_mode,
+                max_shadow_packets=cap,
+                allow_billable=allow_subscription_inference,
+            )
             receipt = asyncio.run(eng.run_cycle(run_mode))
             _print_receipt(receipt)
             return
@@ -187,7 +213,7 @@ def run(
             if (ctx.paths.state / "PAUSED").exists():
                 console.print("[yellow]paused; stopping continuous loop[/]")
                 break
-            eng = build_engine(ctx, mode=run_mode)
+            eng = build_engine(ctx, mode=run_mode, allow_billable=allow_subscription_inference)
             receipt = asyncio.run(eng.run_cycle(run_mode))
             console.print(
                 f"cycle {i + 1}: state={receipt.state.value} "
@@ -262,6 +288,46 @@ def bootstrap_runtime_cmd(
         err.print("[red]minimum launch roster (planner + analyst) NOT satisfied[/]")
         raise typer.Exit(code=1)
     console.print("[green]minimum launch roster satisfied[/]")
+
+
+@app.command("candidate")
+def candidate_cmd(
+    allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
+    approve_source_provider: list[str] = typer.Option(
+        [],
+        "--approve-source-provider",
+        help="explicitly approve a PROVEN-CONTAINED first-party CLI provider to receive "
+        "raw source for this audited candidate run (e.g. claude-cli)",
+    ),
+) -> None:
+    """Operator-audited candidate semantic-patch attempt. Enables, FOR THIS RUN
+    ONLY (never committed): autonomous-safe wave execution + source egress for the
+    explicitly approved, source-contained provider(s). The candidate patch stays
+    in the factory integration clone — never applied to /usf, never pushed. Halts
+    at AWAITING_OPERATOR_DELIVERY. The paid-inference / push / merge / Stardog /
+    risk-acceptance / terminal-completion gates stay OFF."""
+    from types import SimpleNamespace
+
+    from .candidate import attempt_candidate_packet
+
+    with _ctx() as ctx:
+        # Audited, in-memory-only authorization for this run.
+        ctx.config.safety.autonomous_safe_enabled = True
+        if approve_source_provider:
+            ctx.config.egress.source_egress_enabled = True
+            overrides = dict(ctx.config.egress.provider_overrides or {})
+            for pid in approve_source_provider:
+                overrides[pid] = sorted({*overrides.get(pid, []), "private-source"})
+            ctx.config.egress.provider_overrides = overrides
+            console.print(
+                f"[yellow]audited source-egress approval for: {approve_source_provider}[/]"
+            )
+        result = attempt_candidate_packet(
+            ctx, SimpleNamespace(allow_billable=allow_subscription_inference)
+        )
+    console.print(result)
+    if result.get("status") != "AWAITING_OPERATOR_DELIVERY":
+        raise typer.Exit(code=1)
 
 
 @app.command()

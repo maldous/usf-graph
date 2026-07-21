@@ -22,6 +22,7 @@ from .conflict_graph import build_conflict_edges  # noqa: F401 (re-exported use)
 from .context import RuntimeContext
 from .enums import (
     AdmissionRole,
+    AuthMode,
     CycleState,
     HealthStatus,
     PrivacyClass,
@@ -477,9 +478,14 @@ class FactoryEngine:
         model_row = self._model_row(profile.provider_id, profile.requested_model_id)
         context_tokens = model_row.get("context_tokens") if model_row else None
         est_cost = self._estimate_model_cost(model_row)
+        # Only PAID (non-free) models draw the paid budget and are gated on it.
+        # SUBSCRIPTION (OIDC CLI) inference is exempt — it is authorized at the
+        # adapter for the run, not drawn from the paid API budget. (A genuinely
+        # free model has free is not False and is never gated here.)
         paid = model_row is not None and model_row.get("free") is False
+        is_paid_api = paid and profile.auth_mode != AuthMode.OIDC_CLI
         quota_ok = True
-        if paid:
+        if is_paid_api:
             from .budget import BudgetLedger, BudgetLimits
 
             limits = BudgetLimits(global_usd=self.ctx.config.budgets.billable_usd)
