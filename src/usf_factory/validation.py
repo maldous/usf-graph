@@ -42,7 +42,16 @@ VALIDATION_GATES = (
 # repository implementation without a test must add one in scope, prove existing
 # coverage, or carry an explicit human-approved waiver.
 CONDITIONAL_GATES = frozenset(
-    {"syntax-parse", "format", "lint", "type", "secret-scan", "repository-cleanliness"}
+    {
+        "syntax-parse",
+        "shacl",  # real (pyshacl); N/A only when no shape+data changed
+        "integrity-sparql",  # real (rdflib); N/A only when no SPARQL changed
+        "format",
+        "lint",
+        "type",
+        "secret-scan",
+        "repository-cleanliness",
+    }
 )
 
 

@@ -55,8 +55,95 @@ def test_real_verdicts_still_apply():
 
 
 @pytest.mark.adversarial
-def test_usf_gates_are_not_conditional():
-    for gate in ("shacl", "integrity-sparql", "proof-readiness", "integration-tests"):
+def test_live_usf_gates_are_not_conditional():
+    # Gates that need the live USF Node/authority toolchain must fail on N/A.
+    for gate in ("proof-readiness", "negative-fixtures", "competency-queries", "integration-tests"):
         assert gate not in CONDITIONAL_GATES
         receipt = run_validation("s", [gate], {gate: _na})
         assert receipt.all_passed is False, f"{gate} green-skipped"
+
+
+@pytest.mark.unit
+def test_real_rdf_gates_are_conditional():
+    # shacl / integrity-sparql are REAL (rdflib/pyshacl); their N/A is a
+    # deterministic changed-file predicate, so they may report N/A.
+    for gate in ("shacl", "integrity-sparql", "syntax-parse"):
+        assert gate in CONDITIONAL_GATES
+
+
+def _git(args, cwd):
+    import subprocess
+
+    subprocess.run(["git", *args], cwd=str(cwd), check=True, capture_output=True, text=True)
+
+
+@pytest.fixture
+def clone_with(tmp_path):
+    """A git clone helper: stage given files so build_runners sees them changed."""
+    counter = {"n": 0}
+
+    def make(files: dict[str, str]) -> object:
+        counter["n"] += 1
+        repo = tmp_path / f"clone{counter['n']}"
+        repo.mkdir()
+        _git(["init", "-q", "-b", "main"], repo)
+        _git(["config", "user.email", "t@e"], repo)
+        _git(["config", "user.name", "t"], repo)
+        (repo / ".keep").write_text("")
+        _git(["add", "-A"], repo)
+        _git(["commit", "-q", "-m", "base"], repo)
+        for rel, content in files.items():
+            p = repo / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+        _git(["add", "-A"], repo)
+        return repo
+
+    return make
+
+
+@pytest.mark.e2e
+def test_real_rdflib_syntax_parse_catches_bad_turtle(clone_with):
+    from usf_factory.validation_runners import build_runners
+
+    good = build_runners(
+        clone_with({"semantic/a.ttl": "@prefix ex: <https://ex/ns#> .\nex:A a ex:Class .\n"})
+    )
+    passed, detail = good["syntax-parse"]()
+    assert passed is True and "rdflib" in detail
+    # Genuinely invalid Turtle (bracket counting would MISS this — it is balanced).
+    bad = build_runners(
+        clone_with({"semantic/b.ttl": "@prefix ex: <https://ex/ns#> .\nex:A ex:p ex:o\n"})
+    )
+    passed, detail = bad["syntax-parse"]()
+    assert passed is False and "parse failed" in detail
+
+
+@pytest.mark.e2e
+def test_real_pyshacl_shacl_validation(clone_with):
+    from usf_factory.validation_runners import build_runners
+
+    shape = (
+        "@prefix ex: <https://ex/ns#> .\n@prefix sh: <http://www.w3.org/ns/shacl#> .\n"
+        "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
+        "ex:PersonShape a sh:NodeShape ; sh:targetClass ex:Person ;\n"
+        "  sh:property [ sh:path ex:age ; sh:datatype xsd:integer ; sh:maxCount 1 ] .\n"
+    )
+    conforming = (
+        "@prefix ex: <https://ex/ns#> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
+        'ex:alice a ex:Person ; ex:age "30"^^xsd:integer .\n'
+    )
+    violating = (
+        "@prefix ex: <https://ex/ns#> .\n"
+        'ex:bob a ex:Person ; ex:age "x" ; ex:age "y" .\n'  # wrong datatype + maxCount
+    )
+    ok = build_runners(
+        clone_with({"semantic/shapes/p.shacl.ttl": shape, "semantic/data.ttl": conforming})
+    )
+    passed, detail = ok["shacl"]()
+    assert passed is True and "conforms" in detail
+    bad = build_runners(
+        clone_with({"semantic/shapes/p.shacl.ttl": shape, "semantic/data.ttl": violating})
+    )
+    passed, _detail = bad["shacl"]()
+    assert passed is False  # real pyshacl caught the violation

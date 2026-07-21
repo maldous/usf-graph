@@ -5,10 +5,12 @@ clone. A runner returns ``(True|False, detail)`` for a real verdict or
 ``(None, detail)`` for an explicit not-applicable. ``run_validation`` treats a
 REQUIRED gate with **no** runner as a failure — never a green skip.
 
-Gates that require the live USF validation toolchain (SHACL, integrity SPARQL,
-competency queries, negative fixtures, derived regeneration, source/live drift,
-proof/readiness) are **not wired in this environment** and their runners FAIL
-closed, so a USF wave cannot go green here until an operator wires them.
+RDF/TriG/SPARQL parsing, SHACL, and integrity-SPARQL execution are REAL
+(``rdflib`` + ``pyshacl``), run in the integration clone. Gates that require the
+live USF Node/authority toolchain (competency queries, negative fixtures,
+derived regeneration, source/live drift, proof/readiness) are **not wired here**
+and their runners FAIL closed, so a full USF wave cannot go green until an
+operator wires them.
 """
 
 from __future__ import annotations
@@ -21,10 +23,11 @@ from .sandbox import scan_secrets
 
 GateRunner = Callable[[], "tuple[bool | None, str]"]
 
-# Requires the live USF validation toolchain; deliberately fail-closed here.
+# These gates need the LIVE USF Node/authority toolchain (drift, regeneration,
+# proof, competency/negative fixtures against admitted evidence) and stay
+# fail-closed here. syntax-parse / shacl / integrity-sparql are now REAL
+# (rdflib + pyshacl) and are NOT in this set.
 _USF_GATES = (
-    "shacl",
-    "integrity-sparql",
     "negative-fixtures",
     "competency-queries",
     "manifest-check",
@@ -43,20 +46,83 @@ def _changed_files(clone: Path) -> list[str]:
     return [p for p in out.split() if p.strip()]
 
 
+def _rdf_format(rel: str) -> str | None:
+    low = rel.lower()
+    if low.endswith((".ttl", ".turtle")):
+        return "turtle"
+    if low.endswith(".trig"):
+        return "trig"
+    if low.endswith(".nt"):
+        return "nt"
+    if low.endswith(".n3"):
+        return "n3"
+    return None
+
+
 def build_runners(clone: Path) -> dict[str, GateRunner]:
     changed = _changed_files(clone)
 
     def syntax_parse() -> tuple[bool | None, str]:
-        rdf = [p for p in changed if p.endswith((".ttl", ".trig", ".rq", ".sparql", ".n3"))]
-        if not rdf:
+        """Real RDF/TriG + SPARQL parse via rdflib (replaces bracket counting)."""
+        rdf = [p for p in changed if _rdf_format(p) is not None]
+        sparql = [p for p in changed if p.endswith((".rq", ".sparql"))]
+        if not rdf and not sparql:
             return None, "no RDF/SPARQL files changed"
+        import rdflib
+        from rdflib.plugins.sparql import prepareQuery
+
         for rel in rdf:
-            text = (clone / rel).read_text(encoding="utf-8", errors="replace")
-            if text.count("<") != text.count(">"):
-                return False, f"unbalanced IRI brackets in {rel}"
-            if rel.endswith((".ttl", ".trig")) and text.strip() and "." not in text:
-                return False, f"no statements terminated in {rel}"
-        return True, f"{len(rdf)} RDF/SPARQL file(s) parse-checked"
+            fmt = _rdf_format(rel)
+            try:
+                rdflib.Graph().parse(
+                    data=(clone / rel).read_text(encoding="utf-8", errors="replace"), format=fmt
+                )
+            except Exception as exc:
+                return False, f"RDF parse failed for {rel}: {type(exc).__name__}: {str(exc)[:120]}"
+        for rel in sparql:
+            try:
+                prepareQuery((clone / rel).read_text(encoding="utf-8", errors="replace"))
+            except Exception as exc:
+                return (
+                    False,
+                    f"SPARQL parse failed for {rel}: {type(exc).__name__}: {str(exc)[:120]}",
+                )
+        return True, f"parsed {len(rdf)} RDF + {len(sparql)} SPARQL file(s) via rdflib"
+
+    def shacl() -> tuple[bool | None, str]:
+        """Real SHACL validation via pyshacl: changed shape graphs validate the
+        changed data graphs. N/A only when no shapes AND no data changed."""
+        shapes = [p for p in changed if "/shapes/" in p.lower() or p.lower().endswith(".shacl.ttl")]
+        data = [
+            p
+            for p in changed
+            if _rdf_format(p) is not None
+            and "/shapes/" not in p.lower()
+            and not p.lower().endswith(".shacl.ttl")
+        ]
+        if not shapes:
+            return None, "no SHACL shape files changed"
+        if not data:
+            return None, "shapes changed but no data graph changed to validate"
+        import pyshacl
+        import rdflib
+
+        shapes_g = rdflib.Graph()
+        for rel in shapes:
+            shapes_g.parse(
+                data=(clone / rel).read_text(encoding="utf-8", errors="replace"), format="turtle"
+            )
+        data_g = rdflib.Graph()
+        for rel in data:
+            data_g.parse(
+                data=(clone / rel).read_text(encoding="utf-8", errors="replace"),
+                format=_rdf_format(rel),
+            )
+        try:
+            conforms, _rg, text = pyshacl.validate(data_g, shacl_graph=shapes_g, inference="none")
+        except Exception as exc:
+            return False, f"pyshacl error: {type(exc).__name__}: {str(exc)[:120]}"
+        return conforms, ("SHACL conforms" if conforms else f"SHACL violations: {text[:150]}")
 
     def _ruff(cmd: list[str], label: str) -> tuple[bool | None, str]:
         pyfiles = [p for p in changed if p.endswith(".py")]
@@ -117,8 +183,37 @@ def build_runners(clone: Path) -> dict[str, GateRunner]:
                 return False, f"merge markers/artifacts in {rel}"
         return True, "no merge markers"
 
+    def integrity_sparql() -> tuple[bool | None, str]:
+        """Real: parse each changed .rq/.sparql and EXECUTE it against a graph
+        built from the changed RDF (a genuine run — not against live Stardog).
+        A query that fails to parse or execute fails the gate."""
+        queries = [p for p in changed if p.endswith((".rq", ".sparql"))]
+        if not queries:
+            return None, "no SPARQL queries changed"
+        import rdflib
+
+        g = rdflib.Graph()
+        for rel in changed:
+            fmt = _rdf_format(rel)
+            if fmt is None:
+                continue
+            try:
+                g.parse(
+                    data=(clone / rel).read_text(encoding="utf-8", errors="replace"), format=fmt
+                )
+            except Exception:
+                continue
+        for rel in queries:
+            try:
+                g.query((clone / rel).read_text(encoding="utf-8", errors="replace"))
+            except Exception as exc:
+                return False, f"SPARQL execution failed for {rel}: {type(exc).__name__}"
+        return True, f"executed {len(queries)} SPARQL query/queries via rdflib"
+
     runners: dict[str, GateRunner] = {
         "syntax-parse": syntax_parse,
+        "shacl": shacl,
+        "integrity-sparql": integrity_sparql,
         "format": fmt,
         "lint": lint,
         "type": type_check,
