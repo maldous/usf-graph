@@ -321,9 +321,12 @@ async def evaluate_provider(ctx: RuntimeContext, cfg: Any, auth: EvalAuth) -> Pr
             }
         )
 
-    # Build the adapter + capabilities; run one compact evaluation.
+    # Build the adapter + capabilities; run one compact evaluation. A genuinely
+    # free model is permitted to invoke (its cost is $0 and is recorded under
+    # free_inference_cost_usd, never the paid budget); subscription/paid modes
+    # were already gated above.
     try:
-        reg = build_registry(ctx, allow_billable=rep.mode in ("subscription", "paid"))
+        reg = build_registry(ctx, allow_billable=rep.mode in ("free", "subscription", "paid"))
         adapter = reg.adapter(cfg.provider_id)
     except Exception as exc:
         klass, detail = _classify_error(exc)
@@ -368,10 +371,12 @@ async def evaluate_provider(ctx: RuntimeContext, cfg: Any, auth: EvalAuth) -> Pr
         actual_provider=resp.actual_provider,
         actual_model=resp.actual_model,
     )
-    # §7 cost split (paid budget is paid-API-only).
+    # §7 cost split: the paid budget is paid-API-only. Subscription value is
+    # informational; genuinely free inference is recorded separately and is $0.
     reported = usage.provider_reported_cost
     paid = reported or 0.0 if rep.mode == "paid" else 0.0
     sub = reported or 0.0 if rep.mode == "subscription" else 0.0
+    free = reported or 0.0 if rep.mode == "free" else 0.0
     evidence = ctx.store.cas_put_text(
         json.dumps({"scores": scores, "output": resp.output_text[:4000]}, sort_keys=True)
     )
@@ -387,7 +392,7 @@ async def evaluate_provider(ctx: RuntimeContext, cfg: Any, auth: EvalAuth) -> Pr
             "usage": usage,
             "paid_api_spend_usd": paid,
             "subscription_reported_value_usd": sub,
-            "free_inference_cost_usd": 0.0,
+            "free_inference_cost_usd": free,
             "latency_ms": usage.latency_ms,
             "evidence_cas_ref": evidence,
         }

@@ -370,7 +370,10 @@ class ClaudeCliAdapter(_CliAdapterBase):
 
     def _argv(self, binpath: str, model_id: str, prompt: str) -> tuple[list[str], str | None]:
         # Print mode from an empty scratch cwd (set by _run), with all built-in
-        # filesystem/shell/web tools denied so it cannot touch the repo.
+        # filesystem/shell/web tools denied so it cannot touch the repo. The
+        # prompt goes on STDIN, not as a positional: --disallowed-tools is
+        # variadic (`<tools...>`) and would otherwise swallow a trailing prompt
+        # argument as another tool name, leaving the CLI with no input.
         argv = [
             binpath,
             "--print",
@@ -381,8 +384,7 @@ class ClaudeCliAdapter(_CliAdapterBase):
         ]
         if model_id and model_id != "default":
             argv += ["--model", model_id]
-        argv += [prompt]
-        return argv, None
+        return argv, prompt
 
     def _parse_full(self, stdout: str, stderr: str, code: int):
         from ..models import TokenUsage

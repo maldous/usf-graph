@@ -405,3 +405,69 @@ def test_cli_env_sanitized_withholds_provider_keys(monkeypatch):
     env = _sanitized_env()
     assert env.get("PATH") == "/usr/bin"
     assert "OPENAI_API_KEY" not in env and "ANTHROPIC_API_KEY" not in env
+
+
+@pytest.mark.adversarial
+def test_claude_cli_prompt_via_stdin_not_positional(monkeypatch):
+    """The prompt must be delivered on stdin, never as a trailing positional arg:
+    --disallowed-tools is variadic and would swallow a positional prompt, leaving
+    the CLI with no input (the live-run OUTPUT_INVALID regression)."""
+    import usf_factory.providers.cli_adapters as cli
+
+    seen = {}
+
+    async def fake_run(cmd, timeout_s=10.0, stdin=None, cwd=None):
+        seen["cmd"] = cmd
+        seen["stdin"] = stdin
+        return (0, '{"result":"ok"}', "")
+
+    monkeypatch.setattr(cli, "_run", fake_run)
+    ad = _claude(monkeypatch, cli)
+    asyncio.run(ad._exec("default", "THE-PROMPT-TEXT", timeout_s=5.0))
+    assert seen["stdin"] == "THE-PROMPT-TEXT"  # prompt on stdin
+    assert "THE-PROMPT-TEXT" not in seen["cmd"]  # never a positional arg
+
+
+@pytest.mark.adversarial
+def test_free_model_invoked_billable_and_recorded_as_free_cost(ctx, monkeypatch):
+    """A genuinely free API model is invoked (registry built allow_billable=True)
+    with a $0 paid budget; any reported cost lands on free_inference_cost_usd, not
+    the paid budget."""
+    import usf_factory.provider_eval as pe
+    import usf_factory.providers as providers
+
+    seen = {}
+
+    class _FreeAdapter(_EvalAdapter):
+        async def invoke(self, req):
+            r = await super().invoke(req)
+            return r.model_copy(
+                update={"usage": r.usage.model_copy(update={"provider_reported_cost": 0.0})}
+            )
+
+    class _Reg:
+        def adapter(self, pid):
+            return _FreeAdapter(pid)
+
+    def _build(ctx, allow_billable=False):
+        seen["allow_billable"] = allow_billable
+        return _Reg()
+
+    monkeypatch.setattr(providers, "build_registry", _build)
+    cfg = next(
+        c
+        for c in ctx.config.providers.providers
+        if c.default_enabled and c.auth_mode.value == "api_token"
+    )
+    ctx.store.put(
+        "models",
+        "free1",
+        {"provider_id": cfg.provider_id, "requested_model_id": "x:free", "free": True},
+        extra={"provider_id": cfg.provider_id},
+    )
+    ev = asyncio.run(
+        pe.evaluate_provider(ctx, cfg, EvalAuth(allow_inference=True, max_cost_usd=0.0))
+    )
+    assert ev.status == "EVALUATED"
+    assert seen["allow_billable"] is True  # free inference is permitted to run
+    assert ev.paid_api_spend_usd == 0.0  # never against the paid budget

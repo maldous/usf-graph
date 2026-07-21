@@ -49,9 +49,16 @@ def build_worker_instructions(packet: Packet) -> str:
         "You are a USF factory worker operating in an ISOLATED disposable clone. "
         "You may edit only files within the packet write scope. You may NOT push, "
         "merge, fetch, access the network, read secrets, write outside scope, or "
-        "declare programme completion. Return ONLY JSON matching the result schema, "
-        "including a git unified diff in `patch` limited to the write scope. If a "
-        "human decision is required, return status HUMAN_DECISION_REQUIRED."
+        "declare programme completion. If a human decision is required, return "
+        "status HUMAN_DECISION_REQUIRED.\n\n"
+        "OUTPUT CONTRACT (strict): respond with EXACTLY ONE JSON object and nothing "
+        "else. The first character of your response MUST be '{' and the last '}'. "
+        "No prose, no explanation, no markdown, no code fences. Use ONLY these keys "
+        "(all optional except `status`): status, patch, changed_paths, "
+        "semantic_subjects_changed, tests_run, evidence_produced, obligations_closed, "
+        "obligations_discovered, validation_receipts, uncertainties. Any other key is "
+        "rejected. Put the git unified diff (limited to the write scope) in `patch` as "
+        "a JSON string; the diff must apply cleanly with `git apply` against the base."
     )
     packet_json = json.dumps(
         {
