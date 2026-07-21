@@ -21,6 +21,17 @@ def _git(args, cwd):
     subprocess.run(["git", *args], cwd=str(cwd), check=True, capture_output=True, text=True)
 
 
+@pytest.fixture(autouse=True)
+def _isolate_factory_paths(tmp_path_factory, monkeypatch):
+    """Every test uses temp factory dirs (never the real /root/.local paths), so
+    the suite passes as a non-root CI user. Per-test fixtures may re-point them."""
+    base = tmp_path_factory.mktemp("factory-xdg")
+    monkeypatch.setenv("USF_FACTORY_SHARE", str(base / "share"))
+    monkeypatch.setenv("USF_FACTORY_STATE", str(base / "state"))
+    monkeypatch.setenv("USF_FACTORY_CACHE", str(base / "cache"))
+    monkeypatch.setenv("USF_FACTORY_CONFIG", str(base / "config"))
+
+
 @pytest.fixture
 def tmp_usf(tmp_path: Path) -> Path:
     """A temporary git repo standing in for /usf, with fixture-relevant files."""

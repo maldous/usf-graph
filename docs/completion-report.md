@@ -4,6 +4,43 @@ Authoritative, observed-fact status after the exhaustive completion task. Status
 vocabulary: **VERIFIED** (production engine path invokes it + an e2e test proves
 it), **PARTIAL**, **PLANNED**, **ENVIRONMENT_BLOCKED**, **DISABLED_BY_POLICY**.
 
+## PR #1 review response (blockers addressed)
+
+The blocking review of PR #1 was largely correct; each item was fixed and tested:
+
+1. **CI failing** → root cause: CI installed **unpinned** deps and ran **non-root**,
+   while several tests touched the default `/root/.local` paths. Fixed: CI now
+   installs from `requirements.lock` (pinned, reproduces local green) on 3.11 (a
+   non-blocking 3.12 leg added), and an autouse fixture points every test at temp
+   factory dirs. 152 tests pass locally; ruff/mypy clean.
+2. **CLI could not run the new path** → added `usf_factory/runtime.py`
+   (`build_engine` + `production_worker_factory`); the `run` command now wires the
+   worker factory + materialisation index. Live execution is still
+   ENVIRONMENT_BLOCKED (no reachable model), which the engine turns into BLOCKED,
+   never a false success.
+3. **Broker path/scope vulnerabilities** → `_resolve` now uses real-path
+   `relative_to` containment (defeats sibling-prefix and symlink escapes);
+   `read_file_range`/`list_directory`/`search_repository` enforce packet scope and
+   exclude `.git`; empty scope grants no reads. New adversarial tests in
+   `tests/test_agent_runtime.py`.
+4. **Materialisation index could authorize writes** → **quarantined**:
+   `derive_scope(authorize_writes=False)` by default; the heuristic index never
+   grants a write scope (read/validation analysis only). Real tests added at
+   `tests/test_materialisation.py` (the earlier "VERIFIED" claim was unsupported;
+   corrected below).
+5. **Waves could finish LEARNED despite failure** → `_execute_wave` is now
+   fail-closed: missing result, failed integration, required-review-unavailable
+   (high/protected risk with only the noop reviewer), failed validation, or
+   uncertain coordinator ownership → **BLOCKED**. Worker success is credited ONLY
+   after the wave integrates AND validates; a post-wave snapshot is captured
+   before terminal evaluation. Tested.
+6. **Budget / probe / live routing overclaimed** → relabeled **PARTIAL** below.
+7. **Coordinator/packet fencing** → the coordinator lease is now acquired **before**
+   preflight recovery/mirror mutation; packet claim TTL derives from
+   `max_packet_wall_s + grace`.
+
+All protected actions remain **disabled** by default.
+
 ## Commits
 
 - Starting: `56dc957104322ce06168facb73a0ffd472aa382d` (main).
@@ -27,15 +64,19 @@ a deterministic model**, defaults stay disabled.
 | Selected routing decision drives execution | **VERIFIED** | `_resolve_agent` + `test_routing_selects_agent_and_execution_uses_it` |
 | Mode semantics (observe/plan-only/shadow/approve-wave/autonomous-safe) | **VERIFIED** | `test_runtime.py`, `test_e2e.py` |
 | Brokered mutation (tool broker edits workspace; orchestrator derives git diff) | **VERIFIED (fixtures)** | `test_runtime::test_approve_wave_executes_fixture_packet_end_to_end` |
-| Materialisation index (subject→paths/shapes/tests/generated) + fail-closed scope | **VERIFIED** | `materialisation.py`, `test_materialisation.py`, compiler integration |
+| Materialisation index (subject→paths/shapes/tests/generated) | **PARTIAL (analysis-only, quarantined)** | `materialisation.py`, `tests/test_materialisation.py`; regex heuristic — **never authorizes writes** (`authorize_writes=False`); a trustworthy parser/manifest-backed, snapshot-bound index remains PLANNED |
+| Broker confinement (real-path containment, scope, .git exclusion, symlink/sibling escape) | **VERIFIED** | `tests/test_agent_runtime.py` adversarial cases |
+| Fail-closed waves (missing/failed integration/validation/review → BLOCKED; success credited only after integrate+validate) | **VERIFIED** | `tests/test_runtime.py` |
 | Coordinator lease **heartbeat** + config-derived claim TTL | **VERIFIED** | `_heartbeat`, `_lease_deadline(max_packet_wall_s+grace)` |
 | Fencing tokens on claims + result submission | **VERIFIED** | `test_durable_state.py`, `_execute_one` token check |
 | Snapshot fails closed (no synthesized digest, required tools, health) | **VERIFIED** | `test_review_fixes.py` |
 | Programme-state compiler from live work-plan/bootstrap contents | **VERIFIED** | `programme_state.py`, `test_programme_state.py` |
 | Real git-apply integration (base checkout, `--index`, git-derived diff) | **VERIFIED** | `test_integration_apply.py`; wave produced in approve-wave e2e |
 | Validation runners; required gate w/o runner **fails** | **VERIFIED** | `validation.py`, `validation_runners.py`; approve-wave runs real ruff/mypy |
-| Budget reservation ledger | **VERIFIED** | `budget.py`, `test_durable_state::test_budget_reservation`, wired pre-dispatch |
-| `models probe` / `models qualify` functional (real graders self-check) | **VERIFIED (self-check)** | CLI runs graders + admission; live model = ENVIRONMENT_BLOCKED |
+| Budget reservation ledger | **PARTIAL** | `budget.py` reserves pre-dispatch (`test_budget_reservation`); commit/release of ACTUAL cost + live-cost estimation not yet wired (fixture cost is 0) |
+| `models probe` / `models qualify` | **PARTIAL (self-check only)** | CLI runs the real graders + admission on reference answers; invoking a discovered live model is ENVIRONMENT_BLOCKED / billable |
+| Production runtime wiring in the installed CLI | **VERIFIED (wiring)** | `runtime.build_engine` wires worker_factory + index into `usf-factory run`; live exec ENVIRONMENT_BLOCKED |
+| Coordinator lease acquired before preflight recovery/mirror | **VERIFIED** | `run_cycle` reorder |
 | Provider-specific normalizers (OpenRouter) + native Anthropic adapter | **VERIFIED** | `test_p1.py` |
 | Calibrated learning (raw observations + Beta-Bernoulli); wired into engine | **VERIFIED** | `learning.observe` called in `_execute_wave`; `test_p1.py` |
 | Delivery handshake (prepare-only, gated, never pushes) | **VERIFIED** | `delivery.py`, `test_p1.py` |

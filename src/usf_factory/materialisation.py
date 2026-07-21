@@ -203,8 +203,15 @@ class MaterialisationIndex:
             s for s, e in self.entries.items() if path == e.owner_path or path in e.related_paths
         )
 
-    def derive_scope(self, subjects: list[str]) -> ScopeResult:
-        """Fail-closed scope derivation for a set of semantic subjects."""
+    def derive_scope(self, subjects: list[str], *, authorize_writes: bool = False) -> ScopeResult:
+        """Scope derivation for a set of semantic subjects.
+
+        QUARANTINED BY DEFAULT: this index is a line-oriented, regex-based
+        heuristic and is treated as **analysis-only** — ``authorize_writes`` is
+        False, so it never grants a write scope (only read scope + validation
+        profiles for reporting). A future manifest/parser-backed index may pass
+        ``authorize_writes=True`` once it is trustworthy and snapshot-bound.
+        """
         result = ScopeResult()
         read: set[str] = set()
         write: set[str] = set()
@@ -217,16 +224,20 @@ class MaterialisationIndex:
                 continue
             if e.method == "ambiguous":
                 result.ambiguous.append(subj)
+                # still contribute read context from related files
+                read.update(e.related_paths)
                 continue
             if not (e.verified and e.owner_path):
                 result.unresolved.append(subj)
+                read.update(e.related_paths)
                 continue
-            write.add(e.owner_path)
             read.update([e.owner_path, *e.related_paths])
             gen.update(e.generated_outputs)
             profiles.update(e.validation_profiles)
+            if authorize_writes:
+                write.add(e.owner_path)
         result.read_paths = sorted(read)
-        result.write_paths = sorted(write)
+        result.write_paths = sorted(write)  # empty unless authorize_writes=True
         result.generated_outputs = sorted(gen)
         result.validation_profiles = sorted(profiles)
         return result

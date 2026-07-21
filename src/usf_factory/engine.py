@@ -26,6 +26,7 @@ from .enums import (
     HealthStatus,
     PrivacyClass,
     ProtectedAction,
+    Risk,
     RunMode,
 )
 from .errors import SnapshotError
@@ -477,6 +478,7 @@ class FactoryEngine:
 
     async def run_cycle(self, mode: RunMode) -> CycleReceipt:
         import asyncio
+        import contextlib
 
         from .clock import utc_now_iso
 
@@ -486,13 +488,9 @@ class FactoryEngine:
         blockers: list[str] = []
         self._lease_lost = False
 
-        pre = self.preflight(cycle_id)
-        if pre["cycleState"] == "BLOCKED":
-            sm.transition(CycleState.BLOCKED)
-            return self._finish(cycle_id, mode, sm.state, started, blockers=pre["blockers"])
-
-        # One claim authority: acquire the sole coordinator lease (fencing token),
-        # with a heartbeat renewing it for the whole cycle.
+        # Acquire the sole coordinator lease BEFORE any state-changing preflight
+        # work (lease reaping, claim reconciliation, mirror fetch) so recovery and
+        # mirror mutation only ever happen under confirmed ownership.
         self._coordinator_token = self.ctx.store.acquire_lease(
             "coordinator", cycle_id, self._lease_deadline(120)
         )
@@ -500,10 +498,13 @@ class FactoryEngine:
             sm.transition(CycleState.BLOCKED)
             blockers.append("another coordinator holds the active lease")
             return self._finish(cycle_id, mode, sm.state, started, blockers=blockers)
-        import contextlib
 
         hb = asyncio.ensure_future(self._heartbeat(cycle_id))
         try:
+            pre = self.preflight(cycle_id)  # now runs UNDER the coordinator lease
+            if pre["cycleState"] == "BLOCKED":
+                sm.transition(CycleState.BLOCKED)
+                return self._finish(cycle_id, mode, sm.state, started, blockers=pre["blockers"])
             return await self._run_cycle_leased(mode, cycle_id, sm, started, blockers)
         finally:
             hb.cancel()
@@ -622,37 +623,39 @@ class FactoryEngine:
     async def _execute_wave(
         self, mode, cycle_id, sm, started, snap, graph, pset, no_progress, blockers
     ):
+        from .attribution import is_worker_fault
         from .integration import deterministic_preintegrate
 
         sm.transition(CycleState.EXECUTING)
         results = await self.execute_packets(pset, mode, cycle_id)
         quals = self.qualify_results(pset, results)
-        accepted = [q for q in quals if q.accepted]
-        accepted_results = [r for r in results if r.packet_id in {q.packet_id for q in accepted}]
-
-        # Stage-specific learning from real outcomes.
         by_id = {p.packet_id: p for p in pset.packets}
+        results_by_pid = {r.packet_id: r for r in results}
+        accepted = [q for q in quals if q.accepted]
+        accepted_results = [results_by_pid[q.packet_id] for q in accepted]
+
+        # WORKER FAILURES are recorded immediately (fair: worker-fault only).
+        # SUCCESS is credited ONLY after the wave integrates AND validates.
         for q in quals:
+            r = results_by_pid.get(q.packet_id)
             pkt = by_id.get(q.packet_id)
-            res = next((r for r in results if r.packet_id == q.packet_id), None)
-            if pkt is None or res is None:
+            if r is None or pkt is None or q.accepted:
                 continue
-            self.learning.record_worker_outcome(
-                res.agent_profile_id,
-                pkt.task_class,
-                accepted=q.accepted,
-                failure_class=q.failure_class,
-            )
-            self.learning.observe(
-                "worker",
-                res.agent_profile_id,
-                pkt.task_class,
-                "implementation",
-                1.0 if q.accepted else 0.0,
-            )
+            if q.failure_class is not None and is_worker_fault(q.failure_class):
+                self.learning.record_worker_outcome(
+                    r.agent_profile_id,
+                    pkt.task_class,
+                    accepted=False,
+                    failure_class=q.failure_class,
+                )
+                self.learning.observe(
+                    "worker", r.agent_profile_id, pkt.task_class, "implementation", 0.0
+                )
+
+        # Selected packets that produced no result at all (no route / fenced / no worker).
+        missing = [pid for pid in pset.selected_packet_ids if pid not in results_by_pid]
 
         sm.transition(CycleState.INTEGRATING)
-        # shadow mode never integrates; approve-wave/autonomous-safe integrate real patches.
         apply = mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE) and not self._lease_lost
 
         def _fetch(r: PacketResult) -> str:
@@ -680,6 +683,7 @@ class FactoryEngine:
                 wave.content_dict(),
                 extra={"set_id": pset.set_id},
             )
+        integration_failed = bool(accepted_results) and not attempt.deterministic_merge_ok
 
         sm.transition(CycleState.REVIEWING)
         review = await NoopReviewer().review(pset.set_id, wave)
@@ -689,6 +693,12 @@ class FactoryEngine:
             review.content_dict(),
             extra={"set_id": pset.set_id},
         )
+        # High/protected-risk waves REQUIRE a substantive reviewer; only NoopReviewer
+        # is configured here, so such a wave is BLOCKED for want of real review.
+        risky = any(
+            by_id[pid].risk in (Risk.HIGH, Risk.PROTECTED) for pid in pset.selected_packet_ids
+        )
+        review_unavailable = wave is not None and risky
 
         sm.transition(CycleState.VALIDATING)
         receipt = self._validate_wave(pset, wave, snap)
@@ -698,12 +708,58 @@ class FactoryEngine:
             receipt.content_dict(),
             extra={"set_id": pset.set_id},
         )
+        validation_failed = wave is not None and not receipt.all_passed
 
-        # Prepare (never push) a delivery artifact for an accepted, validated wave.
+        # Post-wave re-snapshot (read-only) before terminal evaluation.
+        try:
+            post = self.capture_snapshot(cycle_id)
+        except Exception:
+            post = snap
+
+        # Fail-closed terminal decision.
+        fail_reasons: list[str] = []
+        if self._lease_lost:
+            fail_reasons.append("coordinator ownership uncertain")
+        if missing:
+            fail_reasons.append(f"{len(missing)} selected packet(s) produced no result")
+        if integration_failed:
+            fail_reasons.append(f"integration failed: {attempt.semantic_conflicts}")
+        if review_unavailable:
+            fail_reasons.append("required review unavailable for high/protected-risk wave")
+        if validation_failed:
+            fail_reasons.append("required validation failed")
+
+        if fail_reasons:
+            sm.transition(CycleState.BLOCKED)
+            blockers.extend(fail_reasons)
+            return self._finish(
+                cycle_id,
+                mode,
+                sm.state,
+                started,
+                snapshot=post,
+                graph=graph,
+                pset=pset,
+                accepted=0,
+                no_progress=no_progress,
+                blockers=blockers,
+            )
+
+        # SUCCESS: the wave integrated and validated. Credit accepted workers now.
+        for q in accepted:
+            r = results_by_pid[q.packet_id]
+            pkt = by_id[q.packet_id]
+            self.learning.record_worker_outcome(
+                r.agent_profile_id, pkt.task_class, accepted=True, failure_class=None
+            )
+            self.learning.observe(
+                "worker", r.agent_profile_id, pkt.task_class, "implementation", 1.0
+            )
+
         if wave is not None and receipt.all_passed:
             from .delivery import prepare_delivery
 
-            art = prepare_delivery(self.ctx, wave, snap, receipt)
+            art = prepare_delivery(self.ctx, wave, post, receipt)
             self.ctx.store.put(
                 "publication_receipts",
                 f"{pset.set_id}:delivery",
@@ -712,17 +768,15 @@ class FactoryEngine:
             )
 
         sm.transition(CycleState.LEARNED)
-        self._eval_terminal(snap, cycle_id)
+        self._eval_terminal(post, cycle_id)
         if no_progress:
             blockers.append("no progress vs previous cycle")
-        if self._lease_lost:
-            blockers.append("coordinator lease lost mid-cycle; integration withheld")
         return self._finish(
             cycle_id,
             mode,
             sm.state,
             started,
-            snapshot=snap,
+            snapshot=post,
             graph=graph,
             pset=pset,
             accepted=len(accepted),

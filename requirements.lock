@@ -3,6 +3,7 @@ annotated-types==0.7.0
 anyio==4.14.2
 ast_serialize==0.6.0
 attrs==26.1.0
+build==1.5.0
 certifi==2026.6.17
 h11==0.16.0
 httpcore==1.0.9
@@ -22,6 +23,7 @@ pluggy==1.6.0
 pydantic==2.13.4
 pydantic_core==2.46.4
 Pygments==2.20.0
+pyproject_hooks==1.2.0
 pytest==8.4.2
 pytest-asyncio==0.26.0
 python-dotenv==1.2.2

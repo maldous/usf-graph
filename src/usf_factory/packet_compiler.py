@@ -89,26 +89,23 @@ def compile_packets(
         derived_validation: list[str] = []
 
         if materialisation_index is not None and obl.semantic_subjects:
+            # The index is QUARANTINED (analysis-only): it enriches READ scope,
+            # generated outputs and validation profiles but never authorizes a
+            # write scope. Writes remain from the explicit obligation scope.
             scope = materialisation_index.derive_scope(sorted(set(obl.semantic_subjects)))
-            if scope.ok and scope.write_paths:
-                read_paths = sorted(set(scope.read_paths))
-                write_paths = sorted(set(scope.write_paths))
-                generated_outputs = sorted(set(scope.generated_outputs))
-                derived_validation = sorted(set(scope.validation_profiles))
-            else:
-                # Fail closed: no verified/unambiguous owner => read-only packet.
-                read_paths = sorted(set(scope.read_paths) or set(obl.suggested_read_scope))
-                write_paths = []
-                if scope.unresolved:
-                    findings.append(
-                        f"obligation {obl.id}: unresolved subjects {scope.unresolved}; "
-                        f"downgraded to read-only mapping-resolution"
-                    )
-                if scope.ambiguous:
-                    findings.append(
-                        f"obligation {obl.id}: ambiguous subjects {scope.ambiguous}; "
-                        f"downgraded to read-only mapping-resolution"
-                    )
+            read_paths = sorted(set(read_paths) | set(scope.read_paths))
+            generated_outputs = sorted(set(scope.generated_outputs))
+            derived_validation = sorted(set(scope.validation_profiles))
+            if scope.unresolved:
+                findings.append(
+                    f"obligation {obl.id}: unresolved subjects {scope.unresolved} "
+                    f"(index is analysis-only; not used to authorize writes)"
+                )
+            if scope.ambiguous:
+                findings.append(
+                    f"obligation {obl.id}: ambiguous subjects {scope.ambiguous} "
+                    f"(index is analysis-only; not used to authorize writes)"
+                )
 
         input_digests: dict[str, str] = {}
         if digest_fn is not None:

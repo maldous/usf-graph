@@ -211,6 +211,78 @@ def test_concurrency_executes_four_packets(ctx, tmp_usf):
 
 
 @pytest.mark.e2e
+def test_failed_validation_blocks_and_does_not_credit_worker(ctx, tmp_usf):
+    ctx.config.safety.autonomous_safe_enabled = True
+    ctx.config.egress.source_egress_enabled = True
+    ctx.config.egress.provider_overrides = {"test-provider": ["private-source"]}
+    seed_agent(
+        ctx.store,
+        roles=[AdmissionRole.READ_ONLY_ANALYST, AdmissionRole.PATCH_PRODUCER],
+        scores=all_dimension_scores(),
+    )
+    planner = _InlinePlanner(
+        [
+            {
+                "id": "o",
+                "root_cause": "add broken code",
+                "semantic_subjects": [],
+                "dependencies": [],
+                "acceptance_criteria": ["c"],
+                "risk": "medium",
+                "task_class": "repository-implementation",
+                "suggested_read_scope": [],
+                "suggested_write_scope": ["gen/bad.py"],
+            }
+        ]
+    )
+    # Writes syntactically invalid Python => ruff format gate fails.
+    eng = FactoryEngine(
+        ctx,
+        authority_factory=lambda: FakeAuthority(),
+        planner=planner,
+        worker_factory=_worker_factory(ctx.store, _writer_chat(content="def (:\n")),
+    )
+    receipt = asyncio.run(eng.run_cycle(RunMode.APPROVE_WAVE))
+    assert receipt.state is CycleState.BLOCKED
+    assert any("validation" in b for b in receipt.blockers)
+    assert receipt.accepted_packets == 0
+    # The worker must NOT be credited with a success (only integrated+validated wins).
+    obs = ctx.store.records("observations", "agent_profile_id!=?", ("",))
+    assert all(o.get("value") == 0.0 for o in obs) or obs == []
+
+
+@pytest.mark.e2e
+def test_no_route_blocks_the_wave(ctx, tmp_usf):
+    ctx.config.safety.autonomous_safe_enabled = True
+    # No seeded agent => scheduler selects nobody => the selected packet has no
+    # result => the wave is BLOCKED (not a green LEARNED).
+    planner = _InlinePlanner(
+        [
+            {
+                "id": "o",
+                "root_cause": "analyze",
+                "semantic_subjects": [],
+                "dependencies": [],
+                "acceptance_criteria": ["c"],
+                "risk": "low",
+                "task_class": "semantic-planning",
+                "suggested_read_scope": [],
+                "suggested_write_scope": [],
+            }
+        ]
+    )
+    eng = FactoryEngine(
+        ctx,
+        authority_factory=lambda: FakeAuthority(),
+        planner=planner,
+        worker_factory=_worker_factory(ctx.store, _writer_chat()),
+    )
+    receipt = asyncio.run(eng.run_cycle(RunMode.APPROVE_WAVE))
+    assert receipt.state is CycleState.BLOCKED
+    assert any("no result" in b for b in receipt.blockers)
+
+
+@pytest.mark.e2e
 def test_routing_selects_agent_and_execution_uses_it(ctx, tmp_usf):
     profile = seed_agent(
         ctx.store,

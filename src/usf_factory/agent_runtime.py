@@ -133,21 +133,45 @@ class ToolBroker:
         except Exception as exc:
             return {"error": f"{type(exc).__name__}: {exc}"}
 
+    def _scope(self) -> set[str]:
+        """The exact files the model may see (read + write scope)."""
+        return set(self.packet.read_paths) | set(self.packet.write_paths)
+
+    def _scope_dirs(self) -> set[str]:
+        """Directories that are ancestors of an in-scope file (listable)."""
+        from pathlib import PurePosixPath
+
+        dirs = {"."}
+        for rel in self._scope():
+            parent = PurePosixPath(rel).parent
+            while True:
+                dirs.add(str(parent))
+                if str(parent) in (".", ""):
+                    break
+                parent = parent.parent
+        return dirs
+
     def _resolve(self, rel: str) -> Path:
-        target = (self.workspace / rel).resolve()
-        # Confine to the workspace (defense in depth alongside the OS sandbox).
-        if not str(target).startswith(str(self.workspace.resolve())):
-            raise PermissionError(f"path escapes workspace: {rel}")
+        """Resolve a path and CONFINE it to the workspace using real-path
+        containment (defeats sibling-prefix and symlink escapes)."""
+        if rel.startswith("/") or ".." in Path(rel).parts:
+            raise PermissionError(f"illegal path: {rel}")
+        ws = self.workspace.resolve()
+        target = (self.workspace / rel).resolve()  # resolves symlinks
+        try:
+            target.relative_to(ws)  # ValueError if outside (incl. symlink escape)
+        except ValueError as exc:
+            raise PermissionError(f"path escapes workspace: {rel}") from exc
         return target
 
     def _read_file_range(self, args: dict[str, Any]) -> dict[str, Any]:
         path = str(args["path"])
-        allowed = set(self.packet.read_paths) | set(self.packet.write_paths)
-        if allowed and path not in allowed:
+        # Fail closed: an empty scope grants NO reads (bounded-context promise).
+        if path not in self._scope():
             return {"error": f"path not in packet scope: {path}"}
         target = self._resolve(path)
-        if not target.is_file():
-            return {"error": "not a file"}
+        if target.is_symlink() or not target.is_file():
+            return {"error": "not a regular file in scope"}
         lines = target.read_text(encoding="utf-8", errors="replace").splitlines()
         start = max(1, int(args.get("start", 1)))
         end = min(len(lines), int(args.get("end", start + MAX_READ_LINES - 1)))
@@ -155,26 +179,46 @@ class ToolBroker:
         return {"path": path, "start": start, "end": end, "lines": lines[start - 1 : end]}
 
     def _list_directory(self, args: dict[str, Any]) -> dict[str, Any]:
-        target = self._resolve(str(args.get("path", ".")))
+        from pathlib import PurePosixPath
+
+        rel = str(args.get("path", "."))
+        if rel not in self._scope_dirs():
+            return {"error": f"directory not in packet scope: {rel}"}
+        target = self._resolve(rel)
         if not target.is_dir():
             return {"error": "not a directory"}
-        return {"entries": sorted(p.name for p in target.iterdir())[:MAX_SEARCH_RESULTS]}
+        scope = self._scope()
+        scope_dirs = self._scope_dirs()
+        # Only reveal entries that are themselves in scope or are scoped ancestors;
+        # never .git or unrelated files.
+        entries = []
+        for p in sorted(target.iterdir()):
+            if p.name == ".git":
+                continue
+            child = str(PurePosixPath(rel) / p.name) if rel != "." else p.name
+            if child in scope or child in scope_dirs:
+                entries.append(p.name)
+        return {"entries": entries[:MAX_SEARCH_RESULTS]}
 
     def _search_repository(self, args: dict[str, Any]) -> dict[str, Any]:
+        # Search ONLY in-scope files (never the whole clone, never .git).
         query = str(args["query"])
         hits: list[dict[str, Any]] = []
-        for p in sorted(self.workspace.rglob("*")):
-            if len(hits) >= MAX_SEARCH_RESULTS or not p.is_file():
-                continue
+        for rel in sorted(self._scope()):
+            if len(hits) >= MAX_SEARCH_RESULTS:
+                break
             try:
-                for i, line in enumerate(
-                    p.read_text(encoding="utf-8", errors="replace").splitlines(), 1
-                ):
-                    if query in line:
-                        hits.append({"path": str(p.relative_to(self.workspace)), "line": i})
-                        break
-            except OSError:
+                target = self._resolve(rel)
+            except PermissionError:
                 continue
+            if target.is_symlink() or not target.is_file():
+                continue
+            for i, line in enumerate(
+                target.read_text(encoding="utf-8", errors="replace").splitlines(), 1
+            ):
+                if query in line:
+                    hits.append({"path": rel, "line": i})
+                    break
         return {"hits": hits}
 
     def _apply_patch(self, args: dict[str, Any]) -> dict[str, Any]:

@@ -38,6 +38,84 @@ def test_tool_broker_reads_in_scope_and_blocks_out_of_scope(tmp_path):
     assert "error" in blocked
 
 
+@pytest.mark.adversarial
+def test_broker_sibling_prefix_and_symlink_escape_blocked(tmp_path):
+    import os
+
+    ws = tmp_path / "packet"
+    ws.mkdir()
+    (ws / "allowed.ttl").write_text("in scope\n")
+    # Sibling dir sharing a name prefix; a naive startswith check would allow it.
+    sib = tmp_path / "packet-other"
+    sib.mkdir()
+    (sib / "secret.txt").write_text("SECRET\n")
+    # A symlink inside the workspace pointing outside it.
+    (tmp_path / "outside.txt").write_text("OUTSIDE\n")
+    os.symlink(tmp_path / "outside.txt", ws / "link.ttl")
+
+    p = Packet(
+        obligation_id="o",
+        snapshot_id="s",
+        authority_digest="a",
+        base_head="h",
+        objective="x",
+        task_class="shacl-repair",
+        read_paths=["allowed.ttl", "link.ttl", "../packet-other/secret.txt"],
+    )
+    broker = ToolBroker(workspace=ws, packet=p)
+    # sibling-prefix escape (via .. in a declared read path) is rejected.
+    assert "error" in broker.dispatch("read_file_range", {"path": "../packet-other/secret.txt"})
+    # symlink escape is rejected even though the path is "in scope".
+    assert "error" in broker.dispatch("read_file_range", {"path": "link.ttl"})
+    # the in-scope real file still reads.
+    assert broker.dispatch("read_file_range", {"path": "allowed.ttl"})["lines"] == ["in scope"]
+
+
+@pytest.mark.adversarial
+def test_broker_scope_and_git_exclusion(tmp_path):
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / ".git").mkdir()
+    (ws / ".git" / "config").write_text("[core]\n")
+    (ws / "a.ttl").write_text("has SECRETMARK\n")
+    (ws / "unrelated.py").write_text("SECRETMARK here\n")
+    p = Packet(
+        obligation_id="o",
+        snapshot_id="s",
+        authority_digest="a",
+        base_head="h",
+        objective="x",
+        task_class="shacl-repair",
+        read_paths=["a.ttl"],
+    )
+    broker = ToolBroker(workspace=ws, packet=p)
+    # read_file_range: out-of-scope file denied.
+    assert "error" in broker.dispatch("read_file_range", {"path": "unrelated.py"})
+    # search only sees in-scope files (not unrelated.py, not .git).
+    hits = broker.dispatch("search_repository", {"query": "SECRETMARK"})["hits"]
+    assert [h["path"] for h in hits] == ["a.ttl"]
+    # list_directory of root reveals only scoped entries, never .git.
+    entries = broker.dispatch("list_directory", {"path": "."})["entries"]
+    assert ".git" not in entries and "unrelated.py" not in entries and "a.ttl" in entries
+
+
+@pytest.mark.adversarial
+def test_broker_empty_scope_grants_no_reads(tmp_path):
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "x.ttl").write_text("data\n")
+    p = Packet(
+        obligation_id="o",
+        snapshot_id="s",
+        authority_digest="a",
+        base_head="h",
+        objective="x",
+        task_class="shacl-repair",
+    )
+    broker = ToolBroker(workspace=ws, packet=p)  # empty read+write scope
+    assert "error" in broker.dispatch("read_file_range", {"path": "x.ttl"})
+
+
 @pytest.mark.unit
 def test_tool_broker_apply_patch_scope(tmp_path):
     p = _packet(tmp_path)

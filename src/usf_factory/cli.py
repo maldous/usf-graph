@@ -152,15 +152,18 @@ def run(
     try:
         run_mode = RunMode(mode)
     except ValueError:
-        err.print(f"[red]unknown mode '{mode}'. Use observe | plan-only | autonomous-safe.[/]")
+        err.print(
+            f"[red]unknown mode '{mode}'. Use observe | plan-only | shadow | approve-wave | autonomous-safe.[/]"
+        )
         raise typer.Exit(code=2) from None
-    from .engine import FactoryEngine
+    from .runtime import build_engine
 
     with _ctx() as ctx:
         if (ctx.paths.state / "PAUSED").exists():
             err.print("[yellow]factory is paused; run `usf-factory resume` first[/]")
             raise typer.Exit(code=1)
-        eng = FactoryEngine(ctx)
+        # Fully-wired production engine (worker factory + materialisation index).
+        eng = build_engine(ctx, mode=run_mode)
         receipt = asyncio.run(eng.run_cycle(run_mode))
     _print_receipt(receipt)
 
