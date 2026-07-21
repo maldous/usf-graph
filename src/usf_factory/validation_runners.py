@@ -219,6 +219,9 @@ def build_runners(clone: Path) -> dict[str, GateRunner]:
         "type": type_check,
         "unit-tests": unit_tests,
         "integration-tests": unit_tests,
+        # Bounded focused tests run the same real pytest gate (N/A when no test
+        # files changed); a real runner, never a stub.
+        "focused-tests": unit_tests,
         "secret-scan": secret_scan,
         "repository-cleanliness": repo_clean,
     }

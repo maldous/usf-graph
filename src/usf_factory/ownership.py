@@ -104,18 +104,162 @@ def reconcile_from_authority(
     return rows
 
 
+def verify_from_declaration(
+    ctx: RuntimeContext,
+    index: MaterialisationIndex,
+    subjects: list[str],
+    *,
+    commit: str,
+) -> list[dict[str, Any]]:
+    """Verify ownership from OBJECTIVE declaration evidence: a subject with exactly
+    ONE candidate owner (unambiguous) whose owner file is a non-generated canonical
+    source that DECLARES the subject at the pinned commit. Records a digest-bound,
+    commit-bound ``subject-declaration`` evidence row. Ambiguous (>1 candidate) or
+    undeclared subjects are left candidate-only — ownership is never fabricated."""
+    from .context_pack import _blob_digest, _local_subject, _read_blob
+
+    rows: list[dict[str, Any]] = []
+    for subj in subjects:
+        entry = index.entries.get(subj)
+        if entry is None or len(entry.candidate_owners) != 1:
+            continue  # none or ambiguous => not objectively unambiguous
+        owner = entry.candidate_owners[0]
+        content = _read_blob(ctx.paths.mirror, commit, owner)
+        if content is None or (subj not in content and _local_subject(subj) not in content):
+            continue  # the subject is not genuinely declared in the candidate file
+        digest = _blob_digest(ctx.paths.mirror, commit, owner)
+        ev = OwnershipEvidence(
+            subject=subj,
+            owner_path=owner,
+            evidence_kind="subject-declaration",
+            source_reference=owner,
+            repository_commit=commit,
+            verified=True,
+            verified_at=utc_now_iso(),
+            detail="single unambiguous declaration in a non-generated canonical source (blob-pinned)",
+        )
+        ev = ev.model_copy(update={"source_digest": digest or ev.digest()})
+        ctx.store.put(
+            "ownership_evidence",
+            ev.evidence_id + ":" + ev.verified_at,
+            ev.model_dump(mode="json"),
+            extra={"subject": subj, "owner_path": owner, "verified": "true"},
+        )
+        ctx.log_event(
+            "ownership.verified_declaration",
+            stage="INIT",
+            cycle_id="-",
+            payload={
+                "subject": subj,
+                "owner_path": owner,
+                "commit": commit,
+                "digest": ev.source_digest,
+            },
+        )
+        rows.append(
+            {
+                "subject": subj,
+                "owner_path": owner,
+                "evidence_kind": "subject-declaration",
+                "verified": True,
+                "repository_commit": commit,
+                "source_reference": owner,
+            }
+        )
+    return rows
+
+
 def verify_index(
-    ctx: RuntimeContext, index: MaterialisationIndex, authority: Any | None = None
+    ctx: RuntimeContext,
+    index: MaterialisationIndex,
+    authority: Any | None = None,
+    *,
+    declare_subjects: list[str] | None = None,
 ) -> MaterialisationIndex:
-    """Apply all stored ownership evidence (and, if an authority is supplied, live
-    layout-contract evidence) to mark verified owners on the index."""
+    """Apply stored ownership evidence, plus (if supplied) live layout-contract
+    evidence and objective subject-declaration evidence for the named subjects."""
     evidence = load_evidence(ctx)
     if authority is not None:
         subjects = [s for s, e in index.entries.items() if e.candidate_owners and not e.verified]
         # Bound the authority reconciliation to a sane number of subjects.
         evidence = evidence + reconcile_from_authority(ctx, index, authority, subjects[:200])
+    if declare_subjects:
+        evidence = evidence + verify_from_declaration(
+            ctx, index, declare_subjects, commit=index.source_commit
+        )
     index.apply_ownership_evidence(evidence)
     return index
+
+
+def verify_owner_for_obligations(ctx: RuntimeContext) -> dict[str, Any]:
+    """S8 entry point: establish (or report the best unverified candidate for) a
+    verified owner for a CURRENT programme-obligation subject, using objective
+    declaration evidence. Returns a status dict; never fabricates ownership."""
+    from .isolation import RepoIsolation
+    from .materialisation import build_index_at
+
+    subjects, head = _current_obligation_subjects(ctx)
+    iso = RepoIsolation(ctx.paths, ctx.usf_repo)
+    if not iso.mirror_exists():
+        iso.ensure_mirror()
+    if not head:
+        head = iso.usf_head()
+    if not subjects:
+        return {"status": "NO_OBLIGATION_SUBJECTS", "commit": head}
+    try:
+        index = build_index_at(ctx.paths.mirror, head)
+    except Exception as exc:
+        return {
+            "status": "UNVERIFIED",
+            "commit": head,
+            "best_candidate": None,
+            "missing": f"materialisation index unavailable at {head[:12]}: {type(exc).__name__}",
+        }
+    verify_index(ctx, index, declare_subjects=subjects)
+    verified = [
+        (s, index.entries[s].verified_owner)
+        for s in subjects
+        if index.resolve(s) and index.entries[s].verified
+    ]
+    if verified:
+        return {
+            "status": "VERIFIED",
+            "commit": head,
+            "subject": verified[0][0],
+            "owner_path": verified[0][1],
+        }
+    # No objective evidence: report the best candidate + what's missing.
+    best = None
+    for s in subjects:
+        e = index.entries.get(s)
+        if e and e.candidate_owners:
+            best = {
+                "subject": s,
+                "candidate_owners": e.candidate_owners,
+                "ambiguous": len(e.candidate_owners) > 1,
+            }
+            break
+    return {
+        "status": "UNVERIFIED",
+        "commit": head,
+        "best_candidate": best,
+        "missing": "objective single-declaration or operator/contract evidence",
+    }
+
+
+def _current_obligation_subjects(ctx: RuntimeContext) -> tuple[list[str], str]:
+    """Semantic subjects of the latest snapshot's programme obligations, plus the
+    snapshot's repository_head (the commit the obligations were compiled against)."""
+    rows = list(ctx.store.items("semantic_snapshots"))
+    if not rows:
+        return [], ""
+    _k, snap = sorted(rows, key=lambda kv: kv[1].get("captured_at", ""))[-1]
+    subjects: list[str] = []
+    for o in snap.get("programme_obligations") or []:
+        for s in o.get("semantic_subjects") or []:
+            if s not in subjects:
+                subjects.append(s)
+    return subjects, str(snap.get("repository_head") or "")
 
 
 def approve_cli(ctx: RuntimeContext, subject: str, path: str) -> OwnershipEvidence:

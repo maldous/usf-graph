@@ -19,15 +19,18 @@ from .models import Obligation, ObligationGraph, SemanticSnapshot
 
 MAX_OBLIGATIONS = 100
 
-# Authority work-plan gap `type` -> deterministic task class. Unknown gap types
-# fall back to read-only semantic-planning (never an accidental mutation class).
+# Authority work-plan gap `type` -> deterministic task class. A missing validation
+# is remediated by authoring a bounded validation (low-risk, repository-editing)
+# whose WRITE scope still comes ONLY from a verified materialisation owner — so
+# without a verified owner the packet compiles read-only regardless. Unknown gap
+# types fall back to read-only semantic-planning (never an accidental mutation).
 _GAP_TASK_CLASS = {
-    "missing-current-passing-validation": "semantic-planning",
-    "missing-validation": "semantic-planning",
-    "missing-proof": "semantic-planning",
+    "missing-current-passing-validation": "sparql-authoring",
+    "missing-validation": "sparql-authoring",
+    "missing-constraint": "sparql-authoring",
     "shacl-violation": "shacl-repair",
     "missing-shape": "shacl-repair",
-    "missing-constraint": "sparql-authoring",
+    "missing-proof": "semantic-planning",
 }
 
 

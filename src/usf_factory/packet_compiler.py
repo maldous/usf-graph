@@ -164,9 +164,22 @@ def compile_packets(
         if obl.required_outcomes:
             objective = f"{obl.root_cause} => " + "; ".join(obl.required_outcomes)
 
-        validation = sorted(
-            set((list(task.default_validation) if task else []) + derived_validation)
-        )
+        # Validation profile:
+        #  * A READ-ONLY packet produces no patch, so there is nothing for the wave
+        #    validators to check — acceptance is durable analysis evidence instead.
+        #  * A SEMANTIC (subject-bearing) mutating packet is validated by its
+        #    authority-derived RDF/SHACL/SPARQL profile (from the materialisation
+        #    contract) — never by code-oriented task-class defaults (e.g. pytest),
+        #    which do not validate RDF semantics.
+        #  * A NON-SEMANTIC mutating packet keeps the task-class code profile.
+        if not write_paths:
+            validation = []
+        elif obl.semantic_subjects:
+            validation = sorted(set(derived_validation) | {"syntax-parse"})
+        else:
+            validation = sorted(
+                set((list(task.default_validation) if task else []) + derived_validation)
+            )
         packet = Packet(
             obligation_id=obl.id,
             snapshot_id=snapshot.snapshot_id,

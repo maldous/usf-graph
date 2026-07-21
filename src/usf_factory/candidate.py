@@ -69,24 +69,29 @@ def check_prerequisites(ctx: RuntimeContext) -> list[str]:
     elif not _provider_diverse_reviewer_and_producer(ctx):
         blockers.append("no provider-diverse independent reviewer vs a producer")
 
-    # A snapshot-bound materialisation contract with at least one VERIFIED owner
-    # whose subject appears in current programme obligations.
+    # A VERIFIED materialisation owner whose subject appears in CURRENT programme
+    # obligations (objective declaration / operator / contract evidence — never
+    # fabricated). This both verifies (persists evidence) and cross-checks the
+    # subject against the live obligation set.
     try:
-        from .isolation import RepoIsolation
-        from .materialisation import build_index_at
-        from .ownership import verify_index
+        from .ownership import verify_owner_for_obligations
 
-        iso = RepoIsolation(ctx.paths, ctx.usf_repo)
-        iso.ensure_mirror()
-        index = build_index_at(ctx.paths.mirror, iso.usf_head())
-        verify_index(ctx, index)
-        if not index.verified():
+        owner = verify_owner_for_obligations(ctx)
+        if owner.get("status") != "VERIFIED":
+            best = owner.get("best_candidate")
             blockers.append(
-                "no VERIFIED materialisation owner (approve one via "
-                "`materialisation approve` before a semantic write is possible)"
+                "no VERIFIED materialisation owner for a current obligation subject "
+                f"(status={owner.get('status')}; best_candidate={best}; "
+                f"missing={owner.get('missing')})"
             )
     except Exception as exc:
         blockers.append(f"materialisation contract unavailable: {type(exc).__name__}")
+
+    # S9: the required semantic validation profile must be EXECUTABLE in the
+    # factory integration clone (real runners, no environment-blocked stub gates).
+    ok, detail = _validation_profile_executable(ctx)
+    if not ok:
+        blockers.append(f"required validation profile not executable: {detail}")
 
     # Egress: a semantic write packet carries source; a non-local producer needs
     # source egress enabled + approval. If the only producers are external and
@@ -106,6 +111,56 @@ def check_prerequisites(ctx: RuntimeContext) -> list[str]:
         )
 
     return blockers
+
+
+def _validation_profile_executable(ctx: RuntimeContext) -> tuple[bool, str]:
+    """Prove the validation gates a current-obligation candidate would require are
+    executable in the integration clone: every gate has a REAL runner and none is
+    an environment-blocked USF stub. Prefers bounded local validation; avoids the
+    known-stalling live-Stardog paths (which are not among these runners)."""
+    from .isolation import RepoIsolation
+    from .materialisation import build_index_at
+    from .validation_runners import _USF_GATES, build_runners
+
+    rows = list(ctx.store.items("semantic_snapshots"))
+    snap = sorted(rows, key=lambda kv: kv[1].get("captured_at", ""))[-1][1] if rows else {}
+    head = str(snap.get("repository_head") or "")
+    try:
+        iso = RepoIsolation(ctx.paths, ctx.usf_repo)
+        if not iso.mirror_exists():
+            iso.ensure_mirror()
+        if not head:
+            head = iso.usf_head()
+        index = build_index_at(ctx.paths.mirror, head)
+    except Exception as exc:
+        return False, f"mirror/index unavailable: {type(exc).__name__}"
+
+    tc = ctx.config.task_classes.by_name()
+    gates: set[str] = set()
+    for o in snap.get("programme_obligations") or []:
+        subjects = o.get("semantic_subjects") or []
+        if subjects:
+            # SEMANTIC packet: authority-derived RDF/SHACL profile (mirrors the
+            # compiler), never code-oriented task defaults.
+            for s in subjects:
+                e = index.entries.get(s)
+                if e is not None:
+                    gates |= set(e.validation_profiles)
+            gates.add("syntax-parse")
+        else:
+            t = tc.get(o.get("task_class", ""))
+            if t is not None:
+                gates |= set(t.default_validation)
+    if not gates:
+        return True, "no validation gates required"
+    runners = build_runners(ctx.paths.integration / "profile-check")
+    missing = sorted(g for g in gates if g not in runners)
+    stubbed = sorted(g for g in gates if g in _USF_GATES)
+    if missing:
+        return False, f"no runner for gates {missing}"
+    if stubbed:
+        return False, f"environment-blocked stub gates required: {stubbed}"
+    return True, f"executable gates: {sorted(gates)}"
 
 
 def _local_producer_admitted(ctx: RuntimeContext) -> bool:

@@ -55,7 +55,9 @@ def test_parse_extracts_work_plan_gaps():
     assert obls[0]["semantic_subjects"] == [
         "urn:usf:validationobligation:repositoryexternalartefactmaterialisation"
     ]
-    assert obls[0]["task_class"] == "semantic-planning"  # read-only, no accidental mutation
+    # A missing-validation gap maps to a bounded validation-authoring class; its
+    # WRITE scope still requires a verified owner (read-only without one).
+    assert obls[0]["task_class"] == "sparql-authoring"
 
 
 # ---- optimizer cannot lose / invent / empty the authority set --------------- #
