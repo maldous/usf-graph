@@ -21,6 +21,17 @@ def _git(args, cwd):
     subprocess.run(["git", *args], cwd=str(cwd), check=True, capture_output=True, text=True)
 
 
+@pytest.fixture(autouse=True)
+def _isolate_factory_paths(tmp_path_factory, monkeypatch):
+    """Every test uses temp factory dirs (never the real /root/.local paths), so
+    the suite passes as a non-root CI user. Per-test fixtures may re-point them."""
+    base = tmp_path_factory.mktemp("factory-xdg")
+    monkeypatch.setenv("USF_FACTORY_SHARE", str(base / "share"))
+    monkeypatch.setenv("USF_FACTORY_STATE", str(base / "state"))
+    monkeypatch.setenv("USF_FACTORY_CACHE", str(base / "cache"))
+    monkeypatch.setenv("USF_FACTORY_CONFIG", str(base / "config"))
+
+
 @pytest.fixture
 def tmp_usf(tmp_path: Path) -> Path:
     """A temporary git repo standing in for /usf, with fixture-relevant files."""
@@ -140,3 +151,36 @@ def fake_authority_factory():
         return FakeAuthority()
 
     return make
+
+
+def seed_agent(
+    store, *, roles, scores, provider_id="test-provider", model="test-model", adapter="brokered"
+):
+    """Persist an agent profile + qualification run so the scheduler can route to it."""
+    from usf_factory.enums import AuthMode
+    from usf_factory.models import AgentProfile, QualificationRun
+
+    profile = AgentProfile(
+        provider_id=provider_id, requested_model_id=model, adapter=adapter, auth_mode=AuthMode.LOCAL
+    )
+    store.put("agent_profiles", profile.profile_id, profile.content_dict())
+    run = QualificationRun(
+        agent_profile_id=profile.profile_id,
+        suite_id="test",
+        suite_version="v1",
+        dimension_scores=dict(scores),
+        roles_admitted=list(roles),
+    )
+    store.put(
+        "qualification_runs",
+        profile.profile_id,
+        run.content_dict(),
+        extra={"agent_profile_id": profile.profile_id, "expires_at": ""},
+    )
+    return profile
+
+
+def all_dimension_scores(value=0.95):
+    from usf_factory.enums import SCORE_DIMENSIONS
+
+    return dict.fromkeys(SCORE_DIMENSIONS, value)

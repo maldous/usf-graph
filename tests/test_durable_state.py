@@ -62,6 +62,20 @@ def test_cas_integrity_roundtrip(store):
 
 
 @pytest.mark.unit
+def test_budget_reservation(store):
+    from usf_factory.budget import BudgetLedger, BudgetLimits
+
+    led = BudgetLedger(store, BudgetLimits(global_usd=1.0))
+    # Free/local reserves 0 and always succeeds.
+    assert led.reserve(cycle_id="c", provider_id="ollama", estimate_usd=0.0)[0] is True
+    # Within budget.
+    assert led.reserve(cycle_id="c", provider_id="p", estimate_usd=0.6)[0] is True
+    # Over budget is refused.
+    ok, why = led.reserve(cycle_id="c", provider_id="p", estimate_usd=0.6)
+    assert ok is False and "global" in why
+
+
+@pytest.mark.unit
 def test_ulid_is_sortable_and_unique():
     ids = [ulid() for _ in range(100)]
     assert len(set(ids)) == 100

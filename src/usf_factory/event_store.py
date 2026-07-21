@@ -51,6 +51,7 @@ _RECORD_TABLES: dict[str, list[str]] = {
     "publication_receipts": ["set_id"],
     "routing_decisions": ["packet_id"],
     "cycles": ["state"],
+    "budget_events": ["cycle_id", "provider_id"],
 }
 
 _APPEND_TABLES: dict[str, list[str]] = {

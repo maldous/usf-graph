@@ -153,6 +153,7 @@ class RunMode(StrEnum):
 
     OBSERVE = "observe"
     PLAN_ONLY = "plan-only"
+    SHADOW = "shadow"
     APPROVE_WAVE = "approve-wave"
     AUTONOMOUS_SAFE = "autonomous-safe"
 

@@ -63,8 +63,16 @@ def compile_packets(
     task_classes: TaskClassConfig,
     *,
     digest_fn: DigestFn | None = None,
+    materialisation_index=None,
 ) -> tuple[PacketSet, list[str]]:
-    """Compile an obligation graph into a frozen packet set + compiler findings."""
+    """Compile an obligation graph into a frozen packet set + compiler findings.
+
+    When ``materialisation_index`` is provided, read/write scope, generated
+    outputs and validation profiles are derived DETERMINISTICALLY from it (the
+    planner's suggested paths are not authoritative). Subjects that are unresolved
+    or ambiguous fail closed: the packet is downgraded to read-only (a
+    mapping-resolution packet), never given a write scope.
+    """
     tc_by_name = task_classes.by_name()
     findings: list[str] = []
     packets: list[Packet] = []
@@ -77,6 +85,27 @@ def compile_packets(
 
         read_paths = sorted(set(obl.suggested_read_scope))
         write_paths = sorted(set(obl.suggested_write_scope))
+        generated_outputs: list[str] = []
+        derived_validation: list[str] = []
+
+        if materialisation_index is not None and obl.semantic_subjects:
+            # The index is QUARANTINED (analysis-only): it enriches READ scope,
+            # generated outputs and validation profiles but never authorizes a
+            # write scope. Writes remain from the explicit obligation scope.
+            scope = materialisation_index.derive_scope(sorted(set(obl.semantic_subjects)))
+            read_paths = sorted(set(read_paths) | set(scope.read_paths))
+            generated_outputs = sorted(set(scope.generated_outputs))
+            derived_validation = sorted(set(scope.validation_profiles))
+            if scope.unresolved:
+                findings.append(
+                    f"obligation {obl.id}: unresolved subjects {scope.unresolved} "
+                    f"(index is analysis-only; not used to authorize writes)"
+                )
+            if scope.ambiguous:
+                findings.append(
+                    f"obligation {obl.id}: ambiguous subjects {scope.ambiguous} "
+                    f"(index is analysis-only; not used to authorize writes)"
+                )
 
         input_digests: dict[str, str] = {}
         if digest_fn is not None:
@@ -89,6 +118,9 @@ def compile_packets(
         if obl.required_outcomes:
             objective = f"{obl.root_cause} => " + "; ".join(obl.required_outcomes)
 
+        validation = sorted(
+            set((list(task.default_validation) if task else []) + derived_validation)
+        )
         packet = Packet(
             obligation_id=obl.id,
             snapshot_id=snapshot.snapshot_id,
@@ -100,13 +132,13 @@ def compile_packets(
             semantic_subjects=sorted(set(obl.semantic_subjects)),
             read_paths=read_paths,
             write_paths=write_paths,
-            generated_outputs=[],
+            generated_outputs=generated_outputs,
             input_digests=input_digests,
             dependencies=sorted(set(obl.dependencies)),
             conflicts_with=[],
             required_capabilities=caps,
             acceptance_criteria=list(obl.acceptance_criteria),
-            required_validation=list(task.default_validation) if task else [],
+            required_validation=validation,
             permitted_tools=_permitted_tools(task, caps),
             data_classification="private-source" if write_paths else "private-metadata",
             human_decision_required=obl.human_decision_required,

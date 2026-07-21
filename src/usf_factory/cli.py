@@ -32,12 +32,14 @@ models_app = typer.Typer(no_args_is_help=True, help="Model discovery, probing, q
 usf_app = typer.Typer(no_args_is_help=True, help="Read-only USF authority (MCP) access.")
 cycle_app = typer.Typer(no_args_is_help=True, help="Cycle phases: snapshot, plan, show, status.")
 maint_app = typer.Typer(no_args_is_help=True, help="Maintenance: backup, garbage collection.")
+mat_app = typer.Typer(no_args_is_help=True, help="Materialisation index (subject -> repo surface).")
 app.add_typer(env_app, name="env")
 app.add_typer(providers_app, name="providers")
 app.add_typer(models_app, name="models")
 app.add_typer(usf_app, name="usf")
 app.add_typer(cycle_app, name="cycle")
 app.add_typer(maint_app, name="maintenance")
+app.add_typer(mat_app, name="materialisation")
 
 
 def _ctx() -> RuntimeContext:
@@ -142,21 +144,26 @@ def replay(cycle_id: str) -> None:
 
 @app.command()
 def run(
-    mode: str = typer.Option("plan-only", "--mode", help="observe | plan-only | autonomous-safe"),
+    mode: str = typer.Option(
+        "plan-only", "--mode", help="observe | plan-only | shadow | approve-wave | autonomous-safe"
+    ),
 ) -> None:
     """Run one cycle in the given mode (observe/plan-only are non-mutating)."""
     try:
         run_mode = RunMode(mode)
     except ValueError:
-        err.print(f"[red]unknown mode '{mode}'. Use observe | plan-only | autonomous-safe.[/]")
+        err.print(
+            f"[red]unknown mode '{mode}'. Use observe | plan-only | shadow | approve-wave | autonomous-safe.[/]"
+        )
         raise typer.Exit(code=2) from None
-    from .engine import FactoryEngine
+    from .runtime import build_engine
 
     with _ctx() as ctx:
         if (ctx.paths.state / "PAUSED").exists():
             err.print("[yellow]factory is paused; run `usf-factory resume` first[/]")
             raise typer.Exit(code=1)
-        eng = FactoryEngine(ctx)
+        # Fully-wired production engine (worker factory + materialisation index).
+        eng = build_engine(ctx, mode=run_mode)
         receipt = asyncio.run(eng.run_cycle(run_mode))
     _print_receipt(receipt)
 
@@ -348,15 +355,35 @@ def models_probe(
     allow_billable: bool = typer.Option(False, "--allow-billable"),
     budget_usd: float = typer.Option(0.0, "--budget-usd"),
 ) -> None:
-    """Run mechanical probes (billable; disabled by default)."""
-    if not allow_billable or budget_usd <= 0:
-        err.print("[yellow]mechanical probes require --allow-billable and --budget-usd > 0[/]")
-        err.print(
-            "provider discovery and auth probes are available without billing via `providers refresh`."
+    """Run the mechanical probe graders. A zero-cost self-check grades the probe
+    specs against their reference answers (proving the graders execute); live
+    model probing additionally requires --allow-billable + budget."""
+    from .probes import default_probe_specs, grade_probe
+
+    specs = default_probe_specs()
+    # Self-check: grade each probe against a reference "correct" answer.
+    passed = 0
+    for s in specs:
+        exp = s.expected
+        ref = {
+            "iri_preservation": exp.get("iri", ""),
+            "digest_preservation": exp.get("digest", ""),
+            "stop_condition": "1\n2\n3\n" + exp.get("stop_token", ""),
+            "explicit_uncertainty": "I do not know; insufficient information.",
+            "text_response": "A checksum detects data corruption.",
+        }.get(s.kind.value, "")
+        r = grade_probe(s, ref)
+        passed += 1 if r.passed else 0
+    console.print(f"probe graders self-check: {passed}/{len(specs)} graders produced a verdict")
+    if not (allow_billable and budget_usd > 0):
+        console.print(
+            "[yellow]live model probing requires --allow-billable and --budget-usd > 0[/]"
         )
-        raise typer.Exit(code=1)
-    err.print("[yellow]billable probing is not enabled in this safe runtime build.[/]")
-    raise typer.Exit(code=1)
+        return
+    console.print(
+        "[yellow]no zero-cost live model reachable here (ENVIRONMENT_BLOCKED); "
+        "live probing not performed[/]"
+    )
 
 
 @models_app.command("qualify")
@@ -364,12 +391,43 @@ def models_qualify(
     allow_billable: bool = typer.Option(False, "--allow-billable"),
     budget_usd: float = typer.Option(0.0, "--budget-usd"),
 ) -> None:
-    """Run the USF qualification suite (billable; disabled by default)."""
-    if not allow_billable or budget_usd <= 0:
-        err.print("[yellow]qualification requires --allow-billable and --budget-usd > 0[/]")
-        raise typer.Exit(code=1)
-    err.print("[yellow]billable qualification is not enabled in this safe runtime build.[/]")
-    raise typer.Exit(code=1)
+    """Run the USF qualification suite. A zero-cost self-check grades the corpus
+    against reference answers and computes admission roles (proving the scorer
+    executes); live model qualification additionally requires --allow-billable."""
+    from pathlib import Path
+
+    from .qualification import build_run, load_corpus
+
+    with _ctx() as ctx:
+        suite = load_corpus(
+            Path(ctx.config.qualification.corpus_dir), Path(ctx.config.qualification.holdout_dir)
+        )
+        # Reference answers => proves graders + admission logic run end-to-end.
+        answers = {}
+        for c in suite.cases:
+            g = c.grader
+            if g in ("choice", "exact", "contains"):
+                answers[c.case_id] = str(c.expected.get("value", ""))
+            elif g == "iri_exact":
+                answers[c.case_id] = c.expected.get("iri", "")
+            elif g == "uncertainty":
+                answers[c.case_id] = "I do not know; insufficient evidence."
+        run = build_run(
+            agent_profile_id="self-check", suite=suite, answers=answers, trust=ctx.config.trust
+        )
+    console.print(
+        f"qualification self-check: {run.cases_passed}/{run.cases_total} graded; "
+        f"roles from reference answers: {[r.value for r in run.roles_admitted]}"
+    )
+    if not (allow_billable and budget_usd > 0):
+        console.print(
+            "[yellow]live model qualification requires --allow-billable and --budget-usd > 0[/]"
+        )
+        return
+    console.print(
+        "[yellow]no zero-cost live model reachable here (ENVIRONMENT_BLOCKED); "
+        "live qualification not performed[/]"
+    )
 
 
 @models_app.command("leaderboard")
@@ -557,6 +615,56 @@ def maintenance_gc() -> None:
     with _ctx() as ctx:
         removed = ctx.store.cas_gc()
     console.print(f"[green]removed {removed} unreferenced CAS blob(s)[/]")
+
+
+# --------------------------------------------------------------------------- #
+# materialisation
+# --------------------------------------------------------------------------- #
+
+
+def _build_index():
+    from .materialisation import build_index
+
+    with _ctx() as ctx:
+        return build_index(ctx.usf_repo)
+
+
+@mat_app.command("build")
+def materialisation_build() -> None:
+    """Build the subject->materialisation index over the USF repository (read-only)."""
+    idx = _build_index()
+    console.print(
+        Panel(
+            f"version: {idx.index_version}\nsource_digest: {idx.source_digest}\n"
+            f"subjects indexed: {len(idx.entries)}\n"
+            f"verified owners: {sum(1 for e in idx.entries.values() if e.verified)}",
+            title="materialisation index",
+        )
+    )
+
+
+@mat_app.command("describe")
+def materialisation_describe(iri: str) -> None:
+    """Describe the materialisation surface of a semantic subject IRI."""
+    e = _build_index().resolve(iri)
+    if e is None:
+        err.print(f"[yellow]no mapping for {iri}[/]")
+        raise typer.Exit(code=1)
+    console.print(
+        Panel(
+            f"owner: {e.owner_path}\nmethod: {e.method}  verified: {e.verified}  conf: {e.confidence}\n"
+            f"shapes: {e.shapes}\nrules: {e.rules}\ntests: {e.tests}\n"
+            f"generated: {e.generated_outputs}\nvalidation: {e.validation_profiles}",
+            title=iri,
+        )
+    )
+
+
+@mat_app.command("affected-by")
+def materialisation_affected_by(path: str) -> None:
+    """List semantic subjects materialised (partly) by a repository path."""
+    subjects = _build_index().affected_by(path)
+    console.print("\n".join(subjects) or "[dim]none[/]")
 
 
 # --------------------------------------------------------------------------- #

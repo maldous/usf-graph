@@ -33,23 +33,22 @@ def test_full_non_mutating_cycle(ctx, tmp_usf, fake_authority_factory):
     eng = FactoryEngine(ctx, authority_factory=fake_authority_factory)
     receipt = asyncio.run(eng.run_cycle(RunMode.PLAN_ONLY))
 
-    # Cycle completed the full non-mutating pipeline.
+    # plan-only stops after routing (no model mutation, no execution).
     assert receipt.state is CycleState.LEARNED
     assert receipt.selected_packets >= 1
-    assert receipt.accepted_packets == 0  # dry-run accepts nothing for mutation
+    assert receipt.accepted_packets == 0
     assert receipt.published is False
 
-    # Full pipeline events present.
+    # Non-executing pipeline events present; execution did NOT happen.
     kinds = [e["kind"] for e in ctx.store.events(receipt.cycle_id)]
-    for k in ("preflight", "snapshot.captured", "plan.compiled", "execute.done", "cycle.finished"):
+    for k in ("preflight", "snapshot.captured", "plan.compiled", "cycle.finished"):
         assert k in kinds
+    assert "execute.done" not in kinds  # plan-only never executes
 
-    # Durable artifacts persisted.
     assert ctx.store.count("semantic_snapshots") >= 1
     assert ctx.store.count("packet_sets") >= 1
     assert ctx.store.count("packets") >= 1
-    assert ctx.store.count("integration_attempts") >= 1
-    assert ctx.store.count("validation_receipts") >= 1
+    assert ctx.store.count("packet_results") == 0  # no execution in plan-only
 
     # /usf was NOT modified.
     assert _usf_head(tmp_usf) == head_before
@@ -57,8 +56,6 @@ def test_full_non_mutating_cycle(ctx, tmp_usf, fake_authority_factory):
         ["git", "-C", str(tmp_usf), "status", "--porcelain"], capture_output=True, text=True
     ).stdout
     assert status_after == status_before
-
-    # No factory worktrees registered under /usf.
     assert eng.iso.assert_no_factory_worktrees() == []
 
 

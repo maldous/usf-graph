@@ -43,24 +43,26 @@ def run_validation(
 ) -> ValidationReceipt:
     """Run the requested validation gates deterministically.
 
-    A gate with no runner is recorded as skipped (detail), not as passed. The
-    receipt's ``all_passed`` is False if ANY gate that ran failed.
+    A REQUIRED gate with no runner is a FAILURE (never a green skip). A runner may
+    return ``None`` to declare a gate not-applicable (allowed). ``all_passed`` is
+    False if any requested gate failed or lacked a runner; a wave with no gates
+    (``gate_names`` empty) is trivially passed (nothing to validate).
     """
     runners = runners or {}
     gates: dict[str, bool] = {}
     detail: dict[str, str] = {}
     any_failed = False
-    any_ran = False
     for name in gate_names:
         runner = runners.get(name)
         if runner is None:
-            detail[name] = "skipped: no runner configured"
+            gates[name] = False  # required gate with no runner => FAIL closed
+            detail[name] = "FAIL: no runner configured for a required gate"
+            any_failed = True
             continue
         passed, why = runner()
         if passed is None:
-            detail[name] = f"skipped: {why}"
+            detail[name] = f"n/a: {why}"  # explicit not-applicable, allowed
             continue
-        any_ran = True
         gates[name] = passed
         detail[name] = why
         if not passed:
@@ -68,7 +70,7 @@ def run_validation(
     return ValidationReceipt(
         set_id=set_id,
         gates=gates,
-        all_passed=(not any_failed) and (any_ran or not gate_names),
+        all_passed=not any_failed,
         detail=detail,
         validated_at=utc_now_iso(),
     )
