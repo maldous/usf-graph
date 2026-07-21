@@ -4,14 +4,41 @@ Authoritative, observed-fact status after the exhaustive completion task. Status
 vocabulary: **VERIFIED** (production engine path invokes it + an e2e test proves
 it), **PARTIAL**, **PLANNED**, **ENVIRONMENT_BLOCKED**, **DISABLED_BY_POLICY**.
 
-## Overall classification (per the second post-merge review)
+## Overall classification
 
 ```text
-Gated orchestration foundation
-Not ready for live semantic packet execution   (environment: no reachable model)
+Activated gated semantic factory
+Genuine local inference + admission + live plan-only/shadow WORKING
 Not ready for autonomous operation             (policy: gates disabled)
 Not ready for USF delivery or publication      (policy: gates disabled)
+Candidate semantic write gated until a verified owner + producer + reviewer exist
 ```
+
+## Activation milestone (branch factory/activation-v1) — see docs/activation-report.md
+
+The factory was taken from a gated prototype to a **working activated pipeline**
+against LIVE USF authority and GENUINE local inference (Ollama), 0 USD:
+
+- **Genuine probing (Phase 3):** `models probe` invokes the model per probe and
+  grades with the canonical graders (non-empty ≠ pass). `lfm2.5:8b-a1b-q8_0`
+  scored **9/10** real mechanical probes. Immutable `ProbeRun` records; inference
+  controls (`--allow-inference/--allow-subscription-inference/--allow-paid-
+  inference/--max-cost-usd`) + budget reservation.
+- **Immutable qualification + admission (Phase 4, 7):** `models qualify` runs the
+  live corpus (`lfm2.5` **33/38**); runs keyed by immutable `run_id`; `models
+  admit` computes roles from that evidence into a separate `AdmissionDecision`
+  (lfm2.5 admitted **READ_ONLY_ANALYST, PLANNER_CANDIDATE, INTEGRATOR**). The
+  scheduler rejects expired/superseded/mismatched qualification.
+- **Ownership contract (Phase 2):** candidate vs VERIFIED owners; only
+  evidence-backed (operator/layout-contract) owners authorize a semantic write.
+- **AI planner + independent critic (Phase 5);** substantive review context
+  bundle + semantic-delta extraction + AI integrator (Phases 8-9); real
+  rdflib/pyshacl validation runners (Phase 10); `activate` + continuous shadow
+  (Phases 13, 16).
+- **Live cycles:** plan-only **LEARNED**; shadow wave with the admitted analyst
+  (see activation report). Candidate semantic patch correctly **blocked**
+  (no verified owner / producer / reviewer; mutating gate off) — honest, no
+  fabricated progress.
 
 ## P1 wave (applied on main after the P0 hotfix)
 

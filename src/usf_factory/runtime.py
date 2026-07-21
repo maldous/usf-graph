@@ -139,7 +139,15 @@ def select_planner(ctx: RuntimeContext):
             adapter = build_registry(ctx).adapter(profile.provider_id)
         except Exception:
             continue
-        return AiPlanner(adapter.invoke, profile.profile_id, OBLIGATION_GRAPH_SCHEMA), profile
+        planner = AiPlanner(
+            adapter.invoke,
+            profile.profile_id,
+            OBLIGATION_GRAPH_SCHEMA,
+            provider_id=profile.provider_id,
+            model_id=profile.requested_model_id,
+            adapter_id=profile.adapter,
+        )
+        return planner, profile
     return None, None
 
 
@@ -158,7 +166,12 @@ def production_planner_critic_factory(ctx: RuntimeContext, exclude_provider: str
                 adapter = build_registry(ctx).adapter(profile.provider_id)
             except Exception:
                 continue
-            return AiPlannerCritic(adapter.invoke, profile.profile_id)
+            return AiPlannerCritic(
+                adapter.invoke,
+                profile.profile_id,
+                provider_id=profile.provider_id,
+                model_id=profile.requested_model_id,
+            )
         return DeterministicCriticAdapter()
 
     return make

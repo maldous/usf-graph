@@ -270,9 +270,27 @@ class FactoryEngine:
     async def plan_and_compile(
         self, snap: SemanticSnapshot, cycle_id: str
     ) -> tuple[ObligationGraph, PacketSet, list[str]]:
-        graph = await self.planner.plan(snap)
+        try:
+            graph = await self.planner.plan(snap)
+        except Exception as exc:
+            # A qualified AI planner that returns malformed output falls back to
+            # the deterministic ProgrammePlanner (read-only diagnostics), recorded.
+            self.ctx.log_event(
+                "plan.ai_planner_failed",
+                stage="PLANNED",
+                cycle_id=cycle_id,
+                payload={"planner": type(self.planner).__name__, "error": str(exc)[:200]},
+            )
+            graph = await ProgrammePlanner().plan(snap)
+            graph = graph.model_copy(
+                update={
+                    "critic_findings": [
+                        f"AI planner failed ({type(exc).__name__}); used deterministic fallback"
+                    ]
+                }
+            )
         graph = self.critic.amend(graph)
-        findings = self.critic.critique(graph)
+        findings = list(graph.critic_findings) + self.critic.critique(graph)
         # Independent planner critic (Phase 5): a second, ideally provider-diverse
         # model judges the proposed plan. Its verdict is recorded; a rejection is
         # surfaced as a finding (the deterministic compiler stays authoritative).

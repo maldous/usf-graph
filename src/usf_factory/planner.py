@@ -171,10 +171,21 @@ OBLIGATION_GRAPH_SCHEMA: dict[str, Any] = {
 class AiPlanner:
     """Wraps a qualified agent adapter to produce an obligation graph."""
 
-    def __init__(self, invoke, agent_profile_id: str, schema: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        invoke,
+        agent_profile_id: str,
+        schema: dict[str, Any],
+        provider_id: str = "",
+        model_id: str = "",
+        adapter_id: str = "",
+    ) -> None:
         self._invoke = invoke  # async callable(AgentRequest)->AgentResponse
         self.agent_profile_id = agent_profile_id
         self.schema = schema
+        self.provider_id = provider_id
+        self.model_id = model_id
+        self.adapter_id = adapter_id
 
     async def plan(
         self, snapshot: SemanticSnapshot, goal_constraints: dict[str, Any] | None = None
@@ -194,6 +205,9 @@ class AiPlanner:
             agent_profile_id=self.agent_profile_id,
             packet_id="planning",
             instructions=prompt,
+            provider_id=self.provider_id,
+            requested_model_id=self.model_id,
+            adapter_id=self.adapter_id,
             result_schema=self.schema,
         )
         resp = await self._invoke(req)
@@ -336,9 +350,13 @@ class AiPlannerCritic:
     """A qualified reviewer agent (ideally a different provider/family than the
     planner) that judges the proposed plan and returns a verdict."""
 
-    def __init__(self, invoke, agent_profile_id: str) -> None:
+    def __init__(
+        self, invoke, agent_profile_id: str, provider_id: str = "", model_id: str = ""
+    ) -> None:
         self._invoke = invoke
         self.agent_profile_id = agent_profile_id
+        self.provider_id = provider_id
+        self.model_id = model_id
 
     async def review_plan(
         self, graph: ObligationGraph, projection: dict[str, Any]
@@ -357,7 +375,11 @@ class AiPlannerCritic:
             ]
         )
         req = AgentRequest(
-            agent_profile_id=self.agent_profile_id, packet_id="plan-critique", instructions=prompt
+            agent_profile_id=self.agent_profile_id,
+            packet_id="plan-critique",
+            instructions=prompt,
+            provider_id=self.provider_id,
+            requested_model_id=self.model_id,
         )
         resp = await self._invoke(req)
         try:

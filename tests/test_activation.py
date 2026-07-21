@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 
 from conftest import all_dimension_scores, seed_agent
@@ -27,9 +25,7 @@ class _FakeAdapter:
 
     async def discover_models(self):
         return [
-            DiscoveredModel(
-                provider_id=self.provider_id, requested_model_id="mock-good", free=True
-            )
+            DiscoveredModel(provider_id=self.provider_id, requested_model_id="mock-good", free=True)
         ]
 
     async def probe_model(self, model_id, probe):
@@ -69,13 +65,17 @@ class _FakeRegistry:
 def mock_providers(monkeypatch):
     import usf_factory.providers as providers
 
-    monkeypatch.setattr(providers, "build_registry", lambda ctx, allow_billable=False: _FakeRegistry(ctx))
+    monkeypatch.setattr(
+        providers, "build_registry", lambda ctx, allow_billable=False: _FakeRegistry(ctx)
+    )
     # Persist a free local model so the shortlist finds it.
     return providers
 
 
 @pytest.mark.e2e
-def test_activation_completes_with_mocked_local_provider(ctx, tmp_usf, mock_providers, fake_authority_factory, monkeypatch):
+def test_activation_completes_with_mocked_local_provider(
+    ctx, tmp_usf, mock_providers, fake_authority_factory, monkeypatch
+):
     # Authority for snapshot: use the fake authority.
     monkeypatch.setattr(
         "usf_factory.authority.UsfAuthorityClient", fake_authority_factory, raising=False

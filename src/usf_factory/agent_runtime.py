@@ -363,10 +363,14 @@ class GenericToolLoop:
     """Drives a model through the tool broker under a turn budget."""
 
     SYSTEM = (
-        "You are a USF factory worker in an isolated workspace. Use the provided "
-        "tools to inspect files and propose a unified diff limited to the write "
-        "scope. You may NOT access the network, read secrets, or write outside "
-        "scope. When done, call finish_packet with a structured result."
+        "You are a USF factory worker in an isolated workspace. Use ONLY the "
+        "provided tools; never reply in prose. Inspect files with the read tools "
+        "if useful. For a packet with WRITE paths, make edits within the write "
+        "scope. For a READ-ONLY packet (no write paths), do the analysis and then "
+        "call finish_packet. You MUST end by calling finish_packet with "
+        'status="COMPLETED" and, for a read-only packet, a non-empty findings '
+        "array (short strings) and a criteria_results object. Never access the "
+        "network, read secrets, or write outside scope."
     )
 
     def __init__(self, chat: ChatFn, max_turns: int = 12) -> None:
@@ -376,17 +380,29 @@ class GenericToolLoop:
     async def run(self, packet: Packet, broker: ToolBroker) -> ToolLoopResult:
         from .canonical import content_digest
 
+        read_only = not packet.write_paths
+        criteria = "\n".join(f"- {c}" for c in packet.acceptance_criteria)
+        user = (
+            f"PACKET objective:\n{packet.objective}\n\n"
+            f"acceptance_criteria:\n{criteria}\n\n"
+            f"write_paths={packet.write_paths}\n"
+            f"read_paths={packet.read_paths}\n\n"
+            + (
+                "This is a READ-ONLY analysis packet: call finish_packet with "
+                'status="COMPLETED", findings=[...] and criteria_results={...}.'
+                if read_only
+                else "Make the required edits, then call finish_packet."
+            )
+        )
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": self.SYSTEM},
-            {
-                "role": "user",
-                "content": f"PACKET:\n{packet.objective}\nwrite_paths={packet.write_paths}",
-            },
+            {"role": "user", "content": user},
         ]
         tools = broker.tool_specs()
         turns = 0
         reason = "max_turns"
         turn_meta: list[dict[str, Any]] = []
+        nudged = False
         while turns < self.max_turns:
             turns += 1
             reply = await self._chat(messages, tools)
@@ -400,6 +416,26 @@ class GenericToolLoop:
             tool_calls = reply.get("tool_calls") or []
             messages.append({"role": "assistant", "content": content, "tool_calls": tool_calls})
             if not tool_calls:
+                # A prose reply without finishing: nudge ONCE to call finish_packet
+                # (small models sometimes answer in text). Then stop.
+                if not nudged and broker.finished is None:
+                    nudged = True
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": (
+                                "Do not reply in prose. Call finish_packet now with "
+                                'status="COMPLETED"'
+                                + (
+                                    ", a findings array summarising your analysis, and "
+                                    "criteria_results."
+                                    if read_only
+                                    else " (after making edits)."
+                                )
+                            ),
+                        }
+                    )
+                    continue
                 reason = "no_tool_call"
                 break
             for call in tool_calls:

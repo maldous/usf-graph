@@ -1,5 +1,36 @@
 # Known limitations & nonconformance
 
+## Activation milestone (factory/activation-v1)
+
+The activation work made the pipeline REAL and exercised it (see
+`docs/activation-report.md`): genuine mechanical probing + immutable
+qualification/admission (lfm2.5 admitted from live evidence), candidate-vs-
+verified materialisation ownership, AI planner + independent critic, substantive
+review bundle + semantic-delta + AI integrator, real rdflib/pyshacl validation,
+and the `activate` + continuous-shadow commands. Live plan-only LEARNED; a live
+shadow wave ran with the admitted local analyst.
+
+**Remaining after activation (honest):**
+
+- **Live semantic WRITE is not yet demonstrated.** Gated by design: needs a
+  VERIFIED materialisation owner (0 verified over `/usf` until an operator
+  approves one or the layout contract resolves), an admitted PATCH_PRODUCER + a
+  provider-diverse REVIEWER (the small local model qualified only as
+  analyst/planner/integrator), and the operator-enabled mutating gate — the
+  correct fail-closed posture, not a defect.
+- **Live USF Node/authority validation gates** (competency, negative-fixtures,
+  derived-regen, source/live drift, proof/readiness) remain env-blocked; RDF/
+  TriG/SPARQL parse + SHACL + integrity-SPARQL are now REAL (rdflib/pyshacl).
+- **External-provider sweep** (OpenRouter free router, zero-price models,
+  Codex/Claude subscription) is implemented but was not exhaustively run in the
+  0-USD local-only first assessment.
+- **Context bundles (Phase 12):** ReviewContextBundle implemented with token
+  accounting; dedicated Planner/Packet/Integration bundles + full per-obligation
+  metrics remain partial.
+- **Per-provider rate limiting / UCB-Thompson exploration (Phase 6):**
+  concurrency is bounded by a semaphore and health/quota are honoured; explicit
+  per-provider rate limiters + bandit exploration remain partial.
+
 ## Second post-merge review: P0 hotfix AND P1 wave are applied on `main`
 
 P0 (source classification/egress recheck, fail-closed rejected results, durable
