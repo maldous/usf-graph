@@ -86,6 +86,7 @@ class FactoryEngine:
         self.planner = planner or FixturePlanner(default_planner_fixture())
         self.critic = DeterministicCritic()
         self.learning = LearningEngine(ctx.store)
+        self._coordinator_token: int | None = None
 
     # ------------------------------------------------------------------ #
     # Phase 0 — preflight & recovery.
@@ -96,6 +97,19 @@ class FactoryEngine:
         cycle_state = "READY"
         recovered_from: str | None = None
         repository_head: str | None = None
+
+        # Crash reconciliation: reap expired leases and packet claims so a dead
+        # coordinator/worker cannot hold state hostage. Fencing tokens ensure a
+        # revived stale worker still cannot submit against a reclaimed packet.
+        reaped_leases = self.ctx.store.reap_expired_leases()
+        reaped_claims = self.ctx.store.reap_expired_claims()
+        if reaped_leases or reaped_claims:
+            self.ctx.log_event(
+                "recovery.reaped",
+                stage="INIT",
+                cycle_id=cycle_id,
+                payload={"leases": reaped_leases, "claims": reaped_claims},
+            )
 
         # Detect an incomplete prior cycle.
         for c in self.ctx.store.records("cycles"):
@@ -283,16 +297,19 @@ class FactoryEngine:
     async def execute_packets(
         self, pset: PacketSet, mode: RunMode, cycle_id: str
     ) -> list[PacketResult]:
+        from .ids import run_id as make_run_id
+
         worker = DryRunWorker()  # safe runtime: no mutation, no billable inference
         by_id = {p.packet_id: p for p in pset.packets}
         results: list[PacketResult] = []
-        run_seq = 0
         for pid in pset.selected_packet_ids:
             packet = by_id[pid]
-            run_seq += 1
-            run_id = f"{cycle_id}-r{run_seq}"
-            # One claim authority — refuse double dispatch.
-            if not self.ctx.store.claim_packet(pid, run_id, "engine", "2099-01-01T00:00:00Z"):
+            run_id = make_run_id(cycle_id, pid)
+            # One claim authority — refuse double dispatch — with a fencing token.
+            token = self.ctx.store.claim_packet_fenced(
+                pid, run_id, "engine", self._lease_deadline()
+            )
+            if token is None:
                 continue
             workspace = None
             try:
@@ -304,13 +321,23 @@ class FactoryEngine:
                     auth_mode=AuthMode.LOCAL,
                 )
                 result = await worker.execute(packet, workspace, agent)
-                self.ctx.store.put(
-                    "packet_results",
-                    f"{pid}:{run_id}",
-                    result.content_dict(),
-                    extra={"packet_id": pid, "status": result.status.value},
-                )
-                results.append(result)
+                # Fencing: only persist if our claim token is still current (a
+                # crashed/expired worker whose packet was reclaimed is rejected).
+                if self.ctx.store.claim_token_current(pid, token):
+                    self.ctx.store.put(
+                        "packet_results",
+                        f"{pid}:{run_id}",
+                        result.content_dict(),
+                        extra={"packet_id": pid, "status": result.status.value},
+                    )
+                    results.append(result)
+                else:
+                    self.ctx.log_event(
+                        "execute.fenced",
+                        stage="EXECUTING",
+                        cycle_id=cycle_id,
+                        payload={"packet_id": pid, "reason": "stale claim token"},
+                    )
             finally:
                 self.ctx.store.release_packet(pid, run_id)
                 if workspace is not None:
@@ -342,8 +369,16 @@ class FactoryEngine:
     # ------------------------------------------------------------------ #
 
     def _next_cycle_id(self) -> str:
-        n = self.ctx.store.count("cycles")
-        return f"cyc-{n:06d}"
+        from .ids import cycle_id
+
+        return cycle_id()
+
+    def _lease_deadline(self, seconds: int = 900) -> str:
+        from datetime import timedelta
+
+        from .clock import utc_now
+
+        return (utc_now() + timedelta(seconds=seconds)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     async def run_cycle(self, mode: RunMode) -> CycleReceipt:
         from .clock import utc_now_iso
@@ -357,6 +392,23 @@ class FactoryEngine:
         if pre["cycleState"] == "BLOCKED":
             sm.transition(CycleState.BLOCKED)
             return self._finish(cycle_id, mode, sm.state, started, blockers=pre["blockers"])
+
+        # One claim authority: acquire the sole coordinator lease (fencing token).
+        self._coordinator_token = self.ctx.store.acquire_lease(
+            "coordinator", cycle_id, self._lease_deadline()
+        )
+        if self._coordinator_token is None:
+            sm.transition(CycleState.BLOCKED)
+            blockers.append("another coordinator holds the active lease")
+            return self._finish(cycle_id, mode, sm.state, started, blockers=blockers)
+        try:
+            return await self._run_cycle_leased(mode, cycle_id, sm, started, blockers)
+        finally:
+            self.ctx.store.release_lease("coordinator", cycle_id, self._coordinator_token)
+
+    async def _run_cycle_leased(self, mode, cycle_id, sm, started, blockers):
+        from .clock import utc_now_iso  # noqa: F401
+
         sm.transition(CycleState.READY)
 
         # Snapshot (fails closed: a degraded/synthesized authority blocks the cycle).

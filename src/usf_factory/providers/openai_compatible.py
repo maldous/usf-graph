@@ -44,6 +44,11 @@ class OpenAICompatibleAdapter:
         self.allow_billable = allow_billable
         self._timeout = timeout_s
         self._transport = transport  # for tests (respx/mocks)
+        self._loop_model: str | None = None  # model id used by chat_with_tools
+
+    def with_loop_model(self, model_id: str) -> OpenAICompatibleAdapter:
+        self._loop_model = model_id
+        return self
 
     # ---- helpers -------------------------------------------------------- #
 
@@ -189,6 +194,44 @@ class OpenAICompatibleAdapter:
             )
         return await self._chat(model_id, request.instructions)
 
+    async def chat_with_tools(
+        self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """One tool-enabled chat turn (for the agent tool-loop). Billable; gated.
+
+        Returns ``{"content": str, "tool_calls": [{"id","name","arguments"}]}``.
+        """
+        self._ensure_billable()
+        url = self._url("/chat/completions")
+        payload = {
+            "model": self._loop_model or "gpt-4o-mini",
+            "messages": _to_openai_messages(messages),
+            "tools": tools,
+            "tool_choice": "auto",
+            "temperature": 0,
+        }
+        try:
+            async with self._client() as client:
+                resp = await client.post(url, headers=self._headers(), json=payload)
+        except httpx.HTTPError as exc:
+            raise AdapterError(
+                f"{self.config.provider_id} chat failed: {type(exc).__name__}"
+            ) from exc
+        if resp.status_code >= 400:
+            raise AdapterError(f"{self.config.provider_id} chat HTTP {resp.status_code}")
+        msg = ((resp.json().get("choices") or [{}])[0]).get("message", {})
+        calls = []
+        for tc in msg.get("tool_calls") or []:
+            fn = tc.get("function", {})
+            import json as _json
+
+            try:
+                args = _json.loads(fn.get("arguments") or "{}")
+            except _json.JSONDecodeError:
+                args = {}
+            calls.append({"id": tc.get("id", ""), "name": fn.get("name", ""), "arguments": args})
+        return {"content": msg.get("content") or "", "tool_calls": calls}
+
     async def _chat(self, model_id: str, prompt: str) -> AgentResponse:
         url = self._url("/chat/completions")
         payload = {
@@ -221,6 +264,29 @@ class OpenAICompatibleAdapter:
             tokens_in=_as_int(usage.get("prompt_tokens")),
             tokens_out=_as_int(usage.get("completion_tokens")),
         )
+
+
+def _to_openai_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Normalize the tool-loop message list into OpenAI chat format.
+
+    Tool results in our loop carry dict content; OpenAI expects string content on
+    ``role=tool`` messages, so we JSON-encode them.
+    """
+    import json as _json
+
+    out: list[dict[str, Any]] = []
+    for m in messages:
+        if m.get("role") == "tool":
+            out.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": m.get("tool_call_id", ""),
+                    "content": _json.dumps(m.get("content", {})),
+                }
+            )
+        else:
+            out.append({k: v for k, v in m.items() if k in ("role", "content", "tool_calls")})
+    return out
 
 
 def _as_int(v: Any) -> int | None:

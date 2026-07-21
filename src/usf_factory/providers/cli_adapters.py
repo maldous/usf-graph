@@ -9,6 +9,7 @@ contents). This module never modifies ~/.codex or ~/.claude.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import shutil
 import time
@@ -126,14 +127,34 @@ class _CliAdapterBase:
             raise AdapterError(f"billable inference disabled for {self.config.provider_id}")
         raise AdapterError(f"{self.config.provider_id} probe_model not enabled in the safe runtime")
 
+    # Subclasses build argv and parse stdout for their CLI's non-interactive mode.
+    def _argv(self, binpath: str, model_id: str, prompt: str) -> list[str]:  # pragma: no cover
+        raise NotImplementedError
+
+    def _parse_output(self, stdout: str) -> str:  # pragma: no cover
+        raise NotImplementedError
+
     async def invoke(self, request: AgentRequest) -> AgentResponse:
+        # Billable: uses the operator's existing CLI subscription/auth. Gated.
         if not self.allow_billable:
             raise AdapterError(f"billable inference disabled for {self.config.provider_id}")
-        # Deliberately not wired to a live CLI call in the safe runtime. The
-        # worker layer routes real CLI execution through the sandbox; see
-        # workers.py. This method exists so the adapter satisfies the protocol.
-        raise AdapterError(
-            f"{self.config.provider_id} direct invoke is routed through the sandboxed worker"
+        binpath = self._binary_path()
+        if binpath is None:
+            raise AdapterError(f"{self.binary} not on PATH")
+        model_id = request.model_id_for("default")
+        # Runs as the current (authenticated) user with a SANITIZED env — the CLI
+        # needs HOME for its OIDC auth but must never see API-provider keys.
+        code, out, err = await _run(
+            self._argv(binpath, model_id, request.instructions), timeout_s=float(request.max_wall_s)
+        )
+        if code != 0:
+            raise AdapterError(f"{self.config.provider_id} exited {code}: {err.strip()[:200]}")
+        text = self._parse_output(out)
+        return AgentResponse(
+            agent_profile_id=request.agent_profile_id,
+            actual_provider=self.config.provider_id,
+            actual_model=model_id,
+            output_text=text,
         )
 
 
@@ -145,6 +166,30 @@ class CodexCliAdapter(_CliAdapterBase):
         ("gpt-5", "GPT-5 (via Codex CLI)"),
         ("o4-mini", "o4-mini (via Codex CLI)"),
     )
+
+    def _argv(self, binpath: str, model_id: str, prompt: str) -> list[str]:
+        # Non-interactive, ephemeral, JSON event stream (build task §5 refs).
+        return [binpath, "exec", "--json", "--skip-git-repo-check", "-m", model_id, prompt]
+
+    def _parse_output(self, stdout: str) -> str:
+        # Codex emits JSONL events; return the last agent/assistant text.
+        text = ""
+        for line in stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                ev = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            msg = ev.get("message") or ev.get("text") or ev.get("content")
+            if isinstance(msg, str) and msg:
+                text = msg
+            elif ev.get("type") in ("agent_message", "assistant") and isinstance(
+                ev.get("delta"), str
+            ):
+                text += ev["delta"]
+        return text or stdout.strip()
 
 
 class ClaudeCliAdapter(_CliAdapterBase):
@@ -159,3 +204,16 @@ class ClaudeCliAdapter(_CliAdapterBase):
         ("claude-sonnet-5", "Claude Sonnet 5 (via Claude CLI)"),
         ("claude-haiku-4-5", "Claude Haiku 4.5 (via Claude CLI)"),
     )
+
+    def _argv(self, binpath: str, model_id: str, prompt: str) -> list[str]:
+        return [binpath, "--print", "--output-format", "json", "--model", model_id, prompt]
+
+    def _parse_output(self, stdout: str) -> str:
+        # Claude Code print mode returns a JSON object with a "result" field.
+        try:
+            obj = json.loads(stdout)
+        except json.JSONDecodeError:
+            return stdout.strip()
+        if isinstance(obj, dict):
+            return str(obj.get("result") or obj.get("content") or "")
+        return stdout.strip()

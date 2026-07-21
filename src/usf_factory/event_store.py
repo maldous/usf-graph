@@ -10,7 +10,9 @@ No credential value is ever stored here — callers must redact before persistin
 
 from __future__ import annotations
 
+import os
 import sqlite3
+import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -66,11 +68,12 @@ class Store:
         self.cas_dir = cas_dir
         db_path.parent.mkdir(parents=True, exist_ok=True)
         cas_dir.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(str(db_path), isolation_level=None)
+        self._conn = sqlite3.connect(str(db_path), isolation_level=None, timeout=30.0)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA synchronous=NORMAL")
-        self._conn.execute("PRAGMA foreign_keys=OFF")
+        self._conn.execute("PRAGMA synchronous=FULL")  # durable across OS crash
+        self._conn.execute("PRAGMA foreign_keys=ON")
+        self._conn.execute("PRAGMA busy_timeout=10000")  # tolerate concurrent writers
         self._create_schema()
 
     # ---- lifecycle ------------------------------------------------------- #
@@ -120,6 +123,7 @@ class Store:
                 run_id TEXT NOT NULL,
                 owner TEXT NOT NULL,
                 status TEXT NOT NULL,           -- active | released | expired
+                token INTEGER NOT NULL DEFAULT 0,
                 claimed_at TEXT NOT NULL,
                 expires_at TEXT NOT NULL,
                 PRIMARY KEY (packet_id, run_id)
@@ -130,6 +134,96 @@ class Store:
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_packet_active_claim "
             "ON packet_claims(packet_id) WHERE status = 'active'"
         )
+        # Lightweight migration: add token column to pre-existing claim tables.
+        claim_cols = {r["name"] for r in cur.execute("PRAGMA table_info(packet_claims)").fetchall()}
+        if "token" not in claim_cols:
+            cur.execute("ALTER TABLE packet_claims ADD COLUMN token INTEGER NOT NULL DEFAULT 0")
+        # Fencing-token source: a monotonically increasing counter. Any lease or
+        # claim carries a token; a holder with a stale token is fenced out.
+        cur.execute(
+            "CREATE TABLE IF NOT EXISTS fencing_tokens ("
+            "token INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL)"
+        )
+        # Named leases (e.g. the sole coordinator lease). Exactly one row per name.
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS leases (
+                name TEXT PRIMARY KEY,
+                owner TEXT NOT NULL,
+                token INTEGER NOT NULL,
+                status TEXT NOT NULL,        -- active | released
+                acquired_at TEXT NOT NULL,
+                heartbeat_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL
+            )
+            """
+        )
+
+    # ---- fencing tokens & leases ---------------------------------------- #
+
+    def mint_token(self) -> int:
+        """Mint a strictly increasing fencing token."""
+        cur = self._conn.execute("INSERT INTO fencing_tokens (at) VALUES (?)", (utc_now_iso(),))
+        return int(cur.lastrowid or 0)
+
+    def acquire_lease(self, name: str, owner: str, expires_at: str) -> int | None:
+        """Acquire a named lease. Returns a fencing token, or None if a live
+        lease is held by someone else. An expired lease is superseded."""
+        now = utc_now_iso()
+        with self.transaction():
+            row = self._conn.execute("SELECT * FROM leases WHERE name=?", (name,)).fetchone()
+            if row is not None and row["status"] == "active" and row["expires_at"] > now:
+                return None  # a live lease is held
+            token = self.mint_token()
+            self._conn.execute(
+                "INSERT INTO leases (name, owner, token, status, acquired_at, heartbeat_at, expires_at) "
+                "VALUES (?, ?, ?, 'active', ?, ?, ?) "
+                "ON CONFLICT(name) DO UPDATE SET owner=excluded.owner, token=excluded.token, "
+                "status='active', acquired_at=excluded.acquired_at, heartbeat_at=excluded.heartbeat_at, "
+                "expires_at=excluded.expires_at",
+                (name, owner, token, now, now, expires_at),
+            )
+            return token
+
+    def renew_lease(self, name: str, owner: str, token: int, expires_at: str) -> bool:
+        """Heartbeat a lease. Only the current (owner, token) holder may renew;
+        a superseded holder is fenced out (returns False)."""
+        now = utc_now_iso()
+        cur = self._conn.execute(
+            "UPDATE leases SET heartbeat_at=?, expires_at=? "
+            "WHERE name=? AND owner=? AND token=? AND status='active'",
+            (now, expires_at, name, owner, token),
+        )
+        return cur.rowcount > 0
+
+    def release_lease(self, name: str, owner: str, token: int) -> None:
+        self._conn.execute(
+            "UPDATE leases SET status='released' WHERE name=? AND owner=? AND token=?",
+            (name, owner, token),
+        )
+
+    def lease_token_current(self, name: str, token: int) -> bool:
+        """True iff ``token`` is the active token for ``name`` (fencing check)."""
+        row = self._conn.execute(
+            "SELECT token, status, expires_at FROM leases WHERE name=?", (name,)
+        ).fetchone()
+        if row is None or row["status"] != "active":
+            return False
+        return int(row["token"]) == int(token) and row["expires_at"] > utc_now_iso()
+
+    def reap_expired_leases(self) -> list[str]:
+        """Mark expired active leases as released; returns reaped names."""
+        now = utc_now_iso()
+        rows = self._conn.execute(
+            "SELECT name FROM leases WHERE status='active' AND expires_at <= ?", (now,)
+        ).fetchall()
+        names = [r["name"] for r in rows]
+        if names:
+            self._conn.execute(
+                "UPDATE leases SET status='released' WHERE status='active' AND expires_at <= ?",
+                (now,),
+            )
+        return names
 
     # ---- generic record ops ---------------------------------------------- #
 
@@ -230,27 +324,60 @@ class Store:
 
     # ---- claim / lease authority ---------------------------------------- #
 
-    def claim_packet(self, packet_id: str, run_id: str, owner: str, expires_at: str) -> bool:
-        """Attempt to claim a packet. Returns True iff this call won the claim.
+    def claim_packet_fenced(
+        self, packet_id: str, run_id: str, owner: str, expires_at: str
+    ) -> int | None:
+        """Claim a packet and return its fencing token, or None if already claimed.
 
         The partial unique index guarantees at most one active claim per packet,
-        so a duplicate claim from a retry/crash cannot double-dispatch.
+        so a duplicate claim from a retry/crash cannot double-dispatch. The token
+        lets result submission be fenced: a crashed/expired worker holding a stale
+        token is rejected (see :meth:`claim_token_current`).
         """
+        token = self.mint_token()
         try:
             self._conn.execute(
-                "INSERT INTO packet_claims (packet_id, run_id, owner, status, claimed_at, expires_at) "
-                "VALUES (?, ?, ?, 'active', ?, ?)",
-                (packet_id, run_id, owner, utc_now_iso(), expires_at),
+                "INSERT INTO packet_claims (packet_id, run_id, owner, status, token, claimed_at, expires_at) "
+                "VALUES (?, ?, ?, 'active', ?, ?, ?)",
+                (packet_id, run_id, owner, token, utc_now_iso(), expires_at),
             )
-            return True
+            return token
         except sqlite3.IntegrityError:
+            return None
+
+    def claim_packet(self, packet_id: str, run_id: str, owner: str, expires_at: str) -> bool:
+        """Boolean claim (back-compat wrapper around :meth:`claim_packet_fenced`)."""
+        return self.claim_packet_fenced(packet_id, run_id, owner, expires_at) is not None
+
+    def claim_token_current(self, packet_id: str, token: int) -> bool:
+        """True iff ``token`` matches the active, unexpired claim for the packet."""
+        row = self._conn.execute(
+            "SELECT token, expires_at FROM packet_claims WHERE packet_id=? AND status='active'",
+            (packet_id,),
+        ).fetchone()
+        if row is None:
             return False
+        return int(row["token"]) == int(token) and row["expires_at"] > utc_now_iso()
 
     def release_packet(self, packet_id: str, run_id: str) -> None:
         self._conn.execute(
             "UPDATE packet_claims SET status='released' WHERE packet_id=? AND run_id=?",
             (packet_id, run_id),
         )
+
+    def reap_expired_claims(self) -> list[str]:
+        """Mark expired active claims as released; returns reclaimed packet ids."""
+        now = utc_now_iso()
+        rows = self._conn.execute(
+            "SELECT packet_id FROM packet_claims WHERE status='active' AND expires_at <= ?", (now,)
+        ).fetchall()
+        ids = [r["packet_id"] for r in rows]
+        if ids:
+            self._conn.execute(
+                "UPDATE packet_claims SET status='expired' WHERE status='active' AND expires_at <= ?",
+                (now,),
+            )
+        return ids
 
     def active_claim(self, packet_id: str) -> dict[str, Any] | None:
         row = self._conn.execute(
@@ -262,16 +389,36 @@ class Store:
     # ---- content-addressed store ---------------------------------------- #
 
     def cas_put(self, data: bytes) -> str:
-        """Store bytes; returns a ``cas:sha256:...`` reference."""
+        """Store bytes durably; returns a ``cas:sha256:...`` reference.
+
+        Crash-safe: write to a unique temp file, fsync it, atomically rename,
+        fsync the directory, then verify the stored digest by read-back.
+        """
         dg = digest_bytes(data)  # sha256:hex
         hexpart = dg.split(":", 1)[1]
         shard = self.cas_dir / hexpart[:2] / hexpart[2:4]
         shard.mkdir(parents=True, exist_ok=True)
         target = shard / hexpart
         if not target.exists():
-            tmp = target.with_suffix(".tmp")
-            tmp.write_bytes(data)
-            tmp.replace(target)
+            fd, tmpname = tempfile.mkstemp(dir=str(shard), prefix=".cas.", suffix=".tmp")
+            tmp_path = Path(tmpname)
+            try:
+                with os.fdopen(fd, "wb") as fh:
+                    fh.write(data)
+                    fh.flush()
+                    os.fsync(fh.fileno())
+                tmp_path.replace(target)
+                dirfd = os.open(str(shard), os.O_DIRECTORY)
+                try:
+                    os.fsync(dirfd)
+                finally:
+                    os.close(dirfd)
+            finally:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+        # Read-back integrity verification.
+        if digest_bytes(target.read_bytes()) != dg:
+            raise OSError(f"CAS integrity check failed for {dg}")
         return f"cas:{dg}"
 
     def cas_put_text(self, text: str) -> str:
@@ -282,7 +429,10 @@ class Store:
             raise ValueError(f"invalid CAS ref: {ref}")
         hexpart = ref.split("sha256:", 1)[1]
         target = self.cas_dir / hexpart[:2] / hexpart[2:4] / hexpart
-        return target.read_bytes()
+        data = target.read_bytes()
+        if digest_bytes(data) != f"sha256:{hexpart}":
+            raise OSError(f"CAS integrity check failed on read for {ref}")
+        return data
 
     def cas_has(self, ref: str) -> bool:
         try:
