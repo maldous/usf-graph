@@ -39,7 +39,7 @@ def _sanitized_env() -> dict[str, str]:
 
 
 async def _run(
-    cmd: list[str], timeout_s: float = 10.0, stdin: str | None = None
+    cmd: list[str], timeout_s: float = 10.0, stdin: str | None = None, cwd: str | None = None
 ) -> tuple[int, str, str]:
     proc = await asyncio.create_subprocess_exec(
         *cmd,
@@ -47,6 +47,7 @@ async def _run(
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         env=_sanitized_env(),
+        cwd=cwd,
     )
     try:
         out, err = await asyncio.wait_for(
@@ -130,25 +131,90 @@ class _CliAdapterBase:
         _c, out, _e = await _run([binpath, "--version"], timeout_s=15.0)
         return out.strip().splitlines()[0] if out.strip() else ""
 
-    async def _exec(
-        self, model_id: str, prompt: str, timeout_s: float
-    ) -> tuple[str, Any, bool, str]:
-        """Run the CLI non-interactively; return (text, TokenUsage, quota_blocked,
-        error). Prompt is fed on stdin (CLIs read it there). Sanitized env — the
-        CLI sees no API keys."""
+    def capabilities(self):
+        """A CLI adapter: plain invoke + bounded patch synthesis + subscription;
+        NO brokered tool loop / native tool-call protocol."""
+        from ..capabilities import AdapterCapabilities
 
+        return AdapterCapabilities(
+            plain_invoke=True,
+            structured_output=True,
+            usage_reporting=True,
+            actual_model_reporting=True,
+            native_tool_calls=False,
+            brokered_tool_loop=False,
+            bounded_patch_synthesis=True,
+            subscription_inference=True,
+            free_inference=False,
+        )
+
+    def _model_rejected(self, text: str, err: str) -> bool:
+        blob = (text + " " + err).lower()
+        return any(
+            m in blob
+            for m in (
+                "not supported when using",
+                "model not found",
+                "metadata for",
+                "unknown model",
+                "invalid model",
+                "is not supported",
+                "no such model",
+            )
+        )
+
+    async def _exec_once(
+        self, model_id: str, prompt: str, timeout_s: float, scratch: str
+    ) -> tuple[str, Any, bool, str, int]:
         binpath = self._binary_path()
         if binpath is None:
             raise AdapterError(f"{self.binary} not on PATH")
         argv, stdin = self._argv(binpath, model_id, prompt)
         start = time.perf_counter()
-        code, out, err = await _run(argv, timeout_s=timeout_s, stdin=stdin)
+        # Run from a FRESH EMPTY scratch dir (never the repo/packet workspace),
+        # with a sanitized env and the CLI's own tools disabled by _argv.
+        code, out, err = await _run(argv, timeout_s=timeout_s, stdin=stdin, cwd=scratch)
         wall = (time.perf_counter() - start) * 1000
         text, usage, quota = self._parse_full(out, err, code)
         usage.latency_ms = wall
         usage.actual_provider = self.config.provider_id
+        return text, usage, quota, err, code
+
+    async def _exec(
+        self, model_id: str, prompt: str, timeout_s: float
+    ) -> tuple[str, Any, bool, str]:
+        """Run the CLI non-interactively from a fresh empty scratch dir. Tries the
+        requested model; if the CLI explicitly REJECTS that model id, retries
+        EXACTLY once with the account/CLI default (no model-id cycling). Records
+        requested/actual/verified/fallback on the usage record."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory(prefix="usf-cli-") as scratch:
+            requested = model_id
+            text, usage, quota, err, code = await self._exec_once(
+                model_id, prompt, timeout_s, scratch
+            )
+            fell_back = False
+            if (
+                (code != 0 or not text)
+                and model_id
+                and model_id != "default"
+                and self._model_rejected(text, err)
+            ):
+                # Exactly one retry with the default model (omit the model arg).
+                fell_back = True
+                text, usage, quota, err, code = await self._exec_once(
+                    "default", prompt, timeout_s, scratch
+                )
+        usage.requested_model = requested
+        usage.fell_back_to_default = fell_back
         if not usage.actual_model:
-            usage.actual_model = model_id
+            # The CLI did not report an actual model => UNVERIFIED, never silently
+            # equated with the requested id.
+            usage.actual_model = None
+            usage.actual_model_verified = False
+        else:
+            usage.actual_model_verified = True
         return text, usage, quota, (err.strip()[:200] if code != 0 else "")
 
     async def probe_model(self, model_id: str, probe: ProbeSpec) -> ProbeResult:
@@ -232,10 +298,10 @@ class CodexCliAdapter(_CliAdapterBase):
     )
 
     def _argv(self, binpath: str, model_id: str, prompt: str) -> tuple[list[str], str | None]:
-        # Non-interactive, ephemeral, JSON event stream; prompt on stdin. The
-        # account's default model is used unless an explicit model is requested
-        # (a hard-coded model id that the account rejects is not "available").
-        argv = [binpath, "exec", "--json", "--skip-git-repo-check"]
+        # Non-interactive, ephemeral, JSON event stream; prompt on stdin. Runs
+        # from an empty scratch cwd (set by _run) under a READ-ONLY sandbox, so
+        # model-generated shell can only read the empty dir — never the repo.
+        argv = [binpath, "exec", "--json", "--skip-git-repo-check", "-s", "read-only"]
         if model_id and model_id != "default":
             argv += ["-m", model_id]
         argv += ["-"]
@@ -296,8 +362,23 @@ class ClaudeCliAdapter(_CliAdapterBase):
         ("claude-haiku-4-5", "Claude Haiku 4.5 (via Claude CLI)"),
     )
 
+    # Built-in Claude Code tools disabled for a bounded, non-agentic single shot.
+    _DISALLOWED = (
+        "Bash,Read,Write,Edit,MultiEdit,NotebookEdit,Glob,Grep,Task,WebSearch,"
+        "WebFetch,TodoWrite,SlashCommand"
+    )
+
     def _argv(self, binpath: str, model_id: str, prompt: str) -> tuple[list[str], str | None]:
-        argv = [binpath, "--print", "--output-format", "json"]
+        # Print mode from an empty scratch cwd (set by _run), with all built-in
+        # filesystem/shell/web tools denied so it cannot touch the repo.
+        argv = [
+            binpath,
+            "--print",
+            "--output-format",
+            "json",
+            "--disallowed-tools",
+            self._DISALLOWED,
+        ]
         if model_id and model_id != "default":
             argv += ["--model", model_id]
         argv += [prompt]

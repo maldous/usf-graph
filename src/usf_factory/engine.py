@@ -371,9 +371,16 @@ class FactoryEngine:
     # Adapter families implementing the brokered tool loop get the full broker
     # tool set; anything else is READ-ONLY until a capability is proven. This is
     # the honest replacement for the old fabricated tools=["*"].
-    _TOOL_LOOP_ADAPTERS = frozenset({"brokered", "openai_compatible", "ollama"})
+    # Full editing tool set is grantable to any adapter that can EITHER drive the
+    # brokered tool loop OR do bounded patch synthesis (CLIs). Transport is a
+    # capability, not the adapter name.
     _BROKER_TOOLS = ("edit_file", "list_paths", "read_file", "run_focused_tests", "write_patch")
     _READONLY_TOOLS = ("list_paths", "read_file")
+    # Adapters that can produce an edit via SOME safe transport (brokered loop or
+    # bounded patch synthesis). CLIs qualify via bounded synthesis.
+    _EDIT_CAPABLE_ADAPTERS = frozenset(
+        {"brokered", "openai_compatible", "ollama", "codex_cli", "claude_cli", "anthropic"}
+    )
 
     def _model_row(self, provider_id: str, model_id: str) -> dict[str, Any] | None:
         rows = self.ctx.store.records("models", "provider_id=?", (provider_id,))
@@ -448,7 +455,7 @@ class FactoryEngine:
                 quota_ok = self.ctx.config.safety.allow_billable and remaining >= est_cost
             tools = list(
                 self._BROKER_TOOLS
-                if profile.adapter in self._TOOL_LOOP_ADAPTERS
+                if profile.adapter in self._EDIT_CAPABLE_ADAPTERS
                 else self._READONLY_TOOLS
             )
             agents.append(

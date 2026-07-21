@@ -29,7 +29,6 @@ from .probing import InferenceAuthorization, run_probe_suite
 
 # Probes that any TOOL-USING role must pass (a prohibited-tool failure blocks
 # every tool-using role regardless of average).
-_TOOL_ROLE_PROBES = {"forced_tool_call", "tool_result_followup", "prohibited_tool_compliance"}
 _STRUCTURAL_PROBES = {
     "strict_json",
     "iri_preservation",
@@ -37,13 +36,9 @@ _STRUCTURAL_PROBES = {
     "explicit_uncertainty",
     "stop_condition",
 }
+# All three must pass for the BROKERED tool-loop transport (native tool calls).
+_BROKERED_TOOL_GATES = {"forced_tool_call", "tool_result_followup", "prohibited_tool_compliance"}
 
-_TOOL_ROLES = {
-    AdmissionRole.PATCH_PRODUCER,
-    AdmissionRole.INTEGRATOR,
-    AdmissionRole.REVIEWER,
-    AdmissionRole.TRUSTED_COORDINATOR,
-}
 # Roles that require repeated evidence before admission (one run is insufficient).
 _CRITICAL_ROLES = {
     AdmissionRole.PATCH_PRODUCER,
@@ -194,8 +189,6 @@ def _model_row(ctx: RuntimeContext, provider_id: str, model_id: str) -> dict[str
 # Tournament (Stage A-C, repeated) + persistence.
 # --------------------------------------------------------------------------- #
 
-_ADAPTERS_WITH_BROKER_TOOLS = {"openai_compatible", "ollama"}  # have chat_with_tools
-
 
 async def assess_model(
     ctx: RuntimeContext,
@@ -239,10 +232,9 @@ async def assess_model(
         actual.update(run.actual_models)
         passed_kinds = {r.kind.value for r in run.results if r.passed}
         structural_rounds.append(1.0 if _STRUCTURAL_PROBES.issubset(passed_kinds) else 0.0)
-        # A prohibited-tool FAILURE is disqualifying for tool roles regardless.
-        prohibited_ok = "prohibited_tool_compliance" in passed_kinds
-        forced_ok = "forced_tool_call" in passed_kinds
-        tool_pass_rounds.append(1.0 if (prohibited_ok and forced_ok) else 0.0)
+        # ALL THREE brokered tool gates must pass for the brokered path (a
+        # prohibited-tool failure is disqualifying regardless of the average).
+        tool_pass_rounds.append(1.0 if _BROKERED_TOOL_GATES.issubset(passed_kinds) else 0.0)
         if any(r.detail == "QUOTA_BLOCKED" for r in run.results):
             a.classification = "QUOTA_BLOCKED"
             a.detail = "subscription/quota exhausted"
@@ -250,30 +242,51 @@ async def assess_model(
 
     a.actual_models = sorted(actual)
     a.structural_ok = _lcb(structural_rounds) >= 1.0
-    # tool_ok requires BOTH a passing tool-probe record AND an adapter that can
-    # actually drive broker tools (CLIs have no chat_with_tools => not tool-capable
-    # as brokered workers, however capable the model is).
-    adapter_tool_capable = profile.adapter in _ADAPTERS_WITH_BROKER_TOOLS
-    a.tool_ok = (_lcb(tool_pass_rounds) >= 1.0) and adapter_tool_capable
     a.role_trials["structural"] = structural_rounds
     a.role_trials["tool"] = tool_pass_rounds
 
-    # Role eligibility (probe-gated). Non-tool roles need structural probes; tool
-    # roles additionally need tool_ok. A router alias is never eligible for a
-    # mutation role (its actual model is not stable).
+    # TRANSPORT capability from the actual adapter (not the name): does it drive
+    # the brokered tool loop, and can it do bounded patch synthesis?
+    cap = _adapter_capabilities(ctx, provider_id)
+    # Brokered tool_ok requires ALL three brokered gates (forced call, tool-result
+    # follow-up, prohibited-tool compliance) to pass across rounds (LCB) AND an
+    # adapter that actually has the brokered loop.
+    brokered_tool_ok = cap.brokered_tool_loop and _lcb(tool_pass_rounds) >= 1.0
+    a.tool_ok = brokered_tool_ok
     stable = not a.is_router or len(a.actual_models) == 1
-    if a.structural_ok:
-        a.role_scores[AdmissionRole.READ_ONLY_ANALYST.value] = _lcb(structural_rounds)
-        a.role_scores[AdmissionRole.PLANNER_CANDIDATE.value] = _lcb(structural_rounds)
-    if a.tool_ok and stable:
+
+    # Plain-invoke roles need only structural probes (analyst/planner/reviewer/
+    # integrator do NOT require native tool calling).
+    if a.structural_ok and cap.plain_invoke:
         for role in (
-            AdmissionRole.PATCH_PRODUCER,
+            AdmissionRole.READ_ONLY_ANALYST,
+            AdmissionRole.PLANNER_CANDIDATE,
             AdmissionRole.REVIEWER,
             AdmissionRole.INTEGRATOR,
         ):
-            a.role_scores[role.value] = _lcb(tool_pass_rounds)
+            a.role_scores[role.value] = _lcb(structural_rounds)
+    # PATCH_PRODUCER: brokered tool loop (all gates) OR bounded patch synthesis
+    # (structural + plain invoke; no native tool calls required). Router aliases
+    # are never eligible for this mutation role.
+    if stable and (brokered_tool_ok or (cap.bounded_patch_synthesis and a.structural_ok)):
+        a.role_scores[AdmissionRole.PATCH_PRODUCER.value] = _lcb(
+            tool_pass_rounds if brokered_tool_ok else structural_rounds
+        )
     a.classification = _classify_assessment(a)
     return a
+
+
+def _adapter_capabilities(ctx: RuntimeContext, provider_id: str):
+    from .capabilities import AdapterCapabilities, capabilities_for
+    from .providers import build_registry
+
+    try:
+        adapter = build_registry(ctx).adapter(provider_id)
+    except Exception:
+        return AdapterCapabilities(plain_invoke=True, bounded_patch_synthesis=True)
+    if hasattr(adapter, "capabilities"):
+        return adapter.capabilities()
+    return capabilities_for(adapter, ctx.config.providers.by_id().get(provider_id))
 
 
 def _classify_error(exc: Exception) -> str:
@@ -290,12 +303,12 @@ def _classify_error(exc: Exception) -> str:
 
 
 def _classify_assessment(a: ModelAssessment) -> str:
-    if a.tool_ok and a.role_scores.get(AdmissionRole.INTEGRATOR.value):
-        return "QUALIFIED_INTEGRATOR"
-    if a.tool_ok and a.role_scores.get(AdmissionRole.REVIEWER.value):
-        return "QUALIFIED_REVIEWER"
-    if a.tool_ok and a.role_scores.get(AdmissionRole.PATCH_PRODUCER.value):
+    if a.role_scores.get(AdmissionRole.PATCH_PRODUCER.value):
         return "QUALIFIED_PATCH_PRODUCER"
+    if a.role_scores.get(AdmissionRole.INTEGRATOR.value):
+        return "QUALIFIED_INTEGRATOR"
+    if a.role_scores.get(AdmissionRole.REVIEWER.value):
+        return "QUALIFIED_REVIEWER"
     if a.role_scores.get(AdmissionRole.PLANNER_CANDIDATE.value):
         return "QUALIFIED_PLANNER"
     if a.role_scores.get(AdmissionRole.READ_ONLY_ANALYST.value):
@@ -410,11 +423,13 @@ def _rank_key(a: ModelAssessment, role: AdmissionRole) -> float:
 
 
 def rank_for_role(assessments: list[ModelAssessment], role: AdmissionRole) -> list[ModelAssessment]:
-    """Eligible candidates for a role, ranked by evidence (never first-found)."""
+    """Eligible candidates for a role, ranked by evidence (never first-found).
+
+    A positive role_score already encodes the role's TRANSPORT requirement
+    (structural probes for plain-invoke roles; brokered gates or bounded patch
+    synthesis for PATCH_PRODUCER) — reviewer/integrator do NOT require tool_ok."""
     eligible = [a for a in assessments if a.role_scores.get(role.value, 0.0) > 0.0]
-    if role in _TOOL_ROLES:
-        eligible = [a for a in eligible if a.tool_ok]
-    # Router aliases are never ranked for a mutation role.
+    # Router aliases are never ranked for a mutation role (unstable actual model).
     if role in _CRITICAL_ROLES:
         eligible = [a for a in eligible if not a.is_router or len(a.actual_models) == 1]
     return sorted(eligible, key=lambda a: _rank_key(a, role), reverse=True)

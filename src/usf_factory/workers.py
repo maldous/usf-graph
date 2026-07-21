@@ -160,12 +160,13 @@ class AiWorker:
                 packet, agent, FailureClass.WORKER_ERROR, "missing or unknown status"
             )
 
-        patch = str(data.get("patch", ""))
+        candidate = str(data.get("patch", ""))
 
-        # Deterministic sandbox enforcement (never trust the model).
-        if patch:
-            violations = validate_patch_scope(patch, packet.write_paths)
-            leaks = scan_secrets(patch)
+        # Deterministic sandbox enforcement on the CANDIDATE patch (never trust
+        # the model's asserted changed paths).
+        if candidate:
+            violations = validate_patch_scope(candidate, packet.write_paths)
+            leaks = scan_secrets(candidate)
             if violations or leaks:
                 return self._failed(
                     packet,
@@ -177,15 +178,47 @@ class AiWorker:
                     actual_model=resp.actual_model,
                 )
 
-        # A mutating packet claiming COMPLETED must produce a real patch touching
-        # at least one in-scope path. No patch => not a durable completion.
-        changed = validate_and_list(patch)
+        # ORCHESTRATOR-DERIVED diff: apply the candidate patch INSIDE the
+        # disposable clone (never trusting the model's changed_paths) and re-derive
+        # the exact effective diff from git. The CLI never touched this workspace.
+        patch = candidate
+        changed: list[str] = []
+        if candidate and workspace is not None:
+            applied, apply_err = _apply_candidate(workspace, candidate)
+            if not applied:
+                return self._failed(
+                    packet,
+                    agent,
+                    FailureClass.WORKER_ERROR,
+                    f"candidate patch did not apply cleanly: {apply_err}",
+                    actual_provider=resp.actual_provider,
+                    actual_model=resp.actual_model,
+                )
+            patch, changed = _git_effective_diff(workspace)
+            # Re-check the GIT-DERIVED diff against scope + secrets.
+            violations = validate_patch_scope(patch, packet.write_paths) if patch else []
+            leaks = scan_secrets(patch) if patch else []
+            if violations or leaks:
+                return self._failed(
+                    packet,
+                    agent,
+                    FailureClass.SCOPE_VIOLATION,
+                    "; ".join(violations + leaks),
+                    scope_violation=True,
+                    actual_provider=resp.actual_provider,
+                    actual_model=resp.actual_model,
+                )
+        else:
+            changed = validate_and_list(candidate)
+
+        # A mutating packet claiming COMPLETED must produce a real EFFECTIVE
+        # change. No effective change => not a durable completion.
         if status is PacketResultStatus.COMPLETED and packet.write_paths and not changed:
             return self._failed(
                 packet,
                 agent,
                 FailureClass.WORKER_ERROR,
-                "mutating packet completed without a patch/changed paths",
+                "mutating packet completed without an effective git-derived change",
                 actual_provider=resp.actual_provider,
                 actual_model=resp.actual_model,
             )
@@ -456,6 +489,48 @@ class BrokeredWorker:
             failure_detail=str(detail)[:500],
             produced_at=utc_now_iso(),
         )
+
+
+def _apply_candidate(workspace: Path, patch: str) -> tuple[bool, str]:
+    """`git apply --check` then apply into the index+worktree of the disposable
+    clone. Returns (applied, error)."""
+    import subprocess
+
+    chk = subprocess.run(
+        ["git", "-C", str(workspace), "apply", "--check", "-"],
+        input=patch,
+        capture_output=True,
+        text=True,
+    )
+    if chk.returncode != 0:
+        return False, chk.stderr.strip()[:200]
+    appl = subprocess.run(
+        ["git", "-C", str(workspace), "apply", "--index", "-"],
+        input=patch,
+        capture_output=True,
+        text=True,
+    )
+    if appl.returncode != 0:
+        return False, appl.stderr.strip()[:200]
+    return True, ""
+
+
+def _git_effective_diff(workspace: Path) -> tuple[str, list[str]]:
+    """The exact effective diff + changed paths derived from git (not the model)."""
+    import subprocess
+
+    subprocess.run(["git", "-C", str(workspace), "add", "-A"], capture_output=True, text=True)
+    diff = subprocess.run(
+        ["git", "-C", str(workspace), "diff", "--cached", "HEAD"],
+        capture_output=True,
+        text=True,
+    ).stdout
+    changed = subprocess.run(
+        ["git", "-C", str(workspace), "diff", "--cached", "--name-only", "HEAD"],
+        capture_output=True,
+        text=True,
+    ).stdout.split()
+    return diff, sorted(changed)
 
 
 def validate_and_list(patch: str) -> list[str]:

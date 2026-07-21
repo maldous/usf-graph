@@ -45,31 +45,44 @@ def production_worker_factory(ctx: RuntimeContext):
     reg = build_registry(ctx)
 
     def make(mode: RunMode, agent: AgentProfile):
-        from .workers import BrokeredWorker
+        from .capabilities import capabilities_for
+        from .enums import PrivacyClass
+        from .isolation import RepoIsolation
+        from .workers import AiWorker, BrokeredWorker
 
         try:
             adapter = reg.adapter(agent.provider_id)
         except Exception:
             return _UnsupportedWorker(f"no adapter for provider {agent.provider_id}")
-        chat = getattr(adapter, "chat_with_tools", None)
-        if chat is None:
-            return _UnsupportedWorker(
-                f"provider {agent.provider_id} adapter has no brokered tool-loop"
-            )
-        if hasattr(adapter, "with_loop_model"):
-            adapter.with_loop_model(agent.requested_model_id)
-        mutating = mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
-        # Broker-level egress recheck (defense in depth behind the scheduler):
-        # content-returning tools are refused unless policy allows raw source to
-        # THIS provider (local, or gate enabled + explicitly approved).
-        from .enums import PrivacyClass
-
         pcfg = ctx.config.providers.by_id().get(agent.provider_id)
+        cap = (
+            adapter.capabilities()
+            if hasattr(adapter, "capabilities")
+            else capabilities_for(adapter, pcfg)
+        )
+        mutating = mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
         privacy = (pcfg.privacy_class if pcfg else PrivacyClass.EXTERNAL_CLOUD).value
         source_ok, _why = ctx.config.egress.source_content_allowed(agent.provider_id, privacy)
-        return BrokeredWorker(
-            chat, store=ctx.store, mutating=mutating, source_content_allowed=source_ok
-        )
+
+        # Prefer the brokered tool loop; else the bounded context-and-patch worker
+        # (AiWorker) — Claude/Codex CLIs are first-class producers this way; else
+        # fail closed.
+        if cap.brokered_tool_loop:
+            if hasattr(adapter, "with_loop_model"):
+                adapter.with_loop_model(agent.requested_model_id)
+            return BrokeredWorker(
+                adapter.chat_with_tools,  # type: ignore[attr-defined]
+                store=ctx.store,
+                mutating=mutating,
+                source_content_allowed=source_ok,
+            )
+        if cap.bounded_patch_synthesis:
+            # The orchestrator applies + re-derives the diff in the disposable
+            # clone; the adapter (CLI) never touches the workspace.
+            return AiWorker(
+                adapter.invoke, isolation=RepoIsolation(ctx.paths, ctx.usf_repo), store=ctx.store
+            )
+        return _UnsupportedWorker(f"provider {agent.provider_id} has no safe execution transport")
 
     return make
 

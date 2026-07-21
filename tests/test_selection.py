@@ -124,7 +124,7 @@ def test_codex_cli_probe_invokes_and_grades(monkeypatch):
     ad = CodexCliAdapter(_cli_cfg("codex-cli", "codex_cli"), allow_billable=True)
     monkeypatch.setattr(ad, "_binary_path", lambda: "/usr/bin/codex")
 
-    async def fake_run(cmd, timeout_s=10.0, stdin=None):
+    async def fake_run(cmd, timeout_s=10.0, stdin=None, cwd=None):
         # Codex JSONL: an agent_message echoing the IRI probe exactly.
         assert stdin is not None  # prompt fed on stdin (genuine invocation)
         line = '{"type":"item.completed","item":{"type":"agent_message","text":"https://example.org/usf#Capability_A1b2C3"}}'
@@ -145,7 +145,7 @@ def test_claude_cli_probe_invokes_grades_and_captures_usage(monkeypatch):
     ad = ClaudeCliAdapter(_cli_cfg("claude-cli", "claude_cli"), allow_billable=True)
     monkeypatch.setattr(ad, "_binary_path", lambda: "/usr/bin/claude")
 
-    async def fake_run(cmd, timeout_s=10.0, stdin=None):
+    async def fake_run(cmd, timeout_s=10.0, stdin=None, cwd=None):
         body = (
             '{"type":"result","is_error":false,"result":"4",'
             '"total_cost_usd":0.012,'
@@ -173,7 +173,7 @@ def test_claude_cli_quota_is_classified(monkeypatch):
     ad = ClaudeCliAdapter(_cli_cfg("claude-cli", "claude_cli"), allow_billable=True)
     monkeypatch.setattr(ad, "_binary_path", lambda: "/usr/bin/claude")
 
-    async def fake_run(cmd, timeout_s=10.0, stdin=None):
+    async def fake_run(cmd, timeout_s=10.0, stdin=None, cwd=None):
         return (0, '{"type":"result","is_error":true,"api_error_status":"429 quota"}', "")
 
     import usf_factory.providers.cli_adapters as cli
@@ -247,15 +247,34 @@ def _asmt(pid, mid, roles, tool=False, router=False, actual=None, cost=0.0):
 
 
 @pytest.mark.adversarial
-def test_prohibited_tool_failure_blocks_tool_roles():
-    """assess_model gating: tool roles require tool_ok; a non-tool-capable model
-    ranks only for non-tool roles."""
-    a = _asmt(
-        "mistral", "m", [AdmissionRole.READ_ONLY_ANALYST, AdmissionRole.PATCH_PRODUCER], tool=False
+def test_reviewer_integrator_do_not_require_native_tools():
+    """Capability transport: reviewer/integrator need only plain invoke; a CLI
+    (no brokered tool loop) is transport-eligible for them and for PATCH_PRODUCER
+    via bounded patch synthesis."""
+    from usf_factory.capabilities import AdapterCapabilities, role_transport_ok
+
+    cli = AdapterCapabilities(plain_invoke=True, bounded_patch_synthesis=True)
+    assert role_transport_ok(AdmissionRole.REVIEWER, cli) is True
+    assert role_transport_ok(AdmissionRole.INTEGRATOR, cli) is True
+    assert role_transport_ok(AdmissionRole.PLANNER_CANDIDATE, cli) is True
+    assert role_transport_ok(AdmissionRole.PATCH_PRODUCER, cli) is True  # bounded synthesis
+    # An adapter that can neither broker nor bounded-synthesise cannot produce.
+    inert = AdapterCapabilities(plain_invoke=False)
+    assert role_transport_ok(AdmissionRole.PATCH_PRODUCER, inert) is False
+
+
+@pytest.mark.adversarial
+def test_patch_producer_accepts_brokered_or_bounded():
+    from usf_factory.capabilities import AdapterCapabilities, required_transport, role_transport_ok
+
+    brokered = AdapterCapabilities(
+        plain_invoke=True, brokered_tool_loop=True, native_tool_calls=True
     )
-    # PATCH_PRODUCER requires tool_ok => excluded from ranking despite role_score.
-    assert rank_for_role([a], AdmissionRole.PATCH_PRODUCER) == []
-    assert rank_for_role([a], AdmissionRole.READ_ONLY_ANALYST) == [a]
+    bounded = AdapterCapabilities(plain_invoke=True, bounded_patch_synthesis=True)
+    assert role_transport_ok(AdmissionRole.PATCH_PRODUCER, brokered) is True
+    assert role_transport_ok(AdmissionRole.PATCH_PRODUCER, bounded) is True
+    assert required_transport(AdmissionRole.PATCH_PRODUCER, brokered) == "brokered_tool_loop"
+    assert required_transport(AdmissionRole.PATCH_PRODUCER, bounded) == "bounded_patch_synthesis"
 
 
 @pytest.mark.adversarial

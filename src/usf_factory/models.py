@@ -226,6 +226,9 @@ class TokenUsage(FactoryModel):
     latency_ms: float | None = None
     actual_provider: str | None = None
     actual_model: str | None = None
+    requested_model: str | None = None
+    actual_model_verified: bool = False  # True iff the provider reported the model
+    fell_back_to_default: bool = False
 
     def merged(self, other: TokenUsage) -> TokenUsage:
         return TokenUsage(

@@ -80,7 +80,7 @@ def test_unknown_field_rejected_by_strict_schema():
 def test_mutating_completion_without_patch_fails():
     r = asyncio.run(_run(json.dumps({"status": "COMPLETED"}), raw=True))
     assert r.status is PacketResultStatus.FAILED
-    assert "without a patch" in r.failure_detail
+    assert "without an effective" in r.failure_detail or "without a patch" in r.failure_detail
 
 
 @pytest.mark.adversarial
