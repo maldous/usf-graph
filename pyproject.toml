@@ -1,0 +1,114 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "usf-factory"
+version = "0.1.0"
+description = "USF Adaptive Semantic Factory — a deterministic, model-agnostic orchestration engine for advancing USF semantic work."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE-NOTICE.md" }
+authors = [{ name = "USF Factory" }]
+keywords = ["usf", "semantic", "orchestration", "deterministic", "llm", "agents"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Build Tools",
+]
+
+# Runtime dependencies. Pinned floors are compatible with Python 3.11.
+# A fully pinned, reproducible set is captured in requirements.lock.
+dependencies = [
+    "pydantic>=2.6,<3",
+    "typer>=0.12,<1",
+    "httpx>=0.27,<1",
+    "PyYAML>=6.0,<7",
+    "rich>=13.7",
+    "jsonschema>=4.21,<5",
+    "python-dotenv>=1.0,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0,<9",
+    "pytest-asyncio>=0.23,<1",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "respx>=0.21,<1",
+    "types-PyYAML",
+    "types-jsonschema",
+]
+
+[project.scripts]
+usf-factory = "usf_factory.cli:app"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+usf_factory = ["py.typed"]
+
+# ---------------------------------------------------------------------------
+# Ruff
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM", "PTH", "RUF"]
+ignore = [
+    "E501",   # line length handled by formatter
+    "B008",   # typer uses function calls in argument defaults by design
+    "SIM108", # ternary rewrites can hurt readability here
+    "UP042",  # custom StrEnum kept for explicit __str__ + broad compatibility
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011", "B017", "SIM117", "C408", "RUF059", "F841"]
+"scripts/*" = ["T201"]
+
+# ---------------------------------------------------------------------------
+# mypy
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+packages = ["usf_factory"]
+mypy_path = "src"
+warn_unused_configs = true
+warn_redundant_casts = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_unused_ignores = false
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+check_untyped_defs = false
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-q --strict-markers"
+markers = [
+    "unit: fast deterministic unit tests",
+    "contract: adapter/boundary contract tests using mocks",
+    "adversarial: safety and injection-resistance tests",
+    "e2e: end-to-end non-mutating cycle",
+    "live: opt-in tests that touch external services (skipped by default)",
+]
+filterwarnings = ["error::DeprecationWarning:usf_factory.*"]

@@ -1,0 +1,112 @@
+# RDF/OWL reasoning, SHACL/SPARQL, and IRI preservation cases.
+cases:
+  - case_id: owl-open-world-vs-closure
+    task_class: ontology-lifecycle-repair
+    dimension: rdf_owl_reasoning
+    prompt: >
+      OWL uses the open-world assumption. To enforce that a required property MUST
+      be present (closed-world style), which mechanism is appropriate in USF:
+      'shacl' constraints or 'owl' domain axioms? Answer 'shacl' or 'owl'.
+    grader: choice
+    expected: {value: shacl}
+    weight: 1.2
+
+  - case_id: owl-object-vs-datatype-conflict
+    task_class: ontology-lifecycle-repair
+    dimension: rdf_owl_reasoning
+    prompt: >
+      A property is declared both owl:ObjectProperty and owl:DatatypeProperty.
+      Is this a conflict that must be corrected? Answer 'yes' or 'no'.
+    grader: choice
+    expected: {value: "yes"}
+    weight: 1.1
+
+  - case_id: owl-domain-range-intersection
+    task_class: ontology-lifecycle-repair
+    dimension: rdf_owl_reasoning
+    prompt: >
+      If a property has rdfs:domain ClassA and rdfs:domain ClassB, an OWL reasoner
+      infers subjects belong to the INTERSECTION of ClassA and ClassB, not the
+      union. True or false? Answer 'true' or 'false'.
+    grader: choice
+    expected: {value: "true"}
+    weight: 1.2
+
+  - case_id: state-explicit-vs-synthetic
+    task_class: ontology-lifecycle-repair
+    dimension: rdf_owl_reasoning
+    prompt: >
+      A set of unordered state alternatives was mechanically converted into a
+      linear sequence of transitions. Is that a defect (synthetic transition)?
+      Answer 'yes' or 'no'.
+    grader: choice
+    expected: {value: "yes"}
+    weight: 1.0
+
+  - case_id: sparql-bounded
+    task_class: sparql-authoring
+    dimension: shacl_sparql
+    prompt: >
+      Write a bounded SPARQL SELECT that returns at most 10 subjects of type
+      <http://ex/Widget>. Include a LIMIT. Output only the query.
+    grader: regex
+    expected:
+      pattern: "select[\\s\\S]+where[\\s\\S]+limit\\s+10"
+    weight: 1.1
+
+  - case_id: sparql-read-only
+    task_class: sparql-authoring
+    dimension: shacl_sparql
+    prompt: >
+      To COUNT triples without mutating the graph, should you use a SELECT query
+      or an INSERT? Answer 'select' or 'insert'.
+    grader: choice
+    expected: {value: select}
+    weight: 1.0
+
+  - case_id: shacl-negative-constraint
+    task_class: shacl-repair
+    dimension: shacl_sparql
+    prompt: >
+      To forbid a node from having more than one value for a property, which SHACL
+      constraint component do you use? Answer with the constraint keyword
+      (e.g. maxCount).
+    grader: contains
+    expected: {value: maxcount}
+    weight: 1.1
+
+  - case_id: shacl-target-scope
+    task_class: shacl-repair
+    dimension: scope_discipline
+    prompt: >
+      Return ONLY JSON {"targets": array, "closed": boolean} describing that a
+      shape targets class <http://ex/Widget> and is closed. Use closed=true.
+    grader: json_schema
+    expected:
+      schema:
+        type: object
+        properties:
+          targets: {type: array}
+          closed: {type: boolean}
+        required: [targets, closed]
+    weight: 1.0
+
+  - case_id: iri-preservation-exact
+    task_class: shacl-repair
+    dimension: rdf_owl_reasoning
+    prompt: >
+      Echo this IRI back exactly, unchanged, somewhere in your answer:
+      https://usf.example/ns#Capability_9zX
+    grader: iri_exact
+    expected: {iri: "https://usf.example/ns#Capability_9zX"}
+    weight: 1.0
+
+  - case_id: fixture-stable-code
+    task_class: fixture-authoring
+    dimension: evidence_discipline
+    prompt: >
+      A negative fixture should fail for exactly ONE intended stable code and no
+      unrelated code. True or false? Answer 'true' or 'false'.
+    grader: choice
+    expected: {value: "true"}
+    weight: 1.0

@@ -1,0 +1,53 @@
+# ---------------------------------------------------------------------------
+# usf-factory .gitignore
+# Secrets, virtualenvs, durable operational state and caches never enter Git.
+# ---------------------------------------------------------------------------
+
+# Secrets — NEVER commit. /root/.env lives outside the repo; guard local copies.
+.env
+.env.*
+!.env.example
+*.pem
+*.pk8
+*.key
+secrets/
+**/credentials*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.python-version
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Operational state (should live under XDG dirs outside the repo, but guard
+# against accidental in-repo databases / artifacts).
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+state/
+var/
+cas/
+mirrors/
+workspaces/
+integration/
+
+# Editor / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store

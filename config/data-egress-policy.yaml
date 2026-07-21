@@ -1,0 +1,38 @@
+# ---------------------------------------------------------------------------
+# Data-egress policy
+# ---------------------------------------------------------------------------
+# Governs which provider privacy classes may receive which data classifications.
+# Source-code egress is DISABLED by default (build task §8). When enabled with
+# --allow-source-egress, private source may still only go to the privacy classes
+# listed for "private-source".
+#
+# Privacy classes: local_only, first_party_cli, external_cloud,
+#                  external_cloud_retained
+# ---------------------------------------------------------------------------
+
+source_egress_enabled: false
+default_data_classification: private-source
+
+allowed:
+  # Non-sensitive probe prompts and public metadata may go anywhere.
+  public:
+    - local_only
+    - first_party_cli
+    - external_cloud
+    - external_cloud_retained
+
+  # Compact, non-source semantic projections (identifiers, digests, summaries).
+  private-metadata:
+    - local_only
+    - first_party_cli
+    - external_cloud
+
+  # Private repository source. Only local or first-party CLI trust tiers, and
+  # only when source egress is explicitly enabled.
+  private-source:
+    - local_only
+    - first_party_cli
+
+  # The most sensitive class never leaves the local machine.
+  restricted:
+    - local_only

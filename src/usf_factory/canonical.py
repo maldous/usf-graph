@@ -1,0 +1,80 @@
+"""Deterministic canonicalization and content addressing.
+
+Every durable artifact in the factory is content-addressed by a SHA-256 over its
+*canonical JSON* form. Canonical form is:
+
+* UTF-8 encoded,
+* object keys sorted lexicographically,
+* no insignificant whitespace,
+* ``NaN``/``Infinity`` rejected (not valid JSON),
+* stable across processes and platforms.
+
+No wall-clock, locale, or randomness participates in identity. This is the
+foundation of replayability: identical inputs always yield identical digests.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from typing import Any
+
+_DIGEST_PREFIX = "sha256:"
+
+
+def canonical_json(value: Any) -> str:
+    """Return the canonical JSON string for ``value``.
+
+    Uses sorted keys, compact separators, and ``ensure_ascii=False`` so that
+    identical semantic content produces identical bytes regardless of insertion
+    order. ``allow_nan=False`` guarantees valid, portable JSON.
+    """
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+
+
+def canonical_bytes(value: Any) -> bytes:
+    """Canonical JSON encoded as UTF-8 bytes."""
+    return canonical_json(value).encode("utf-8")
+
+
+def digest_bytes(data: bytes) -> str:
+    """SHA-256 of raw bytes, prefixed with ``sha256:``."""
+    return _DIGEST_PREFIX + hashlib.sha256(data).hexdigest()
+
+
+def digest_text(text: str) -> str:
+    """SHA-256 of a text string (UTF-8), prefixed with ``sha256:``."""
+    return digest_bytes(text.encode("utf-8"))
+
+
+def content_digest(value: Any) -> str:
+    """Content address of any JSON-serializable value.
+
+    This is the canonical identity function used for snapshots, packets,
+    catalogues, patches (as metadata), and every other durable record.
+    """
+    return digest_bytes(canonical_bytes(value))
+
+
+def short_digest(digest: str, length: int = 12) -> str:
+    """A short, human-friendly form of a ``sha256:`` digest for display only.
+
+    Never use the short form for identity or lookups.
+    """
+    body = digest.split(":", 1)[-1]
+    return body[:length]
+
+
+def stable_id(prefix: str, value: Any, length: int = 16) -> str:
+    """A deterministic, human-readable identifier derived from content.
+
+    Example: ``stable_id("pkt", packet_body)`` -> ``pkt-1a2b3c...``.
+    """
+    body = content_digest(value).split(":", 1)[-1]
+    return f"{prefix}-{body[:length]}"

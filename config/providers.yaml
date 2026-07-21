@@ -1,0 +1,240 @@
+# ---------------------------------------------------------------------------
+# Provider registry
+# ---------------------------------------------------------------------------
+# Codebuff is EXCLUDED completely (build task §6). It appears only in `exclude`.
+#
+# `default_enabled: true` means "configured for use"; the runtime still gates on
+# credential presence, health, and (for github-models) a Models-permission probe.
+# Providers lacking credentials become disabled stubs at runtime.
+#
+# `credential_reference` uses `env:NAME` (a name only — never a value) or
+# `cli:<tool>` for OIDC CLI adapters, or `none` for local/no-auth.
+# ---------------------------------------------------------------------------
+
+exclude:
+  - codebuff
+
+providers:
+  # --- OIDC / CLI adapters (use existing CLI authentication, not env tokens) ---
+  - provider_id: codex-cli
+    display_name: OpenAI Codex CLI
+    auth_mode: oidc_cli
+    credential_reference: cli:codex
+    adapter: codex_cli
+    base_url: null
+    models_endpoint: null
+    catalog_ttl_s: 21600
+    health_ttl_s: 300
+    quota_ttl_s: 120
+    privacy_class: first_party_cli
+    default_enabled: true
+    supports_tool_probe: true
+    supports_structured_output_probe: true
+    notes: >
+      Uses existing Codex/ChatGPT authentication. Distinct profile from
+      openai-api. Never reads OAuth/OIDC tokens from env.
+
+  - provider_id: claude-cli
+    display_name: Anthropic Claude CLI
+    auth_mode: oidc_cli
+    credential_reference: cli:claude
+    adapter: claude_cli
+    base_url: null
+    models_endpoint: null
+    catalog_ttl_s: 21600
+    health_ttl_s: 300
+    quota_ttl_s: 120
+    privacy_class: first_party_cli
+    default_enabled: true
+    supports_tool_probe: true
+    supports_structured_output_probe: true
+    notes: Uses existing Claude authentication. Distinct profile from anthropic-api.
+
+  # --- OpenAI-compatible API providers ---
+  - provider_id: openai-api
+    display_name: OpenAI API
+    auth_mode: api_token
+    credential_reference: env:OPENAI_API_KEY
+    adapter: openai_compatible
+    base_url: https://api.openai.com/v1
+    models_endpoint: /models
+    catalog_ttl_s: 21600
+    health_ttl_s: 300
+    quota_ttl_s: 120
+    privacy_class: external_cloud
+    default_enabled: true
+    supports_tool_probe: true
+    supports_structured_output_probe: true
+    notes: Separate profile from codex-cli.
+
+  - provider_id: openrouter
+    display_name: OpenRouter
+    auth_mode: api_token
+    credential_reference: env:OPENROUTER_API_KEY
+    adapter: openai_compatible
+    base_url: https://openrouter.ai/api/v1
+    models_endpoint: /models
+    catalog_ttl_s: 21600
+    health_ttl_s: 300
+    quota_ttl_s: 120
+    privacy_class: external_cloud
+    default_enabled: true
+    supports_tool_probe: true
+    supports_structured_output_probe: true
+    notes: >
+      Routed provider. Record actual model returned, not just the requested
+      router id (e.g. openrouter/auto or *:free).
+
+  - provider_id: groq
+    display_name: Groq
+    auth_mode: api_token
+    credential_reference: env:GROQ_API_KEY
+    adapter: openai_compatible
+    base_url: https://api.groq.com/openai/v1
+    models_endpoint: /models
+    privacy_class: external_cloud
+    default_enabled: true
+
+  - provider_id: mistral
+    display_name: Mistral
+    auth_mode: api_token
+    credential_reference: env:MISTRAL_API_KEY
+    adapter: openai_compatible
+    base_url: https://api.mistral.ai/v1
+    models_endpoint: /models
+    privacy_class: external_cloud
+    default_enabled: true
+
+  - provider_id: gemini
+    display_name: Google Gemini
+    auth_mode: api_token
+    credential_reference: env:GEMINI_API_KEY
+    adapter: openai_compatible
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai
+    models_endpoint: /models
+    privacy_class: external_cloud
+    default_enabled: true
+    notes: Uses the Gemini OpenAI-compatible endpoint.
+
+  - provider_id: sambanova
+    display_name: SambaNova
+    auth_mode: api_token
+    credential_reference: env:SAMBANOVA_API_KEY
+    adapter: openai_compatible
+    base_url: https://api.sambanova.ai/v1
+    models_endpoint: /models
+    privacy_class: external_cloud
+    default_enabled: true
+
+  - provider_id: github-models
+    display_name: GitHub Models
+    auth_mode: api_token
+    credential_reference: env:GITHUB_MODELS_TOKEN
+    adapter: openai_compatible
+    base_url: https://models.github.ai/inference
+    models_endpoint: https://models.github.ai/catalog/models
+    privacy_class: external_cloud
+    default_enabled: false
+    notes: >
+      NOT admitted until a read-only probe proves the Models permission. A
+      general GitHub PAT does not imply Models access.
+
+  - provider_id: huggingface
+    display_name: Hugging Face Inference
+    auth_mode: api_token
+    credential_reference: env:HF_TOKEN
+    adapter: openai_compatible
+    base_url: https://router.huggingface.co/v1
+    models_endpoint: /models
+    privacy_class: external_cloud
+    default_enabled: true
+
+  - provider_id: fireworks
+    display_name: Fireworks AI
+    auth_mode: api_token
+    credential_reference: env:FIREWORKS_API_KEY
+    adapter: openai_compatible
+    base_url: https://api.fireworks.ai/inference/v1
+    models_endpoint: /models
+    privacy_class: external_cloud
+    default_enabled: true
+
+  - provider_id: together
+    display_name: Together AI
+    auth_mode: api_token
+    credential_reference: env:TOGETHER_API_KEY
+    adapter: openai_compatible
+    base_url: https://api.together.xyz/v1
+    models_endpoint: /models
+    privacy_class: external_cloud
+    default_enabled: true
+
+  - provider_id: deepseek
+    display_name: DeepSeek
+    auth_mode: api_token
+    credential_reference: env:DEEPSEEK_API_KEY
+    adapter: openai_compatible
+    base_url: https://api.deepseek.com/v1
+    models_endpoint: /models
+    privacy_class: external_cloud
+    default_enabled: true
+
+  - provider_id: cerebras
+    display_name: Cerebras
+    auth_mode: api_token
+    credential_reference: env:CEREBRAS_API_KEY
+    adapter: openai_compatible
+    base_url: https://api.cerebras.ai/v1
+    models_endpoint: /models
+    privacy_class: external_cloud
+    default_enabled: true
+
+  - provider_id: arcee
+    display_name: Arcee AI (Conductor)
+    auth_mode: api_token
+    credential_reference: env:ARCEE_TOKEN
+    adapter: openai_compatible
+    base_url: https://conductor.arcee.ai/v1
+    models_endpoint: /models
+    privacy_class: external_cloud
+    default_enabled: true
+
+  # --- Local ---
+  - provider_id: ollama
+    display_name: Ollama (local)
+    auth_mode: local
+    credential_reference: none
+    adapter: ollama
+    base_url: http://localhost:11434
+    models_endpoint: /api/tags
+    catalog_ttl_s: 600
+    health_ttl_s: 60
+    quota_ttl_s: 60
+    privacy_class: local_only
+    default_enabled: true
+    notes: Local inference. Normally no API key required.
+
+  # --- Disabled until credentials supplied ---
+  - provider_id: xai-grok
+    display_name: xAI Grok
+    auth_mode: api_token
+    credential_reference: env:XAI_API_KEY
+    adapter: openai_compatible
+    base_url: https://api.x.ai/v1
+    models_endpoint: /models
+    privacy_class: external_cloud
+    default_enabled: false
+    notes: Disabled until XAI_API_KEY is supplied.
+
+  - provider_id: anthropic-api
+    display_name: Anthropic API
+    auth_mode: api_token
+    credential_reference: env:ANTHROPIC_API_KEY
+    adapter: openai_compatible
+    base_url: https://api.anthropic.com/v1
+    models_endpoint: /models
+    privacy_class: external_cloud
+    default_enabled: false
+    notes: >
+      Disabled unless ANTHROPIC_API_KEY is later supplied. Distinct profile from
+      claude-cli. Never invent this value.

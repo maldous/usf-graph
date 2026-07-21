@@ -1,0 +1,154 @@
+{
+  "$defs": {
+    "Obligation": {
+      "additionalProperties": false,
+      "description": "An obligation in the planner's obligation graph (DESIGN Phase 5).",
+      "properties": {
+        "acceptance_criteria": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Acceptance Criteria",
+          "type": "array"
+        },
+        "dependencies": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dependencies",
+          "type": "array"
+        },
+        "human_decision_required": {
+          "default": false,
+          "title": "Human Decision Required",
+          "type": "boolean"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "required_outcomes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Outcomes",
+          "type": "array"
+        },
+        "risk": {
+          "$ref": "#/$defs/Risk",
+          "default": "medium"
+        },
+        "root_cause": {
+          "title": "Root Cause",
+          "type": "string"
+        },
+        "semantic_subjects": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Semantic Subjects",
+          "type": "array"
+        },
+        "suggested_read_scope": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Suggested Read Scope",
+          "type": "array"
+        },
+        "suggested_write_scope": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Suggested Write Scope",
+          "type": "array"
+        },
+        "task_class": {
+          "default": "unknown",
+          "title": "Task Class",
+          "type": "string"
+        },
+        "uncertainties": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Uncertainties",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "root_cause"
+      ],
+      "title": "Obligation",
+      "type": "object"
+    },
+    "Risk": {
+      "description": "Risk classification for obligations, packets, and waves.",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "protected"
+      ],
+      "title": "Risk",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "critic_findings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Critic Findings",
+      "type": "array"
+    },
+    "critic_profile_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Critic Profile Id"
+    },
+    "obligations": {
+      "items": {
+        "$ref": "#/$defs/Obligation"
+      },
+      "title": "Obligations",
+      "type": "array"
+    },
+    "planner_profile_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Planner Profile Id"
+    },
+    "produced_at": {
+      "default": "",
+      "title": "Produced At",
+      "type": "string"
+    },
+    "snapshot_id": {
+      "title": "Snapshot Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "snapshot_id"
+  ],
+  "title": "obligation-graph",
+  "type": "object"
+}

@@ -1,0 +1,12 @@
+# Runs the non-mutating usf-factory cycle periodically.
+[Unit]
+Description=Run the USF factory non-mutating cycle every 30 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+Persistent=true
+Unit=usf-factory.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,115 @@
+# ---------------------------------------------------------------------------
+# USF task classes
+# ---------------------------------------------------------------------------
+# Each task class binds a family of USF work to the capabilities a qualified
+# agent must have, the primary scoring dimensions, and default validation.
+# Packet sizing limits (max_files, max_semantic_subjects) bound worker scope.
+# ---------------------------------------------------------------------------
+
+task_classes:
+  - task_class: semantic-planning
+    display_name: Semantic planning
+    description: Interpret snapshot, propose obligation graph.
+    default_risk: low
+    primary_dimensions: [semantic_planning, structured_output, uncertainty_handling]
+    required_capabilities:
+      semantic_reasoning: 0.75
+      structured_output: 0.85
+      repository_editing: false
+    default_validation: [schema-check]
+    max_files: 0
+    max_semantic_subjects: 200
+
+  - task_class: shacl-repair
+    display_name: SHACL constraint repair
+    description: Repair or add SHACL shapes/constraints.
+    default_risk: medium
+    primary_dimensions: [shacl_sparql, rdf_owl_reasoning, scope_discipline]
+    required_capabilities:
+      semantic_reasoning: 0.8
+      rdf_owl: 0.8
+      shacl_sparql: 0.85
+      structured_output: 0.9
+      repository_editing: true
+    default_validation: [syntax-parse, shacl, negative-fixtures, focused-tests]
+    max_files: 12
+    max_semantic_subjects: 20
+
+  - task_class: ontology-lifecycle-repair
+    display_name: Ontology / lifecycle repair
+    description: Correct class/property definitions and lifecycle transitions.
+    default_risk: high
+    primary_dimensions: [rdf_owl_reasoning, semantic_planning, scope_discipline]
+    required_capabilities:
+      semantic_reasoning: 0.85
+      rdf_owl: 0.85
+      structured_output: 0.95
+      repository_editing: true
+    default_validation: [syntax-parse, shacl, integrity-sparql, competency-queries, focused-tests]
+    max_files: 10
+    max_semantic_subjects: 15
+
+  - task_class: sparql-authoring
+    display_name: Bounded SPARQL authoring
+    description: Author bounded integrity/competency SPARQL.
+    default_risk: low
+    primary_dimensions: [shacl_sparql, structured_output, scope_discipline]
+    required_capabilities:
+      shacl_sparql: 0.8
+      structured_output: 0.85
+      repository_editing: true
+    default_validation: [syntax-parse, focused-tests]
+    max_files: 8
+    max_semantic_subjects: 15
+
+  - task_class: repository-implementation
+    display_name: Repository implementation
+    description: Implement bounded repository-local code with tests.
+    default_risk: medium
+    primary_dimensions: [implementation, repository_navigation, debugging, scope_discipline]
+    required_capabilities:
+      structured_output: 0.85
+      repository_editing: true
+    default_validation: [format, lint, type, unit-tests]
+    max_files: 20
+    max_semantic_subjects: 10
+
+  - task_class: fixture-authoring
+    display_name: Negative fixture authoring
+    description: Author negative fixtures that fail for a stable code.
+    default_risk: low
+    primary_dimensions: [shacl_sparql, evidence_discipline, scope_discipline]
+    required_capabilities:
+      shacl_sparql: 0.7
+      structured_output: 0.85
+      repository_editing: true
+    default_validation: [syntax-parse, negative-fixtures]
+    max_files: 15
+    max_semantic_subjects: 20
+
+  - task_class: wave-integration
+    display_name: Wave integration
+    description: Reconcile cross-packet semantic conflicts into one wave patch.
+    default_risk: high
+    primary_dimensions: [wave_integration, rdf_owl_reasoning, scope_discipline, later_regression]
+    required_capabilities:
+      semantic_reasoning: 0.85
+      rdf_owl: 0.8
+      structured_output: 0.9
+      repository_editing: true
+    default_validation: [syntax-parse, shacl, integrity-sparql, unit-tests, manifest-check]
+    max_files: 40
+    max_semantic_subjects: 60
+
+  - task_class: wave-review
+    display_name: Wave review
+    description: Independent risk-discovering review of the effective wave patch.
+    default_risk: low
+    primary_dimensions: [review, rdf_owl_reasoning, evidence_discipline]
+    required_capabilities:
+      semantic_reasoning: 0.75
+      structured_output: 0.85
+      repository_editing: false
+    default_validation: [schema-check]
+    max_files: 0
+    max_semantic_subjects: 60

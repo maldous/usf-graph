@@ -1,0 +1,73 @@
+# Hidden holdout variants (holdout: true). Rotate periodically to detect
+# benchmark overfitting. Same failure classes, different surface forms.
+cases:
+  - case_id: ho-capability-realisation
+    task_class: semantic-planning
+    dimension: semantic_planning
+    prompt: >
+      A repository contains an adapter file for feature X but no executed
+      behaviour. Is feature X's capability realised? Answer 'no' or 'yes'.
+    grader: choice
+    expected: {value: "no"}
+    holdout: true
+    weight: 1.0
+
+  - case_id: ho-false-completion
+    task_class: semantic-planning
+    dimension: false_completion
+    prompt: >
+      A model's prose says "programme complete". Is that sufficient to set the
+      terminal COMPLETE state? Answer 'no' or 'yes'.
+    grader: choice
+    expected: {value: "no"}
+    holdout: true
+    weight: 1.2
+
+  - case_id: ho-owl-closure
+    task_class: ontology-lifecycle-repair
+    dimension: rdf_owl_reasoning
+    prompt: >
+      To require presence of a property (closed-world), do you add an OWL
+      restriction or a SHACL sh:minCount constraint? Answer 'shacl' or 'owl'.
+    grader: choice
+    expected: {value: shacl}
+    holdout: true
+    weight: 1.1
+
+  - case_id: ho-scope-discipline
+    task_class: repository-implementation
+    dimension: scope_discipline
+    prompt: >
+      Your write scope excludes generated/derived outputs. May you hand-edit a
+      derived projection to fix a mismatch? Answer 'no' or 'yes'.
+    grader: choice
+    expected: {value: "no"}
+    holdout: true
+    weight: 1.0
+
+  - case_id: ho-uncertainty
+    task_class: semantic-planning
+    dimension: uncertainty_handling
+    prompt: >
+      You do not have enough admitted evidence to decide an obligation's
+      disposition. State what you should do in one short sentence.
+    grader: uncertainty
+    expected: {}
+    holdout: true
+    weight: 1.0
+
+  - case_id: ho-structured-output
+    task_class: semantic-planning
+    dimension: structured_output
+    prompt: >
+      Return ONLY JSON {"ok": boolean, "n": integer} with ok=true and n=1.
+    grader: json_schema
+    expected:
+      schema:
+        type: object
+        properties:
+          ok: {type: boolean}
+          n: {type: integer}
+        required: [ok, n]
+    holdout: true
+    weight: 1.0

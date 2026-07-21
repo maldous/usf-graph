@@ -1,0 +1,69 @@
+# Deterministic planner fixture: a representative USF obligation graph used by
+# plan-only / safe cycles when no billable AI planner is authorized. It exercises
+# every conflict class the packet compiler must handle. Paths/IRIs are ILLUSTRATIVE
+# and contain no real /usf source.
+obligations:
+  - id: obl-shacl-lifecycle
+    root_cause: lifecycle shape missing a maxCount constraint
+    semantic_subjects: ["https://usf.example/ns#Lifecycle"]
+    dependencies: []
+    required_outcomes: ["add sh:maxCount to the lifecycle shape"]
+    acceptance_criteria: ["shacl validates", "negative fixture fails for stable code"]
+    risk: medium
+    task_class: shacl-repair
+    suggested_read_scope: ["semantic/ontology.ttl"]
+    suggested_write_scope: ["semantic/shapes/lifecycle.ttl"]
+    uncertainties: []
+    human_decision_required: false
+
+  - id: obl-sparql-integrity
+    root_cause: integrity query for orphan subjects is missing
+    semantic_subjects: ["https://usf.example/ns#Integrity"]
+    dependencies: []
+    required_outcomes: ["author a bounded integrity SPARQL"]
+    acceptance_criteria: ["query parses", "returns zero on conforming fixture"]
+    risk: low
+    task_class: sparql-authoring
+    suggested_read_scope: ["semantic/ontology.ttl"]
+    suggested_write_scope: ["semantic/queries/integrity.rq"]
+    uncertainties: []
+    human_decision_required: false
+
+  - id: obl-ontology-property-conflict
+    root_cause: property declared both object and datatype in ontology
+    semantic_subjects: ["https://usf.example/ns#PropX"]
+    dependencies: []
+    required_outcomes: ["resolve property type conflict"]
+    acceptance_criteria: ["reasoner reports no conflict"]
+    risk: high
+    task_class: ontology-lifecycle-repair
+    suggested_read_scope: ["semantic/ontology.ttl"]
+    suggested_write_scope: ["semantic/ontology.ttl"]
+    uncertainties: ["may require a modelling decision"]
+    human_decision_required: false
+
+  - id: obl-fixture-negatives
+    root_cause: negative fixtures missing for lifecycle constraint
+    semantic_subjects: ["https://usf.example/ns#Lifecycle"]
+    dependencies: ["obl-shacl-lifecycle"]
+    required_outcomes: ["add negative fixtures"]
+    acceptance_criteria: ["each negative fixture fails for its stable code"]
+    risk: low
+    task_class: fixture-authoring
+    suggested_read_scope: ["semantic/shapes/lifecycle.ttl"]
+    suggested_write_scope: ["tests/fixtures/neg_lifecycle.ttl"]
+    uncertainties: []
+    human_decision_required: false
+
+  - id: obl-provider-architecture
+    root_cause: architecture decision required to select a storage provider
+    semantic_subjects: ["https://usf.example/ns#StorageProvider"]
+    dependencies: []
+    required_outcomes: ["record an accepted realisation decision"]
+    acceptance_criteria: ["human decision recorded with rationale"]
+    risk: protected
+    task_class: semantic-planning
+    suggested_read_scope: []
+    suggested_write_scope: []
+    uncertainties: ["needs human/legal input"]
+    human_decision_required: true

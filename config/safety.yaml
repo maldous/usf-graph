@@ -1,0 +1,19 @@
+# ---------------------------------------------------------------------------
+# Safety / protected-action gates
+# ---------------------------------------------------------------------------
+# ALL protected actions are disabled by default. Enabling any of these is an
+# operator decision; the learning engine may NEVER change these automatically.
+# ---------------------------------------------------------------------------
+
+allow_billable: false             # paid model invocation
+allow_source_egress: false        # private source to external providers
+allow_main_integration: false     # integrate onto a main branch
+allow_push_pr: false              # push / open PR
+allow_stardog_publication: false  # mutate USF semantic authority
+allow_risk_acceptance: false      # accept residual risk
+allow_terminal_completion: false  # declare programme completion
+
+# autonomous-safe mode is implemented but disabled until explicitly configured.
+autonomous_safe_enabled: false
+
+default_mode: observe

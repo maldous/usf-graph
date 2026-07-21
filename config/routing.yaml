@@ -1,0 +1,31 @@
+# ---------------------------------------------------------------------------
+# Scheduler routing policy
+# ---------------------------------------------------------------------------
+# Hard eligibility is applied first (elsewhere); these are the ranking and
+# controlled-exploration settings. Exploration is deterministic: a seeded RNG
+# derived from the packet/snapshot makes routing replayable.
+# ---------------------------------------------------------------------------
+
+exploit_pct: 0.85
+second_tier_pct: 0.10
+explore_pct: 0.05
+
+default_seed: usf-factory
+
+# Exploration is NEVER used for these risk classes.
+disable_exploration_for_risk:
+  - high
+  - protected
+
+# Ranking weights. Positive rewards, negative penalties. Scores are task- and
+# role-specific; there is no single universal model score.
+weights:
+  expected_success: 1.0
+  task_class_success: 1.0
+  tool_reliability: 0.5
+  scope_discipline: 0.5
+  evidence_discipline: 0.4
+  latency: -0.2
+  cost: -0.5
+  quota_risk: -0.3
+  provider_diversity: 0.2

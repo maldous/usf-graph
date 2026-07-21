@@ -1,0 +1,34 @@
+# usf-factory — non-mutating cycle (safe by default)
+#
+# Runs one plan-only cycle. This is safe: it never writes to /usf, never spends
+# money, and never publishes. To change the mode, edit ExecStart. Do NOT switch
+# to a mutating mode until config/safety.yaml enables autonomous-safe.
+#
+# Install:
+#   cp systemd/usf-factory.service systemd/usf-factory.timer /etc/systemd/system/
+#   systemctl daemon-reload
+#   systemctl enable --now usf-factory.timer
+
+[Unit]
+Description=USF Adaptive Semantic Factory (non-mutating plan-only cycle)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/usf-factory
+# Use the project virtualenv. Adjust the path if you installed elsewhere.
+ExecStart=/root/usf-factory/.venv/bin/usf-factory run --mode plan-only
+Nice=10
+# Hardening: the factory needs /usf (read-only), its XDG dirs, and /root/.env.
+ProtectSystem=strict
+ReadWritePaths=/root/.local /root/.cache /root/.config
+ReadOnlyPaths=/usf /root/usf-factory
+ProtectHome=read-only
+PrivateTmp=true
+NoNewPrivileges=true
+TimeoutStartSec=1800
+
+[Install]
+WantedBy=multi-user.target

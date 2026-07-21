@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Immutable, content-addressed USF semantic snapshot (DESIGN Phase 4).\n\nCompiled deterministically by the factory (not a model) via the USF MCP\nboundary + Git inspection. ``captured_at`` is metadata and excluded from the\ncontent address so identical state reproduces an identical snapshot id.",
+  "properties": {
+    "active_phase": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Active Phase"
+    },
+    "admitted_evidence": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Admitted Evidence",
+      "type": "array"
+    },
+    "authority_digest": {
+      "title": "Authority Digest",
+      "type": "string"
+    },
+    "captured_at": {
+      "default": "",
+      "title": "Captured At",
+      "type": "string"
+    },
+    "checkpoint_digest": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Checkpoint Digest"
+    },
+    "goal_digest": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Goal Digest"
+    },
+    "graph_count": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Graph Count"
+    },
+    "health_ok": {
+      "default": true,
+      "title": "Health Ok",
+      "type": "boolean"
+    },
+    "ledger_digest": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ledger Digest"
+    },
+    "mcp_tools": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Mcp Tools",
+      "type": "array"
+    },
+    "open_transactions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Open Transactions",
+      "type": "array"
+    },
+    "repository_head": {
+      "title": "Repository Head",
+      "type": "string"
+    },
+    "source": {
+      "default": "usf-mcp",
+      "title": "Source",
+      "type": "string"
+    },
+    "triple_count": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Triple Count"
+    },
+    "unresolved_obligations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Unresolved Obligations",
+      "type": "array"
+    },
+    "working_tree_digest": {
+      "title": "Working Tree Digest",
+      "type": "string"
+    }
+  },
+  "required": [
+    "authority_digest",
+    "repository_head",
+    "working_tree_digest"
+  ],
+  "title": "semantic-snapshot",
+  "type": "object"
+}

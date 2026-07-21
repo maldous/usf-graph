@@ -1,0 +1,189 @@
+{
+  "$defs": {
+    "FailureClass": {
+      "description": "Deterministic failure taxonomy for fair attribution (build task \u00a715).",
+      "enum": [
+        "PLANNER_ERROR",
+        "PACKET_COMPILER_ERROR",
+        "WORKER_ERROR",
+        "ADAPTER_ERROR",
+        "PROVIDER_OUTAGE",
+        "QUOTA_BLOCKED",
+        "STALE_PACKET",
+        "SCOPE_VIOLATION",
+        "VALIDATION_FAILURE",
+        "ENVIRONMENT_FAILURE",
+        "UNCERTAIN_MUTATION"
+      ],
+      "title": "FailureClass",
+      "type": "string"
+    },
+    "PacketResultStatus": {
+      "enum": [
+        "COMPLETED",
+        "FAILED",
+        "SKIPPED",
+        "BLOCKED",
+        "HUMAN_DECISION_REQUIRED"
+      ],
+      "title": "PacketResultStatus",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A worker's structured result (DESIGN Phase 10).",
+  "properties": {
+    "actual_model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Actual Model"
+    },
+    "actual_provider": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Actual Provider"
+    },
+    "agent_profile_id": {
+      "title": "Agent Profile Id",
+      "type": "string"
+    },
+    "base_head": {
+      "default": "",
+      "title": "Base Head",
+      "type": "string"
+    },
+    "changed_paths": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Changed Paths",
+      "type": "array"
+    },
+    "evidence_produced": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Evidence Produced",
+      "type": "array"
+    },
+    "failure_class": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FailureClass"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "failure_detail": {
+      "default": "",
+      "title": "Failure Detail",
+      "type": "string"
+    },
+    "obligations_closed": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Obligations Closed",
+      "type": "array"
+    },
+    "obligations_discovered": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Obligations Discovered",
+      "type": "array"
+    },
+    "packet_id": {
+      "title": "Packet Id",
+      "type": "string"
+    },
+    "patch_digest": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Patch Digest"
+    },
+    "patch_ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Patch Ref"
+    },
+    "produced_at": {
+      "default": "",
+      "title": "Produced At",
+      "type": "string"
+    },
+    "scope_violation": {
+      "default": false,
+      "title": "Scope Violation",
+      "type": "boolean"
+    },
+    "semantic_subjects_changed": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Semantic Subjects Changed",
+      "type": "array"
+    },
+    "snapshot_id": {
+      "default": "",
+      "title": "Snapshot Id",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/PacketResultStatus"
+    },
+    "tests_run": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Tests Run",
+      "type": "array"
+    },
+    "uncertainties": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Uncertainties",
+      "type": "array"
+    }
+  },
+  "required": [
+    "packet_id",
+    "status",
+    "agent_profile_id"
+  ],
+  "title": "packet-result",
+  "type": "object"
+}

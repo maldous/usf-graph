@@ -1,0 +1,69 @@
+# ---------------------------------------------------------------------------
+# Trust / admission policy
+# ---------------------------------------------------------------------------
+# Admission roles are earned from qualification scores. No newly discovered
+# model receives write access automatically. Write roles are listed explicitly.
+#
+# Thresholds are minimum dimension scores (0..1). A profile holds a role only if
+# it meets EVERY listed threshold for that role.
+# ---------------------------------------------------------------------------
+
+default_role: UNQUALIFIED
+
+qualification_expiry_days: 30
+
+write_roles:
+  - PATCH_PRODUCER
+  - INTEGRATOR
+  - TRUSTED_COORDINATOR
+
+role_thresholds:
+  READ_ONLY_ANALYST:
+    min_scores:
+      structured_output: 0.6
+      uncertainty_handling: 0.5
+
+  PLANNER_CANDIDATE:
+    min_scores:
+      semantic_planning: 0.7
+      structured_output: 0.75
+      scope_discipline: 0.6
+      uncertainty_handling: 0.6
+
+  PATCH_PRODUCER:
+    min_scores:
+      implementation: 0.7
+      repository_navigation: 0.65
+      structured_output: 0.8
+      scope_discipline: 0.75
+      evidence_discipline: 0.65
+      false_completion: 0.7
+
+  REVIEWER:
+    min_scores:
+      review: 0.7
+      rdf_owl_reasoning: 0.6
+      scope_discipline: 0.6
+      evidence_discipline: 0.7
+
+  INTEGRATOR:
+    min_scores:
+      wave_integration: 0.75
+      rdf_owl_reasoning: 0.7
+      scope_discipline: 0.8
+      later_regression: 0.7
+
+  ADJUDICATOR:
+    min_scores:
+      review: 0.8
+      evidence_discipline: 0.8
+      uncertainty_handling: 0.75
+
+  TRUSTED_COORDINATOR:
+    min_scores:
+      semantic_planning: 0.85
+      wave_integration: 0.85
+      scope_discipline: 0.9
+      evidence_discipline: 0.85
+      false_completion: 0.85
+      later_regression: 0.85

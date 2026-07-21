@@ -1,0 +1,124 @@
+# Implementation, debugging, review, tool-selection, wave-integration cases.
+cases:
+  - case_id: impl-scope-limited-patch
+    task_class: repository-implementation
+    dimension: scope_discipline
+    prompt: >
+      Your packet write scope is [src/a.py]. A quick fix in src/b.py would also
+      help. Should you edit src/b.py in this packet? Answer 'no' or 'yes'.
+    grader: choice
+    expected: {value: "no"}
+    weight: 1.2
+
+  - case_id: impl-no-placeholder
+    task_class: repository-implementation
+    dimension: implementation
+    prompt: >
+      Is leaving a `TODO: not implemented` no-op acceptable in an in-scope
+      executable path at completion? Answer 'no' or 'yes'.
+    grader: choice
+    expected: {value: "no"}
+    weight: 1.0
+
+  - case_id: impl-patch-format
+    task_class: repository-implementation
+    dimension: structured_output
+    prompt: >
+      Produce a git unified diff adding the line 'ok' to a file f.txt. Output only
+      the diff (include @@ hunk header and +++/--- lines).
+    grader: regex
+    expected:
+      pattern: "@@[\\s\\S]+\\+ok"
+    weight: 1.0
+
+  - case_id: debug-root-cause
+    task_class: repository-implementation
+    dimension: debugging
+    prompt: >
+      A test fails because a function returns None. The correct fix is to repair
+      the root cause, not to change the test to expect None. True or false?
+    grader: choice
+    expected: {value: "true"}
+    weight: 1.0
+
+  - case_id: repo-navigation-smallest-range
+    task_class: repository-implementation
+    dimension: repository_navigation
+    prompt: >
+      To understand a symbol before editing, should you read the smallest
+      sufficient file range guided by a query, or read every file in the repo?
+      Answer 'smallest' or 'all'.
+    grader: choice
+    expected: {value: smallest}
+    weight: 1.0
+
+  - case_id: repo-navigation-query-first
+    task_class: repository-implementation
+    dimension: repository_navigation
+    prompt: >
+      Per USF discipline, should you query bounded semantic context before
+      reading files, or read files first? Answer 'query' or 'files'.
+    grader: choice
+    expected: {value: query}
+    weight: 1.0
+
+  - case_id: tool-selection-read-only
+    task_class: repository-implementation
+    dimension: tool_selection
+    prompt: >
+      To read current semantic state, should you call the read-only usf_query
+      tool or edit graph files directly? Answer 'usf_query' or 'edit'.
+    grader: choice
+    expected: {value: usf_query}
+    weight: 1.0
+
+  - case_id: review-consensus-not-proof
+    task_class: wave-review
+    dimension: review
+    prompt: >
+      Two AI reviewers agree a patch is correct. Does their agreement establish
+      correctness, or is deterministic validation still required? Answer
+      'validation' or 'consensus'.
+    grader: choice
+    expected: {value: validation}
+    weight: 1.2
+
+  - case_id: review-reopened-obligation
+    task_class: wave-review
+    dimension: review
+    prompt: >
+      During review you notice the integrated wave reopened a previously closed
+      obligation. Is that a finding you should report? Answer 'yes' or 'no'.
+    grader: choice
+    expected: {value: "yes"}
+    weight: 1.0
+
+  - case_id: integ-semantic-not-git
+    task_class: wave-integration
+    dimension: wave_integration
+    prompt: >
+      Two patches merge cleanly in Git but redefine the same IRI incompatibly. Is
+      the wave semantically safe just because Git merged cleanly? Answer 'no' or 'yes'.
+    grader: choice
+    expected: {value: "no"}
+    weight: 1.3
+
+  - case_id: integ-preserve-attribution
+    task_class: wave-integration
+    dimension: wave_integration
+    prompt: >
+      When an integrator rewrites a worker's patch, should the original worker
+      patch and the rewrite ratio be preserved for attribution? Answer 'yes' or 'no'.
+    grader: choice
+    expected: {value: "yes"}
+    weight: 1.0
+
+  - case_id: integ-no-regression
+    task_class: wave-integration
+    dimension: later_regression
+    prompt: >
+      Should the integrator avoid introducing changes that cause regressions in
+      later cycles? Answer 'yes' or 'no'.
+    grader: choice
+    expected: {value: "yes"}
+    weight: 1.0

@@ -1,0 +1,178 @@
+{
+  "$defs": {
+    "RequiredCapabilities": {
+      "additionalProperties": false,
+      "properties": {
+        "min_context_tokens": {
+          "default": 8000,
+          "title": "Min Context Tokens",
+          "type": "integer"
+        },
+        "rdf_owl": {
+          "default": 0.0,
+          "title": "Rdf Owl",
+          "type": "number"
+        },
+        "repository_editing": {
+          "default": false,
+          "title": "Repository Editing",
+          "type": "boolean"
+        },
+        "semantic_reasoning": {
+          "default": 0.0,
+          "title": "Semantic Reasoning",
+          "type": "number"
+        },
+        "shacl_sparql": {
+          "default": 0.0,
+          "title": "Shacl Sparql",
+          "type": "number"
+        },
+        "structured_output": {
+          "default": 0.0,
+          "title": "Structured Output",
+          "type": "number"
+        }
+      },
+      "title": "RequiredCapabilities",
+      "type": "object"
+    },
+    "Risk": {
+      "description": "Risk classification for obligations, packets, and waves.",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "protected"
+      ],
+      "title": "Risk",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A content-addressed, deterministically compiled unit of work (\u00a712).",
+  "properties": {
+    "acceptance_criteria": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Acceptance Criteria",
+      "type": "array"
+    },
+    "authority_digest": {
+      "title": "Authority Digest",
+      "type": "string"
+    },
+    "base_head": {
+      "title": "Base Head",
+      "type": "string"
+    },
+    "conflicts_with": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Conflicts With",
+      "type": "array"
+    },
+    "data_classification": {
+      "default": "private-source",
+      "title": "Data Classification",
+      "type": "string"
+    },
+    "dependencies": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Dependencies",
+      "type": "array"
+    },
+    "generated_outputs": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Generated Outputs",
+      "type": "array"
+    },
+    "human_decision_required": {
+      "default": false,
+      "title": "Human Decision Required",
+      "type": "boolean"
+    },
+    "input_digests": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Input Digests",
+      "type": "object"
+    },
+    "objective": {
+      "title": "Objective",
+      "type": "string"
+    },
+    "obligation_id": {
+      "title": "Obligation Id",
+      "type": "string"
+    },
+    "permitted_tools": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Permitted Tools",
+      "type": "array"
+    },
+    "read_paths": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Read Paths",
+      "type": "array"
+    },
+    "required_capabilities": {
+      "$ref": "#/$defs/RequiredCapabilities"
+    },
+    "required_validation": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Required Validation",
+      "type": "array"
+    },
+    "risk": {
+      "$ref": "#/$defs/Risk",
+      "default": "medium"
+    },
+    "semantic_subjects": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Semantic Subjects",
+      "type": "array"
+    },
+    "snapshot_id": {
+      "title": "Snapshot Id",
+      "type": "string"
+    },
+    "task_class": {
+      "title": "Task Class",
+      "type": "string"
+    },
+    "write_paths": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Write Paths",
+      "type": "array"
+    }
+  },
+  "required": [
+    "obligation_id",
+    "snapshot_id",
+    "authority_digest",
+    "base_head",
+    "objective",
+    "task_class"
+  ],
+  "title": "packet",
+  "type": "object"
+}

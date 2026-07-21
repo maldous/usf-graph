@@ -1,0 +1,21 @@
+# ---------------------------------------------------------------------------
+# Budgets and limits (conservative defaults; build task §19)
+# ---------------------------------------------------------------------------
+
+# No paid inference by default. Raise only via --budget-usd + --allow-billable.
+billable_usd: 0.0
+
+# Free-provider daily request limit (per provider), configurable.
+free_daily_request_limit: 500
+
+# Wall-time limits.
+max_packet_wall_s: 7200        # 2 hours
+max_planner_wall_s: 1800       # 30 minutes
+max_integration_wall_s: 7200   # 2 hours
+
+# Stop after this many consecutive no-progress cycles.
+max_no_progress_cycles: 2
+
+# Default maximum concurrent workers. Increase only when conflict analysis and
+# capacity permit (build task §19).
+max_concurrent_workers: 2

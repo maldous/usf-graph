@@ -1,0 +1,16 @@
+# ---------------------------------------------------------------------------
+# Qualification suite settings
+# ---------------------------------------------------------------------------
+# The corpus lives under qualifications/. Public regression cases plus a hidden
+# holdout set (build task §8.2, §20). Billable qualification is disabled unless
+# explicitly authorized by a configured budget.
+# ---------------------------------------------------------------------------
+
+suite_version: v1
+corpus_dir: qualifications
+holdout_dir: qualifications/holdout
+expiry_days: 30
+
+# Billable inference during qualification is off by default.
+allow_billable: false
+default_probe_budget_usd: 0.0

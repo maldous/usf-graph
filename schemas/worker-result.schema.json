@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "changed_paths": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "evidence_produced": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "obligations_closed": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "obligations_discovered": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "patch": {
+      "type": "string"
+    },
+    "semantic_subjects_changed": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "COMPLETED",
+        "FAILED",
+        "HUMAN_DECISION_REQUIRED"
+      ],
+      "type": "string"
+    },
+    "tests_run": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "uncertainties": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "status"
+  ],
+  "title": "worker-result",
+  "type": "object"
+}
