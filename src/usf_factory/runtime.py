@@ -63,6 +63,12 @@ def production_worker_factory(ctx: RuntimeContext):
         mutating = mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
         privacy = (pcfg.privacy_class if pcfg else PrivacyClass.EXTERNAL_CLOUD).value
         source_ok, egress_why = ctx.config.egress.source_content_allowed(agent.provider_id, privacy)
+        # Containment overrides egress: a provider that can read beyond the prompt
+        # (e.g. Codex's read-only sandbox permits FS reads) NEVER receives raw
+        # source, even if the egress gate is on — restrict it to metadata.
+        if source_ok and not getattr(cap, "source_contained", False):
+            source_ok = False
+            egress_why = f"{agent.provider_id} not source-contained (metadata only)"
 
         # Prefer the brokered tool loop; else the bounded context-and-patch worker
         # (AiWorker) — Claude/Codex CLIs are first-class producers this way; else

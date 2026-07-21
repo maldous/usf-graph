@@ -209,6 +209,61 @@ def run(
                 break
 
 
+@app.command("bootstrap-runtime")
+def bootstrap_runtime_cmd(
+    allow_inference: bool = typer.Option(False, "--allow-inference", help="free/local inference"),
+    allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
+    max_cost_usd: float = typer.Option(0.0, "--max-cost-usd", help="paid API budget (kept 0)"),
+    max_cases: int = typer.Option(0, "--max-cases", help="bounded qualification sample (0=full)"),
+    force: bool = typer.Option(False, "--force", help="re-qualify even with fresh evidence"),
+) -> None:
+    """Clean-state launch bootstrap: refresh, reuse evaluations, qualify only the
+    selected role candidates lacking fresh evidence, admit from evidence, build +
+    activate the ranked roster, verify freshness, and print the exact unfilled
+    roles + blockers. Exits non-zero unless the minimum launch (shadow) roster
+    exists. No operator overrides; no lowered thresholds; paid inference off."""
+    from .bootstrap import bootstrap_runtime
+
+    with _ctx() as ctx:
+        report = asyncio.run(
+            bootstrap_runtime(
+                ctx,
+                allow_subscription_inference=allow_subscription_inference,
+                allow_free_inference=allow_inference,
+                max_cost_usd=max_cost_usd,
+                max_cases=max_cases,
+                force=force,
+            )
+        )
+    table = Table(title="active roster")
+    table.add_column("role")
+    table.add_column("primary")
+    table.add_column("provider")
+    table.add_column("transport")
+    for role, entry in (report.roster.get("entries") or {}).items():
+        table.add_row(
+            role,
+            str(entry.get("primary") or "-")[:20],
+            str(entry.get("provider") or "-"),
+            str(entry.get("transport") or entry.get("status") or "-"),
+        )
+    console.print(table)
+    console.print(f"qualified: {report.qualified}")
+    console.print(f"filled roles: {report.filled_roles}")
+    console.print(f"[yellow]unfilled roles: {report.unfilled_roles}[/]")
+    if report.blockers:
+        console.print(f"[yellow]blockers:[/] {report.blockers}")
+    console.print(
+        f"roster_fresh={report.roster_fresh} "
+        f"minimum_shadow_ok={report.minimum_shadow_ok} "
+        f"minimum_candidate_ok={report.minimum_candidate_ok}"
+    )
+    if not report.minimum_shadow_ok:
+        err.print("[red]minimum launch roster (planner + analyst) NOT satisfied[/]")
+        raise typer.Exit(code=1)
+    console.print("[green]minimum launch roster satisfied[/]")
+
+
 @app.command()
 def activate(
     free_only: bool = typer.Option(True, "--free-only/--no-free-only"),

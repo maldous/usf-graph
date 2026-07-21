@@ -131,6 +131,9 @@ class _CliAdapterBase:
         _c, out, _e = await _run([binpath, "--version"], timeout_s=15.0)
         return out.strip().splitlines()[0] if out.strip() else ""
 
+    # Whether the CLI provably cannot read beyond the prompt (overridden per CLI).
+    source_contained: bool = True
+
     def capabilities(self):
         """A CLI adapter: plain invoke + bounded patch synthesis + subscription;
         NO brokered tool loop / native tool-call protocol."""
@@ -146,6 +149,7 @@ class _CliAdapterBase:
             bounded_patch_synthesis=True,
             subscription_inference=True,
             free_inference=False,
+            source_contained=self.source_contained,
         )
 
     def _model_rejected(self, text: str, err: str) -> bool:
@@ -290,6 +294,10 @@ class _CliAdapterBase:
 
 class CodexCliAdapter(_CliAdapterBase):
     binary = "codex"
+    # The Codex read-only sandbox permits filesystem READS (only writes are
+    # blocked), so it is NOT provably source-contained: restrict it to
+    # private-metadata planning/review; never send it raw private source.
+    source_contained = False
     auth_dirs = (Path.home() / ".codex" / "auth.json", Path.home() / ".codex")
     known_models = (
         ("gpt-5-codex", "GPT-5 Codex (via Codex CLI)"),

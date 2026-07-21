@@ -54,6 +54,11 @@ class AdapterCapabilities:
     subscription_inference: bool = False
     free_inference: bool = False
     source_egress_allowed: bool = False  # set from egress policy at routing time
+    # True iff the adapter PROVABLY cannot access more than the prompt (no shell/
+    # filesystem/network tools). A provider that can read arbitrary files (e.g. the
+    # Codex read-only sandbox permits filesystem READS) is NOT source-contained and
+    # must not receive raw private source — restrict it to private-metadata.
+    source_contained: bool = False
     observed: frozenset[str] = field(default_factory=frozenset)
 
     def with_egress(self, allowed: bool) -> AdapterCapabilities:
@@ -123,6 +128,10 @@ def capabilities_for_kind(kind: str) -> AdapterCapabilities:
     has_broker = callable(getattr(cls, "chat_with_tools", None))
     has_invoke = callable(getattr(cls, "invoke", None))
     is_cli = kind in ("codex_cli", "claude_cli")
+    # Source containment: Claude CLI denies all built-in tools (provably contained);
+    # API/local plain-invoke adapters have no shell/FS access. The Codex CLI's
+    # read-only sandbox permits filesystem reads, so it is NOT source-contained.
+    source_contained = kind != "codex_cli"
     return AdapterCapabilities(
         plain_invoke=has_invoke,
         native_tool_calls=has_broker,
@@ -130,6 +139,7 @@ def capabilities_for_kind(kind: str) -> AdapterCapabilities:
         # CLIs edit via bounded patch synthesis (orchestrator applies + re-derives).
         bounded_patch_synthesis=is_cli,
         subscription_inference=is_cli,
+        source_contained=source_contained,
     )
 
 
