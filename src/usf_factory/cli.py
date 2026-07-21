@@ -368,69 +368,87 @@ def models_list(provider: str | None = typer.Option(None, "--provider")) -> None
 
 @models_app.command("probe")
 def models_probe(
-    model: str = typer.Argument(None, help="provider/model to create a profile for"),
-    allow_billable: bool = typer.Option(False, "--allow-billable"),
-    budget_usd: float = typer.Option(0.0, "--budget-usd"),
+    model: str = typer.Argument(None, help="provider/model to probe LIVE"),
+    allow_inference: bool = typer.Option(False, "--allow-inference"),
+    allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
+    allow_paid_inference: bool = typer.Option(False, "--allow-paid-inference"),
+    max_cost_usd: float = typer.Option(0.0, "--max-cost-usd"),
 ) -> None:
-    """Run the mechanical probe graders. With a provider/model argument, the
-    AgentProfile is created/persisted (the admission entry point). A zero-cost
-    self-check grades the probe specs against reference answers (proving the
-    graders execute); live model probing additionally requires --allow-billable
-    + budget and never records fabricated results."""
-    from .probes import default_probe_specs, grade_probe
+    """Run the ten mechanical probes against a LIVE model and grade them with the
+    canonical graders (a non-empty response is NOT a pass). Persists an immutable
+    ProbeRun. A genuinely free/local model runs with `--allow-inference
+    --max-cost-usd 0`; subscription and paid inference need their own flags.
 
-    if model:
-        from .admission import ensure_profile, parse_model_ref
+    With no argument, prints a graders self-check only (proves graders execute;
+    never stored as model evidence)."""
+    if not model:
+        from .probes import default_probe_specs, grade_probe
 
-        provider_id, model_id = parse_model_ref(model)
-        with _ctx() as ctx:
-            profile = ensure_profile(ctx, provider_id, model_id)
-        console.print(
-            f"profile persisted: [bold]{profile.profile_id}[/] "
-            f"({provider_id}/{model_id}, adapter={profile.adapter})"
-        )
-
-    specs = default_probe_specs()
-    # Self-check: grade each probe against a reference "correct" answer.
-    passed = 0
-    for s in specs:
-        exp = s.expected
-        ref = {
-            "iri_preservation": exp.get("iri", ""),
-            "digest_preservation": exp.get("digest", ""),
-            "stop_condition": "1\n2\n3\n" + exp.get("stop_token", ""),
-            "explicit_uncertainty": "I do not know; insufficient information.",
-            "text_response": "A checksum detects data corruption.",
-        }.get(s.kind.value, "")
-        r = grade_probe(s, ref)
-        passed += 1 if r.passed else 0
-    console.print(f"probe graders self-check: {passed}/{len(specs)} graders produced a verdict")
-    if not (allow_billable and budget_usd > 0):
-        console.print(
-            "[yellow]live model probing requires --allow-billable and --budget-usd > 0[/]"
-        )
+        specs = default_probe_specs()
+        passed = 0
+        for s in specs:
+            exp = s.expected
+            ref = {
+                "iri_preservation": exp.get("iri", ""),
+                "digest_preservation": exp.get("digest", ""),
+                "stop_condition": "1\n2\n3\n" + exp.get("stop_token", ""),
+                "explicit_uncertainty": "I do not know; insufficient information.",
+                "text_response": "A checksum detects data corruption.",
+            }.get(s.kind.value, "")
+            passed += 1 if grade_probe(s, ref).passed else 0
+        console.print(f"probe graders self-check: {passed}/{len(specs)} produced a verdict")
         return
+
+    import asyncio as _asyncio
+
+    from .admission import ensure_profile, parse_model_ref
+    from .errors import ProtectedActionError
+    from .probing import InferenceAuthorization, run_probe_suite
+
+    provider_id, model_id = parse_model_ref(model)
+    auth = InferenceAuthorization(
+        allow_inference=allow_inference,
+        allow_subscription_inference=allow_subscription_inference,
+        allow_paid_inference=allow_paid_inference,
+        max_cost_usd=max_cost_usd,
+    )
+    with _ctx() as ctx:
+        profile = ensure_profile(ctx, provider_id, model_id)
+        console.print(f"profile: [bold]{profile.profile_id}[/] ({provider_id}/{model_id})")
+        try:
+            run = _asyncio.run(run_probe_suite(ctx, profile, auth=auth))
+        except ProtectedActionError as exc:
+            console.print(f"[yellow]{exc}[/]")
+            raise typer.Exit(code=0) from None
+    table = Table(title=f"probe run {run.run_id} ({run.inference_mode})")
+    for col in ("probe", "passed", "detail"):
+        table.add_column(col)
+    for r in run.results:
+        table.add_row(r.kind.value, "[green]yes[/]" if r.passed else "[red]no[/]", r.detail[:50])
+    console.print(table)
     console.print(
-        "[yellow]no zero-cost live model reachable here (ENVIRONMENT_BLOCKED); "
-        "live probing not performed[/]"
+        f"probe run: {run.passed}/{run.total} passed; actual models: {run.actual_models}; "
+        f"cost=${run.cost_usd}; errors={len(run.errors)}"
     )
 
 
 @models_app.command("qualify")
 def models_qualify(
-    model: str = typer.Argument(None, help="provider/model to qualify LIVE (billable; gated)"),
-    allow_billable: bool = typer.Option(False, "--allow-billable"),
-    budget_usd: float = typer.Option(0.0, "--budget-usd"),
+    model: str = typer.Argument(None, help="provider/model to qualify LIVE (gated)"),
+    allow_inference: bool = typer.Option(False, "--allow-inference"),
+    allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
+    allow_paid_inference: bool = typer.Option(False, "--allow-paid-inference"),
+    max_cost_usd: float = typer.Option(0.0, "--max-cost-usd"),
 ) -> None:
     """Run the USF qualification suite.
 
     Without an argument: a zero-cost SELF-CHECK grades the corpus against
-    reference answers (proving the scorer + admission logic execute). The
-    self-check is never stored as model evidence.
+    reference answers (proving the scorer + admission logic execute). Never
+    stored as model evidence.
 
-    With provider/model: persists the AgentProfile and runs the suite against
-    the LIVE model (billable; requires --allow-billable + budget). A gated run
-    persists the profile only — no fabricated qualification evidence."""
+    With provider/model: runs the mechanical probes FIRST, then (if the
+    structural probes pass) the suite against the LIVE model, persisting an
+    immutable qualification run. Inference is gated exactly like `models probe`."""
     import asyncio as _asyncio
     from pathlib import Path
 
@@ -439,25 +457,35 @@ def models_qualify(
     if model:
         from .admission import ensure_profile, parse_model_ref, qualify_live
         from .errors import ProtectedActionError
+        from .probing import InferenceAuthorization, probe_gates_pass, run_probe_suite
 
         provider_id, model_id = parse_model_ref(model)
+        auth = InferenceAuthorization(
+            allow_inference=allow_inference,
+            allow_subscription_inference=allow_subscription_inference,
+            allow_paid_inference=allow_paid_inference,
+            max_cost_usd=max_cost_usd,
+        )
         with _ctx() as ctx:
             profile = ensure_profile(ctx, provider_id, model_id)
             console.print(f"profile: [bold]{profile.profile_id}[/]")
             try:
-                run = _asyncio.run(
-                    qualify_live(ctx, profile, allow_billable=allow_billable, budget_usd=budget_usd)
-                )
+                probe = _asyncio.run(run_probe_suite(ctx, profile, auth=auth))
+                console.print(f"probes: {probe.passed}/{probe.total} passed ({probe.run_id})")
+                if not probe_gates_pass(probe):
+                    console.print(
+                        "[yellow]structural probes failed; skipping qualification "
+                        "(model is not fit for semantic work)[/]"
+                    )
+                    raise typer.Exit(code=0)
+                run = _asyncio.run(qualify_live(ctx, profile, auth=auth, probe_run_id=probe.run_id))
             except ProtectedActionError as exc:
                 console.print(f"[yellow]{exc}[/]")
-                console.print(
-                    "[yellow]profile persisted; NO qualification evidence recorded "
-                    "(live qualification is gated)[/]"
-                )
                 raise typer.Exit(code=0) from None
         console.print(
-            f"live qualification: {run.cases_passed}/{run.cases_total} passed; "
-            f"roles: {[r.value for r in run.roles_admitted]}"
+            f"live qualification {run.run_id}: {run.cases_passed}/{run.cases_total} passed; "
+            f"evidence roles: {[r.value for r in run.roles_admitted]}; "
+            f"run 'models admit {profile.profile_id}' to admit"
         )
         return
 

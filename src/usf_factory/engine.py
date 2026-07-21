@@ -338,22 +338,32 @@ class FactoryEngine:
         return HealthStatus.DEGRADED
 
     def candidate_agents(self, task_class: str) -> list[SchedulableAgent]:
-        """Schedulable candidates from stored qualification runs + learning,
+        """Schedulable candidates from valid ADMISSION DECISIONS (each referencing
+        an immutable, non-expired, config-matching qualification run) + learning,
         using RECORDED operational facts (catalogue context/pricing, provider
-        health records, adapter capability, budget state) — not fabricated ones."""
-        runs = self.ctx.store.records("qualification_runs")
+        health, adapter capability, budget). Expired/superseded/mismatched
+        qualification is rejected here (the routing candidate source)."""
+        from .admission import admission_ineligibility
+
         provs = self.ctx.config.providers.by_id()
         agents: list[SchedulableAgent] = []
-        for run in runs:
-            profile_row = self.ctx.store.get("agent_profiles", run["agent_profile_id"])
-            if not profile_row:
-                continue
+        for _key, profile_row in self.ctx.store.items("agent_profiles"):
             profile = AgentProfile(**profile_row)
+            decision, run, reason = admission_ineligibility(self.ctx, profile)
+            if reason is not None or run is None or decision is None:
+                if reason and reason != "no admission decision":
+                    self.ctx.log_event(
+                        "schedule.ineligible",
+                        stage="SCHEDULED",
+                        cycle_id="-",
+                        payload={"profile_id": profile.profile_id, "reason": reason},
+                    )
+                continue
             cfg = provs.get(profile.provider_id)
             privacy = cfg.privacy_class if cfg else PrivacyClass.EXTERNAL_CLOUD
             scores = dict(run.get("dimension_scores", {}))
-            scores.update(self.learning.scores_for(run["agent_profile_id"], task_class))
-            roles = [AdmissionRole(r) for r in run.get("roles_admitted", [])]
+            scores.update(self.learning.scores_for(profile.profile_id, task_class))
+            roles = [AdmissionRole(r) for r in decision.get("roles", [])]
 
             model_row = self._model_row(profile.provider_id, profile.requested_model_id)
             context_tokens = model_row.get("context_tokens") if model_row else None

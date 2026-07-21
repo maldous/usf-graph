@@ -48,6 +48,11 @@ class ProviderRegistry:
     providers: dict[str, ProviderConfig] = field(default_factory=dict)
     excluded: list[str] = field(default_factory=list)
     _transport: httpx.AsyncBaseTransport | None = None  # test injection
+    # Runtime override for the adapter billable gate. None => use the committed
+    # config.safety.allow_billable. Explicit probing/qualification with
+    # --allow-paid/--allow-subscription passes True WITHOUT mutating committed
+    # policy; the local (free) path never needs it.
+    allow_billable_override: bool | None = None
 
     # ---- enablement ----------------------------------------------------- #
 
@@ -88,7 +93,11 @@ class ProviderRegistry:
 
     def adapter(self, provider_id: str) -> ProviderAdapter:
         cfg = self.providers[provider_id]
-        allow_billable = self.ctx.config.safety.allow_billable
+        allow_billable = (
+            self.allow_billable_override
+            if self.allow_billable_override is not None
+            else self.ctx.config.safety.allow_billable
+        )
         kind = cfg.adapter
         if kind == "openai_compatible":
             token = (
@@ -200,10 +209,19 @@ class ProviderRegistry:
 
 
 def build_registry(
-    ctx: RuntimeContext, transport: httpx.AsyncBaseTransport | None = None
+    ctx: RuntimeContext,
+    transport: httpx.AsyncBaseTransport | None = None,
+    *,
+    allow_billable: bool | None = None,
 ) -> ProviderRegistry:
     pconf = ctx.config.providers
     excluded = list(pconf.exclude)
     # Codebuff (and any excluded id) is never even registered.
     providers = {p.provider_id: p for p in pconf.providers if p.provider_id not in excluded}
-    return ProviderRegistry(ctx=ctx, providers=providers, excluded=excluded, _transport=transport)
+    return ProviderRegistry(
+        ctx=ctx,
+        providers=providers,
+        excluded=excluded,
+        _transport=transport,
+        allow_billable_override=allow_billable,
+    )

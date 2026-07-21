@@ -85,14 +85,15 @@ def production_reviewer_factory(ctx: RuntimeContext):
     from .review import AiReviewer
 
     def make():
-        runs = ctx.store.records("qualification_runs")
-        for run in runs:
-            if AdmissionRole.REVIEWER.value not in set(run.get("roles_admitted", [])):
-                continue
-            row = ctx.store.get("agent_profiles", run["agent_profile_id"])
-            if not row:
-                continue
+        from .admission import admission_ineligibility
+
+        for _key, row in ctx.store.items("agent_profiles"):
             profile = AgentProfile(**row)
+            decision, _run, reason = admission_ineligibility(ctx, profile)
+            if reason is not None or decision is None:
+                continue
+            if AdmissionRole.REVIEWER.value not in set(decision.get("roles", [])):
+                continue
             try:
                 adapter = build_registry(ctx).adapter(profile.provider_id)
             except Exception:

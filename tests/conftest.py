@@ -156,26 +156,48 @@ def fake_authority_factory():
 def seed_agent(
     store, *, roles, scores, provider_id="test-provider", model="test-model", adapter="brokered"
 ):
-    """Persist an agent profile + qualification run so the scheduler can route to it."""
+    """Persist an agent profile + an IMMUTABLE qualification run + an admission
+    decision so the scheduler can route to it (the production candidate path)."""
     from usf_factory.enums import AuthMode
-    from usf_factory.models import AgentProfile, QualificationRun
+    from usf_factory.ids import ulid
+    from usf_factory.models import AdmissionDecision, AgentProfile, QualificationRun
 
+    far_future = "2999-01-01T00:00:00Z"
     profile = AgentProfile(
         provider_id=provider_id, requested_model_id=model, adapter=adapter, auth_mode=AuthMode.LOCAL
     )
     store.put("agent_profiles", profile.profile_id, profile.content_dict())
     run = QualificationRun(
+        run_id=f"qual-{ulid()}",
         agent_profile_id=profile.profile_id,
         suite_id="test",
         suite_version="v1",
+        config_digest=profile.digest(),
         dimension_scores=dict(scores),
         roles_admitted=list(roles),
+        expires_at=far_future,
     )
     store.put(
         "qualification_runs",
-        profile.profile_id,
+        run.run_id,
         run.content_dict(),
-        extra={"agent_profile_id": profile.profile_id, "expires_at": ""},
+        extra={"agent_profile_id": profile.profile_id, "expires_at": far_future},
+    )
+    decision = AdmissionDecision(
+        decision_id=f"adm-{ulid()}",
+        agent_profile_id=profile.profile_id,
+        qualification_run_id=run.run_id,
+        roles=list(roles),
+        method="evidence",
+        config_digest=profile.digest(),
+        expires_at=far_future,
+        decided_at="2000-01-01T00:00:00Z",  # early, so real later decisions win
+    )
+    store.put(
+        "admission_decisions",
+        decision.decision_id,
+        decision.content_dict(),
+        extra={"agent_profile_id": profile.profile_id, "qualification_run_id": run.run_id},
     )
     return profile
 

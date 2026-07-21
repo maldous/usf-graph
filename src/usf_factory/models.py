@@ -249,22 +249,123 @@ class QualificationSuite(FactoryModel):
         return self.digest()
 
 
-class QualificationRun(FactoryModel):
-    """Result of running the suite against one agent profile."""
+class ProbeRun(FactoryModel):
+    """Immutable record of a mechanical probe suite run against a live model.
 
+    Keyed by its own ``run_id`` (never overwritten). Records the exact model/
+    adapter/config and per-probe verdicts so a probe run is auditable evidence,
+    not a self-check."""
+
+    run_id: str
+    agent_profile_id: str
+    provider_id: str
+    requested_model_id: str
+    adapter_id: str
+    config_digest: str = ""
+    suite_digest: str = ""
+    actual_models: list[str] = Field(default_factory=list)
+    results: list[ProbeResult] = Field(default_factory=list)
+    passed: int = 0
+    total: int = 0
+    tokens_in: int = 0
+    tokens_out: int = 0
+    cost_usd: float = 0.0
+    inference_mode: str = ""  # free | subscription | paid
+    errors: list[str] = Field(default_factory=list)
+    started_at: str = ""
+    ended_at: str = ""
+
+    _volatile_fields = frozenset({"started_at", "ended_at"})
+
+
+class QualificationRun(FactoryModel):
+    """Immutable result of running the suite against one agent profile.
+
+    Stored under ``run_id`` (a ULID) and NEVER overwritten — admission is a
+    separate decision that references one exact run. The configuration digests
+    let the scheduler reject a run whose model/adapter/prompt/suite changed."""
+
+    run_id: str = ""
     agent_profile_id: str
     suite_id: str
     suite_version: str
+    suite_digest: str = ""
+    holdout_digest: str = ""
+    config_digest: str = ""
+    prompt_version: str = "v1"
+    tool_profile: str = "default"
+    requested_model_id: str = ""
+    actual_models: list[str] = Field(default_factory=list)
+    probe_run_id: str = ""
     dimension_scores: dict[str, float] = Field(default_factory=dict)
     task_class_scores: dict[str, float] = Field(default_factory=dict)
     cases_passed: int = 0
     cases_total: int = 0
     roles_admitted: list[AdmissionRole] = Field(default_factory=list)
+    tokens_in: int = 0
+    tokens_out: int = 0
+    cost_usd: float = 0.0
     billable: bool = False
     ran_at: str = ""
     expires_at: str = ""
 
     _volatile_fields = frozenset({"ran_at", "expires_at"})
+
+
+class AdmissionDecision(FactoryModel):
+    """An immutable admission decision referencing ONE qualification run.
+
+    Roles are computed from that run's evidence (or explicitly granted by an
+    operator, recorded as such). Admitting roles never mutates the underlying
+    qualification evidence."""
+
+    decision_id: str
+    agent_profile_id: str
+    qualification_run_id: str
+    roles: list[AdmissionRole] = Field(default_factory=list)
+    method: str = "evidence"  # evidence | operator-override
+    config_digest: str = ""
+    expires_at: str = ""
+    decided_at: str = ""
+    detail: str = ""
+
+    _volatile_fields = frozenset({"decided_at"})
+
+
+class OwnershipEvidence(FactoryModel):
+    """Digest-bound evidence that a repository path OWNS a semantic subject.
+
+    A parsed RDF declaration alone is only a *candidate*. A *verified* owner
+    must be supported by explicit evidence: a USF layout/materialisation
+    contract, a generator input-output declaration, a manifest/registry entry,
+    or an append-only operator approval. Ownership is what authorizes a semantic
+    write scope — candidate ownership never suffices."""
+
+    subject: str
+    owner_path: str
+    evidence_kind: str  # layout-contract | artifact-contract | generator | manifest | operator
+    source_reference: str = ""  # tool/file that supplied the evidence
+    source_digest: str = ""
+    repository_commit: str = ""
+    parser_version: str = "own-v1"
+    verified: bool = False
+    verified_at: str = ""
+    revalidate_after: str = ""  # expiry / revalidation trigger
+    detail: str = ""
+
+    _volatile_fields = frozenset({"verified_at"})
+
+    @property
+    def evidence_id(self) -> str:
+        return stable_id(
+            "own",
+            {
+                "subject": self.subject,
+                "owner_path": self.owner_path,
+                "evidence_kind": self.evidence_kind,
+                "repository_commit": self.repository_commit,
+            },
+        )
 
 
 class ModelTaskScore(FactoryModel):

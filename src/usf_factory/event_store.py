@@ -36,6 +36,11 @@ _RECORD_TABLES: dict[str, list[str]] = {
     "agent_profiles": [],
     "qualification_suites": [],
     "qualification_runs": ["agent_profile_id", "expires_at"],
+    # Immutable probe runs (keyed by run_id) and admission decisions.
+    "probe_runs": ["agent_profile_id"],
+    "admission_decisions": ["agent_profile_id", "qualification_run_id"],
+    # Append-only, digest-bound ownership evidence (subject -> owner path).
+    "ownership_evidence": ["subject", "owner_path", "verified"],
     "task_classes": [],
     "model_task_scores": ["agent_profile_id", "task_class", "dimension"],
     "semantic_snapshots": ["authority_digest", "repository_head"],

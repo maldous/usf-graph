@@ -198,21 +198,46 @@ def build_run(
     trust: TrustPolicy,
     billable: bool = False,
     expiry_days: int = 30,
+    run_id: str = "",
+    config_digest: str = "",
+    requested_model_id: str = "",
+    prompt_version: str = "v1",
+    tool_profile: str = "default",
+    probe_run_id: str = "",
+    actual_models: list[str] | None = None,
+    holdout_digest: str = "",
+    tokens_in: int = 0,
+    tokens_out: int = 0,
+    cost_usd: float = 0.0,
 ) -> QualificationRun:
+    from .ids import ulid
+
     dim_scores, tc_scores, passed, total = score_answers(suite, answers)
     roles = compute_admission_roles(dim_scores, trust)
     return QualificationRun(
+        run_id=run_id or f"qual-{ulid()}",
         agent_profile_id=agent_profile_id,
         suite_id=suite.suite_id,
         suite_version=suite.version,
+        suite_digest=suite.suite_digest(),
+        holdout_digest=holdout_digest,
+        config_digest=config_digest,
+        prompt_version=prompt_version,
+        tool_profile=tool_profile,
+        requested_model_id=requested_model_id,
+        actual_models=actual_models or [],
+        probe_run_id=probe_run_id,
         dimension_scores=dim_scores,
         task_class_scores=tc_scores,
         cases_passed=passed,
         cases_total=total,
         roles_admitted=roles,
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
+        cost_usd=cost_usd,
         billable=billable,
         ran_at=utc_now_iso(),
-        expires_at="",  # engine stamps concrete expiry
+        expires_at="",  # engine/admission stamps concrete expiry
     )
 
 
