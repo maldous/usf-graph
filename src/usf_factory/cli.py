@@ -757,31 +757,90 @@ def maintenance_gc() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def _build_index():
-    """Snapshot-bound build: from the factory mirror at the current USF head
-    (git object store — uncommitted /usf working-tree content can never leak in)."""
+def _build_index(ctx=None):
+    """Snapshot-bound build from the factory mirror at the current USF head, with
+    stored ownership evidence applied (verified owners marked)."""
     from .isolation import RepoIsolation
     from .materialisation import build_index_at
+    from .ownership import verify_index
 
-    with _ctx() as ctx:
-        iso = RepoIsolation(ctx.paths, ctx.usf_repo)
+    def _go(c):
+        iso = RepoIsolation(c.paths, c.usf_repo)
         iso.ensure_mirror()
-        return build_index_at(ctx.paths.mirror, iso.usf_head())
+        idx = build_index_at(c.paths.mirror, iso.usf_head())
+        verify_index(c, idx)
+        return idx
+
+    if ctx is not None:
+        return _go(ctx)
+    with _ctx() as c:
+        return _go(c)
 
 
 @mat_app.command("build")
 def materialisation_build() -> None:
     """Build the subject->materialisation index from the factory mirror at the
-    current USF head (read-only; snapshot-bound)."""
+    current USF head (read-only; snapshot-bound; ownership evidence applied)."""
     idx = _build_index()
     console.print(
         Panel(
             f"version: {idx.index_version}\nsource_digest: {idx.source_digest}\n"
             f"source_commit: {idx.source_commit}\nsnapshot_bound: {idx.snapshot_bound}\n"
             f"subjects indexed: {len(idx.entries)}\n"
-            f"verified owners: {sum(1 for e in idx.entries.values() if e.verified)}",
+            f"candidate owners: {len(idx.candidates())}\n"
+            f"verified owners: {len(idx.verified())}",
             title="materialisation index",
         )
+    )
+
+
+@mat_app.command("candidates")
+def materialisation_candidates(limit: int = typer.Option(40, "--limit")) -> None:
+    """List subjects with a CANDIDATE (parsed, unverified) owner. These may NOT
+    authorize a semantic write until verified via evidence or `approve`."""
+    idx = _build_index()
+    cands = idx.candidates()
+    table = Table(title=f"candidate owners ({len(cands)}) — NOT write-authorizing")
+    for col in ("subject", "candidate owner(s)", "method"):
+        table.add_column(col)
+    for e in cands[:limit]:
+        table.add_row(e.subject[-48:], ", ".join(e.candidate_owners)[:60], e.method)
+    console.print(table)
+
+
+@mat_app.command("verify")
+def materialisation_verify(limit: int = typer.Option(40, "--limit")) -> None:
+    """List subjects with a VERIFIED (evidence-backed) owner — the only ones that
+    may authorize a semantic write scope."""
+    idx = _build_index()
+    ver = idx.verified()
+    table = Table(title=f"verified owners ({len(ver)})")
+    for col in ("subject", "verified owner", "evidence"):
+        table.add_column(col)
+    for e in ver[:limit]:
+        table.add_row(e.subject[-48:], e.verified_owner or "-", e.verification_kind or "-")
+    console.print(table)
+
+
+@mat_app.command("approve")
+def materialisation_approve(
+    subject: str = typer.Argument(..., help="semantic subject IRI"),
+    path: str = typer.Option(..., "--path", help="repository owner path"),
+) -> None:
+    """Record an append-only, digest-bound OPERATOR ownership approval binding a
+    subject to exactly one owner path (verifies a candidate)."""
+    from .errors import ConfigError
+    from .ownership import approve_cli
+
+    with _ctx() as ctx:
+        try:
+            ev = approve_cli(ctx, subject, path)
+        except ConfigError as exc:
+            err.print(f"[red]{exc}[/]")
+            raise typer.Exit(code=1) from None
+    console.print(
+        f"[green]approved[/] {subject} -> {path} "
+        f"(evidence {ev.evidence_id}, commit {ev.repository_commit})"
     )
 
 
@@ -794,7 +853,9 @@ def materialisation_describe(iri: str) -> None:
         raise typer.Exit(code=1)
     console.print(
         Panel(
-            f"owner: {e.owner_path}\nmethod: {e.method}  verified: {e.verified}  conf: {e.confidence}\n"
+            f"candidate owners: {e.candidate_owners}\n"
+            f"verified owner: {e.verified_owner}  ({e.verification_kind or 'unverified'})\n"
+            f"method: {e.method}  verified: {e.verified}  conf: {e.confidence}\n"
             f"shapes: {e.shapes}\nrules: {e.rules}\ntests: {e.tests}\n"
             f"generated: {e.generated_outputs}\nvalidation: {e.validation_profiles}",
             title=iri,

@@ -262,9 +262,7 @@ def test_expired_qualification_is_ineligible(ctx):
     profile = seed_agent(
         ctx.store, roles=[AdmissionRole.READ_ONLY_ANALYST], scores=all_dimension_scores()
     )
-    prof = AgentProfile(
-        **{k: v for k, v in ctx.store.get("agent_profiles", profile.profile_id).items()}
-    )
+    prof = AgentProfile(**dict(ctx.store.get("agent_profiles", profile.profile_id)))
     _d, _r, reason = admission_ineligibility(ctx, prof)
     assert reason is None  # freshly seeded => eligible
     # Expire the admission decision.

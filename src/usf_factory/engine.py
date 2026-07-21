@@ -32,6 +32,7 @@ from .enums import (
 from .errors import SnapshotError
 from .isolation import RepoIsolation
 from .learning import LearningEngine
+from .materialisation import MaterialisationIndex
 from .models import (
     AgentProfile,
     CycleReceipt,
@@ -232,6 +233,20 @@ class FactoryEngine:
                     payload={"error": str(exc)[:300]},
                 )
                 return None
+        # Mark verified owners from stored ownership evidence (operator approvals
+        # + layout-contract), so only evidence-backed owners can authorize writes.
+        if isinstance(index, MaterialisationIndex):
+            try:
+                from .ownership import verify_index
+
+                verify_index(self.ctx, index)
+            except Exception as exc:
+                self.ctx.log_event(
+                    "ownership.verify_failed",
+                    stage="COMPILED",
+                    cycle_id=cycle_id,
+                    payload={"error": str(exc)[:200]},
+                )
         digest = getattr(index, "source_digest", "") if index is not None else ""
         if digest:
             self.ctx.store.put(
