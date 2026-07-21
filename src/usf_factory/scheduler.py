@@ -48,6 +48,12 @@ class SchedulableAgent:
     circuit_open: bool = False
     latency_ms: float = 1000.0
     cost_usd: float = 0.0
+    # Token/cache efficiency signals (observed; neutral 0 when unproven). These
+    # only rank models that already pass the hard eligibility gates.
+    uncached_ratio: float = 0.0  # uncached input share (penalty)
+    cache_reuse: float = 0.0  # cache-read share (reward)
+    expected_context_expansion: float = 0.0  # NEEDS_CONTEXT retry rate (penalty)
+    prior_validation_success: float = 0.0  # accepted+validated share (reward)
 
     @property
     def profile_id(self) -> str:
@@ -168,6 +174,13 @@ class Scheduler:
             "latency": w.get("latency", 0.0) * latency_norm,
             "cost": w.get("cost", 0.0) * cost_norm,
             "quota_risk": w.get("quota_risk", 0.0) * quota_risk,
+            # Token/cache efficiency (observed): reward cache reuse + prior
+            # validation success; penalize uncached input + expected context
+            # expansion. Config-driven; hard gates already applied in _eligibility.
+            "uncached_cost": w.get("uncached_cost", 0.0) * agent.uncached_ratio,
+            "cache_reuse": w.get("cache_reuse", 0.0) * agent.cache_reuse,
+            "context_expansion": w.get("context_expansion", 0.0) * agent.expected_context_expansion,
+            "prior_validation": w.get("prior_validation", 0.0) * agent.prior_validation_success,
         }
         return sum(breakdown.values()), breakdown
 

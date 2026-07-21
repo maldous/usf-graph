@@ -24,10 +24,14 @@ from .models import AgentProfile, Packet, PacketResult
 from .sandbox import scan_secrets, validate_patch_scope
 
 # Strict result contract: unknown fields are rejected, status is a closed enum.
+# NEEDS_CONTEXT requests ONE more bounded, already-authorized excerpt (see §4).
 WORKER_RESULT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
-        "status": {"type": "string", "enum": ["COMPLETED", "FAILED", "HUMAN_DECISION_REQUIRED"]},
+        "status": {
+            "type": "string",
+            "enum": ["COMPLETED", "FAILED", "HUMAN_DECISION_REQUIRED", "NEEDS_CONTEXT"],
+        },
         "patch": {"type": "string"},
         "changed_paths": {"type": "array", "items": {"type": "string"}},
         "semantic_subjects_changed": {"type": "array", "items": {"type": "string"}},
@@ -37,10 +41,38 @@ WORKER_RESULT_SCHEMA: dict[str, Any] = {
         "obligations_discovered": {"type": "array", "items": {"type": "string"}},
         "validation_receipts": {"type": "array", "items": {"type": "object"}},
         "uncertainties": {"type": "array", "items": {"type": "string"}},
+        # NEEDS_CONTEXT only: name an already-authorized path/subject/artifact.
+        "needs_context": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string"},
+                "subject": {"type": "string"},
+                "validation_artifact": {"type": "string"},
+            },
+            "additionalProperties": False,
+        },
     },
     "required": ["status"],
     "additionalProperties": False,
 }
+
+# The stable, byte-identical output contract (kept in the cacheable prefix region).
+WORKER_OUTPUT_CONTRACT = (
+    "You are a USF factory worker. You have NO filesystem, shell, network, or "
+    "repository access — you see ONLY the bounded context below. You may propose "
+    "edits ONLY within the packet write scope. You may NOT push, merge, fetch, "
+    "read secrets, write outside scope, or declare programme completion.\n"
+    "OUTPUT CONTRACT (strict): respond with EXACTLY ONE JSON object and nothing "
+    "else. The first character MUST be '{' and the last '}'. No prose, markdown, or "
+    "code fences. Use ONLY these keys (all optional except `status`): status, patch, "
+    "changed_paths, semantic_subjects_changed, tests_run, evidence_produced, "
+    "obligations_closed, obligations_discovered, validation_receipts, uncertainties, "
+    "needs_context. Put a git unified diff (limited to the write scope, applying "
+    "cleanly with `git apply` against baseHead) in `patch`. If a human decision is "
+    "required return status HUMAN_DECISION_REQUIRED. If (and only if) you require one "
+    "more ALREADY-AUTHORIZED excerpt to proceed, return status NEEDS_CONTEXT with "
+    "needs_context naming an authorized path or subject (one retry only)."
+)
 
 
 def build_worker_instructions(packet: Packet) -> str:
@@ -120,18 +152,45 @@ class AiWorker:
     yields a SCOPE_VIOLATION result rather than a patch.
     """
 
-    def __init__(self, invoke, isolation: RepoIsolation, store=None) -> None:
+    def __init__(
+        self,
+        invoke,
+        isolation: RepoIsolation,
+        store=None,
+        *,
+        ctx=None,
+        source_content_allowed: bool = False,
+        egress_reason: str = "",
+        materialisation_index=None,
+    ) -> None:
         self._invoke = invoke  # async callable(AgentRequest)->AgentResponse
         self._iso = isolation
         self._store = store  # optional Store for CAS patch persistence
+        self._ctx = ctx  # RuntimeContext for building the bounded context pack
+        self._source_ok = source_content_allowed  # per-provider source-egress gate
+        self._egress_reason = egress_reason
+        self._index = materialisation_index
 
-    async def execute(self, packet: Packet, workspace: Path, agent: AgentProfile) -> PacketResult:
+    def _build_pack(self, packet: Packet, extra_paths: list[str] | None = None):
+        from .context_pack import build_context_pack
+
+        return build_context_pack(
+            self._ctx,
+            packet,
+            egress_allowed=self._source_ok,
+            egress_reason=self._egress_reason,
+            index=self._index,
+            extra_paths=extra_paths,
+            result_schema=WORKER_RESULT_SCHEMA,
+        )
+
+    def _request(self, packet: Packet, agent: AgentProfile, instructions: str):
         from .models import AgentRequest
 
-        req = AgentRequest(
+        return AgentRequest(
             agent_profile_id=agent.profile_id,
             packet_id=packet.packet_id,
-            instructions=build_worker_instructions(packet),
+            instructions=instructions,
             provider_id=agent.provider_id,
             requested_model_id=agent.requested_model_id,
             adapter_id=agent.adapter,
@@ -141,23 +200,94 @@ class AiWorker:
             permitted_tools=packet.permitted_tools,
             result_schema=WORKER_RESULT_SCHEMA,
         )
-        try:
-            resp = await self._invoke(req)
-        except Exception as exc:
-            return self._failed(packet, agent, FailureClass.ADAPTER_ERROR, str(exc))
 
-        # Strict, fail-closed parsing. Invalid/absent JSON or an unknown/missing
-        # status is a FAILURE — never a silent COMPLETED.
-        data = _parse_result(resp.output_text)
-        if data is None:
+    def _authorized_extra(self, packet: Packet, needs: dict) -> str | None:
+        """A NEEDS_CONTEXT request is honored ONLY for an already-authorized path
+        or subject (no arbitrary path access)."""
+        path = str(needs.get("path") or "")
+        subj = str(needs.get("subject") or "")
+        authorized = set(packet.read_paths) | set(packet.write_paths)
+        if self._index is not None:
+            for s in packet.semantic_subjects:
+                entry = getattr(self._index, "entries", {}).get(s)
+                if entry is not None:
+                    authorized |= {
+                        *entry.candidate_owners,
+                        *entry.related_paths,
+                        *entry.shapes,
+                        *entry.rules,
+                        *entry.tests,
+                    }
+        if path and path in authorized:
+            return path
+        if subj and subj in set(packet.semantic_subjects) and self._index is not None:
+            entry = getattr(self._index, "entries", {}).get(subj)
+            if entry is not None:
+                for p in [*entry.candidate_owners, *entry.related_paths, *entry.shapes]:
+                    return p
+        return None
+
+    async def execute(self, packet: Packet, workspace: Path, agent: AgentProfile) -> PacketResult:
+        # EGRESS: a MUTATING packet requires authorized source content. Without it
+        # the producer cannot safely edit real source => EGRESS_BLOCKED (fail closed).
+        if packet.write_paths and self._ctx is not None and not self._source_ok:
             return self._failed(
-                packet, agent, FailureClass.WORKER_ERROR, "result was not valid JSON"
+                packet,
+                agent,
+                FailureClass.ADAPTER_ERROR,
+                f"EGRESS_BLOCKED: source egress not authorized ({self._egress_reason or 'provider'})",
             )
-        try:
-            jsonschema.validate(data, WORKER_RESULT_SCHEMA)
-        except jsonschema.ValidationError as exc:
+
+        # Build the bounded context pack (production) or a legacy instruction blob
+        # (tests without a ctx). One NEEDS_CONTEXT expansion retry is allowed.
+        pack = self._build_pack(packet) if self._ctx is not None else None
+        instructions = (
+            pack.render(WORKER_OUTPUT_CONTRACT)
+            if pack is not None
+            else build_worker_instructions(packet)
+        )
+        resp = None
+        data: dict[str, Any] | None = None
+        for attempt in range(2):
+            try:
+                resp = await self._invoke(self._request(packet, agent, instructions))
+            except Exception as exc:
+                return self._failed(packet, agent, FailureClass.ADAPTER_ERROR, str(exc))
+            data = _parse_result(resp.output_text)
+            if data is None:
+                return self._failed(
+                    packet, agent, FailureClass.WORKER_ERROR, "result was not valid JSON"
+                )
+            try:
+                jsonschema.validate(data, WORKER_RESULT_SCHEMA)
+            except jsonschema.ValidationError as exc:
+                return self._failed(
+                    packet,
+                    agent,
+                    FailureClass.WORKER_ERROR,
+                    f"result schema violation: {exc.message}",
+                )
+            if data.get("status") == "NEEDS_CONTEXT" and attempt == 0 and pack is not None:
+                extra = self._authorized_extra(packet, data.get("needs_context") or {})
+                if extra is None:
+                    return self._failed(
+                        packet,
+                        agent,
+                        FailureClass.WORKER_ERROR,
+                        "NEEDS_CONTEXT named an unauthorized or unknown path/subject",
+                    )
+                pack = self._build_pack(packet, extra_paths=[extra])
+                instructions = pack.render(WORKER_OUTPUT_CONTRACT)
+                continue
+            break
+
+        assert resp is not None and data is not None
+        if data.get("status") == "NEEDS_CONTEXT":
             return self._failed(
-                packet, agent, FailureClass.WORKER_ERROR, f"result schema violation: {exc.message}"
+                packet,
+                agent,
+                FailureClass.WORKER_ERROR,
+                "still NEEDS_CONTEXT after one bounded retry",
             )
 
         try:
@@ -257,6 +387,11 @@ class AiWorker:
         elif patch:
             patch_digest = digest_text(patch)
 
+        # A real scope-confined, cleanly-applied, git-derived patch DEMONSTRATES
+        # bounded patch synthesis for this provider (recorded as observed evidence).
+        if patch and workspace is not None:
+            self._record_observation(agent, "bounded_patch_synthesis")
+
         return PacketResult(
             packet_id=packet.packet_id,
             status=status,
@@ -275,8 +410,22 @@ class AiWorker:
             obligations_closed=list(data.get("obligations_closed", [])),
             obligations_discovered=list(data.get("obligations_discovered", [])),
             uncertainties=list(data.get("uncertainties", [])),
+            usage=_usage_dict(resp, agent, pack),
             produced_at=utc_now_iso(),
         )
+
+    def _record_observation(self, agent: AgentProfile, capability: str) -> None:
+        if self._store is None:
+            return
+        import contextlib
+
+        with contextlib.suppress(Exception):
+            self._store.put(
+                "capability_observations",
+                f"{agent.provider_id}:{capability}",
+                {"provider_id": agent.provider_id, "capability": capability},
+                extra={"provider_id": agent.provider_id, "capability": capability},
+            )
 
     def _failed(
         self,
@@ -538,6 +687,38 @@ def _git_effective_diff(workspace: Path) -> tuple[str, list[str]]:
         text=True,
     ).stdout.split()
     return diff, sorted(changed)
+
+
+def _usage_dict(resp: Any, agent: AgentProfile, pack: Any = None) -> dict[str, Any]:
+    """Normalized runtime usage from an AgentResponse for ``PacketResult.usage``.
+
+    Missing metrics are recorded as UNKNOWN (None), never fabricated zeros. Carries
+    requested/actual provider+model, verification, the token/cache breakdown,
+    latency, subscription-reported value, retry/fallback facts, and the context-
+    pack / stable-prefix / task-delta digests for token attribution + routing."""
+    u = resp.usage
+    reported = u is not None
+    return {
+        "requested_provider": agent.provider_id,
+        "requested_model": (u.requested_model if reported else None) or agent.requested_model_id,
+        "actual_provider": resp.actual_provider,
+        "actual_model": resp.actual_model,
+        "actual_model_verified": bool(u.actual_model_verified) if reported else False,
+        "input_tokens": (int(u.input_tokens) if reported else None),
+        "cached_input_tokens": (int(u.cached_input_tokens) if reported else None),
+        "uncached_input_tokens": (int(u.uncached_input_tokens) if reported else None),
+        "cache_creation_tokens": (int(u.cache_creation_tokens) if reported else None),
+        "output_tokens": (int(u.output_tokens) if reported else None),
+        "latency_ms": (u.latency_ms if reported else resp.latency_ms),
+        "provider_reported_cost": (u.provider_reported_cost if reported else None),
+        "subscription_reported_value_usd": (u.provider_reported_cost if reported else None),
+        "fell_back_to_default": (u.fell_back_to_default if reported else None),
+        # True only when token counts were actually reported (disambiguates real 0).
+        "usage_reported": bool(reported and ((u.input_tokens or 0) or (u.output_tokens or 0))),
+        "context_pack_digest": getattr(pack, "context_pack_digest", None),
+        "stable_prefix_digest": getattr(pack, "stable_prefix_digest", None),
+        "task_delta_digest": getattr(pack, "task_delta_digest", None),
+    }
 
 
 def validate_and_list(patch: str) -> list[str]:

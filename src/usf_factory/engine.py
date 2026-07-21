@@ -486,6 +486,9 @@ class FactoryEngine:
             ledger = BudgetLedger(self.ctx.store, limits)
             remaining = limits.global_usd - ledger.spent_total()
             quota_ok = self.ctx.config.safety.allow_billable and remaining >= est_cost
+        from .roster import _profile_metrics
+
+        m = _profile_metrics(self.ctx, profile.profile_id)
         return SchedulableAgent(
             profile=profile,
             provider_id=profile.provider_id,
@@ -497,6 +500,13 @@ class FactoryEngine:
             tools=self._capability_tools(profile),
             quota_ok=quota_ok,
             cost_usd=est_cost,
+            uncached_ratio=(
+                m.get("uncached_per_accepted", 0.0) / max(1.0, (context_tokens or 20000))
+                if m
+                else 0.0
+            ),
+            cache_reuse=m.get("cache_reuse", 0.0) if m else 0.0,
+            prior_validation_success=m.get("accepted_success", 0.0) if m else 0.0,
         )
 
     def _roster_profile_ids(self, role: AdmissionRole | None) -> list[str] | None:
@@ -820,6 +830,34 @@ class FactoryEngine:
             },
         )
         return results
+
+    def _record_profile_metric(
+        self, result: PacketResult, task_class: str, *, accepted: bool, validated: bool
+    ) -> None:
+        """Persist a per-profile/per-task runtime metric row from propagated usage.
+        Unknown token metrics are stored as-is (None) — never fabricated zeros."""
+        import contextlib
+
+        u = result.usage or {}
+        with contextlib.suppress(Exception):
+            self.ctx.store.put(
+                "profile_metrics",
+                f"{result.agent_profile_id}:{task_class}:{result.packet_id}",
+                {
+                    "agent_profile_id": result.agent_profile_id,
+                    "task_class": task_class,
+                    "accepted": 1 if accepted else 0,
+                    "rejected": 0 if accepted else 1,
+                    "semantic_validated": 1 if (accepted and validated) else 0,
+                    "uncached_input_tokens": u.get("uncached_input_tokens"),
+                    "cached_input_tokens": u.get("cached_input_tokens"),
+                    "output_tokens": u.get("output_tokens"),
+                    "latency_ms": u.get("latency_ms"),
+                    "cost_usd": u.get("provider_reported_cost"),
+                    "actual_model": result.actual_model,
+                },
+                extra={"agent_profile_id": result.agent_profile_id, "task_class": task_class},
+            )
 
     def qualify_results(
         self, pset: PacketSet, results: list[PacketResult]
@@ -1154,6 +1192,18 @@ class FactoryEngine:
             post = self.capture_snapshot(cycle_id)
         except Exception:
             post = snap
+
+        # Per-profile/per-task runtime metrics (accepted/rejected + token/cache/cost/
+        # latency from the propagated usage). Unknown metrics stay unrecorded (not
+        # fabricated zeros); they feed roster ranking tie-breaks.
+        validated = bool(getattr(receipt, "all_passed", False))
+        for q in quals:
+            r = results_by_pid.get(q.packet_id)
+            pkt = by_id.get(q.packet_id)
+            if r is not None and pkt is not None:
+                self._record_profile_metric(
+                    r, pkt.task_class, accepted=q.accepted, validated=validated
+                )
 
         # Fail-closed terminal decision.
         fail_reasons: list[str] = []

@@ -62,7 +62,7 @@ def production_worker_factory(ctx: RuntimeContext):
         )
         mutating = mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
         privacy = (pcfg.privacy_class if pcfg else PrivacyClass.EXTERNAL_CLOUD).value
-        source_ok, _why = ctx.config.egress.source_content_allowed(agent.provider_id, privacy)
+        source_ok, egress_why = ctx.config.egress.source_content_allowed(agent.provider_id, privacy)
 
         # Prefer the brokered tool loop; else the bounded context-and-patch worker
         # (AiWorker) — Claude/Codex CLIs are first-class producers this way; else
@@ -77,10 +77,16 @@ def production_worker_factory(ctx: RuntimeContext):
                 source_content_allowed=source_ok,
             )
         if cap.bounded_patch_synthesis:
-            # The orchestrator applies + re-derives the diff in the disposable
-            # clone; the adapter (CLI) never touches the workspace.
+            # The orchestrator builds a bounded, digest-bound context pack from the
+            # mirror at base_head and applies + re-derives the diff in the disposable
+            # clone; the adapter (CLI) never touches the workspace or the repo.
             return AiWorker(
-                adapter.invoke, isolation=RepoIsolation(ctx.paths, ctx.usf_repo), store=ctx.store
+                adapter.invoke,
+                isolation=RepoIsolation(ctx.paths, ctx.usf_repo),
+                store=ctx.store,
+                ctx=ctx,
+                source_content_allowed=source_ok,
+                egress_reason=egress_why,
             )
         return _UnsupportedWorker(f"provider {agent.provider_id} has no safe execution transport")
 
