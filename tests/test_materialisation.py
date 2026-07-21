@@ -75,6 +75,107 @@ def test_unresolved_and_ambiguous_reported(repo):
     assert s.write_paths == []  # quarantined
 
 
+def _git(args, cwd):
+    import subprocess
+
+    subprocess.run(["git", *args], cwd=str(cwd), check=True, capture_output=True, text=True)
+
+
+@pytest.fixture
+def git_repo(repo):
+    """The same fixture tree, committed — so a snapshot-bound index can build."""
+    _git(["init", "-q", "-b", "main"], repo)
+    _git(["config", "user.email", "t@e"], repo)
+    _git(["config", "user.name", "t"], repo)
+    _git(["add", "-A"], repo)
+    _git(["commit", "-q", "-m", "init"], repo)
+    import subprocess
+
+    head = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True
+    ).stdout.strip()
+    return repo, head
+
+
+@pytest.mark.unit
+def test_build_index_at_is_snapshot_bound_and_ignores_working_tree(git_repo):
+    from usf_factory.materialisation import build_index_at
+
+    repo, head = git_repo
+    # Mutate the WORKING TREE after the commit: a new subject appears on disk.
+    (repo / "semantic" / "ontology.ttl").write_text(
+        "@prefix ex: <https://ex/ns#> .\nex:Widget a ex:Class .\nex:Gadget a ex:Class .\n"
+        "ex:Sneaky a ex:Class .\n"
+    )
+    idx = build_index_at(repo, head)
+    assert idx.snapshot_bound is True and idx.source_commit == head
+    assert idx.resolve("https://ex/ns#Gadget") is not None
+    # Uncommitted working-tree content can never leak into the contract.
+    assert idx.resolve("https://ex/ns#Sneaky") is None
+
+
+@pytest.mark.e2e
+def test_semantic_write_scope_comes_from_contract_not_planner(git_repo):
+    """P1-6 scope authority: a semantic obligation's writes come ONLY from the
+    snapshot-bound contract (verified owner); the planner suggestion is ignored."""
+    from usf_factory.materialisation import build_index_at
+
+    repo, head = git_repo
+    cfg = load_config()
+    idx = build_index_at(repo, head)
+    graph = ObligationGraph(
+        snapshot_id="s",
+        obligations=[
+            Obligation(
+                id="o1",
+                root_cause="fix gadget",
+                task_class="shacl-repair",
+                semantic_subjects=["https://ex/ns#Gadget"],
+                suggested_write_scope=["anything/the/planner/wants.py"],  # must be ignored
+                acceptance_criteria=["ok"],
+            )
+        ],
+    )
+    snap = SemanticSnapshot(authority_digest="a", repository_head=head, working_tree_digest="w")
+    pset, findings = compile_packets(graph, snap, cfg.task_classes, materialisation_index=idx)
+    pkt = pset.packets[0]
+    assert pkt.write_paths == ["semantic/ontology.ttl"]  # verified owner, from contract
+    assert pkt.materialisation_digest == idx.source_digest  # bound into the packet
+    assert any("IGNORED" in f for f in findings)
+    # A STALE contract (different head) must not authorize writes.
+    snap2 = SemanticSnapshot(
+        authority_digest="a", repository_head="other-head", working_tree_digest="w"
+    )
+    pset2, findings2 = compile_packets(graph, snap2, cfg.task_classes, materialisation_index=idx)
+    assert pset2.packets[0].write_paths == []
+    assert any("not a snapshot-bound contract" in f for f in findings2)
+
+
+@pytest.mark.unit
+def test_ambiguous_subject_never_gets_contract_writes(git_repo):
+    from usf_factory.materialisation import build_index_at
+
+    repo, head = git_repo
+    cfg = load_config()
+    idx = build_index_at(repo, head)
+    graph = ObligationGraph(
+        snapshot_id="s",
+        obligations=[
+            Obligation(
+                id="o1",
+                root_cause="fix widget",
+                task_class="shacl-repair",
+                semantic_subjects=["https://ex/ns#Widget"],  # two declarations => ambiguous
+                acceptance_criteria=["ok"],
+            )
+        ],
+    )
+    snap = SemanticSnapshot(authority_digest="a", repository_head=head, working_tree_digest="w")
+    pset, findings = compile_packets(graph, snap, cfg.task_classes, materialisation_index=idx)
+    assert pset.packets[0].write_paths == []  # fail closed
+    assert any("ambiguous" in f for f in findings)
+
+
 @pytest.mark.unit
 def test_compiler_uses_index_for_read_scope_not_writes(repo):
     cfg = load_config()

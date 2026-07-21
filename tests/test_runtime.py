@@ -12,8 +12,25 @@ import pytest
 from conftest import FakeAuthority, all_dimension_scores, seed_agent
 from usf_factory.engine import FactoryEngine
 from usf_factory.enums import AdmissionRole, CycleState, RunMode
-from usf_factory.models import Obligation, ObligationGraph
+from usf_factory.models import Obligation, ObligationGraph, WaveReview
 from usf_factory.workers import BrokeredWorker
+
+
+class _TestReviewer:
+    """Deterministic substantive reviewer (provider-diverse stand-in)."""
+
+    def __init__(self, approved=True, risk_flags=None):
+        self._approved = approved
+        self._risk_flags = risk_flags or []
+
+    async def review(self, set_id, wave):
+        return WaveReview(
+            set_id=set_id,
+            reviewer_profile_id="test-reviewer",
+            approved=self._approved,
+            findings=[],
+            risk_flags=list(self._risk_flags),
+        )
 
 
 class _InlinePlanner:
@@ -138,6 +155,8 @@ def test_approve_wave_executes_fixture_packet_end_to_end(ctx, tmp_usf):
                 }
             ),
         ),
+        # A medium-risk wave patch REQUIRES substantive review (P1-12).
+        reviewer_factory=lambda: _TestReviewer(approved=True),
     )
     receipt = asyncio.run(eng.run_cycle(RunMode.APPROVE_WAVE))
 
@@ -264,6 +283,7 @@ def test_failed_validation_blocks_and_does_not_credit_worker(ctx, tmp_usf):
         authority_factory=lambda: FakeAuthority(),
         planner=planner,
         worker_factory=_worker_factory(ctx.store, _writer_chat(content="def (:\n")),
+        reviewer_factory=lambda: _TestReviewer(approved=True),
     )
     receipt = asyncio.run(eng.run_cycle(RunMode.APPROVE_WAVE))
     assert receipt.state is CycleState.BLOCKED
@@ -303,6 +323,77 @@ def test_no_route_blocks_the_wave(ctx, tmp_usf):
     receipt = asyncio.run(eng.run_cycle(RunMode.APPROVE_WAVE))
     assert receipt.state is CycleState.BLOCKED
     assert any("no result" in b for b in receipt.blockers)
+
+
+_IMPL_OBLIGATION = {
+    "id": "obl-impl",
+    "root_cause": "add module",
+    "semantic_subjects": [],
+    "dependencies": [],
+    "acceptance_criteria": ["file created"],
+    "risk": "medium",
+    "task_class": "repository-implementation",
+    "suggested_read_scope": [],
+    "suggested_write_scope": ["gen/thing.py", "tests/test_thing.py"],
+}
+_IMPL_CONTENTS = {
+    "gen/thing.py": "x = 1\n",
+    "tests/test_thing.py": "def test_ok():\n    assert True\n",
+}
+
+
+def _impl_engine(ctx, **kw):
+    seed_agent(
+        ctx.store,
+        roles=[AdmissionRole.READ_ONLY_ANALYST, AdmissionRole.PATCH_PRODUCER],
+        scores=all_dimension_scores(),
+    )
+    return FactoryEngine(
+        ctx,
+        authority_factory=lambda: FakeAuthority(),
+        planner=_InlinePlanner([dict(_IMPL_OBLIGATION)]),
+        worker_factory=_worker_factory(ctx.store, _writer_chat(contents=_IMPL_CONTENTS)),
+        **kw,
+    )
+
+
+@pytest.mark.e2e
+def test_wave_without_reviewer_blocks(ctx, tmp_usf):
+    """A medium-risk (non-mechanical) wave patch with NO reviewer available is
+    BLOCKED — substantive review is required, not just for high risk (P1-12)."""
+    ctx.config.safety.autonomous_safe_enabled = True
+    ctx.config.egress.source_egress_enabled = True
+    ctx.config.egress.provider_overrides = {"test-provider": ["private-source"]}
+    eng = _impl_engine(ctx)  # no reviewer_factory
+    receipt = asyncio.run(eng.run_cycle(RunMode.APPROVE_WAVE))
+    assert receipt.state is CycleState.BLOCKED
+    assert any("review unavailable" in b for b in receipt.blockers)
+    assert receipt.accepted_packets == 0
+
+
+@pytest.mark.e2e
+def test_reviewer_rejection_blocks(ctx, tmp_usf):
+    ctx.config.safety.autonomous_safe_enabled = True
+    ctx.config.egress.source_egress_enabled = True
+    ctx.config.egress.provider_overrides = {"test-provider": ["private-source"]}
+    eng = _impl_engine(
+        ctx, reviewer_factory=lambda: _TestReviewer(approved=False, risk_flags=["broadened scope"])
+    )
+    receipt = asyncio.run(eng.run_cycle(RunMode.APPROVE_WAVE))
+    assert receipt.state is CycleState.BLOCKED
+    assert any("review rejected" in b for b in receipt.blockers)
+
+
+@pytest.mark.unit
+def test_packet_claim_renewal_is_fenced(ctx):
+    """renew_claim extends only the exact active holder (packet, run, token)."""
+    store = ctx.store
+    token = store.claim_packet_fenced("p1", "r1", "engine", "2999-01-01T00:00:00Z")
+    assert token is not None
+    assert store.renew_claim("p1", "r1", token, "2999-01-02T00:00:00Z") is True
+    assert store.renew_claim("p1", "r1", token + 1, "2999-01-02T00:00:00Z") is False  # wrong token
+    store.release_packet("p1", "r1")
+    assert store.renew_claim("p1", "r1", token, "2999-01-03T00:00:00Z") is False  # released
 
 
 _READONLY_OBLIGATION = {

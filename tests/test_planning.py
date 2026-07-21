@@ -105,14 +105,16 @@ def test_packet_compiler_deterministic():
 @pytest.mark.unit
 def test_packet_compiler_defers_oversized():
     cfg = load_config()
-    many = [f"f{i}.ttl" for i in range(50)]  # exceeds shacl-repair max_files=12
+    # repository-implementation is the operator-approved planner-write-scope
+    # class; 50 files exceeds its max_files=20.
+    many = [f"gen/f{i}.py" for i in range(50)]
     graph = ObligationGraph(
         snapshot_id="s",
         obligations=[
             Obligation(
                 id="big",
                 root_cause="rc",
-                task_class="shacl-repair",
+                task_class="repository-implementation",
                 suggested_write_scope=many,
                 acceptance_criteria=["ok"],
             )
@@ -121,6 +123,28 @@ def test_packet_compiler_defers_oversized():
     pset, findings = compile_packets(graph, _snap(), cfg.task_classes)
     assert pset.selected_packet_ids == []  # oversized excluded from selection
     assert any("exceeds task limits" in f for f in findings)
+
+
+@pytest.mark.unit
+def test_unapproved_task_class_write_scope_is_stripped():
+    """A NON-semantic obligation may take planner write scope only when its
+    task class is explicitly operator-approved for it (P1-6 scope authority)."""
+    cfg = load_config()
+    graph = ObligationGraph(
+        snapshot_id="s",
+        obligations=[
+            Obligation(
+                id="w",
+                root_cause="rc",
+                task_class="shacl-repair",  # not planner_write_scope_allowed
+                suggested_write_scope=["semantic/shapes/x.ttl"],
+                acceptance_criteria=["ok"],
+            )
+        ],
+    )
+    pset, findings = compile_packets(graph, _snap(), cfg.task_classes)
+    assert pset.packets[0].write_paths == []  # stripped, fail closed
+    assert any("not approved for planner-supplied write scope" in f for f in findings)
 
 
 @pytest.mark.unit

@@ -74,22 +74,58 @@ def production_worker_factory(ctx: RuntimeContext):
     return make
 
 
+def production_reviewer_factory(ctx: RuntimeContext):
+    """() -> WaveReviewer | raises. Returns a factory yielding an AiReviewer
+    backed by an ADMITTED reviewer-role profile, or None when no qualified
+    reviewer exists — the engine then BLOCKS waves that require review (fail
+    closed; approval is never synthesized)."""
+    from .enums import AdmissionRole
+    from .models import AgentProfile
+    from .providers import build_registry
+    from .review import AiReviewer
+
+    def make():
+        runs = ctx.store.records("qualification_runs")
+        for run in runs:
+            if AdmissionRole.REVIEWER.value not in set(run.get("roles_admitted", [])):
+                continue
+            row = ctx.store.get("agent_profiles", run["agent_profile_id"])
+            if not row:
+                continue
+            profile = AgentProfile(**row)
+            try:
+                adapter = build_registry(ctx).adapter(profile.provider_id)
+            except Exception:
+                continue
+            return AiReviewer(adapter.invoke, profile.profile_id)
+        return None
+
+    return make
+
+
 def build_engine(ctx: RuntimeContext, *, mode: RunMode | None = None):
     """Construct a fully-wired production FactoryEngine.
 
-    Loads the materialisation index for executing modes (analysis-only; it never
-    authorizes writes) and wires the production worker factory.
+    For executing modes the materialisation index is built by the ENGINE from
+    the factory mirror at the exact snapshot head (snapshot-bound => it can act
+    as the write contract for semantic packets); the production worker and
+    reviewer factories are wired in.
     """
     from .engine import FactoryEngine
 
-    index = None
+    materialisation_factory = None
     if mode in (RunMode.SHADOW, RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE):
-        try:
-            from .materialisation import build_index
+        from .materialisation import build_index_at
 
-            index = build_index(ctx.usf_repo)
-        except Exception:
-            index = None
+        def materialisation_factory(mirror, head):
+            return build_index_at(mirror, head)
+
+    def reviewer_factory():
+        return production_reviewer_factory(ctx)()
+
     return FactoryEngine(
-        ctx, worker_factory=production_worker_factory(ctx), materialisation_index=index
+        ctx,
+        worker_factory=production_worker_factory(ctx),
+        materialisation_factory=materialisation_factory,
+        reviewer_factory=reviewer_factory,
     )

@@ -52,6 +52,10 @@ _RECORD_TABLES: dict[str, list[str]] = {
     "routing_decisions": ["packet_id"],
     "cycles": ["state"],
     "budget_events": ["cycle_id", "provider_id"],
+    # Latest OBSERVED health per provider (scheduler fact source; never fabricated).
+    "provider_health": [],
+    # Snapshot-bound materialisation index builds (digest-keyed, per snapshot).
+    "materialisation_indexes": ["snapshot_id"],
 }
 
 _APPEND_TABLES: dict[str, list[str]] = {
@@ -351,6 +355,17 @@ class Store:
     def claim_packet(self, packet_id: str, run_id: str, owner: str, expires_at: str) -> bool:
         """Boolean claim (back-compat wrapper around :meth:`claim_packet_fenced`)."""
         return self.claim_packet_fenced(packet_id, run_id, owner, expires_at) is not None
+
+    def renew_claim(self, packet_id: str, run_id: str, token: int, expires_at: str) -> bool:
+        """Extend an ACTIVE claim's deadline — only for the exact holder (packet,
+        run, token). Returns False when the claim was reaped/reassigned, so the
+        executor can fence the worker out immediately."""
+        cur = self._conn.execute(
+            "UPDATE packet_claims SET expires_at=? "
+            "WHERE packet_id=? AND run_id=? AND token=? AND status='active'",
+            (expires_at, packet_id, run_id, token),
+        )
+        return cur.rowcount == 1
 
     def claim_token_current(self, packet_id: str, token: int) -> bool:
         """True iff ``token`` matches the active, unexpired claim for the packet."""

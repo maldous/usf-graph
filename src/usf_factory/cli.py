@@ -306,6 +306,22 @@ def providers_refresh(
 
     with _ctx() as ctx:
         outcomes = asyncio.run(_go(ctx))
+        # Record OBSERVED provider health (scheduler reads this; unrecorded
+        # providers stay DEGRADED — health is never fabricated).
+        from .clock import utc_now_iso
+        from .enums import HealthStatus
+
+        for pid, o in outcomes.items():
+            ctx.store.put(
+                "provider_health",
+                pid,
+                {
+                    "provider_id": pid,
+                    "status": (HealthStatus.HEALTHY if o.ok else HealthStatus.UNAVAILABLE).value,
+                    "detail": (o.error or "catalogue refreshed")[:200],
+                    "checked_at": utc_now_iso(),
+                },
+            )
     table = Table(title="provider refresh")
     for col in ("provider", "ok", "models", "error"):
         table.add_column(col)
@@ -352,13 +368,27 @@ def models_list(provider: str | None = typer.Option(None, "--provider")) -> None
 
 @models_app.command("probe")
 def models_probe(
+    model: str = typer.Argument(None, help="provider/model to create a profile for"),
     allow_billable: bool = typer.Option(False, "--allow-billable"),
     budget_usd: float = typer.Option(0.0, "--budget-usd"),
 ) -> None:
-    """Run the mechanical probe graders. A zero-cost self-check grades the probe
-    specs against their reference answers (proving the graders execute); live
-    model probing additionally requires --allow-billable + budget."""
+    """Run the mechanical probe graders. With a provider/model argument, the
+    AgentProfile is created/persisted (the admission entry point). A zero-cost
+    self-check grades the probe specs against reference answers (proving the
+    graders execute); live model probing additionally requires --allow-billable
+    + budget and never records fabricated results."""
     from .probes import default_probe_specs, grade_probe
+
+    if model:
+        from .admission import ensure_profile, parse_model_ref
+
+        provider_id, model_id = parse_model_ref(model)
+        with _ctx() as ctx:
+            profile = ensure_profile(ctx, provider_id, model_id)
+        console.print(
+            f"profile persisted: [bold]{profile.profile_id}[/] "
+            f"({provider_id}/{model_id}, adapter={profile.adapter})"
+        )
 
     specs = default_probe_specs()
     # Self-check: grade each probe against a reference "correct" answer.
@@ -388,15 +418,48 @@ def models_probe(
 
 @models_app.command("qualify")
 def models_qualify(
+    model: str = typer.Argument(None, help="provider/model to qualify LIVE (billable; gated)"),
     allow_billable: bool = typer.Option(False, "--allow-billable"),
     budget_usd: float = typer.Option(0.0, "--budget-usd"),
 ) -> None:
-    """Run the USF qualification suite. A zero-cost self-check grades the corpus
-    against reference answers and computes admission roles (proving the scorer
-    executes); live model qualification additionally requires --allow-billable."""
+    """Run the USF qualification suite.
+
+    Without an argument: a zero-cost SELF-CHECK grades the corpus against
+    reference answers (proving the scorer + admission logic execute). The
+    self-check is never stored as model evidence.
+
+    With provider/model: persists the AgentProfile and runs the suite against
+    the LIVE model (billable; requires --allow-billable + budget). A gated run
+    persists the profile only — no fabricated qualification evidence."""
+    import asyncio as _asyncio
     from pathlib import Path
 
     from .qualification import build_run, load_corpus
+
+    if model:
+        from .admission import ensure_profile, parse_model_ref, qualify_live
+        from .errors import ProtectedActionError
+
+        provider_id, model_id = parse_model_ref(model)
+        with _ctx() as ctx:
+            profile = ensure_profile(ctx, provider_id, model_id)
+            console.print(f"profile: [bold]{profile.profile_id}[/]")
+            try:
+                run = _asyncio.run(
+                    qualify_live(ctx, profile, allow_billable=allow_billable, budget_usd=budget_usd)
+                )
+            except ProtectedActionError as exc:
+                console.print(f"[yellow]{exc}[/]")
+                console.print(
+                    "[yellow]profile persisted; NO qualification evidence recorded "
+                    "(live qualification is gated)[/]"
+                )
+                raise typer.Exit(code=0) from None
+        console.print(
+            f"live qualification: {run.cases_passed}/{run.cases_total} passed; "
+            f"roles: {[r.value for r in run.roles_admitted]}"
+        )
+        return
 
     with _ctx() as ctx:
         suite = load_corpus(
@@ -417,17 +480,61 @@ def models_qualify(
         )
     console.print(
         f"qualification self-check: {run.cases_passed}/{run.cases_total} graded; "
-        f"roles from reference answers: {[r.value for r in run.roles_admitted]}"
+        f"roles from reference answers: {[r.value for r in run.roles_admitted]} "
+        f"(self-check; not stored as model evidence)"
     )
-    if not (allow_billable and budget_usd > 0):
-        console.print(
-            "[yellow]live model qualification requires --allow-billable and --budget-usd > 0[/]"
+
+
+@models_app.command("admit")
+def models_admit(
+    profile_id: str = typer.Argument(..., help="agent profile id"),
+    role: str = typer.Option(None, "--role", help="explicit role grant (needs override flag)"),
+    operator_override: bool = typer.Option(
+        False, "--operator-override", help="record an explicit operator role grant"
+    ),
+) -> None:
+    """Compute admitted roles from STORED qualification evidence (default), or
+    record an explicit operator override grant of one role."""
+    from .admission import admit_from_evidence, grant_role_operator_override
+    from .enums import AdmissionRole
+
+    with _ctx() as ctx:
+        if role:
+            if not operator_override:
+                err.print(
+                    "[red]an explicit --role grant bypasses evidence-computed admission; "
+                    "pass --operator-override to record it as an operator decision[/]"
+                )
+                raise typer.Exit(code=1)
+            roles = grant_role_operator_override(ctx, profile_id, AdmissionRole(role))
+            console.print(f"operator override recorded; roles now: {[r.value for r in roles]}")
+            return
+        roles = admit_from_evidence(ctx, profile_id)
+    console.print(f"roles computed from qualification evidence: {[r.value for r in roles]}")
+
+
+@models_app.command("profiles")
+def models_profiles() -> None:
+    """List persisted agent profiles with their qualification/admission facts."""
+    from .admission import list_profiles
+
+    with _ctx() as ctx:
+        rows = list_profiles(ctx)
+    table = Table(title=f"agent profiles ({len(rows)})")
+    for col in ("profile", "provider", "model", "adapter", "roles", "cases"):
+        table.add_column(col)
+    for r in rows:
+        table.add_row(
+            r["profile_id"][:20],
+            r["provider_id"],
+            r["model"],
+            r["adapter"],
+            ",".join(r["roles"]) or "-",
+            r["cases"],
         )
-        return
-    console.print(
-        "[yellow]no zero-cost live model reachable here (ENVIRONMENT_BLOCKED); "
-        "live qualification not performed[/]"
-    )
+    console.print(table)
+    if not rows:
+        console.print("[dim]no profiles yet: use 'models probe <provider/model>'[/]")
 
 
 @models_app.command("leaderboard")
@@ -623,19 +730,26 @@ def maintenance_gc() -> None:
 
 
 def _build_index():
-    from .materialisation import build_index
+    """Snapshot-bound build: from the factory mirror at the current USF head
+    (git object store — uncommitted /usf working-tree content can never leak in)."""
+    from .isolation import RepoIsolation
+    from .materialisation import build_index_at
 
     with _ctx() as ctx:
-        return build_index(ctx.usf_repo)
+        iso = RepoIsolation(ctx.paths, ctx.usf_repo)
+        iso.ensure_mirror()
+        return build_index_at(ctx.paths.mirror, iso.usf_head())
 
 
 @mat_app.command("build")
 def materialisation_build() -> None:
-    """Build the subject->materialisation index over the USF repository (read-only)."""
+    """Build the subject->materialisation index from the factory mirror at the
+    current USF head (read-only; snapshot-bound)."""
     idx = _build_index()
     console.print(
         Panel(
             f"version: {idx.index_version}\nsource_digest: {idx.source_digest}\n"
+            f"source_commit: {idx.source_commit}\nsnapshot_bound: {idx.snapshot_bound}\n"
             f"subjects indexed: {len(idx.entries)}\n"
             f"verified owners: {sum(1 for e in idx.entries.values() if e.verified)}",
             title="materialisation index",

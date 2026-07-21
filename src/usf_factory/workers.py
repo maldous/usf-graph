@@ -303,12 +303,40 @@ class BrokeredWorker:
             validation_runner=self._validation_runner,
             source_content_allowed=self._source_content_allowed,
         )
+        import time
+
+        started = time.monotonic()
         try:
             loop_res = await GenericToolLoop(self._chat, max_turns=self._max_turns).run(
                 packet, broker
             )
         except Exception as exc:
             return self._failed(packet, agent, FailureClass.ADAPTER_ERROR, str(exc))
+        wall_s = round(time.monotonic() - started, 3)
+
+        # ATTRIBUTION: only what the provider actually reported per turn. When
+        # nothing was reported, the requested id is recorded UNVERIFIED — a
+        # router's actual model is never silently equated with the request.
+        models_seen = sorted(
+            {m["actual_model"] for m in loop_res.turn_meta if m.get("actual_model")}
+        )
+        usage = {
+            "actual_models": models_seen,
+            "actual_model_verified": bool(models_seen),
+            "prompt_tokens": sum(
+                int((m.get("usage") or {}).get("prompt_tokens", 0)) for m in loop_res.turn_meta
+            ),
+            "completion_tokens": sum(
+                int((m.get("usage") or {}).get("completion_tokens", 0)) for m in loop_res.turn_meta
+            ),
+            "turns": loop_res.turns,
+            "wall_s": wall_s,
+        }
+        actual_model = (
+            models_seen[0]
+            if len(models_seen) == 1
+            else (";".join(models_seen) if models_seen else agent.requested_model_id)
+        )
 
         if broker.finished is None:
             return self._failed(
@@ -403,7 +431,7 @@ class BrokeredWorker:
             status=status,
             agent_profile_id=agent.profile_id,
             actual_provider=agent.provider_id,
-            actual_model=agent.requested_model_id,
+            actual_model=actual_model,
             base_head=packet.base_head,
             snapshot_id=packet.snapshot_id,
             patch_digest=patch_digest,
@@ -412,6 +440,7 @@ class BrokeredWorker:
             changed_paths=sorted(changed),
             evidence_produced=[analysis_ref] if analysis_ref else [],
             uncertainties=list(broker.finished.get("uncertainties", [])),
+            usage=usage,
             produced_at=utc_now_iso(),
         )
 

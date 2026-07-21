@@ -71,16 +71,20 @@ class AiReviewer:
         resp = await self._invoke(req)
         findings: list[str] = []
         risk_flags: list[str] = []
+        parsed = False
         try:
             data = json.loads(resp.output_text)
             findings = list(data.get("findings", []))
             risk_flags = list(data.get("risk_flags", []))
+            parsed = True
         except (json.JSONDecodeError, TypeError):
             findings = ["reviewer output was not valid JSON"]
+        # Fail closed: unparseable review or any risk flag withholds approval.
         return WaveReview(
             set_id=set_id,
             reviewer_profile_id=self.agent_profile_id,
             advisory=True,
+            approved=parsed and not risk_flags,
             findings=findings,
             risk_flags=risk_flags,
             reviewed_at=utc_now_iso(),

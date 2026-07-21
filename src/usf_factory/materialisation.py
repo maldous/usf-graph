@@ -100,6 +100,12 @@ class MaterialisationIndex:
         self.index_version = index_version
         self.entries: dict[str, MaterialisationEntry] = {}
         self.source_digest: str = ""
+        # Contract binding: set ONLY by build_from_git — the index then describes
+        # the repository AT AN EXACT COMMIT (never a mutable working tree), which
+        # is what allows the compiler to treat verified entries as a write
+        # contract for semantic packets.
+        self.source_commit: str = ""
+        self.snapshot_bound: bool = False
         self._owner_counts: dict[str, set[str]] = {}
 
     # ---- build ---------------------------------------------------------- #
@@ -107,6 +113,8 @@ class MaterialisationIndex:
     def build(
         self, include: tuple[str, ...] = (*_RDF_SUFFIXES, ".rq", ".sparql")
     ) -> MaterialisationIndex:
+        """Build from the working tree. ANALYSIS-ONLY: a working tree is mutable
+        and not bound to any snapshot, so this build never becomes a contract."""
         files = sorted(
             p
             for p in self.root.rglob("*")
@@ -123,6 +131,42 @@ class MaterialisationIndex:
                 continue
             file_digests[rel] = content_digest({"path": rel, "text": text})
             self._index_file(rel, text)
+        return self._finalise(file_digests)
+
+    def build_from_git(
+        self, commit: str, include: tuple[str, ...] = (*_RDF_SUFFIXES, ".rq", ".sparql")
+    ) -> MaterialisationIndex:
+        """Build from the git object store at an EXACT commit (works on the bare
+        factory mirror). Concurrent/uncommitted working-tree content can never
+        leak in, and the result is snapshot-bound => contract-grade."""
+        import subprocess
+
+        ls = subprocess.run(
+            ["git", "-C", str(self.root), "ls-tree", "-r", "--name-only", commit],
+            capture_output=True,
+            text=True,
+        )
+        if ls.returncode != 0:
+            raise ValueError(f"cannot list tree at {commit}: {ls.stderr.strip()[:200]}")
+        files = sorted(p for p in ls.stdout.splitlines() if Path(p).suffix.lower() in include)
+        file_digests: dict[str, str] = {}
+        for rel in files:
+            show = subprocess.run(
+                ["git", "-C", str(self.root), "show", f"{commit}:{rel}"],
+                capture_output=True,
+                text=True,
+            )
+            if show.returncode != 0:
+                continue
+            text = show.stdout
+            file_digests[rel] = content_digest({"path": rel, "text": text})
+            self._index_file(rel, text)
+        self._finalise(file_digests)
+        self.source_commit = commit
+        self.snapshot_bound = True
+        return self
+
+    def _finalise(self, file_digests: dict[str, str]) -> MaterialisationIndex:
         # Resolve ambiguity + confidence.
         for subj, entry in self.entries.items():
             owners = self._owner_counts.get(subj, set())
@@ -244,4 +288,11 @@ class MaterialisationIndex:
 
 
 def build_index(root: Path) -> MaterialisationIndex:
+    """Working-tree build: analysis-only, never contract-grade."""
     return MaterialisationIndex(root).build()
+
+
+def build_index_at(repo: Path, commit: str) -> MaterialisationIndex:
+    """Snapshot-bound build from the git object store at ``commit`` — the ONLY
+    build that may serve as a write contract for semantic packets."""
+    return MaterialisationIndex(repo).build_from_git(commit)

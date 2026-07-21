@@ -250,7 +250,8 @@ class OpenAICompatibleAdapter:
             ) from exc
         if resp.status_code >= 400:
             raise AdapterError(f"{self.config.provider_id} chat HTTP {resp.status_code}")
-        msg = ((resp.json().get("choices") or [{}])[0]).get("message", {})
+        body = resp.json()
+        msg = ((body.get("choices") or [{}])[0]).get("message", {})
         calls = []
         for tc in msg.get("tool_calls") or []:
             fn = tc.get("function", {})
@@ -261,7 +262,18 @@ class OpenAICompatibleAdapter:
             except _json.JSONDecodeError:
                 args = {}
             calls.append({"id": tc.get("id", ""), "name": fn.get("name", ""), "arguments": args})
-        return {"content": msg.get("content") or "", "tool_calls": calls}
+        usage = body.get("usage") or {}
+        return {
+            "content": msg.get("content") or "",
+            "tool_calls": calls,
+            # Attribution facts for THIS turn: the model the provider actually
+            # routed to (may differ from the requested id on routers) + tokens.
+            "actual_model": str(body.get("model") or "") or None,
+            "usage": {
+                "prompt_tokens": _as_int(usage.get("prompt_tokens")) or 0,
+                "completion_tokens": _as_int(usage.get("completion_tokens")) or 0,
+            },
+        }
 
     async def _chat(self, model_id: str, prompt: str) -> AgentResponse:
         url = self._url("/chat/completions")

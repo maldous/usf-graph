@@ -398,6 +398,9 @@ class Packet(FactoryModel):
     required_validation: list[str] = Field(default_factory=list)
     permitted_tools: list[str] = Field(default_factory=list)
     data_classification: str = "private-source"
+    # Digest of the materialisation index consulted at compile time ("" if none)
+    # — binds packet freshness to the exact contract that authorized its scope.
+    materialisation_digest: str = ""
     human_decision_required: bool = False
 
     # conflicts_with is DERIVED from other packets, so it must not participate in
@@ -524,6 +527,10 @@ class PacketResult(FactoryModel):
     scope_violation: bool = False
     failure_class: FailureClass | None = None
     failure_detail: str = ""
+    # Observed execution facts: actual routed models per turn, whether the
+    # attribution was VERIFIED (reported by the provider) or fell back to the
+    # requested id, token counts, wall time. Never fabricated.
+    usage: dict[str, Any] = Field(default_factory=dict)
     produced_at: str = ""
 
     _volatile_fields = frozenset({"produced_at"})
@@ -580,6 +587,10 @@ class WaveReview(FactoryModel):
     set_id: str
     reviewer_profile_id: str | None = None
     advisory: bool = True  # review is never proof
+    # An explicit verdict: a REQUIRED review that is not approved blocks the
+    # wave. Approval never establishes correctness (validation stays
+    # authoritative); rejection is a hard stop.
+    approved: bool = True
     findings: list[str] = Field(default_factory=list)
     risk_flags: list[str] = Field(default_factory=list)
     reviewed_at: str = ""

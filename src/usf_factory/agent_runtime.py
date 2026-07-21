@@ -353,6 +353,10 @@ class ToolLoopResult:
     turns: int
     transcript_digest: str
     stopped_reason: str
+    # Per-turn attribution facts as REPORTED by the provider (actual routed
+    # model, token usage). Empty entries mean the provider reported nothing —
+    # attribution is then explicitly unverified, never assumed.
+    turn_meta: list[dict[str, Any]] = field(default_factory=list)
 
 
 class GenericToolLoop:
@@ -382,9 +386,16 @@ class GenericToolLoop:
         tools = broker.tool_specs()
         turns = 0
         reason = "max_turns"
+        turn_meta: list[dict[str, Any]] = []
         while turns < self.max_turns:
             turns += 1
             reply = await self._chat(messages, tools)
+            turn_meta.append(
+                {
+                    "actual_model": reply.get("actual_model"),
+                    "usage": dict(reply.get("usage") or {}),
+                }
+            )
             content = reply.get("content") or ""
             tool_calls = reply.get("tool_calls") or []
             messages.append({"role": "assistant", "content": content, "tool_calls": tool_calls})
@@ -404,6 +415,7 @@ class GenericToolLoop:
             turns=turns,
             transcript_digest=content_digest({"messages": messages}),
             stopped_reason=reason,
+            turn_meta=turn_meta,
         )
 
 

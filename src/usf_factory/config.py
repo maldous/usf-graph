@@ -124,6 +124,14 @@ class TaskClassDef(_Base):
     default_validation: list[str] = Field(default_factory=list)
     max_files: int = 20
     max_semantic_subjects: int = 25
+    # Scope authority: ONLY a task class the operator explicitly marks here may
+    # take its write scope from the planner's suggestion (an operator-approved,
+    # committed definition). Semantic packets NEVER do — their writes come from
+    # the snapshot-bound materialisation contract alone.
+    planner_write_scope_allowed: bool = False
+    # Explicitly low-risk mechanical work may proceed without substantive wave
+    # review; everything else with a patch requires a real reviewer.
+    mechanical: bool = False
 
 
 class TaskClassConfig(_Base):
@@ -139,6 +147,9 @@ class BudgetConfig(_Base):
     max_packet_wall_s: int = 2 * 3600
     max_planner_wall_s: int = 30 * 60
     max_integration_wall_s: int = 2 * 3600
+    # The initial coordinator lease must cover the SYNCHRONOUS preflight phase
+    # (mirror fetch, recovery), during which the heartbeat cannot renew it.
+    max_preflight_wall_s: int = 900
     max_no_progress_cycles: int = 2
     max_concurrent_workers: int = 2
 

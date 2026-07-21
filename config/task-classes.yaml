@@ -73,6 +73,11 @@ task_classes:
     default_validation: [format, lint, type, unit-tests]
     max_files: 20
     max_semantic_subjects: 10
+    # Operator approval: non-semantic repository work may take its write scope
+    # from the (deterministically compiled) obligation definition. Semantic
+    # classes never get this — their writes come from the materialisation
+    # contract only.
+    planner_write_scope_allowed: true
 
   - task_class: fixture-authoring
     display_name: Negative fixture authoring

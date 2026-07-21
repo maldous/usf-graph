@@ -23,7 +23,9 @@ from .models import (
 )
 
 # Baseline read-only tool profile; editing tools added only when permitted.
-_READ_TOOLS = ["usf_query", "read_file", "list_paths"]
+# These are exactly the broker-implementable tool families (semantic truth is
+# read via the snapshot, not by workers, so there is no usf_query tool).
+_READ_TOOLS = ["list_paths", "read_file"]
 _EDIT_TOOLS = ["edit_file", "write_patch", "run_focused_tests"]
 
 DigestFn = Callable[[str, str], str | None]  # (path, base_head) -> digest|None
@@ -67,15 +69,31 @@ def compile_packets(
 ) -> tuple[PacketSet, list[str]]:
     """Compile an obligation graph into a frozen packet set + compiler findings.
 
-    When ``materialisation_index`` is provided, read/write scope, generated
-    outputs and validation profiles are derived DETERMINISTICALLY from it (the
-    planner's suggested paths are not authoritative). Subjects that are unresolved
-    or ambiguous fail closed: the packet is downgraded to read-only (a
-    mapping-resolution packet), never given a write scope.
+    WRITE-SCOPE AUTHORITY (fail closed):
+
+    - **Semantic packets** (obligations WITH semantic subjects): the planner's
+      suggested write scope is NEVER authoritative — it is ignored with a
+      finding. Writes come ONLY from a snapshot-bound materialisation CONTRACT
+      (``materialisation_index.snapshot_bound`` and built at exactly
+      ``snapshot.repository_head``), and only for VERIFIED owners; unresolved or
+      ambiguous subjects downgrade the packet to read-only. A working-tree or
+      stale index contributes read scope + validation only.
+    - **Non-semantic packets**: the planner's write scope is honoured only when
+      the task class is explicitly marked ``planner_write_scope_allowed`` in the
+      operator-maintained task-class config; otherwise it is stripped.
     """
     tc_by_name = task_classes.by_name()
     findings: list[str] = []
     packets: list[Packet] = []
+
+    index_is_contract = bool(
+        materialisation_index is not None
+        and getattr(materialisation_index, "snapshot_bound", False)
+        and getattr(materialisation_index, "source_commit", "") == snapshot.repository_head
+    )
+    materialisation_digest = (
+        getattr(materialisation_index, "source_digest", "") if materialisation_index else ""
+    )
 
     for obl in graph.obligations:
         task = tc_by_name.get(obl.task_class)
@@ -84,28 +102,56 @@ def compile_packets(
         caps = _required_caps(task)
 
         read_paths = sorted(set(obl.suggested_read_scope))
-        write_paths = sorted(set(obl.suggested_write_scope))
         generated_outputs: list[str] = []
         derived_validation: list[str] = []
 
-        if materialisation_index is not None and obl.semantic_subjects:
-            # The index is QUARANTINED (analysis-only): it enriches READ scope,
-            # generated outputs and validation profiles but never authorizes a
-            # write scope. Writes remain from the explicit obligation scope.
-            scope = materialisation_index.derive_scope(sorted(set(obl.semantic_subjects)))
-            read_paths = sorted(set(read_paths) | set(scope.read_paths))
-            generated_outputs = sorted(set(scope.generated_outputs))
-            derived_validation = sorted(set(scope.validation_profiles))
-            if scope.unresolved:
+        if obl.semantic_subjects:
+            # SEMANTIC packet: planner write scope is never authoritative.
+            if obl.suggested_write_scope:
                 findings.append(
-                    f"obligation {obl.id}: unresolved subjects {scope.unresolved} "
-                    f"(index is analysis-only; not used to authorize writes)"
+                    f"obligation {obl.id}: planner-suggested write scope "
+                    f"{sorted(set(obl.suggested_write_scope))} IGNORED for a semantic "
+                    f"obligation (writes require the materialisation contract)"
                 )
-            if scope.ambiguous:
+            write_paths: list[str] = []
+            if materialisation_index is not None:
+                scope = materialisation_index.derive_scope(
+                    sorted(set(obl.semantic_subjects)), authorize_writes=index_is_contract
+                )
+                read_paths = sorted(set(read_paths) | set(scope.read_paths))
+                generated_outputs = sorted(set(scope.generated_outputs))
+                derived_validation = sorted(set(scope.validation_profiles))
+                write_paths = sorted(set(scope.write_paths))  # verified owners only
+                if not index_is_contract and not scope.write_paths:
+                    findings.append(
+                        f"obligation {obl.id}: materialisation index is not a "
+                        f"snapshot-bound contract; packet compiled read-only"
+                    )
+                if scope.unresolved:
+                    findings.append(
+                        f"obligation {obl.id}: unresolved subjects {scope.unresolved} "
+                        f"(fail closed: no write scope)"
+                    )
+                if scope.ambiguous:
+                    findings.append(
+                        f"obligation {obl.id}: ambiguous subjects {scope.ambiguous} "
+                        f"(fail closed: no write scope)"
+                    )
+            else:
                 findings.append(
-                    f"obligation {obl.id}: ambiguous subjects {scope.ambiguous} "
-                    f"(index is analysis-only; not used to authorize writes)"
+                    f"obligation {obl.id}: no materialisation index; semantic packet "
+                    f"compiled read-only"
                 )
+        else:
+            # NON-SEMANTIC packet: planner write scope only for task classes the
+            # operator explicitly approved for it.
+            write_paths = sorted(set(obl.suggested_write_scope))
+            if write_paths and not (task and task.planner_write_scope_allowed):
+                findings.append(
+                    f"obligation {obl.id}: task class '{obl.task_class}' is not approved "
+                    f"for planner-supplied write scope; stripped {write_paths}"
+                )
+                write_paths = []
 
         input_digests: dict[str, str] = {}
         if digest_fn is not None:
@@ -147,6 +193,7 @@ def compile_packets(
             data_classification=(
                 "private-source" if (write_paths or read_paths) else "private-metadata"
             ),
+            materialisation_digest=materialisation_digest,
             human_decision_required=obl.human_decision_required,
         )
         packets.append(packet)

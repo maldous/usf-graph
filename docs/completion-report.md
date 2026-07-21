@@ -8,10 +8,50 @@ it), **PARTIAL**, **PLANNED**, **ENVIRONMENT_BLOCKED**, **DISABLED_BY_POLICY**.
 
 ```text
 Gated orchestration foundation
-Not ready for live semantic packet execution
-Not ready for autonomous operation
-Not ready for USF delivery or publication
+Not ready for live semantic packet execution   (environment: no reachable model)
+Not ready for autonomous operation             (policy: gates disabled)
+Not ready for USF delivery or publication      (policy: gates disabled)
 ```
+
+## P1 wave (applied on main after the P0 hotfix)
+
+All P1 items from the second review are implemented and tested:
+
+1. **Snapshot-bound materialisation contract (P1-6)** — `build_index_at(mirror,
+   head)` builds from the git object store at the exact snapshot commit (bare
+   mirror; uncommitted /usf content cannot leak in; proven by test). Semantic
+   packets take writes ONLY from verified contract entries — planner write
+   suggestions are ignored with a finding; ambiguous/unresolved subjects and
+   stale/working-tree indexes fail closed to read-only. Non-semantic classes
+   need explicit `planner_write_scope_allowed` (operator-approved config). The
+   index digest is persisted and bound into every packet
+   (`Packet.materialisation_digest`). Live: 10,227 subjects / 10,158 verified
+   owners at /usf HEAD.
+2. **Admission workflow (P1-7)** — `models probe/qualify <provider/model>`
+   persist the AgentProfile from providers.yaml (unknown provider = hard
+   error); `models admit` recomputes roles from STORED qualification evidence
+   vs the trust policy (explicit grants require `--operator-override`, recorded
+   as operator decisions); `models profiles` inventories. A gated qualify
+   persists NO evidence — reference-answer self-checks are never stored as
+   model evidence.
+3. **Honest routing facts (P1-8)** — candidates carry catalogue context/pricing,
+   RECORDED provider health (unrecorded ⇒ DEGRADED), adapter-derived tools
+   (never `*`), and a paid-model quota rule (schedulable only with billing
+   enabled + budget remaining). Dispatch reserves the catalogue-derived
+   estimate, commits usage-derived actual cost, releases on failure.
+4. **Verified attribution (P1-9)** — per-turn provider-REPORTED actual model +
+   token usage flow through the tool loop into `PacketResult.usage`
+   (actual_models, actual_model_verified, prompt/completion tokens, turns,
+   wall_s). A router's actual model is never silently equated with the request.
+5. **Packet claim heartbeats (P1-10)** — `renew_claim` (holder-fenced) runs on a
+   heartbeat during execution; renewal failure cancels the worker immediately;
+   `max_packet_wall_s` is a hard executor timeout; the initial coordinator
+   lease now covers the synchronous preflight phase (`max_preflight_wall_s`).
+6. **Substantive review (P1-12)** — every wave patch requires a real reviewer
+   unless ALL selected packets are explicitly low-risk mechanical; no reviewer
+   available ⇒ BLOCKED; reviewer rejection ⇒ BLOCKED; unparseable review ⇒ not
+   approved. The production reviewer factory yields only ADMITTED
+   reviewer-role profiles.
 
 All protected actions remain disabled by default; the local verification gate
 (`scripts/verify.sh`) is a reproducible operator process, NOT independently
@@ -101,7 +141,7 @@ All protected actions remain **disabled** by default.
 
 - Starting: `56dc957104322ce06168facb73a0ffd472aa382d` (main).
 - Final: this branch `factory/complete-runtime-v1` (see `git log`).
-- Package version: `0.2.0`.
+- Package version: `0.3.0`.
 
 ## Environment (observed)
 
@@ -120,7 +160,7 @@ a deterministic model**, defaults stay disabled.
 | Selected routing decision drives execution | **VERIFIED** | `_resolve_agent` + `test_routing_selects_agent_and_execution_uses_it` |
 | Mode semantics (observe/plan-only/shadow/approve-wave/autonomous-safe) | **VERIFIED** | `test_runtime.py`, `test_e2e.py` |
 | Brokered mutation (tool broker edits workspace; orchestrator derives git diff) | **VERIFIED (fixtures)** | `test_runtime::test_approve_wave_executes_fixture_packet_end_to_end` |
-| Materialisation index (subject→paths/shapes/tests/generated) | **PARTIAL (analysis-only, quarantined)** | `materialisation.py`, `tests/test_materialisation.py`; regex heuristic — **never authorizes writes** (`authorize_writes=False`); a trustworthy parser/manifest-backed, snapshot-bound index remains PLANNED |
+| Materialisation write contract (snapshot-bound, verified owners only; planner writes ignored for semantic packets) | **VERIFIED** | `build_index_at` + compiler scope authority; `tests/test_materialisation.py` (stale/working-tree/ambiguous fail closed) |
 | Broker confinement (real-path containment, scope, .git exclusion, symlink/sibling escape) | **VERIFIED** | `tests/test_agent_runtime.py` adversarial cases |
 | Fail-closed waves (missing/FAILED/rejected/human-decision results, failed integration/validation, unavailable review → BLOCKED; success credited only after integrate+validate) | **VERIFIED** | `tests/test_runtime.py` |
 | Egress: file-scoped packets are private-source; broker rechecks source egress per tool call | **VERIFIED** | `tests/test_egress.py` |
@@ -133,8 +173,11 @@ a deterministic model**, defaults stay disabled.
 | Programme-state compiler from live work-plan/bootstrap contents | **VERIFIED** | `programme_state.py`, `test_programme_state.py` |
 | Real git-apply integration (base checkout, `--index`, git-derived diff) | **VERIFIED** | `test_integration_apply.py`; wave produced in approve-wave e2e |
 | Validation runners; required gate w/o runner **fails** | **VERIFIED** | `validation.py`, `validation_runners.py`; approve-wave runs real ruff/mypy |
-| Budget reservation ledger | **PARTIAL** | `budget.py` reserves pre-dispatch (`test_budget_reservation`); commit/release of ACTUAL cost + live-cost estimation not yet wired (fixture cost is 0) |
-| `models probe` / `models qualify` | **PARTIAL (self-check only)** | CLI runs the real graders + admission on reference answers; invoking a discovered live model is ENVIRONMENT_BLOCKED / billable |
+| Budget reserve → commit(actual) / release, catalogue-derived estimates | **VERIFIED** | engine `_settle_budget`; honest paid-model quota in candidates (`tests/test_p1_runtime.py`) |
+| Admission workflow (`models probe/qualify/admit/profiles`; roles from evidence) | **VERIFIED (workflow)** | `admission.py`, `tests/test_p1_runtime.py`; LIVE qualification remains gated/ENVIRONMENT_BLOCKED and persists no evidence when refused |
+| Routed-model attribution (per-turn actual model + tokens; unverified flagged) | **VERIFIED** | `PacketResult.usage`; `tests/test_p1_runtime.py` |
+| Packet claim heartbeat + fence-and-cancel + executor timeout | **VERIFIED** | `renew_claim`, `_execute_with_claim_heartbeat`; `test_packet_claim_renewal_is_fenced` |
+| Substantive review required for every non-mechanical wave patch | **VERIFIED** | `test_wave_without_reviewer_blocks`, `test_reviewer_rejection_blocks` |
 | Production runtime wiring in the installed CLI | **VERIFIED (wiring)** | `runtime.build_engine` wires worker_factory + index into `usf-factory run`; live exec ENVIRONMENT_BLOCKED |
 | Coordinator lease acquired before preflight recovery/mirror | **VERIFIED** | `run_cycle` reorder |
 | Provider-specific normalizers (OpenRouter) + native Anthropic adapter | **VERIFIED** | `test_p1.py` |
@@ -167,7 +210,7 @@ read-only verification packet), no execution, `/usf` unchanged.
 
 ## Tests / checks
 
-- **167 tests pass** (95 unit, 16 contract, 37 adversarial, 19 e2e).
+- **184 tests pass** (107 unit, 18 contract, 37 adversarial, 22 e2e).
 - `ruff check`, `ruff format --check`, `mypy` clean; wheel builds.
 - Reproducible in a clean venv from the committed `requirements.lock` via
   `scripts/verify.sh --fresh`; `--attest` additionally requires a clean tree and
