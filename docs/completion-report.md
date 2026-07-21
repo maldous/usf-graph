@@ -105,8 +105,22 @@ read-only verification packet), no execution, `/usf` unchanged.
 
 ## Tests / checks
 
-- **141 tests pass** (83 unit, 16 contract, 27 adversarial, 15 e2e).
+- **152 tests pass** (89 unit, 16 contract, 30 adversarial, 17 e2e).
 - `ruff check`, `ruff format --check`, `mypy` clean; wheel builds.
+- Reproduced in a clean venv from the committed `requirements.lock` (mirrors the
+  CI 3.11 job exactly): 152 passed, ruff/mypy clean, wheel built, secret scan
+  clean, `.env` untracked.
+
+### CI runner status (environment, not a code defect)
+
+The CI **workflow content is green** (reproduced above). GitHub-hosted runners,
+however, are not schedulable for this **private repo on a personal account**:
+every run since the first push fails at startup (matrix expands with valid
+`ubuntu-latest` labels → YAML valid, but each job runs ~2 s with **no runner
+assigned and zero steps**, empty log archive). That is the signature of exhausted
+free Actions minutes / a $0 spending limit. Remediation is an **account action**
+(raise the Actions spending limit / add minutes, or make the repo public — public
+repos get free unlimited Actions), not a code change.
 
 ## Security posture (unchanged defaults)
 
