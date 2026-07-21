@@ -280,9 +280,11 @@ defects were **fixed with regression tests**:
 Larger workstreams remain **Planned** and gated (real agent runtime, OS-level
 sandbox, USF programme-state compiler, event-sourced durable state with fencing
 tokens, real git-apply integration, concurrency, per-provider egress, calibrated
-learning, operational controls, protected PR/publication handshake). CI was added
-(`.github/workflows/ci.yml`) so results are reproduced independently. Full status:
-`docs/known-limitations.md`.
+learning, operational controls, protected PR/publication handshake). The repo is
+private and the account keeps GitHub Actions at a $0 spending limit, so hosted
+runners cannot start; by operator decision the CI workflow was removed and quality
+is verified reproducibly with `scripts/verify.sh` (ruff/mypy/pytest/build/secret
+scan, pinned to `requirements.lock`). Full status: `docs/known-limitations.md`.
 
 Test count after the first fix wave: **102 passed**.
 

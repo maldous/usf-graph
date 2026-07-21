@@ -107,20 +107,24 @@ read-only verification packet), no execution, `/usf` unchanged.
 
 - **152 tests pass** (89 unit, 16 contract, 30 adversarial, 17 e2e).
 - `ruff check`, `ruff format --check`, `mypy` clean; wheel builds.
-- Reproduced in a clean venv from the committed `requirements.lock` (mirrors the
-  CI 3.11 job exactly): 152 passed, ruff/mypy clean, wheel built, secret scan
-  clean, `.env` untracked.
+- Reproduced in a clean venv from the committed `requirements.lock` via
+  `scripts/verify.sh --fresh`: 152 passed, ruff/mypy clean, wheel built, secret
+  scan clean, `.env` untracked.
 
-### CI runner status (environment, not a code defect)
+### CI: removed by operator decision — verified locally instead
 
-The CI **workflow content is green** (reproduced above). GitHub-hosted runners,
-however, are not schedulable for this **private repo on a personal account**:
-every run since the first push fails at startup (matrix expands with valid
-`ubuntu-latest` labels → YAML valid, but each job runs ~2 s with **no runner
-assigned and zero steps**, empty log archive). That is the signature of exhausted
-free Actions minutes / a $0 spending limit. Remediation is an **account action**
-(raise the Actions spending limit / add minutes, or make the repo public — public
-repos get free unlimited Actions), not a code change.
+The repository must remain **private** and the account keeps GitHub Actions at a
+**$0 spending limit**, so GitHub-hosted runners cannot be scheduled (every run
+failed at startup with no runner assigned and zero steps — a runner-provisioning
+constraint, never a workflow or code defect). Rather than leave a permanently red
+check, the operator authorized **removing the CI workflow** (`.github/workflows/`
+deleted).
+
+Quality is instead verified with **`scripts/verify.sh`**, which reproduces exactly
+what the workflow used to run, pinned to `requirements.lock`: ruff format-check,
+ruff lint, mypy, pytest, wheel build, and the tracked-file secret scan. Run
+`scripts/verify.sh --fresh` to build a clean lockfile venv first. This is the
+reproducible gate of record; run it before merging any change.
 
 ## Security posture (unchanged defaults)
 
