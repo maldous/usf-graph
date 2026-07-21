@@ -284,7 +284,45 @@ learning, operational controls, protected PR/publication handshake). CI was adde
 (`.github/workflows/ci.yml`) so results are reproduced independently. Full status:
 `docs/known-limitations.md`.
 
-Test count after fixes: **102 passed**.
+Test count after the first fix wave: **102 passed**.
+
+## 14c. Adversarial review — remaining items completed
+
+A second wave implemented the larger review items as real, tested, **gated** code
+(defaults unchanged; no `/usf` mutation, no billable inference, no publication):
+
+- **P0-8** durable state: fencing tokens, coordinator + packet leases
+  (heartbeat/expiry), crash reconciler, ULID cycle ids, CAS fsync + read-back
+  integrity, `synchronous=FULL`, busy-timeout, foreign keys.
+- **P0-6** OS-enforced sandbox (`sandbox_runtime.py`): privilege-drop to `nobody`
+  (blocks reading 0600 `/root/.env` and writing `/usf` — proven by the escape
+  suite), rlimits, no-new-privs, process-group timeout, sanitized env. Honest
+  caveat: namespace FS/network isolation is unavailable in this chroot and is
+  reported as such; mutation stays disabled here for that reason.
+- **P0-5** agent runtime: bounded tool broker + tool-call loop with turn budget;
+  real gated Codex/Claude non-interactive adapters (JSON/JSONL parsing) and an
+  OpenAI tools-chat turn; tested via stub binaries + fake models.
+- **P0-1** deterministic USF programme-state compiler (`ProgrammePlanner`) that
+  derives obligations from live MCP work-plan/bootstrap CONTENTS (not fixtures);
+  the engine now plans from it. Fixtures are test-only.
+- **P0-10** real git-apply integration: base checkout, `git apply --index`,
+  combined diff + changed paths derived from actual git; patches stored in CAS.
+- **P0-9/11/13/7** closed (unknown task classes excluded; missing qual answers
+  score 0; orthogonal roles; sanitized subprocess env).
+- **P1 (implemented, gated):** bounded-concurrency execution; per-provider egress
+  policy; OpenRouter catalogue normalizer + native Anthropic Messages adapter;
+  calibrated learning (immutable raw observations + Beta-Bernoulli); ops
+  (`maintenance backup`/`gc`, CAS GC); prepare-only PR/publication delivery
+  handshake (never pushes).
+
+Still **Planned** (sequenced): full subject→file mapping for mutating packets,
+private holdout store, live health/quota/cost feeding into scheduling, UCB/
+Thompson routing, and the executed push/merge/publish steps. See
+`docs/known-limitations.md` for the authoritative per-item status.
+
+**Test count after this wave: 135 passed** (82 unit, 16 contract, 27
+adversarial, 10 e2e); ruff + mypy clean; wheel builds. Live plan-only cycle
+verified against the USF MCP; `/usf` confirmed unchanged.
 
 ## 15. Disabled protected actions (default)
 

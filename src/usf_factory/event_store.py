@@ -57,6 +57,8 @@ _APPEND_TABLES: dict[str, list[str]] = {
     "events": ["cycle_id", "kind", "stage"],
     "provider_health_events": ["provider_id", "status"],
     "quota_events": ["provider_id"],
+    # Immutable raw learning observations (P1-20): scores are derived projections.
+    "observations": ["stage", "agent_profile_id", "task_class", "dimension"],
 }
 
 
@@ -433,6 +435,40 @@ class Store:
         if digest_bytes(data) != f"sha256:{hexpart}":
             raise OSError(f"CAS integrity check failed on read for {ref}")
         return data
+
+    def referenced_cas_refs(self) -> set[str]:
+        """Every ``cas:sha256:...`` reference appearing in any stored payload."""
+        import re
+
+        pat = re.compile(r"cas:sha256:[0-9a-f]{64}")
+        refs: set[str] = set()
+        tables = list(_RECORD_TABLES) + list(_APPEND_TABLES)
+        for table in tables:
+            for row in self._conn.execute(f"SELECT payload FROM {table}").fetchall():
+                refs.update(pat.findall(row["payload"]))
+        return refs
+
+    def cas_gc(self) -> int:
+        """Delete CAS blobs not referenced by any stored payload. Returns count."""
+        referenced_hex = {r.split("sha256:", 1)[1] for r in self.referenced_cas_refs()}
+        removed = 0
+        for shard1 in self.cas_dir.iterdir() if self.cas_dir.exists() else []:
+            if not shard1.is_dir():
+                continue
+            for shard2 in shard1.iterdir():
+                if not shard2.is_dir():
+                    continue
+                for blob in shard2.iterdir():
+                    if blob.is_file() and blob.name not in referenced_hex:
+                        blob.unlink()
+                        removed += 1
+        return removed
+
+    def backup(self, dest: Path) -> None:
+        """Consistent online backup of the SQLite database via the backup API."""
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(str(dest)) as bck:
+            self._conn.backup(bck)
 
     def cas_has(self, ref: str) -> bool:
         try:

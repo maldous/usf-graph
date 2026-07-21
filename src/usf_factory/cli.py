@@ -31,11 +31,13 @@ providers_app = typer.Typer(no_args_is_help=True, help="Provider discovery and s
 models_app = typer.Typer(no_args_is_help=True, help="Model discovery, probing, qualification.")
 usf_app = typer.Typer(no_args_is_help=True, help="Read-only USF authority (MCP) access.")
 cycle_app = typer.Typer(no_args_is_help=True, help="Cycle phases: snapshot, plan, show, status.")
+maint_app = typer.Typer(no_args_is_help=True, help="Maintenance: backup, garbage collection.")
 app.add_typer(env_app, name="env")
 app.add_typer(providers_app, name="providers")
 app.add_typer(models_app, name="models")
 app.add_typer(usf_app, name="usf")
 app.add_typer(cycle_app, name="cycle")
+app.add_typer(maint_app, name="maintenance")
 
 
 def _ctx() -> RuntimeContext:
@@ -532,6 +534,29 @@ def cycle_show(cycle_id: str | None = typer.Argument(None)) -> None:
 def cycle_status() -> None:
     """Alias for top-level status."""
     status()
+
+
+# --------------------------------------------------------------------------- #
+# maintenance
+# --------------------------------------------------------------------------- #
+
+
+@maint_app.command("backup")
+def maintenance_backup(dest: str = typer.Argument(..., help="destination .sqlite path")) -> None:
+    """Consistent online backup of the state database."""
+    from pathlib import Path
+
+    with _ctx() as ctx:
+        ctx.store.backup(Path(dest))
+    console.print(f"[green]backed up state to {dest}[/]")
+
+
+@maint_app.command("gc")
+def maintenance_gc() -> None:
+    """Garbage-collect unreferenced content-addressed artifacts."""
+    with _ctx() as ctx:
+        removed = ctx.store.cas_gc()
+    console.print(f"[green]removed {removed} unreferenced CAS blob(s)[/]")
 
 
 # --------------------------------------------------------------------------- #

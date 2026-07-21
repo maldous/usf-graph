@@ -99,6 +99,17 @@ class ProviderRegistry:
             return OpenAICompatibleAdapter(
                 cfg, token, allow_billable=allow_billable, transport=self._transport
             )
+        if kind == "anthropic":
+            from .anthropic import AnthropicAdapter
+
+            token = (
+                self.ctx.credential_value(cfg.credential_reference)
+                if cfg.credential_reference and cfg.credential_reference.startswith("env:")
+                else None
+            )
+            return AnthropicAdapter(
+                cfg, token, allow_billable=allow_billable, transport=self._transport
+            )
         if kind == "ollama":
             return OllamaAdapter(cfg, allow_billable=allow_billable, transport=self._transport)
         if kind == "codex_cli":

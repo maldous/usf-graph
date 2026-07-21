@@ -76,10 +76,22 @@ class EgressPolicy(_Base):
     allowed: dict[str, list[str]] = Field(default_factory=dict)
     source_egress_enabled: bool = False  # protected; only via --allow-source-egress
     default_data_classification: str = "private-source"
+    # Per-provider overrides: provider_id -> explicitly approved data classifications
+    # (with retention/terms evidence recorded out of band). A provider NOT listed
+    # here may never receive private-source, even if its privacy class would allow.
+    provider_overrides: dict[str, list[str]] = Field(default_factory=dict)
 
     def is_allowed(self, data_classification: str, privacy_class: str) -> bool:
         allowed = self.allowed.get(data_classification, [])
         return privacy_class in allowed
+
+    def provider_approved_for(self, provider_id: str, data_classification: str) -> bool:
+        """True iff this specific provider is explicitly approved for the class.
+
+        local_only never needs approval (it does not egress). For private-source
+        and stricter classes, an explicit per-provider approval is required in
+        addition to the privacy-class rule."""
+        return data_classification in self.provider_overrides.get(provider_id, [])
 
 
 class TaskClassDef(_Base):

@@ -36,3 +36,12 @@ allowed:
   # The most sensitive class never leaves the local machine.
   restricted:
     - local_only
+
+# Per-provider overrides (review P1-19). A provider must be EXPLICITLY approved
+# here (with retention/terms evidence recorded out of band) before it may receive
+# private-source, in addition to the privacy-class rule above. Empty by default:
+# no external provider is approved for private source until an operator adds it.
+provider_overrides: {}
+  # Example (do NOT enable without verifying the provider's data-retention terms):
+  # ollama: [public, private-metadata, private-source]   # local => already safe
+  # groq: [public, private-metadata]

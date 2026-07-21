@@ -156,3 +156,51 @@ class LearningEngine:
             self.TABLE, "agent_profile_id=? AND task_class=?", (agent_profile_id, task_class)
         )
         return {r["dimension"]: r["mean"] for r in rows}
+
+    # ---- calibrated estimates from immutable raw observations (P1-20) ----- #
+
+    def observe(
+        self,
+        stage: str,
+        agent_profile_id: str,
+        task_class: str,
+        dimension: str,
+        value: float,
+        meta: dict | None = None,
+    ) -> None:
+        """Append an immutable raw observation. Score projections derive from these."""
+        self.store.append(
+            "observations",
+            {"value": float(value), "meta": meta or {}},
+            extra={
+                "stage": stage,
+                "agent_profile_id": agent_profile_id,
+                "task_class": task_class,
+                "dimension": dimension,
+            },
+        )
+
+    def beta_estimate(
+        self, agent_profile_id: str, task_class: str, dimension: str, *, z: float = Z_95
+    ) -> tuple[float, float, float, int]:
+        """Calibrated Beta-Bernoulli success estimate from raw observations.
+
+        Returns (mean, ci_low, ci_high, n) using a Jeffreys Beta(0.5+s, 0.5+f)
+        posterior mean and a normal approximation interval. Treats each
+        observation >= 0.5 as a success.
+        """
+        rows = self.store.records(
+            "observations",
+            "stage='worker' AND agent_profile_id=? AND task_class=? AND dimension=?",
+            (agent_profile_id, task_class, dimension),
+        )
+        vals = [float(r.get("value", 0.0)) for r in rows]
+        n = len(vals)
+        successes = sum(1 for v in vals if v >= 0.5)
+        failures = n - successes
+        a = 0.5 + successes
+        b = 0.5 + failures
+        mean = a / (a + b)
+        var = (a * b) / (((a + b) ** 2) * (a + b + 1))
+        half = z * math.sqrt(var)
+        return (round(mean, 4), round(max(0.0, mean - half), 4), round(min(1.0, mean + half), 4), n)

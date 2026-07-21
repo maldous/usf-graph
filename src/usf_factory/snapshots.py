@@ -109,6 +109,19 @@ def compile_snapshot(
     if isinstance(task, dict):
         active_phase = task.get("phase") or task.get("node") or task.get("id")
 
+    # Compile programme obligations from live work-plan/bootstrap CONTENTS. This
+    # is supplementary (fail-open): the authority digest/health above already
+    # fail closed, so a work-plan hiccup must not block snapshotting.
+    from .programme_state import parse_programme_obligations
+
+    work_plan_json: Any = None
+    try:
+        if "usf_work_plan" in tools:
+            work_plan_json = authority.work_plan().json()
+    except Exception:
+        work_plan_json = None
+    programme_obligations = parse_programme_obligations(bootstrap, work_plan_json)
+
     # --- Git (read-only, isolated) --- #
     try:
         repo_head = isolation.usf_head()
@@ -133,6 +146,9 @@ def compile_snapshot(
         unresolved_obligations=unresolved,
         admitted_evidence=evidence,
         open_transactions=[],
+        programme_obligations=programme_obligations,
+        checkpoint_present=checkpoint_digest is not None,
+        ledger_present=ledger_digest is not None,
         health_ok=health_ok,
         mcp_tools=sorted(tools),
         captured_at=utc_now_iso(),

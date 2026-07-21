@@ -36,6 +36,7 @@ from .models import (
     AgentProfile,
     CycleReceipt,
     ObligationGraph,
+    Packet,
     PacketResult,
     PacketSet,
     ResultQualification,
@@ -43,7 +44,12 @@ from .models import (
     SemanticSnapshot,
 )
 from .packet_compiler import compile_packets
-from .planner import DeterministicCritic, FixturePlanner, Planner
+from .planner import (  # noqa: F401 (FixturePlanner used by callers/tests)
+    DeterministicCritic,
+    FixturePlanner,
+    Planner,
+)
+from .programme_state import ProgrammePlanner
 from .result_validation import qualify_result
 from .review import NoopReviewer
 from .scheduler import SchedulableAgent, Scheduler
@@ -83,7 +89,9 @@ class FactoryEngine:
         self.ctx = ctx
         self.iso = RepoIsolation(ctx.paths, ctx.usf_repo)
         self._authority_factory = authority_factory
-        self.planner = planner or FixturePlanner(default_planner_fixture())
+        # Production path: derive obligations deterministically from live authority
+        # (ProgrammePlanner). A fixture planner is used only when injected (tests).
+        self.planner = planner or ProgrammePlanner()
         self.critic = DeterministicCritic()
         self.learning = LearningEngine(ctx.store)
         self._coordinator_token: int | None = None
@@ -294,54 +302,63 @@ class FactoryEngine:
     # Phase 9-10 — execute (non-mutating) + qualify.
     # ------------------------------------------------------------------ #
 
-    async def execute_packets(
-        self, pset: PacketSet, mode: RunMode, cycle_id: str
-    ) -> list[PacketResult]:
+    async def _execute_one(self, packet: Packet, cycle_id: str) -> PacketResult | None:
         from .ids import run_id as make_run_id
 
         worker = DryRunWorker()  # safe runtime: no mutation, no billable inference
-        by_id = {p.packet_id: p for p in pset.packets}
-        results: list[PacketResult] = []
-        for pid in pset.selected_packet_ids:
-            packet = by_id[pid]
-            run_id = make_run_id(cycle_id, pid)
-            # One claim authority — refuse double dispatch — with a fencing token.
-            token = self.ctx.store.claim_packet_fenced(
-                pid, run_id, "engine", self._lease_deadline()
+        pid = packet.packet_id
+        run_id = make_run_id(cycle_id, pid)
+        # One claim authority — refuse double dispatch — with a fencing token.
+        token = self.ctx.store.claim_packet_fenced(pid, run_id, "engine", self._lease_deadline())
+        if token is None:
+            return None
+        workspace = None
+        try:
+            workspace = self.iso.create_workspace(pid, run_id, packet.base_head)
+            agent = AgentProfile(
+                provider_id="dry-run",
+                requested_model_id="dry-run",
+                adapter="dry_run",
+                auth_mode=AuthMode.LOCAL,
             )
-            if token is None:
-                continue
-            workspace = None
-            try:
-                workspace = self.iso.create_workspace(pid, run_id, packet.base_head)
-                agent = AgentProfile(
-                    provider_id="dry-run",
-                    requested_model_id="dry-run",
-                    adapter="dry_run",
-                    auth_mode=AuthMode.LOCAL,
+            result = await worker.execute(packet, workspace, agent)
+            # Fencing: only persist if our claim token is still current.
+            if self.ctx.store.claim_token_current(pid, token):
+                self.ctx.store.put(
+                    "packet_results",
+                    f"{pid}:{run_id}",
+                    result.content_dict(),
+                    extra={"packet_id": pid, "status": result.status.value},
                 )
-                result = await worker.execute(packet, workspace, agent)
-                # Fencing: only persist if our claim token is still current (a
-                # crashed/expired worker whose packet was reclaimed is rejected).
-                if self.ctx.store.claim_token_current(pid, token):
-                    self.ctx.store.put(
-                        "packet_results",
-                        f"{pid}:{run_id}",
-                        result.content_dict(),
-                        extra={"packet_id": pid, "status": result.status.value},
-                    )
-                    results.append(result)
-                else:
-                    self.ctx.log_event(
-                        "execute.fenced",
-                        stage="EXECUTING",
-                        cycle_id=cycle_id,
-                        payload={"packet_id": pid, "reason": "stale claim token"},
-                    )
-            finally:
-                self.ctx.store.release_packet(pid, run_id)
-                if workspace is not None:
-                    self.iso.cleanup(workspace)
+                return result
+            self.ctx.log_event(
+                "execute.fenced",
+                stage="EXECUTING",
+                cycle_id=cycle_id,
+                payload={"packet_id": pid, "reason": "stale claim token"},
+            )
+            return None
+        finally:
+            self.ctx.store.release_packet(pid, run_id)
+            if workspace is not None:
+                self.iso.cleanup(workspace)
+
+    async def execute_packets(
+        self, pset: PacketSet, mode: RunMode, cycle_id: str
+    ) -> list[PacketResult]:
+        import asyncio
+
+        by_id = {p.packet_id: p for p in pset.packets}
+        selected = [by_id[pid] for pid in pset.selected_packet_ids]
+        # Bounded concurrency: at most max_concurrent_workers run at once.
+        sem = asyncio.Semaphore(max(1, self.ctx.config.budgets.max_concurrent_workers))
+
+        async def _guarded(packet: Packet) -> PacketResult | None:
+            async with sem:
+                return await self._execute_one(packet, cycle_id)
+
+        gathered = await asyncio.gather(*(_guarded(p) for p in selected))
+        results = [r for r in gathered if r is not None]
         self.ctx.log_event(
             "execute.done",
             stage="EXECUTING",

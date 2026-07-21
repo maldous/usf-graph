@@ -230,11 +230,12 @@ providers:
     display_name: Anthropic API
     auth_mode: api_token
     credential_reference: env:ANTHROPIC_API_KEY
-    adapter: openai_compatible
+    adapter: anthropic
     base_url: https://api.anthropic.com/v1
     models_endpoint: /models
     privacy_class: external_cloud
     default_enabled: false
     notes: >
-      Disabled unless ANTHROPIC_API_KEY is later supplied. Distinct profile from
-      claude-cli. Never invent this value.
+      Native Anthropic Messages API adapter (x-api-key, anthropic-version,
+      /v1/messages) — NOT OpenAI-compatible. Disabled unless ANTHROPIC_API_KEY is
+      supplied. Distinct profile from claude-cli. Never invent this value.

@@ -15,7 +15,7 @@ from __future__ import annotations
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from .attribution import compute_attribution
 from .canonical import content_digest
@@ -60,9 +60,10 @@ def _git_apply_check(clone: Path, patch_text: str) -> bool:
     return proc.returncode == 0
 
 
-def _git_apply(clone: Path, patch_text: str) -> bool:
+def _git_apply_index(clone: Path, patch_text: str) -> bool:
+    """Apply into the index AND working tree so the combined diff is capturable."""
     proc = subprocess.run(
-        ["git", "-C", str(clone), "apply", "-"],
+        ["git", "-C", str(clone), "apply", "--index", "-"],
         input=patch_text,
         capture_output=True,
         text=True,
@@ -86,6 +87,7 @@ def deterministic_preintegrate(
     base_head: str,
     patch_fetch: PatchFetch | None = None,
     apply_patches: bool = False,
+    store: Any = None,
 ) -> tuple[IntegrationAttempt, WavePatch | None]:
     """Attempt deterministic integration of accepted results.
 
@@ -136,11 +138,25 @@ def deterministic_preintegrate(
         return attempt, wave
 
     # Real application path (used once execution is enabled).
+    # 1) clone + check out the EXACT base commit (populates worktree + index).
     clone = isolation.integration_clone(set_id, base_head)
+    co = subprocess.run(
+        ["git", "-C", str(clone), "checkout", "--force", base_head],
+        capture_output=True,
+        text=True,
+    )
+    if co.returncode != 0:
+        attempt.deterministic_merge_ok = False
+        attempt.semantic_conflicts.append(
+            f"could not checkout base {base_head[:12]}: {co.stderr.strip()[:120]}"
+        )
+        return attempt, None
+
+    # 2) apply each worker patch into the index in a deterministic order.
     applied: list[PacketResult] = []
     for r in sorted(with_patches, key=lambda x: x.packet_id):
         patch = patch_fetch(r) if patch_fetch else ""
-        if not (_git_apply_check(clone, patch) and _git_apply(clone, patch)):
+        if not (_git_apply_check(clone, patch) and _git_apply_index(clone, patch)):
             attempt.deterministic_merge_ok = False
             attempt.semantic_conflicts.append(f"patch for {r.packet_id} failed to apply")
             return attempt, None
@@ -148,13 +164,23 @@ def deterministic_preintegrate(
         attempt.attributions[r.packet_id] = compute_attribution(
             patch, patch, worker_patch_digest=r.patch_digest, reason="applied cleanly"
         )
+
+    # 3) derive the ACTUAL combined diff + changed paths from git (not the model).
     diff = subprocess.run(
-        ["git", "-C", str(clone), "diff", "--cached", "HEAD"], capture_output=True, text=True
+        ["git", "-C", str(clone), "diff", "--cached", base_head], capture_output=True, text=True
     ).stdout
+    names = subprocess.run(
+        ["git", "-C", str(clone), "diff", "--cached", "--name-only", base_head],
+        capture_output=True,
+        text=True,
+    ).stdout
+    changed_paths = sorted(p for p in names.splitlines() if p.strip())
+    patch_ref = store.cas_put_text(diff) if store is not None else None
     wave = WavePatch(
         set_id=set_id,
         patch_digest=content_digest({"diff": diff}),
-        changed_paths=sorted({p for r in applied for p in r.changed_paths}),
+        patch_ref=patch_ref,
+        changed_paths=changed_paths,
         semantic_subjects=sorted({s for r in applied for s in r.semantic_subjects_changed}),
     )
     return attempt, wave

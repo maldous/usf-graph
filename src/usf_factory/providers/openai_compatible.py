@@ -104,24 +104,55 @@ class OpenAICompatibleAdapter:
             model_id = str(it.get("id") or it.get("name") or it.get("model") or "").strip()
             if not model_id:
                 continue
-            out.append(
-                DiscoveredModel(
-                    provider_id=self.config.provider_id,
-                    requested_model_id=model_id,
-                    display_name=str(it.get("name")) if it.get("name") else None,
-                    context_tokens=_as_int(it.get("context_length") or it.get("context_window")),
-                    output_tokens=_as_int(
-                        it.get("max_output_tokens") or it.get("max_completion_tokens")
-                    ),
-                    modalities=[Modality.TEXT],
-                    claims_tools=_as_bool(it.get("supports_tools")),
-                    claims_structured_output=_as_bool(it.get("supports_structured_output")),
-                    prompt_cost_per_mtok=_pricing(it, "prompt"),
-                    output_cost_per_mtok=_pricing(it, "completion"),
-                    raw=_compact_raw(it),
+            if self.config.provider_id == "openrouter":
+                out.append(self._normalize_openrouter(model_id, it))
+            else:
+                out.append(
+                    DiscoveredModel(
+                        provider_id=self.config.provider_id,
+                        requested_model_id=model_id,
+                        display_name=str(it.get("name")) if it.get("name") else None,
+                        context_tokens=_as_int(
+                            it.get("context_length") or it.get("context_window")
+                        ),
+                        output_tokens=_as_int(
+                            it.get("max_output_tokens") or it.get("max_completion_tokens")
+                        ),
+                        modalities=[Modality.TEXT],
+                        claims_tools=_as_bool(it.get("supports_tools")),
+                        claims_structured_output=_as_bool(it.get("supports_structured_output")),
+                        prompt_cost_per_mtok=_pricing(it, "prompt"),
+                        output_cost_per_mtok=_pricing(it, "completion"),
+                        raw=_compact_raw(it),
+                    )
                 )
-            )
         return out
+
+    def _normalize_openrouter(self, model_id: str, it: dict[str, Any]) -> DiscoveredModel:
+        """Provider-specific normalizer capturing OpenRouter's rich catalogue:
+        supported_parameters (tools/reasoning/structured_outputs), context length,
+        max completion tokens, and pricing."""
+        params = it.get("supported_parameters") or []
+        params = [str(p) for p in params] if isinstance(params, list) else []
+        top = it.get("top_provider") or {}
+        pricing = it.get("pricing") or {}
+        free = model_id.endswith(":free") or (str(pricing.get("prompt", "1")) in ("0", "0.0"))
+        return DiscoveredModel(
+            provider_id="openrouter",
+            requested_model_id=model_id,
+            display_name=str(it.get("name")) if it.get("name") else None,
+            context_tokens=_as_int(it.get("context_length")),
+            output_tokens=_as_int(top.get("max_completion_tokens")),
+            modalities=[Modality.TEXT],
+            claims_tools="tools" in params,
+            claims_structured_output="structured_outputs" in params or "response_format" in params,
+            claims_reasoning="reasoning" in params or "include_reasoning" in params,
+            prompt_cost_per_mtok=_openrouter_price(pricing, "prompt"),
+            output_cost_per_mtok=_openrouter_price(pricing, "completion"),
+            free=free,
+            supported_parameters=params,
+            raw=_compact_raw(it),
+        )
 
     # ---- auth probe ----------------------------------------------------- #
 
@@ -287,6 +318,15 @@ def _to_openai_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         else:
             out.append({k: v for k, v in m.items() if k in ("role", "content", "tool_calls")})
     return out
+
+
+def _openrouter_price(pricing: dict[str, Any], kind: str) -> float | None:
+    """OpenRouter prices are per-token strings; convert to per-million-tokens."""
+    val = pricing.get(kind)
+    try:
+        return float(val) * 1_000_000 if val is not None else None
+    except (TypeError, ValueError):
+        return None
 
 
 def _as_int(v: Any) -> int | None:

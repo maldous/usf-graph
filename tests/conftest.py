@@ -75,11 +75,20 @@ def ctx(factory_paths, tmp_usf, env_file):
 class FakeAuthority:
     """A minimal stand-in for UsfAuthorityClient (read-only)."""
 
-    def __init__(self, *, digest="sha256:fakeauthority", triples=1234, graphs=7, unresolved=None):
+    def __init__(
+        self,
+        *,
+        digest="sha256:fakeauthority",
+        triples=1234,
+        graphs=7,
+        unresolved=None,
+        work_plan_items=None,
+    ):
         self._digest = digest
         self._triples = triples
         self._graphs = graphs
         self._unresolved = unresolved or []
+        self._work_plan_items = work_plan_items or []
 
     def __enter__(self):
         return self
@@ -120,6 +129,9 @@ class FakeAuthority:
                 "task": None,
             }
         )
+
+    def work_plan(self, arguments=None):
+        return self._tcr({"items": self._work_plan_items})
 
 
 @pytest.fixture

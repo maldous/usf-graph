@@ -96,6 +96,7 @@ class DiscoveredModel(FactoryModel):
     output_cost_per_mtok: float | None = None
     free: bool | None = None
     deprecation: str | None = None
+    supported_parameters: list[str] = Field(default_factory=list)
     raw: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -307,6 +308,11 @@ class SemanticSnapshot(FactoryModel):
     unresolved_obligations: list[str] = Field(default_factory=list)
     admitted_evidence: list[str] = Field(default_factory=list)
     open_transactions: list[str] = Field(default_factory=list)
+    # Compact programme obligations parsed from the MCP work-plan/bootstrap
+    # contents (id + dependencies + task hints). Drives deterministic planning.
+    programme_obligations: list[dict[str, Any]] = Field(default_factory=list)
+    checkpoint_present: bool = False
+    ledger_present: bool = False
     health_ok: bool = True
     mcp_tools: list[str] = Field(default_factory=list)
     captured_at: str = ""
@@ -623,6 +629,22 @@ class CycleReceipt(FactoryModel):
     ended_at: str = ""
 
     _volatile_fields = frozenset({"started_at", "ended_at"})
+
+
+class DeliveryArtifact(FactoryModel):
+    """A prepared (but NOT pushed) delivery of an accepted wave to usf-graph."""
+
+    set_id: str
+    prepared: bool = False
+    gate_enabled: bool = False
+    branch: str | None = None
+    pr_title: str | None = None
+    pr_body: str | None = None
+    wave_patch_ref: str | None = None
+    reason: str = ""
+    prepared_at: str = ""
+
+    _volatile_fields = frozenset({"prepared_at"})
 
 
 class Event(FactoryModel):

@@ -16,6 +16,11 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+# The COORDINATOR runs as root deliberately: it must read /root/.env (mode 0600)
+# and drop privileges to an unprivileged uid (nobody) when running untrusted
+# worker code — only root can setuid. Worker code therefore executes UNPRIVILEGED
+# via the sandbox (see src/usf_factory/sandbox_runtime.py), which is where the
+# real isolation applies; the coordinator itself only orchestrates.
 User=root
 WorkingDirectory=/root/usf-factory
 # Use the project virtualenv. Adjust the path if you installed elsewhere.

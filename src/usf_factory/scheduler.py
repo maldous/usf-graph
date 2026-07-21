@@ -99,17 +99,24 @@ class Scheduler:
         if agent.context_tokens is not None and agent.context_tokens < caps.min_context_tokens:
             reasons.append("insufficient context window")
 
-        # Data-egress policy.
-        if not self.egress.is_allowed(packet.data_classification, agent.privacy_class.value):
-            reasons.append(
-                f"egress not allowed: {packet.data_classification} -> {agent.privacy_class.value}"
-            )
+        # Data-egress policy. A provider may receive the data class if the
+        # privacy-class rule allows it OR the provider is explicitly approved
+        # (P1-19). Sensitive classes to a non-local provider additionally require
+        # the global source-egress gate AND explicit per-provider approval.
+        data = packet.data_classification
+        pc = agent.privacy_class.value
+        class_ok = self.egress.is_allowed(data, pc)
+        provider_ok = self.egress.provider_approved_for(agent.provider_id, data)
+        if not (class_ok or provider_ok):
+            reasons.append(f"egress not allowed: {data} -> {pc}")
         if (
-            packet.data_classification == "private-source"
+            data in ("private-source", "restricted")
             and agent.privacy_class is not PrivacyClass.LOCAL_ONLY
-            and not self.egress.source_egress_enabled
         ):
-            reasons.append("source egress disabled")
+            if not self.egress.source_egress_enabled:
+                reasons.append("source egress disabled")
+            elif not provider_ok:
+                reasons.append(f"provider {agent.provider_id} not approved for {data}")
 
         if agent.health not in _HEALTH_OK:
             reasons.append(f"health {agent.health.value}")
