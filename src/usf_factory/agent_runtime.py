@@ -30,16 +30,24 @@ ChatFn = Callable[[list[dict[str, Any]], list[dict[str, Any]]], Awaitable[dict[s
 
 @dataclass
 class ToolBroker:
-    """Bounded, scope-checked tools over a packet workspace."""
+    """Bounded, scope-checked tools over a packet workspace.
+
+    When ``mutating`` is True the write tools ACTUALLY edit files in the workspace
+    (confined to the packet write scope); the orchestrator later derives the exact
+    diff from git. When False (shadow), writes are validated but not applied.
+    """
 
     workspace: Path
     packet: Packet
+    mutating: bool = False
+    validation_runner: Any = None  # Callable[[str, Path], tuple[bool, str]] | None
     finished: dict[str, Any] | None = field(default=None, init=False)
+    edits: int = field(default=0, init=False)
 
     # ---- tool schema advertised to the model ---------------------------- #
 
     def tool_specs(self) -> list[dict[str, Any]]:
-        return [
+        specs = [
             _spec(
                 "read_file_range",
                 "Read a bounded line range of a file in scope.",
@@ -58,12 +66,38 @@ class ToolBroker:
                 {"query": _str},
                 ["query"],
             ),
-            _spec(
-                "apply_patch",
-                "Propose a unified diff limited to the write scope.",
-                {"patch": _str},
-                ["patch"],
-            ),
+        ]
+        if self.mutating:
+            specs += [
+                _spec(
+                    "apply_unified_patch",
+                    "Apply a unified diff limited to the write scope.",
+                    {"patch": _str},
+                    ["patch"],
+                ),
+                _spec(
+                    "write_new_file",
+                    "Create/overwrite a file within the write scope.",
+                    {"path": _str, "content": _str},
+                    ["path", "content"],
+                ),
+                _spec(
+                    "run_validation_profile",
+                    "Run a named deterministic validation profile.",
+                    {"name": _str},
+                    ["name"],
+                ),
+            ]
+        else:
+            specs.append(
+                _spec(
+                    "apply_patch",
+                    "Propose (validate only; not applied) a unified diff.",
+                    {"patch": _str},
+                    ["patch"],
+                )
+            )
+        specs.append(
             _spec(
                 "finish_packet",
                 "Finish with a structured result.",
@@ -72,12 +106,12 @@ class ToolBroker:
                         "type": "string",
                         "enum": ["COMPLETED", "FAILED", "HUMAN_DECISION_REQUIRED"],
                     },
-                    "patch": _str,
                     "uncertainties": {"type": "array", "items": _str},
                 },
                 ["status"],
-            ),
-        ]
+            )
+        )
+        return specs
 
     # ---- dispatch -------------------------------------------------------- #
 
@@ -87,6 +121,9 @@ class ToolBroker:
             "list_directory": self._list_directory,
             "search_repository": self._search_repository,
             "apply_patch": self._apply_patch,
+            "apply_unified_patch": self._apply_unified_patch,
+            "write_new_file": self._write_new_file,
+            "run_validation_profile": self._run_validation_profile,
             "finish_packet": self._finish_packet,
         }.get(name)
         if handler is None:
@@ -141,12 +178,64 @@ class ToolBroker:
         return {"hits": hits}
 
     def _apply_patch(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Shadow mode: validate the diff against scope but do NOT apply it."""
         patch = str(args["patch"])
         violations = validate_patch_scope(patch, self.packet.write_paths)
         leaks = scan_secrets(patch)
         if violations or leaks:
             return {"accepted": False, "violations": violations + leaks}
         return {"accepted": True, "changed_paths": parse_unified_diff_paths(patch)}
+
+    def _apply_unified_patch(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Mutating mode: validate scope, then apply the diff to the workspace via git."""
+        import subprocess
+
+        patch = str(args["patch"])
+        violations = validate_patch_scope(patch, self.packet.write_paths)
+        leaks = scan_secrets(patch)
+        if violations or leaks:
+            return {"accepted": False, "violations": violations + leaks}
+        chk = subprocess.run(
+            ["git", "-C", str(self.workspace), "apply", "--check", "-"],
+            input=patch,
+            capture_output=True,
+            text=True,
+        )
+        if chk.returncode != 0:
+            return {
+                "accepted": False,
+                "error": "patch does not apply",
+                "detail": chk.stderr.strip()[:200],
+            }
+        subprocess.run(
+            ["git", "-C", str(self.workspace), "apply", "--index", "-"],
+            input=patch,
+            capture_output=True,
+            text=True,
+        )
+        self.edits += 1
+        return {"accepted": True, "changed_paths": parse_unified_diff_paths(patch)}
+
+    def _write_new_file(self, args: dict[str, Any]) -> dict[str, Any]:
+        path = str(args["path"])
+        if path not in set(self.packet.write_paths):
+            return {"accepted": False, "error": f"path not in write scope: {path}"}
+        target = self._resolve(path)
+        content = str(args.get("content", ""))
+        leaks = scan_secrets(content)
+        if leaks:
+            return {"accepted": False, "violations": leaks}
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+        self.edits += 1
+        return {"accepted": True, "path": path}
+
+    def _run_validation_profile(self, args: dict[str, Any]) -> dict[str, Any]:
+        name = str(args["name"])
+        if self.validation_runner is None:
+            return {"error": "no validation runner configured"}
+        passed, detail = self.validation_runner(name, self.workspace)
+        return {"profile": name, "passed": passed, "detail": detail}
 
     def _finish_packet(self, args: dict[str, Any]) -> dict[str, Any]:
         self.finished = dict(args)

@@ -1,5 +1,16 @@
 # Known limitations & nonconformance
 
+> **Update (branch `factory/complete-runtime-v1`, v0.2.0):** the runtime was
+> substantially completed — routing-driven execution (no more `DryRunWorker`),
+> brokered mutation with orchestrator-derived diffs, a materialisation index,
+> coordinator heartbeat + fencing, real validation runners, budget ledger, and
+> functional probe/qualify self-checks. The authoritative per-capability status
+> is now **`docs/completion-report.md`**. Live mutating execution and native-CLI
+> sandboxing remain **ENVIRONMENT_BLOCKED** in this chroot (no local model,
+> namespaces unavailable); all protected actions stay disabled by default. The
+> table below is retained as the prior baseline.
+
+
 This document records, honestly, the gap between **current reality** and the
 **target** semantic factory, incorporating an external adversarial review. It is
 the authoritative status source; `BUILD_REPORT.md` summarizes it.

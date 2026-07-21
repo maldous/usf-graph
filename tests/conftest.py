@@ -140,3 +140,36 @@ def fake_authority_factory():
         return FakeAuthority()
 
     return make
+
+
+def seed_agent(
+    store, *, roles, scores, provider_id="test-provider", model="test-model", adapter="brokered"
+):
+    """Persist an agent profile + qualification run so the scheduler can route to it."""
+    from usf_factory.enums import AuthMode
+    from usf_factory.models import AgentProfile, QualificationRun
+
+    profile = AgentProfile(
+        provider_id=provider_id, requested_model_id=model, adapter=adapter, auth_mode=AuthMode.LOCAL
+    )
+    store.put("agent_profiles", profile.profile_id, profile.content_dict())
+    run = QualificationRun(
+        agent_profile_id=profile.profile_id,
+        suite_id="test",
+        suite_version="v1",
+        dimension_scores=dict(scores),
+        roles_admitted=list(roles),
+    )
+    store.put(
+        "qualification_runs",
+        profile.profile_id,
+        run.content_dict(),
+        extra={"agent_profile_id": profile.profile_id, "expires_at": ""},
+    )
+    return profile
+
+
+def all_dimension_scores(value=0.95):
+    from usf_factory.enums import SCORE_DIMENSIONS
+
+    return dict.fromkeys(SCORE_DIMENSIONS, value)

@@ -245,6 +245,126 @@ class AiWorker:
         )
 
 
+class BrokeredWorker:
+    """Runs a packet through the bounded tool broker in a real workspace, then the
+    ORCHESTRATOR derives the exact patch from git (never trusts a model-reported
+    diff). The model gets no OS/network access — only broker tools.
+
+    ``mutating`` False => shadow (edits validated, not applied). Billable/live
+    model access is the caller's responsibility (gated).
+    """
+
+    def __init__(
+        self,
+        chat_fn,
+        store=None,
+        *,
+        mutating: bool = True,
+        max_turns: int = 12,
+        validation_runner=None,
+    ) -> None:
+        self._chat = chat_fn
+        self._store = store
+        self._mutating = mutating
+        self._max_turns = max_turns
+        self._validation_runner = validation_runner
+
+    async def execute(self, packet: Packet, workspace: Path, agent: AgentProfile) -> PacketResult:
+        import subprocess
+
+        from .agent_runtime import GenericToolLoop, ToolBroker
+
+        mutating = self._mutating and bool(packet.write_paths)
+        broker = ToolBroker(
+            workspace=workspace,
+            packet=packet,
+            mutating=mutating,
+            validation_runner=self._validation_runner,
+        )
+        try:
+            await GenericToolLoop(self._chat, max_turns=self._max_turns).run(packet, broker)
+        except Exception as exc:
+            return self._failed(packet, agent, FailureClass.ADAPTER_ERROR, str(exc))
+
+        if broker.finished is None:
+            return self._failed(
+                packet, agent, FailureClass.WORKER_ERROR, "loop ended without finish_packet"
+            )
+        status_str = str(broker.finished.get("status", ""))
+        try:
+            status = PacketResultStatus(status_str)
+        except ValueError:
+            return self._failed(packet, agent, FailureClass.WORKER_ERROR, "unknown finish status")
+
+        # Orchestrator-derived patch: stage everything and diff against HEAD.
+        patch = ""
+        changed: list[str] = []
+        if mutating:
+            subprocess.run(
+                ["git", "-C", str(workspace), "add", "-A"], capture_output=True, text=True
+            )
+            patch = subprocess.run(
+                ["git", "-C", str(workspace), "diff", "--cached", "HEAD"],
+                capture_output=True,
+                text=True,
+            ).stdout
+            changed = subprocess.run(
+                ["git", "-C", str(workspace), "diff", "--cached", "--name-only", "HEAD"],
+                capture_output=True,
+                text=True,
+            ).stdout.split()
+
+        # Deterministic scope + secret enforcement on the ACTUAL diff.
+        if patch:
+            violations = validate_patch_scope(patch, packet.write_paths)
+            leaks = scan_secrets(patch)
+            if violations or leaks:
+                return self._failed(
+                    packet,
+                    agent,
+                    FailureClass.SCOPE_VIOLATION,
+                    "; ".join(violations + leaks),
+                    scope_violation=True,
+                )
+        if status is PacketResultStatus.COMPLETED and packet.write_paths and not changed:
+            return self._failed(
+                packet,
+                agent,
+                FailureClass.WORKER_ERROR,
+                "mutating packet completed without any workspace change",
+            )
+
+        patch_ref = self._store.cas_put_text(patch) if (patch and self._store is not None) else None
+        patch_digest = digest_text(patch) if patch else None
+        return PacketResult(
+            packet_id=packet.packet_id,
+            status=status,
+            agent_profile_id=agent.profile_id,
+            actual_provider=agent.provider_id,
+            actual_model=agent.requested_model_id,
+            base_head=packet.base_head,
+            snapshot_id=packet.snapshot_id,
+            patch_digest=patch_digest,
+            patch_ref=patch_ref,
+            changed_paths=sorted(changed),
+            uncertainties=list(broker.finished.get("uncertainties", [])),
+            produced_at=utc_now_iso(),
+        )
+
+    def _failed(self, packet, agent, fc, detail, *, scope_violation=False):
+        return PacketResult(
+            packet_id=packet.packet_id,
+            status=PacketResultStatus.FAILED,
+            agent_profile_id=agent.profile_id,
+            base_head=packet.base_head,
+            snapshot_id=packet.snapshot_id,
+            scope_violation=scope_violation,
+            failure_class=fc,
+            failure_detail=str(detail)[:500],
+            produced_at=utc_now_iso(),
+        )
+
+
 def validate_and_list(patch: str) -> list[str]:
     from .sandbox import parse_unified_diff_paths
 

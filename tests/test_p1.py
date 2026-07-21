@@ -37,14 +37,13 @@ from usf_factory.scheduler import SchedulableAgent, Scheduler
 
 
 @pytest.mark.e2e
-def test_concurrent_execution_runs_all_packets(ctx, tmp_usf):
+def test_plan_only_selects_without_executing(ctx, tmp_usf):
     items = [{"id": f"O{i}", "title": f"indep {i}", "dependencies": []} for i in range(4)]
     eng = FactoryEngine(ctx, authority_factory=lambda: FakeAuthority(work_plan_items=items))
     receipt = asyncio.run(eng.run_cycle(RunMode.PLAN_ONLY))
-    # 4 independent obligations -> 4 packets selected and executed (bounded by
-    # max_concurrent_workers but all complete).
+    # plan-only selects the antichain but performs NO execution (no model mutation).
     assert receipt.selected_packets == 4
-    assert ctx.store.count("packet_results") == 4
+    assert ctx.store.count("packet_results") == 0
 
 
 # ---- P1-19 per-provider egress ---- #

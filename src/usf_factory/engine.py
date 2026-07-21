@@ -22,7 +22,6 @@ from .conflict_graph import build_conflict_edges  # noqa: F401 (re-exported use)
 from .context import RuntimeContext
 from .enums import (
     AdmissionRole,
-    AuthMode,
     CycleState,
     HealthStatus,
     PrivacyClass,
@@ -56,7 +55,6 @@ from .scheduler import SchedulableAgent, Scheduler
 from .snapshots import compile_snapshot
 from .state_machine import CycleStateMachine
 from .validation import compute_terminal_complete, run_validation
-from .workers import DryRunWorker
 
 
 def default_planner_fixture() -> Path:
@@ -85,6 +83,8 @@ class FactoryEngine:
         *,
         authority_factory: Callable[[], UsfAuthorityClient] = UsfAuthorityClient,
         planner: Planner | None = None,
+        worker_factory: Callable[..., object] | None = None,
+        materialisation_index: object | None = None,
     ) -> None:
         self.ctx = ctx
         self.iso = RepoIsolation(ctx.paths, ctx.usf_repo)
@@ -94,7 +94,15 @@ class FactoryEngine:
         self.planner = planner or ProgrammePlanner()
         self.critic = DeterministicCritic()
         self.learning = LearningEngine(ctx.store)
+        # A worker_factory(mode, agent) -> Worker enables real execution. Without
+        # one, executable modes are blocked (no live model wired in this runtime).
+        self._worker_factory = worker_factory
+        self._materialisation_index = materialisation_index
         self._coordinator_token: int | None = None
+        self._lease_lost: bool = False
+
+    # Executing modes (perform packet work); observe/plan-only never execute.
+    _EXECUTING_MODES = (RunMode.SHADOW, RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
 
     # ------------------------------------------------------------------ #
     # Phase 0 — preflight & recovery.
@@ -211,7 +219,11 @@ class FactoryEngine:
             extra={"snapshot_id": snap.snapshot_id},
         )
         pset, comp_findings = compile_packets(
-            graph, snap, self.ctx.config.task_classes, digest_fn=self._mirror_blob_digest
+            graph,
+            snap,
+            self.ctx.config.task_classes,
+            digest_fn=self._mirror_blob_digest,
+            materialisation_index=self._materialisation_index,
         )
         self.ctx.store.put(
             "packet_sets",
@@ -302,42 +314,90 @@ class FactoryEngine:
     # Phase 9-10 — execute (non-mutating) + qualify.
     # ------------------------------------------------------------------ #
 
-    async def _execute_one(self, packet: Packet, cycle_id: str) -> PacketResult | None:
+    def _resolve_agent(self, packet_id: str, cycle_id: str) -> AgentProfile | None:
+        """The agent chosen by the stored routing decision (execution is
+        routing-driven — never a hard-coded worker)."""
+        row = self.ctx.store.get("routing_decisions", f"{packet_id}:{cycle_id}")
+        if not row or not row.get("selected_profile_id"):
+            return None
+        prof = self.ctx.store.get("agent_profiles", row["selected_profile_id"])
+        return AgentProfile(**prof) if prof else None
+
+    async def _execute_one(
+        self, packet: Packet, cycle_id: str, mode: RunMode
+    ) -> PacketResult | None:
         from .ids import run_id as make_run_id
 
-        worker = DryRunWorker()  # safe runtime: no mutation, no billable inference
         pid = packet.packet_id
+        if self._lease_lost:
+            return None  # coordinator ownership uncertain — do not dispatch
+
+        agent = self._resolve_agent(pid, cycle_id)
+        if agent is None:
+            self.ctx.log_event(
+                "execute.no_route",
+                stage="EXECUTING",
+                cycle_id=cycle_id,
+                payload={"packet_id": pid, "reason": "no selected agent profile"},
+            )
+            return None
+        if self._worker_factory is None:
+            self.ctx.log_event(
+                "execute.no_worker",
+                stage="EXECUTING",
+                cycle_id=cycle_id,
+                payload={"packet_id": pid, "reason": "no worker factory wired"},
+            )
+            return None
+        worker: Any = self._worker_factory(mode, agent)
+
+        # Budget reservation before dispatch (free/local reserves 0).
+        from .budget import BudgetLedger, BudgetLimits
+
+        ledger = BudgetLedger(
+            self.ctx.store,
+            BudgetLimits(global_usd=self.ctx.config.budgets.billable_usd),
+        )
+        est = 0.0  # brokered/local fixture execution is free; live cost estimated upstream
+        ok, why = ledger.reserve(cycle_id=cycle_id, provider_id=agent.provider_id, estimate_usd=est)
+        if not ok:
+            self.ctx.log_event(
+                "execute.budget_blocked",
+                stage="EXECUTING",
+                cycle_id=cycle_id,
+                payload={"packet_id": pid, "reason": why},
+            )
+            return None
+
         run_id = make_run_id(cycle_id, pid)
-        # One claim authority — refuse double dispatch — with a fencing token.
-        token = self.ctx.store.claim_packet_fenced(pid, run_id, "engine", self._lease_deadline())
+        # Claim deadline derived from configured wall time + grace (not a flat TTL).
+        deadline = self._lease_deadline(self.ctx.config.budgets.max_packet_wall_s + 600)
+        token = self.ctx.store.claim_packet_fenced(pid, run_id, "engine", deadline)
         if token is None:
             return None
         workspace = None
         try:
-            workspace = self.iso.create_workspace(pid, run_id, packet.base_head)
-            agent = AgentProfile(
-                provider_id="dry-run",
-                requested_model_id="dry-run",
-                adapter="dry_run",
-                auth_mode=AuthMode.LOCAL,
-            )
+            # Mutating modes need a real checkout; shadow does not mutate.
+            checkout = mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
+            workspace = self.iso.create_workspace(pid, run_id, packet.base_head, checkout=checkout)
             result = await worker.execute(packet, workspace, agent)
-            # Fencing: only persist if our claim token is still current.
-            if self.ctx.store.claim_token_current(pid, token):
-                self.ctx.store.put(
-                    "packet_results",
-                    f"{pid}:{run_id}",
-                    result.content_dict(),
-                    extra={"packet_id": pid, "status": result.status.value},
+            # Fencing: only persist if our claim token is still current AND we
+            # still hold the coordinator lease.
+            if self._lease_lost or not self.ctx.store.claim_token_current(pid, token):
+                self.ctx.log_event(
+                    "execute.fenced",
+                    stage="EXECUTING",
+                    cycle_id=cycle_id,
+                    payload={"packet_id": pid, "reason": "stale token / lease lost"},
                 )
-                return result
-            self.ctx.log_event(
-                "execute.fenced",
-                stage="EXECUTING",
-                cycle_id=cycle_id,
-                payload={"packet_id": pid, "reason": "stale claim token"},
+                return None
+            self.ctx.store.put(
+                "packet_results",
+                f"{pid}:{run_id}",
+                result.content_dict(),
+                extra={"packet_id": pid, "status": result.status.value},
             )
-            return None
+            return result
         finally:
             self.ctx.store.release_packet(pid, run_id)
             if workspace is not None:
@@ -350,12 +410,11 @@ class FactoryEngine:
 
         by_id = {p.packet_id: p for p in pset.packets}
         selected = [by_id[pid] for pid in pset.selected_packet_ids]
-        # Bounded concurrency: at most max_concurrent_workers run at once.
         sem = asyncio.Semaphore(max(1, self.ctx.config.budgets.max_concurrent_workers))
 
         async def _guarded(packet: Packet) -> PacketResult | None:
             async with sem:
-                return await self._execute_one(packet, cycle_id)
+                return await self._execute_one(packet, cycle_id, mode)
 
         gathered = await asyncio.gather(*(_guarded(p) for p in selected))
         results = [r for r in gathered if r is not None]
@@ -397,35 +456,62 @@ class FactoryEngine:
 
         return (utc_now() + timedelta(seconds=seconds)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
+    async def _heartbeat(self, cycle_id: str, interval_s: float = 30.0) -> None:
+        """Renew the coordinator lease periodically; on failure set _lease_lost."""
+        import asyncio
+
+        while True:
+            await asyncio.sleep(interval_s)
+            ok = self.ctx.store.renew_lease(
+                "coordinator", cycle_id, self._coordinator_token or 0, self._lease_deadline()
+            )
+            if not ok:
+                self._lease_lost = True
+                self.ctx.log_event(
+                    "coordinator.lease_lost",
+                    stage="EXECUTING",
+                    cycle_id=cycle_id,
+                    payload={"reason": "UNCERTAIN_COORDINATOR_OWNERSHIP"},
+                )
+                return
+
     async def run_cycle(self, mode: RunMode) -> CycleReceipt:
+        import asyncio
+
         from .clock import utc_now_iso
 
         cycle_id = self._next_cycle_id()
         sm = CycleStateMachine()
         started = utc_now_iso()
         blockers: list[str] = []
+        self._lease_lost = False
 
         pre = self.preflight(cycle_id)
         if pre["cycleState"] == "BLOCKED":
             sm.transition(CycleState.BLOCKED)
             return self._finish(cycle_id, mode, sm.state, started, blockers=pre["blockers"])
 
-        # One claim authority: acquire the sole coordinator lease (fencing token).
+        # One claim authority: acquire the sole coordinator lease (fencing token),
+        # with a heartbeat renewing it for the whole cycle.
         self._coordinator_token = self.ctx.store.acquire_lease(
-            "coordinator", cycle_id, self._lease_deadline()
+            "coordinator", cycle_id, self._lease_deadline(120)
         )
         if self._coordinator_token is None:
             sm.transition(CycleState.BLOCKED)
             blockers.append("another coordinator holds the active lease")
             return self._finish(cycle_id, mode, sm.state, started, blockers=blockers)
+        import contextlib
+
+        hb = asyncio.ensure_future(self._heartbeat(cycle_id))
         try:
             return await self._run_cycle_leased(mode, cycle_id, sm, started, blockers)
         finally:
+            hb.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await hb
             self.ctx.store.release_lease("coordinator", cycle_id, self._coordinator_token)
 
     async def _run_cycle_leased(self, mode, cycle_id, sm, started, blockers):
-        from .clock import utc_now_iso  # noqa: F401
-
         sm.transition(CycleState.READY)
 
         # Snapshot (fails closed: a degraded/synthesized authority blocks the cycle).
@@ -440,64 +526,36 @@ class FactoryEngine:
             )
             return self._finish(cycle_id, mode, sm.state, started, blockers=blockers)
 
-        # Plan + compile.
+        # Plan + compile (report proposed packets in all modes).
         sm.transition(CycleState.PLANNED)
         graph, pset, _findings = await self.plan_and_compile(snap, cycle_id)
         sm.transition(CycleState.COMPILED)
-
-        # No-progress detection.
         no_progress = self._detect_no_progress(snap, pset)
 
-        # Schedule.
+        # OBSERVE: snapshot + plan/compile report only. No scheduling/execution.
+        if mode is RunMode.OBSERVE:
+            sm.transition(CycleState.LEARNED)
+            self._eval_terminal(snap, cycle_id)
+            return self._finish(
+                cycle_id,
+                mode,
+                sm.state,
+                started,
+                snapshot=snap,
+                graph=graph,
+                pset=pset,
+                no_progress=no_progress,
+                blockers=blockers,
+            )
+
+        # Schedule (route simulation) in all remaining modes.
         sm.transition(CycleState.SCHEDULED)
         self.schedule_packets(pset, cycle_id)
 
-        if mode in (RunMode.OBSERVE, RunMode.PLAN_ONLY):
-            # Complete the non-mutating pipeline for observability.
-            sm.transition(CycleState.EXECUTING)
-            results = await self.execute_packets(pset, mode, cycle_id)
-            sm.transition(CycleState.INTEGRATING)
-            quals = self.qualify_results(pset, results)
-            accepted = [q for q in quals if q.accepted]
-            from .integration import deterministic_preintegrate
-
-            attempt, wave = deterministic_preintegrate(
-                pset.set_id,
-                [r for r in results if r.packet_id in {q.packet_id for q in accepted}],
-                self.iso,
-                base_head=snap.repository_head,
-            )
-            self.ctx.store.put(
-                "integration_attempts",
-                pset.set_id,
-                attempt.content_dict(),
-                extra={"set_id": pset.set_id},
-            )
-            sm.transition(CycleState.REVIEWING)
-            review = await NoopReviewer().review(pset.set_id, wave)
-            self.ctx.store.put(
-                "wave_reviews",
-                f"{pset.set_id}:{review.reviewer_profile_id}",
-                review.content_dict(),
-                extra={"set_id": pset.set_id},
-            )
-            sm.transition(CycleState.VALIDATING)
-            receipt = run_validation(pset.set_id, [])  # nothing to validate (no wave patch)
-            self.ctx.store.put(
-                "validation_receipts",
-                pset.set_id,
-                receipt.content_dict(),
-                extra={"set_id": pset.set_id},
-            )
+        # PLAN_ONLY: stop after routing. No model mutation.
+        if mode is RunMode.PLAN_ONLY:
             sm.transition(CycleState.LEARNED)
-            # No worker outcomes to learn from in a dry-run (no accepted mutations).
-            complete, reasons = compute_terminal_complete(self.ctx, snap)
-            self.ctx.log_event(
-                "terminal.evaluated",
-                stage="LEARNED",
-                cycle_id=cycle_id,
-                payload={"complete": complete, "reasons": reasons},
-            )
+            self._eval_terminal(snap, cycle_id)
             if no_progress:
                 blockers.append("no progress vs previous cycle")
             return self._finish(
@@ -508,13 +566,15 @@ class FactoryEngine:
                 snapshot=snap,
                 graph=graph,
                 pset=pset,
-                accepted=len(accepted),
                 no_progress=no_progress,
                 blockers=blockers,
             )
 
-        # approve-wave / autonomous-safe: gated + disabled in the safe runtime.
-        if not self.ctx.config.safety.autonomous_safe_enabled:
+        # Executing modes (shadow / approve-wave / autonomous-safe).
+        if (
+            mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
+            and not self.ctx.config.safety.autonomous_safe_enabled
+        ):
             sm.transition(CycleState.BLOCKED)
             blockers.append(
                 f"mode '{mode.value}' requires autonomous_safe_enabled=true (disabled by default)"
@@ -529,11 +589,134 @@ class FactoryEngine:
                 pset=pset,
                 blockers=blockers,
             )
+        if self._worker_factory is None:
+            sm.transition(CycleState.BLOCKED)
+            blockers.append(
+                f"mode '{mode.value}' needs a wired worker runtime; none available "
+                f"(no live/local model + billable disabled) — ENVIRONMENT_BLOCKED"
+            )
+            return self._finish(
+                cycle_id,
+                mode,
+                sm.state,
+                started,
+                snapshot=snap,
+                graph=graph,
+                pset=pset,
+                blockers=blockers,
+            )
 
-        # (Reached only when explicitly enabled by an operator — still never
-        # mutates /usf here; execution uses isolated clones and gated integration.)
-        sm.transition(CycleState.BLOCKED)
-        blockers.append("mutating execution not implemented in this runtime")
+        return await self._execute_wave(
+            mode, cycle_id, sm, started, snap, graph, pset, no_progress, blockers
+        )
+
+    def _eval_terminal(self, snap: SemanticSnapshot, cycle_id: str) -> None:
+        complete, reasons = compute_terminal_complete(self.ctx, snap)
+        self.ctx.log_event(
+            "terminal.evaluated",
+            stage="LEARNED",
+            cycle_id=cycle_id,
+            payload={"complete": complete, "reasons": reasons},
+        )
+
+    async def _execute_wave(
+        self, mode, cycle_id, sm, started, snap, graph, pset, no_progress, blockers
+    ):
+        from .integration import deterministic_preintegrate
+
+        sm.transition(CycleState.EXECUTING)
+        results = await self.execute_packets(pset, mode, cycle_id)
+        quals = self.qualify_results(pset, results)
+        accepted = [q for q in quals if q.accepted]
+        accepted_results = [r for r in results if r.packet_id in {q.packet_id for q in accepted}]
+
+        # Stage-specific learning from real outcomes.
+        by_id = {p.packet_id: p for p in pset.packets}
+        for q in quals:
+            pkt = by_id.get(q.packet_id)
+            res = next((r for r in results if r.packet_id == q.packet_id), None)
+            if pkt is None or res is None:
+                continue
+            self.learning.record_worker_outcome(
+                res.agent_profile_id,
+                pkt.task_class,
+                accepted=q.accepted,
+                failure_class=q.failure_class,
+            )
+            self.learning.observe(
+                "worker",
+                res.agent_profile_id,
+                pkt.task_class,
+                "implementation",
+                1.0 if q.accepted else 0.0,
+            )
+
+        sm.transition(CycleState.INTEGRATING)
+        # shadow mode never integrates; approve-wave/autonomous-safe integrate real patches.
+        apply = mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE) and not self._lease_lost
+
+        def _fetch(r: PacketResult) -> str:
+            return self.ctx.store.cas_get(r.patch_ref).decode() if r.patch_ref else ""
+
+        attempt, wave = deterministic_preintegrate(
+            pset.set_id,
+            accepted_results,
+            self.iso,
+            base_head=snap.repository_head,
+            patch_fetch=_fetch if apply else None,
+            apply_patches=apply,
+            store=self.ctx.store,
+        )
+        self.ctx.store.put(
+            "integration_attempts",
+            pset.set_id,
+            attempt.content_dict(),
+            extra={"set_id": pset.set_id},
+        )
+        if wave is not None:
+            self.ctx.store.put(
+                "wave_patches",
+                wave.patch_digest,
+                wave.content_dict(),
+                extra={"set_id": pset.set_id},
+            )
+
+        sm.transition(CycleState.REVIEWING)
+        review = await NoopReviewer().review(pset.set_id, wave)
+        self.ctx.store.put(
+            "wave_reviews",
+            f"{pset.set_id}:{review.reviewer_profile_id}",
+            review.content_dict(),
+            extra={"set_id": pset.set_id},
+        )
+
+        sm.transition(CycleState.VALIDATING)
+        receipt = self._validate_wave(pset, wave, snap)
+        self.ctx.store.put(
+            "validation_receipts",
+            pset.set_id,
+            receipt.content_dict(),
+            extra={"set_id": pset.set_id},
+        )
+
+        # Prepare (never push) a delivery artifact for an accepted, validated wave.
+        if wave is not None and receipt.all_passed:
+            from .delivery import prepare_delivery
+
+            art = prepare_delivery(self.ctx, wave, snap, receipt)
+            self.ctx.store.put(
+                "publication_receipts",
+                f"{pset.set_id}:delivery",
+                {"prepared": art.prepared, "reason": art.reason},
+                extra={"set_id": pset.set_id},
+            )
+
+        sm.transition(CycleState.LEARNED)
+        self._eval_terminal(snap, cycle_id)
+        if no_progress:
+            blockers.append("no progress vs previous cycle")
+        if self._lease_lost:
+            blockers.append("coordinator lease lost mid-cycle; integration withheld")
         return self._finish(
             cycle_id,
             mode,
@@ -542,8 +725,22 @@ class FactoryEngine:
             snapshot=snap,
             graph=graph,
             pset=pset,
+            accepted=len(accepted),
+            no_progress=no_progress,
             blockers=blockers,
         )
+
+    def _validate_wave(self, pset, wave, snap):
+        """Run required validation profiles for the wave against the integration
+        clone. A required gate with no runner FAILS (never green-skip)."""
+        from .validation_runners import build_runners
+
+        if wave is None:
+            return run_validation(pset.set_id, [])  # nothing produced to validate
+        gates = sorted({g for p in pset.packets for g in p.required_validation})
+        clone_path = self.ctx.paths.integration / pset.set_id
+        runners = build_runners(clone_path)
+        return run_validation(pset.set_id, gates, runners)
 
     def _detect_no_progress(self, snap: SemanticSnapshot, pset: PacketSet) -> bool:
         prev = self.ctx.store.records("cycles")
