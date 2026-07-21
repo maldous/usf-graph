@@ -670,6 +670,9 @@ def models_assess(
     exclude_model: list[str] = typer.Option([], "--exclude-model"),
     exclude_family: list[str] = typer.Option([], "--exclude-family"),
     include_model: list[str] = typer.Option([], "--include-model"),
+    only_model: list[str] = typer.Option(
+        [], "--models", help="assess ONLY these provider/model ids"
+    ),
     force_reassess: bool = typer.Option(False, "--force-reassess"),
     skip_valid_existing: bool = typer.Option(
         True, "--skip-valid-existing/--no-skip-valid-existing"
@@ -705,6 +708,7 @@ def models_assess(
         exclude_models=sorted(set(base.exclude_models) | set(exclude_model)),
         exclude_families=sorted(set(base.exclude_families) | set(exclude_family)),
         include_models=list(include_model),
+        only_models=list(only_model),
         force_reassess=force_reassess,
         skip_valid_existing=skip_valid_existing,
     )

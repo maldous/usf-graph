@@ -59,6 +59,9 @@ class SelectionFilters:
     exclude_models: list[str] = field(default_factory=list)
     exclude_families: list[str] = field(default_factory=list)
     include_models: list[str] = field(default_factory=list)  # force-include exact ids
+    only_models: list[str] = field(
+        default_factory=list
+    )  # if set, assess ONLY these (provider/model)
     force_reassess: bool = False
     skip_valid_existing: bool = True
 
@@ -128,13 +131,16 @@ def candidate_models(
     assessment provider order (unlisted providers last)."""
     order = order or []
     rank = {pid: i for i, pid in enumerate(order)}
+    only = set(filters.only_models)
     out: list[tuple[str, str]] = []
     for row in ctx.store.records("models"):
         pid, mid = row.get("provider_id", ""), row.get("requested_model_id", "")
         if not pid or not mid:
             continue
+        if only and f"{pid}/{mid}" not in only and mid not in only:
+            continue
         excluded, _why = filters.is_excluded(pid, mid)
-        if excluded:
+        if excluded and not only:  # an explicit --models list overrides exclusions
             continue
         out.append((pid, mid))
     out.sort(key=lambda t: (rank.get(t[0], len(order)), t[0], t[1]))

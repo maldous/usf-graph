@@ -411,6 +411,65 @@ def test_protected_gates_remain_disabled(ctx):
 # ---- #9 cache cold/warm metrics recorded ----------------------------------- #
 
 
+@pytest.mark.adversarial
+def test_repeated_evidence_required_for_critical_role(ctx, monkeypatch):
+    """assess_model with repeats=2: a model that passes round 1 but fails a
+    structural probe in round 2 does NOT clear the structural gate (LCB, not
+    best run) — one lucky run cannot admit a critical role."""
+    from usf_factory.admission import ensure_profile
+    from usf_factory.models import ProbeResult, TokenUsage
+    from usf_factory.selection import assess_model
+
+    ctx.store.put(
+        "models",
+        "m1",
+        {"provider_id": "openrouter", "requested_model_id": "x/y:free", "free": True},
+        extra={"provider_id": "openrouter"},
+    )
+    rounds = {"n": 0}
+
+    class _Ad:
+        def with_loop_model(self, m):
+            return self
+
+        async def probe_model(self, model_id, probe):
+            # Round 1: everything passes. Round 2: strict_json fails (flaky).
+            fail = rounds["n"] >= 10 and probe.kind.value == "strict_json"
+            return ProbeResult(
+                kind=probe.kind, version=probe.version, passed=not fail,
+                usage=TokenUsage(actual_model=model_id),
+            )
+
+        async def _cli_version(self):
+            return None
+
+    class _Reg:
+        def adapter(self, pid):
+            return _Ad()
+
+    import usf_factory.providers as providers
+
+    # Count probes to know which round we're in (10 per round).
+    orig = _Ad.probe_model
+
+    async def counting(self, model_id, probe):
+        r = await orig(self, model_id, probe)
+        rounds["n"] += 1
+        return r
+
+    monkeypatch.setattr(_Ad, "probe_model", counting)
+    monkeypatch.setattr(providers, "build_registry", lambda ctx, allow_billable=False: _Reg())
+    profile = ensure_profile(ctx, "openrouter", "x/y:free")
+    a = asyncio.run(
+        assess_model(
+            ctx, "openrouter", "x/y:free",
+            auth=InferenceAuthorization(allow_inference=True, max_cost_usd=0.0), repeats=2,
+        )
+    )
+    assert a.structural_ok is False  # a single good round is not enough
+    assert AdmissionRole.PLANNER_CANDIDATE.value not in a.role_scores
+
+
 @pytest.mark.unit
 def test_cache_cold_warm_metrics_recorded():
     from usf_factory.models import TokenUsage
