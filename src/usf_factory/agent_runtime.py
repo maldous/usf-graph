@@ -23,6 +23,22 @@ from .sandbox import parse_unified_diff_paths, scan_secrets, validate_patch_scop
 
 MAX_READ_LINES = 400
 MAX_SEARCH_RESULTS = 50
+MAX_FILE_BYTES = 4_000_000  # per-file read/search cap
+MAX_PATCH_BYTES = 2_000_000  # apply_*_patch payload cap
+MAX_WRITE_BYTES = 2_000_000  # write_new_file content cap
+MAX_QUERY_CHARS = 512  # search query cap
+
+# Broker tool -> the packet tool-profile entry that must permit it. finish_packet
+# is unlisted: a worker must always be able to return a structured result.
+_TOOL_REQUIREMENT = {
+    "read_file_range": "read_file",
+    "list_directory": "list_paths",
+    "search_repository": "read_file",
+    "apply_patch": "write_patch",
+    "apply_unified_patch": "write_patch",
+    "write_new_file": "edit_file",
+    "run_validation_profile": "run_focused_tests",
+}
 
 # chat(messages, tools) -> {"content": str, "tool_calls": [{"id","name","arguments"}]}
 ChatFn = Callable[[list[dict[str, Any]], list[dict[str, Any]]], Awaitable[dict[str, Any]]]
@@ -41,6 +57,10 @@ class ToolBroker:
     packet: Packet
     mutating: bool = False
     validation_runner: Any = None  # Callable[[str, Path], tuple[bool, str]] | None
+    # Egress recheck at the tool boundary (defense in depth behind the scheduler):
+    # when False, tools that would return repository file CONTENT to the provider
+    # (read_file_range, search_repository) are refused.
+    source_content_allowed: bool = True
     finished: dict[str, Any] | None = field(default=None, init=False)
     edits: int = field(default=0, init=False)
 
@@ -100,18 +120,27 @@ class ToolBroker:
         specs.append(
             _spec(
                 "finish_packet",
-                "Finish with a structured result.",
+                "Finish with a structured result. A read-only packet MUST include "
+                "findings and criteria_results (durable analysis evidence).",
                 {
                     "status": {
                         "type": "string",
                         "enum": ["COMPLETED", "FAILED", "HUMAN_DECISION_REQUIRED"],
                     },
+                    "findings": {"type": "array", "items": _str},
+                    "criteria_results": {"type": "object"},
                     "uncertainties": {"type": "array", "items": _str},
                 },
                 ["status"],
             )
         )
-        return specs
+        # Only advertise tools the packet's tool profile permits (fail closed).
+        return [s for s in specs if self._permitted(s["function"]["name"])]
+
+    def _permitted(self, tool: str) -> bool:
+        """True iff the packet tool profile permits this broker tool."""
+        req = _TOOL_REQUIREMENT.get(tool)
+        return req is None or req in set(self.packet.permitted_tools)
 
     # ---- dispatch -------------------------------------------------------- #
 
@@ -128,6 +157,8 @@ class ToolBroker:
         }.get(name)
         if handler is None:
             return {"error": f"unknown tool: {name}"}
+        if not self._permitted(name):
+            return {"error": f"tool not permitted by packet tool profile: {name}"}
         try:
             return handler(arguments)
         except Exception as exc:
@@ -152,26 +183,38 @@ class ToolBroker:
         return dirs
 
     def _resolve(self, rel: str) -> Path:
-        """Resolve a path and CONFINE it to the workspace using real-path
-        containment (defeats sibling-prefix and symlink escapes)."""
+        """Confine a relative path to the workspace. Rejects absolute paths,
+        ``..``, and EVERY symlink component (lstat walk) — so neither a
+        sibling-prefix escape, an external symlink, nor an inside-workspace
+        symlink alias can reach a file other than the declared scoped path.
+        Real-path containment is kept as a second, independent check."""
         if rel.startswith("/") or ".." in Path(rel).parts:
             raise PermissionError(f"illegal path: {rel}")
+        cur = self.workspace
+        for part in Path(rel).parts:
+            cur = cur / part
+            if cur.is_symlink():  # lstat: refuses symlinks even to in-workspace targets
+                raise PermissionError(f"symlink component refused: {rel}")
         ws = self.workspace.resolve()
-        target = (self.workspace / rel).resolve()  # resolves symlinks
+        target = (self.workspace / rel).resolve()
         try:
-            target.relative_to(ws)  # ValueError if outside (incl. symlink escape)
+            target.relative_to(ws)  # ValueError if outside the workspace
         except ValueError as exc:
             raise PermissionError(f"path escapes workspace: {rel}") from exc
-        return target
+        return self.workspace / rel
 
     def _read_file_range(self, args: dict[str, Any]) -> dict[str, Any]:
         path = str(args["path"])
         # Fail closed: an empty scope grants NO reads (bounded-context promise).
         if path not in self._scope():
             return {"error": f"path not in packet scope: {path}"}
-        target = self._resolve(path)
-        if target.is_symlink() or not target.is_file():
+        if not self.source_content_allowed:
+            return {"error": "source content egress to this provider is not permitted by policy"}
+        target = self._resolve(path)  # rejects every symlink component
+        if not target.is_file():
             return {"error": "not a regular file in scope"}
+        if target.stat().st_size > MAX_FILE_BYTES:
+            return {"error": f"file exceeds the read cap ({MAX_FILE_BYTES} bytes)"}
         lines = target.read_text(encoding="utf-8", errors="replace").splitlines()
         start = max(1, int(args.get("start", 1)))
         end = min(len(lines), int(args.get("end", start + MAX_READ_LINES - 1)))
@@ -201,8 +244,14 @@ class ToolBroker:
         return {"entries": entries[:MAX_SEARCH_RESULTS]}
 
     def _search_repository(self, args: dict[str, Any]) -> dict[str, Any]:
-        # Search ONLY in-scope files (never the whole clone, never .git).
+        # Search ONLY in-scope files (never the whole clone, never .git). A hit
+        # confirms content presence, so this is a content oracle: it is refused
+        # when source content may not egress to this provider.
         query = str(args["query"])
+        if not self.source_content_allowed:
+            return {"error": "source content egress to this provider is not permitted by policy"}
+        if len(query) > MAX_QUERY_CHARS:
+            return {"error": f"query exceeds {MAX_QUERY_CHARS} chars"}
         hits: list[dict[str, Any]] = []
         for rel in sorted(self._scope()):
             if len(hits) >= MAX_SEARCH_RESULTS:
@@ -211,7 +260,7 @@ class ToolBroker:
                 target = self._resolve(rel)
             except PermissionError:
                 continue
-            if target.is_symlink() or not target.is_file():
+            if not target.is_file() or target.stat().st_size > MAX_FILE_BYTES:
                 continue
             for i, line in enumerate(
                 target.read_text(encoding="utf-8", errors="replace").splitlines(), 1
@@ -224,6 +273,8 @@ class ToolBroker:
     def _apply_patch(self, args: dict[str, Any]) -> dict[str, Any]:
         """Shadow mode: validate the diff against scope but do NOT apply it."""
         patch = str(args["patch"])
+        if len(patch) > MAX_PATCH_BYTES:
+            return {"accepted": False, "error": f"patch exceeds {MAX_PATCH_BYTES} bytes"}
         violations = validate_patch_scope(patch, self.packet.write_paths)
         leaks = scan_secrets(patch)
         if violations or leaks:
@@ -235,6 +286,8 @@ class ToolBroker:
         import subprocess
 
         patch = str(args["patch"])
+        if len(patch) > MAX_PATCH_BYTES:
+            return {"accepted": False, "error": f"patch exceeds {MAX_PATCH_BYTES} bytes"}
         violations = validate_patch_scope(patch, self.packet.write_paths)
         leaks = scan_secrets(patch)
         if violations or leaks:
@@ -251,12 +304,18 @@ class ToolBroker:
                 "error": "patch does not apply",
                 "detail": chk.stderr.strip()[:200],
             }
-        subprocess.run(
+        appl = subprocess.run(
             ["git", "-C", str(self.workspace), "apply", "--index", "-"],
             input=patch,
             capture_output=True,
             text=True,
         )
+        if appl.returncode != 0:  # never assume the real apply matched the dry check
+            return {
+                "accepted": False,
+                "error": "patch apply failed after check",
+                "detail": appl.stderr.strip()[:200],
+            }
         self.edits += 1
         return {"accepted": True, "changed_paths": parse_unified_diff_paths(patch)}
 
@@ -264,8 +323,10 @@ class ToolBroker:
         path = str(args["path"])
         if path not in set(self.packet.write_paths):
             return {"accepted": False, "error": f"path not in write scope: {path}"}
-        target = self._resolve(path)
+        target = self._resolve(path)  # rejects symlink components => no alias writes
         content = str(args.get("content", ""))
+        if len(content) > MAX_WRITE_BYTES:
+            return {"accepted": False, "error": f"content exceeds {MAX_WRITE_BYTES} bytes"}
         leaks = scan_secrets(content)
         if leaks:
             return {"accepted": False, "violations": leaks}

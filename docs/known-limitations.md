@@ -1,5 +1,46 @@
 # Known limitations & nonconformance
 
+## Open P1 items from the second post-merge review (next milestone)
+
+The P0 hotfix (source classification/egress recheck, fail-closed rejected
+results, durable read-only evidence, no-green-skip validation, broker
+hardening) is applied on `main`. These P1 items remain OPEN and are the next
+functional milestone — the repository stays a **gated orchestration foundation**
+until they close:
+
+1. **Planner-supplied write scope is still authoritative for semantic packets.**
+   The materialisation index is quarantined (analysis-only), but writes still
+   come from `obl.suggested_write_scope`. Target: semantic packets take write
+   scope ONLY from a verified, snapshot-bound materialisation contract;
+   operator-maintenance packets from approved packet definitions; injected
+   scopes only in test configuration. The runtime should also build the index
+   from the factory mirror at `snapshot.repository_head` (not the live `/usf`
+   working tree) and bind its digest into every packet.
+2. **No production admission workflow.** Discovery does not create agent
+   profiles or qualification records; `models qualify` is a self-check. Target:
+   `models probe/qualify/admit/profiles` per discovered model, with admission
+   computed from qualification evidence.
+3. **Routing uses fabricated operational facts** (health=HEALTHY, tools=`*`,
+   cost=0, quota ok); dispatch reserves a hard-coded $0 and never commits
+   actual cost. Labeled PARTIAL; required for real multi-provider routing.
+4. **Routed-provider attribution can be wrong** — the tool-loop response does
+   not return the actual routed model/usage; `BrokeredWorker` records the
+   requested model as actual. Target: per-turn actual model, tokens, cost,
+   route, latency in the execution receipt.
+5. **Packet claims are not renewed during execution** (coordinator lease is;
+   packet claims get a TTL only). Target: packet heartbeat tied to the executor
+   timeout + immediate fence-and-cancel on renewal failure; move blocking
+   git/validation work off the event loop (initial coordinator lease vs
+   synchronous preflight edge).
+6. **Review is a no-op below high risk.** `NoopReviewer` blocks only
+   high/protected-risk waves. Target: substantive provider-diverse review for
+   ALL semantic mutations; no-review only for explicitly low-risk mechanical
+   tasks.
+7. **verify.sh is an operator process, not independent CI evidence.** Hardened
+   (commit-bound receipt, `--attest`, known-secret-value scan over all tracked
+   files, shellcheck), but dependency-hash pinning, vulnerability audit, and a
+   self-hosted runner/pre-receive gate remain open.
+
 > **Update (branch `factory/complete-runtime-v1`, v0.2.0):** the runtime was
 > substantially completed — routing-driven execution (no more `DryRunWorker`),
 > brokered mutation with orchestrator-derived diffs, a materialisation index,

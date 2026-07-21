@@ -655,6 +655,11 @@ class FactoryEngine:
         # Selected packets that produced no result at all (no route / fenced / no worker).
         missing = [pid for pid in pset.selected_packet_ids if pid not in results_by_pid]
 
+        # FAIL-CLOSED: every selected packet's result must be ACCEPTED. A recorded
+        # failure, rejection, human-decision, or skip can never yield a green
+        # cycle — a failed result being durably recorded is not success.
+        rejected = [q for q in quals if not q.accepted]
+
         sm.transition(CycleState.INTEGRATING)
         apply = mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE) and not self._lease_lost
 
@@ -722,6 +727,11 @@ class FactoryEngine:
             fail_reasons.append("coordinator ownership uncertain")
         if missing:
             fail_reasons.append(f"{len(missing)} selected packet(s) produced no result")
+        for q in rejected:
+            why = "; ".join(q.reasons) or (
+                q.failure_class.value if q.failure_class else "not accepted"
+            )
+            fail_reasons.append(f"packet {q.packet_id} result not accepted: {why}")
         if integration_failed:
             fail_reasons.append(f"integration failed: {attempt.semantic_conflicts}")
         if review_unavailable:

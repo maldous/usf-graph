@@ -4,6 +4,62 @@ Authoritative, observed-fact status after the exhaustive completion task. Status
 vocabulary: **VERIFIED** (production engine path invokes it + an e2e test proves
 it), **PARTIAL**, **PLANNED**, **ENVIRONMENT_BLOCKED**, **DISABLED_BY_POLICY**.
 
+## Overall classification (per the second post-merge review)
+
+```text
+Gated orchestration foundation
+Not ready for live semantic packet execution
+Not ready for autonomous operation
+Not ready for USF delivery or publication
+```
+
+All protected actions remain disabled by default; the local verification gate
+(`scripts/verify.sh`) is a reproducible operator process, NOT independently
+executed CI evidence.
+
+## Second post-merge review — P0 hotfix (applied on main after merge)
+
+The second review confirmed the merge as a defaults-off foundation and listed
+five defects to correct before any external-provider `shadow` run. All five are
+fixed and tested:
+
+1. **Source misclassification / egress bypass** — a read-only packet whose READ
+   scope contains repository files was labeled `private-metadata` and could be
+   routed to an external provider. Fixed: ANY file path in scope (read or
+   write) now classifies the packet at least `private-source`
+   (`packet_compiler`); additionally the tool broker **rechecks egress on every
+   content-returning tool call** (`read_file_range`, `search_repository` — a
+   content oracle) and refuses raw source unless policy allows it for THIS
+   provider (`EgressPolicy.source_content_allowed`, wired per-provider in
+   `runtime.py`). Mandated adversarial test: `tests/test_egress.py`
+   (read-only packet + source read path + external provider + gate off ⇒ no
+   route AND no source returned).
+2. **Failed results could yield a green LEARNED cycle** — `_execute_wave` now
+   fails closed on EVERY non-accepted qualification (worker FAILED, rejected,
+   human-decision-required, skipped), not only on missing results. A recorded
+   failure is never success. Tests: `test_failed_worker_result_blocks_cycle`,
+   `test_readonly_completion_without_evidence_blocks`.
+3. **Read-only workers could "complete" without work product** — `finish_packet`
+   now carries `findings` + `criteria_results`; a read-only COMPLETED result
+   must persist a CAS-backed analysis artifact (`PacketResult.analysis_ref`) or
+   the worker fails; deterministic qualification independently rejects any
+   read-only completion lacking the artifact (defense in depth, also covers
+   non-brokered workers).
+4. **Required validation could green-skip as "n/a"** — only explicitly
+   CONDITIONAL gates (deterministic changed-file predicates: syntax-parse,
+   format, lint, type, secret-scan, repository-cleanliness) may report
+   not-applicable. Any other required gate reporting n/a **fails** — including
+   `unit-tests`: a repository implementation must now carry its test within the
+   packet write scope (the approve-wave e2e fixture does, and the gate runs
+   real pytest). Tests: `tests/test_validation_gates.py`.
+5. **Residual broker gaps** — `_resolve` now rejects EVERY symlink component
+   via an lstat walk (blocks in-workspace symlink aliasing for reads AND
+   writes, on top of real-path containment); tool exposure AND dispatch honor
+   `packet.permitted_tools` (broker↔packet tool-name mapping, fail closed);
+   byte/query caps on reads, search, patches, writes; the second
+   `git apply --index` return code is checked. Tests in
+   `tests/test_agent_runtime.py`.
+
 ## PR #1 review response (blockers addressed)
 
 The blocking review of PR #1 was largely correct; each item was fixed and tested:
@@ -66,7 +122,11 @@ a deterministic model**, defaults stay disabled.
 | Brokered mutation (tool broker edits workspace; orchestrator derives git diff) | **VERIFIED (fixtures)** | `test_runtime::test_approve_wave_executes_fixture_packet_end_to_end` |
 | Materialisation index (subject→paths/shapes/tests/generated) | **PARTIAL (analysis-only, quarantined)** | `materialisation.py`, `tests/test_materialisation.py`; regex heuristic — **never authorizes writes** (`authorize_writes=False`); a trustworthy parser/manifest-backed, snapshot-bound index remains PLANNED |
 | Broker confinement (real-path containment, scope, .git exclusion, symlink/sibling escape) | **VERIFIED** | `tests/test_agent_runtime.py` adversarial cases |
-| Fail-closed waves (missing/failed integration/validation/review → BLOCKED; success credited only after integrate+validate) | **VERIFIED** | `tests/test_runtime.py` |
+| Fail-closed waves (missing/FAILED/rejected/human-decision results, failed integration/validation, unavailable review → BLOCKED; success credited only after integrate+validate) | **VERIFIED** | `tests/test_runtime.py` |
+| Egress: file-scoped packets are private-source; broker rechecks source egress per tool call | **VERIFIED** | `tests/test_egress.py` |
+| Read-only completion requires a CAS-backed analysis artifact (`analysis_ref`) | **VERIFIED** | `tests/test_runtime.py`, `result_validation` check |
+| Required validation gates cannot green-skip as n/a (conditional gates only) | **VERIFIED** | `tests/test_validation_gates.py` |
+| Broker: symlink-component rejection, packet tool-profile enforcement, byte caps | **VERIFIED** | `tests/test_agent_runtime.py` |
 | Coordinator lease **heartbeat** + config-derived claim TTL | **VERIFIED** | `_heartbeat`, `_lease_deadline(max_packet_wall_s+grace)` |
 | Fencing tokens on claims + result submission | **VERIFIED** | `test_durable_state.py`, `_execute_one` token check |
 | Snapshot fails closed (no synthesized digest, required tools, health) | **VERIFIED** | `test_review_fixes.py` |
@@ -93,9 +153,11 @@ a deterministic model**, defaults stay disabled.
 
 `approve-wave` with a deterministic brokered worker and a materialisation-free
 code packet: selected=1, **accepted=1**, a real git-derived wave patch produced
-(`gen/thing.py`), integration applied to a factory-owned clone, validation ran
-**real ruff format/lint/mypy green** (`unit-tests` n/a), learning observed the
-outcome, delivery prepared (gated). `/usf` unchanged; no factory worktrees.
+(`gen/thing.py` + `tests/test_thing.py` — the required unit-tests gate may not
+green-skip, so the wave carries its own test), integration applied to a
+factory-owned clone, validation ran **real ruff format/lint/mypy/pytest green**,
+learning observed the outcome, delivery prepared (gated). `/usf` unchanged; no
+factory worktrees.
 
 ## Live read-only USF result
 
@@ -105,11 +167,11 @@ read-only verification packet), no execution, `/usf` unchanged.
 
 ## Tests / checks
 
-- **152 tests pass** (89 unit, 16 contract, 30 adversarial, 17 e2e).
+- **167 tests pass** (95 unit, 16 contract, 37 adversarial, 19 e2e).
 - `ruff check`, `ruff format --check`, `mypy` clean; wheel builds.
-- Reproduced in a clean venv from the committed `requirements.lock` via
-  `scripts/verify.sh --fresh`: 152 passed, ruff/mypy clean, wheel built, secret
-  scan clean, `.env` untracked.
+- Reproducible in a clean venv from the committed `requirements.lock` via
+  `scripts/verify.sh --fresh`; `--attest` additionally requires a clean tree and
+  prints a commit-bound verification receipt.
 
 ### CI: removed by operator decision — verified locally instead
 

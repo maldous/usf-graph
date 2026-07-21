@@ -59,7 +59,17 @@ def production_worker_factory(ctx: RuntimeContext):
         if hasattr(adapter, "with_loop_model"):
             adapter.with_loop_model(agent.requested_model_id)
         mutating = mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
-        return BrokeredWorker(chat, store=ctx.store, mutating=mutating)
+        # Broker-level egress recheck (defense in depth behind the scheduler):
+        # content-returning tools are refused unless policy allows raw source to
+        # THIS provider (local, or gate enabled + explicitly approved).
+        from .enums import PrivacyClass
+
+        pcfg = ctx.config.providers.by_id().get(agent.provider_id)
+        privacy = (pcfg.privacy_class if pcfg else PrivacyClass.EXTERNAL_CLOUD).value
+        source_ok, _why = ctx.config.egress.source_content_allowed(agent.provider_id, privacy)
+        return BrokeredWorker(
+            chat, store=ctx.store, mutating=mutating, source_content_allowed=source_ok
+        )
 
     return make
 

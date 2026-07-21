@@ -30,36 +30,42 @@ class _InlinePlanner:
         )
 
 
-def _writer_chat(content="x = 1\n"):
-    """A deterministic 'model' that writes to the packet's first write path then
-    finishes. Reads the write scope from the loop's user message."""
+def _writer_chat(content="x = 1\n", contents=None, finish_args=None):
+    """A deterministic 'model' that writes every packet write path in turn, then
+    finishes with durable analysis evidence. ``contents`` maps path -> content
+    (falling back to ``content``); ``finish_args`` overrides the finish payload."""
 
     async def chat(messages, tools):
         user = next((m["content"] for m in messages if m.get("role") == "user"), "")
         m = re.search(r"write_paths=\[(.*?)\]", user)
         paths = re.findall(r"'([^']+)'", m.group(1)) if m else []
-        wrote = any(
-            msg.get("role") == "tool"
+        written = sum(
+            1
+            for msg in messages
+            if msg.get("role") == "tool"
             and isinstance(msg.get("content"), dict)
             and msg["content"].get("accepted")
-            for msg in messages
         )
-        if paths and not wrote:
+        if paths and written < len(paths):
+            path = paths[written]
             return {
                 "content": "",
                 "tool_calls": [
                     {
-                        "id": "1",
+                        "id": f"w{written}",
                         "name": "write_new_file",
-                        "arguments": {"path": paths[0], "content": content},
+                        "arguments": {"path": path, "content": (contents or {}).get(path, content)},
                     }
                 ],
             }
+        args = finish_args or {
+            "status": "COMPLETED",
+            "findings": ["objective satisfied; scoped work performed"],
+            "criteria_results": {"all": True},
+        }
         return {
             "content": "",
-            "tool_calls": [
-                {"id": "2", "name": "finish_packet", "arguments": {"status": "COMPLETED"}}
-            ],
+            "tool_calls": [{"id": "fin", "name": "finish_packet", "arguments": args}],
         }
 
     return chat
@@ -108,12 +114,14 @@ def test_approve_wave_executes_fixture_packet_end_to_end(ctx, tmp_usf):
                 "root_cause": "add a generated module",
                 "semantic_subjects": [],
                 "dependencies": [],
-                "required_outcomes": ["create gen/thing.py"],
+                "required_outcomes": ["create gen/thing.py with a test"],
                 "acceptance_criteria": ["file created"],
                 "risk": "medium",
                 "task_class": "repository-implementation",
                 "suggested_read_scope": [],
-                "suggested_write_scope": ["gen/thing.py"],
+                # The required unit-tests gate may never green-skip, so the
+                # implementation packet carries its test within the write scope.
+                "suggested_write_scope": ["gen/thing.py", "tests/test_thing.py"],
             }
         ]
     )
@@ -121,18 +129,28 @@ def test_approve_wave_executes_fixture_packet_end_to_end(ctx, tmp_usf):
         ctx,
         authority_factory=lambda: FakeAuthority(),
         planner=planner,
-        worker_factory=_worker_factory(ctx.store, _writer_chat()),
+        worker_factory=_worker_factory(
+            ctx.store,
+            _writer_chat(
+                contents={
+                    "gen/thing.py": "x = 1\n",
+                    "tests/test_thing.py": "def test_ok():\n    assert True\n",
+                }
+            ),
+        ),
     )
     receipt = asyncio.run(eng.run_cycle(RunMode.APPROVE_WAVE))
 
     assert receipt.state is CycleState.LEARNED
     assert receipt.selected_packets == 1
     assert receipt.accepted_packets == 1  # real mutating packet accepted
-    # A wave patch was produced and validation ran green (format/lint on the .py).
+    # A wave patch was produced and validation ran green — including REAL tests
+    # (unit-tests may not green-skip; the wave carries its own test).
     waves = ctx.store.records("wave_patches")
     assert len(waves) == 1 and "gen/thing.py" in waves[0]["changed_paths"]
     vr = ctx.store.get("validation_receipts", receipt.set_id)
     assert vr["all_passed"] is True and vr["gates"].get("format") is True
+    assert vr["gates"].get("unit-tests") is True  # ran for real, not n/a
     # Learning observed the outcome.
     assert ctx.store.count("observations") >= 1
     # /usf untouched.
@@ -174,6 +192,11 @@ def test_shadow_mode_executes_without_integration(ctx, tmp_usf):
     assert ctx.store.count("packet_results") == 1
     # Shadow never produces a wave patch (no integration).
     assert ctx.store.count("wave_patches") == 0
+    # The read-only completion carries a DURABLE analysis artifact in CAS.
+    [(_rid, row)] = ctx.store.items("packet_results")
+    assert row["analysis_ref"], "read-only completion must persist an analysis artifact"
+    artifact = ctx.store.cas_get(row["analysis_ref"]).decode()
+    assert "findings" in artifact
 
 
 @pytest.mark.e2e
@@ -280,6 +303,66 @@ def test_no_route_blocks_the_wave(ctx, tmp_usf):
     receipt = asyncio.run(eng.run_cycle(RunMode.APPROVE_WAVE))
     assert receipt.state is CycleState.BLOCKED
     assert any("no result" in b for b in receipt.blockers)
+
+
+_READONLY_OBLIGATION = {
+    "id": "obl-analyze",
+    "root_cause": "analyze",
+    "semantic_subjects": [],
+    "dependencies": [],
+    "acceptance_criteria": ["analysis"],
+    "risk": "low",
+    "task_class": "semantic-planning",
+    "suggested_read_scope": [],
+    "suggested_write_scope": [],
+}
+
+
+@pytest.mark.e2e
+def test_failed_worker_result_blocks_cycle(ctx, tmp_usf):
+    """A recorded FAILED result is not 'handled' — the cycle must BLOCK, never
+    finish LEARNED merely because the failure was durably stored."""
+    seed_agent(
+        ctx.store,
+        roles=[AdmissionRole.READ_ONLY_ANALYST, AdmissionRole.PLANNER_CANDIDATE],
+        scores=all_dimension_scores(),
+    )
+    eng = FactoryEngine(
+        ctx,
+        authority_factory=lambda: FakeAuthority(),
+        planner=_InlinePlanner([dict(_READONLY_OBLIGATION)]),
+        worker_factory=_worker_factory(ctx.store, _writer_chat(finish_args={"status": "FAILED"})),
+    )
+    receipt = asyncio.run(eng.run_cycle(RunMode.SHADOW))
+    assert receipt.state is CycleState.BLOCKED
+    assert any("not accepted" in b for b in receipt.blockers)
+    assert receipt.accepted_packets == 0
+
+
+@pytest.mark.e2e
+def test_readonly_completion_without_evidence_blocks(ctx, tmp_usf):
+    """COMPLETED with no findings/criteria on a read-only packet is a worker
+    failure (no durable work product) and blocks the cycle."""
+    seed_agent(
+        ctx.store,
+        roles=[AdmissionRole.READ_ONLY_ANALYST, AdmissionRole.PLANNER_CANDIDATE],
+        scores=all_dimension_scores(),
+    )
+    eng = FactoryEngine(
+        ctx,
+        authority_factory=lambda: FakeAuthority(),
+        planner=_InlinePlanner([dict(_READONLY_OBLIGATION)]),
+        worker_factory=_worker_factory(
+            ctx.store,
+            _writer_chat(finish_args={"status": "COMPLETED"}),  # no evidence
+        ),
+    )
+    receipt = asyncio.run(eng.run_cycle(RunMode.SHADOW))
+    assert receipt.state is CycleState.BLOCKED
+    assert any("not accepted" in b for b in receipt.blockers)
+    # The stored result is FAILED (worker-level fail-closed), not COMPLETED.
+    rows = [row for _rid, row in ctx.store.items("packet_results")]
+    assert rows and all(r["status"] == "FAILED" for r in rows)
 
 
 @pytest.mark.e2e

@@ -93,6 +93,26 @@ class EgressPolicy(_Base):
         addition to the privacy-class rule."""
         return data_classification in self.provider_overrides.get(provider_id, [])
 
+    def source_content_allowed(self, provider_id: str, privacy_class: str) -> tuple[bool, str]:
+        """May raw repository source CONTENT be returned to this provider?
+
+        Mirrors the scheduler's private-source rule so the tool broker can
+        recheck egress on every content-returning tool call (defense in depth):
+        local providers are always fine; a non-local provider needs the
+        privacy-class/override rule, the global source-egress gate, AND an
+        explicit per-provider approval."""
+        if privacy_class == "local_only":
+            return True, "local-only provider (no egress)"
+        class_ok = self.is_allowed("private-source", privacy_class)
+        provider_ok = self.provider_approved_for(provider_id, "private-source")
+        if not (class_ok or provider_ok):
+            return False, f"egress not allowed: private-source -> {privacy_class}"
+        if not self.source_egress_enabled:
+            return False, "source egress disabled"
+        if not provider_ok:
+            return False, f"provider {provider_id} not approved for private-source"
+        return True, "explicitly approved"
+
 
 class TaskClassDef(_Base):
     task_class: str

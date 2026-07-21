@@ -74,6 +74,15 @@ def qualify_result(
         reasons.append(f"semantic subjects out of scope: {subj_out}")
         failure = failure or FailureClass.SCOPE_VIOLATION
 
+    # A read-only completion must carry a DURABLE (CAS-backed) analysis artifact.
+    # "COMPLETED" with no work product is never accepted or rewarded.
+    if result.status == PacketResultStatus.COMPLETED and not packet.write_paths:
+        has_artifact = bool(result.analysis_ref)
+        checks["durable_analysis_evidence"] = has_artifact
+        if not has_artifact:
+            reasons.append("read-only completion lacks a durable analysis artifact")
+            failure = failure or FailureClass.WORKER_ERROR
+
     # Secret leakage.
     if patch_text:
         leaks = scan_secrets(patch_text)

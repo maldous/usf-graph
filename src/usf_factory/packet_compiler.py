@@ -140,7 +140,13 @@ def compile_packets(
             acceptance_criteria=list(obl.acceptance_criteria),
             required_validation=validation,
             permitted_tools=_permitted_tools(task, caps),
-            data_classification="private-source" if write_paths else "private-metadata",
+            # ANY repository file content in scope (read OR write) is at least
+            # private-source — a read-only packet still exposes source through
+            # its read scope. Only a packet with no file paths at all (pure
+            # semantic identifiers/digests/summaries) is private-metadata.
+            data_classification=(
+                "private-source" if (write_paths or read_paths) else "private-metadata"
+            ),
             human_decision_required=obl.human_decision_required,
         )
         packets.append(packet)

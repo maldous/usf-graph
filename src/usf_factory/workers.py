@@ -190,6 +190,24 @@ class AiWorker:
                 actual_model=resp.actual_model,
             )
 
+        # A read-only packet claiming COMPLETED must produce durable evidence;
+        # its structured result is persisted to CAS as the analysis artifact.
+        # (Without a store the artifact cannot be durable, so analysis_ref stays
+        # None and deterministic qualification rejects the completion.)
+        analysis_ref = None
+        if status is PacketResultStatus.COMPLETED and not packet.write_paths:
+            if not data.get("evidence_produced"):
+                return self._failed(
+                    packet,
+                    agent,
+                    FailureClass.WORKER_ERROR,
+                    "read-only completion without evidence_produced (durable analysis required)",
+                    actual_provider=resp.actual_provider,
+                    actual_model=resp.actual_model,
+                )
+            if self._store is not None:
+                analysis_ref = self._store.cas_put_text(json.dumps(data, sort_keys=True))
+
         # Persist the exact patch bytes in CAS (attribution + replay).
         patch_ref = None
         patch_digest = None
@@ -209,6 +227,7 @@ class AiWorker:
             snapshot_id=packet.snapshot_id,
             patch_digest=patch_digest,
             patch_ref=patch_ref,
+            analysis_ref=analysis_ref,
             changed_paths=changed,
             semantic_subjects_changed=list(data.get("semantic_subjects_changed", [])),
             tests_run=list(data.get("tests_run", [])),
@@ -262,12 +281,14 @@ class BrokeredWorker:
         mutating: bool = True,
         max_turns: int = 12,
         validation_runner=None,
+        source_content_allowed: bool = True,
     ) -> None:
         self._chat = chat_fn
         self._store = store
         self._mutating = mutating
         self._max_turns = max_turns
         self._validation_runner = validation_runner
+        self._source_content_allowed = source_content_allowed
 
     async def execute(self, packet: Packet, workspace: Path, agent: AgentProfile) -> PacketResult:
         import subprocess
@@ -280,9 +301,12 @@ class BrokeredWorker:
             packet=packet,
             mutating=mutating,
             validation_runner=self._validation_runner,
+            source_content_allowed=self._source_content_allowed,
         )
         try:
-            await GenericToolLoop(self._chat, max_turns=self._max_turns).run(packet, broker)
+            loop_res = await GenericToolLoop(self._chat, max_turns=self._max_turns).run(
+                packet, broker
+            )
         except Exception as exc:
             return self._failed(packet, agent, FailureClass.ADAPTER_ERROR, str(exc))
 
@@ -295,6 +319,44 @@ class BrokeredWorker:
             status = PacketResultStatus(status_str)
         except ValueError:
             return self._failed(packet, agent, FailureClass.WORKER_ERROR, "unknown finish status")
+
+        # A read-only packet claiming COMPLETED must carry DURABLE analysis
+        # evidence (findings + criteria_results persisted to CAS). A bare
+        # "COMPLETED" with no work product can never be accepted or rewarded.
+        analysis_ref: str | None = None
+        if status is PacketResultStatus.COMPLETED and not packet.write_paths:
+            findings = [
+                str(f).strip() for f in broker.finished.get("findings") or [] if str(f).strip()
+            ]
+            criteria = broker.finished.get("criteria_results") or {}
+            if not findings or (packet.acceptance_criteria and not criteria):
+                return self._failed(
+                    packet,
+                    agent,
+                    FailureClass.WORKER_ERROR,
+                    "read-only completion without durable analysis evidence "
+                    "(findings + criteria_results required)",
+                )
+            if self._store is None:
+                return self._failed(
+                    packet,
+                    agent,
+                    FailureClass.WORKER_ERROR,
+                    "no store available to persist the analysis artifact (fail closed)",
+                )
+            analysis_ref = self._store.cas_put_text(
+                json.dumps(
+                    {
+                        "packet_id": packet.packet_id,
+                        "findings": findings,
+                        "criteria_results": criteria,
+                        "uncertainties": list(broker.finished.get("uncertainties", [])),
+                        "transcript_digest": loop_res.transcript_digest,
+                        "turns": loop_res.turns,
+                    },
+                    sort_keys=True,
+                )
+            )
 
         # Orchestrator-derived patch: stage everything and diff against HEAD.
         patch = ""
@@ -346,7 +408,9 @@ class BrokeredWorker:
             snapshot_id=packet.snapshot_id,
             patch_digest=patch_digest,
             patch_ref=patch_ref,
+            analysis_ref=analysis_ref,
             changed_paths=sorted(changed),
+            evidence_produced=[analysis_ref] if analysis_ref else [],
             uncertainties=list(broker.finished.get("uncertainties", [])),
             produced_at=utc_now_iso(),
         )

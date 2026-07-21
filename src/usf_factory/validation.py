@@ -35,20 +35,35 @@ VALIDATION_GATES = (
     "proof-readiness",
 )
 
+# Gates whose "not applicable" verdict comes from a DETERMINISTIC predicate over
+# the changed-file set (e.g. "no .py files changed" for format/lint/type, "no RDF
+# files changed" for syntax-parse). Any OTHER required gate that reports
+# not-applicable FAILS: a required test or USF gate can never green-skip — a
+# repository implementation without a test must add one in scope, prove existing
+# coverage, or carry an explicit human-approved waiver.
+CONDITIONAL_GATES = frozenset(
+    {"syntax-parse", "format", "lint", "type", "secret-scan", "repository-cleanliness"}
+)
+
 
 def run_validation(
     set_id: str,
     gate_names: list[str],
     runners: dict[str, GateRunner] | None = None,
+    *,
+    conditional: frozenset[str] | None = None,
 ) -> ValidationReceipt:
     """Run the requested validation gates deterministically.
 
-    A REQUIRED gate with no runner is a FAILURE (never a green skip). A runner may
-    return ``None`` to declare a gate not-applicable (allowed). ``all_passed`` is
-    False if any requested gate failed or lacked a runner; a wave with no gates
-    (``gate_names`` empty) is trivially passed (nothing to validate).
+    A REQUIRED gate with no runner is a FAILURE (never a green skip). A runner
+    may return ``None`` to declare a gate not-applicable; that is allowed ONLY
+    for ``conditional`` gates (deterministic applicability predicates) — for any
+    other required gate a not-applicable verdict is a FAILURE. ``all_passed`` is
+    False if any requested gate failed, lacked a runner, or green-skipped; a
+    wave with no gates (``gate_names`` empty) is trivially passed.
     """
     runners = runners or {}
+    conditional = CONDITIONAL_GATES if conditional is None else conditional
     gates: dict[str, bool] = {}
     detail: dict[str, str] = {}
     any_failed = False
@@ -61,7 +76,12 @@ def run_validation(
             continue
         passed, why = runner()
         if passed is None:
-            detail[name] = f"n/a: {why}"  # explicit not-applicable, allowed
+            if name in conditional:
+                detail[name] = f"n/a: {why}"  # deterministic applicability predicate
+                continue
+            gates[name] = False  # required gate may not declare itself n/a
+            detail[name] = f"FAIL: required gate reported not-applicable ({why})"
+            any_failed = True
             continue
         gates[name] = passed
         detail[name] = why

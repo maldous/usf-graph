@@ -511,6 +511,9 @@ class PacketResult(FactoryModel):
     snapshot_id: str = ""
     patch_digest: str | None = None
     patch_ref: str | None = None  # CAS ref, not the patch content
+    # CAS ref of the durable analysis artifact (findings/criteria) — REQUIRED for
+    # a read-only packet to be accepted as COMPLETED (no artifact => no credit).
+    analysis_ref: str | None = None
     changed_paths: list[str] = Field(default_factory=list)
     semantic_subjects_changed: list[str] = Field(default_factory=list)
     tests_run: list[str] = Field(default_factory=list)
