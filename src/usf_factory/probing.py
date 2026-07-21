@@ -108,8 +108,12 @@ async def run_probe_suite(
     if not reserved:
         raise ProtectedActionError(f"probe budget blocked: {rwhy}")
 
-    allow_billable = mode in ("subscription", "paid")
-    reg = build_registry(ctx, allow_billable=allow_billable)
+    # Authorization above is the real policy gate (free needs inference + cost
+    # <= max; subscription needs the subscription flag; paid needs the paid flag
+    # + budget). Once it passes, the adapter may make the call — so the adapter's
+    # own billable gate is opened here. This lets a genuinely FREE external model
+    # be invoked under --allow-inference WITHOUT --allow-paid-inference.
+    reg = build_registry(ctx, allow_billable=True)
     adapter = reg.adapter(profile.provider_id)
 
     started = utc_now_iso()
@@ -117,7 +121,10 @@ async def run_probe_suite(
     results = []
     errors: list[str] = []
     actual_models: set[str] = set()
-    tokens_in = tokens_out = 0
+    from .models import TokenUsage
+
+    agg = TokenUsage()
+    any_cost_reported = False
     try:
         for spec in specs:
             try:
@@ -125,13 +132,23 @@ async def run_probe_suite(
                 results.append(res)
                 if res.actual_model_id:
                     actual_models.add(res.actual_model_id)
+                if res.usage is not None:
+                    agg = agg.merged(res.usage)
+                    if res.usage.provider_reported_cost is not None:
+                        any_cost_reported = True
             except Exception as exc:  # one probe failing must not lose the run
                 errors.append(f"{spec.kind.value}: {type(exc).__name__}: {exc}")
     finally:
-        # Free/local settles to 0; paid would settle provider-reported cost (not
-        # available from probe_model here, so the reservation is released).
-        actual = 0.0
-        if est_cost:
+        # Settle: provider-reported cost when available; else the conservative
+        # estimate for a billable run (NEVER zero for billable without usage);
+        # free/local settles to 0.
+        if mode == "free":
+            actual = 0.0
+        elif any_cost_reported:
+            actual = agg.provider_reported_cost or 0.0
+        else:
+            actual = est_cost  # conservative, unverified
+        if est_cost or actual:
             ledger.commit(
                 cycle_id="probe",
                 provider_id=profile.provider_id,
@@ -140,6 +157,9 @@ async def run_probe_suite(
             )
 
     passed = sum(1 for r in results if r.passed)
+    cost_verified = any_cost_reported
+    settled_cost = 0.0 if mode == "free" else (agg.provider_reported_cost or est_cost)
+    cli_version = await adapter._cli_version() if hasattr(adapter, "_cli_version") else None
     run = ProbeRun(
         run_id=f"probe-{ulid()}",
         agent_profile_id=profile.profile_id,
@@ -151,9 +171,14 @@ async def run_probe_suite(
         results=results,
         passed=passed,
         total=len(specs),
-        tokens_in=tokens_in,
-        tokens_out=tokens_out,
-        cost_usd=0.0 if mode == "free" else est_cost,
+        tokens_in=agg.input_tokens,
+        tokens_out=agg.output_tokens,
+        cached_input_tokens=agg.cached_input_tokens,
+        uncached_input_tokens=agg.uncached_input_tokens,
+        cache_creation_tokens=agg.cache_creation_tokens,
+        cost_usd=settled_cost,
+        cost_verified=cost_verified,
+        cli_version=cli_version,
         inference_mode=mode,
         errors=errors,
         started_at=started,

@@ -213,6 +213,40 @@ class ProbeSpec(FactoryModel):
         return stable_id("probe", self.content_dict())
 
 
+class TokenUsage(FactoryModel):
+    """Per-call token + cost accounting (from provider-reported usage where
+    available; fields default 0 when a provider omits them)."""
+
+    input_tokens: int = 0
+    cached_input_tokens: int = 0  # cache-read (hit)
+    uncached_input_tokens: int = 0
+    cache_creation_tokens: int = 0  # cache-write (cold)
+    output_tokens: int = 0
+    provider_reported_cost: float | None = None  # None => provider omitted cost
+    latency_ms: float | None = None
+    actual_provider: str | None = None
+    actual_model: str | None = None
+
+    def merged(self, other: TokenUsage) -> TokenUsage:
+        return TokenUsage(
+            input_tokens=self.input_tokens + other.input_tokens,
+            cached_input_tokens=self.cached_input_tokens + other.cached_input_tokens,
+            uncached_input_tokens=self.uncached_input_tokens + other.uncached_input_tokens,
+            cache_creation_tokens=self.cache_creation_tokens + other.cache_creation_tokens,
+            output_tokens=self.output_tokens + other.output_tokens,
+            provider_reported_cost=(
+                (self.provider_reported_cost or 0.0) + (other.provider_reported_cost or 0.0)
+                if (
+                    self.provider_reported_cost is not None
+                    or other.provider_reported_cost is not None
+                )
+                else None
+            ),
+            actual_provider=other.actual_provider or self.actual_provider,
+            actual_model=other.actual_model or self.actual_model,
+        )
+
+
 class ProbeResult(FactoryModel):
     kind: ProbeKind
     version: str
@@ -220,7 +254,9 @@ class ProbeResult(FactoryModel):
     score: float = 0.0
     detail: str = ""
     actual_model_id: str | None = None
+    actual_provider: str | None = None
     latency_ms: float | None = None
+    usage: TokenUsage = Field(default_factory=lambda: TokenUsage())
     observed_at: str = ""
 
     _volatile_fields = frozenset({"observed_at", "latency_ms"})
@@ -269,7 +305,12 @@ class ProbeRun(FactoryModel):
     total: int = 0
     tokens_in: int = 0
     tokens_out: int = 0
+    cached_input_tokens: int = 0
+    uncached_input_tokens: int = 0
+    cache_creation_tokens: int = 0
     cost_usd: float = 0.0
+    cost_verified: bool = False  # True iff provider-reported cost was available
+    cli_version: str | None = None
     inference_mode: str = ""  # free | subscription | paid
     errors: list[str] = Field(default_factory=list)
     started_at: str = ""
@@ -601,6 +642,12 @@ class AgentResponse(FactoryModel):
     cost_usd: float = 0.0
     latency_ms: float | None = None
     error: str | None = None
+    # Full provider-reported usage (tokens/cache/cost) when the provider exposes
+    # it; None when it does not (so callers can settle a conservative estimate
+    # rather than zero).
+    usage: TokenUsage | None = None
+    cli_version: str | None = None
+    quota_blocked: bool = False
 
 
 class PacketResult(FactoryModel):

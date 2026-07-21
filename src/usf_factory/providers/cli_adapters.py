@@ -14,6 +14,7 @@ import os
 import shutil
 import time
 from pathlib import Path
+from typing import Any
 
 from ..enums import HealthStatus, Modality
 from ..models import (
@@ -122,39 +123,102 @@ class _CliAdapterBase:
             latency_ms=latency,
         )
 
+    async def _cli_version(self) -> str:
+        binpath = self._binary_path()
+        if not binpath:
+            return ""
+        _c, out, _e = await _run([binpath, "--version"], timeout_s=15.0)
+        return out.strip().splitlines()[0] if out.strip() else ""
+
+    async def _exec(
+        self, model_id: str, prompt: str, timeout_s: float
+    ) -> tuple[str, Any, bool, str]:
+        """Run the CLI non-interactively; return (text, TokenUsage, quota_blocked,
+        error). Prompt is fed on stdin (CLIs read it there). Sanitized env — the
+        CLI sees no API keys."""
+
+        binpath = self._binary_path()
+        if binpath is None:
+            raise AdapterError(f"{self.binary} not on PATH")
+        argv, stdin = self._argv(binpath, model_id, prompt)
+        start = time.perf_counter()
+        code, out, err = await _run(argv, timeout_s=timeout_s, stdin=stdin)
+        wall = (time.perf_counter() - start) * 1000
+        text, usage, quota = self._parse_full(out, err, code)
+        usage.latency_ms = wall
+        usage.actual_provider = self.config.provider_id
+        if not usage.actual_model:
+            usage.actual_model = model_id
+        return text, usage, quota, (err.strip()[:200] if code != 0 else "")
+
     async def probe_model(self, model_id: str, probe: ProbeSpec) -> ProbeResult:
+        """Genuine probe: invoke the CLI and grade the output with the canonical
+        graders (never trust presence in a hard-coded list)."""
         if not self.allow_billable:
-            raise AdapterError(f"billable inference disabled for {self.config.provider_id}")
-        raise AdapterError(f"{self.config.provider_id} probe_model not enabled in the safe runtime")
+            raise AdapterError(
+                f"subscription inference not authorized for {self.config.provider_id}"
+            )
+        from ..probes import grade_probe
 
-    # Subclasses build argv and parse stdout for their CLI's non-interactive mode.
-    def _argv(self, binpath: str, model_id: str, prompt: str) -> list[str]:  # pragma: no cover
+        text, usage, quota, _err = await self._exec(model_id, probe.prompt, timeout_s=120.0)
+        if quota:
+            return ProbeResult(
+                kind=probe.kind,
+                version=probe.version,
+                passed=False,
+                detail="QUOTA_BLOCKED",
+                actual_model_id=usage.actual_model,
+                actual_provider=self.config.provider_id,
+                usage=usage,
+                latency_ms=usage.latency_ms,
+            )
+        result = grade_probe(probe, text, actual_model_id=usage.actual_model)
+        return result.model_copy(
+            update={
+                "usage": usage,
+                "actual_provider": self.config.provider_id,
+                "latency_ms": usage.latency_ms,
+            }
+        )
+
+    # Subclasses build argv (+ optional stdin) and parse stdout for their CLI.
+    def _argv(
+        self, binpath: str, model_id: str, prompt: str
+    ) -> tuple[list[str], str | None]:  # pragma: no cover
         raise NotImplementedError
 
-    def _parse_output(self, stdout: str) -> str:  # pragma: no cover
+    def _parse_full(self, stdout: str, stderr: str, code: int) -> tuple[str, Any, bool]:
+        """Return (text, TokenUsage, quota_blocked)."""  # pragma: no cover
         raise NotImplementedError
+
+    def _parse_output(self, stdout: str) -> str:
+        text, _u, _q = self._parse_full(stdout, "", 0)
+        return text
 
     async def invoke(self, request: AgentRequest) -> AgentResponse:
         # Billable: uses the operator's existing CLI subscription/auth. Gated.
         if not self.allow_billable:
-            raise AdapterError(f"billable inference disabled for {self.config.provider_id}")
-        binpath = self._binary_path()
-        if binpath is None:
-            raise AdapterError(f"{self.binary} not on PATH")
+            raise AdapterError(
+                f"subscription inference not authorized for {self.config.provider_id}"
+            )
         model_id = request.model_id_for("default")
-        # Runs as the current (authenticated) user with a SANITIZED env — the CLI
-        # needs HOME for its OIDC auth but must never see API-provider keys.
-        code, out, err = await _run(
-            self._argv(binpath, model_id, request.instructions), timeout_s=float(request.max_wall_s)
+        text, usage, quota, errmsg = await self._exec(
+            model_id, request.instructions, timeout_s=float(request.max_wall_s)
         )
-        if code != 0:
-            raise AdapterError(f"{self.config.provider_id} exited {code}: {err.strip()[:200]}")
-        text = self._parse_output(out)
+        if quota:
+            raise AdapterError(f"{self.config.provider_id} QUOTA_BLOCKED")
+        if errmsg and not text:
+            raise AdapterError(f"{self.config.provider_id}: {errmsg}")
         return AgentResponse(
             agent_profile_id=request.agent_profile_id,
             actual_provider=self.config.provider_id,
-            actual_model=model_id,
+            actual_model=usage.actual_model or model_id,
             output_text=text,
+            tokens_in=usage.input_tokens or None,
+            tokens_out=usage.output_tokens or None,
+            cost_usd=usage.provider_reported_cost or 0.0,
+            usage=usage,
+            quota_blocked=quota,
         )
 
 
@@ -167,13 +231,22 @@ class CodexCliAdapter(_CliAdapterBase):
         ("o4-mini", "o4-mini (via Codex CLI)"),
     )
 
-    def _argv(self, binpath: str, model_id: str, prompt: str) -> list[str]:
-        # Non-interactive, ephemeral, JSON event stream (build task §5 refs).
-        return [binpath, "exec", "--json", "--skip-git-repo-check", "-m", model_id, prompt]
+    def _argv(self, binpath: str, model_id: str, prompt: str) -> tuple[list[str], str | None]:
+        # Non-interactive, ephemeral, JSON event stream; prompt on stdin. The
+        # account's default model is used unless an explicit model is requested
+        # (a hard-coded model id that the account rejects is not "available").
+        argv = [binpath, "exec", "--json", "--skip-git-repo-check"]
+        if model_id and model_id != "default":
+            argv += ["-m", model_id]
+        argv += ["-"]
+        return argv, prompt
 
-    def _parse_output(self, stdout: str) -> str:
-        # Codex emits JSONL events; return the last agent/assistant text.
+    def _parse_full(self, stdout: str, stderr: str, code: int):
+        from ..models import TokenUsage
+
         text = ""
+        usage = TokenUsage()
+        quota = False
         for line in stdout.splitlines():
             line = line.strip()
             if not line:
@@ -182,14 +255,32 @@ class CodexCliAdapter(_CliAdapterBase):
                 ev = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            msg = ev.get("message") or ev.get("text") or ev.get("content")
-            if isinstance(msg, str) and msg:
-                text = msg
-            elif ev.get("type") in ("agent_message", "assistant") and isinstance(
-                ev.get("delta"), str
-            ):
-                text += ev["delta"]
-        return text or stdout.strip()
+            typ = ev.get("type", "")
+            item = ev.get("item") or {}
+            if item.get("type") == "agent_message" and isinstance(item.get("text"), str):
+                text = item["text"]
+            elif typ == "agent_message" and isinstance(ev.get("message") or ev.get("text"), str):
+                text = ev.get("message") or ev.get("text")
+            elif isinstance(ev.get("text"), str) and ev.get("text"):
+                text = ev["text"]
+            # Usage may appear on turn.completed / thread events.
+            u = ev.get("usage") or item.get("usage") or {}
+            if isinstance(u, dict) and u:
+                usage.input_tokens = int(u.get("input_tokens") or usage.input_tokens)
+                usage.output_tokens = int(u.get("output_tokens") or usage.output_tokens)
+                usage.cached_input_tokens = int(
+                    u.get("cached_input_tokens")
+                    or u.get("cache_read_input_tokens")
+                    or usage.cached_input_tokens
+                )
+            if item.get("type") == "error" or typ == "error" or typ == "turn.failed":
+                msg = str(item.get("message") or ev.get("message") or "")
+                if any(w in msg.lower() for w in ("quota", "rate limit", "usage limit", "429")):
+                    quota = True
+        if any(w in (stderr or "").lower() for w in ("quota", "rate limit", "usage limit", "429")):
+            quota = True
+        usage.uncached_input_tokens = max(0, usage.input_tokens - usage.cached_input_tokens)
+        return (text or stdout.strip(), usage, quota)
 
 
 class ClaudeCliAdapter(_CliAdapterBase):
@@ -205,15 +296,45 @@ class ClaudeCliAdapter(_CliAdapterBase):
         ("claude-haiku-4-5", "Claude Haiku 4.5 (via Claude CLI)"),
     )
 
-    def _argv(self, binpath: str, model_id: str, prompt: str) -> list[str]:
-        return [binpath, "--print", "--output-format", "json", "--model", model_id, prompt]
+    def _argv(self, binpath: str, model_id: str, prompt: str) -> tuple[list[str], str | None]:
+        argv = [binpath, "--print", "--output-format", "json"]
+        if model_id and model_id != "default":
+            argv += ["--model", model_id]
+        argv += [prompt]
+        return argv, None
 
-    def _parse_output(self, stdout: str) -> str:
-        # Claude Code print mode returns a JSON object with a "result" field.
+    def _parse_full(self, stdout: str, stderr: str, code: int):
+        from ..models import TokenUsage
+
+        usage = TokenUsage()
+        quota = "quota" in (stderr or "").lower() or "usage limit" in (stderr or "").lower()
         try:
             obj = json.loads(stdout)
         except json.JSONDecodeError:
-            return stdout.strip()
-        if isinstance(obj, dict):
-            return str(obj.get("result") or obj.get("content") or "")
-        return stdout.strip()
+            return (stdout.strip(), usage, quota)
+        if not isinstance(obj, dict):
+            return (stdout.strip(), usage, quota)
+        if obj.get("is_error") or obj.get("subtype") == "error_max_turns":
+            api = str(obj.get("api_error_status") or "")
+            if "429" in api or "quota" in api.lower() or "limit" in api.lower():
+                quota = True
+        text = str(obj.get("result") or obj.get("content") or "")
+        u = obj.get("usage") or {}
+        if isinstance(u, dict):
+            usage.input_tokens = int(u.get("input_tokens") or 0)
+            usage.output_tokens = int(u.get("output_tokens") or 0)
+            usage.cached_input_tokens = int(u.get("cache_read_input_tokens") or 0)
+            usage.cache_creation_tokens = int(u.get("cache_creation_input_tokens") or 0)
+            usage.uncached_input_tokens = usage.input_tokens
+        # Claude reports total cost + the actual routed model(s).
+        cost = obj.get("total_cost_usd")
+        if cost is not None:
+            usage.provider_reported_cost = float(cost)
+        model_usage = obj.get("modelUsage") or {}
+        if isinstance(model_usage, dict) and model_usage:
+            # Pick the model with the most output tokens as the principal actual model.
+            principal = max(
+                model_usage.items(), key=lambda kv: (kv[1] or {}).get("outputTokens", 0)
+            )[0]
+            usage.actual_model = principal
+        return (text, usage, quota)

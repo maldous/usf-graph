@@ -645,6 +645,119 @@ def models_admit(
     console.print(f"roles computed from qualification evidence: {[r.value for r in roles]}")
 
 
+# Assessment order: subscription CLIs, then metadata-cheap external non-Llama.
+_ASSESS_ORDER = [
+    "codex-cli",
+    "claude-cli",
+    "gemini",
+    "mistral",
+    "deepseek",
+    "openrouter",
+    "openai-api",
+    "groq",
+    "cerebras",
+    "sambanova",
+    "fireworks",
+    "together",
+    "huggingface",
+    "arcee",
+]
+
+
+@models_app.command("assess")
+def models_assess(
+    exclude_provider: list[str] = typer.Option([], "--exclude-provider"),
+    exclude_model: list[str] = typer.Option([], "--exclude-model"),
+    exclude_family: list[str] = typer.Option([], "--exclude-family"),
+    include_model: list[str] = typer.Option([], "--include-model"),
+    force_reassess: bool = typer.Option(False, "--force-reassess"),
+    skip_valid_existing: bool = typer.Option(
+        True, "--skip-valid-existing/--no-skip-valid-existing"
+    ),
+    allow_inference: bool = typer.Option(False, "--allow-inference"),
+    allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
+    allow_paid_inference: bool = typer.Option(False, "--allow-paid-inference"),
+    max_cost_usd: float = typer.Option(0.0, "--max-cost-usd"),
+    repeats: int = typer.Option(2, "--repeats", help="probe rounds per model (LCB evidence)"),
+    max_models: int = typer.Option(12, "--max-models"),
+    admit: bool = typer.Option(False, "--admit", help="admit qualified models from evidence"),
+    report: str = typer.Option(
+        "docs/provider-model-selection-report.md", "--report", help="report output path"
+    ),
+) -> None:
+    """Staged non-Llama provider/model tournament -> ranked roster + report.
+
+    Defaults exclude ollama + the llama family and skip models with valid
+    evidence. Inference is gated exactly like `models probe`."""
+    import asyncio as _asyncio
+
+    from .probing import InferenceAuthorization
+    from .selection import (
+        SelectionFilters,
+        default_filters,
+        run_tournament,
+        select_roster,
+    )
+
+    base = default_filters()
+    filters = SelectionFilters(
+        exclude_providers=sorted(set(base.exclude_providers) | set(exclude_provider)),
+        exclude_models=sorted(set(base.exclude_models) | set(exclude_model)),
+        exclude_families=sorted(set(base.exclude_families) | set(exclude_family)),
+        include_models=list(include_model),
+        force_reassess=force_reassess,
+        skip_valid_existing=skip_valid_existing,
+    )
+    auth = InferenceAuthorization(
+        allow_inference=allow_inference,
+        allow_subscription_inference=allow_subscription_inference,
+        allow_paid_inference=allow_paid_inference,
+        max_cost_usd=max_cost_usd,
+    )
+    with _ctx() as ctx:
+        res = _asyncio.run(
+            run_tournament(
+                ctx, filters, auth=auth, order=_ASSESS_ORDER, repeats=repeats, max_models=max_models
+            )
+        )
+        roster = select_roster(res.assessments)
+        from .selection_report import render_report, write_report
+
+        md = render_report(res, roster, filters)
+        path = write_report(md, report)
+        if admit:
+            import contextlib
+
+            from .admission import admit_from_evidence
+
+            for a in res.assessments:
+                if a.role_scores:
+                    with contextlib.suppress(Exception):
+                        admit_from_evidence(ctx, a.profile_id)
+    t = Table(
+        title=f"assessment ({len(res.assessments)} models; skipped {len(res.skipped_existing)})"
+    )
+    for col in ("provider", "model", "probes", "class", "roles(LCB>0)"):
+        t.add_column(col)
+    for a in res.assessments:
+        t.add_row(
+            a.provider_id,
+            a.model_id[-26:],
+            f"{a.probe_passed}/{a.probe_total}",
+            a.classification,
+            ",".join(sorted(a.role_scores)) or "-",
+        )
+    console.print(t)
+    console.print(f"budget: spent ${res.budget_spent} / cap ${res.budget_total}")
+    console.print(
+        Panel(
+            str({k: v.get("provider", v.get("status")) for k, v in roster.items()}),
+            title="proposed roster",
+        )
+    )
+    console.print(f"[green]report written:[/] {path}")
+
+
 @models_app.command("profiles")
 def models_profiles() -> None:
     """List persisted agent profiles with their qualification/admission facts."""

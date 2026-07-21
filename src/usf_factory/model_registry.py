@@ -29,6 +29,24 @@ def canonical_family(provider_id: str, model_id: str) -> str:
     return base.strip("-_").lower() or model_id.lower()
 
 
+# Broad family GROUPS for exclusion (a model belongs to one if any keyword
+# appears in its provider-prefixed id). Matching is substring-based on the full
+# id so ``meta-llama/llama-3.3-70b-instruct`` and ``groq/llama-3.1-8b`` both hit
+# "llama", while ``mistralai/mixtral`` does not.
+_FAMILY_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "llama": ("llama", "meta-llama", "llama-3", "llama-4", "llama3", "llama4"),
+}
+
+
+def family_matches(provider_id: str, model_id: str, family: str) -> bool:
+    """True iff (provider/model) belongs to the given family GROUP. The family may
+    be a known group name (e.g. "llama" => any llama keyword) or a raw substring."""
+    fid = f"{provider_id}/{model_id}".lower()
+    fam = family.lower().strip()
+    keywords = _FAMILY_KEYWORDS.get(fam, (fam,))
+    return any(k in fid for k in keywords)
+
+
 def normalize_model(
     discovered: DiscoveredModel,
     config: ProviderConfig,

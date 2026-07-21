@@ -196,18 +196,44 @@ class OpenAICompatibleAdapter:
             )
 
     async def probe_model(self, model_id: str, probe: ProbeSpec) -> ProbeResult:
+        """Genuine probe: invoke the model (with tools for tool probes) and grade
+        with the canonical graders — a non-empty response is never a pass."""
         self._ensure_billable()
+        from ..models import TokenUsage
+        from ..probes import grade_probe
+
         start = time.perf_counter()
-        resp = await self._chat(model_id, probe.prompt)
+        tools = None
+        if probe.permitted_tools or probe.kind.value == "forced_tool_call":
+            tools = [
+                {"type": "function", "function": {"name": t, "parameters": {"type": "object"}}}
+                for t in (probe.permitted_tools or ["lookup"])
+            ]
+        self.with_loop_model(model_id)  # probing is sequential per lane
+        reply = await self.chat_with_tools([{"role": "user", "content": probe.prompt}], tools or [])
         latency = (time.perf_counter() - start) * 1000
-        return ProbeResult(
-            kind=probe.kind,
-            version=probe.version,
-            passed=bool(resp.output_text),
-            score=1.0 if resp.output_text else 0.0,
-            detail="raw probe response captured",
-            actual_model_id=resp.actual_model,
+        actual = reply.get("actual_model") or model_id
+        u = reply.get("usage") or {}
+        usage = TokenUsage(
+            input_tokens=int(u.get("prompt_tokens") or 0),
+            uncached_input_tokens=int(u.get("prompt_tokens") or 0),
+            output_tokens=int(u.get("completion_tokens") or 0),
             latency_ms=latency,
+            actual_provider=self.config.provider_id,
+            actual_model=actual,
+        )
+        result = grade_probe(
+            probe,
+            reply.get("content") or "",
+            tool_calls=reply.get("tool_calls") or [],
+            actual_model_id=actual,
+        )
+        return result.model_copy(
+            update={
+                "usage": usage,
+                "actual_provider": self.config.provider_id,
+                "latency_ms": latency,
+            }
         )
 
     async def invoke(self, request: AgentRequest) -> AgentResponse:
@@ -234,13 +260,16 @@ class OpenAICompatibleAdapter:
         """
         self._ensure_billable()
         url = self._url("/chat/completions")
-        payload = {
-            "model": self._loop_model or "gpt-4o-mini",
+        if not self._loop_model:
+            raise AdapterError(f"{self.config.provider_id} chat_with_tools requires a loop model")
+        payload: dict[str, Any] = {
+            "model": self._loop_model,
             "messages": _to_openai_messages(messages),
-            "tools": tools,
-            "tool_choice": "auto",
             "temperature": 0,
         }
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
         try:
             async with self._client() as client:
                 resp = await client.post(url, headers=self._headers(), json=payload)
