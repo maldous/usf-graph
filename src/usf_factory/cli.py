@@ -210,6 +210,19 @@ def run(
         help="audited: approve a proven-contained provider to receive raw source for "
         "this run only (in-memory; never committed)",
     ),
+    workforce_policy: str = typer.Option("", "--workforce-policy", help="operator policy file"),
+    exclude_provider: list[str] = typer.Option([], "--exclude-provider"),
+    exclude_model: list[str] = typer.Option([], "--exclude-model", help="provider/model or model"),
+    exclude_family: list[str] = typer.Option([], "--exclude-family"),
+    exclude_adapter: list[str] = typer.Option([], "--exclude-adapter"),
+    exclude_actual_model: list[str] = typer.Option([], "--exclude-actual-model"),
+    only_provider: list[str] = typer.Option([], "--only-provider"),
+    only_model: list[str] = typer.Option([], "--only-model"),
+    only_family: list[str] = typer.Option([], "--only-family"),
+    allow_local_inference: bool = typer.Option(False, "--allow-local-inference"),
+    allow_free_inference: bool = typer.Option(False, "--allow-free-inference"),
+    allow_paid_inference: bool = typer.Option(False, "--allow-paid-inference"),
+    max_paid_cost_usd: float = typer.Option(0.0, "--max-paid-cost-usd", help="paid budget (0)"),
 ) -> None:
     """Run one cycle (or a bounded continuous loop) in the given mode.
 
@@ -227,6 +240,22 @@ def run(
         raise typer.Exit(code=2) from None
     from .runtime import build_engine
 
+    policy = _build_workforce_policy(
+        workforce_policy,
+        exclude_provider,
+        exclude_model,
+        exclude_family,
+        exclude_adapter,
+        exclude_actual_model,
+        only_provider,
+        only_model,
+        only_family,
+        allow_local_inference,
+        allow_free_inference,
+        allow_subscription_inference,
+        allow_paid_inference,
+        max_paid_cost_usd,
+    )
     cap = shadow_packets if shadow_packets >= 0 else None
     with _ctx() as ctx:
         if (ctx.paths.state / "PAUSED").exists():
@@ -247,6 +276,7 @@ def run(
                 mode=run_mode,
                 max_shadow_packets=cap,
                 allow_billable=allow_subscription_inference,
+                policy=policy,
             )
             receipt = asyncio.run(eng.run_cycle(run_mode))
             _print_receipt(receipt)
@@ -257,7 +287,9 @@ def run(
             if (ctx.paths.state / "PAUSED").exists():
                 console.print("[yellow]paused; stopping continuous loop[/]")
                 break
-            eng = build_engine(ctx, mode=run_mode, allow_billable=allow_subscription_inference)
+            eng = build_engine(
+                ctx, mode=run_mode, allow_billable=allow_subscription_inference, policy=policy
+            )
             receipt = asyncio.run(eng.run_cycle(run_mode))
             console.print(
                 f"cycle {i + 1}: state={receipt.state.value} "

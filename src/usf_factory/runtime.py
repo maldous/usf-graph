@@ -221,6 +221,7 @@ def build_engine(
     mode: RunMode | None = None,
     max_shadow_packets: int | None = None,
     allow_billable: bool = False,
+    policy: object | None = None,
 ):
     """Construct a fully-wired production FactoryEngine.
 
@@ -262,4 +263,5 @@ def build_engine(
         reviewer_factory=reviewer_factory,
         planner_critic_factory=critic_factory if optimizer is not None else None,
         max_shadow_packets=max_shadow_packets,
+        policy=policy,  # type: ignore[arg-type]  # EffectiveWorkforcePolicy | None
     )

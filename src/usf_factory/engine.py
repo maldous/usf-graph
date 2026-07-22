@@ -58,6 +58,11 @@ from .scheduler import SchedulableAgent, Scheduler
 from .snapshots import compile_snapshot
 from .state_machine import CycleStateMachine
 from .validation import compute_terminal_complete, run_validation
+from .workforce_policy import (
+    EffectiveWorkforcePolicy,
+    committed_defaults,
+    resolve_workforce_policy,
+)
 
 
 def default_planner_fixture() -> Path:
@@ -93,9 +98,16 @@ class FactoryEngine:
         reviewer_factory: Callable[[], object] | None = None,
         planner_critic_factory: Callable[[], object] | None = None,
         max_shadow_packets: int | None = None,
+        policy: EffectiveWorkforcePolicy | None = None,
     ) -> None:
         self.ctx = ctx
         self.iso = RepoIsolation(ctx.paths, ctx.usf_repo)
+        # The effective WorkforcePolicy governs live candidate selection: excluded
+        # providers/models/families/adapters are dropped from routing (never
+        # probed/invoked), and the all-admitted fallback is fail-closed (§11). The
+        # default is provider-neutral (code); the CLI passes the composed
+        # committed+operator+run policy so operator/run exclusions apply live.
+        self.policy = policy or resolve_workforce_policy(committed_defaults())
         self._authority_factory = authority_factory
         # Production path: derive obligations deterministically from live authority
         # (ProgrammePlanner). A fixture planner is used only when injected (tests).
@@ -548,16 +560,49 @@ class FactoryEngine:
                 row = self.ctx.store.get("agent_profiles", pid)
                 if not row:
                     continue
-                agent = self._schedulable(AgentProfile(**row), task_class)
+                profile = AgentProfile(**row)
+                if self._policy_excludes(profile):
+                    continue
+                agent = self._schedulable(profile, task_class)
                 if agent is not None:
                     agents.append(agent)
             return agents
-        # No active roster entry: fall back to the admitted profiles (revalidated).
+        # No fresh active-roster entry for this role. Fail-closed roster (§11):
+        # the legacy all-admitted scan is allowed ONLY as a migration when NO
+        # active-roster record has EVER existed. Once a roster exists (even stale),
+        # a missing/stale role entry blocks the role — never a silent all-admitted
+        # scan that bypasses the workforce.
+        if self.ctx.store.get("role_rosters", "active") is not None:
+            return agents  # fail closed
         for _key, profile_row in self.ctx.store.items("agent_profiles"):
-            agent = self._schedulable(AgentProfile(**profile_row), task_class)
+            profile = AgentProfile(**profile_row)
+            if self._policy_excludes(profile):
+                continue
+            agent = self._schedulable(profile, task_class)
             if agent is not None:
                 agents.append(agent)
         return agents
+
+    def _policy_excludes(self, profile: AgentProfile) -> bool:
+        """Drop a profile the effective WorkforcePolicy excludes (by provider,
+        model, family or adapter) BEFORE it can be routed/invoked."""
+        hit = self.policy.candidate_exclusion(
+            provider_id=profile.provider_id,
+            model_id=profile.requested_model_id,
+            adapter=profile.adapter,
+        )
+        if hit.excluded:
+            self.ctx.log_event(
+                "selection.excluded",
+                stage="SCHEDULED",
+                payload={
+                    "profile_id": profile.profile_id,
+                    "provider_id": profile.provider_id,
+                    "reason": hit.reason,
+                    "source": hit.source,
+                },
+            )
+        return hit.excluded
 
     def schedule_packets(self, pset: PacketSet, cycle_id: str) -> list[RoutingDecision]:
         scheduler = Scheduler(
