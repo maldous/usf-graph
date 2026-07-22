@@ -283,6 +283,26 @@ def test_integrator_selection_is_dynamic(ctx, tmp_usf):
 
 
 @pytest.mark.adversarial
+def test_policy_change_invalidates_active_snapshot(ctx, tmp_usf):
+    from usf_factory.workforce import active_workforce_snapshot
+
+    seed_agent(ctx.store, roles=[ANALYST.value], scores=all_dimension_scores(), provider_id="alpha")
+    seed_agent(ctx.store, roles=[ANALYST.value], scores=all_dimension_scores(), provider_id="beta")
+    eng = FactoryEngine(ctx, worker_factory=_factory(lambda p, a, n: _completed(p, a), []))
+    snap1 = eng._current_workforce()  # built + persisted under the default policy
+    assert active_workforce_snapshot(ctx, eng.policy) is not None  # fresh under same policy
+    # An operator exclusion added mid-run changes the effective policy digest, so the
+    # persisted snapshot is stale and MUST be rebuilt before the next dispatch.
+    eng.policy = resolve_workforce_policy(
+        committed_defaults(), None, WorkforcePolicyLayer(exclude_providers=["alpha"])
+    )
+    assert active_workforce_snapshot(ctx, eng.policy) is None  # stale under the new policy
+    snap2 = eng._current_workforce()
+    assert snap2.snapshot_id != snap1.snapshot_id
+    assert "alpha" not in {p.provider_id for p in snap2.role_candidates(ANALYST)}
+
+
+@pytest.mark.adversarial
 def test_no_provider_name_in_run_path_source():
     root = Path(__file__).resolve().parents[1] / "src" / "usf_factory"
     names = (

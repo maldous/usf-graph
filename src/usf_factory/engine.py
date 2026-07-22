@@ -388,8 +388,23 @@ class FactoryEngine:
                 critic = self._planner_critic_factory()
             except Exception:
                 critic = None
+            verdict = None
             if critic is not None:
-                verdict = await critic.review_plan(graph, compact_projection(snap))
+                # The critic is ADVISORY: the deterministic compiler stays
+                # authoritative. A critic that is unavailable/unauthorized (e.g. an
+                # AI critic without subscription authorization) must fail closed to
+                # "no critique", never crash the cycle.
+                try:
+                    verdict = await critic.review_plan(graph, compact_projection(snap))
+                except Exception as exc:
+                    self.ctx.log_event(
+                        "plan.critic_unavailable",
+                        stage="PLANNED",
+                        cycle_id=cycle_id,
+                        payload={"error": str(exc)[:300]},
+                    )
+                    verdict = None
+            if verdict is not None:
                 findings = findings + [f"planner-critic: {f}" for f in verdict.get("findings", [])]
                 if not verdict.get("approved", False):
                     findings.append(
