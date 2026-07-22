@@ -250,6 +250,34 @@ class RemediationKind(StrEnum):
     HUMAN_DECISION = "HUMAN_DECISION"
 
 
+class DeliveryState(StrEnum):
+    """Durable, idempotent delivery lifecycle from an accepted result through
+    authority reconciliation and obligation closure (build task §12). Every
+    forward state is persisted BEFORE and AFTER its external side effect so a
+    restart reconciles rather than blindly repeating.
+    """
+
+    DISCOVERED = "DISCOVERED"  # obligation + accepted evidence/patch identified
+    LOCAL_VALIDATED = "LOCAL_VALIDATED"  # deterministic validation passed
+    REVIEW_APPROVED = "REVIEW_APPROVED"  # independent review approved
+    DELIVERY_PREPARED = "DELIVERY_PREPARED"  # branch/commit/PR artifact prepared
+    BRANCH_PUSHED = "BRANCH_PUSHED"  # factory branch pushed to the remote
+    PR_OPENED = "PR_OPENED"  # draft PR opened
+    CI_PASSED = "CI_PASSED"  # required checks passed on the reviewed head
+    PR_MERGED = "PR_MERGED"  # PR merged (no force)
+    AUTHORITY_VALIDATED = "AUTHORITY_VALIDATED"  # validate-and-rollback publication ok
+    AUTHORITY_PUBLISHED = "AUTHORITY_PUBLISHED"  # committed authority publication done
+    DRIFT_RECONCILED = "DRIFT_RECONCILED"  # source/live drift zero + MCP resnapshot
+    OBLIGATION_CLOSED = "OBLIGATION_CLOSED"  # the exact obligation confirmed absent
+    COMPLETE = "COMPLETE"  # terminal success
+
+    # Non-success terminals / holds.
+    STALE = "STALE"  # authority digest moved under us => replan
+    BLOCKED = "BLOCKED"  # a hard gate / authorization / independence gap
+    FAILED = "FAILED"  # a step failed cleanly (no uncertain side effect)
+    UNCERTAIN_SIDE_EFFECT = "UNCERTAIN_SIDE_EFFECT"  # push/merge/publish outcome unknown
+
+
 class ProbeKind(StrEnum):
     """The ten mechanical probes (build task §8.1)."""
 

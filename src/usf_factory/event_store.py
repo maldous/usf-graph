@@ -68,6 +68,8 @@ _RECORD_TABLES: dict[str, list[str]] = {
     # Full replayable dynamic-dispatch outcome per packet run: the ordered attempts
     # (with actual provider/model + fallback), and the final selection.
     "dispatch_outcomes": ["packet_id"],
+    # Durable, idempotent delivery-lifecycle records (one per obligation delivery).
+    "delivery_records": ["obligation_id", "state"],
     "cycles": ["state"],
     "budget_events": ["cycle_id", "provider_id"],
     # Latest OBSERVED health per provider (scheduler fact source; never fabricated).

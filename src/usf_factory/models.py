@@ -25,6 +25,7 @@ from .enums import (
     AuthMode,
     ConflictClass,
     CycleState,
+    DeliveryState,
     FailureClass,
     HealthStatus,
     Modality,
@@ -865,6 +866,47 @@ class DeliveryArtifact(FactoryModel):
     prepared_at: str = ""
 
     _volatile_fields = frozenset({"prepared_at"})
+
+
+class DeliveryRecord(FactoryModel):
+    """The durable, idempotent state of ONE obligation's delivery through the
+    protected lifecycle (build task §12). Persisted before and after every
+    external side effect so a restart reconciles rather than blindly repeating an
+    uncertain push/merge/publish. Keyed by ``delivery_id`` (obligation + wave)."""
+
+    delivery_id: str
+    obligation_id: str
+    set_id: str = ""
+    state: str = DeliveryState.DISCOVERED.value
+    remediation_kind: str = ""
+    # Idempotency + provenance bindings recorded with every transition.
+    idempotency_key: str = ""
+    authority_digest_before: str = ""
+    authority_digest_after: str = ""
+    expected_pre_publication_digest: str = ""
+    repo_base_head: str = ""
+    repo_merge_head: str = ""
+    policy_digest: str = ""
+    run_authorization_digest: str = ""
+    workforce_snapshot_id: str = ""
+    # External identifiers (from the real side effects).
+    branch: str = ""
+    pr_number: int | None = None
+    pr_url: str = ""
+    reviewed_head: str = ""
+    checked_head: str = ""
+    merge_commit: str = ""
+    graphs_published: list[str] = Field(default_factory=list)
+    # Attribution + reconciliation.
+    provider_model_receipts: list[dict[str, Any]] = Field(default_factory=list)
+    reconciliation: dict[str, Any] = Field(default_factory=dict)
+    evidence_refs: list[str] = Field(default_factory=list)
+    history: list[str] = Field(default_factory=list)
+    blocked_reason: str = ""
+    created_at: str = ""
+    updated_at: str = ""
+
+    _volatile_fields = frozenset({"created_at", "updated_at"})
 
 
 class Event(FactoryModel):
