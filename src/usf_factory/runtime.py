@@ -104,7 +104,30 @@ def production_worker_factory(ctx: RuntimeContext, *, allow_billable: bool = Fal
     return make
 
 
-def production_reviewer_factory(ctx: RuntimeContext, *, allow_billable: bool = False):
+def _policy_allows_profile(policy: object | None, profile: AgentProfile) -> bool:
+    """Apply the effective workforce policy at every AI selection point."""
+    if policy is None or not hasattr(policy, "candidate_exclusion"):
+        return True
+    from .enums import AuthMode, InferenceMode
+
+    if profile.auth_mode is AuthMode.OIDC_CLI:
+        mode = InferenceMode.SUBSCRIPTION
+    elif profile.auth_mode is AuthMode.LOCAL:
+        mode = InferenceMode.LOCAL
+    else:
+        mode = InferenceMode.PAID
+    decision = policy.candidate_exclusion(
+        provider_id=profile.provider_id,
+        model_id=profile.requested_model_id,
+        adapter=profile.adapter,
+        inference_mode=mode,
+    )
+    return not decision.excluded
+
+
+def production_reviewer_factory(
+    ctx: RuntimeContext, *, allow_billable: bool = False, policy: object | None = None
+):
     """(profile_id=None) -> WaveReviewer | None. Builds an AiReviewer for the
     profile the ENGINE selected dynamically (adaptive, independent from the
     authoring providers). When no ``profile_id`` is given it falls back to the
@@ -126,6 +149,8 @@ def production_reviewer_factory(ctx: RuntimeContext, *, allow_billable: bool = F
             # independence) — never first-found storage order.
             profile = roster_profile_for(ctx, AdmissionRole.REVIEWER)
         if profile is None:
+            return None
+        if not _policy_allows_profile(policy, profile):
             return None
         try:
             adapter = build_registry(ctx, allow_billable=allow_billable).adapter(
@@ -151,7 +176,7 @@ def production_reviewer_factory(ctx: RuntimeContext, *, allow_billable: bool = F
     return make
 
 
-def _admitted_profiles(ctx: RuntimeContext, role):
+def _admitted_profiles(ctx: RuntimeContext, role, policy: object | None = None):
     """Profiles holding a valid admission for ``role`` (provider-diverse selection
     material). Returns list of (profile, provider_family)."""
     from .admission import admission_ineligibility
@@ -160,6 +185,8 @@ def _admitted_profiles(ctx: RuntimeContext, role):
     out = []
     for _key, row in ctx.store.items("agent_profiles"):
         profile = AgentProfile(**row)
+        if not _policy_allows_profile(policy, profile):
+            continue
         decision, _run, reason = admission_ineligibility(ctx, profile)
         if reason is not None or decision is None:
             continue
@@ -168,7 +195,9 @@ def _admitted_profiles(ctx: RuntimeContext, role):
     return out
 
 
-def select_plan_optimizer(ctx: RuntimeContext, *, allow_billable: bool = False):
+def select_plan_optimizer(
+    ctx: RuntimeContext, *, allow_billable: bool = False, policy: object | None = None
+):
     """A qualified AI plan OPTIMIZER if a planner-role model is admitted, else
     None (=> the deterministic authoritative graph is used unchanged). The
     optimizer never generates obligations — it only ranks/consolidates/annotates
@@ -178,9 +207,13 @@ def select_plan_optimizer(ctx: RuntimeContext, *, allow_billable: bool = False):
     from .providers import build_registry
     from .roster import roster_profile_for
 
+    if policy is not None and not bool(getattr(policy, "enable_plan_optimizer", True)):
+        return None, None
     # ONLY the ACTIVE roster governs the planner role — never a first-found scan.
     profile = roster_profile_for(ctx, AdmissionRole.PLANNER_CANDIDATE)
     if profile is None:
+        return None, None
+    if not _policy_allows_profile(policy, profile):
         return None, None
     try:
         adapter = build_registry(ctx, allow_billable=allow_billable).adapter(profile.provider_id)
@@ -199,7 +232,11 @@ def select_plan_optimizer(ctx: RuntimeContext, *, allow_billable: bool = False):
 
 
 def production_planner_critic_factory(
-    ctx: RuntimeContext, exclude_provider: str | None = None, *, allow_billable: bool = False
+    ctx: RuntimeContext,
+    exclude_provider: str | None = None,
+    *,
+    allow_billable: bool = False,
+    policy: object | None = None,
 ):
     """() -> planner critic. Prefers an admitted REVIEWER on a DIFFERENT provider
     than the planner; falls back to the deterministic critic adapter."""
@@ -208,7 +245,7 @@ def production_planner_critic_factory(
     from .providers import build_registry
 
     def make():
-        for profile in _admitted_profiles(ctx, AdmissionRole.REVIEWER):
+        for profile in _admitted_profiles(ctx, AdmissionRole.REVIEWER, policy):
             if exclude_provider and profile.provider_id == exclude_provider:
                 continue
             try:
@@ -276,14 +313,17 @@ def build_engine(
         def materialisation_factory(mirror, head):
             return build_index_at(mirror, head)
 
-    optimizer, optimizer_profile = select_plan_optimizer(ctx, allow_billable=allow_billable)
+    optimizer, optimizer_profile = select_plan_optimizer(
+        ctx, allow_billable=allow_billable, policy=policy
+    )
     critic_factory = production_planner_critic_factory(
         ctx,
         exclude_provider=optimizer_profile.provider_id if optimizer_profile else None,
         allow_billable=allow_billable,
+        policy=policy,
     )
 
-    _reviewer_make = production_reviewer_factory(ctx, allow_billable=allow_billable)
+    _reviewer_make = production_reviewer_factory(ctx, allow_billable=allow_billable, policy=policy)
 
     def reviewer_factory(profile_id: str | None = None):
         # Preserves the ``profile_id`` parameter so the engine's dynamic, independent
@@ -291,7 +331,7 @@ def build_engine(
         return _reviewer_make(profile_id=profile_id)
 
     def plan_optimizer_factory():
-        opt, _ = select_plan_optimizer(ctx, allow_billable=allow_billable)
+        opt, _ = select_plan_optimizer(ctx, allow_billable=allow_billable, policy=policy)
         return opt
 
     return FactoryEngine(

@@ -109,3 +109,57 @@ are independently demonstrated.
 
 See `systemd/` for a timer-driven `observe`/`plan-only` service. See
 [`recovery.md`](recovery.md) for crash recovery and backups.
+
+### SAFE_ADAPTIVE_EXECUTION
+
+The safe adaptive profile performs useful isolated `shadow` work while every
+protected delivery capability remains disabled. It permits snapshot, complete
+work-plan compilation, conflict-free packet execution in disposable workspaces,
+local validation/review and CAS-backed factory receipts. It prohibits Git push,
+PR creation, merge, committed authority publication, terminal completion, paid
+API use and raw-source egress.
+
+Create two root-owned files outside either repository:
+
+- `/root/.config/usf-factory/safe-empty.env`: empty, mode `0600`;
+- `/root/.config/usf-factory/safe-adaptive-authorization.json`: a current
+  `RunAuthorization`, mode `0600`, with `permitted_actions: []`, every outward
+  side-effect quota zero, `paid_api_budget_usd: 0`, no raw-source provider,
+  subscription inference allowed, and explicit packet/cycle work-volume bounds.
+
+Run a bounded canary with:
+
+```bash
+USF_FACTORY_SAFE_AUTHORIZATION=/root/.config/usf-factory/safe-adaptive-authorization.json \
+  scripts/run-safe-adaptive.sh
+```
+
+The launcher validates this envelope before starting. CLI/provider subprocesses
+receive an allowlisted environment; the coordinator reads the empty credential
+file, so API, GitHub and Stardog credentials are absent. Only current admitted
+subscription CLI identities may be selected by
+`config/safe-adaptive-execution.yaml`. The adaptive controller determines live
+concurrency; the authorization limits total work, not worker slots.
+
+If the current authority exposes only one dependency-ready packet, that packet
+is executed once. Do not manufacture duplicate work merely to demonstrate
+overlap.
+
+On a host without a usable systemd bus, install Supervisor and start the
+repository-owned configuration:
+
+```bash
+install -d -m 0750 /var/log/usf-factory
+supervisord -c /root/usf-factory/supervisor/usf-factory-safe.conf
+supervisorctl -c /root/usf-factory/supervisor/usf-factory-safe.conf status
+```
+
+The child starts from `env -i`, reconciles durable state before redispatch, and
+waits 15 minutes between bounded runs. A blocked cycle exits non-zero and is
+reported as an unhealthy supervisor state rather than silently looping.
+
+Every externally deployed non-transient asset, its destination, mode,
+installation command and rollback command is preserved under
+[`deployment/safe-adaptive/`](../deployment/safe-adaptive/). Active expiring
+authorization bytes stay outside Git; the repository carries their complete
+safe template and each run records the exact active digest.

@@ -209,6 +209,16 @@ usf-factory/
 - [`docs/operator-guide.md`](docs/operator-guide.md) / [`docs/recovery.md`](docs/recovery.md)
 - [`docs/credential-import.md`](docs/credential-import.md)
 
+The supported useful-operation envelope is `SAFE_ADAPTIVE_EXECUTION`: adaptive
+isolated shadow packets with zero protected side effects, zero paid API budget
+and no raw-source egress. Its fail-closed launcher and supervised units live in
+[`scripts/run-safe-adaptive.sh`](scripts/run-safe-adaptive.sh) and [`systemd/`](systemd/).
+Protected merge and authority publication remain separate readiness boundaries.
+Hosts without a usable systemd bus use the equivalent repository-owned
+[`supervisor/usf-factory-safe.conf`](supervisor/usf-factory-safe.conf).
+Portable copies/templates and recovery documentation for every external asset
+are in [`deployment/safe-adaptive/`](deployment/safe-adaptive/).
+
 ## License
 
 See [`LICENSE-NOTICE.md`](LICENSE-NOTICE.md). Internal operational tool; all

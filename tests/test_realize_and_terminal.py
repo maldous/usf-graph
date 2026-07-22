@@ -313,7 +313,7 @@ def test_engine_prepare_only_without_authorization(ctx, tmp_usf):
 
 @pytest.mark.adversarial
 @pytest.mark.parametrize("prior_state", ["INIT", "SNAPSHOT", "EXECUTING", "VALIDATING"])
-def test_preflight_blocks_on_incomplete_prior_cycle(ctx, tmp_usf, prior_state):
+def test_preflight_closes_abandoned_prior_cycle(ctx, tmp_usf, prior_state):
     ctx.store.put(
         "cycles",
         "prior-cycle",
@@ -321,9 +321,28 @@ def test_preflight_blocks_on_incomplete_prior_cycle(ctx, tmp_usf, prior_state):
         extra={"state": prior_state},
     )
     result = FactoryEngine(ctx).preflight("new-cycle")
-    assert result["cycleState"] == "BLOCKED"
+    assert result["cycleState"] == "READY"
     assert result["recoveredFrom"] == "prior-cycle"
-    assert "requires explicit reconciliation" in result["blockers"][0]
+    recovered = ctx.store.get("cycles", "prior-cycle")
+    assert recovered["state"] == "BLOCKED"
+    assert "RECOVERED_INTERRUPTED_CYCLE_NO_ACTIVE_SIDE_EFFECT" in recovered["blockers"]
+
+
+@pytest.mark.adversarial
+def test_preflight_does_not_reopen_a_settled_blocked_cycle(ctx, tmp_usf):
+    ctx.store.put(
+        "cycles",
+        "settled-blocked-cycle",
+        {
+            "cycle_id": "settled-blocked-cycle",
+            "state": "BLOCKED",
+            "blockers": ["packet result failed deterministically"],
+        },
+        extra={"state": "BLOCKED"},
+    )
+    result = FactoryEngine(ctx).preflight("new-cycle")
+    assert result["cycleState"] == "READY"
+    assert result["recoveredFrom"] is None
 
 
 @pytest.mark.e2e

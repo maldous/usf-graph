@@ -1,0 +1,39 @@
+[Unit]
+Description=USF Factory safe adaptive execution
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/root/.config/usf-factory/safe-adaptive-authorization.json
+
+[Service]
+Type=exec
+User=root
+WorkingDirectory=/root/usf-factory
+ExecStart=/root/usf-factory/scripts/run-safe-adaptive.sh
+Restart=on-failure
+RestartSec=30s
+RuntimeMaxSec=24h
+TimeoutStopSec=120s
+KillMode=control-group
+Nice=10
+Environment=HOME=/root
+Environment=PATH=/root/usf-factory/.venv/bin:/root/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=USF_FACTORY_ENV_FILE=/root/.config/usf-factory/safe-empty.env
+Environment=USF_FACTORY_SAFE_AUTHORIZATION=/root/.config/usf-factory/safe-adaptive-authorization.json
+Environment=USF_FACTORY_SAFE_WORKFORCE_POLICY=/root/usf-factory/config/safe-adaptive-execution.yaml
+UnsetEnvironment=OPENAI_API_KEY OPENROUTER_API_KEY GROQ_API_KEY MISTRAL_API_KEY GEMINI_API_KEY SAMBANOVA_API_KEY GITHUB_MODELS_TOKEN GITHUB_PERSONAL_ACCESS_TOKEN HF_TOKEN FIREWORKS_API_KEY TOGETHER_API_KEY DEEPSEEK_API_KEY CEREBRAS_API_KEY ARCEE_TOKEN OLLAMA_API_KEY XAI_API_KEY ANTHROPIC_API_KEY STARDOG_TOKEN STARDOG_USERNAME STARDOG_PASSWORD
+ProtectSystem=strict
+ProtectHome=read-only
+ReadOnlyPaths=/usf /root/usf-factory
+ReadWritePaths=/root/.local/share/usf-factory /root/.local/state/usf-factory /root/.cache/usf-factory /root/.config/usf-factory
+PrivateTmp=true
+NoNewPrivileges=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target

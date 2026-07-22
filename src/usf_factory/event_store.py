@@ -105,6 +105,9 @@ _RECORD_TABLES: dict[str, list[str]] = {
         "status",
     ],
     "adaptive_observations": ["workload_key", "provider_id", "actual_model", "task_class"],
+    # One compact derived operational summary per completed cycle. Raw invocation
+    # and observation records remain the evidence source.
+    "operational_summaries": ["cycle_id", "authority_digest", "state"],
     # Latest OBSERVED health per provider (scheduler fact source; never fabricated).
     "provider_health": [],
     # Snapshot-bound materialisation index builds (digest-keyed, per snapshot).

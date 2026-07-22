@@ -474,6 +474,7 @@ def realize(
         coordinator = build_delivery_coordinator(ctx)
         cap = max(1, max_packets_per_wave)
         seen_sets: set[str] = set()
+        blocked = False
         for i in range(max(1, max_cycles)):
             if (ctx.paths.state / "PAUSED").exists():
                 console.print("[yellow]paused; stopping[/]")
@@ -506,10 +507,13 @@ def realize(
                 break
             if receipt.state.value == "BLOCKED":
                 console.print(f"[yellow]blocked: {receipt.blockers}; stopping[/]")
+                blocked = True
                 break
             if receipt.selected_packets == 0:
                 console.print("[dim]no remaining obligations; stopping[/]")
                 break
+        if blocked:
+            raise typer.Exit(code=1)
 
 
 @app.command("bootstrap-runtime")

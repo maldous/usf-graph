@@ -203,6 +203,7 @@ class FactoryEngine:
         reaped_leases = self.ctx.store.reap_expired_leases()
         reaped_claims = self.ctx.store.reap_expired_claims()
         invocation_reconciliation = self.adaptive_execution.reconcile_after_restart()
+        active_claims = self.ctx.store.count("packet_claims", "status='active'")
         if reaped_leases or reaped_claims or any(invocation_reconciliation.values()):
             self.ctx.log_event(
                 "recovery.reaped",
@@ -220,8 +221,14 @@ class FactoryEngine:
                 "ADAPTIVE_INVOCATION_RECONCILIATION_REQUIRED: "
                 + ",".join(invocation_reconciliation["pending"])
             )
+        if active_claims:
+            cycle_state = "BLOCKED"
+            blockers.append(f"ACTIVE_PACKET_CLAIM_RECONCILIATION_REQUIRED: {active_claims}")
 
-        # Detect an incomplete prior cycle.
+        # Recover abandoned cycle projections. Active/uncertain adaptive
+        # invocations already block above; protected delivery recovery is handled
+        # independently below. With neither boundary live, an interrupted cycle
+        # has no side effect to resume and can be durably closed before replanning.
         for c in self.ctx.store.records("cycles"):
             if c.get("cycle_id") == cycle_id:
                 continue
@@ -230,13 +237,45 @@ class FactoryEngine:
                 CycleState.COMPLETE.value,
                 CycleState.FAILED.value,
                 CycleState.LEARNED.value,
+                # BLOCKED is a complete cycle receipt: the blocker and every
+                # known action are already persisted.  Ambiguous provider calls
+                # and protected deliveries are reconciled independently below
+                # and still fail closed.  Treating every historical BLOCKED
+                # receipt as incomplete permanently prevents any later cycle.
+                CycleState.BLOCKED.value,
             ):
                 recovered_from = c.get("cycle_id")
                 break
-        if recovered_from:
+        if recovered_from and not invocation_reconciliation["pending"] and not active_claims:
+            from .clock import utc_now_iso
+
+            prior = self.ctx.store.get("cycles", recovered_from) or {}
+            prior_blockers = list(prior.get("blockers") or [])
+            prior_blockers.append("RECOVERED_INTERRUPTED_CYCLE_NO_ACTIVE_SIDE_EFFECT")
+            self.ctx.store.put(
+                "cycles",
+                recovered_from,
+                {
+                    **prior,
+                    "state": CycleState.BLOCKED.value,
+                    "blockers": sorted(set(prior_blockers)),
+                    "ended_at": utc_now_iso(),
+                },
+                extra={"state": CycleState.BLOCKED.value},
+            )
+            self.ctx.log_event(
+                "recovery.cycle_abandoned",
+                stage="INIT",
+                cycle_id=recovered_from,
+                payload={
+                    "prior_state": prior.get("state"),
+                    "reason": "no active or uncertain invocation; protected delivery reconciles separately",
+                },
+            )
+        elif recovered_from:
             cycle_state = "BLOCKED"
             blockers.append(
-                f"incomplete prior cycle {recovered_from} requires explicit reconciliation"
+                f"incomplete prior cycle {recovered_from} has active or uncertain execution"
             )
         # Ensure the factory-owned mirror (read-only fetch from /usf).
         try:
@@ -1090,7 +1129,9 @@ class FactoryEngine:
         )
         model_row = self._model_row(agent.provider_id, agent.requested_model_id)
         est = (
-            self._estimate_model_cost(model_row) if (model_row or {}).get("free") is False else 0.0
+            self._estimate_model_cost(model_row)
+            if agent.auth_mode is not AuthMode.OIDC_CLI and (model_row or {}).get("free") is False
+            else 0.0
         )
         if est > 0 and paid_limit <= 0:
             why = "paid inference is outside the effective RunAuthorization budget"
@@ -1451,7 +1492,8 @@ class FactoryEngine:
             return
         actual = 0.0
         u = result.usage or {}
-        if model_row:
+        paid_api = agent.auth_mode is not AuthMode.OIDC_CLI
+        if paid_api and model_row:
             computed = (
                 float(model_row.get("prompt_cost_per_mtok") or 0.0)
                 * float(u.get("prompt_tokens", 0))
@@ -1460,7 +1502,7 @@ class FactoryEngine:
             ) / 1_000_000.0
             actual = computed
         reported = u.get("provider_reported_cost")
-        if reported is not None:
+        if paid_api and reported is not None:
             actual = max(actual, float(reported))
         within, reason = ledger.commit(
             cycle_id=cycle_id,
@@ -1724,6 +1766,30 @@ class FactoryEngine:
             )
 
         # Executing modes (shadow / approve-wave / autonomous-safe).
+        if mode in self._EXECUTING_MODES and self._validated_prior_wave(snap, pset):
+            self.ctx.log_event(
+                "execute.unchanged_wave",
+                stage="SCHEDULED",
+                cycle_id=cycle_id,
+                payload={
+                    "snapshot_id": snap.snapshot_id,
+                    "set_id": pset.set_id,
+                    "reason": "same snapshot and packet set already accepted and validated",
+                },
+            )
+            sm.transition(CycleState.LEARNED)
+            return self._finish(
+                cycle_id,
+                mode,
+                sm.state,
+                started,
+                snapshot=snap,
+                graph=graph,
+                pset=pset,
+                accepted=0,
+                no_progress=True,
+                blockers=[*blockers, "unchanged wave already validated"],
+            )
         if (
             mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
             and not self.ctx.config.safety.autonomous_safe_enabled
@@ -2456,10 +2522,29 @@ class FactoryEngine:
             key=lambda c: c.get("cycle_id", ""),
             reverse=True,
         ):
+            # The current in-flight cycle has not yet received its final snapshot
+            # and set projection; it must not hide durable prior observations.
+            if not prior.get("snapshot_id") or not prior.get("set_id"):
+                continue
             if prior.get("snapshot_id") != snap.snapshot_id or prior.get("set_id") != pset.set_id:
                 break
             streak += 1
         return streak >= max(1, self.ctx.config.budgets.max_no_progress_cycles)
+
+    def _validated_prior_wave(self, snap: SemanticSnapshot, pset: PacketSet) -> bool:
+        """True only for an exact prior successful execution of unchanged work."""
+        for prior in self.ctx.store.records("cycles"):
+            if prior.get("snapshot_id") != snap.snapshot_id or prior.get("set_id") != pset.set_id:
+                continue
+            if prior.get("mode") not in {m.value for m in self._EXECUTING_MODES}:
+                continue
+            if prior.get("state") not in {CycleState.LEARNED.value, CycleState.COMPLETE.value}:
+                continue
+            selected = int(prior.get("selected_packets") or 0)
+            accepted = int(prior.get("accepted_packets") or 0)
+            if selected > 0 and accepted == selected:
+                return True
+        return False
 
     def _finish(
         self,
@@ -2514,6 +2599,7 @@ class FactoryEngine:
             receipt.content_dict(),
             extra={"state": state.value},
         )
+        self._persist_operational_summary(receipt, snapshot, pset)
         if snapshot is not None and state in {CycleState.LEARNED, CycleState.COMPLETE}:
             record_terminal_observation(self.ctx, cycle_id, snapshot)
         self.ctx.log_event(
@@ -2523,3 +2609,81 @@ class FactoryEngine:
             payload={"state": state.value, "mode": mode.value, "blockers": receipt.blockers},
         )
         return receipt
+
+    def _persist_operational_summary(
+        self,
+        receipt: CycleReceipt,
+        snapshot: SemanticSnapshot | None,
+        pset: PacketSet | None,
+    ) -> None:
+        """Derive a compact cycle summary from durable invocation evidence."""
+        invocations = [
+            row
+            for row in self.ctx.store.records("adaptive_invocations")
+            if str(row.get("run_id") or "").startswith(receipt.cycle_id)
+        ]
+        observations = [
+            row
+            for invocation in invocations
+            if (row := self.ctx.store.get("adaptive_observations", invocation["attempt_id"]))
+            is not None
+        ]
+        elapsed = sum(float(row.get("elapsed_s") or 0.0) for row in observations)
+        accepted = sum(row.get("accepted") is True for row in observations)
+        validated = sum(row.get("validated") is True for row in observations)
+        packet_ids = [str(row.get("packet_id") or "") for row in invocations]
+        selected = set(pset.selected_packet_ids if pset is not None else [])
+        conflicting_edges = 0
+        if pset is not None:
+            conflicting_edges = sum(
+                1
+                for edge in pset.conflicts
+                if edge.packet_a in selected and edge.packet_b in selected
+            )
+        summary = {
+            "schema_version": 1,
+            "cycle_id": receipt.cycle_id,
+            "state": receipt.state.value,
+            "authority_digest": snapshot.authority_digest if snapshot else "",
+            "repository_head": snapshot.repository_head if snapshot else "",
+            "selected_packets": receipt.selected_packets,
+            "accepted_packets": receipt.accepted_packets,
+            "invocation_count": len(invocations),
+            "distinct_packet_count": len(set(packet_ids)),
+            "duplicate_packet_executions": max(0, len(packet_ids) - len(set(packet_ids))),
+            "conflicting_overlap_count": conflicting_edges,
+            "validated_packets_per_hour": (3600.0 * validated / elapsed) if elapsed else 0.0,
+            "accepted_result_rate": accepted / len(observations) if observations else 0.0,
+            "validation_success_rate": validated / accepted if accepted else 0.0,
+            "elapsed_invocation_seconds": elapsed,
+            "response_latency_ms": [
+                float(row.get("response_latency_ms") or 0.0) for row in observations
+            ],
+            "throttled_count": sum(bool(row.get("throttled")) for row in observations),
+            "maximum_resource_pressure": max(
+                [float(row.get("resource_pressure") or 0.0) for row in observations],
+                default=0.0,
+            ),
+            "maximum_downstream_backlog": max(
+                [float(row.get("downstream_backlog_ratio") or 0.0) for row in observations],
+                default=0.0,
+            ),
+            "input_tokens": sum(int(row.get("uncached_input_tokens") or 0) for row in observations),
+            "output_tokens": sum(int(row.get("output_tokens") or 0) for row in observations),
+            "observed_cost_usd": sum(float(row.get("cost_usd") or 0.0) for row in observations),
+            "protected_side_effects": bool(
+                receipt.git_merged or receipt.published or receipt.pr_url or receipt.merge_commit
+            ),
+            "started_at": receipt.started_at,
+            "ended_at": receipt.ended_at,
+        }
+        self.ctx.store.put(
+            "operational_summaries",
+            receipt.cycle_id,
+            summary,
+            extra={
+                "cycle_id": receipt.cycle_id,
+                "authority_digest": summary["authority_digest"],
+                "state": receipt.state.value,
+            },
+        )

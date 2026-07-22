@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "authorization_id": "REPLACE-WITH-UNIQUE-OPERATOR-AUTHORIZATION-ID",
+  "issued_at": "2000-01-01T00:00:00Z",
+  "expires_at": "2000-01-02T00:00:00Z",
+  "repositories": [],
+  "authority_database": "USF",
+  "permitted_risk": [
+    "low",
+    "medium"
+  ],
+  "prohibited_risk": [
+    "high",
+    "protected"
+  ],
+  "paid_api_budget_usd": 0.0,
+  "allow_subscription_inference": true,
+  "raw_source_provider": null,
+  "raw_source_requires_containment": true,
+  "metadata_review_provider": "claude-cli",
+  "max_packets_per_wave": 8,
+  "max_branch_pushes": 0,
+  "max_pr_creations": 0,
+  "max_authority_publications": 0,
+  "max_pr_merges": 0,
+  "max_continuous_cycles": 10,
+  "permitted_actions": []
+}

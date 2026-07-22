@@ -306,10 +306,19 @@ class CodexCliAdapter(_CliAdapterBase):
     )
 
     def _argv(self, binpath: str, model_id: str, prompt: str) -> tuple[list[str], str | None]:
-        # Non-interactive, ephemeral, JSON event stream; prompt on stdin. Runs
-        # from an empty scratch cwd (set by _run) under a READ-ONLY sandbox, so
-        # model-generated shell can only read the empty dir — never the repo.
-        argv = [binpath, "exec", "--json", "--skip-git-repo-check", "-s", "read-only"]
+        # Ignore user config/rules so global MCP servers, hooks and repository
+        # guidance cannot leak into this bounded invocation.
+        argv = [
+            binpath,
+            "exec",
+            "--json",
+            "--ephemeral",
+            "--ignore-user-config",
+            "--ignore-rules",
+            "--skip-git-repo-check",
+            "-s",
+            "read-only",
+        ]
         if model_id and model_id != "default":
             argv += ["-m", model_id]
         argv += ["-"]
@@ -387,6 +396,14 @@ class ClaudeCliAdapter(_CliAdapterBase):
             "--print",
             "--output-format",
             "json",
+            "--safe-mode",
+            "--strict-mcp-config",
+            "--mcp-config",
+            '{"mcpServers":{}}',
+            "--tools",
+            "",
+            "--disable-slash-commands",
+            "--no-session-persistence",
             "--disallowed-tools",
             self._DISALLOWED,
         ]

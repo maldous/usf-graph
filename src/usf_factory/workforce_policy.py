@@ -68,6 +68,9 @@ class WorkforcePolicyLayer(FactoryModel):
     allow_free: bool | None = None
     allow_subscription: bool | None = None
     allow_paid: bool | None = None
+    # Optional AI plan ranking is never obligation authority. It may be disabled
+    # for a minimal operational envelope.
+    enable_plan_optimizer: bool | None = None
 
     # Scalar limits (None inherits / no limit).
     max_paid_cost_usd: float | None = None
@@ -126,6 +129,7 @@ class EffectiveWorkforcePolicy(FactoryModel):
     allow_free: bool = True
     allow_subscription: bool = True
     allow_paid: bool = False
+    enable_plan_optimizer: bool = True
 
     max_paid_cost_usd: float | None = None
     max_subscription_value_usd: float | None = None
@@ -297,6 +301,9 @@ def resolve_workforce_policy(
         allow_free=_resolve_allow([layer.allow_free for _, layer in ordered], True),
         allow_subscription=_resolve_allow([layer.allow_subscription for _, layer in ordered], True),
         allow_paid=_resolve_allow([layer.allow_paid for _, layer in ordered], False),
+        enable_plan_optimizer=_resolve_allow(
+            [layer.enable_plan_optimizer for _, layer in ordered], True
+        ),
         max_paid_cost_usd=_first_set_scalar([layer.max_paid_cost_usd for _, layer in ordered]),
         max_subscription_value_usd=_first_set_scalar(
             [layer.max_subscription_value_usd for _, layer in ordered]
@@ -421,6 +428,7 @@ def committed_policy(config_dir: Path | str | None = None) -> WorkforcePolicyLay
         allow_free=resolved.allow_free,
         allow_subscription=resolved.allow_subscription,
         allow_paid=resolved.allow_paid,
+        enable_plan_optimizer=resolved.enable_plan_optimizer,
         max_paid_cost_usd=resolved.max_paid_cost_usd,
         max_subscription_value_usd=resolved.max_subscription_value_usd,
         max_requests_per_provider=resolved.max_requests_per_provider,

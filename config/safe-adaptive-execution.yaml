@@ -1,0 +1,17 @@
+# Operator-maintained workforce policy for SAFE_ADAPTIVE_EXECUTION.
+# Subscription CLI adapters receive no API, GitHub, or Stardog credential.
+only_providers:
+  - claude-cli
+only_models:
+  - claude-opus-4-8
+only_inference_modes:
+  - subscription
+allow_local: false
+allow_free: false
+allow_subscription: true
+allow_paid: false
+enable_plan_optimizer: false
+max_paid_cost_usd: 0.0
+require_verified_actual_model_for_mutation: true
+require_source_containment_for_private_source: true
+require_provider_diverse_review: true

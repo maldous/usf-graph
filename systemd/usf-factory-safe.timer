@@ -1,0 +1,11 @@
+[Unit]
+Description=Recheck safe adaptive USF work periodically
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=15min
+Persistent=true
+Unit=usf-factory-safe.service
+
+[Install]
+WantedBy=timers.target

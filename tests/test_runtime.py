@@ -126,6 +126,80 @@ def test_executing_mode_requires_worker_factory(ctx, tmp_usf, fake_authority_fac
 
 
 @pytest.mark.e2e
+def test_unchanged_validated_wave_is_not_invoked_again(ctx, tmp_usf, fake_authority_factory):
+    seed_agent(
+        ctx.store,
+        roles=[AdmissionRole.PLANNER_CANDIDATE],
+        scores=all_dimension_scores(),
+    )
+    planner = _InlinePlanner(
+        [
+            {
+                "id": "obl-read-only",
+                "root_cause": "inspect",
+                "semantic_subjects": [],
+                "dependencies": [],
+                "required_outcomes": ["inspect"],
+                "acceptance_criteria": ["reported"],
+                "risk": "low",
+                "task_class": "semantic-planning",
+                "remediation_kind": "ANALYSIS_ONLY",
+                "suggested_read_scope": [],
+                "suggested_write_scope": [],
+            }
+        ]
+    )
+    calls = 0
+
+    async def chat(messages, tools):
+        nonlocal calls
+        calls += 1
+        return {
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "fin",
+                    "name": "finish_packet",
+                    "arguments": {
+                        "status": "COMPLETED",
+                        "findings": ["inspected"],
+                        "criteria_results": {"reported": True},
+                    },
+                }
+            ],
+        }
+
+    first = FactoryEngine(
+        ctx,
+        authority_factory=fake_authority_factory,
+        planner=planner,
+        worker_factory=_worker_factory(ctx.store, chat),
+    )
+    first_receipt = asyncio.run(first.run_cycle(RunMode.SHADOW))
+    assert first_receipt.state is CycleState.LEARNED
+    assert first_receipt.accepted_packets == 1
+    assert calls == 1
+    first_summary = ctx.store.get("operational_summaries", first_receipt.cycle_id)
+    assert first_summary["duplicate_packet_executions"] == 0
+    assert first_summary["conflicting_overlap_count"] == 0
+    assert first_summary["protected_side_effects"] is False
+
+    second = FactoryEngine(
+        ctx,
+        authority_factory=fake_authority_factory,
+        planner=planner,
+        worker_factory=_worker_factory(ctx.store, chat),
+    )
+    second_receipt = asyncio.run(second.run_cycle(RunMode.SHADOW))
+    assert second_receipt.state is CycleState.LEARNED
+    assert second_receipt.no_progress is True
+    assert "unchanged wave already validated" in second_receipt.blockers
+    assert calls == 1
+    second_summary = ctx.store.get("operational_summaries", second_receipt.cycle_id)
+    assert second_summary["invocation_count"] == 0
+
+
+@pytest.mark.e2e
 def test_approve_wave_executes_fixture_packet_end_to_end(ctx, tmp_usf):
     # Enable gates ONLY in this in-memory test config (committed defaults stay off).
     ctx.config.safety.autonomous_safe_enabled = True

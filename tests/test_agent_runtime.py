@@ -377,3 +377,20 @@ def test_cli_adapter_billable_gated(tmp_path, monkeypatch):
         asyncio.run(
             adapter.invoke(AgentRequest(agent_profile_id="a", packet_id="p", instructions="hi"))
         )
+
+
+@pytest.mark.unit
+def test_cli_adapters_disable_ambient_tools_and_configuration():
+    codex = CodexCliAdapter(_cfg("codex-cli", "codex_cli"), allow_billable=True)
+    codex_argv, _ = codex._argv("/usr/bin/codex", "gpt-5", "prompt")
+    assert "--ignore-user-config" in codex_argv
+    assert "--ignore-rules" in codex_argv
+    assert "--ephemeral" in codex_argv
+
+    claude = ClaudeCliAdapter(_cfg("claude-cli", "claude_cli"), allow_billable=True)
+    claude_argv, _ = claude._argv("/usr/bin/claude", "claude-opus-4-8", "prompt")
+    assert "--safe-mode" in claude_argv
+    assert "--strict-mcp-config" in claude_argv
+    assert claude_argv[claude_argv.index("--mcp-config") + 1] == '{"mcpServers":{}}'
+    assert claude_argv[claude_argv.index("--tools") + 1] == ""
+    assert "--no-session-persistence" in claude_argv
