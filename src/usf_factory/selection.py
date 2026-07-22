@@ -75,14 +75,14 @@ class SelectionFilters:
 
 
 def default_filters() -> SelectionFilters:
-    """The mandated default next assessment: exclude ollama + llama family, and
-    the two already-assessed slow local models; skip models with valid evidence."""
-    return SelectionFilters(
-        exclude_providers=["ollama"],
-        exclude_models=["lfm2.5:8b-a1b-q8_0", "north-mini-code-1.0:q4_K_M"],
-        exclude_families=["llama"],
-        skip_valid_existing=True,
-    )
+    """Provider-neutral default assessment filters (dynamic workforce spec §11).
+
+    NO provider, model or family is excluded by default: historical mandated
+    default exclusions (ollama, the llama family, previously-assessed local models)
+    are removed — such choices now come ONLY from the operator WorkforcePolicy.
+    Old assessment reports may still mention them, but they never affect current
+    routing. Models with fresh valid evidence are still skipped for reassessment."""
+    return SelectionFilters(skip_valid_existing=True)
 
 
 @dataclass

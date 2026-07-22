@@ -143,6 +143,24 @@ def test_load_policy_layer_yaml_and_json(tmp_path):
 
 
 @pytest.mark.unit
+def test_ollama_exclusion_is_maintained_policy_not_code_default():
+    """The ollama practicality exclusion lives in the operator-maintained
+    config/workforce-policy.yaml (spec §11) — the CODE default excludes nothing."""
+    from usf_factory.paths import bundled_config_dir
+    from usf_factory.workforce_policy import committed_policy
+
+    # Code default is provider-neutral: ollama is NOT excluded.
+    code_default = resolve_workforce_policy(committed_defaults())
+    assert not code_default.candidate_exclusion(provider_id="ollama").excluded
+    # The maintained committed policy file DOES exclude ollama.
+    maintained = resolve_workforce_policy(committed_policy(bundled_config_dir()))
+    hit = maintained.candidate_exclusion(provider_id="ollama")
+    assert hit.excluded and "ollama" in hit.reason
+    # A different provider is still eligible under the maintained policy.
+    assert not maintained.candidate_exclusion(provider_id="mistral").excluded
+
+
+@pytest.mark.unit
 def test_effective_policy_composes_run_cli_layer(tmp_path):
     op = tmp_path / "operator.yaml"
     op.write_text("exclude_providers: [op_excluded]\n", encoding="utf-8")

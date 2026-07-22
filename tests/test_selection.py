@@ -35,7 +35,9 @@ def _seed_models(ctx, pairs):
 
 
 @pytest.mark.adversarial
-def test_llama_and_excluded_models_absent_from_shortlist(ctx):
+def test_default_filters_neutral_but_explicit_exclusion_still_works(ctx):
+    """Dynamic workforce spec §11: NO provider/model/family is excluded by
+    default. An operator's EXPLICIT exclusion still removes every match (§14)."""
     _seed_models(
         ctx,
         [
@@ -46,12 +48,17 @@ def test_llama_and_excluded_models_absent_from_shortlist(ctx):
             ("mistral", "mistral-large-latest", False),
         ],
     )
-    shortlist = candidate_models(ctx, default_filters())
-    ids = {f"{p}/{m}" for p, m in shortlist}
-    assert not any("llama" in i for i in ids)  # llama family excluded
-    assert "ollama/lfm2.5:8b-a1b-q8_0" not in ids  # tested-local excluded
-    assert "openrouter/qwen/qwen-2.5-72b-instruct" in ids  # non-llama kept
-    assert "mistral/mistral-large-latest" in ids  # non-llama provider kept
+    # Default filters are provider-neutral: llama and ollama are present now.
+    default_ids = {f"{p}/{m}" for p, m in candidate_models(ctx, default_filters())}
+    assert any("llama" in i for i in default_ids)  # no default llama exclusion
+    assert "ollama/lfm2.5:8b-a1b-q8_0" in default_ids  # no default ollama exclusion
+    # An EXPLICIT policy exclusion removes every matching model/provider.
+    explicit = SelectionFilters(exclude_providers=["ollama"], exclude_families=["llama"])
+    excluded_ids = {f"{p}/{m}" for p, m in candidate_models(ctx, explicit)}
+    assert not any("llama" in i for i in excluded_ids)
+    assert not any(i.startswith("ollama/") for i in excluded_ids)
+    assert "openrouter/qwen/qwen-2.5-72b-instruct" in excluded_ids  # non-matching kept
+    assert "mistral/mistral-large-latest" in excluded_ids
 
 
 @pytest.mark.unit

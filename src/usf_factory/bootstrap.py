@@ -10,12 +10,12 @@ Brings a fresh factory to a launch-ready state deterministically:
   6. report the exact unfilled roles + blockers,
   7. signal non-zero unless the minimum launch roster exists.
 
-Preferred bounded allocation (subject to ACTUAL qualification — never forced):
-  * Claude CLI  -> PATCH_PRODUCER / INTEGRATOR (verified actual model preferred),
-  * Codex CLI   -> REVIEWER / PATCH_PRODUCER (provider-diverse from the producer),
-  * a free OpenRouter model -> PLANNER / ANALYST fallback,
-  * a local Ollama model -> ANALYST (never planner/integrator when its semantic
-    optimization/scope is weak).
+The candidate population is built DYNAMICALLY from all currently discovered
+providers/models after the effective WorkforcePolicy is applied (spec §1). No
+provider, model, family or role allocation is hard-coded: every candidate is a
+transport whose inference class is derived from its own evidence and whose
+suitability is established from current qualification. Discovery/catalogue order
+is never used as a quality signal.
 """
 
 from __future__ import annotations
@@ -24,7 +24,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .context import RuntimeContext
-from .enums import AdmissionRole
+from .enums import AdmissionRole, AuthMode, InferenceMode, PrivacyClass
+from .workforce_policy import (
+    EffectiveWorkforcePolicy,
+    committed_defaults,
+    resolve_workforce_policy,
+)
 
 # Roles the minimum rosters require.
 _SHADOW_ROLES = (AdmissionRole.PLANNER_CANDIDATE, AdmissionRole.READ_ONLY_ANALYST)
@@ -39,7 +44,7 @@ _CANDIDATE_ROLES = (
 class Candidate:
     provider_id: str
     model_id: str
-    mode: str  # subscription | free | local
+    mode: str  # InferenceMode value: local | free | subscription | paid
     note: str = ""
 
 
@@ -51,77 +56,108 @@ class BootstrapReport:
     filled_roles: list[str] = field(default_factory=list)
     unfilled_roles: list[str] = field(default_factory=list)
     blockers: list[str] = field(default_factory=list)
+    considered_candidates: list[dict[str, Any]] = field(default_factory=list)
+    excluded_candidates: list[str] = field(default_factory=list)  # "prov/model: reason (source=..)"
+    policy_digest: str = ""
     roster_fresh: bool = False
     minimum_shadow_ok: bool = False
     minimum_candidate_ok: bool = False
 
 
-def _default_candidates(ctx: RuntimeContext) -> list[Candidate]:
-    """The bounded selected set: the CLIs, a free OpenRouter model (if configured
-    + discovered), and a local Ollama model (if discovered)."""
-    cfg = ctx.config.providers.by_id()
-    out: list[Candidate] = []
-    if "claude-cli" in cfg:
-        out.append(
-            Candidate("claude-cli", "claude-opus-4-8", "subscription", "producer/integrator")
+def _infer_mode(provider_cfg: Any, model_row: dict[str, Any]) -> InferenceMode:
+    """Derive a candidate's inference class from its OWN transport + pricing
+    evidence — never from a provider name. Local process → LOCAL; a genuinely
+    free-priced model → FREE; an OIDC/CLI subscription transport → SUBSCRIPTION;
+    otherwise a metered paid transport → PAID."""
+    if (
+        provider_cfg.auth_mode == AuthMode.LOCAL
+        or provider_cfg.privacy_class == PrivacyClass.LOCAL_ONLY
+    ):
+        return InferenceMode.LOCAL
+    if model_row.get("free") is True:
+        return InferenceMode.FREE
+    if provider_cfg.auth_mode == AuthMode.OIDC_CLI:
+        return InferenceMode.SUBSCRIPTION
+    return InferenceMode.PAID
+
+
+def policy_candidates(
+    ctx: RuntimeContext, policy: EffectiveWorkforcePolicy
+) -> tuple[list[Candidate], list[str]]:
+    """Build the candidate population from ALL discovered models, filtered by the
+    effective WorkforcePolicy. Provider/model/family/adapter/actual-model and
+    inference-class exclusions are applied here (before any probe/qualify/dispatch).
+    Deterministic ordering (sorted) is for reproducibility only — never a quality
+    signal. Returns (candidates, excluded_notes)."""
+    providers = ctx.config.providers.by_id()
+    cands: list[Candidate] = []
+    excluded: list[str] = []
+    rows = sorted(
+        ctx.store.records("models"),
+        key=lambda r: (str(r.get("provider_id", "")), str(r.get("requested_model_id", ""))),
+    )
+    for row in rows:
+        pid = str(row.get("provider_id", ""))
+        mid = str(row.get("requested_model_id", ""))
+        pcfg = providers.get(pid)
+        if pcfg is None:
+            continue  # provider not configured/enabled in this environment
+        mode = _infer_mode(pcfg, row)
+        hit = policy.candidate_exclusion(
+            provider_id=pid, model_id=mid, adapter=pcfg.adapter, inference_mode=mode
         )
-    if "codex-cli" in cfg:
-        out.append(Candidate("codex-cli", "gpt-5-codex", "subscription", "reviewer/producer"))
-    # A genuinely free OpenRouter model (planner/analyst fallback), if discovered.
-    free = _first_free_model(ctx, "openrouter")
-    if free:
-        out.append(Candidate("openrouter", free, "free", "planner/analyst fallback"))
-    # A local model (analyst), if discovered.
-    local = _first_local_model(ctx)
-    if local:
-        out.append(Candidate("ollama", local, "local", "analyst"))
-    return out
+        if hit.excluded:
+            excluded.append(f"{pid}/{mid}: {hit.reason} (source={hit.source})")
+            continue
+        cands.append(Candidate(pid, mid, mode.value))
+    if policy.max_models_assessed is not None:
+        for extra in cands[policy.max_models_assessed :]:
+            excluded.append(
+                f"{extra.provider_id}/{extra.model_id}: over max_models_assessed cap "
+                f"(source=policy)"
+            )
+        cands = cands[: policy.max_models_assessed]
+    return cands, excluded
 
 
-def _first_free_model(ctx: RuntimeContext, provider_id: str) -> str | None:
-    for row in ctx.store.records("models", "provider_id=?", (provider_id,)):
-        if row.get("free") is True:
-            return str(row.get("requested_model_id"))
-    return None
-
-
-def _first_local_model(ctx: RuntimeContext) -> str | None:
-    rows = ctx.store.records("models", "provider_id=?", ("ollama",))
-    return str(rows[0]["requested_model_id"]) if rows else None
-
-
-def _auth_for(mode: str, max_cost_usd: float):
+def _auth_for(mode: str, policy: EffectiveWorkforcePolicy, max_cost_usd: float):
     from .probing import InferenceAuthorization
 
-    # allow_inference is the master switch (required for every mode); the
-    # subscription switch additionally authorizes OIDC-CLI subscription inference.
+    # allow_inference is the master switch; each class is additionally gated by the
+    # effective policy (a mode already filtered out never reaches here).
     return InferenceAuthorization(
         allow_inference=True,
-        allow_subscription_inference=mode == "subscription",
-        allow_paid_inference=False,
-        max_cost_usd=max_cost_usd,
+        allow_subscription_inference=policy.allow_subscription
+        and mode == InferenceMode.SUBSCRIPTION.value,
+        allow_paid_inference=policy.allow_paid and mode == InferenceMode.PAID.value,
+        max_cost_usd=policy.max_paid_cost_usd
+        if policy.max_paid_cost_usd is not None
+        else max_cost_usd,
     )
 
 
 async def bootstrap_runtime(
     ctx: RuntimeContext,
     *,
-    allow_subscription_inference: bool = False,
-    allow_free_inference: bool = True,
+    policy: EffectiveWorkforcePolicy | None = None,
     max_cost_usd: float = 0.0,
     max_cases: int = 0,
     force: bool = False,
     candidates: list[Candidate] | None = None,
 ) -> BootstrapReport:
-    """Qualify the selected candidates that lack fresh evidence, admit, build and
-    activate the ranked roster, and report launch readiness. Never raises for a
-    single-candidate failure (records a blocker and continues)."""
+    """Build the candidate population dynamically from discovery + the effective
+    WorkforcePolicy, qualify those lacking fresh evidence, admit from evidence,
+    build/activate the ranked roster, and report launch readiness. Never raises for
+    a single-candidate failure (records a blocker and continues). No provider or
+    model is privileged; exclusions apply before any probe/qualify/dispatch."""
     from .admission import admit_from_evidence, ensure_profile, qualify_live
     from .isolation import RepoIsolation
     from .roster import active_roster, build_roster, persist_active, roster_fresh
     from .selection import has_valid_evidence
 
     report = BootstrapReport()
+    policy = policy or resolve_workforce_policy(committed_defaults())
+    report.policy_digest = policy.digest()
 
     # 1) Refresh: ensure the factory mirror exists (read-only). Discovery +
     #    provider evaluations are REUSED (not re-run) as prior evidence.
@@ -130,22 +166,26 @@ async def bootstrap_runtime(
     except Exception as exc:
         report.blockers.append(f"mirror refresh failed: {type(exc).__name__}: {exc}")
 
-    cands = candidates if candidates is not None else _default_candidates(ctx)
+    # 2) Candidate population = all discovered models after policy (spec §1/§11).
+    if candidates is not None:
+        cands = candidates
+    else:
+        cands, report.excluded_candidates = policy_candidates(ctx, policy)
+    report.considered_candidates = [
+        {"provider": c.provider_id, "model": c.model_id, "mode": c.mode} for c in cands
+    ]
     if not cands:
         report.blockers.append(
-            "no eligible role candidates discovered (run providers/models discover)"
+            "no eligible candidates after policy (run providers/models discover, "
+            "or relax exclusions)"
         )
 
-    # 2-3) Qualify only candidates lacking fresh evidence; admit from evidence.
+    # 3) Qualify only candidates lacking fresh evidence; admit from evidence. The
+    #    policy already removed disallowed inference classes; re-check defensively.
     for c in cands:
-        if c.mode == "subscription" and not allow_subscription_inference:
-            report.blockers.append(
-                f"{c.provider_id}: subscription inference not authorized (skipped)"
-            )
-            continue
-        if c.mode in ("free", "local") and not allow_free_inference:
-            report.blockers.append(
-                f"{c.provider_id}: free/local inference not authorized (skipped)"
+        if not policy.inference_allowed(c.mode):
+            report.excluded_candidates.append(
+                f"{c.provider_id}/{c.model_id}: inference mode '{c.mode}' not allowed (source=policy)"
             )
             continue
         try:
@@ -159,7 +199,7 @@ async def bootstrap_runtime(
         else:
             try:
                 run = await qualify_live(
-                    ctx, profile, auth=_auth_for(c.mode, max_cost_usd), max_cases=max_cases
+                    ctx, profile, auth=_auth_for(c.mode, policy, max_cost_usd), max_cases=max_cases
                 )
                 report.qualified.append(
                     {

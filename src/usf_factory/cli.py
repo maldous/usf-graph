@@ -46,6 +46,50 @@ def _ctx() -> RuntimeContext:
     return build_context()
 
 
+def _build_workforce_policy(
+    workforce_policy: str,
+    exclude_provider: list[str],
+    exclude_model: list[str],
+    exclude_family: list[str],
+    exclude_adapter: list[str],
+    exclude_actual_model: list[str],
+    only_provider: list[str],
+    only_model: list[str],
+    only_family: list[str],
+    allow_local_inference: bool,
+    allow_free_inference: bool,
+    allow_subscription_inference: bool,
+    allow_paid_inference: bool,
+    max_paid_cost_usd: float,
+):
+    """Compose the effective WorkforcePolicy from committed defaults + an optional
+    operator policy file + the run-specific CLI overrides. Allow-flags are enablers
+    (unset ⇒ inherit); exclusions always win regardless of inclusions."""
+    from .paths import bundled_config_dir
+    from .workforce_policy import build_run_policy_layer, effective_policy
+
+    run_layer = build_run_policy_layer(
+        exclude_providers=exclude_provider,
+        exclude_models=exclude_model,
+        exclude_families=exclude_family,
+        exclude_adapters=exclude_adapter,
+        exclude_actual_models=exclude_actual_model,
+        only_providers=only_provider,
+        only_models=only_model,
+        only_families=only_family,
+        allow_local=True if allow_local_inference else None,
+        allow_free=True if allow_free_inference else None,
+        allow_subscription=True if allow_subscription_inference else None,
+        allow_paid=True if allow_paid_inference else None,
+        max_paid_cost_usd=max_paid_cost_usd if max_paid_cost_usd > 0 else None,
+    )
+    return effective_policy(
+        config_dir=bundled_config_dir(),
+        operator_policy_path=workforce_policy or None,
+        run_layer=run_layer,
+    )
+
+
 def _status_color(status: str) -> str:
     return {"ok": "green", "warn": "yellow", "fail": "red"}.get(status, "white")
 
@@ -237,30 +281,60 @@ def run(
 
 @app.command("bootstrap-runtime")
 def bootstrap_runtime_cmd(
-    allow_inference: bool = typer.Option(False, "--allow-inference", help="free/local inference"),
+    workforce_policy: str = typer.Option("", "--workforce-policy", help="operator policy file"),
+    exclude_provider: list[str] = typer.Option([], "--exclude-provider"),
+    exclude_model: list[str] = typer.Option([], "--exclude-model", help="provider/model or model"),
+    exclude_family: list[str] = typer.Option([], "--exclude-family"),
+    exclude_adapter: list[str] = typer.Option([], "--exclude-adapter"),
+    exclude_actual_model: list[str] = typer.Option([], "--exclude-actual-model"),
+    only_provider: list[str] = typer.Option([], "--only-provider"),
+    only_model: list[str] = typer.Option([], "--only-model"),
+    only_family: list[str] = typer.Option([], "--only-family"),
+    allow_local_inference: bool = typer.Option(False, "--allow-local-inference"),
+    allow_free_inference: bool = typer.Option(False, "--allow-free-inference"),
     allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
-    max_cost_usd: float = typer.Option(0.0, "--max-cost-usd", help="paid API budget (kept 0)"),
+    allow_paid_inference: bool = typer.Option(False, "--allow-paid-inference"),
+    max_paid_cost_usd: float = typer.Option(0.0, "--max-paid-cost-usd", help="paid budget (0)"),
     max_cases: int = typer.Option(0, "--max-cases", help="bounded qualification sample (0=full)"),
     force: bool = typer.Option(False, "--force", help="re-qualify even with fresh evidence"),
 ) -> None:
-    """Clean-state launch bootstrap: refresh, reuse evaluations, qualify only the
-    selected role candidates lacking fresh evidence, admit from evidence, build +
-    activate the ranked roster, verify freshness, and print the exact unfilled
-    roles + blockers. Exits non-zero unless the minimum launch (shadow) roster
-    exists. No operator overrides; no lowered thresholds; paid inference off."""
+    """Clean-state launch bootstrap. The candidate population is built dynamically
+    from discovery + the effective WorkforcePolicy (no provider/model/role is
+    hard-coded); qualify only candidates lacking fresh evidence, admit from
+    evidence, build/activate the ranked roster, and print unfilled roles + blockers
+    + every exclusion and its source. Exits non-zero unless the minimum launch
+    (shadow) roster exists. No operator overrides; no lowered thresholds."""
     from .bootstrap import bootstrap_runtime
 
+    policy = _build_workforce_policy(
+        workforce_policy,
+        exclude_provider,
+        exclude_model,
+        exclude_family,
+        exclude_adapter,
+        exclude_actual_model,
+        only_provider,
+        only_model,
+        only_family,
+        allow_local_inference,
+        allow_free_inference,
+        allow_subscription_inference,
+        allow_paid_inference,
+        max_paid_cost_usd,
+    )
     with _ctx() as ctx:
         report = asyncio.run(
             bootstrap_runtime(
                 ctx,
-                allow_subscription_inference=allow_subscription_inference,
-                allow_free_inference=allow_inference,
-                max_cost_usd=max_cost_usd,
+                policy=policy,
+                max_cost_usd=max_paid_cost_usd,
                 max_cases=max_cases,
                 force=force,
             )
         )
+    if report.excluded_candidates:
+        console.print(f"[yellow]excluded candidates:[/] {report.excluded_candidates}")
+    console.print(f"policy digest: {report.policy_digest}")
     table = Table(title="active roster")
     table.add_column("role")
     table.add_column("primary")
