@@ -44,9 +44,18 @@ class _Authority:
         assert self.entered
         return _ToolResult({"authority": {"digest": self.digest}})
 
-    def work_plan(self):
+    def work_plan(self, arguments=None):
         assert self.entered
-        return _ToolResult({"gaps": []})
+        return _ToolResult(
+            {
+                "schemaVersion": 1,
+                "authorityDigest": self.digest
+                if self.digest.startswith("sha256:")
+                else f"sha256:{self.digest}",
+                "gaps": [],
+                "truncated": False,
+            }
+        )
 
 
 class _Runner:
@@ -60,6 +69,39 @@ class _Runner:
         return CommandResult(True, 0, json.dumps(output) + "\n", "")
 
 
+class _TextRunner(_Runner):
+    def run(self, args, *, cwd=None, env=None, timeout=600.0):
+        self.calls.append((list(args), cwd, env, timeout))
+        return CommandResult(True, 0, str(self.outputs.pop(0)), "")
+
+
+class _PagedAuthority(_Authority):
+    def __init__(self, gaps, *, move_on_page=False, database="USF"):
+        super().__init__()
+        self.gaps = gaps
+        self.move_on_page = move_on_page
+        self.database = database
+
+    def health(self):
+        return _ToolResult({"database": self.database, "ok": True})
+
+    def work_plan(self, arguments=None):
+        offset = int((arguments or {}).get("offset", 0))
+        page = self.gaps[offset : offset + 50]
+        digest = "sha256:" + "f" * 64 if self.move_on_page and offset else self.digest
+        return _ToolResult(
+            {
+                "schemaVersion": 1,
+                "authorityDigest": digest,
+                "offset": offset,
+                "pageSize": 50,
+                "gaps": page,
+                "truncated": offset + 50 < len(self.gaps),
+                "nextOffset": offset + 50 if offset + 50 < len(self.gaps) else None,
+            }
+        )
+
+
 def _validate_result(**over):
     data = {
         "mode": "validate",
@@ -67,12 +109,16 @@ def _validate_result(**over):
         "commitOutcome": {
             "state": "validated-rolled-back",
             "exactCandidateStateVerified": True,
-            "candidateDigest": "sha256:" + "c" * 64,
+            "candidateDigest": POST_DIGEST,
             "candidateGraphs": ["urn:usf:graph:one"],
         },
         "contaminationCount": 0,
+        "graphsCleared": 10,
+        "authoredLoaded": 8,
+        "shapesLoaded": 2,
         "evaluatedAuthorityDigest": DIGEST,
         "postAuthorityDigest": DIGEST,
+        "postTriples": 100,
     }
     data.update(over)
     return data
@@ -85,7 +131,7 @@ def _commit_result(**over):
         "commitOutcome": {
             "state": "confirmed-response",
             "exactCandidateStateVerified": True,
-            "candidateDigest": "sha256:" + "c" * 64,
+            "candidateDigest": POST_DIGEST,
         },
         "contaminationCount": 0,
         "evaluatedAuthorityDigest": DIGEST,
@@ -93,6 +139,7 @@ def _commit_result(**over):
         "graphsCleared": 10,
         "authoredLoaded": 8,
         "shapesLoaded": 2,
+        "postTriples": 100,
     }
     data.update(over)
     return data
@@ -127,9 +174,10 @@ def test_publication_passes_exact_digest_and_parses_current_schema(ctx, tmp_path
         ctx,
         runner=runner,
         credential_env_file=tmp_path / "authority.env",
+        containment_proven=True,
     )
     validate = publisher.validate_and_rollback(tmp_path, DIGEST)
-    commit = publisher.publish_committed(tmp_path, DIGEST)
+    commit = publisher.publish_committed(tmp_path, DIGEST, POST_DIGEST)
     assert validate.ok and commit.ok
     assert commit.data["postAuthorityDigest"] == POST_DIGEST
     for args, *_rest in runner.calls:
@@ -148,7 +196,7 @@ def test_publication_passes_exact_digest_and_parses_current_schema(ctx, tmp_path
     ],
 )
 def test_validate_and_rollback_rejects_missing_or_legacy_fields(ctx, tmp_path: Path, bad):
-    publisher = StardogPublisher(ctx, runner=_Runner([bad]))
+    publisher = StardogPublisher(ctx, runner=_Runner([bad]), containment_proven=True)
     assert publisher.validate_and_rollback(tmp_path, DIGEST).ok is False
 
 
@@ -159,12 +207,58 @@ def test_committed_publish_rejects_unreconciled_outcome(ctx, tmp_path: Path):
             "state": "reconciled-committed",
             "exactCandidateStateVerified": True,
             "transactionClosedVerified": True,
-            "candidateDigest": "sha256:" + "c" * 64,
+            "candidateDigest": POST_DIGEST,
             "observedDigest": "sha256:" + "d" * 64,
         }
     )
-    publisher = StardogPublisher(ctx, runner=_Runner([bad]))
-    assert publisher.publish_committed(tmp_path, DIGEST).ok is False
+    publisher = StardogPublisher(ctx, runner=_Runner([bad]), containment_proven=True)
+    assert publisher.publish_committed(tmp_path, DIGEST, POST_DIGEST).ok is False
+
+
+@pytest.mark.adversarial
+@pytest.mark.parametrize(
+    "text",
+    [
+        "log prefix\n" + json.dumps(_validate_result()),
+        json.dumps(_validate_result()) + "\n" + json.dumps(_validate_result()),
+        json.dumps({**_validate_result(), "unexpected": True}),
+    ],
+)
+def test_publication_output_requires_one_exact_json_document(ctx, tmp_path: Path, text):
+    publisher = StardogPublisher(
+        ctx,
+        runner=_TextRunner([text]),
+        containment_proven=True,
+    )
+    assert publisher.validate_and_rollback(tmp_path, DIGEST).ok is False
+
+
+@pytest.mark.contract
+def test_raw_and_tagged_digest_forms_are_canonicalised_at_publication_boundaries(
+    ctx, tmp_path: Path
+):
+    validate = _validate_result(
+        evaluatedAuthorityDigest=RAW_DIGEST,
+        postAuthorityDigest=RAW_DIGEST,
+        commitOutcome={
+            "state": "validated-rolled-back",
+            "exactCandidateStateVerified": True,
+            "candidateDigest": POST_DIGEST.removeprefix("sha256:"),
+            "candidateGraphs": ["urn:usf:graph:one"],
+        },
+    )
+    commit = _commit_result(
+        evaluatedAuthorityDigest=RAW_DIGEST,
+        postAuthorityDigest=POST_DIGEST.removeprefix("sha256:"),
+        commitOutcome={
+            "state": "confirmed-response",
+            "exactCandidateStateVerified": True,
+            "candidateDigest": POST_DIGEST.removeprefix("sha256:"),
+        },
+    )
+    publisher = StardogPublisher(ctx, runner=_Runner([validate, commit]), containment_proven=True)
+    assert publisher.validate_and_rollback(tmp_path, RAW_DIGEST).ok
+    assert publisher.publish_committed(tmp_path, RAW_DIGEST, POST_DIGEST.removeprefix("sha256:")).ok
 
 
 @pytest.mark.contract
@@ -176,7 +270,7 @@ def test_drift_consumes_mismatched_array_fail_closed(ctx, tmp_path: Path):
             {"command": "drift", "ok": True, "mismatches": 0},
         ]
     )
-    publisher = StardogPublisher(ctx, runner=runner)
+    publisher = StardogPublisher(ctx, runner=runner, containment_proven=True)
     assert publisher.drift(tmp_path).ok is True
     assert publisher.drift(tmp_path).ok is False
     assert publisher.drift(tmp_path).ok is False
@@ -185,36 +279,67 @@ def test_drift_consumes_mismatched_array_fail_closed(ctx, tmp_path: Path):
 @pytest.mark.contract
 def test_obligation_closure_uses_exact_actionable_identifiers():
     snap = {
-        "work_plan": {"gaps": [], "truncated": False},
+        "work_plan": {"schemaVersion": 1, "gaps": [], "truncated": False},
         "bootstrap": {
             "openGaps": [],
             "proofObligations": [{"id": "obl-1"}],
             "history": "previously discussed obl-1",
         },
     }
-    assert StardogPublisher.obligation_absent(snap, "obl-1") is True
-    snap["work_plan"]["gaps"] = [{"id": "obl-10"}]
-    assert StardogPublisher.obligation_absent(snap, "obl-1") is True
+    assert StardogPublisher.obligation_absent(snap, "missing-proof", "obl-1") is True
+    snap["work_plan"]["gaps"] = [{"type": "missing-proof", "subject": "obl-10"}]
+    assert StardogPublisher.obligation_absent(snap, "missing-proof", "obl-1") is True
     snap["work_plan"]["gaps"] = [{"subject": "obl-1", "type": "missing-proof"}]
-    assert StardogPublisher.obligation_absent(snap, "obl-1") is False
+    assert StardogPublisher.obligation_absent(snap, "missing-proof", "obl-1") is False
 
 
 @pytest.mark.adversarial
 def test_obligation_closure_fails_closed_on_truncated_or_malformed_projection():
     assert (
         StardogPublisher.obligation_absent(
-            {"work_plan": {"gaps": [], "truncated": True}, "bootstrap": {"openGaps": []}},
+            {"work_plan": {"schemaVersion": 1, "gaps": [], "truncated": True}},
+            "missing-proof",
             "obl-1",
         )
         is False
     )
-    assert StardogPublisher.obligation_absent({"work_plan": {}, "bootstrap": {}}, "obl-1") is False
+    assert StardogPublisher.obligation_absent({"work_plan": {}}, "missing-proof", "obl-1") is False
+
+
+@pytest.mark.contract
+def test_resnapshot_paginates_complete_digest_stable_work_plan(ctx):
+    gaps = [{"type": "gap", "subject": f"urn:test:{index:03d}"} for index in range(75)]
+    publisher = StardogPublisher(ctx, authority_factory=lambda: _PagedAuthority(gaps))
+    snapshot = publisher.resnapshot()
+    assert len(snapshot["work_plan"]["gaps"]) == 75
+    assert StardogPublisher.obligation_absent(snapshot, "gap", "urn:test:074") is False
+
+
+@pytest.mark.adversarial
+def test_resnapshot_rejects_authority_movement_between_pages(ctx):
+    gaps = [{"type": "gap", "subject": f"urn:test:{index:03d}"} for index in range(75)]
+    publisher = StardogPublisher(
+        ctx, authority_factory=lambda: _PagedAuthority(gaps, move_on_page=True)
+    )
+    with pytest.raises(ValueError, match="WORK_PLAN_AUTHORITY_MOVED"):
+        publisher.resnapshot()
+
+
+@pytest.mark.adversarial
+def test_resnapshot_rejects_duplicate_structured_gap_identity(ctx):
+    gaps = [
+        {"type": "gap", "subject": "urn:test:duplicate"},
+        {"type": "gap", "subject": "urn:test:duplicate"},
+    ]
+    publisher = StardogPublisher(ctx, authority_factory=lambda: _PagedAuthority(gaps))
+    with pytest.raises(ValueError, match="WORK_PLAN_DUPLICATE_GAP_IDENTITY"):
+        publisher.resnapshot()
 
 
 @pytest.mark.adversarial
 def test_invalid_authority_digest_is_rejected_before_subprocess(ctx, tmp_path: Path):
     runner = _Runner([])
-    publisher = StardogPublisher(ctx, runner=runner)
+    publisher = StardogPublisher(ctx, runner=runner, containment_proven=True)
     with pytest.raises(ValueError, match="exact sha256 digest"):
         publisher.validate_and_rollback(tmp_path, "not-a-digest")
     assert runner.calls == []

@@ -70,6 +70,21 @@ _RECORD_TABLES: dict[str, list[str]] = {
     "dispatch_outcomes": ["packet_id"],
     # Durable, idempotent delivery-lifecycle records (one per obligation delivery).
     "delivery_records": ["obligation_id", "state"],
+    # Authorization-bound reservations/consumptions for outward side effects.
+    # Reserved and consumed rows both count against a quota until exact external
+    # reconciliation proves that the effect did not occur.
+    "authorization_consumptions": [
+        "authorization_digest",
+        "protected_action",
+        "effect",
+        "status",
+        "delivery_id",
+        "quota_name",
+    ],
+    # Point-of-use, digest-bound grants for sending private source to a
+    # non-local provider.  The committed policy and RunAuthorization are both
+    # bound into each record before invocation.
+    "source_egress_authorizations": ["provider_id", "packet_id", "authorization_digest"],
     # Content-addressed factory execution observations. These are explicitly not
     # authority ValidationEvidence and cannot close a semantic obligation.
     "factory_validation_receipts": ["obligation_id"],
@@ -77,6 +92,7 @@ _RECORD_TABLES: dict[str, list[str]] = {
     "terminal_stability": [],
     "cycles": ["state"],
     "budget_events": ["cycle_id", "provider_id"],
+    "budget_reservations": ["cycle_id", "provider_id", "status", "day"],
     # Latest OBSERVED health per provider (scheduler fact source; never fabricated).
     "provider_health": [],
     # Snapshot-bound materialisation index builds (digest-keyed, per snapshot).
@@ -89,7 +105,25 @@ _APPEND_TABLES: dict[str, list[str]] = {
     "quota_events": ["provider_id"],
     # Immutable raw learning observations (P1-20): scores are derived projections.
     "observations": ["stage", "agent_profile_id", "task_class", "dimension"],
+    # Immutable indexes into digest-bound delivery-transition CAS objects.
+    "delivery_transitions": ["delivery_id", "state"],
+    # Immutable audit trail; authorization_consumptions is only its current
+    # projection for atomic quota checks.
+    "authorization_consumption_events": [
+        "authorization_digest",
+        "delivery_id",
+        "effect",
+        "status",
+    ],
 }
+
+
+class StaleDeliveryTransition(RuntimeError):
+    """The caller attempted to update a delivery from an obsolete revision."""
+
+
+class SideEffectQuotaExceeded(RuntimeError):
+    """No authorization-bound capacity remains for the requested side effect."""
 
 
 class Store:
@@ -120,8 +154,8 @@ class Store:
         self.close()
 
     @contextmanager
-    def transaction(self) -> Iterator[sqlite3.Connection]:
-        self._conn.execute("BEGIN")
+    def transaction(self, *, immediate: bool = False) -> Iterator[sqlite3.Connection]:
+        self._conn.execute("BEGIN IMMEDIATE" if immediate else "BEGIN")
         try:
             yield self._conn
             self._conn.execute("COMMIT")
@@ -159,6 +193,19 @@ class Store:
                 claimed_at TEXT NOT NULL,
                 expires_at TEXT NOT NULL,
                 PRIMARY KEY (packet_id, run_id)
+            )
+            """
+        )
+        # One compare-and-set head per delivery.  The full immutable transition
+        # bytes live in CAS and are indexed in delivery_transitions.
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS delivery_transition_heads (
+                delivery_id TEXT PRIMARY KEY,
+                revision INTEGER NOT NULL,
+                transition_ref TEXT NOT NULL,
+                state TEXT NOT NULL,
+                updated_at TEXT NOT NULL
             )
             """
         )
@@ -223,8 +270,8 @@ class Store:
         now = utc_now_iso()
         cur = self._conn.execute(
             "UPDATE leases SET heartbeat_at=?, expires_at=? "
-            "WHERE name=? AND owner=? AND token=? AND status='active'",
-            (now, expires_at, name, owner, token),
+            "WHERE name=? AND owner=? AND token=? AND status='active' AND expires_at>?",
+            (now, expires_at, name, owner, token, now),
         )
         return cur.rowcount > 0
 
@@ -385,12 +432,238 @@ class Store:
         """Extend an ACTIVE claim's deadline — only for the exact holder (packet,
         run, token). Returns False when the claim was reaped/reassigned, so the
         executor can fence the worker out immediately."""
+        now = utc_now_iso()
         cur = self._conn.execute(
             "UPDATE packet_claims SET expires_at=? "
-            "WHERE packet_id=? AND run_id=? AND token=? AND status='active'",
-            (expires_at, packet_id, run_id, token),
+            "WHERE packet_id=? AND run_id=? AND token=? AND status='active' AND expires_at>?",
+            (expires_at, packet_id, run_id, token, now),
         )
         return cur.rowcount == 1
+
+    # ---- atomic delivery transitions and side-effect quotas ------------- #
+
+    def persist_delivery_transition(
+        self,
+        *,
+        delivery_id: str,
+        expected_revision: int,
+        record_payload: dict[str, Any],
+        from_state: str,
+        to_state: str,
+        input_ref: str,
+        assurance_bundle_ref: str,
+        authorization_digest: str,
+        note_code: str,
+        reservation: dict[str, Any] | None = None,
+        consume_id: str | None = None,
+        release_id: str | None = None,
+    ) -> tuple[int, str]:
+        """Atomically append a CAS transition, advance its compare-and-set head,
+        update the current DeliveryRecord projection, and reserve/reconcile an
+        irreversible-action quota.
+
+        CAS bytes are written before the SQLite transaction.  A database failure
+        can therefore leave only an unreferenced immutable blob, which the
+        existing CAS garbage collector may safely remove; it cannot leave a
+        projection without its transition.
+        """
+
+        next_revision = expected_revision + 1
+        prior = self._conn.execute(
+            "SELECT revision, transition_ref, state FROM delivery_transition_heads "
+            "WHERE delivery_id=?",
+            (delivery_id,),
+        ).fetchone()
+        previous_transition_ref = str(prior["transition_ref"]) if prior is not None else ""
+        projected = dict(record_payload)
+        projected["version"] = next_revision
+        projected.pop("transition_ref", None)
+        transition_payload = {
+            "schema_version": 1,
+            "delivery_id": delivery_id,
+            "revision": next_revision,
+            "previous_transition_ref": previous_transition_ref,
+            "from_state": from_state,
+            "to_state": to_state,
+            "input_ref": input_ref,
+            "assurance_bundle_ref": assurance_bundle_ref,
+            "authorization_digest": authorization_digest,
+            "effect": str((reservation or {}).get("effect") or ""),
+            "consumption_id": str((reservation or {}).get("consumption_id") or consume_id or ""),
+            "note_code": note_code,
+            # Do not embed transition_ref here: that would make the CAS object
+            # recursively self-referential.
+            "delivery_record": projected,
+        }
+        transition_ref = self.cas_put_text(canonical_json(transition_payload))
+        projected["transition_ref"] = transition_ref
+
+        with self.transaction(immediate=True):
+            head = self._conn.execute(
+                "SELECT revision, transition_ref, state FROM delivery_transition_heads "
+                "WHERE delivery_id=?",
+                (delivery_id,),
+            ).fetchone()
+            current_revision = int(head["revision"]) if head is not None else 0
+            if current_revision != expected_revision:
+                raise StaleDeliveryTransition(
+                    f"DELIVERY_TRANSITION_STALE:{delivery_id}:{expected_revision}:{current_revision}"
+                )
+            current_ref = str(head["transition_ref"]) if head is not None else ""
+            current_state = str(head["state"]) if head is not None else ""
+            if current_ref != previous_transition_ref or current_state != from_state:
+                raise StaleDeliveryTransition(
+                    f"DELIVERY_TRANSITION_PRIOR_MISMATCH:{delivery_id}:{from_state}:{current_state}"
+                )
+
+            if reservation is not None:
+                consumption_id = str(reservation["consumption_id"])
+                existing = self.get("authorization_consumptions", consumption_id)
+                if existing is None:
+                    quota_name = str(reservation.get("quota_name") or "")
+                    quota_limit = reservation.get("quota_limit")
+                    if quota_name and quota_limit is not None:
+                        row = self._conn.execute(
+                            "SELECT COUNT(*) AS n FROM authorization_consumptions "
+                            "WHERE authorization_digest=? AND quota_name=? "
+                            "AND status IN ('reserved','consumed')",
+                            (authorization_digest, quota_name),
+                        ).fetchone()
+                        if int(row["n"]) >= int(quota_limit):
+                            raise SideEffectQuotaExceeded(
+                                f"SIDE_EFFECT_QUOTA_EXCEEDED:{quota_name}:{quota_limit}"
+                            )
+                    payload = {
+                        **reservation,
+                        "schema_version": 1,
+                        "authorization_digest": authorization_digest,
+                        "delivery_id": delivery_id,
+                        "status": "reserved",
+                        "reserved_transition_ref": transition_ref,
+                        "consumed_transition_ref": "",
+                        "released_transition_ref": "",
+                    }
+                    self.put(
+                        "authorization_consumptions",
+                        consumption_id,
+                        payload,
+                        extra={
+                            "authorization_digest": authorization_digest,
+                            "protected_action": str(payload.get("protected_action") or ""),
+                            "effect": str(payload.get("effect") or ""),
+                            "status": "reserved",
+                            "delivery_id": delivery_id,
+                            "quota_name": quota_name,
+                        },
+                    )
+                    self.append(
+                        "authorization_consumption_events",
+                        payload,
+                        extra={
+                            "authorization_digest": authorization_digest,
+                            "delivery_id": delivery_id,
+                            "effect": str(payload.get("effect") or ""),
+                            "status": "reserved",
+                        },
+                    )
+                elif (
+                    existing.get("authorization_digest") != authorization_digest
+                    or existing.get("delivery_id") != delivery_id
+                    or existing.get("effect") != reservation.get("effect")
+                ):
+                    raise ValueError("SIDE_EFFECT_IDEMPOTENCY_BINDING_MISMATCH")
+
+            if consume_id:
+                existing = self.get("authorization_consumptions", consume_id)
+                if existing is None or existing.get("status") not in {"reserved", "consumed"}:
+                    raise ValueError("SIDE_EFFECT_RESERVATION_MISSING")
+                if existing.get("status") == "reserved":
+                    existing = {
+                        **existing,
+                        "status": "consumed",
+                        "consumed_transition_ref": transition_ref,
+                    }
+                    self.put(
+                        "authorization_consumptions",
+                        consume_id,
+                        existing,
+                        extra={
+                            "authorization_digest": existing["authorization_digest"],
+                            "protected_action": existing["protected_action"],
+                            "effect": existing["effect"],
+                            "status": "consumed",
+                            "delivery_id": existing["delivery_id"],
+                            "quota_name": existing.get("quota_name", ""),
+                        },
+                    )
+                    self.append(
+                        "authorization_consumption_events",
+                        existing,
+                        extra={
+                            "authorization_digest": str(existing["authorization_digest"]),
+                            "delivery_id": str(existing["delivery_id"]),
+                            "effect": str(existing["effect"]),
+                            "status": "consumed",
+                        },
+                    )
+
+            if release_id:
+                existing = self.get("authorization_consumptions", release_id)
+                if existing is None or existing.get("status") != "reserved":
+                    raise ValueError("SIDE_EFFECT_RESERVATION_NOT_RELEASABLE")
+                existing = {
+                    **existing,
+                    "status": "released",
+                    "released_transition_ref": transition_ref,
+                }
+                self.put(
+                    "authorization_consumptions",
+                    release_id,
+                    existing,
+                    extra={
+                        "authorization_digest": existing["authorization_digest"],
+                        "protected_action": existing["protected_action"],
+                        "effect": existing["effect"],
+                        "status": "released",
+                        "delivery_id": existing["delivery_id"],
+                        "quota_name": existing.get("quota_name", ""),
+                    },
+                )
+                self.append(
+                    "authorization_consumption_events",
+                    existing,
+                    extra={
+                        "authorization_digest": str(existing["authorization_digest"]),
+                        "delivery_id": str(existing["delivery_id"]),
+                        "effect": str(existing["effect"]),
+                        "status": "released",
+                    },
+                )
+
+            self.append(
+                "delivery_transitions",
+                {**transition_payload, "transition_ref": transition_ref},
+                extra={"delivery_id": delivery_id, "state": to_state},
+            )
+            self._conn.execute(
+                "INSERT INTO delivery_transition_heads "
+                "(delivery_id, revision, transition_ref, state, updated_at) "
+                "VALUES (?, ?, ?, ?, ?) "
+                "ON CONFLICT(delivery_id) DO UPDATE SET "
+                "revision=excluded.revision, transition_ref=excluded.transition_ref, "
+                "state=excluded.state, updated_at=excluded.updated_at",
+                (delivery_id, next_revision, transition_ref, to_state, utc_now_iso()),
+            )
+            self.put(
+                "delivery_records",
+                delivery_id,
+                projected,
+                extra={
+                    "obligation_id": str(projected.get("obligation_id") or ""),
+                    "state": to_state,
+                },
+            )
+        return next_revision, transition_ref
 
     def claim_token_current(self, packet_id: str, token: int) -> bool:
         """True iff ``token`` matches the active, unexpired claim for the packet."""
@@ -478,7 +751,7 @@ class Store:
         return data
 
     def referenced_cas_refs(self) -> set[str]:
-        """Every ``cas:sha256:...`` reference appearing in any stored payload."""
+        """Transitive closure of CAS references rooted in durable SQLite state."""
         import re
 
         pat = re.compile(r"cas:sha256:[0-9a-f]{64}")
@@ -487,6 +760,21 @@ class Store:
         for table in tables:
             for row in self._conn.execute(f"SELECT payload FROM {table}").fetchall():
                 refs.update(pat.findall(row["payload"]))
+        pending = list(refs)
+        visited: set[str] = set()
+        while pending:
+            ref = pending.pop()
+            if ref in visited:
+                continue
+            visited.add(ref)
+            try:
+                text = self.cas_get(ref).decode("utf-8")
+            except (OSError, UnicodeDecodeError, ValueError):
+                continue
+            for child in pat.findall(text):
+                if child not in refs:
+                    refs.add(child)
+                    pending.append(child)
         return refs
 
     def cas_gc(self) -> int:

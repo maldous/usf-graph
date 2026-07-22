@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from test_delivery_coordinator import FakeGitHub, FakePublisher, _authorize
-from usf_factory.canonical import digest_bytes, digest_text
+from test_delivery_coordinator import FakeGitHub, FakePublisher, _authorize, _inp
+from usf_factory.canonical import canonical_json, digest_bytes, digest_text
 from usf_factory.delivery_coordinator import DeliveryCoordinator
-from usf_factory.enums import DeliveryState
+from usf_factory.enums import DeliveryState, RemediationKind
 from usf_factory.github_delivery import CommandResult
 from usf_factory.validation_evidence import (
+    AuthorityEvidenceArtifact,
+    AuthorityEvidenceAttestation,
     AuthorityEvidenceTransport,
     compact_receipt_rdf,
     execute_validation_receipt,
@@ -17,18 +19,14 @@ from usf_factory.validation_evidence import (
 
 SUBJECT = "urn:usf:validationobligation:repositoryexternalartefactmaterialisation"
 AUTHORITY_DIGEST = "sha256:" + "a" * 64
-ARTIFACT_DIGEST = "sha256:" + "b" * 64
+ARTIFACT_BYTES = b"authority evidence artifact\n"
+ARTIFACT_DIGEST = digest_bytes(ARTIFACT_BYTES)
 BASE_HEAD = "c" * 40
 EVIDENCE_REF = "urn:usf:evidenceresult:external-materialisation-validation"
 PRODUCER = "urn:usf:validator:external-materialisation-validator"
-VALIDATION_RECEIPT_BYTES = b"producer validation receipt\n"
-REVIEW_RECEIPT_BYTES = b"independent review receipt\n"
-VALIDATION_RECEIPT_DIGEST = digest_bytes(VALIDATION_RECEIPT_BYTES)
-REVIEW_RECEIPT_DIGEST = digest_bytes(REVIEW_RECEIPT_BYTES)
-
-
-def _receipt_refs(ctx):
-    return ctx.store.cas_put(VALIDATION_RECEIPT_BYTES), ctx.store.cas_put(REVIEW_RECEIPT_BYTES)
+PRODUCER_PROVIDER = "urn:provider:producer"
+REVIEWER = "urn:usf:reviewer:independent-materialisation-reviewer"
+REVIEWER_PROVIDER = "urn:provider:reviewer"
 
 
 class FakeRunner:
@@ -73,17 +71,63 @@ def _authority_patch(*, include_factory_receipt: bool = False) -> str:
 
 
 def _transport(
-    *, patch: str | None = None, digest: str | None = None
+    ctx,
+    *,
+    patch: str | None = None,
+    digest: str | None = None,
+    artifact_bytes: bytes = ARTIFACT_BYTES,
+    artifact_digest: str = ARTIFACT_DIGEST,
 ) -> AuthorityEvidenceTransport:
     body = patch if patch is not None else _authority_patch()
+    patch_digest = digest or digest_text(body)
+    artifact_ref = ctx.store.cas_put(artifact_bytes)
+    common = dict(
+        obligation_id=SUBJECT,
+        base_head=BASE_HEAD,
+        authority_digest=AUTHORITY_DIGEST,
+        source_patch_digest=patch_digest,
+        artifact_digests=[artifact_digest],
+        accepted=True,
+    )
+    producer_ref = ctx.store.cas_put_text(
+        canonical_json(
+            AuthorityEvidenceAttestation(
+                role="producer",
+                identity=PRODUCER,
+                provider_id=PRODUCER_PROVIDER,
+                **common,
+            ).content_dict()
+        )
+    )
+    reviewer_ref = ctx.store.cas_put_text(
+        canonical_json(
+            AuthorityEvidenceAttestation(
+                role="reviewer",
+                identity=REVIEWER,
+                provider_id=REVIEWER_PROVIDER,
+                **common,
+            ).content_dict()
+        )
+    )
     return AuthorityEvidenceTransport(
         obligation_id=SUBJECT,
         base_head=BASE_HEAD,
         authority_digest=AUTHORITY_DIGEST,
         producer_id=PRODUCER,
+        producer_provider_id=PRODUCER_PROVIDER,
+        reviewer_id=REVIEWER,
+        reviewer_provider_id=REVIEWER_PROVIDER,
         source_patch=body,
-        source_patch_digest=digest or digest_text(body),
-        artifact_digests=[ARTIFACT_DIGEST],
+        source_patch_digest=patch_digest,
+        artifacts=[
+            AuthorityEvidenceArtifact(
+                locator=artifact_ref,
+                artifact_digest=artifact_digest,
+                byte_size=len(ARTIFACT_BYTES),
+            )
+        ],
+        producer_attestation_ref=producer_ref,
+        reviewer_attestation_ref=reviewer_ref,
         evidence_refs=[EVIDENCE_REF],
     )
 
@@ -163,15 +207,24 @@ def test_verified_external_authority_evidence_uses_protected_patch_lifecycle(ctx
     _authorize(ctx)
     github, publisher = FakeGitHub(), FakePublisher(live_digest=AUTHORITY_DIGEST)
     coordinator = DeliveryCoordinator(ctx, github=github, publisher=publisher)
-    producer_ref, review_ref = _receipt_refs(ctx)
-    record = coordinator.deliver_external_authority_evidence(
-        _transport(),
-        artifact_verifier=lambda item: item == ARTIFACT_DIGEST,
-        producer_validation_receipt_ref=producer_ref,
-        independent_review_receipt_ref=review_ref,
-        reviewer_profile_id="independent-authority-evidence-reviewer",
+    transport = _transport(ctx)
+    inp = _inp(
+        ctx,
+        obligation_id=SUBJECT,
+        obligation_ids=[SUBJECT],
+        gap_identities=[{"type": "missing-current-passing-validation", "subject": SUBJECT}],
+        set_id="authority-evidence-set",
+        remediation_kind=RemediationKind.VALIDATION_EVIDENCE,
+        base_head=BASE_HEAD,
+        expected_pre_publication_digest=AUTHORITY_DIGEST,
+        diff_text=transport.source_patch,
     )
-    assert record.state == DeliveryState.COMPLETE.value
+    record = coordinator.deliver_external_authority_evidence(
+        transport,
+        assurance_bundle_ref=inp.assurance_bundle_ref,
+        assurance_bundle_digest=inp.assurance_bundle_digest,
+    )
+    assert record.state == DeliveryState.COMPLETE.value, record.blocked_reason
     assert record.remediation_kind == "VALIDATION_EVIDENCE"
     assert "apply" in github.calls and "write_files" not in github.calls
 
@@ -179,42 +232,35 @@ def test_verified_external_authority_evidence_uses_protected_patch_lifecycle(ctx
 @pytest.mark.adversarial
 def test_external_authority_evidence_rejects_altered_patch(ctx, tmp_usf):
     coordinator = DeliveryCoordinator(ctx, github=FakeGitHub(), publisher=FakePublisher())
-    producer_ref, review_ref = _receipt_refs(ctx)
     with pytest.raises(ValueError, match="AUTHORITY_EVIDENCE_PATCH_DIGEST_MISMATCH"):
         coordinator.deliver_external_authority_evidence(
-            _transport(digest="sha256:" + "c" * 64),
-            artifact_verifier=lambda _item: True,
-            producer_validation_receipt_ref=producer_ref,
-            independent_review_receipt_ref=review_ref,
-            reviewer_profile_id="reviewer",
+            _transport(ctx, digest="sha256:" + "c" * 64),
+            assurance_bundle_ref="cas:sha256:" + "1" * 64,
+            assurance_bundle_digest="sha256:" + "1" * 64,
         )
 
 
 @pytest.mark.adversarial
 def test_external_authority_evidence_rejects_unverified_artifact(ctx, tmp_usf):
     coordinator = DeliveryCoordinator(ctx, github=FakeGitHub(), publisher=FakePublisher())
-    producer_ref, review_ref = _receipt_refs(ctx)
     with pytest.raises(ValueError, match="AUTHORITY_EVIDENCE_ARTIFACT_UNVERIFIED"):
         coordinator.deliver_external_authority_evidence(
-            _transport(),
-            artifact_verifier=lambda _item: False,
-            producer_validation_receipt_ref=producer_ref,
-            independent_review_receipt_ref=review_ref,
-            reviewer_profile_id="reviewer",
+            _transport(ctx, artifact_bytes=b"altered artifact bytes"),
+            assurance_bundle_ref="cas:sha256:" + "1" * 64,
+            assurance_bundle_digest="sha256:" + "1" * 64,
         )
 
 
 @pytest.mark.adversarial
 def test_external_authority_evidence_requires_verifiable_receipt_bytes(ctx, tmp_usf):
     coordinator = DeliveryCoordinator(ctx, github=FakeGitHub(), publisher=FakePublisher())
-    _producer_ref, review_ref = _receipt_refs(ctx)
-    with pytest.raises(ValueError, match="AUTHORITY_EVIDENCE_VALIDATION_RECEIPT_UNVERIFIED"):
+    transport = _transport(ctx)
+    transport.producer_attestation_ref = "cas:sha256:" + "d" * 64
+    with pytest.raises(ValueError, match="AUTHORITY_EVIDENCE_ATTESTATION_UNAVAILABLE"):
         coordinator.deliver_external_authority_evidence(
-            _transport(),
-            artifact_verifier=lambda _item: True,
-            producer_validation_receipt_ref="cas:sha256:" + "d" * 64,
-            independent_review_receipt_ref=review_ref,
-            reviewer_profile_id="reviewer",
+            transport,
+            assurance_bundle_ref="cas:sha256:" + "1" * 64,
+            assurance_bundle_digest="sha256:" + "1" * 64,
         )
 
 
@@ -222,12 +268,9 @@ def test_external_authority_evidence_requires_verifiable_receipt_bytes(ctx, tmp_
 def test_factory_receipt_cannot_enter_authority_evidence_transport(ctx, tmp_usf):
     patch = _authority_patch(include_factory_receipt=True)
     coordinator = DeliveryCoordinator(ctx, github=FakeGitHub(), publisher=FakePublisher())
-    producer_ref, review_ref = _receipt_refs(ctx)
     with pytest.raises(ValueError, match="FACTORY_RECEIPT_IS_NOT_AUTHORITY_EVIDENCE"):
         coordinator.deliver_external_authority_evidence(
-            _transport(patch=patch),
-            artifact_verifier=lambda _item: True,
-            producer_validation_receipt_ref=producer_ref,
-            independent_review_receipt_ref=review_ref,
-            reviewer_profile_id="reviewer",
+            _transport(ctx, patch=patch),
+            assurance_bundle_ref="cas:sha256:" + "1" * 64,
+            assurance_bundle_digest="sha256:" + "1" * 64,
         )

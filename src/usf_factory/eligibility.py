@@ -90,8 +90,8 @@ def hard_eligibility(
             reasons.append(f"{dim} below {threshold}")
 
     # Risk permission.
-    if packet.risk is Risk.PROTECTED and not protected_allowed:
-        reasons.append("protected risk requires an enabled gate")
+    if packet.risk in {Risk.HIGH, Risk.PROTECTED} and not protected_allowed:
+        reasons.append("high/protected risk requires committed and run-authorized acceptance")
     if packet.risk is Risk.HIGH and not agent.has_role(AdmissionRole.INTEGRATOR):
         reasons.append("high risk requires INTEGRATOR-tier trust")
 

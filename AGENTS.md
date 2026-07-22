@@ -37,14 +37,17 @@ These are enforced in code and must never be weakened by an automated change:
 
 ## Determinism rules
 
-- The control plane must be replayable from the append-only event log. Phase
-  transitions and side-effect boundaries are recorded as events. (Strict
-  per-transition compare-and-swap with fencing tokens is a target — see
-  `docs/known-limitations.md`.)
+- Protected delivery transitions use versioned compare-and-swap and append an
+  immutable CAS transition in the same SQLite transaction as the projection and
+  side-effect reservation. Invocation timing and adaptive concurrency may react
+  nondeterministically to live conditions, but every decision and observation
+  must be persisted well enough to explain it.
 - No wall-clock, locale, or randomness in canonical artifact identity. Content
   addressing uses SHA-256 over canonical JSON (sorted keys, UTF-8).
-- Exploration and any stochastic routing use a **seeded** RNG derived from
-  deterministic inputs so that a cycle replays identically.
+- Canonical identities and integration order remain deterministic. Live routing
+  and concurrency exploration need not reproduce timing or worker count; replay
+  verifies durable inputs, fences, decisions and outcomes rather than pretending
+  that server timing is deterministic.
 
 ## How to work here
 

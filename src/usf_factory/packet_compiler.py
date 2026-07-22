@@ -206,6 +206,7 @@ def compile_packets(
             )
         packet = Packet(
             obligation_id=obl.id,
+            gap_identity=obl.gap_identity,
             snapshot_id=snapshot.snapshot_id,
             authority_digest=snapshot.authority_digest,
             base_head=snapshot.repository_head,

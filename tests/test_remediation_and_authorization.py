@@ -17,10 +17,10 @@ import pytest
 
 from usf_factory.config import load_config
 from usf_factory.engine import FactoryEngine
-from usf_factory.enums import AdmissionRole, ProtectedAction, RemediationKind, Risk
+from usf_factory.enums import AdmissionRole, AuthMode, ProtectedAction, RemediationKind, Risk
 from usf_factory.errors import RunAuthorizationError
 from usf_factory.materialisation import ScopeResult
-from usf_factory.models import Obligation, ObligationGraph, Packet, SemanticSnapshot
+from usf_factory.models import AgentProfile, Obligation, ObligationGraph, Packet, SemanticSnapshot
 from usf_factory.packet_compiler import compile_packets
 from usf_factory.programme_state import classify_remediation, parse_programme_obligations
 from usf_factory.run_authorization import (
@@ -216,7 +216,12 @@ def test_run_authorization_provider_and_subscription_scopes_are_enforced(ctx):
     wrong_raw = WorkforceProfile(
         profile_id="raw", provider_id="cloud", requested_model_id="model", inference_mode="free"
     )
-    assert "raw source" in engine._authorization_provider_reason(
+    assert "committed safety gate" in engine._authorization_provider_reason(
+        packet, AdmissionRole.PATCH_PRODUCER, wrong_raw
+    )
+    ctx.config.safety.allow_source_egress = True
+    ctx.run_authorization.permitted_actions.append(ProtectedAction.SOURCE_EGRESS)
+    assert "restricts raw source" in engine._authorization_provider_reason(
         packet, AdmissionRole.PATCH_PRODUCER, wrong_raw
     )
     wrong_review = WorkforceProfile(
@@ -237,6 +242,42 @@ def test_run_authorization_provider_and_subscription_scopes_are_enforced(ctx):
     assert "subscription" in engine._authorization_provider_reason(
         packet, AdmissionRole.PATCH_PRODUCER, subscription
     )
+
+
+@pytest.mark.adversarial
+def test_private_source_invocation_requires_and_records_point_of_use_grant(ctx):
+    ctx.config.safety.allow_source_egress = True
+    ctx.config.egress.source_egress_enabled = True
+    ctx.config.egress.provider_overrides = {"openai-api": ["private-source"]}
+    ctx.run_authorization = _auth(
+        permitted_actions=[ProtectedAction.SOURCE_EGRESS],
+        raw_source_provider="openai-api",
+    )
+    packet = Packet(
+        obligation_id="o",
+        snapshot_id="s",
+        authority_digest="sha256:" + "a" * 64,
+        base_head="a" * 40,
+        objective="x",
+        task_class="repository-implementation",
+        data_classification="private-source",
+    )
+    agent = AgentProfile(
+        provider_id="openai-api",
+        requested_model_id="model",
+        adapter="openai_compatible",
+        auth_mode=AuthMode.API_TOKEN,
+    )
+    engine = FactoryEngine(ctx)
+    assert engine._authorise_source_egress(packet, agent, "run-1") is None
+    records = ctx.store.records("source_egress_authorizations")
+    assert len(records) == 1
+    assert records[0]["run_authorization_digest"] == ctx.run_authorization.digest()
+    assert ctx.store.cas_get(records[0]["event_ref"])
+
+    agent.adapter = "codex_cli"
+    assert "containment" in engine._authorise_source_egress(packet, agent, "run-2")
+    assert ctx.store.count("source_egress_authorizations") == 1
 
 
 @pytest.mark.adversarial

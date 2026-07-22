@@ -20,9 +20,11 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+from .github_delivery import restricted_subprocess_environment
 from .sandbox import scan_secrets
 
 GateRunner = Callable[[], "tuple[bool | None, str]"]
+_VALIDATION_ENV = restricted_subprocess_environment(github=False)
 
 
 def _python_tool(name: str) -> str:
@@ -49,12 +51,31 @@ _USF_GATES = (
     "proof-readiness",
 )
 
+_INDEPENDENT_TRUST_PREFIXES = (
+    "processes/semantic-assurance/",
+    "tools/compiler/",
+    "semantic-model/shapes/",
+    "semantic-model/rules/",
+    "src/usf_factory/",
+    "scripts/verify.sh",
+    "config/safety.yaml",
+)
+
+
+def requires_independent_verifier(paths: list[str]) -> bool:
+    return any(
+        path == prefix or path.startswith(prefix)
+        for path in paths
+        for prefix in _INDEPENDENT_TRUST_PREFIXES
+    )
+
 
 def _changed_files(clone: Path) -> list[str]:
     result = subprocess.run(
         ["git", "-C", str(clone), "diff", "--cached", "--name-only", "HEAD"],
         capture_output=True,
         text=True,
+        env=_VALIDATION_ENV,
     )
     if result.returncode != 0:
         raise RuntimeError(f"git changed-file discovery failed: {result.stderr.strip()[:160]}")
@@ -66,6 +87,7 @@ def _tracked_files(clone: Path) -> list[str]:
         ["git", "-C", str(clone), "ls-files"],
         capture_output=True,
         text=True,
+        env=_VALIDATION_ENV,
     )
     if result.returncode != 0:
         raise RuntimeError(f"git tracked-file discovery failed: {result.stderr.strip()[:160]}")
@@ -181,6 +203,7 @@ def build_runners(clone: Path) -> dict[str, GateRunner]:
             cwd=str(clone),
             capture_output=True,
             text=True,
+            env=_VALIDATION_ENV,
             timeout=120,
         )
         return (r.returncode == 0, f"{label}: rc={r.returncode}")
@@ -202,6 +225,7 @@ def build_runners(clone: Path) -> dict[str, GateRunner]:
             cwd=str(clone),
             capture_output=True,
             text=True,
+            env=_VALIDATION_ENV,
             timeout=180,
         )
         return (r.returncode == 0, f"mypy rc={r.returncode}")
@@ -216,6 +240,7 @@ def build_runners(clone: Path) -> dict[str, GateRunner]:
             cwd=str(clone),
             capture_output=True,
             text=True,
+            env=_VALIDATION_ENV,
             timeout=600,
         )
         return (r.returncode == 0, f"pytest rc={r.returncode}")
@@ -242,6 +267,18 @@ def build_runners(clone: Path) -> dict[str, GateRunner]:
             if "<<<<<<< " in text or ">>>>>>> " in text or rel.endswith((".orig", ".rej")):
                 return False, f"merge markers/artifacts in {rel}"
         return True, "no merge markers"
+
+    def independent_trust_boundary() -> tuple[bool | None, str]:
+        if discovery_error:
+            return False, discovery_error
+        protected = sorted(path for path in changed if requires_independent_verifier([path]))
+        if not protected:
+            return None, "no assurance trust-boundary files changed"
+        return (
+            False,
+            "candidate changes assurance trust boundary; pinned external verifier "
+            f"required for: {', '.join(protected[:8])}",
+        )
 
     def integrity_sparql() -> tuple[bool | None, str]:
         """Real: parse each changed .rq/.sparql and EXECUTE it against a graph
@@ -297,6 +334,7 @@ def build_runners(clone: Path) -> dict[str, GateRunner]:
         "focused-tests": unit_tests,
         "secret-scan": secret_scan,
         "repository-cleanliness": repo_clean,
+        "independent-trust-boundary": independent_trust_boundary,
     }
 
     def _env_blocked(g: str) -> GateRunner:

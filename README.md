@@ -21,7 +21,7 @@ providers unless explicitly authorized.
 
 ---
 
-## Status
+## Status: not ready to run protected delivery
 
 The branch contains a substantial implementation of dynamic worker discovery,
 qualification and admission; deterministic planning and packet compilation;
@@ -32,9 +32,12 @@ current `usf-graph` contract. See [`docs/architecture.md`](docs/architecture.md)
 for *current reality* vs target behavior, and `BUILD_REPORT.md` for the original
 build outcome.
 
-**Not** autonomous-production-ready. Protected mutation remains disabled by
-default, and the existence of a code path or factory receipt is never completion
-evidence.
+**RUNTIME_READINESS: NOT_READY_TO_RUN.** Protected mutation remains disabled by
+default. Ordinary `gh pr merge` cannot prove a base-pinned prospective merge
+result, and this host cannot provide the required publication filesystem/network
+containment. Both conditions fail closed. Read-only planning and isolated local
+execution remain usable; a code path, passing local test or factory receipt is
+never authority evidence or a readiness verdict.
 
 ## Relationship with `usf-graph`
 
@@ -145,7 +148,7 @@ USF MCP ─► Semantic snapshot ─► Work-plan projection ─► Deterministi
                                                        │
                           Result qualification ─► Deterministic pre-integration
                                                        │
-                               AI integrator (only for semantic reconciliation)
+                       Semantic conflict ─► explicit operator-required block
                                                        │
                      Provider-diverse review ─► Deterministic local validation
                                                        │

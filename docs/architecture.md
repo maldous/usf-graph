@@ -27,6 +27,7 @@ src/usf_factory/
 ├── enums.py            controlled vocabularies
 ├── models.py           durable Pydantic records (DESIGN §4)
 ├── event_store.py      SQLite WAL + append-only events + claims + CAS
+├── assurance.py        schema-v2 CAS assurance-bundle verification
 ├── context.py          RuntimeContext (DI hub) + protected-action gates
 ├── paths.py            XDG-style locations, /usf + MCP command
 ├── errors.py           typed exception hierarchy
@@ -46,7 +47,7 @@ src/usf_factory/
 ├── workers.py          worker adapters + sandbox enforcement
 ├── result_validation.py deterministic result qualification + failure taxonomy
 ├── attribution.py      stage attribution + integrator rewrite ratio
-├── integration.py      deterministic pre-integration + semantic conflict + AI integrator
+├── integration.py      deterministic pre-integration + semantic conflict detection
 ├── review.py           independent wave review (advisory)
 ├── validation_runners.py deterministic local assurance gates
 ├── validation_evidence.py factory receipts + authority-evidence transport boundary
@@ -68,7 +69,7 @@ Phase 6  packet compile       compile_packets        deterministic packets + con
 Phase 8  schedule             engine.schedule_packets qualified dynamic workforce + adaptive routing
 Phase 9  execute (isolated)   engine.execute_packets  admitted workers in disposable clones
 Phase 10 result qualify       engine.qualify_results  deterministic checks + failure taxonomy
-Phase 11 pre-integrate        deterministic_preintegrate  semantic conflict check; AI integrator only if needed
+Phase 11 pre-integrate        deterministic_preintegrate  conflict check; unresolved conflict blocks for operator
 Phase 12 review               provider-diverse substantive review where required
 Phase 13 validate             run_validation          deterministic local gates, fail-closed
 Delivery protected lifecycle delivery coordinator    branch/PR/check/merge/validate/publish/reconcile
@@ -91,6 +92,10 @@ Each wave is a **disposable antichain**; there is no pre-planned "Wave 2".
 - Phase transitions are persisted as they occur. External delivery effects have
   CAS-bound input and persisted uncertain intent, and are reconciled before any
   retry. Coordinator and packet fencing tokens reject stale owners.
+- Protected-delivery transitions use one versioned SQLite compare-and-swap that
+  appends the immutable CAS transition, advances the projection and persists an
+  effect intent/outcome atomically. Side-effect quotas are authorization-bound
+  and remain consumed after later failures.
 
 ## Current reality vs target
 
@@ -109,8 +114,12 @@ Each wave is a **disposable antichain**; there is no pre-planned "Wave 2".
 
 **Not yet demonstrated as release-ready:**
 - Billable model probing/qualification (`--allow-billable`, `--budget-usd`).
-- clean-clone protected GitHub and Stardog delivery against disposable remotes
-  and fixture databases;
+- an exact GitHub mechanism that can merge only the reviewed, base-pinned,
+  tested prospective tree (ordinary `gh pr merge` is rejected);
+- a host containment boundary for publication credentials, filesystem and
+  outbound network (unavailable in the current chroot);
+- clean-clone protected-delivery acceptance against disposable remotes and an
+  isolated fixture authority database;
 - independent CI/attestation bound to the exact PR head;
 - namespace-enforced filesystem/network isolation on a host that supports it;
 - `autonomous-safe` live mutation (disabled by committed config and run authorization).

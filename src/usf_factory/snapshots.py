@@ -10,12 +10,11 @@ facts never depend on model output.
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import Any
 
 from .authority import UsfAuthorityClient
-from .canonical import canonical_authority_digest, digest_text
+from .canonical import canonical_authority_digest, digest_text, require_sha256_digest
 from .clock import utc_now_iso
 from .errors import SnapshotError
 from .isolation import RepoIsolation
@@ -25,12 +24,14 @@ from .paths import USF_REPO
 # Tools the deterministic snapshot depends on; their absence fails closed.
 REQUIRED_TOOLS = ("usf_health", "usf_bootstrap", "usf_query", "usf_work_plan")
 
+
 # An authority digest must be a non-trivial identifier (never manufactured).
-_DIGEST_RE = re.compile(r"^[A-Za-z0-9:_\-]{16,}$")
-
-
 def _valid_digest(value: str) -> bool:
-    return bool(value) and " " not in value and bool(_DIGEST_RE.match(value))
+    try:
+        require_sha256_digest(value, "authority digest")
+    except ValueError:
+        return False
+    return True
 
 
 def _read_digest(path: Path) -> str | None:
@@ -166,6 +167,18 @@ def compile_snapshot(
     except Exception as exc:
         raise SnapshotError(f"work-plan retrieval failed: {type(exc).__name__}: {exc}") from exc
     programme_obligations = parse_programme_obligations(bootstrap, work_plan_json)
+    actionable_gap_identities = sorted(
+        (
+            {
+                "type": str(gap.get("type") or ""),
+                "subject": str(gap.get("subject") or gap.get("id") or ""),
+            }
+            for gap in work_plan_json["gaps"]
+        ),
+        key=lambda row: (row["type"], row["subject"]),
+    )
+    if any(not row["type"] or not row["subject"] for row in actionable_gap_identities):
+        raise SnapshotError("work-plan contains a gap without exact type and subject identity")
 
     # --- Git (read-only, isolated) --- #
     try:
@@ -192,6 +205,9 @@ def compile_snapshot(
         admitted_evidence=evidence,
         open_transactions=[],
         programme_obligations=programme_obligations,
+        actionable_gap_identities=actionable_gap_identities,
+        work_plan_complete=True,
+        work_plan_authority_digest=authority_digest,
         checkpoint_present=checkpoint_digest is not None,
         ledger_present=ledger_digest is not None,
         health_ok=health_ok,

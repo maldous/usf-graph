@@ -17,9 +17,9 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .canonical import content_digest, stable_id
+from .canonical import content_digest, require_sha256_digest, stable_id
 from .enums import (
     AdmissionRole,
     AuthMode,
@@ -497,6 +497,11 @@ class SemanticSnapshot(FactoryModel):
     # Compact programme obligations parsed from the MCP work-plan/bootstrap
     # contents (id + dependencies + task hints). Drives deterministic planning.
     programme_obligations: list[dict[str, Any]] = Field(default_factory=list)
+    # Exact actionable work-plan identities captured through complete,
+    # digest-stable pagination.  Contract declarations are not actionable gaps.
+    actionable_gap_identities: list[dict[str, str]] = Field(default_factory=list)
+    work_plan_complete: bool = False
+    work_plan_authority_digest: str = ""
     checkpoint_present: bool = False
     ledger_present: bool = False
     health_ok: bool = True
@@ -516,10 +521,24 @@ class SemanticSnapshot(FactoryModel):
 # --------------------------------------------------------------------------- #
 
 
+class ActionableGapIdentity(FactoryModel):
+    """Exact actionable work-plan identity; declarations are not gap identities."""
+
+    type: str
+    subject: str
+
+    @model_validator(mode="after")
+    def _nonempty(self) -> ActionableGapIdentity:
+        if not self.type or not self.subject:
+            raise ValueError("ACTIONABLE_GAP_IDENTITY_INCOMPLETE")
+        return self
+
+
 class Obligation(FactoryModel):
     """An obligation in the planner's obligation graph (DESIGN Phase 5)."""
 
     id: str
+    gap_identity: ActionableGapIdentity | None = None
     root_cause: str
     semantic_subjects: list[str] = Field(default_factory=list)
     dependencies: list[str] = Field(default_factory=list)
@@ -567,6 +586,7 @@ class Packet(FactoryModel):
     """A content-addressed, deterministically compiled unit of work (§12)."""
 
     obligation_id: str
+    gap_identity: ActionableGapIdentity | None = None
     snapshot_id: str
     authority_digest: str
     base_head: str
@@ -791,6 +811,7 @@ class WavePatch(FactoryModel):
 
 
 class WaveReview(FactoryModel):
+    schema_version: int = 1
     set_id: str
     reviewer_profile_id: str | None = None
     advisory: bool = True  # review is never proof
@@ -800,19 +821,184 @@ class WaveReview(FactoryModel):
     approved: bool = True
     findings: list[str] = Field(default_factory=list)
     risk_flags: list[str] = Field(default_factory=list)
+    patch_digest: str = ""
+    validation_receipt_digest: str = ""
+    review_context_digest: str = ""
+    review_context_ref: str = ""
+    reviewer_provider_id: str = ""
+    reviewer_actual_model: str = ""
+    reviewer_admission_digest: str = ""
+    reviewer_admission_ref: str = ""
+    authoring_identities: list[str] = Field(default_factory=list)
+    authoring_providers: list[str] = Field(default_factory=list)
+    independence_determined: bool = False
     reviewed_at: str = ""
 
     _volatile_fields = frozenset({"reviewed_at"})
 
+    @model_validator(mode="after")
+    def _validate_v2_closure(self) -> WaveReview:
+        if self.schema_version < 2:
+            return self
+        for value in (
+            self.patch_digest,
+            self.validation_receipt_digest,
+            self.review_context_digest,
+            self.reviewer_admission_digest,
+        ):
+            if not value.startswith("sha256:") or len(value) != 71:
+                raise ValueError("REVIEW_DIGEST_BINDING_INVALID")
+        if not self.reviewer_profile_id or not self.reviewer_provider_id:
+            raise ValueError("REVIEWER_IDENTITY_MISSING")
+        if not self.reviewer_actual_model:
+            raise ValueError("REVIEWER_ACTUAL_MODEL_MISSING")
+        if not self.authoring_identities:
+            raise ValueError("REVIEW_AUTHOR_IDENTITY_MISSING")
+        if not self.authoring_providers:
+            raise ValueError("REVIEW_AUTHOR_PROVIDER_MISSING")
+        if not self.review_context_ref.startswith("cas:sha256:"):
+            raise ValueError("REVIEW_CONTEXT_REFERENCE_INVALID")
+        if not self.reviewer_admission_ref.startswith("cas:sha256:"):
+            raise ValueError("REVIEWER_ADMISSION_REFERENCE_INVALID")
+        if not self.independence_determined:
+            raise ValueError("REVIEW_INDEPENDENCE_NOT_DETERMINED")
+        if self.reviewer_profile_id in self.authoring_identities:
+            raise ValueError("REVIEWER_IDENTITY_NOT_INDEPENDENT")
+        if self.reviewer_provider_id in self.authoring_providers:
+            raise ValueError("REVIEWER_NOT_INDEPENDENT")
+        return self
+
 
 class ValidationReceipt(FactoryModel):
+    schema_version: int = 1
     set_id: str
     gates: dict[str, bool] = Field(default_factory=dict)
     all_passed: bool = False
     detail: dict[str, str] = Field(default_factory=dict)
+    patch_digest: str = ""
+    patch_ref: str = ""
+    integration_tree: str = ""
+    integration_head: str = ""
+    repository_base_head: str = ""
+    authority_digest: str = ""
+    required_gate_inventory: list[str] = Field(default_factory=list)
+    actual_runner_inventory: list[str] = Field(default_factory=list)
+    runner_bindings: dict[str, str] = Field(default_factory=dict)
+    runner_inventory_digest: str = ""
+    toolchain_bindings: dict[str, str] = Field(default_factory=dict)
+    toolchain_inventory_digest: str = ""
     validated_at: str = ""
 
     _volatile_fields = frozenset({"validated_at"})
+
+    @model_validator(mode="after")
+    def _validate_v2_closure(self) -> ValidationReceipt:
+        if self.schema_version < 2:
+            return self
+        required = sorted(set(self.required_gate_inventory))
+        actual = sorted(set(self.actual_runner_inventory))
+        derived = bool(required) and all(self.gates.get(name) is True for name in required)
+        if required != sorted(self.gates):
+            raise ValueError("VALIDATION_GATE_INVENTORY_MISMATCH")
+        if self.all_passed and any(name not in actual for name in required):
+            raise ValueError("VALIDATION_RUNNER_INVENTORY_INCOMPLETE")
+        if self.all_passed != derived:
+            raise ValueError("VALIDATION_ALL_PASSED_NOT_DERIVED")
+        if self.runner_inventory_digest != content_digest(self.runner_bindings):
+            raise ValueError("VALIDATION_RUNNER_DIGEST_NOT_DERIVED")
+        if self.toolchain_inventory_digest != content_digest(self.toolchain_bindings):
+            raise ValueError("VALIDATION_TOOLCHAIN_DIGEST_NOT_DERIVED")
+        for value in (
+            self.patch_digest,
+            self.runner_inventory_digest,
+            self.toolchain_inventory_digest,
+        ):
+            if not value.startswith("sha256:") or len(value) != 71:
+                raise ValueError("VALIDATION_DIGEST_BINDING_INVALID")
+        if not self.patch_ref.startswith("cas:sha256:"):
+            raise ValueError("VALIDATION_PATCH_REFERENCE_INVALID")
+        if not self.integration_tree or not self.integration_head:
+            raise ValueError("VALIDATION_INTEGRATION_BINDING_MISSING")
+        if not self.repository_base_head or not self.authority_digest:
+            raise ValueError("VALIDATION_AUTHORITY_BINDING_MISSING")
+        require_sha256_digest(self.authority_digest, "validation authority digest")
+        return self
+
+
+class AssuranceBundle(FactoryModel):
+    """CAS-bound proof that a wave is eligible to enter protected delivery."""
+
+    schema_version: int = 1
+    set_id: str
+    obligation_ids: list[str]
+    gap_identities: list[ActionableGapIdentity]
+    remediation_kind: RemediationKind
+    maximum_risk: Risk
+    repository_base_head: str
+    expected_authority_digest: str
+    patch_digest: str
+    patch_ref: str
+    validation_receipt_digest: str
+    validation_receipt_ref: str
+    review_receipt_digest: str
+    review_receipt_ref: str
+    review_context_digest: str
+    review_context_ref: str
+    validation_runner_inventory_digest: str
+    toolchain_inventory_digest: str
+    reviewer_profile_id: str
+    reviewer_provider_id: str
+    reviewer_actual_model: str
+    reviewer_admission_digest: str
+    reviewer_admission_ref: str
+    authoring_identities: list[str]
+    authoring_providers: list[str]
+    reviewer_independent: bool
+    policy_digest: str
+    workforce_snapshot_id: str
+    run_authorization_digest: str
+
+    @model_validator(mode="after")
+    def _validate_closure(self) -> AssuranceBundle:
+        if self.obligation_ids != sorted(set(self.obligation_ids)) or not self.obligation_ids:
+            raise ValueError("ASSURANCE_OBLIGATION_SET_INVALID")
+        gap_pairs = [(gap.type, gap.subject) for gap in self.gap_identities]
+        if gap_pairs != sorted(set(gap_pairs)) or not gap_pairs:
+            raise ValueError("ASSURANCE_GAP_IDENTITY_SET_INVALID")
+        for value in (
+            self.expected_authority_digest,
+            self.patch_digest,
+            self.validation_receipt_digest,
+            self.review_receipt_digest,
+            self.review_context_digest,
+            self.validation_runner_inventory_digest,
+            self.toolchain_inventory_digest,
+            self.reviewer_admission_digest,
+            self.policy_digest,
+            self.run_authorization_digest,
+        ):
+            try:
+                require_sha256_digest(value, "assurance digest binding")
+            except ValueError:
+                raise ValueError("ASSURANCE_DIGEST_BINDING_INVALID") from None
+        for value in (
+            self.patch_ref,
+            self.validation_receipt_ref,
+            self.review_receipt_ref,
+            self.review_context_ref,
+            self.reviewer_admission_ref,
+        ):
+            if not value.startswith("cas:sha256:"):
+                raise ValueError("ASSURANCE_CAS_REFERENCE_INVALID")
+        if not self.reviewer_independent:
+            raise ValueError("ASSURANCE_REVIEWER_NOT_INDEPENDENT")
+        if not self.reviewer_profile_id or not self.reviewer_provider_id:
+            raise ValueError("ASSURANCE_REVIEWER_IDENTITY_MISSING")
+        if self.reviewer_profile_id in self.authoring_identities:
+            raise ValueError("ASSURANCE_REVIEWER_IDENTITY_CONFLICT")
+        if self.reviewer_provider_id in self.authoring_providers:
+            raise ValueError("ASSURANCE_REVIEWER_PROVIDER_CONFLICT")
+        return self
 
 
 class PublicationReceipt(FactoryModel):
@@ -844,6 +1030,15 @@ class CycleReceipt(FactoryModel):
     selected_packets: int = 0
     accepted_packets: int = 0
     published: bool = False
+    delivery_id: str = ""
+    delivery_state: str = ""
+    pr_url: str = ""
+    merge_commit: str = ""
+    git_merged: bool = False
+    authority_digest_before: str = ""
+    authority_digest_after: str = ""
+    reconciliation_result: str = ""
+    programme_terminal_complete: bool = False
     no_progress: bool = False
     blockers: list[str] = Field(default_factory=list)
     started_at: str = ""
@@ -875,6 +1070,8 @@ class DeliveryRecord(FactoryModel):
     uncertain push/merge/publish. Keyed by ``delivery_id`` (obligation + wave)."""
 
     delivery_id: str
+    version: int = 0
+    transition_ref: str = ""
     obligation_id: str
     obligation_ids: list[str] = Field(default_factory=list)
     set_id: str = ""
@@ -893,12 +1090,17 @@ class DeliveryRecord(FactoryModel):
     # Exact canonical DeliveryInput bytes used to resume an uncertain external
     # side effect after process loss.  The CAS bytes are integrity-verified.
     input_ref: str = ""
+    assurance_bundle_ref: str = ""
     # External identifiers (from the real side effects).
     branch: str = ""
     pr_number: int | None = None
     pr_url: str = ""
     reviewed_head: str = ""
+    reviewed_tree: str = ""
     checked_head: str = ""
+    checked_base_head: str = ""
+    tested_merge_tree: str = ""
+    required_checks_receipt_ref: str = ""
     merge_commit: str = ""
     graphs_published: list[str] = Field(default_factory=list)
     # Attribution + reconciliation.
@@ -911,6 +1113,40 @@ class DeliveryRecord(FactoryModel):
     updated_at: str = ""
 
     _volatile_fields = frozenset({"created_at", "updated_at"})
+
+
+class RequiredChecksReceipt(FactoryModel):
+    """Exact pre-merge GitHub witness bound to one prospective merge tree."""
+
+    schema_version: int = 1
+    repository: str
+    pr_number: int
+    reviewed_head: str
+    base_head: str
+    prospective_merge_commit: str
+    prospective_merge_tree: str
+    checks: list[dict[str, str]]
+
+    @model_validator(mode="after")
+    def _closed(self) -> RequiredChecksReceipt:
+        for value in (
+            self.repository,
+            self.reviewed_head,
+            self.base_head,
+            self.prospective_merge_commit,
+            self.prospective_merge_tree,
+        ):
+            if not value:
+                raise ValueError("GITHUB_MERGE_WITNESS_INCOMPLETE")
+        canonical = sorted(
+            self.checks,
+            key=lambda row: (row.get("workflow", ""), row.get("name", ""), row.get("link", "")),
+        )
+        if self.checks != canonical or not self.checks:
+            raise ValueError("GITHUB_REQUIRED_CHECK_INVENTORY_INVALID")
+        if any(row.get("bucket", "").lower() != "pass" for row in self.checks):
+            raise ValueError("GITHUB_REQUIRED_CHECK_NOT_PASSED")
+        return self
 
 
 class Event(FactoryModel):

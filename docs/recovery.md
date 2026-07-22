@@ -17,7 +17,8 @@ Locations are overridable via `USF_FACTORY_STATE`, `USF_FACTORY_CACHE`,
 
 ## Replay model
 
-- The `events` table is **append-only** and is the source of truth for history.
+- The `events` table is **append-only** for cycle history. Protected delivery
+  additionally has an immutable CAS transition chain and compare-and-swap head.
 - Every cycle transition is persisted as it occurs. Protected external side
   effects additionally persist an `UNCERTAIN_SIDE_EFFECT` intent before the
   driver is invoked and clear it only after an exact result is recorded.
@@ -40,8 +41,24 @@ Locations are overridable via `USF_FACTORY_STATE`, `USF_FACTORY_CACHE`,
   has changed.
 
 Worktrees are **ephemeral execution storage only** — ownership lives in the state
-store, never in a worktree. A crashed cycle's disposable clones can be deleted
-safely; the claim authority (`packet_claims`) prevents double dispatch.
+store, never in a worktree. A protected delivery persists a Git bundle for the
+exact reviewed commit; recovery can reconstruct a deleted clone and verifies the
+commit/tree before continuing. Digest-derived directory names prevent semantic
+identifiers from becoming paths. The claim authority (`packet_claims`) prevents
+double dispatch, and an expired claim cannot renew itself.
+
+`resume_incomplete` handles every nonterminal delivery state in canonical
+delivery-id order. A published delivery whose drift or closure check has not
+completed remains `AUTHORITY_PUBLISHED` with reconciliation required; it is not
+collapsed into an ordinary failure. Legacy active projections without a
+versioned transition chain fail closed as `LEGACY_DELIVERY_TRANSITION_UNBOUND`.
+
+## SQLite migration
+
+Startup creates the additive transition, quota, budget and assurance-index tables
+without rewriting prior history. Schema-v1 assurance receipts cannot authorize a
+protected delivery. Existing complete records remain readable; existing active
+records without a transition head must be inspected and migrated explicitly.
 
 ## Uncertain mutations
 
@@ -52,9 +69,9 @@ remote state, but never repeats the side effect while its outcome is ambiguous.
 
 ## No-progress handling
 
-The engine compares each cycle to the previous (`_detect_no_progress`). Repeated
-cycles with the same snapshot and an empty selected set are flagged; after
-`budgets.max_no_progress_cycles` the loop should stop safely.
+The engine records a durable snapshot/packet-set repetition streak. After
+`budgets.max_no_progress_cycles` unchanged cycles it stops safely even after a
+process restart.
 
 ## Backup
 

@@ -72,6 +72,14 @@ def canonical_authority_digest(value: str) -> str:
     return candidate
 
 
+def require_sha256_digest(value: str, field: str = "digest") -> str:
+    """Return the one canonical SHA-256 form or fail closed."""
+    candidate = canonical_authority_digest(value)
+    if not _TAGGED_SHA256_RE.fullmatch(candidate):
+        raise ValueError(f"{field} must be an exact SHA-256 digest")
+    return candidate
+
+
 def content_digest(value: Any) -> str:
     """Content address of any JSON-serializable value.
 

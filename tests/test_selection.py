@@ -403,7 +403,7 @@ def test_budget_cannot_be_exceeded(ctx, monkeypatch):
         ],
     )
     # Pre-spend the whole cap so the tournament must stop before any model.
-    BudgetLedger(ctx.store, BudgetLimits()).reserve(
+    BudgetLedger(ctx.store, BudgetLimits(global_usd=5.0)).reserve(
         cycle_id="probe", provider_id="x", estimate_usd=5.0
     )
     res = asyncio.run(

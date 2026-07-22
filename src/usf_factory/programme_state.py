@@ -147,6 +147,11 @@ def parse_programme_obligations(bootstrap: dict[str, Any], work_plan: Any) -> li
         ]
         out[oid] = {
             "id": oid,
+            "gap_identity": (
+                {"type": gap_type, "subject": str(item.get("subject") or "")}
+                if gap_type and item.get("subject")
+                else None
+            ),
             "root_cause": root_cause,
             "required_outcomes": [
                 f"bounded finding on the current state of {item.get('subject') or oid}"
@@ -172,6 +177,14 @@ def parse_programme_obligations(bootstrap: dict[str, Any], work_plan: Any) -> li
                 continue
             out[oid] = {
                 "id": oid,
+                "gap_identity": (
+                    {
+                        "type": str(item.get("type") or ""),
+                        "subject": str(item.get("subject") or ""),
+                    }
+                    if isinstance(item, dict) and item.get("type") and item.get("subject")
+                    else None
+                ),
                 "root_cause": f"resolve {key} item {oid}",
                 "dependencies": _deps(item) if isinstance(item, dict) else [],
                 "semantic_subjects": [oid],

@@ -146,7 +146,10 @@ class BudgetConfig(_Base):
     free_daily_request_limit: int = 500
     max_packet_wall_s: int = 2 * 3600
     max_planner_wall_s: int = 30 * 60
+    max_critic_wall_s: int = 30 * 60
+    max_reviewer_wall_s: int = 30 * 60
     max_integration_wall_s: int = 2 * 3600
+    max_validation_wall_s: int = 2 * 3600
     # The initial coordinator lease must cover the SYNCHRONOUS preflight phase
     # (mirror fetch, recovery), during which the heartbeat cannot renew it.
     max_preflight_wall_s: int = 900

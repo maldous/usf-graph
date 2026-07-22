@@ -52,17 +52,19 @@ class RunAuthorization(FactoryModel):
     # Provider routing / budget
     paid_api_budget_usd: float = Field(default=0.0, ge=0.0)
     allow_subscription_inference: bool = True
-    raw_source_provider: str | None = "claude-cli"
+    raw_source_provider: str | None = None
     raw_source_requires_containment: bool = True
     metadata_review_provider: str | None = "codex-cli"
 
     # Quotas
     max_packets_per_wave: int = Field(default=2, ge=1)
-    max_authority_publications: int = Field(default=10, ge=0)
-    max_pr_merges: int = Field(default=10, ge=0)
+    # Fail-closed migration defaults: an older authorization that lacks the new
+    # fields gains no outward side-effect capacity.
+    max_branch_pushes: int = Field(default=0, ge=0)
+    max_pr_creations: int = Field(default=0, ge=0)
+    max_authority_publications: int = Field(default=0, ge=0)
+    max_pr_merges: int = Field(default=0, ge=0)
     max_continuous_cycles: int = Field(default=20, ge=1)
-    allow_force_push: bool = False
-
     # Which protected gates may become effective for this run.
     permitted_actions: list[ProtectedAction] = Field(default_factory=list)
 
