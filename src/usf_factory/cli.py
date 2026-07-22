@@ -15,7 +15,7 @@ from rich.table import Table
 
 from . import __version__, secrets
 from .context import RuntimeContext, build_context
-from .enums import RunMode
+from .enums import ProtectedAction, RunMode
 from .paths import ENV_FILE
 
 console = Console()
@@ -311,6 +311,42 @@ def run(
                 break
 
 
+def _deliver_validation_evidence_gaps(ctx: RuntimeContext, coordinator: object) -> None:
+    """Read the live work plan and deliver any missing-current-passing-validation
+    gap as executed+admitted validation evidence (spec §11) through the coordinator."""
+    import os
+    import subprocess
+
+    from .authority import UsfAuthorityClient
+
+    remote = os.environ.get("USF_GRAPH_REMOTE", "https://github.com/maldous/usf-graph.git")
+    wp = UsfAuthorityClient().work_plan().json() or {}
+    digest = str(wp.get("authorityDigest") or "")
+    gaps = [g for g in wp.get("gaps", []) if g.get("type") == "missing-current-passing-validation"]
+    if not gaps:
+        console.print("[dim]no validation-evidence gaps in the live work plan[/]")
+        return
+    # base_head: the current usf-graph main tip the evidence is validated against.
+    lsr = subprocess.run(
+        ["git", "ls-remote", remote, "HEAD"], capture_output=True, text=True, env=dict(os.environ)
+    )
+    base = lsr.stdout.split()[0] if lsr.stdout.strip() else ""
+    if not base:
+        console.print("[red]could not resolve usf-graph main head; skipping evidence delivery[/]")
+        return
+    for gap in gaps:
+        subject = str(gap.get("subject") or "")
+        console.print(f"[cyan]delivering validation evidence for {subject} @ {base[:12]}[/]")
+        rec = coordinator.deliver_validation_evidence(  # type: ignore[attr-defined]
+            obligation_id=subject,
+            subject=subject,
+            base_head=base,
+            authority_digest=digest,
+            env=dict(os.environ),
+        )
+        console.print(f"  delivery state: [bold]{rec.state}[/]  ({rec.blocked_reason or 'ok'})")
+
+
 @app.command()
 def realize(
     authorization_file: str = typer.Option(
@@ -384,6 +420,11 @@ def realize(
                 "(no push/merge/publish will fire)[/]"
             )
         coordinator = build_delivery_coordinator(ctx)
+        # Validation-evidence gaps (missing-current-passing-validation) are closed by
+        # EXECUTING + admitting evidence, not a source repair (spec §11). Deliver them
+        # deterministically via the coordinator when the run is authorized.
+        if ctx.run_authorization is not None and ctx.is_action_effective(ProtectedAction.PUSH_PR):
+            _deliver_validation_evidence_gaps(ctx, coordinator)
         cap = max(1, max_packets_per_wave)
         seen_sets: set[str] = set()
         for i in range(max(1, max_cycles)):

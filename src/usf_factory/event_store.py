@@ -70,6 +70,8 @@ _RECORD_TABLES: dict[str, list[str]] = {
     "dispatch_outcomes": ["packet_id"],
     # Durable, idempotent delivery-lifecycle records (one per obligation delivery).
     "delivery_records": ["obligation_id", "state"],
+    # Content-addressed validation-evidence receipts (missing-current-passing-validation).
+    "validation_evidence": ["obligation_id"],
     # Terminal-completion stability tracker (two consecutive zero-gap snapshots).
     "terminal_stability": [],
     "cycles": ["state"],

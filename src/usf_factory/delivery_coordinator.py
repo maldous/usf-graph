@@ -170,6 +170,86 @@ class DeliveryCoordinator:
             if st in vals
         )
 
+    # ---- validation-evidence generation + delivery (§2/§3/§11) ---------- #
+
+    def deliver_validation_evidence(
+        self,
+        *,
+        obligation_id: str,
+        subject: str,
+        base_head: str,
+        authority_digest: str,
+        env: dict[str, str] | None = None,
+        independent_review: bool = True,
+        runner: object | None = None,
+    ) -> DeliveryRecord:
+        """Close a ``missing-current-passing-validation`` obligation by EXECUTING the
+        deterministic suite (evidence, not a source repair), independently
+        re-validating it, then delivering the compact evidence record through the
+        protected lifecycle. Blocks (no side effect) if the suite does not pass or
+        the independent re-run disagrees."""
+        from .validation_evidence import (
+            evidence_files,
+            execute_validation_evidence,
+        )
+
+        if self.github is None:
+            raise DeliveryError("no GitHub driver wired for evidence generation")
+        gen_clone = self.clone_root / f"evidence-{obligation_id.replace(':', '_')}"
+        r = self.github.clone_writable(gen_clone, base_head)
+        if not r.ok:
+            raise DeliveryError(f"evidence clone failed: {r.err[:200]}")
+        receipt = execute_validation_evidence(
+            self.ctx,
+            obligation_id=obligation_id,
+            subject=subject,
+            clone_path=gen_clone,
+            base_head=base_head,
+            authority_digest=authority_digest,
+            env=env,
+            runner=runner,  # type: ignore[arg-type]
+        )
+        self.ctx.store.put(
+            "validation_evidence",
+            receipt.evidence_id,
+            receipt.model_dump(mode="json"),
+            extra={"obligation_id": obligation_id},
+        )
+        review_ok = receipt.all_passed
+        if independent_review and receipt.all_passed:
+            # Independent re-validation in a SEPARATE clone (deterministic evidence:
+            # an independent re-run reproducing the result IS the independent review).
+            rev_clone = self.clone_root / f"evidence-review-{obligation_id.replace(':', '_')}"
+            rr = self.github.clone_writable(rev_clone, base_head)
+            if rr.ok:
+                rreceipt = execute_validation_evidence(
+                    self.ctx,
+                    obligation_id=obligation_id,
+                    subject=subject,
+                    clone_path=rev_clone,
+                    base_head=base_head,
+                    authority_digest=authority_digest,
+                    env=env,
+                    runner=runner,  # type: ignore[arg-type]
+                )
+                review_ok = rreceipt.all_passed == receipt.all_passed and rreceipt.all_passed
+            else:
+                review_ok = False
+        inp = DeliveryInput(
+            obligation_id=obligation_id,
+            set_id=f"vev-{receipt.evidence_id}",
+            remediation_kind=RemediationKind.VALIDATION_EVIDENCE,
+            base_head=base_head,
+            expected_pre_publication_digest=authority_digest,
+            risk=Risk.LOW,
+            evidence_files=evidence_files(receipt),
+            validation_passed=receipt.all_passed,
+            review_approved=review_ok,
+            reviewer_profile_id="deterministic-revalidation",
+            evidence_refs=[receipt.evidence_id],
+        )
+        return self.deliver(inp)
+
     # ---- driver --------------------------------------------------------- #
 
     def deliver(self, inp: DeliveryInput, *, max_steps: int = 20) -> DeliveryRecord:
