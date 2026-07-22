@@ -141,22 +141,54 @@ class PublicationStateMachine:
 
 
 def compute_terminal_complete(
-    ctx: RuntimeContext, snapshot: SemanticSnapshot
+    ctx: RuntimeContext, snapshot: SemanticSnapshot, *, require_two_snapshots: bool = True
 ) -> tuple[bool, list[str]]:
     """Compute terminal COMPLETE from GOAL + authority — never from prose.
 
-    Returns (complete, reasons). In the safe runtime this is False unless the
-    terminal-completion gate is enabled AND the deterministic conditions hold.
+    Returns (complete, reasons). Terminal completion requires, deterministically:
+    the committed gate enabled, a live RunAuthorization that permits it (when one is
+    present for the run), a zero-gap snapshot (no unresolved obligations + healthy
+    authority), AND — the stability rule (§13) — two CONSECUTIVE zero-gap snapshots,
+    so a single transient zero-gap reading can never declare completion.
     """
     reasons: list[str] = []
     if not ctx.is_gate_enabled(ProtectedAction.TERMINAL_COMPLETION):
         reasons.append("terminal-completion gate disabled")
         return False, reasons
+    # Per-run enabler: when the operator supplied a RunAuthorization for this run,
+    # it must explicitly permit terminal completion (and be unexpired).
+    if ctx.run_authorization is not None and not ctx.is_action_effective(
+        ProtectedAction.TERMINAL_COMPLETION
+    ):
+        reasons.append("RunAuthorization does not permit terminal completion (or expired)")
+        return False, reasons
     if snapshot.unresolved_obligations:
         reasons.append(f"{len(snapshot.unresolved_obligations)} unresolved obligations")
     if not snapshot.health_ok:
         reasons.append("authority health not ok")
+
+    zero_gap = not reasons
+    if require_two_snapshots:
+        prev = ctx.store.get("terminal_stability", "last") or {}
+        # Record THIS snapshot's zero-gap status for the next evaluation. Two
+        # CONSECUTIVE zero-gap snapshots (same authority digest) are required.
+        ctx.store.put(
+            "terminal_stability",
+            "last",
+            {
+                "zero_gap": zero_gap,
+                "snapshot_id": snapshot.snapshot_id,
+                "authority_digest": snapshot.authority_digest,
+            },
+        )
+        if zero_gap:
+            stable = bool(prev.get("zero_gap")) and prev.get(
+                "authority_digest"
+            ) == snapshot.authority_digest
+            if not stable:
+                reasons.append("awaiting a second consecutive stable zero-gap snapshot")
+
     complete = not reasons
     if complete:
-        reasons.append("all deterministic completion conditions satisfied")
+        reasons.append("all deterministic completion conditions satisfied (two stable zero-gap snapshots)")
     return complete, reasons

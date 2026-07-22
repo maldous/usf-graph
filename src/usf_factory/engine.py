@@ -116,6 +116,7 @@ class FactoryEngine:
         policy: EffectiveWorkforcePolicy | None = None,
         lazy_qualifier: Callable[[list[str]], bool] | None = None,
         max_redraws: int = 3,
+        delivery_coordinator: object | None = None,
     ) -> None:
         self.ctx = ctx
         self.iso = RepoIsolation(ctx.paths, ctx.usf_repo)
@@ -161,6 +162,11 @@ class FactoryEngine:
         self._lazy_qualifier = lazy_qualifier
         # Bounded redraws per packet on transient dispatch failure (spec §6).
         self._max_redraws = max(1, int(max_redraws))
+        # Protected delivery coordinator (spec Part B). When wired AND a live
+        # RunAuthorization permits it, an accepted+validated+reviewed wave is
+        # delivered end-to-end (branch/PR/merge/publish/reconcile). When absent or
+        # unauthorized, delivery is prepare-only (fail closed).
+        self._delivery_coordinator = delivery_coordinator
         self._coordinator_token: int | None = None
         self._lease_lost: bool = False
         # Packets actually dispatched this wave (set by execute_packets). Missing-
@@ -1633,15 +1639,7 @@ class FactoryEngine:
             )
 
         if wave is not None and receipt.all_passed:
-            from .delivery import prepare_delivery
-
-            art = prepare_delivery(self.ctx, wave, post, receipt)
-            self.ctx.store.put(
-                "publication_receipts",
-                f"{pset.set_id}:delivery",
-                {"prepared": art.prepared, "reason": art.reason},
-                extra={"set_id": pset.set_id},
-            )
+            self._deliver_wave(pset, wave, snap, post, receipt, review, accepted_results, by_id)
 
         sm.transition(CycleState.LEARNED)
         self._eval_terminal(post, cycle_id)
@@ -1766,6 +1764,71 @@ class FactoryEngine:
             },
         )
         return prof.profile_id if prof else None
+
+    def _deliver_wave(self, pset, wave, snap, post, receipt, review, accepted_results, by_id):
+        """Deliver an accepted+validated+reviewed wave. When the delivery coordinator
+        is wired AND a live RunAuthorization permits push/PR, run the full protected
+        lifecycle (branch/PR/merge/publish/reconcile/close); otherwise fall back to
+        prepare-only delivery (fail closed — no side effect)."""
+        from .delivery import prepare_delivery
+
+        coordinator: Any = self._delivery_coordinator
+        authorized = coordinator is not None and self.ctx.is_action_effective(
+            ProtectedAction.PUSH_PR
+        )
+        if not authorized:
+            art = prepare_delivery(self.ctx, wave, post, receipt)
+            self.ctx.store.put(
+                "publication_receipts",
+                f"{pset.set_id}:delivery",
+                {"prepared": art.prepared, "reason": art.reason},
+                extra={"set_id": pset.set_id},
+            )
+            return
+
+        from .delivery_coordinator import DeliveryInput
+        from .enums import RemediationKind
+
+        diff_text = self.ctx.store.cas_get(wave.patch_ref).decode() if wave.patch_ref else ""
+        primary = accepted_results[0] if accepted_results else None
+        pkt = by_id.get(primary.packet_id) if primary is not None else None
+        obligation_id = getattr(pkt, "obligation_id", None) or pset.set_id
+        rk = getattr(pkt, "remediation_kind", RemediationKind.SOURCE_CHANGE)
+        rk = rk if isinstance(rk, RemediationKind) else RemediationKind(rk)
+        providers, _fams = self._authoring_providers(accepted_results)
+        inp = DeliveryInput(
+            obligation_id=obligation_id,
+            set_id=pset.set_id,
+            remediation_kind=rk,
+            base_head=snap.repository_head,
+            expected_pre_publication_digest=snap.authority_digest,
+            risk=getattr(pkt, "risk", Risk.MEDIUM),
+            diff_text=diff_text,
+            validation_passed=bool(receipt.all_passed),
+            review_approved=bool(getattr(review, "approved", False)),
+            reviewer_profile_id=getattr(review, "reviewer_profile_id", ""),
+            authoring_providers=sorted(providers),
+            provider_model_receipts=[
+                {"provider_id": r.actual_provider or "", "actual_model": r.actual_model or ""}
+                for r in accepted_results
+            ],
+        )
+        try:
+            rec = coordinator.deliver(inp)
+            state = rec.state
+        except Exception as exc:  # a delivery failure never crashes the cycle
+            state = f"error: {str(exc)[:200]}"
+        self.ctx.store.put(
+            "publication_receipts",
+            f"{pset.set_id}:delivery",
+            {"prepared": True, "reason": f"delivery state {state}", "delivery_state": state},
+            extra={"set_id": pset.set_id},
+        )
+        self.ctx.log_event(
+            "delivery.wave",
+            stage="DELIVERING",
+            payload={"set_id": pset.set_id, "obligation_id": obligation_id, "state": state},
+        )
 
     def _build_review_bundle(self, pset, wave, receipt, accepted_results=None):
         """Bounded ReviewContextBundle carrying the ACTUAL effective diff, the

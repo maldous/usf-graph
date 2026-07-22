@@ -221,6 +221,29 @@ def production_planner_critic_factory(
     return make
 
 
+def build_delivery_coordinator(
+    ctx: RuntimeContext, *, origin_url: str | None = None
+) -> object:
+    """Wire the protected delivery coordinator with REAL git/gh + npm/Stardog
+    drivers. Credentials flow only through the coordinator's subprocess environment
+    (gh's own auth + the repo's canonical publish scripts); no model receives them.
+    The coordinator only ever FIRES a side effect when a live RunAuthorization
+    permits it — building it here is always safe (prepare-only otherwise)."""
+    import os
+
+    from .delivery_coordinator import DeliveryCoordinator
+    from .github_delivery import GitHubDelivery
+    from .stardog_publication import StardogPublisher
+
+    remote = origin_url or os.environ.get(
+        "USF_GRAPH_REMOTE", "https://github.com/maldous/usf-graph.git"
+    )
+    env = dict(os.environ)
+    github = GitHubDelivery(origin_url=remote, env=env)
+    publisher = StardogPublisher(ctx, env=env)
+    return DeliveryCoordinator(ctx, github=github, publisher=publisher)
+
+
 def build_engine(
     ctx: RuntimeContext,
     *,
@@ -228,6 +251,7 @@ def build_engine(
     max_shadow_packets: int | None = None,
     allow_billable: bool = False,
     policy: object | None = None,
+    delivery_coordinator: object | None = None,
 ):
     """Construct a fully-wired production FactoryEngine.
 
@@ -236,6 +260,8 @@ def build_engine(
     (different provider where possible); the snapshot-bound materialisation index;
     the production worker and wave-reviewer factories. ``allow_billable`` authorizes
     subscription/free inference for this run (the paid-inference gate stays off).
+    ``delivery_coordinator`` (optional) enables the protected delivery lifecycle for
+    an accepted+validated+reviewed wave (still gated on a live RunAuthorization).
     """
     from .engine import FactoryEngine
 
@@ -274,4 +300,5 @@ def build_engine(
         planner_critic_factory=critic_factory if optimizer is not None else None,
         max_shadow_packets=max_shadow_packets,
         policy=policy,  # type: ignore[arg-type]  # EffectiveWorkforcePolicy | None
+        delivery_coordinator=delivery_coordinator,
     )

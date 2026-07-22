@@ -311,6 +311,119 @@ def run(
                 break
 
 
+@app.command()
+def realize(
+    authorization_file: str = typer.Option(
+        "", "--authorization-file", help="operator RunAuthorization (mode-0600, outside the repos)"
+    ),
+    mode: str = typer.Option("autonomous-safe", "--mode", help="shadow | approve-wave | autonomous-safe"),
+    continuous: bool = typer.Option(True, "--continuous/--single", help="loop cycles (spec §15)"),
+    max_cycles: int = typer.Option(20, "--max-cycles"),
+    max_packets_per_wave: int = typer.Option(2, "--max-packets-per-wave"),
+    allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
+    workforce_policy: str = typer.Option("", "--workforce-policy"),
+    exclude_provider: list[str] = typer.Option([], "--exclude-provider"),
+    exclude_model: list[str] = typer.Option([], "--exclude-model"),
+    exclude_family: list[str] = typer.Option([], "--exclude-family"),
+    exclude_adapter: list[str] = typer.Option([], "--exclude-adapter"),
+    exclude_actual_model: list[str] = typer.Option([], "--exclude-actual-model"),
+    only_provider: list[str] = typer.Option([], "--only-provider"),
+    only_model: list[str] = typer.Option([], "--only-model"),
+    only_family: list[str] = typer.Option([], "--only-family"),
+    allow_local_inference: bool = typer.Option(False, "--allow-local-inference"),
+    allow_free_inference: bool = typer.Option(False, "--allow-free-inference"),
+    allow_paid_inference: bool = typer.Option(False, "--allow-paid-inference"),
+    max_paid_cost_usd: float = typer.Option(0.0, "--max-paid-cost-usd"),
+) -> None:
+    """Continuous autonomous realization (spec §15): load the operator authorization
+    + workforce policy, refresh the dynamic workforce, snapshot authority, compile +
+    classify obligations, dynamically assign models at each stage, execute with
+    adaptive redraw, validate, independently review, and (when the RunAuthorization
+    permits) DELIVER + PUBLISH + reconcile Git/Stardog/MCP. Committed protected gates
+    stay false by default; every irreversible side effect is bound to the live
+    RunAuthorization. Stops on: no obligations, human decision, unauthorized risk, no
+    qualified capability, authorization expiry, an unreconciled side effect, or a
+    bounded resource limit."""
+    from pathlib import Path
+
+    from .run_authorization import load_run_authorization
+    from .runtime import build_delivery_coordinator, build_engine
+
+    try:
+        run_mode = RunMode(mode)
+    except ValueError:
+        err.print(f"[red]unknown mode '{mode}'[/]")
+        raise typer.Exit(code=2) from None
+
+    policy = _build_workforce_policy(
+        workforce_policy, exclude_provider, exclude_model, exclude_family, exclude_adapter,
+        exclude_actual_model, only_provider, only_model, only_family, allow_local_inference,
+        allow_free_inference, allow_subscription_inference, allow_paid_inference, max_paid_cost_usd,
+    )
+    with _ctx() as ctx:
+        if (ctx.paths.state / "PAUSED").exists():
+            err.print("[yellow]factory is paused; run `usf-factory resume` first[/]")
+            raise typer.Exit(code=1)
+        # Load the operator RunAuthorization (fail closed on any security problem).
+        if authorization_file:
+            try:
+                ctx.run_authorization = load_run_authorization(Path(authorization_file))
+            except Exception as exc:
+                err.print(f"[red]RunAuthorization rejected: {exc}[/]")
+                raise typer.Exit(code=1) from None
+            if ctx.run_authorization.is_expired():
+                err.print("[red]RunAuthorization has expired; nothing is permitted[/]")
+                raise typer.Exit(code=1)
+            console.print(
+                f"[green]RunAuthorization {ctx.run_authorization.authorization_id} "
+                f"(digest {ctx.run_authorization.digest()[:16]}) loaded[/]"
+            )
+        else:
+            console.print(
+                "[yellow]no --authorization-file: delivery is prepare-only "
+                "(no push/merge/publish will fire)[/]"
+            )
+        coordinator = build_delivery_coordinator(ctx)
+        cap = max(1, max_packets_per_wave)
+        seen_sets: set[str] = set()
+        for i in range(max(1, max_cycles)):
+            if (ctx.paths.state / "PAUSED").exists():
+                console.print("[yellow]paused; stopping[/]")
+                break
+            if ctx.run_authorization is not None and ctx.run_authorization.is_expired():
+                console.print("[yellow]authorization expired; stopping[/]")
+                break
+            eng = build_engine(
+                ctx,
+                mode=run_mode,
+                max_shadow_packets=cap,
+                allow_billable=allow_subscription_inference,
+                policy=policy,
+                delivery_coordinator=coordinator,
+            )
+            receipt = asyncio.run(eng.run_cycle(run_mode))
+            console.print(
+                f"cycle {i + 1}: state={receipt.state.value} "
+                f"selected={receipt.selected_packets} accepted={receipt.accepted_packets}"
+            )
+            if not continuous:
+                break
+            if receipt.set_id and receipt.set_id in seen_sets:
+                console.print("[dim]same packet set as a prior cycle; stopping (no progress)[/]")
+                break
+            if receipt.set_id:
+                seen_sets.add(receipt.set_id)
+            if receipt.no_progress:
+                console.print("[dim]no progress; stopping[/]")
+                break
+            if receipt.state.value == "BLOCKED":
+                console.print(f"[yellow]blocked: {receipt.blockers}; stopping[/]")
+                break
+            if receipt.selected_packets == 0:
+                console.print("[dim]no remaining obligations; stopping[/]")
+                break
+
+
 @app.command("bootstrap-runtime")
 def bootstrap_runtime_cmd(
     workforce_policy: str = typer.Option("", "--workforce-policy", help="operator policy file"),
