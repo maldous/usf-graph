@@ -100,20 +100,92 @@ def packet_eligibility(
     return eligible, rejected
 
 
+# Uncertainty prior for a candidate with NO accepted/rejected evidence yet: a
+# modest, explicitly-uncertain baseline that supports bounded exploration —
+# NEVER treated as proven excellence (spec §5). The Beta-Bernoulli posterior in
+# ``_posterior`` supplies the actual exploration width; this only sets where an
+# evidence-free candidate's utility sits relative to a proven one.
+_UNKNOWN_PRIOR = 0.4
+
+_SEMANTIC_TASK_HINTS = ("semantic", "sparql", "shacl", "authority", "proof", "planning", "rdf", "owl")
+_PRODUCER_TRANSPORTS = {"brokered_tool_loop", "bounded_patch_synthesis"}
+_SOURCE_DATA_CLASSES = {"private-source", "restricted"}
+
+
+def _evidence_confidence(profile: WorkforceProfile) -> float:
+    """How much runtime evidence backs this profile's success signals, in [0,1].
+    Zero for a brand-new candidate (=> lean on the uncertainty prior)."""
+    trials = profile.accepted_count + profile.rejected_count
+    if trials <= 0:
+        return 0.0
+    return min(1.0, trials / 8.0)
+
+
 def role_utility(profile: WorkforceProfile, packet: Packet, role: AdmissionRole) -> float:
-    """Role/task/risk/data-class-segmented utility in [0,1]. There is no single
-    global 'best model' score; the same model may rank differently per role/task.
-    Higher-is-better signals reward; latency/cost penalize; unknown is neutral."""
-    reward = (
-        0.45 * profile.accepted_success
-        + 0.30 * profile.semantic_rule_fidelity
-        + 0.15 * profile.cache_reuse
-    )
-    # Reviewer independence/discipline weighs fidelity a little more; producers
-    # weigh source-containment readiness. (Segmentation hook — kept bounded.)
-    if role is AdmissionRole.PATCH_PRODUCER and profile.source_contained:
-        reward += 0.05
-    penalty = 0.10 * min(profile.latency_ms / 10000.0, 1.0) + 0.10 * min(profile.cost_usd, 1.0)
+    """Role/task/risk/data-class/transport-SEGMENTED utility in [0,1].
+
+    There is no single global 'best model' score: the reward mix is chosen per
+    role and shifted by task class, risk, data classification and transport, so
+    the same model can rank highly for one role and poorly for another. Proven
+    higher-is-better signals reward; latency/cost/saturation penalize; unproven
+    evidence is blended toward an explicit uncertainty prior (never excellence).
+    """
+    task = (packet.task_class or "").lower()
+    semantic_task = any(h in task for h in _SEMANTIC_TASK_HINTS)
+    high_risk = packet.risk in (Risk.HIGH, Risk.PROTECTED)
+    source_data = packet.data_classification in _SOURCE_DATA_CLASSES
+
+    # --- component signals (each in [0,1]) --------------------------------- #
+    accepted = profile.accepted_success  # task-class accepted-result rate proxy
+    fidelity = profile.semantic_rule_fidelity  # semantic/RDF/SHACL validation proxy
+    qualification = min(1.0, profile.qualification_score)  # role qualification LCB proxy
+    cache = profile.cache_reuse
+    reliability = 1.0 / (1.0 + float(max(0, profile.consecutive_failures)))  # circuit/saturation
+
+    # --- role-segmented reward mix ----------------------------------------- #
+    if role is AdmissionRole.PATCH_PRODUCER:
+        # Bounded-patch success + reasoning fidelity; transport + containment matter.
+        reward = 0.42 * accepted + 0.24 * fidelity + 0.14 * qualification + 0.10 * cache
+        if _PRODUCER_TRANSPORTS & set(profile.transports):
+            reward += 0.06
+        if profile.source_contained and source_data:
+            reward += 0.04
+    elif role is AdmissionRole.REVIEWER:
+        # Defect detection + evidence discipline (fidelity), independence handled
+        # by the reviewer gate; efficiency matters less than judgement.
+        reward = 0.45 * fidelity + 0.30 * accepted + 0.15 * qualification + 0.05 * cache
+    elif role in (AdmissionRole.INTEGRATOR, AdmissionRole.ADJUDICATOR):
+        # Semantic adjudication: reasoning fidelity + proven acceptance.
+        reward = 0.40 * fidelity + 0.34 * accepted + 0.20 * qualification
+    elif role is AdmissionRole.PLANNER_CANDIDATE:
+        reward = 0.40 * fidelity + 0.30 * qualification + 0.24 * accepted
+    else:  # READ_ONLY_ANALYST and any other read role
+        reward = 0.40 * accepted + 0.25 * fidelity + 0.20 * qualification + 0.15 * cache
+
+    # --- task/risk/data shifts --------------------------------------------- #
+    if semantic_task:
+        # Semantic work leans harder on rule fidelity.
+        reward = 0.85 * reward + 0.15 * fidelity
+    if high_risk:
+        # High/protected risk rewards demonstrated reliability, discounts novelty.
+        reward = 0.80 * reward + 0.20 * (accepted * reliability)
+
+    # --- uncertainty prior ------------------------------------------------- #
+    # A candidate may only exceed the uncertainty prior to the extent it has real
+    # trial evidence: unproven "excellence" is discounted toward the prior, so a
+    # brand-new candidate is never ranked as proven-excellent (spec §5). Bounded
+    # exploration itself is supplied by the Beta-Bernoulli posterior downstream.
+    conf = _evidence_confidence(profile)
+    if reward > _UNKNOWN_PRIOR:
+        reward = _UNKNOWN_PRIOR + conf * (reward - _UNKNOWN_PRIOR)
+
+    # --- penalties (segmented) --------------------------------------------- #
+    penalty = 0.10 * min(profile.latency_ms / 10000.0, 1.0) + 0.12 * min(profile.cost_usd, 1.0)
+    penalty += 0.08 * min(profile.uncached_per_accepted, 1.0)
+    penalty += 0.10 * (1.0 - reliability)  # saturation / repeated recent failure
+    if high_risk:
+        penalty *= 1.25  # high-risk work is less tolerant of cost/latency/instability
+
     return max(0.0, min(1.0, reward - penalty))
 
 

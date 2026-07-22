@@ -105,20 +105,26 @@ def production_worker_factory(ctx: RuntimeContext, *, allow_billable: bool = Fal
 
 
 def production_reviewer_factory(ctx: RuntimeContext, *, allow_billable: bool = False):
-    """() -> WaveReviewer | raises. Returns a factory yielding an AiReviewer
-    backed by an ADMITTED reviewer-role profile, or None when no qualified
-    reviewer exists — the engine then BLOCKS waves that require review (fail
-    closed; approval is never synthesized)."""
+    """(profile_id=None) -> WaveReviewer | None. Builds an AiReviewer for the
+    profile the ENGINE selected dynamically (adaptive, independent from the
+    authoring providers). When no ``profile_id`` is given it falls back to the
+    active roster's reviewer. Returns None when no qualified reviewer exists — the
+    engine then BLOCKS waves that require review (fail closed; approval is never
+    synthesized). The ``profile_id`` parameter is what enables dynamic selection."""
     from .enums import AdmissionRole
     from .providers import build_registry
     from .review import AiReviewer
 
-    def make():
-        from .roster import roster_profile_for
+    def make(profile_id: str | None = None):
+        if profile_id is not None:
+            row = ctx.store.get("agent_profiles", profile_id)
+            profile = AgentProfile(**row) if row else None
+        else:
+            from .roster import roster_profile_for
 
-        # The ACTIVE roster's reviewer (built with provider independence), else
-        # any valid admitted reviewer — never first-found storage order.
-        profile = roster_profile_for(ctx, AdmissionRole.REVIEWER)
+            # Compat fallback: the active roster's reviewer (built with provider
+            # independence) — never first-found storage order.
+            profile = roster_profile_for(ctx, AdmissionRole.REVIEWER)
         if profile is None:
             return None
         try:
@@ -247,8 +253,12 @@ def build_engine(
         allow_billable=allow_billable,
     )
 
-    def reviewer_factory():
-        return production_reviewer_factory(ctx, allow_billable=allow_billable)()
+    _reviewer_make = production_reviewer_factory(ctx, allow_billable=allow_billable)
+
+    def reviewer_factory(profile_id: str | None = None):
+        # Preserves the ``profile_id`` parameter so the engine's dynamic, independent
+        # reviewer selection reaches the production factory.
+        return _reviewer_make(profile_id=profile_id)
 
     def plan_optimizer_factory():
         opt, _ = select_plan_optimizer(ctx, allow_billable=allow_billable)

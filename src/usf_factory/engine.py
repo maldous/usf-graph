@@ -17,14 +17,27 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from .adaptive_routing import (
+    MODE_ADAPTIVE,
+    MODE_EXPLOIT,
+    adaptive_route,
+    packet_eligibility,
+    persist_routing_decision,
+)
 from .authority import UsfAuthorityClient
 from .conflict_graph import build_conflict_edges  # noqa: F401 (re-exported use)
 from .context import RuntimeContext
+from .dispatch import refresh_active_workforce, select_integrator, select_reviewer
+from .dynamic_dispatch import classify_attempt, coverage_report
+from .eligibility import hard_eligibility
 from .enums import (
     AdmissionRole,
     AuthMode,
     CycleState,
+    DispatchFailure,
+    FailureClass,
     HealthStatus,
+    PacketResultStatus,
     PrivacyClass,
     ProtectedAction,
     Risk,
@@ -42,6 +55,7 @@ from .models import (
     PacketResult,
     PacketSet,
     ResultQualification,
+    RoutingCandidate,
     RoutingDecision,
     SemanticSnapshot,
 )
@@ -54,10 +68,11 @@ from .planner import (  # noqa: F401 (FixturePlanner used by callers/tests)
 from .programme_state import ProgrammePlanner
 from .result_validation import qualify_result
 from .review import NoopReviewer
-from .scheduler import SchedulableAgent, Scheduler
+from .scheduler import SchedulableAgent
 from .snapshots import compile_snapshot
 from .state_machine import CycleStateMachine
 from .validation import compute_terminal_complete, run_validation
+from .workforce import WorkforceProfile, WorkforceSnapshot
 from .workforce_policy import (
     EffectiveWorkforcePolicy,
     committed_defaults,
@@ -95,10 +110,12 @@ class FactoryEngine:
         worker_factory: Callable[..., object] | None = None,
         materialisation_index: object | None = None,
         materialisation_factory: Callable[[Path, str], object] | None = None,
-        reviewer_factory: Callable[[], object] | None = None,
+        reviewer_factory: Callable[..., object] | None = None,
         planner_critic_factory: Callable[[], object] | None = None,
         max_shadow_packets: int | None = None,
         policy: EffectiveWorkforcePolicy | None = None,
+        lazy_qualifier: Callable[[list[str]], bool] | None = None,
+        max_redraws: int = 3,
     ) -> None:
         self.ctx = ctx
         self.iso = RepoIsolation(ctx.paths, ctx.usf_repo)
@@ -136,6 +153,14 @@ class FactoryEngine:
         self._planner_critic_factory = planner_critic_factory
         # Shadow dispatch cap (--shadow-packets); None => no cap.
         self._max_shadow_packets = max_shadow_packets
+        # Lazy capability recovery hook (spec §10): given the uncovered role names,
+        # qualify+admit just enough discovered candidates to restore capability and
+        # return True if it changed the admitted population (=> rebuild snapshot,
+        # retry eligibility once). None => no live qualification (block with a
+        # coverage report instead). Never qualifies indiscriminately.
+        self._lazy_qualifier = lazy_qualifier
+        # Bounded redraws per packet on transient dispatch failure (spec §6).
+        self._max_redraws = max(1, int(max_redraws))
         self._coordinator_token: int | None = None
         self._lease_lost: bool = False
         # Packets actually dispatched this wave (set by execute_packets). Missing-
@@ -604,19 +629,142 @@ class FactoryEngine:
             )
         return hit.excluded
 
-    def schedule_packets(self, pset: PacketSet, cycle_id: str) -> list[RoutingDecision]:
-        scheduler = Scheduler(
-            self.ctx.config.routing,
-            self.ctx.config.egress,
-            protected_allowed=self.ctx.is_gate_enabled(ProtectedAction.RISK_ACCEPTANCE),
+    # ------------------------------------------------------------------ #
+    # Dynamic dispatch (spec Part A) — the SOLE live selection authority.
+    # The legacy Scheduler is never instantiated or called from here.
+    # ------------------------------------------------------------------ #
+
+    def _current_workforce(self) -> WorkforceSnapshot:
+        """The current workforce snapshot, rebuilt if stale under the effective
+        policy/config/rule-bundle/TTL (spec §13 continuous re-check). Live candidate
+        population comes from THIS, never RoleRoster.primary."""
+        return refresh_active_workforce(self.ctx, self.policy)
+
+    @staticmethod
+    def _routing_mode_for(packet: Packet) -> str:
+        """adaptive for low/medium risk; deterministic exploit for high/protected
+        (no exploration for high or protected work, spec §4)."""
+        return MODE_EXPLOIT if packet.risk in (Risk.HIGH, Risk.PROTECTED) else MODE_ADAPTIVE
+
+    def _live_eligible(
+        self, packet: Packet, role: AdmissionRole, snapshot: WorkforceSnapshot
+    ) -> tuple[list[WorkforceProfile], list[RoutingCandidate]]:
+        """Derive the eligible population for a packet at the moment of use. Applies
+        the workforce-policy/containment/actual-model/risk/transport gates
+        (``packet_eligibility``) AND the full live hard gates (admission validity,
+        health, quota/budget, context window, egress, task-class capability) via the
+        SHARED ``hard_eligibility`` — no hard gate is dropped in the dynamic path."""
+        protected = self.ctx.is_gate_enabled(ProtectedAction.RISK_ACCEPTANCE)
+        eligible0, rejected = packet_eligibility(
+            snapshot, self.policy, packet, role, protected_allowed=protected
         )
+        egress = self.ctx.config.egress
+        survivors: list[WorkforceProfile] = []
+        for wp in eligible0:
+            row = self.ctx.store.get("agent_profiles", wp.profile_id)
+            if not row:
+                rejected.append(
+                    RoutingCandidate(
+                        agent_profile_id=wp.profile_id,
+                        eligible=False,
+                        exclusion_reasons=["profile no longer present at time of use"],
+                        provider_id=wp.provider_id,
+                        inference_mode=wp.inference_mode,
+                    )
+                )
+                continue
+            agent = self._schedulable(AgentProfile(**row), packet.task_class)
+            if agent is None:
+                rejected.append(
+                    RoutingCandidate(
+                        agent_profile_id=wp.profile_id,
+                        eligible=False,
+                        exclusion_reasons=["admission invalid/expired at time of use"],
+                        provider_id=wp.provider_id,
+                        inference_mode=wp.inference_mode,
+                    )
+                )
+                continue
+            reasons = hard_eligibility(agent, packet, role, egress, protected_allowed=protected)
+            if reasons:
+                rejected.append(
+                    RoutingCandidate(
+                        agent_profile_id=wp.profile_id,
+                        eligible=False,
+                        exclusion_reasons=reasons,
+                        provider_id=wp.provider_id,
+                        inference_mode=wp.inference_mode,
+                    )
+                )
+                continue
+            survivors.append(wp)
+        return survivors, rejected
+
+    def _lazy_recover(
+        self,
+        packet: Packet,
+        role: AdmissionRole,
+        snapshot: WorkforceSnapshot,
+        rejected: list[RoutingCandidate],
+    ) -> tuple[list[WorkforceProfile], list[RoutingCandidate], WorkforceSnapshot]:
+        """Spec §10: when no eligible candidate exists, qualify+admit just enough
+        discovered candidates (via the injected lazy qualifier) to restore the role,
+        rebuild the snapshot, and retry eligibility ONCE. Blocks with an exact
+        coverage report when no qualifier is wired or capability stays absent."""
+        report = coverage_report(snapshot, role.value, rejected)
+        if self._lazy_qualifier is None:
+            self.ctx.log_event("selection.coverage_gap", stage="SCHEDULED", payload=report)
+            return [], rejected, snapshot
+        changed = False
+        try:
+            changed = bool(self._lazy_qualifier([role.value]))
+        except Exception as exc:  # a recovery failure never fabricates capability
+            self.ctx.log_event(
+                "selection.lazy_qualify_error",
+                stage="SCHEDULED",
+                payload={"role": role.value, "error": str(exc)[:300]},
+            )
+        if not changed:
+            self.ctx.log_event("selection.coverage_gap", stage="SCHEDULED", payload=report)
+            return [], rejected, snapshot
+        from .workforce import build_workforce_snapshot, persist_workforce_snapshot
+
+        snap2 = persist_workforce_snapshot(
+            self.ctx, build_workforce_snapshot(self.ctx, self.policy)
+        )
+        eligible, rejected2 = self._live_eligible(packet, role, snap2)
+        self.ctx.log_event(
+            "selection.lazy_qualified",
+            stage="SCHEDULED",
+            payload={"role": role.value, "restored": len(eligible), "snapshot_id": snap2.snapshot_id},
+        )
+        return eligible, rejected2, snap2
+
+    def schedule_packets(self, pset: PacketSet, cycle_id: str) -> list[RoutingDecision]:
+        """Dynamic dispatch-plan stage (route simulation). Derives each packet's
+        eligible population from the CURRENT workforce snapshot and records an
+        adaptive routing decision — the authoritative selection is redrawn at the
+        moment of execution (``_execute_one``) with a fresh seed."""
         by_id = {p.packet_id: p for p in pset.packets}
+        snapshot = self._current_workforce()
         decisions: list[RoutingDecision] = []
         for pid in pset.selected_packet_ids:
             packet = by_id[pid]
             role = role_for_packet(packet.task_class, bool(packet.write_paths))
-            candidates = self.candidate_agents(packet.task_class, role)
-            decision = scheduler.schedule(packet, role, candidates)
+            eligible, rejected = self._live_eligible(packet, role, snapshot)
+            if not eligible:
+                eligible, rejected, snapshot = self._lazy_recover(
+                    packet, role, snapshot, rejected
+                )
+            decision = adaptive_route(
+                eligible,
+                rejected,
+                packet,
+                role,
+                mode=self._routing_mode_for(packet),
+                policy_digest=self.policy.digest(),
+                snapshot_id=snapshot.snapshot_id,
+            )
             self.ctx.store.put(
                 "routing_decisions",
                 f"{pid}:{cycle_id}",
@@ -639,42 +787,80 @@ class FactoryEngine:
         prof = self.ctx.store.get("agent_profiles", row["selected_profile_id"])
         return AgentProfile(**prof) if prof else None
 
-    async def _execute_one(
-        self, packet: Packet, cycle_id: str, mode: RunMode
-    ) -> PacketResult | None:
-        from .ids import run_id as make_run_id
+    def _synthetic_failure(
+        self, packet: Packet, agent: AgentProfile, fc: FailureClass, detail: str
+    ) -> PacketResult:
+        """A PacketResult standing in for a pre-invocation dispatch failure (e.g. a
+        per-provider budget block) so it flows through the same redraw classifier."""
+        from .clock import utc_now_iso
 
-        pid = packet.packet_id
-        if self._lease_lost:
-            return None  # coordinator ownership uncertain — do not dispatch
+        return PacketResult(
+            packet_id=packet.packet_id,
+            status=PacketResultStatus.FAILED,
+            agent_profile_id=agent.profile_id,
+            actual_provider=agent.provider_id,
+            base_head=packet.base_head,
+            failure_class=fc,
+            failure_detail=detail[:500],
+            produced_at=utc_now_iso(),
+        )
 
-        agent = self._resolve_agent(pid, cycle_id)
-        if agent is None:
-            self.ctx.log_event(
-                "execute.no_route",
-                stage="EXECUTING",
-                cycle_id=cycle_id,
-                payload={"packet_id": pid, "reason": "no selected agent profile"},
+    def _record_transient(
+        self, pid: str, wp: WorkforceProfile, df: DispatchFailure | None, cycle_id: str
+    ) -> None:
+        """Record a transient dispatch failure and reflect it in provider health so
+        the next selection (this run and later) sees the degraded/unavailable
+        provider (spec §6 step 8: update health/circuit state, then redraw)."""
+        import contextlib
+
+        self.ctx.log_event(
+            "dispatch.failure",
+            stage="EXECUTING",
+            cycle_id=cycle_id,
+            payload={
+                "packet_id": pid,
+                "profile_id": wp.profile_id,
+                "provider_id": wp.provider_id,
+                "failure": df.value if df else None,
+            },
+        )
+        outage = {
+            DispatchFailure.MODEL_UNAVAILABLE,
+            DispatchFailure.TRANSPORT_FAILED,
+            DispatchFailure.AUTH_FAILED,
+        }
+        status = HealthStatus.UNAVAILABLE if df in outage else HealthStatus.DEGRADED
+        with contextlib.suppress(Exception):
+            self.ctx.store.put(
+                "provider_health",
+                wp.provider_id,
+                {
+                    "status": status.value,
+                    "reason": f"transient dispatch failure {df.value if df else 'UNKNOWN'}",
+                },
             )
-            return None
-        if self._worker_factory is None:
-            self.ctx.log_event(
-                "execute.no_worker",
-                stage="EXECUTING",
-                cycle_id=cycle_id,
-                payload={"packet_id": pid, "reason": "no worker factory wired"},
-            )
-            return None
-        worker: Any = self._worker_factory(mode, agent)
 
-        # Budget reservation before dispatch: the estimate comes from CATALOGUE
-        # pricing (0 for free/local/unrecorded); actual cost is committed after
-        # execution and the reservation released on failure.
+    async def _invoke_attempt(
+        self,
+        agent: AgentProfile,
+        packet: Packet,
+        cycle_id: str,
+        run_id: str,
+        token: int,
+        claim_ttl: int,
+        mode: RunMode,
+    ) -> tuple[PacketResult | None, str]:
+        """Invoke ONE selected candidate under budget + heartbeat + wall-clock
+        timeout, reserving/settling that provider's budget and using a fresh
+        disposable workspace. Returns ``(result, reason)`` where reason is one of
+        ``ok`` / ``timeout`` / ``fenced`` / ``budget``. The packet claim (``token``)
+        is owned by the caller and preserved across attempts."""
         from .budget import BudgetLedger, BudgetLimits
 
+        pid = packet.packet_id
+        worker: Any = self._worker_factory(mode, agent)  # type: ignore[misc]
         ledger = BudgetLedger(
-            self.ctx.store,
-            BudgetLimits(global_usd=self.ctx.config.budgets.billable_usd),
+            self.ctx.store, BudgetLimits(global_usd=self.ctx.config.budgets.billable_usd)
         )
         model_row = self._model_row(agent.provider_id, agent.requested_model_id)
         est = (
@@ -686,28 +872,18 @@ class FactoryEngine:
                 "execute.budget_blocked",
                 stage="EXECUTING",
                 cycle_id=cycle_id,
-                payload={"packet_id": pid, "reason": why},
+                payload={"packet_id": pid, "provider_id": agent.provider_id, "reason": why},
             )
-            return None
+            # A per-provider budget block is transient for THIS candidate: redraw to
+            # a cheaper/free eligible candidate rather than failing the packet.
+            return self._synthetic_failure(packet, agent, FailureClass.QUOTA_BLOCKED, why), "budget"
 
-        run_id = make_run_id(cycle_id, pid)
-        # Claim deadline derived from configured wall time + grace; RENEWED by a
-        # per-packet heartbeat below, so a long model call cannot outlive its claim.
-        claim_ttl = self.ctx.config.budgets.max_packet_wall_s + 600
-        token = self.ctx.store.claim_packet_fenced(
-            pid, run_id, "engine", self._lease_deadline(claim_ttl)
-        )
-        if token is None:
-            if est:
-                ledger.release(cycle_id=cycle_id, provider_id=agent.provider_id, estimate_usd=est)
-            return None
         workspace = None
         result: PacketResult | None = None
         try:
-            # Mutating modes need a real checkout; shadow does not mutate.
             checkout = mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
             workspace = self.iso.create_workspace(pid, run_id, packet.base_head, checkout=checkout)
-            result = await self._execute_with_claim_heartbeat(
+            result, reason = await self._execute_with_claim_heartbeat(
                 worker,
                 packet,
                 workspace,
@@ -718,10 +894,152 @@ class FactoryEngine:
                 claim_ttl=claim_ttl,
                 cycle_id=cycle_id,
             )
-            if result is None:
-                return None  # fenced (claim renewal failed) or wall-clock timeout
-            # Fencing: only persist if our claim token is still current AND we
-            # still hold the coordinator lease.
+            return result, reason
+        finally:
+            self._settle_budget(ledger, cycle_id, agent, model_row, est, result)
+            if workspace is not None:
+                self.iso.cleanup(workspace)
+
+    async def _execute_one(
+        self, packet: Packet, cycle_id: str, mode: RunMode
+    ) -> PacketResult | None:
+        """Time-of-use dynamic dispatch with bounded async redraw (spec Part A).
+
+        The packet is claimed ONCE; the same packet/snapshot/base/authority binding
+        is preserved across attempts. Selection is redrawn adaptively from the
+        current workforce at the moment of use; a transient dispatch failure removes
+        that candidate and redraws; a terminal (result-quality/safety/possible-side-
+        effect) failure stops without redraw; the claim is never re-acquired."""
+        from .ids import run_id as make_run_id
+
+        pid = packet.packet_id
+        if self._lease_lost:
+            return None  # coordinator ownership uncertain — do not dispatch
+        if self._worker_factory is None:
+            self.ctx.log_event(
+                "execute.no_worker",
+                stage="EXECUTING",
+                cycle_id=cycle_id,
+                payload={"packet_id": pid, "reason": "no worker factory wired"},
+            )
+            return None
+
+        role = role_for_packet(packet.task_class, bool(packet.write_paths))
+        # (1-8) refresh workforce, apply all hard gates, derive the eligible
+        # population at the moment of use; lazy-recover once if empty.
+        snapshot = self._current_workforce()
+        eligible, rejected = self._live_eligible(packet, role, snapshot)
+        if not eligible:
+            eligible, rejected, snapshot = self._lazy_recover(packet, role, snapshot, rejected)
+        if not eligible:
+            self.ctx.log_event(
+                "execute.no_candidate",
+                stage="EXECUTING",
+                cycle_id=cycle_id,
+                payload=coverage_report(snapshot, role.value, rejected),
+            )
+            return None
+
+        # Acquire the packet claim ONCE; preserved across redraws.
+        run_id = make_run_id(cycle_id, pid)
+        claim_ttl = self.ctx.config.budgets.max_packet_wall_s + 600
+        token = self.ctx.store.claim_packet_fenced(
+            pid, run_id, "engine", self._lease_deadline(claim_ttl)
+        )
+        if token is None:
+            return None
+
+        routing_mode = self._routing_mode_for(packet)
+        remaining = list(eligible)
+        attempts: list[dict[str, Any]] = []
+        final: PacketResult | None = None
+        n = 0
+        try:
+            while remaining and n < self._max_redraws and not self._lease_lost:
+                decision = adaptive_route(
+                    remaining,
+                    rejected,
+                    packet,
+                    role,
+                    mode=routing_mode,
+                    policy_digest=self.policy.digest(),
+                    snapshot_id=snapshot.snapshot_id,
+                )
+                persist_routing_decision(self.ctx, decision)
+                self.ctx.store.put(
+                    "routing_decisions",
+                    f"{pid}:{cycle_id}",
+                    decision.model_dump(mode="json"),
+                    extra={"packet_id": pid},
+                )
+                sel = decision.selected_profile_id
+                if sel is None:
+                    break
+                wp = next((p for p in remaining if p.profile_id == sel), None)
+                if wp is None:
+                    break
+                row = self.ctx.store.get("agent_profiles", sel)
+                if not row:
+                    remaining = [p for p in remaining if p.profile_id != sel]
+                    continue
+                agent = AgentProfile(**row)
+                n += 1
+                result, reason = await self._invoke_attempt(
+                    agent, packet, cycle_id, run_id, token, claim_ttl, mode
+                )
+                ok_attempt, df, transient = classify_attempt(
+                    result, timed_out=(reason == "timeout"), fenced=(reason == "fenced")
+                )
+                attempts.append(
+                    {
+                        "attempt": n,
+                        "profile_id": sel,
+                        "provider_id": wp.provider_id,
+                        "ok": ok_attempt,
+                        "reason": reason,
+                        "failure": df.value if df else None,
+                        "actual_model": (result.actual_model if result else None),
+                    }
+                )
+                if ok_attempt:
+                    final = result
+                    break
+                if reason == "fenced" or self._lease_lost:
+                    final = None
+                    break  # coordinator ownership uncertain — never redraw
+                if transient:
+                    self._record_transient(pid, wp, df, cycle_id)
+                    remaining = [p for p in remaining if p.profile_id != sel]
+                    continue
+                # Terminal (result-quality / safety / possible-side-effect) failure.
+                final = result
+                break
+
+            # Persist a full, replayable dispatch outcome (attempts + selection).
+            self.ctx.store.put(
+                "dispatch_outcomes",
+                f"{pid}:{run_id}",
+                {
+                    "packet_id": pid,
+                    "cycle_id": cycle_id,
+                    "role": role.value,
+                    "snapshot_id": snapshot.snapshot_id,
+                    "policy_digest": self.policy.digest(),
+                    "attempts": attempts,
+                    "selected_profile_id": (final.agent_profile_id if final else None),
+                    "ok": bool(
+                        final
+                        and final.status is PacketResultStatus.COMPLETED
+                        and final.failure_class is None
+                    ),
+                },
+                extra={"packet_id": pid},
+            )
+
+            if final is None:
+                return None
+            # Fencing: only persist if our claim token is still current AND we still
+            # hold the coordinator lease.
             if self._lease_lost or not self.ctx.store.claim_token_current(pid, token):
                 self.ctx.log_event(
                     "execute.fenced",
@@ -729,21 +1047,16 @@ class FactoryEngine:
                     cycle_id=cycle_id,
                     payload={"packet_id": pid, "reason": "stale token / lease lost"},
                 )
-                result = None
                 return None
             self.ctx.store.put(
                 "packet_results",
                 f"{pid}:{run_id}",
-                result.content_dict(),
-                extra={"packet_id": pid, "status": result.status.value},
+                final.content_dict(),
+                extra={"packet_id": pid, "status": final.status.value},
             )
-            return result
+            return final
         finally:
-            # Budget: commit actual usage-derived cost, or release the reservation.
-            self._settle_budget(ledger, cycle_id, agent, model_row, est, result)
             self.ctx.store.release_packet(pid, run_id)
-            if workspace is not None:
-                self.iso.cleanup(workspace)
 
     async def _execute_with_claim_heartbeat(
         self,
@@ -758,10 +1071,13 @@ class FactoryEngine:
         claim_ttl: int,
         cycle_id: str,
         interval_s: float = 30.0,
-    ) -> PacketResult | None:
+    ) -> tuple[PacketResult | None, str]:
         """Run the worker while RENEWING its packet claim. If renewal fails the
         worker is cancelled immediately (fenced); the packet wall-clock budget is
-        enforced as a hard timeout. Returns None when fenced/timed out."""
+        enforced as a hard timeout. Returns ``(result, "ok")`` on completion,
+        ``(None, "fenced")`` when claim renewal failed (coordinator ownership
+        uncertain — never redraw), or ``(None, "timeout")`` on wall-clock timeout
+        (a transient failure — redraw eligible)."""
         import asyncio
 
         lost = asyncio.Event()
@@ -785,13 +1101,14 @@ class FactoryEngine:
                 return_when=asyncio.FIRST_COMPLETED,
             )
             if exec_task in done:
-                return exec_task.result()
+                return exec_task.result(), "ok"
             # Claim renewal failed OR wall-clock exceeded: cancel + fence out.
             exec_task.cancel()
             import contextlib
 
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await exec_task
+            fenced = lost.is_set()
             self.ctx.log_event(
                 "execute.cancelled",
                 stage="EXECUTING",
@@ -799,11 +1116,11 @@ class FactoryEngine:
                 payload={
                     "packet_id": pid,
                     "reason": "claim renewal failed (fenced)"
-                    if lost.is_set()
+                    if fenced
                     else "packet wall-clock timeout",
                 },
             )
-            return None
+            return None, ("fenced" if fenced else "timeout")
         finally:
             hb_task.cancel()
             lost_task.cancel()
@@ -1195,6 +1512,12 @@ class FactoryEngine:
                 extra={"set_id": pset.set_id},
             )
         integration_failed = bool(accepted_results) and not attempt.deterministic_merge_ok
+        # Deterministic integration is used whenever patches merge without semantic
+        # conflict. Only a genuine semantic conflict needs an AI integrator/
+        # adjudicator, and it is chosen DYNAMICALLY per conflict (never a permanent
+        # integration provider) — recorded here for the fail-closed decision.
+        if integration_failed:
+            self._select_integrator(accepted_results, attempt, cycle_id)
 
         # VALIDATE FIRST so the reviewer receives the actual validation evidence.
         sm.transition(CycleState.VALIDATING)
@@ -1217,10 +1540,16 @@ class FactoryEngine:
         needs_review = wave is not None and self._wave_requires_review(pset, by_id)
         reviewer: Any = None
         if needs_review and self._reviewer_factory is not None:
-            try:
-                reviewer = self._reviewer_factory()
-            except Exception:
-                reviewer = None
+            if self._reviewer_accepts_profile():
+                # Production: adaptive, INDEPENDENT reviewer chosen from the current
+                # workforce (never an authoring provider; family-diverse per policy).
+                reviewer = self._select_and_build_reviewer(accepted_results)
+            else:
+                # Injected reviewer double (tests): preserve direct construction.
+                try:
+                    reviewer = self._reviewer_factory()
+                except Exception:
+                    reviewer = None
         bundle = (
             self._build_review_bundle(pset, wave, receipt, accepted_results)
             if wave is not None
@@ -1330,6 +1659,113 @@ class FactoryEngine:
             no_progress=no_progress,
             blockers=blockers,
         )
+
+    # ------------------------------------------------------------------ #
+    # Dynamic reviewer + integrator/adjudicator selection (spec §8-§9).
+    # ------------------------------------------------------------------ #
+
+    def _reviewer_accepts_profile(self) -> bool:
+        """True when the wired reviewer factory takes a ``profile_id`` (the
+        production factory) — enabling dynamic, independent reviewer selection.
+        Injected test doubles (no such parameter) keep direct construction."""
+        import inspect
+
+        if self._reviewer_factory is None:
+            return False
+        try:
+            return "profile_id" in inspect.signature(self._reviewer_factory).parameters
+        except (TypeError, ValueError):
+            return False
+
+    def _authoring_providers(
+        self, results: list[PacketResult]
+    ) -> tuple[set[str], set[str]]:
+        """The providers + model families that AUTHORED the accepted results — the
+        set a reviewer/integrator must be independent from."""
+        from .model_registry import canonical_family
+
+        providers: set[str] = set()
+        families: set[str] = set()
+        for r in results:
+            pid = r.actual_provider
+            model = r.actual_model
+            if not pid:
+                row = self.ctx.store.get("agent_profiles", r.agent_profile_id)
+                if row:
+                    pid = row.get("provider_id")
+                    model = model or row.get("requested_model_id")
+            if pid:
+                providers.add(pid)
+                families.add(canonical_family(pid, model or ""))
+        return providers, families
+
+    def _select_and_build_reviewer(self, accepted_results: list[PacketResult]) -> Any:
+        """Adaptively select an INDEPENDENT reviewer from the current workforce and
+        build it via the production factory. Returns None (=> wave blocks) when no
+        independent reviewer survives — an author is never silently reused."""
+        if self._reviewer_factory is None:
+            return None
+        providers, families = self._authoring_providers(accepted_results)
+        snapshot = self._current_workforce()
+        prof, reason = select_reviewer(
+            snapshot, self.policy, authoring_providers=providers, authoring_families=families
+        )
+        if prof is None:
+            self.ctx.log_event(
+                "review.no_independent_reviewer",
+                stage="REVIEWING",
+                payload={"reason": reason, "authoring_providers": sorted(providers)},
+            )
+            return None
+        try:
+            reviewer = self._reviewer_factory(profile_id=prof.profile_id)
+        except Exception as exc:
+            self.ctx.log_event(
+                "review.build_failed",
+                stage="REVIEWING",
+                payload={"reviewer_profile_id": prof.profile_id, "error": str(exc)[:300]},
+            )
+            return None
+        if reviewer is not None:
+            self.ctx.log_event(
+                "review.selected",
+                stage="REVIEWING",
+                payload={
+                    "reviewer_profile_id": prof.profile_id,
+                    "provider_id": prof.provider_id,
+                    "authoring_providers": sorted(providers),
+                },
+            )
+        return reviewer
+
+    def _select_integrator(
+        self, accepted_results: list[PacketResult], attempt: Any, cycle_id: str
+    ) -> str | None:
+        """DYNAMICALLY select an independent integrator/adjudicator for a semantic
+        conflict (spec §9). No permanent integration provider: the choice is made
+        per conflict from the current workforce. Records availability; deterministic
+        integration remains the default and a conflict still blocks fail-closed when
+        no independent adjudicator is available."""
+        providers, families = self._authoring_providers(accepted_results)
+        prof, reason = select_integrator(
+            self._current_workforce(),
+            self.policy,
+            authoring_providers=providers,
+            authoring_families=families,
+        )
+        self.ctx.log_event(
+            "integration.adjudicator",
+            stage="INTEGRATING",
+            cycle_id=cycle_id,
+            payload={
+                "conflicts": list(getattr(attempt, "semantic_conflicts", []) or []),
+                "selected_profile_id": prof.profile_id if prof else None,
+                "provider_id": prof.provider_id if prof else None,
+                "reason": reason,
+                "authoring_providers": sorted(providers),
+            },
+        )
+        return prof.profile_id if prof else None
 
     def _build_review_bundle(self, pset, wave, receipt, accepted_results=None):
         """Bounded ReviewContextBundle carrying the ACTUAL effective diff, the

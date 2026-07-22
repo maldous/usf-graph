@@ -135,9 +135,15 @@ class DispatchFailure(StrEnum):
 
 
 # Dispatch failures that justify removing the candidate and REDRAWING from the
-# remaining eligible population (no side effect was committed). SEMANTIC_REJECTED
-# and VALIDATION_FAILED concern the produced result's quality, not candidate
-# availability, so they are terminal for the attempt (never a silent redraw).
+# remaining eligible population (no side effect was committed): availability /
+# transport / quota / rate / output-shape problems that another eligible
+# candidate may not have.
+#
+# TERMINAL (never a silent redraw): SEMANTIC_REJECTED and VALIDATION_FAILED
+# concern the produced result's quality; CONTAINMENT_FAILED and EGRESS_BLOCKED
+# are safety/policy violations (spec §8 "do not redraw silently for ... containment
+# violation; policy violation"). A candidate that BREACHES containment or egress
+# during an attempt is stopped, not quietly swapped for another.
 TRANSIENT_DISPATCH_FAILURES: frozenset[DispatchFailure] = frozenset(
     {
         DispatchFailure.AUTH_FAILED,
@@ -149,8 +155,6 @@ TRANSIENT_DISPATCH_FAILURES: frozenset[DispatchFailure] = frozenset(
         DispatchFailure.MODEL_REJECTED,
         DispatchFailure.OUTPUT_INVALID,
         DispatchFailure.OUTPUT_BUDGET_EXCEEDED,
-        DispatchFailure.CONTAINMENT_FAILED,
-        DispatchFailure.EGRESS_BLOCKED,
     }
 )
 

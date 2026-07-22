@@ -65,6 +65,9 @@ _RECORD_TABLES: dict[str, list[str]] = {
     "validation_receipts": ["set_id"],
     "publication_receipts": ["set_id"],
     "routing_decisions": ["packet_id"],
+    # Full replayable dynamic-dispatch outcome per packet run: the ordered attempts
+    # (with actual provider/model + fallback), and the final selection.
+    "dispatch_outcomes": ["packet_id"],
     "cycles": ["state"],
     "budget_events": ["cycle_id", "provider_id"],
     # Latest OBSERVED health per provider (scheduler fact source; never fabricated).

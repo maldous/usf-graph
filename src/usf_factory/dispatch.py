@@ -150,24 +150,20 @@ def dispatch_with_fallback(
     return outcome
 
 
-def select_reviewer(
+def _independent_candidates(
     snapshot: WorkforceSnapshot,
     policy: EffectiveWorkforcePolicy,
+    role: AdmissionRole,
     *,
     authoring_providers: set[str],
-    authoring_families: set[str] | None = None,
-    require_family_diverse: bool | None = None,
-) -> tuple[WorkforceProfile | None, str]:
-    """Pick an independent reviewer dynamically: never an authoring provider,
-    family-diverse when required, not excluded. Blocks (None) rather than reusing
-    an author. No provider is preferred by name."""
-    authoring_families = authoring_families or set()
-    need_family = (
-        policy.require_family_diverse_review
-        if require_family_diverse is None
-        else require_family_diverse
-    )
-    for p in snapshot.role_candidates(AdmissionRole.REVIEWER):
+    authoring_families: set[str],
+    need_family: bool,
+) -> list[WorkforceProfile]:
+    """Eligible candidates for an independence-constrained role (reviewer /
+    integrator / adjudicator): not excluded, never an authoring provider, and
+    family-diverse when required. No provider is preferred by name."""
+    out: list[WorkforceProfile] = []
+    for p in snapshot.role_candidates(role):
         if policy.candidate_exclusion(
             provider_id=p.provider_id,
             model_id=p.requested_model_id,
@@ -176,16 +172,114 @@ def select_reviewer(
         ).excluded:
             continue
         if p.provider_id in authoring_providers:
-            continue  # never reuse an authoring provider as reviewer
-        if (
-            need_family
-            and canonical_family(p.provider_id, p.requested_model_id) in authoring_families
-        ):
+            continue  # never reuse an authoring provider
+        if need_family and canonical_family(p.provider_id, p.requested_model_id) in authoring_families:
             continue
-        return p, ""
+        out.append(p)
+    return out
+
+
+def _reviewer_utility(profile: WorkforceProfile) -> float:
+    """Reviewer/adjudicator judgement quality: defect detection + evidence
+    discipline (fidelity), acceptance track record, and recent reliability. Kept
+    bounded in [0,1]; token/latency efficiency is a minor tiebreak elsewhere."""
+    reliability = 1.0 / (1.0 + float(max(0, profile.consecutive_failures)))
+    return max(
+        0.0,
+        min(
+            1.0,
+            0.5 * profile.semantic_rule_fidelity
+            + 0.3 * profile.accepted_success
+            + 0.2 * reliability,
+        ),
+    )
+
+
+def _adaptive_pick(candidates: list[WorkforceProfile], *, seed: str | None) -> WorkforceProfile:
+    """Adaptive draw over independent candidates: a Beta-Bernoulli posterior over
+    accepted/rejected trials blended with reviewer utility (no first-match bias)."""
+    import random
+    import secrets
+
+    run_seed = seed or secrets.token_hex(16)
+    rng = random.Random(run_seed)
+    ordered = sorted(candidates, key=lambda p: p.profile_id)  # stable base order
+    return max(
+        ordered,
+        key=lambda p: rng.betavariate(1.0 + p.accepted_count, 1.0 + p.rejected_count)
+        * (0.5 + 0.5 * _reviewer_utility(p)),
+    )
+
+
+def select_reviewer(
+    snapshot: WorkforceSnapshot,
+    policy: EffectiveWorkforcePolicy,
+    *,
+    authoring_providers: set[str],
+    authoring_families: set[str] | None = None,
+    require_family_diverse: bool | None = None,
+    seed: str | None = None,
+) -> tuple[WorkforceProfile | None, str]:
+    """Select an independent reviewer via ADAPTIVE routing (not first-match): never
+    an authoring provider, family-diverse when required, not excluded. Among the
+    independent eligible reviewers the choice is an adaptive draw weighted by
+    reviewer judgement utility. Blocks (None) rather than reusing an author."""
+    need_family = (
+        policy.require_family_diverse_review
+        if require_family_diverse is None
+        else require_family_diverse
+    )
+    eligible = _independent_candidates(
+        snapshot,
+        policy,
+        AdmissionRole.REVIEWER,
+        authoring_providers=authoring_providers,
+        authoring_families=authoring_families or set(),
+        need_family=need_family,
+    )
+    if not eligible:
+        return None, (
+            "no independent reviewer available (provider-diverse review required; "
+            "an author is never silently reused)"
+        )
+    return _adaptive_pick(eligible, seed=seed), ""
+
+
+def select_integrator(
+    snapshot: WorkforceSnapshot,
+    policy: EffectiveWorkforcePolicy,
+    *,
+    authoring_providers: set[str],
+    authoring_families: set[str] | None = None,
+    require_family_diverse: bool | None = None,
+    seed: str | None = None,
+) -> tuple[WorkforceProfile | None, str]:
+    """Select an AI integrator/adjudicator DYNAMICALLY for a semantic conflict that
+    deterministic integration cannot resolve (spec §9). Provider/family-independent
+    from the authors, not excluded, adaptive draw. No permanent integration
+    provider: the choice is made per conflict from the current workforce. Blocks
+    (None) when no independent qualified adjudicator exists."""
+    need_family = (
+        policy.require_family_diverse_review
+        if require_family_diverse is None
+        else require_family_diverse
+    )
+    authoring_families = authoring_families or set()
+    # Prefer an ADJUDICATOR (conflict resolution); fall back to INTEGRATOR-tier.
+    for role in (AdmissionRole.ADJUDICATOR, AdmissionRole.INTEGRATOR):
+        eligible = _independent_candidates(
+            snapshot,
+            policy,
+            role,
+            authoring_providers=authoring_providers,
+            authoring_families=authoring_families,
+            need_family=need_family,
+        )
+        if eligible:
+            return _adaptive_pick(eligible, seed=seed), ""
     return None, (
-        "no independent reviewer available (provider-diverse review required; "
-        "an author is never silently reused)"
+        "no independent qualified integrator/adjudicator available for semantic "
+        "conflict resolution (an author is never reused; capability may be absent)"
     )
 
 
