@@ -24,7 +24,7 @@ from typing import Any
 from .admission import admission_ineligibility, ensure_profile
 from .context import RuntimeContext
 from .enums import AdmissionRole, AuthMode
-from .model_registry import family_matches
+from .model_registry import family_matches, is_router_alias
 from .probing import InferenceAuthorization, run_probe_suite
 
 # Probes that any TOOL-USING role must pass (a prohibited-tool failure blocks
@@ -111,14 +111,6 @@ class ModelAssessment:
     skipped_existing: bool = False
 
 
-_ROUTER_ALIASES = {"openrouter/auto", "openrouter/free"}
-
-
-def _is_router_alias(provider_id: str, model_id: str) -> bool:
-    full = f"{provider_id}/{model_id}".lower()
-    return full in _ROUTER_ALIASES or model_id.lower() in ("auto", "openrouter/auto")
-
-
 def candidate_models(
     ctx: RuntimeContext, filters: SelectionFilters, order: list[str] | None = None
 ) -> list[tuple[str, str]]:
@@ -202,7 +194,7 @@ async def assess_model(
     model. Repeated probe rounds give a lower-confidence probe score for critical
     roles; a single successful round is never enough to admit a critical role."""
     a = ModelAssessment(provider_id=provider_id, model_id=model_id)
-    a.is_router = _is_router_alias(provider_id, model_id)
+    a.is_router = is_router_alias(provider_id, model_id)
     profile = ensure_profile(ctx, provider_id, model_id)
     a.profile_id = profile.profile_id
 

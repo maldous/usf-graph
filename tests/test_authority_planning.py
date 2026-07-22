@@ -55,10 +55,10 @@ def test_parse_extracts_work_plan_gaps():
     assert obls[0]["semantic_subjects"] == [
         "urn:usf:validationobligation:repositoryexternalartefactmaterialisation"
     ]
-    # A missing-current-passing-validation gap is a VALIDATION_EVIDENCE
-    # remediation (build task §1): it is closed by executing the validation and
-    # delivering compact evidence — never by authoring source. It must NOT map to
-    # sparql-authoring; it stays the read-only semantic-planning class.
+    # The gap identifies a VALIDATION_EVIDENCE lifecycle. A factory receipt may
+    # diagnose it but cannot close it; only separately produced authority
+    # evidence may enter protected delivery. It must not map to arbitrary SPARQL
+    # authoring and stays the read-only semantic-planning class.
     assert obls[0]["remediation_kind"] == "VALIDATION_EVIDENCE"
     assert obls[0]["task_class"] == "semantic-planning"
     assert obls[0]["task_class"] != "sparql-authoring"

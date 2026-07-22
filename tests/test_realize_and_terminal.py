@@ -69,7 +69,9 @@ def test_terminal_requires_run_authorization_when_present(ctx, tmp_usf):
     ctx.config.safety.allow_terminal_completion = True
     # A RunAuthorization is present but does NOT permit terminal completion.
     ctx.run_authorization = RunAuthorization(
-        authorization_id="a", issued_at="2000-01-01T00:00:00Z", expires_at=FUTURE,
+        authorization_id="a",
+        issued_at="2000-01-01T00:00:00Z",
+        expires_at=FUTURE,
         permitted_actions=[],
     )
     ok, r = compute_terminal_complete(ctx, _snap())
@@ -106,7 +108,9 @@ def _wave_bits(ctx):
         write_paths=["a.py"],
         remediation_kind=RemediationKind.SOURCE_CHANGE,
     )
-    pset = PacketSet(snapshot_id="s", graph_id="g", packets=[packet], selected_packet_ids=[packet.packet_id])
+    pset = PacketSet(
+        snapshot_id="s", graph_id="g", packets=[packet], selected_packet_ids=[packet.packet_id]
+    )
     wave = WavePatch(set_id=pset.set_id, patch_digest="pd", patch_ref="", changed_paths=["a.py"])
     snap = _snap()
     receipt = ValidationReceipt(set_id=pset.set_id, all_passed=True)
@@ -125,18 +129,49 @@ def _wave_bits(ctx):
 def test_engine_invokes_coordinator_when_authorized(ctx, tmp_usf):
     ctx.config.safety.allow_push_pr = True
     ctx.run_authorization = RunAuthorization(
-        authorization_id="a", issued_at="2000-01-01T00:00:00Z", expires_at=FUTURE,
+        authorization_id="a",
+        issued_at="2000-01-01T00:00:00Z",
+        expires_at=FUTURE,
+        repositories=["maldous/usf-graph"],
         permitted_actions=[ProtectedAction.PUSH_PR],
     )
     coord = _FakeCoordinator()
     eng = FactoryEngine(ctx, delivery_coordinator=coord)
     pset, wave, snap, receipt, review, results, by_id = _wave_bits(ctx)
-    eng._deliver_wave(pset, wave, snap, snap, receipt, review, results, by_id)
+    assert eng._deliver_wave(pset, wave, snap, snap, receipt, review, results, by_id) is None
     assert len(coord.delivered) == 1
     inp = coord.delivered[0]
     assert inp.obligation_id == "obl-9"
     assert inp.remediation_kind is RemediationKind.SOURCE_CHANGE
     assert inp.review_approved is True and inp.validation_passed is True
+
+
+@pytest.mark.adversarial
+def test_engine_propagates_protected_delivery_failure(ctx, tmp_usf):
+    ctx.config.safety.allow_push_pr = True
+    ctx.run_authorization = RunAuthorization(
+        authorization_id="a",
+        issued_at="2000-01-01T00:00:00Z",
+        expires_at=FUTURE,
+        repositories=["maldous/usf-graph"],
+        permitted_actions=[ProtectedAction.PUSH_PR],
+    )
+
+    class _BlockedCoordinator(_FakeCoordinator):
+        def deliver(self, inp):
+            self.delivered.append(inp)
+
+            class _Rec:
+                state = "BLOCKED"
+
+            return _Rec()
+
+    eng = FactoryEngine(ctx, delivery_coordinator=_BlockedCoordinator())
+    pset, wave, snap, receipt, review, results, by_id = _wave_bits(ctx)
+    assert (
+        eng._deliver_wave(pset, wave, snap, snap, receipt, review, results, by_id)
+        == "protected delivery did not complete: BLOCKED"
+    )
 
 
 @pytest.mark.e2e
@@ -145,7 +180,7 @@ def test_engine_prepare_only_without_authorization(ctx, tmp_usf):
     coord = _FakeCoordinator()
     eng = FactoryEngine(ctx, delivery_coordinator=coord)
     pset, wave, snap, receipt, review, results, by_id = _wave_bits(ctx)
-    eng._deliver_wave(pset, wave, snap, snap, receipt, review, results, by_id)
+    assert eng._deliver_wave(pset, wave, snap, snap, receipt, review, results, by_id) is None
     assert coord.delivered == []
     rec = ctx.store.get("publication_receipts", f"{pset.set_id}:delivery")
     assert rec is not None and rec["prepared"] in (False, True)

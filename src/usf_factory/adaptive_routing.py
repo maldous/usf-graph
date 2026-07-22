@@ -58,6 +58,7 @@ def packet_eligibility(
             provider_id=p.provider_id,
             model_id=p.requested_model_id,
             adapter=p.adapter,
+            actual_model=p.actual_model,
             inference_mode=p.inference_mode or None,
         )
         if hit.excluded:
@@ -74,9 +75,9 @@ def packet_eligibility(
         # Verified actual model required before mutation (routers/opaque models).
         if (
             role in _MUTATION_ROLES
+            and p.is_router
             and policy.require_verified_actual_model_for_mutation
-            and p.actual_model
-            and not p.actual_model_verified
+            and (not p.actual_model or not p.actual_model_verified)
         ):
             reasons.append("mutation requires a verified actual model")
         # Risk permission.
@@ -107,7 +108,16 @@ def packet_eligibility(
 # evidence-free candidate's utility sits relative to a proven one.
 _UNKNOWN_PRIOR = 0.4
 
-_SEMANTIC_TASK_HINTS = ("semantic", "sparql", "shacl", "authority", "proof", "planning", "rdf", "owl")
+_SEMANTIC_TASK_HINTS = (
+    "semantic",
+    "sparql",
+    "shacl",
+    "authority",
+    "proof",
+    "planning",
+    "rdf",
+    "owl",
+)
 _PRODUCER_TRANSPORTS = {"brokered_tool_loop", "bounded_patch_synthesis"}
 _SOURCE_DATA_CLASSES = {"private-source", "restricted"}
 

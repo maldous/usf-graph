@@ -67,7 +67,10 @@ def hard_eligibility(
     provider_ok = egress.provider_approved_for(agent.provider_id, data)
     if not (class_ok or provider_ok):
         reasons.append(f"egress not allowed: {data} -> {pc}")
-    if data in ("private-source", "restricted") and agent.privacy_class is not PrivacyClass.LOCAL_ONLY:
+    if (
+        data in ("private-source", "restricted")
+        and agent.privacy_class is not PrivacyClass.LOCAL_ONLY
+    ):
         if not egress.source_egress_enabled:
             reasons.append("source egress disabled")
         elif not provider_ok:

@@ -16,11 +16,43 @@ output parsing, so they can be driven by a fake runner in tests and by real
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
+
+_COMMON_ENV_KEYS = {
+    "HOME",
+    "PATH",
+    "LANG",
+    "LC_ALL",
+    "TZ",
+    "TMPDIR",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "NODE_EXTRA_CA_CERTS",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+}
+_GITHUB_ENV_KEYS = {
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+    "GITHUB_PERSONAL_ACCESS_TOKEN",
+    "SSH_AUTH_SOCK",
+    "GIT_SSH_COMMAND",
+}
+
+
+def restricted_subprocess_environment(*, github: bool) -> dict[str, str]:
+    """Minimal coordinator environment; unrelated process secrets never propagate."""
+    allowed = _COMMON_ENV_KEYS | (_GITHUB_ENV_KEYS if github else set())
+    return {key: value for key, value in os.environ.items() if key in allowed}
 
 
 @dataclass
@@ -92,30 +124,33 @@ class GitHubDelivery:
     ) -> None:
         self.origin_url = origin_url
         self.runner = runner or SubprocessRunner()
-        self.env = env
+        self.env = dict(env) if env is not None else restricted_subprocess_environment(github=True)
         self.author_name = author_name
         self.author_email = author_email
+        self.repository_scope = _repository_scope(origin_url)
 
     # ---- git plumbing --------------------------------------------------- #
 
     def _git(self, clone: Path, *args: str, timeout: float = 300.0) -> CommandResult:
-        return self.runner.run(
-            ["git", "-C", str(clone), *args], env=self.env, timeout=timeout
-        )
+        return self.runner.run(["git", "-C", str(clone), *args], env=self.env, timeout=timeout)
 
     def clone_writable(self, dest: Path, base_head: str) -> CommandResult:
         """Create a clean factory-owned clone of the writable remote and check out
         the exact base commit (detached). Fails closed on any git error."""
         if dest.exists():
             return CommandResult(False, 1, "", f"destination already exists: {dest}")
-        r = self.runner.run(["git", "clone", self.origin_url, str(dest)], env=self.env, timeout=600.0)
+        r = self.runner.run(
+            ["git", "clone", self.origin_url, str(dest)], env=self.env, timeout=600.0
+        )
         if not r.ok:
             return r
         self._git(dest, "config", "user.name", self.author_name)
         self._git(dest, "config", "user.email", self.author_email)
         return self._git(dest, "checkout", base_head)
 
-    def apply_effective_diff(self, clone: Path, diff_text: str, *, patch_path: Path) -> CommandResult:
+    def apply_effective_diff(
+        self, clone: Path, diff_text: str, *, patch_path: Path
+    ) -> CommandResult:
         """Apply the accepted effective diff to the clone's index+worktree. The diff
         is written to ``patch_path`` and applied with ``git apply --index``."""
         patch_path.write_text(diff_text, encoding="utf-8")
@@ -157,6 +192,14 @@ class GitHubDelivery:
             args.insert(1, "--force")
         return self._git(clone, *args, timeout=600.0)
 
+    def remote_branch_sha(self, clone: Path, branch: str) -> tuple[CommandResult, str]:
+        """Return the exact remote branch SHA for crash reconciliation."""
+        result = self._git(clone, "ls-remote", "--heads", "origin", f"refs/heads/{branch}")
+        if not result.ok:
+            return result, ""
+        line = result.out.strip()
+        return result, line.split()[0] if line else ""
+
     # ---- gh (pull requests) --------------------------------------------- #
 
     def open_draft_pr(
@@ -165,8 +208,18 @@ class GitHubDelivery:
         """Open a DRAFT PR via gh; return (result, number, url)."""
         r = self.runner.run(
             [
-                "gh", "pr", "create", "--draft", "--base", base, "--head", head,
-                "--title", title, "--body", body,
+                "gh",
+                "pr",
+                "create",
+                "--draft",
+                "--base",
+                base,
+                "--head",
+                head,
+                "--title",
+                title,
+                "--body",
+                body,
             ],
             cwd=str(clone),
             env=self.env,
@@ -190,6 +243,34 @@ class GitHubDelivery:
         except (ValueError, AttributeError):
             return None
 
+    def pr_for_head(self, clone: Path, head: str) -> tuple[CommandResult, dict[str, object]]:
+        """Return the unique PR for ``head`` or an empty mapping."""
+        r = self.runner.run(
+            [
+                "gh",
+                "pr",
+                "list",
+                "--state",
+                "all",
+                "--head",
+                head,
+                "--json",
+                "number,url,state,isDraft,headRefOid,mergeCommit",
+            ],
+            cwd=str(clone),
+            env=self.env,
+            timeout=120.0,
+        )
+        if not r.ok:
+            return r, {}
+        try:
+            rows = json.loads(r.out)
+        except (ValueError, TypeError):
+            return CommandResult(False, 1, r.out, "PR-list output is not JSON"), {}
+        if not isinstance(rows, list) or len(rows) > 1:
+            return CommandResult(False, 1, r.out, "PR head is not uniquely reconcilable"), {}
+        return r, dict(rows[0]) if rows else {}
+
     def wait_for_checks(self, clone: Path, pr: int, *, timeout: float = 900.0) -> CommandResult:
         """Block until required checks conclude (gh pr checks --watch). A non-zero
         exit => checks failed/aborted; the coordinator treats that as not-passed."""
@@ -199,6 +280,34 @@ class GitHubDelivery:
             env=self.env,
             timeout=timeout,
         )
+
+    def required_checks(
+        self, clone: Path, pr: int
+    ) -> tuple[CommandResult, list[dict[str, object]]]:
+        """Read required check results; an empty set is not independent CI."""
+        result = self.runner.run(
+            [
+                "gh",
+                "pr",
+                "checks",
+                str(pr),
+                "--required",
+                "--json",
+                "name,state,bucket,workflow,link",
+            ],
+            cwd=str(clone),
+            env=self.env,
+            timeout=120.0,
+        )
+        if not result.ok:
+            return result, []
+        try:
+            rows = json.loads(result.out)
+        except (ValueError, TypeError):
+            return CommandResult(False, 1, result.out, "required-check output is not JSON"), []
+        if not isinstance(rows, list):
+            return CommandResult(False, 1, result.out, "required-check output is not a list"), []
+        return result, [dict(row) for row in rows if isinstance(row, dict)]
 
     def pr_head_sha(self, clone: Path, pr: int) -> str:
         r = self.runner.run(
@@ -214,7 +323,9 @@ class GitHubDelivery:
             ["gh", "pr", "ready", str(pr)], cwd=str(clone), env=self.env, timeout=120.0
         )
 
-    def merge_pr(self, clone: Path, pr: int, *, method: str = "squash") -> tuple[CommandResult, str]:
+    def merge_pr(
+        self, clone: Path, pr: int, *, method: str = "squash"
+    ) -> tuple[CommandResult, str]:
         """Merge the PR (no force). Returns (result, merge_commit_sha)."""
         r = self.runner.run(
             ["gh", "pr", "merge", str(pr), f"--{method}", "--delete-branch"],
@@ -236,7 +347,14 @@ class GitHubDelivery:
         """Reconciliation helper: the PR's current state/merge facts, or {} when
         unknown — lets a restart discover whether a side effect already happened."""
         r = self.runner.run(
-            ["gh", "pr", "view", str(pr), "--json", "state,merged,mergeCommit,headRefOid"],
+            [
+                "gh",
+                "pr",
+                "view",
+                str(pr),
+                "--json",
+                "state,merged,mergeCommit,headRefOid,isDraft,url,number",
+            ],
             cwd=str(clone),
             env=self.env,
             timeout=120.0,
@@ -247,3 +365,14 @@ class GitHubDelivery:
             return dict(json.loads(r.out))
         except (ValueError, TypeError):
             return {}
+
+
+def _repository_scope(origin_url: str) -> str:
+    """Canonical RunAuthorization repository scope for common GitHub remotes."""
+    value = origin_url.strip().removesuffix("/").removesuffix(".git")
+    for prefix in ("https://github.com/", "http://github.com/", "ssh://git@github.com/"):
+        if value.startswith(prefix):
+            return value[len(prefix) :]
+    if value.startswith("git@github.com:"):
+        return value[len("git@github.com:") :]
+    return value

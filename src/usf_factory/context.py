@@ -96,13 +96,14 @@ class RuntimeContext:
         when the code path exists).
         """
         auth = self.run_authorization
-        return auth is not None and auth.permits_action(action)
+        return self.is_gate_enabled(action) and auth is not None and auth.permits_action(action)
 
     def require_effective(self, action: ProtectedAction) -> None:
         if not self.is_action_effective(action):
             raise ProtectedActionError(
                 f"protected action '{action.value}' is not authorised for this run "
-                f"(no RunAuthorization permits it, or it has expired)"
+                f"(the committed safety gate is disabled, no RunAuthorization "
+                f"permits it, or the authorization expired)"
             )
 
     # ---- events --------------------------------------------------------- #

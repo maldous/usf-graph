@@ -34,6 +34,7 @@ from .enums import (
     AdmissionRole,
     AuthMode,
     CycleState,
+    DeliveryState,
     DispatchFailure,
     FailureClass,
     HealthStatus,
@@ -202,6 +203,8 @@ class FactoryEngine:
 
         # Detect an incomplete prior cycle.
         for c in self.ctx.store.records("cycles"):
+            if c.get("cycle_id") == cycle_id:
+                continue
             st = c.get("state")
             if st not in (
                 CycleState.COMPLETE.value,
@@ -223,11 +226,30 @@ class FactoryEngine:
             cycle_state = "BLOCKED"
             blockers.append(f"unexpected /usf worktrees: {stray}")
 
+        uncertain_records: list[dict[str, Any]] = []
+        if self._delivery_coordinator is not None:
+            try:
+                resume_uncertain = getattr(self._delivery_coordinator, "resume_uncertain", None)
+                if callable(resume_uncertain):
+                    uncertain_records = [
+                        record.model_dump(mode="json") for record in resume_uncertain()
+                    ]
+            except Exception as exc:
+                blockers.append(f"delivery reconciliation failed closed: {exc}")
+        unresolved_uncertainty = [
+            record
+            for record in uncertain_records
+            if record.get("state") != DeliveryState.COMPLETE.value
+        ]
+        if unresolved_uncertainty:
+            cycle_state = "BLOCKED"
+            blockers.append("a prior protected delivery could not be reconciled")
+
         result: dict[str, Any] = {
             "cycleState": cycle_state,
             "recoveredFrom": recovered_from,
             "repositoryHead": repository_head,
-            "uncertainMutation": False,
+            "uncertainMutation": bool(unresolved_uncertainty),
             "blockers": blockers,
         }
         self.ctx.log_event("preflight", stage="INIT", cycle_id=cycle_id, payload=result)
@@ -757,7 +779,11 @@ class FactoryEngine:
         self.ctx.log_event(
             "selection.lazy_qualified",
             stage="SCHEDULED",
-            payload={"role": role.value, "restored": len(eligible), "snapshot_id": snap2.snapshot_id},
+            payload={
+                "role": role.value,
+                "restored": len(eligible),
+                "snapshot_id": snap2.snapshot_id,
+            },
         )
         return eligible, rejected2, snap2
 
@@ -774,9 +800,7 @@ class FactoryEngine:
             role = role_for_packet(packet.task_class, bool(packet.write_paths))
             eligible, rejected = self._live_eligible(packet, role, snapshot)
             if not eligible:
-                eligible, rejected, snapshot = self._lazy_recover(
-                    packet, role, snapshot, rejected
-                )
+                eligible, rejected, snapshot = self._lazy_recover(packet, role, snapshot, rejected)
             decision = adaptive_route(
                 eligible,
                 rejected,
@@ -1304,10 +1328,32 @@ class FactoryEngine:
         from .clock import utc_now_iso
 
         cycle_id = self._next_cycle_id()
-        sm = CycleStateMachine()
         started = utc_now_iso()
         blockers: list[str] = []
         self._lease_lost = False
+
+        def persist_transition(state: CycleState) -> None:
+            self.ctx.store.put(
+                "cycles",
+                cycle_id,
+                {
+                    "cycle_id": cycle_id,
+                    "mode": mode.value,
+                    "state": state.value,
+                    "started_at": started,
+                    "ended_at": "",
+                },
+                extra={"state": state.value},
+            )
+            self.ctx.log_event(
+                "cycle.transition",
+                stage=state.value,
+                cycle_id=cycle_id,
+                payload={"state": state.value, "mode": mode.value},
+            )
+
+        sm = CycleStateMachine(on_transition=persist_transition)
+        persist_transition(CycleState.INIT)
 
         # Acquire the sole coordinator lease BEFORE any state-changing preflight
         # work (lease reaping, claim reconciliation, mirror fetch) so recovery and
@@ -1436,7 +1482,7 @@ class FactoryEngine:
             mode, cycle_id, sm, started, snap, graph, pset, no_progress, blockers
         )
 
-    def _eval_terminal(self, snap: SemanticSnapshot, cycle_id: str) -> None:
+    def _eval_terminal(self, snap: SemanticSnapshot, cycle_id: str) -> bool:
         complete, reasons = compute_terminal_complete(self.ctx, snap)
         self.ctx.log_event(
             "terminal.evaluated",
@@ -1444,6 +1490,7 @@ class FactoryEngine:
             cycle_id=cycle_id,
             payload={"complete": complete, "reasons": reasons},
         )
+        return complete
 
     async def _execute_wave(
         self, mode, cycle_id, sm, started, snap, graph, pset, no_progress, blockers
@@ -1654,10 +1701,28 @@ class FactoryEngine:
             )
 
         if wave is not None and receipt.all_passed:
-            self._deliver_wave(pset, wave, snap, post, receipt, review, accepted_results, by_id)
+            delivery_error = self._deliver_wave(
+                pset, wave, snap, post, receipt, review, accepted_results, by_id
+            )
+            if delivery_error:
+                sm.transition(CycleState.BLOCKED)
+                blockers.append(delivery_error)
+                return self._finish(
+                    cycle_id,
+                    mode,
+                    sm.state,
+                    started,
+                    snapshot=post,
+                    graph=graph,
+                    pset=pset,
+                    accepted=len(accepted),
+                    no_progress=no_progress,
+                    blockers=blockers,
+                )
 
         sm.transition(CycleState.LEARNED)
-        self._eval_terminal(post, cycle_id)
+        if self._eval_terminal(post, cycle_id):
+            sm.transition(CycleState.COMPLETE)
         if no_progress:
             blockers.append("no progress vs previous cycle")
         return self._finish(
@@ -1690,9 +1755,7 @@ class FactoryEngine:
         except (TypeError, ValueError):
             return False
 
-    def _authoring_providers(
-        self, results: list[PacketResult]
-    ) -> tuple[set[str], set[str]]:
+    def _authoring_providers(self, results: list[PacketResult]) -> tuple[set[str], set[str]]:
         """The providers + model families that AUTHORED the accepted results — the
         set a reviewer/integrator must be independent from."""
         from .model_registry import canonical_family
@@ -1780,7 +1843,9 @@ class FactoryEngine:
         )
         return prof.profile_id if prof else None
 
-    def _deliver_wave(self, pset, wave, snap, post, receipt, review, accepted_results, by_id):
+    def _deliver_wave(
+        self, pset, wave, snap, post, receipt, review, accepted_results, by_id
+    ) -> str | None:
         """Deliver an accepted+validated+reviewed wave. When the delivery coordinator
         is wired AND a live RunAuthorization permits push/PR, run the full protected
         lifecycle (branch/PR/merge/publish/reconcile/close); otherwise fall back to
@@ -1799,7 +1864,7 @@ class FactoryEngine:
                 {"prepared": art.prepared, "reason": art.reason},
                 extra={"set_id": pset.set_id},
             )
-            return
+            return None
 
         from .delivery_coordinator import DeliveryInput
         from .enums import RemediationKind
@@ -1808,11 +1873,20 @@ class FactoryEngine:
         primary = accepted_results[0] if accepted_results else None
         pkt = by_id.get(primary.packet_id) if primary is not None else None
         obligation_id = getattr(pkt, "obligation_id", None) or pset.set_id
+        obligation_ids = sorted(
+            {
+                str(by_id[result.packet_id].obligation_id)
+                for result in accepted_results
+                if result.packet_id in by_id and by_id[result.packet_id].obligation_id
+            }
+            or {obligation_id}
+        )
         rk = getattr(pkt, "remediation_kind", RemediationKind.SOURCE_CHANGE)
         rk = rk if isinstance(rk, RemediationKind) else RemediationKind(rk)
         providers, _fams = self._authoring_providers(accepted_results)
         inp = DeliveryInput(
             obligation_id=obligation_id,
+            obligation_ids=obligation_ids,
             set_id=pset.set_id,
             remediation_kind=rk,
             base_head=snap.repository_head,
@@ -1827,11 +1901,15 @@ class FactoryEngine:
                 {"provider_id": r.actual_provider or "", "actual_model": r.actual_model or ""}
                 for r in accepted_results
             ],
+            validation_receipt_digest=receipt.digest(),
+            review_receipt_digest=review.digest(),
+            policy_digest=self.policy.digest(),
+            workforce_snapshot_id=self._current_workforce().snapshot_id,
         )
         try:
             rec = coordinator.deliver(inp)
             state = rec.state
-        except Exception as exc:  # a delivery failure never crashes the cycle
+        except Exception as exc:
             state = f"error: {str(exc)[:200]}"
         self.ctx.store.put(
             "publication_receipts",
@@ -1844,6 +1922,9 @@ class FactoryEngine:
             stage="DELIVERING",
             payload={"set_id": pset.set_id, "obligation_id": obligation_id, "state": state},
         )
+        if state != DeliveryState.COMPLETE.value:
+            return f"protected delivery did not complete: {state}"
+        return None
 
     def _build_review_bundle(self, pset, wave, receipt, accepted_results=None):
         """Bounded ReviewContextBundle carrying the ACTUAL effective diff, the

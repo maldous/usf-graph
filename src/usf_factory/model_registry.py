@@ -15,6 +15,7 @@ from .models import AgentProfile, DiscoveredModel, ModelRecord, ProviderConfig
 
 _FAMILY_STRIP = re.compile(r"[:@].*$")  # drop tags like ":free", "@version"
 _VERSION_SUFFIX = re.compile(r"[-_]?\d{4}[-_]?\d{2}[-_]?\d{2}$")  # trailing dates
+_ROUTER_ALIASES = {"openrouter/auto", "openrouter/free"}
 
 
 def canonical_family(provider_id: str, model_id: str) -> str:
@@ -45,6 +46,12 @@ def family_matches(provider_id: str, model_id: str, family: str) -> bool:
     fam = family.lower().strip()
     keywords = _FAMILY_KEYWORDS.get(fam, (fam,))
     return any(k in fid for k in keywords)
+
+
+def is_router_alias(provider_id: str, model_id: str) -> bool:
+    """Whether the requested identity delegates selection to an opaque router."""
+    full = f"{provider_id}/{model_id}".lower()
+    return full in _ROUTER_ALIASES or model_id.lower() in ("auto", "openrouter/auto")
 
 
 def normalize_model(

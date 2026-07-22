@@ -142,7 +142,21 @@ class FakeAuthority:
         )
 
     def work_plan(self, arguments=None):
-        return self._tcr({"items": self._work_plan_items})
+        offset = int((arguments or {}).get("offset", 0))
+        page = self._work_plan_items[offset : offset + 50]
+        truncated = offset + 50 < len(self._work_plan_items)
+        return self._tcr(
+            {
+                "schemaVersion": 1,
+                "authorityDigest": self._digest,
+                "contract": "urn:usf:semanticcontract:test",
+                "offset": offset,
+                "pageSize": 50,
+                "truncated": truncated,
+                "nextOffset": offset + 50 if truncated else None,
+                "gaps": page,
+            }
+        )
 
 
 @pytest.fixture
@@ -154,7 +168,14 @@ def fake_authority_factory():
 
 
 def seed_agent(
-    store, *, roles, scores, provider_id="test-provider", model="test-model", adapter="ollama"
+    store,
+    *,
+    roles,
+    scores,
+    provider_id="test-provider",
+    model="test-model",
+    adapter="ollama",
+    actual_models=None,
 ):
     """Persist an agent profile + an IMMUTABLE qualification run + an admission
     decision so the scheduler can route to it (the production candidate path)."""
@@ -174,6 +195,7 @@ def seed_agent(
         suite_version="v1",
         config_digest=profile.digest(),
         dimension_scores=dict(scores),
+        actual_models=list(actual_models or []),
         roles_admitted=list(roles),
         expires_at=far_future,
     )

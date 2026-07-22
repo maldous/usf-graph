@@ -311,9 +311,12 @@ def run(
                 break
 
 
-def _deliver_validation_evidence_gaps(ctx: RuntimeContext, coordinator: object) -> None:
-    """Read the live work plan and deliver any missing-current-passing-validation
-    gap as executed+admitted validation evidence (spec §11) through the coordinator."""
+def _record_validation_receipt_gaps(ctx: RuntimeContext, coordinator: object) -> None:
+    """Record local observations for actionable validation gaps.
+
+    The receipt never closes the gap. Authority-grade evidence must arrive via
+    the coordinator's explicit external evidence transport interface.
+    """
     import os
     import subprocess
 
@@ -324,7 +327,7 @@ def _deliver_validation_evidence_gaps(ctx: RuntimeContext, coordinator: object) 
     digest = str(wp.get("authorityDigest") or "")
     gaps = [g for g in wp.get("gaps", []) if g.get("type") == "missing-current-passing-validation"]
     if not gaps:
-        console.print("[dim]no validation-evidence gaps in the live work plan[/]")
+        console.print("[dim]no actionable validation gaps in the live work plan[/]")
         return
     # base_head: the current usf-graph main tip the evidence is validated against.
     lsr = subprocess.run(
@@ -336,15 +339,22 @@ def _deliver_validation_evidence_gaps(ctx: RuntimeContext, coordinator: object) 
         return
     for gap in gaps:
         subject = str(gap.get("subject") or "")
-        console.print(f"[cyan]delivering validation evidence for {subject} @ {base[:12]}[/]")
-        rec = coordinator.deliver_validation_evidence(  # type: ignore[attr-defined]
+        console.print(f"[cyan]recording factory validation receipt for {subject} @ {base[:12]}[/]")
+        receipt = coordinator.record_validation_receipt(  # type: ignore[attr-defined]
             obligation_id=subject,
             subject=subject,
             base_head=base,
             authority_digest=digest,
             env=dict(os.environ),
         )
-        console.print(f"  delivery state: [bold]{rec.state}[/]  ({rec.blocked_reason or 'ok'})")
+        console.print(
+            f"  receipt: [bold]{receipt.receipt_id}[/]  "
+            f"passed={receipt.all_passed} independent={receipt.independent_revalidation_passed}"
+        )
+        console.print(
+            "  [yellow]not delivered as authority evidence; an external producer and "
+            "validated AuthorityEvidenceTransport are required[/]"
+        )
 
 
 @app.command()
@@ -352,7 +362,9 @@ def realize(
     authorization_file: str = typer.Option(
         "", "--authorization-file", help="operator RunAuthorization (mode-0600, outside the repos)"
     ),
-    mode: str = typer.Option("autonomous-safe", "--mode", help="shadow | approve-wave | autonomous-safe"),
+    mode: str = typer.Option(
+        "autonomous-safe", "--mode", help="shadow | approve-wave | autonomous-safe"
+    ),
     continuous: bool = typer.Option(True, "--continuous/--single", help="loop cycles (spec §15)"),
     max_cycles: int = typer.Option(20, "--max-cycles"),
     max_packets_per_wave: int = typer.Option(2, "--max-packets-per-wave"),
@@ -392,9 +404,20 @@ def realize(
         raise typer.Exit(code=2) from None
 
     policy = _build_workforce_policy(
-        workforce_policy, exclude_provider, exclude_model, exclude_family, exclude_adapter,
-        exclude_actual_model, only_provider, only_model, only_family, allow_local_inference,
-        allow_free_inference, allow_subscription_inference, allow_paid_inference, max_paid_cost_usd,
+        workforce_policy,
+        exclude_provider,
+        exclude_model,
+        exclude_family,
+        exclude_adapter,
+        exclude_actual_model,
+        only_provider,
+        only_model,
+        only_family,
+        allow_local_inference,
+        allow_free_inference,
+        allow_subscription_inference,
+        allow_paid_inference,
+        max_paid_cost_usd,
     )
     with _ctx() as ctx:
         if (ctx.paths.state / "PAUSED").exists():
@@ -420,11 +443,11 @@ def realize(
                 "(no push/merge/publish will fire)[/]"
             )
         coordinator = build_delivery_coordinator(ctx)
-        # Validation-evidence gaps (missing-current-passing-validation) are closed by
-        # EXECUTING + admitting evidence, not a source repair (spec §11). Deliver them
-        # deterministically via the coordinator when the run is authorized.
+        # A factory-run suite can record an execution receipt, but cannot self-admit
+        # authority ValidationEvidence. Genuine external evidence uses the explicit
+        # digest-verified transport interface.
         if ctx.run_authorization is not None and ctx.is_action_effective(ProtectedAction.PUSH_PR):
-            _deliver_validation_evidence_gaps(ctx, coordinator)
+            _record_validation_receipt_gaps(ctx, coordinator)
         cap = max(1, max_packets_per_wave)
         seen_sets: set[str] = set()
         for i in range(max(1, max_cycles)):

@@ -221,9 +221,7 @@ def production_planner_critic_factory(
     return make
 
 
-def build_delivery_coordinator(
-    ctx: RuntimeContext, *, origin_url: str | None = None
-) -> object:
+def build_delivery_coordinator(ctx: RuntimeContext, *, origin_url: str | None = None) -> object:
     """Wire the protected delivery coordinator with REAL git/gh + npm/Stardog
     drivers. Credentials flow only through the coordinator's subprocess environment
     (gh's own auth + the repo's canonical publish scripts); no model receives them.
@@ -238,9 +236,8 @@ def build_delivery_coordinator(
     remote = origin_url or os.environ.get(
         "USF_GRAPH_REMOTE", "https://github.com/maldous/usf-graph.git"
     )
-    env = dict(os.environ)
-    github = GitHubDelivery(origin_url=remote, env=env)
-    publisher = StardogPublisher(ctx, env=env)
+    github = GitHubDelivery(origin_url=remote)
+    publisher = StardogPublisher(ctx)
     return DeliveryCoordinator(ctx, github=github, publisher=publisher)
 
 

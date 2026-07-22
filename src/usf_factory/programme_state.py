@@ -18,13 +18,13 @@ from .clock import utc_now_iso
 from .enums import RemediationKind
 from .models import Obligation, ObligationGraph, SemanticSnapshot
 
-MAX_OBLIGATIONS = 100
+MAX_OBLIGATIONS = 1_000
 
 # Authority work-plan gap `type` -> the CORRECT remediation lifecycle (build
-# task §1). Only SOURCE_CHANGE ever edits governed source; VALIDATION_EVIDENCE /
-# PROOF_EVIDENCE close by executing a validation/proof and delivering a compact
-# evidence record (read-only w.r.t. the source they validate); unknown gap types
-# fall back to ANALYSIS_ONLY (bounded durable evidence, never a false closure).
+# task §1). Only SOURCE_CHANGE ever edits governed source. VALIDATION_EVIDENCE
+# and PROOF_EVIDENCE identify the required lifecycle, but a factory receipt is
+# not authority evidence and cannot close the gap. Unknown gap types fall back
+# to ANALYSIS_ONLY (bounded durable evidence, never a false closure).
 _GAP_REMEDIATION: dict[str, RemediationKind] = {
     "missing-current-passing-validation": RemediationKind.VALIDATION_EVIDENCE,
     "missing-validation": RemediationKind.VALIDATION_EVIDENCE,
@@ -105,10 +105,14 @@ def parse_programme_obligations(bootstrap: dict[str, Any], work_plan: Any) -> li
     out: dict[str, dict[str, Any]] = {}
 
     raw = _as_list(work_plan, "items", "plan", "workItems", "obligations", "tasks", "gaps")
+    if len(raw) > MAX_OBLIGATIONS:
+        raise ValueError(f"work plan exceeds bounded obligation limit ({MAX_OBLIGATIONS})")
     for i, item in enumerate(raw):
         if not isinstance(item, dict):
-            continue
+            raise ValueError(f"work-plan item {i} is not an object")
         oid = _obl_id(item, i)
+        if oid in out:
+            raise ValueError(f"duplicate work-plan obligation identity: {oid}")
         gap_type = str(item.get("type") or "")
         # A gap carries (type, subject); a richer work-plan item may carry
         # subjects[] + taskClass. Preserve the authority subject either way.
@@ -157,13 +161,11 @@ def parse_programme_obligations(bootstrap: dict[str, Any], work_plan: Any) -> li
             or remediation is RemediationKind.HUMAN_DECISION,
         }
 
-    # Supplement with bootstrap obligation ids not already present.
-    _KEY_REMEDIATION = {
-        "openGaps": RemediationKind.ANALYSIS_ONLY,
-        "proofObligations": RemediationKind.PROOF_EVIDENCE,
-        "validationObligations": RemediationKind.VALIDATION_EVIDENCE,
-    }
-    for key in ("openGaps", "proofObligations", "validationObligations"):
+    # Bootstrap proof/validation obligation lists describe contract structure;
+    # they are not themselves an actionable work projection. Only openGaps may
+    # supplement the work plan. This prevents deferred or already-satisfied
+    # obligations from becoming factory work merely because they are visible.
+    for key in ("openGaps",):
         for i, item in enumerate(bootstrap.get(key) or []):
             oid = _obl_id(item, i) if isinstance(item, dict) else str(item)
             if oid in out:
@@ -174,14 +176,16 @@ def parse_programme_obligations(bootstrap: dict[str, Any], work_plan: Any) -> li
                 "dependencies": _deps(item) if isinstance(item, dict) else [],
                 "semantic_subjects": [oid],
                 "task_class": "semantic-planning",
-                "remediation_kind": _KEY_REMEDIATION[key].value,
+                "remediation_kind": RemediationKind.ANALYSIS_ONLY.value,
                 "acceptance_criteria": ["bounded analysis produced; no mutation"],
                 "risk": "low",
                 "human_decision_required": False,
             }
 
     ordered = sorted(out.values(), key=lambda o: o["id"])
-    return ordered[:MAX_OBLIGATIONS]
+    if len(ordered) > MAX_OBLIGATIONS:
+        raise ValueError(f"combined obligation set exceeds bounded limit ({MAX_OBLIGATIONS})")
+    return ordered
 
 
 class ProgrammePlanner:

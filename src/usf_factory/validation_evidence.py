@@ -1,27 +1,26 @@
-"""Validation-evidence execution + compact evidence RDF (build task §2-§3).
+"""Factory validation receipts and authority-evidence transport validation.
 
-Some authority gaps are closed not by a source change but by EXECUTING the
-governed deterministic validation and admitting the resulting evidence — e.g. the
-``missing-current-passing-validation`` obligation. This module runs the real
-usf-graph deterministic suite in a disposable clone at a base commit, records a
-content-addressed :class:`ValidationEvidenceReceipt` (per-check pass/fail +
-digests), and serialises a compact RDF/Turtle evidence artifact from it.
+The factory may execute the deterministic ``usf-graph`` suite and record what it
+observed.  That record is a factory-internal execution receipt: it is not
+``usf:ValidationEvidence``, is not admitted evidence, and cannot close a live
+authority obligation.
 
-It performs NO publication and NO mutation of ``/usf``; it only produces evidence
-that the delivery coordinator then carries through the protected lifecycle. The
-receipt is deterministic: an independent re-execution over the same commit yields
-the same checks, which is what makes independent review of an evidence delivery a
-genuine re-validation rather than a judgement call.
+Genuine authority evidence is produced outside this module and may enter the
+protected delivery lifecycle only through :class:`AuthorityEvidenceTransport`.
+The transport binds the exact source patch and external artifact digests; the
+canonical graph compiler, SHACL, publication transaction and post-publication
+reconciliation remain the authority-grade admission boundary.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 from pydantic import Field
 
-from .canonical import stable_id
+from .canonical import digest_text, stable_id
 from .clock import utc_now_iso
 from .context import RuntimeContext
 from .github_delivery import CommandResult, CommandRunner, SubprocessRunner
@@ -35,9 +34,16 @@ _PASS_RE = re.compile(r"(\d+)\s+pass", re.I)
 _FAIL_RE = re.compile(r"(\d+)\s+fail", re.I)
 
 
-class ValidationEvidenceReceipt(FactoryModel):
-    """Content-addressed evidence that the deterministic validation passed at a
-    specific commit against a specific authority digest."""
+_SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
+_GIT_SHA = re.compile(r"^[0-9a-f]{40}$")
+
+
+class FactoryValidationReceipt(FactoryModel):
+    """Content-addressed observation of a factory-run deterministic validation.
+
+    The name is intentionally explicit: this receipt is operational provenance,
+    not authority-grade evidence and not an evidence-admission decision.
+    """
 
     obligation_id: str
     subject: str = ""
@@ -48,16 +54,91 @@ class ValidationEvidenceReceipt(FactoryModel):
     passing_count: int = 0
     failing_count: int = 0
     detail: dict[str, str] = Field(default_factory=dict)
+    independent_revalidation_passed: bool = False
+    independent_receipt_id: str = ""
     produced_at: str = ""
 
     _volatile_fields = frozenset({"produced_at"})
 
     @property
-    def evidence_id(self) -> str:
-        return stable_id("vev", self.content_dict())
+    def receipt_id(self) -> str:
+        return stable_id("fvr", self.content_dict())
 
 
-def execute_validation_evidence(
+class AuthorityEvidenceTransport(FactoryModel):
+    """Exact externally produced authority-evidence candidate for transport.
+
+    The source patch is carried as bytes-in-text and must reference immutable
+    artifact digests.  Validation here proves transport integrity only; semantic
+    admission still occurs through the canonical ``usf-graph`` transaction.
+    """
+
+    obligation_id: str
+    base_head: str
+    authority_digest: str
+    producer_id: str
+    source_patch: str
+    source_patch_digest: str
+    artifact_digests: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
+def validate_authority_evidence_transport(
+    transport: AuthorityEvidenceTransport,
+    *,
+    artifact_verifier: Callable[[str], bool],
+) -> None:
+    """Fail closed unless the exact external evidence candidate is transportable."""
+
+    if not transport.obligation_id.startswith("urn:"):
+        raise ValueError("AUTHORITY_EVIDENCE_OBLIGATION_INVALID")
+    if not _GIT_SHA.fullmatch(transport.base_head) or not transport.producer_id.startswith("urn:"):
+        raise ValueError("AUTHORITY_EVIDENCE_PROVENANCE_MISSING")
+    if not _SHA256.fullmatch(transport.authority_digest):
+        raise ValueError("AUTHORITY_EVIDENCE_AUTHORITY_DIGEST_INVALID")
+    if digest_text(transport.source_patch) != transport.source_patch_digest:
+        raise ValueError("AUTHORITY_EVIDENCE_PATCH_DIGEST_MISMATCH")
+    if not transport.source_patch.startswith("diff --git "):
+        raise ValueError("AUTHORITY_EVIDENCE_PATCH_FORMAT_INVALID")
+    if not transport.evidence_refs or any(
+        not ref.startswith("urn:") for ref in transport.evidence_refs
+    ):
+        raise ValueError("AUTHORITY_EVIDENCE_REFERENCE_MISSING")
+    if not transport.artifact_digests or any(
+        not _SHA256.fullmatch(item) for item in transport.artifact_digests
+    ):
+        raise ValueError("AUTHORITY_EVIDENCE_ARTIFACT_DIGEST_INVALID")
+    if len(set(transport.artifact_digests)) != len(transport.artifact_digests):
+        raise ValueError("AUTHORITY_EVIDENCE_ARTIFACT_DIGEST_DUPLICATE")
+    bound_values = (
+        transport.authority_digest,
+        transport.base_head,
+        transport.producer_id,
+        *transport.artifact_digests,
+        *transport.evidence_refs,
+    )
+    if any(item not in transport.source_patch for item in bound_values):
+        raise ValueError("AUTHORITY_EVIDENCE_BINDING_INCOMPLETE")
+    required_terms = (
+        transport.obligation_id,
+        "ValidationExecution",
+        "ValidationResult",
+        "ValidationEvidence",
+        "executesValidation",
+        "producesValidationResult",
+        "entersEvidenceLifecycleAs",
+        "applicableToObligation",
+    )
+    if any(term not in transport.source_patch for term in required_terms):
+        raise ValueError("AUTHORITY_EVIDENCE_LIFECYCLE_INCOMPLETE")
+    if "urn:usf-factory:ontology:ValidationExecutionReceipt" in transport.source_patch:
+        raise ValueError("FACTORY_RECEIPT_IS_NOT_AUTHORITY_EVIDENCE")
+    for item in transport.artifact_digests:
+        if artifact_verifier(item) is not True:
+            raise ValueError("AUTHORITY_EVIDENCE_ARTIFACT_UNVERIFIED")
+
+
+def execute_validation_receipt(
     ctx: RuntimeContext,
     *,
     obligation_id: str,
@@ -67,15 +148,19 @@ def execute_validation_evidence(
     authority_digest: str,
     runner: CommandRunner | None = None,
     env: dict[str, str] | None = None,
-) -> ValidationEvidenceReceipt:
-    """Run the deterministic suite in ``clone_path`` (a clone already checked out at
-    ``base_head``) and record the evidence. Fail-closed: any non-zero step yields
-    ``all_passed=False``; nothing is fabricated."""
+) -> FactoryValidationReceipt:
+    """Run the deterministic suite and record a factory-local observation.
+
+    Fail-closed: any non-zero step yields ``all_passed=False``.  The return value
+    never asserts admission, freshness, integrity or authority lifecycle state.
+    """
     runner = runner or SubprocessRunner()
     checks: dict[str, bool] = {}
     detail: dict[str, str] = {}
 
-    ci: CommandResult = runner.run(list(_SUITE_INSTALL), cwd=str(clone_path), env=env, timeout=1800.0)
+    ci: CommandResult = runner.run(
+        list(_SUITE_INSTALL), cwd=str(clone_path), env=env, timeout=1800.0
+    )
     checks["install"] = ci.ok
     detail["install"] = (ci.err or ci.out)[-300:]
 
@@ -96,7 +181,7 @@ def execute_validation_evidence(
         failing = 1
 
     all_passed = all(checks.values()) and failing == 0
-    return ValidationEvidenceReceipt(
+    return FactoryValidationReceipt(
         obligation_id=obligation_id,
         subject=subject,
         base_head=base_head,
@@ -110,32 +195,24 @@ def execute_validation_evidence(
     )
 
 
-def compact_evidence_rdf(receipt: ValidationEvidenceReceipt) -> str:
-    """A compact, deterministic RDF/Turtle serialisation of the evidence receipt.
-    Blank-node-free and ordering-stable so the same receipt yields byte-identical
-    Turtle (content-addressable)."""
-    subj = f"urn:usf:validationevidence:{receipt.evidence_id}"
+def compact_receipt_rdf(receipt: FactoryValidationReceipt) -> str:
+    """Deterministic Turtle projection of the non-authoritative factory receipt."""
+
+    subj = f"urn:usf-factory:validationreceipt:{receipt.receipt_id}"
     lines = [
-        "@prefix usf: <urn:usf:> .",
-        "@prefix ev: <urn:usf:evidence#> .",
+        "@prefix factory: <urn:usf-factory:ontology:> .",
         "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
         "",
-        f"<{subj}> a ev:ValidationEvidence ;",
-        f'    ev:obligation "{receipt.obligation_id}" ;',
-        f'    ev:subject "{receipt.subject}" ;',
-        f'    ev:baseHead "{receipt.base_head}" ;',
-        f'    ev:authorityDigest "{receipt.authority_digest}" ;',
-        f'    ev:allPassed "{str(receipt.all_passed).lower()}"^^xsd:boolean ;',
-        f'    ev:passingCount "{receipt.passing_count}"^^xsd:integer ;',
-        f'    ev:failingCount "{receipt.failing_count}"^^xsd:integer ;',
+        f"<{subj}> a factory:ValidationExecutionReceipt ;",
+        f'    factory:observedObligation "{receipt.obligation_id}" ;',
+        f'    factory:observedSubject "{receipt.subject}" ;',
+        f'    factory:repositoryHead "{receipt.base_head}" ;',
+        f'    factory:observedAuthorityDigest "{receipt.authority_digest}" ;',
+        f'    factory:allChecksPassed "{str(receipt.all_passed).lower()}"^^xsd:boolean ;',
+        f'    factory:passingCount "{receipt.passing_count}"^^xsd:integer ;',
+        f'    factory:failingCount "{receipt.failing_count}"^^xsd:integer ;',
     ]
     for name in sorted(receipt.checks):
-        lines.append(f'    ev:check "{name}={str(receipt.checks[name]).lower()}" ;')
-    lines.append(f'    ev:evidenceId "{receipt.evidence_id}" .')
+        lines.append(f'    factory:check "{name}={str(receipt.checks[name]).lower()}" ;')
+    lines.append(f'    factory:receiptId "{receipt.receipt_id}" .')
     return "\n".join(lines) + "\n"
-
-
-def evidence_files(receipt: ValidationEvidenceReceipt) -> dict[str, str]:
-    """The compact evidence artifact(s) to deliver into the usf-graph clone."""
-    rel = f"evidence/validation/{receipt.obligation_id.replace(':', '_')}.ttl"
-    return {rel: compact_evidence_rdf(receipt)}

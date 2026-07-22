@@ -82,7 +82,7 @@ def clone_with(tmp_path):
     """A git clone helper: stage given files so build_runners sees them changed."""
     counter = {"n": 0}
 
-    def make(files: dict[str, str]) -> object:
+    def make(files: dict[str, str], *, baseline: dict[str, str] | None = None) -> object:
         counter["n"] += 1
         repo = tmp_path / f"clone{counter['n']}"
         repo.mkdir()
@@ -90,6 +90,10 @@ def clone_with(tmp_path):
         _git(["config", "user.email", "t@e"], repo)
         _git(["config", "user.name", "t"], repo)
         (repo / ".keep").write_text("")
+        for rel, content in (baseline or {}).items():
+            p = repo / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
         _git(["add", "-A"], repo)
         _git(["commit", "-q", "-m", "base"], repo)
         for rel, content in files.items():
@@ -147,3 +151,47 @@ def test_real_pyshacl_shacl_validation(clone_with):
     )
     passed, _detail = bad["shacl"]()
     assert passed is False  # real pyshacl caught the violation
+
+
+@pytest.mark.adversarial
+def test_shacl_uses_tracked_baseline_shapes_for_changed_data(clone_with):
+    from usf_factory.validation_runners import build_runners
+
+    shape = (
+        "@prefix ex: <https://ex/ns#> .\n@prefix sh: <http://www.w3.org/ns/shacl#> .\n"
+        "ex:S a sh:NodeShape ; sh:targetClass ex:Person ;\n"
+        " sh:property [ sh:path ex:name ; sh:minCount 1 ] .\n"
+    )
+    changed = "@prefix ex: <https://ex/ns#> .\nex:alice a ex:Person .\n"
+    repo = clone_with(
+        {"semantic/data.ttl": changed},
+        baseline={"semantic/shapes/person.shacl.ttl": shape},
+    )
+    passed, detail = build_runners(repo)["shacl"]()
+    assert passed is False and "SHACL violations" in detail
+
+
+@pytest.mark.adversarial
+def test_integrity_queries_fail_when_select_or_ask_returns_a_violation(clone_with):
+    from usf_factory.validation_runners import build_runners
+
+    data = "@prefix ex: <https://ex/ns#> .\nex:a ex:p ex:o .\n"
+    select = "PREFIX ex: <https://ex/ns#> SELECT ?s WHERE { ?s ex:p ex:o }"
+    ask = "PREFIX ex: <https://ex/ns#> ASK { ?s ex:p ex:o }"
+    for query in (select, ask):
+        repo = clone_with(
+            {"semantic/integrity.rq": query},
+            baseline={"semantic/data.ttl": data},
+        )
+        passed, detail = build_runners(repo)["integrity-sparql"]()
+        assert passed is False and "integrity violations" in detail
+
+
+@pytest.mark.adversarial
+def test_changed_file_discovery_failure_cannot_become_empty_green_set(tmp_path):
+    from usf_factory.validation_runners import build_runners
+
+    not_a_repository = tmp_path / "not-a-repository"
+    not_a_repository.mkdir()
+    passed, detail = build_runners(not_a_repository)["syntax-parse"]()
+    assert passed is False and "git changed-file discovery failed" in detail

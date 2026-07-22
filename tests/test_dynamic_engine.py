@@ -190,7 +190,9 @@ def test_claim_and_budget_correct_across_redraws(ctx, tmp_usf):
     ledger = BudgetLedger(ctx.store, BudgetLimits(global_usd=ctx.config.budgets.billable_usd))
     assert ledger.spent_total() == 0.0
     # The packet claim was released (a fresh claim can be acquired again).
-    tok = ctx.store.claim_packet_fenced(packet.packet_id, "rerun", "engine", eng._lease_deadline(60))
+    tok = ctx.store.claim_packet_fenced(
+        packet.packet_id, "rerun", "engine", eng._lease_deadline(60)
+    )
     assert tok is not None
 
 
@@ -209,6 +211,46 @@ def test_exclusion_applies_before_dispatch(ctx, tmp_usf):
     result = asyncio.run(eng._execute_one(packet, CID, RunMode.SHADOW))
     assert result is not None and result.actual_provider == "beta"
     assert "alpha" not in calls  # excluded provider is never invoked
+
+
+@pytest.mark.adversarial
+def test_scenario_e_run_model_exclusion_precedes_invocation(ctx, tmp_usf):
+    """An excluded CLI/model is absent before dispatch while the allowed peer runs."""
+    excluded_ref = "claude-cli/claude-opus-4-8"
+    seed_agent(
+        ctx.store,
+        roles=[ANALYST.value],
+        scores=all_dimension_scores(),
+        provider_id="claude-cli",
+        model="claude-opus-4-8",
+        adapter="claude_cli",
+        actual_models=["claude-opus-4-8"],
+    )
+    seed_agent(
+        ctx.store,
+        roles=[ANALYST.value],
+        scores=all_dimension_scores(),
+        provider_id="codex-cli",
+        model="gpt-5-codex",
+        adapter="codex_cli",
+        actual_models=["gpt-5-codex"],
+    )
+    calls: list[str] = []
+    policy = resolve_workforce_policy(
+        committed_defaults(), None, WorkforcePolicyLayer(exclude_models=[excluded_ref])
+    )
+    eng = FactoryEngine(
+        ctx,
+        worker_factory=_factory(lambda p, a, n: _completed(p, a), calls),
+        policy=policy,
+    )
+    packet = _ro_packet(_base(eng))
+    result = asyncio.run(eng._execute_one(packet, CID, RunMode.SHADOW))
+    assert result is not None and result.actual_provider == "codex-cli"
+    assert calls == ["codex-cli"]
+    snapshot = eng._current_workforce()
+    assert any(excluded_ref in note and "source=run" in note for note in snapshot.excluded)
+    assert all(profile.provider_id != "claude-cli" for profile in snapshot.profiles)
 
 
 @pytest.mark.adversarial
@@ -245,10 +287,16 @@ def test_reviewer_selection_is_adaptive_and_independent(ctx, tmp_usf):
 
     # Two reviewers on distinct providers; one shares the authoring provider.
     seed_agent(
-        ctx.store, roles=[AdmissionRole.REVIEWER.value], scores=all_dimension_scores(), provider_id="author"
+        ctx.store,
+        roles=[AdmissionRole.REVIEWER.value],
+        scores=all_dimension_scores(),
+        provider_id="author",
     )
     seed_agent(
-        ctx.store, roles=[AdmissionRole.REVIEWER.value], scores=all_dimension_scores(), provider_id="indep"
+        ctx.store,
+        roles=[AdmissionRole.REVIEWER.value],
+        scores=all_dimension_scores(),
+        provider_id="indep",
     )
     policy = resolve_workforce_policy(committed_defaults())
     snap = build_workforce_snapshot(ctx, policy)
@@ -321,7 +369,13 @@ def test_no_provider_name_in_run_path_source():
         "sambanova",
         "anthropic",
     )
-    for mod in ("engine.py", "dynamic_dispatch.py", "adaptive_routing.py", "dispatch.py", "eligibility.py"):
+    for mod in (
+        "engine.py",
+        "dynamic_dispatch.py",
+        "adaptive_routing.py",
+        "dispatch.py",
+        "eligibility.py",
+    ):
         text = (root / mod).read_text(encoding="utf-8").lower()
         hits = [n for n in names if n in text]
         assert not hits, f"{mod} references provider name(s) {hits} in the run path"

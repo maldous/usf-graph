@@ -61,7 +61,11 @@ def classify_attempt(
     if result.status is PacketResultStatus.COMPLETED and result.failure_class is None:
         return True, None, False
     fc = result.failure_class
-    df = _FC_TO_DF.get(fc, DispatchFailure.SEMANTIC_REJECTED) if fc else DispatchFailure.SEMANTIC_REJECTED
+    df = (
+        _FC_TO_DF.get(fc, DispatchFailure.SEMANTIC_REJECTED)
+        if fc
+        else DispatchFailure.SEMANTIC_REJECTED
+    )
     return False, df, df in TRANSIENT_DISPATCH_FAILURES
 
 

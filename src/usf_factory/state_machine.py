@@ -7,6 +7,8 @@ is the basis of replay and recovery.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from .enums import CycleState
 from .errors import FactoryError
 
@@ -71,9 +73,14 @@ _TRANSITIONS: dict[CycleState, set[CycleState]] = {
 
 
 class CycleStateMachine:
-    def __init__(self, state: CycleState = CycleState.INIT) -> None:
+    def __init__(
+        self,
+        state: CycleState = CycleState.INIT,
+        on_transition: Callable[[CycleState], None] | None = None,
+    ) -> None:
         self.state = state
         self.history: list[CycleState] = [state]
+        self._on_transition = on_transition
 
     def can(self, to: CycleState) -> bool:
         return to in _TRANSITIONS.get(self.state, set())
@@ -83,6 +90,8 @@ class CycleStateMachine:
             raise FactoryError(f"invalid cycle transition {self.state.value} -> {to.value}")
         self.state = to
         self.history.append(to)
+        if self._on_transition is not None:
+            self._on_transition(to)
         return to
 
     @property

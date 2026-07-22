@@ -22,7 +22,17 @@ PRODUCER = AdmissionRole.PATCH_PRODUCER
 
 
 def _profile(
-    pid, *, accepted=0, rejected=0, success=0.5, contained=True, transports=None, roles=None
+    pid,
+    *,
+    accepted=0,
+    rejected=0,
+    success=0.5,
+    contained=True,
+    transports=None,
+    roles=None,
+    actual_model="",
+    actual_model_verified=False,
+    is_router=False,
 ):
     return WorkforceProfile(
         profile_id=pid,
@@ -30,6 +40,9 @@ def _profile(
         requested_model_id="m",
         adapter="ollama",
         inference_mode="local",
+        actual_model=actual_model,
+        actual_model_verified=actual_model_verified,
+        is_router=is_router,
         source_contained=contained,
         transports=transports if transports is not None else ["plain_invoke"],
         admitted_roles=roles if roles is not None else [PLANNER.value],
@@ -81,6 +94,65 @@ def test_hard_gate_gives_probability_zero():
     assert [p.profile_id for p in eligible] == ["a-1"]
     assert any(c.agent_profile_id == "b-1" and not c.eligible for c in rejected)
     assert any("containment" in r for c in rejected for r in c.exclusion_reasons)
+
+
+@pytest.mark.adversarial
+def test_router_mutation_requires_preverified_unexcluded_actual_model():
+    from usf_factory.workforce_policy import (
+        WorkforcePolicyLayer,
+        committed_defaults,
+        resolve_workforce_policy,
+    )
+
+    packet = _packet(task="bounded-patch")
+    profiles = [
+        _profile(
+            "router-unknown",
+            transports=["bounded_patch_synthesis"],
+            roles=[PRODUCER.value],
+            is_router=True,
+        ),
+        _profile(
+            "router-unverified",
+            transports=["bounded_patch_synthesis"],
+            roles=[PRODUCER.value],
+            is_router=True,
+            actual_model="model-a",
+        ),
+        _profile(
+            "direct",
+            transports=["bounded_patch_synthesis"],
+            roles=[PRODUCER.value],
+        ),
+    ]
+    policy = resolve_workforce_policy(committed_defaults())
+    eligible, rejected = packet_eligibility(_snapshot(profiles, PRODUCER), policy, packet, PRODUCER)
+    assert [profile.profile_id for profile in eligible] == ["direct"]
+    assert {candidate.agent_profile_id: candidate.exclusion_reasons for candidate in rejected} == {
+        "router-unknown": ["mutation requires a verified actual model"],
+        "router-unverified": ["mutation requires a verified actual model"],
+    }
+
+    routed = _profile(
+        "router-verified",
+        transports=["bounded_patch_synthesis"],
+        roles=[PRODUCER.value],
+        is_router=True,
+        actual_model="model-a",
+        actual_model_verified=True,
+    )
+    excluded_policy = resolve_workforce_policy(
+        committed_defaults(),
+        None,
+        WorkforcePolicyLayer(exclude_actual_models=["model-a"]),
+    )
+    eligible2, rejected2 = packet_eligibility(
+        _snapshot([routed], PRODUCER), excluded_policy, packet, PRODUCER
+    )
+    assert eligible2 == []
+    assert rejected2[0].exclusion_reasons == [
+        "policy: actual routed model 'model-a' excluded (source=run)"
+    ]
 
 
 @pytest.mark.unit

@@ -19,6 +19,7 @@ from pydantic import Field
 from .clock import utc_now_iso
 from .context import RuntimeContext
 from .enums import AdmissionRole
+from .model_registry import is_router_alias
 from .models import AgentProfile, FactoryModel, stable_id
 from .roster import (
     _OPERATIONAL_ROLES,
@@ -42,6 +43,7 @@ class WorkforceProfile(FactoryModel):
     requested_model_id: str
     actual_model: str = ""
     actual_model_verified: bool = False
+    is_router: bool = False
     adapter: str = ""
     inference_mode: str = ""
     privacy_class: str = ""
@@ -111,11 +113,32 @@ def _build_profile(
     metrics = _profile_metrics(ctx, profile.profile_id)
     sem = _semantic_scores(ctx, profile.provider_id)
     try:
-        metric_rows = ctx.store.records("profile_metrics", "agent_profile_id=?", (profile.profile_id,))
+        metric_rows = ctx.store.records(
+            "profile_metrics", "agent_profile_id=?", (profile.profile_id,)
+        )
     except Exception:
         metric_rows = []
     accepted_count = sum(int(r.get("accepted") or 0) for r in metric_rows)
     rejected_count = sum(int(r.get("rejected") or 0) for r in metric_rows)
+    try:
+        qualification_rows = ctx.store.records(
+            "qualification_runs", "agent_profile_id=?", (profile.profile_id,)
+        )
+    except Exception:
+        qualification_rows = []
+    latest_qualification = max(
+        qualification_rows,
+        key=lambda row: str(row.get("ran_at") or "") + str(row.get("run_id") or ""),
+        default={},
+    )
+    actual_models = sorted(
+        {
+            str(value)
+            for value in latest_qualification.get("actual_models", [])
+            if isinstance(value, str) and value
+        }
+    )
+    actual_model = actual_models[0] if len(actual_models) == 1 else ""
     providers = ctx.config.providers.by_id()
     pcfg = providers.get(profile.provider_id)
     transports = ["plain_invoke"]
@@ -127,8 +150,9 @@ def _build_profile(
         profile_id=profile.profile_id,
         provider_id=profile.provider_id,
         requested_model_id=profile.requested_model_id,
-        actual_model=getattr(profile, "actual_model_id", "") or "",
-        actual_model_verified=bool(getattr(profile, "actual_model_verified", False)),
+        actual_model=actual_model,
+        actual_model_verified=bool(actual_model),
+        is_router=is_router_alias(profile.provider_id, profile.requested_model_id),
         adapter=profile.adapter,
         inference_mode=_mode_for(ctx, pcfg, profile.provider_id, profile.requested_model_id)
         if pcfg

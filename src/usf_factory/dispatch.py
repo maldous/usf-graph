@@ -173,7 +173,10 @@ def _independent_candidates(
             continue
         if p.provider_id in authoring_providers:
             continue  # never reuse an authoring provider
-        if need_family and canonical_family(p.provider_id, p.requested_model_id) in authoring_families:
+        if (
+            need_family
+            and canonical_family(p.provider_id, p.requested_model_id) in authoring_families
+        ):
             continue
         out.append(p)
     return out
@@ -206,8 +209,10 @@ def _adaptive_pick(candidates: list[WorkforceProfile], *, seed: str | None) -> W
     ordered = sorted(candidates, key=lambda p: p.profile_id)  # stable base order
     return max(
         ordered,
-        key=lambda p: rng.betavariate(1.0 + p.accepted_count, 1.0 + p.rejected_count)
-        * (0.5 + 0.5 * _reviewer_utility(p)),
+        key=lambda p: (
+            rng.betavariate(1.0 + p.accepted_count, 1.0 + p.rejected_count)
+            * (0.5 + 0.5 * _reviewer_utility(p))
+        ),
     )
 
 

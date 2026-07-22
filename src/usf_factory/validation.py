@@ -182,13 +182,16 @@ def compute_terminal_complete(
             },
         )
         if zero_gap:
-            stable = bool(prev.get("zero_gap")) and prev.get(
-                "authority_digest"
-            ) == snapshot.authority_digest
+            stable = (
+                bool(prev.get("zero_gap"))
+                and prev.get("authority_digest") == snapshot.authority_digest
+            )
             if not stable:
                 reasons.append("awaiting a second consecutive stable zero-gap snapshot")
 
     complete = not reasons
     if complete:
-        reasons.append("all deterministic completion conditions satisfied (two stable zero-gap snapshots)")
+        reasons.append(
+            "all deterministic completion conditions satisfied (two stable zero-gap snapshots)"
+        )
     return complete, reasons

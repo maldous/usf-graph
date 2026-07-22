@@ -869,13 +869,14 @@ class DeliveryArtifact(FactoryModel):
 
 
 class DeliveryRecord(FactoryModel):
-    """The durable, idempotent state of ONE obligation's delivery through the
+    """The durable, idempotent state of one coherent obligation set's delivery through the
     protected lifecycle (build task §12). Persisted before and after every
     external side effect so a restart reconciles rather than blindly repeating an
     uncertain push/merge/publish. Keyed by ``delivery_id`` (obligation + wave)."""
 
     delivery_id: str
     obligation_id: str
+    obligation_ids: list[str] = Field(default_factory=list)
     set_id: str = ""
     state: str = DeliveryState.DISCOVERED.value
     remediation_kind: str = ""
@@ -889,6 +890,9 @@ class DeliveryRecord(FactoryModel):
     policy_digest: str = ""
     run_authorization_digest: str = ""
     workforce_snapshot_id: str = ""
+    # Exact canonical DeliveryInput bytes used to resume an uncertain external
+    # side effect after process loss.  The CAS bytes are integrity-verified.
+    input_ref: str = ""
     # External identifiers (from the real side effects).
     branch: str = ""
     pr_number: int | None = None

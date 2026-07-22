@@ -23,10 +23,11 @@ from __future__ import annotations
 import json
 import os
 import stat
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from pydantic import Field, ValidationError
+from pydantic import Field, ValidationError, field_validator, model_validator
 
 from .clock import utc_now_iso
 from .enums import ProtectedAction, Risk
@@ -49,17 +50,17 @@ class RunAuthorization(FactoryModel):
     prohibited_risk: list[Risk] = Field(default_factory=lambda: [Risk.HIGH, Risk.PROTECTED])
 
     # Provider routing / budget
-    paid_api_budget_usd: float = 0.0
+    paid_api_budget_usd: float = Field(default=0.0, ge=0.0)
     allow_subscription_inference: bool = True
     raw_source_provider: str | None = "claude-cli"
     raw_source_requires_containment: bool = True
     metadata_review_provider: str | None = "codex-cli"
 
     # Quotas
-    max_packets_per_wave: int = 2
-    max_authority_publications: int = 10
-    max_pr_merges: int = 10
-    max_continuous_cycles: int = 20
+    max_packets_per_wave: int = Field(default=2, ge=1)
+    max_authority_publications: int = Field(default=10, ge=0)
+    max_pr_merges: int = Field(default=10, ge=0)
+    max_continuous_cycles: int = Field(default=20, ge=1)
     allow_force_push: bool = False
 
     # Which protected gates may become effective for this run.
@@ -67,6 +68,29 @@ class RunAuthorization(FactoryModel):
 
     # Nothing here is volatile: the digest binds the exact, complete scope.
     _volatile_fields = frozenset()
+
+    @field_validator("issued_at", "expires_at")
+    @classmethod
+    def _strict_utc_timestamp(cls, value: str) -> str:
+        try:
+            datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
+        except ValueError as exc:
+            raise ValueError("must be an exact UTC timestamp YYYY-MM-DDTHH:MM:SSZ") from exc
+        return value
+
+    @model_validator(mode="after")
+    def _validate_scope(self) -> RunAuthorization:
+        if self.expires_at <= self.issued_at:
+            raise ValueError("expires_at must be later than issued_at")
+        actions = set(self.permitted_actions)
+        if (
+            actions & {ProtectedAction.PUSH_PR, ProtectedAction.MAIN_INTEGRATION}
+            and not self.repositories
+        ):
+            raise ValueError("Git protected actions require repository scope")
+        if ProtectedAction.STARDOG_PUBLICATION in actions and not self.authority_database:
+            raise ValueError("Stardog publication requires authority_database scope")
+        return self
 
     # ---- runtime checks (fail closed) ----------------------------------- #
 
@@ -144,12 +168,16 @@ def write_run_authorization(auth: RunAuthorization, path: Path | str) -> str:
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(auth.content_dict(), sort_keys=True, indent=2).encode("utf-8")
-    # Create fresh with 0600 (O_CREAT|O_EXCL avoids reusing a wider-mode inode).
-    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-    fd = os.open(str(p), flags, 0o600)
+    temporary = p.with_name(f".{p.name}.{os.getpid()}.tmp")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(str(temporary), flags, 0o600)
     try:
         os.write(fd, payload)
+        os.fsync(fd)
     finally:
         os.close(fd)
+    temporary.replace(p)
     p.chmod(0o600)
     return auth.digest()

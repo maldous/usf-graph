@@ -1,8 +1,8 @@
 """Remediation classification (build task §1) + operator RunAuthorization (scope).
 
 These cover: deterministic gap→RemediationKind classification; that a
-VALIDATION_EVIDENCE / PROOF_EVIDENCE / ANALYSIS_ONLY remediation never receives
-repository write scope even from a verified materialisation owner; and that the
+VALIDATION_EVIDENCE / PROOF_EVIDENCE / ANALYSIS_ONLY worker remediation never
+receives repository write scope even from a verified materialisation owner; and that the
 RunAuthorization loads fail-closed, is owner-only, expires, and is the sole
 per-run enabler of protected actions.
 """
@@ -61,6 +61,16 @@ def test_missing_current_passing_validation_is_not_sparql_authoring():
     assert obls[0]["remediation_kind"] == "VALIDATION_EVIDENCE"
     assert obls[0]["task_class"] == "semantic-planning"
     assert obls[0]["task_class"] != "sparql-authoring"
+
+
+@pytest.mark.unit
+def test_contract_obligation_inventory_is_not_actionable_without_work_plan_gap():
+    bootstrap = {
+        "proofObligations": ["urn:usf:proofobligation:declared"],
+        "validationObligations": ["urn:usf:validationobligation:deferred"],
+        "openGaps": [],
+    }
+    assert parse_programme_obligations(bootstrap, {"gaps": []}) == []
 
 
 @pytest.mark.unit
@@ -168,7 +178,7 @@ def test_run_authorization_permits_only_listed_and_unexpired():
     # Not listed → refused.
     assert not a.permits_action(ProtectedAction.TERMINAL_COMPLETION, now="2026-07-22T00:00:00Z")
     # Expired → nothing permitted.
-    expired = _auth(expires_at=PAST)
+    expired = _auth(issued_at="1999-01-01T00:00:00Z", expires_at=PAST)
     assert not expired.permits_action(ProtectedAction.PUSH_PR, now="2026-07-22T00:00:00Z")
 
 
@@ -208,9 +218,20 @@ def test_context_action_effective_requires_authorization(ctx):
     assert ctx.run_authorization is None
     assert not ctx.is_action_effective(ProtectedAction.PUSH_PR)
     ctx.run_authorization = _auth()
+    # Both the immutable committed gate and the expiring run grant are required.
+    assert not ctx.is_action_effective(ProtectedAction.PUSH_PR)
+    assert not ctx.is_action_effective(ProtectedAction.STARDOG_PUBLICATION)
+    ctx.config.safety.allow_push_pr = True
+    ctx.config.safety.allow_stardog_publication = True
     assert ctx.is_action_effective(ProtectedAction.PUSH_PR)
     assert ctx.is_action_effective(ProtectedAction.STARDOG_PUBLICATION)
     assert not ctx.is_action_effective(ProtectedAction.TERMINAL_COMPLETION)
-    # Committed safety.yaml gate stays false regardless (per-run enabler is the
-    # RunAuthorization, not the persistent gate).
-    assert not ctx.is_gate_enabled(ProtectedAction.PUSH_PR)
+    assert ctx.is_gate_enabled(ProtectedAction.PUSH_PR)
+
+
+@pytest.mark.adversarial
+def test_run_authorization_rejects_malformed_or_reversed_timestamps():
+    with pytest.raises(Exception, match="exact UTC timestamp"):
+        _auth(expires_at="tomorrow")
+    with pytest.raises(Exception, match="later than issued_at"):
+        _auth(issued_at=FUTURE, expires_at="2998-01-01T00:00:00Z")
