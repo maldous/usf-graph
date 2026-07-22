@@ -182,6 +182,35 @@ def test_drift_consumes_mismatched_array_fail_closed(ctx, tmp_path: Path):
     assert publisher.drift(tmp_path).ok is False
 
 
+@pytest.mark.contract
+def test_obligation_closure_uses_exact_actionable_identifiers():
+    snap = {
+        "work_plan": {"gaps": [], "truncated": False},
+        "bootstrap": {
+            "openGaps": [],
+            "proofObligations": [{"id": "obl-1"}],
+            "history": "previously discussed obl-1",
+        },
+    }
+    assert StardogPublisher.obligation_absent(snap, "obl-1") is True
+    snap["work_plan"]["gaps"] = [{"id": "obl-10"}]
+    assert StardogPublisher.obligation_absent(snap, "obl-1") is True
+    snap["work_plan"]["gaps"] = [{"subject": "obl-1", "type": "missing-proof"}]
+    assert StardogPublisher.obligation_absent(snap, "obl-1") is False
+
+
+@pytest.mark.adversarial
+def test_obligation_closure_fails_closed_on_truncated_or_malformed_projection():
+    assert (
+        StardogPublisher.obligation_absent(
+            {"work_plan": {"gaps": [], "truncated": True}, "bootstrap": {"openGaps": []}},
+            "obl-1",
+        )
+        is False
+    )
+    assert StardogPublisher.obligation_absent({"work_plan": {}, "bootstrap": {}}, "obl-1") is False
+
+
 @pytest.mark.adversarial
 def test_invalid_authority_digest_is_rejected_before_subprocess(ctx, tmp_path: Path):
     runner = _Runner([])

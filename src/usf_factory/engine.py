@@ -213,6 +213,11 @@ class FactoryEngine:
             ):
                 recovered_from = c.get("cycle_id")
                 break
+        if recovered_from:
+            cycle_state = "BLOCKED"
+            blockers.append(
+                f"incomplete prior cycle {recovered_from} requires explicit reconciliation"
+            )
         # Ensure the factory-owned mirror (read-only fetch from /usf).
         try:
             self.iso.ensure_mirror()
@@ -535,6 +540,19 @@ class FactoryEngine:
                 pass
         return HealthStatus.DEGRADED
 
+    def _paid_budget_limit(self) -> float:
+        """Effective paid-API cap: committed config intersected with run scope."""
+        auth = self.ctx.run_authorization
+        configured = float(self.ctx.config.budgets.billable_usd)
+        if (
+            configured <= 0
+            or auth is None
+            or not self.ctx.is_action_effective(ProtectedAction.PAID_INFERENCE)
+            or auth.paid_api_budget_usd <= 0
+        ):
+            return 0.0
+        return min(configured, float(auth.paid_api_budget_usd))
+
     def _schedulable(self, profile: AgentProfile, task_class: str) -> SchedulableAgent | None:
         """Build a SchedulableAgent from a profile IF it holds a valid admission;
         else None (revalidated at dispatch time — expired/mismatched is rejected)."""
@@ -568,10 +586,10 @@ class FactoryEngine:
         if is_paid_api:
             from .budget import BudgetLedger, BudgetLimits
 
-            limits = BudgetLimits(global_usd=self.ctx.config.budgets.billable_usd)
+            limits = BudgetLimits(global_usd=self._paid_budget_limit())
             ledger = BudgetLedger(self.ctx.store, limits)
             remaining = limits.global_usd - ledger.spent_total()
-            quota_ok = self.ctx.config.safety.allow_billable and remaining >= est_cost
+            quota_ok = limits.global_usd > 0 and remaining >= est_cost
         from .roster import _profile_metrics
 
         m = _profile_metrics(self.ctx, profile.profile_id)
@@ -689,6 +707,33 @@ class FactoryEngine:
         (no exploration for high or protected work, spec §4)."""
         return MODE_EXPLOIT if packet.risk in (Risk.HIGH, Risk.PROTECTED) else MODE_ADAPTIVE
 
+    def _authorization_provider_reason(
+        self, packet: Packet, role: AdmissionRole, profile: WorkforceProfile
+    ) -> str:
+        """Return the exact per-run provider-scope rejection, if any."""
+        auth = self.ctx.run_authorization
+        if auth is None:
+            return ""
+        if (
+            role is AdmissionRole.PATCH_PRODUCER
+            and packet.data_classification in {"private-source", "restricted"}
+            and auth.raw_source_provider
+            and profile.provider_id != auth.raw_source_provider
+        ):
+            return f"RunAuthorization restricts raw source to {auth.raw_source_provider}"
+        if (
+            role is AdmissionRole.REVIEWER
+            and auth.metadata_review_provider
+            and profile.provider_id != auth.metadata_review_provider
+        ):
+            return f"RunAuthorization restricts metadata review to {auth.metadata_review_provider}"
+        if (
+            str(profile.inference_mode).lower() == "subscription"
+            and not auth.allow_subscription_inference
+        ):
+            return "RunAuthorization prohibits subscription inference"
+        return ""
+
     def _live_eligible(
         self, packet: Packet, role: AdmissionRole, snapshot: WorkforceSnapshot
     ) -> tuple[list[WorkforceProfile], list[RoutingCandidate]]:
@@ -704,6 +749,18 @@ class FactoryEngine:
         egress = self.ctx.config.egress
         survivors: list[WorkforceProfile] = []
         for wp in eligible0:
+            authorization_reason = self._authorization_provider_reason(packet, role, wp)
+            if authorization_reason:
+                rejected.append(
+                    RoutingCandidate(
+                        agent_profile_id=wp.profile_id,
+                        eligible=False,
+                        exclusion_reasons=[authorization_reason],
+                        provider_id=wp.provider_id,
+                        inference_mode=wp.inference_mode,
+                    )
+                )
+                continue
             row = self.ctx.store.get("agent_profiles", wp.profile_id)
             if not row:
                 rejected.append(
@@ -904,13 +961,15 @@ class FactoryEngine:
 
         pid = packet.packet_id
         worker: Any = self._worker_factory(mode, agent)  # type: ignore[misc]
-        ledger = BudgetLedger(
-            self.ctx.store, BudgetLimits(global_usd=self.ctx.config.budgets.billable_usd)
-        )
+        paid_limit = self._paid_budget_limit()
+        ledger = BudgetLedger(self.ctx.store, BudgetLimits(global_usd=paid_limit))
         model_row = self._model_row(agent.provider_id, agent.requested_model_id)
         est = (
             self._estimate_model_cost(model_row) if (model_row or {}).get("free") is False else 0.0
         )
+        if est > 0 and paid_limit <= 0:
+            why = "paid inference is outside the effective RunAuthorization budget"
+            return self._synthetic_failure(packet, agent, FailureClass.QUOTA_BLOCKED, why), "budget"
         ok, why = ledger.reserve(cycle_id=cycle_id, provider_id=agent.provider_id, estimate_usd=est)
         if not ok:
             self.ctx.log_event(
@@ -1211,10 +1270,12 @@ class FactoryEngine:
         # dispatched in shadow mode (after eligibility/selection; packet identity
         # unchanged — a stable-sorted prefix of the selected set). Packets dropped
         # by the cap are INTENTIONALLY DEFERRED, not missing (see _execute_wave).
-        if mode is RunMode.SHADOW and self._max_shadow_packets is not None:
-            selected = sorted(selected, key=lambda p: p.packet_id)[
-                : max(0, self._max_shadow_packets)
-            ]
+        cap = self._max_shadow_packets
+        auth = self.ctx.run_authorization
+        if auth is not None:
+            cap = auth.max_packets_per_wave if cap is None else min(cap, auth.max_packets_per_wave)
+        if cap is not None:
+            selected = sorted(selected, key=lambda p: p.packet_id)[: max(0, cap)]
         # Record the actual dispatched set so missing-result detection compares
         # only against packets we actually tried to run.
         self._dispatched_packet_ids = {p.packet_id for p in selected}
@@ -2015,6 +2076,14 @@ class FactoryEngine:
     ) -> CycleReceipt:
         from .clock import utc_now_iso
 
+        delivery = (
+            self.ctx.store.get("publication_receipts", f"{pset.set_id}:delivery")
+            if pset is not None
+            else None
+        )
+        published = bool(
+            delivery and delivery.get("delivery_state") == DeliveryState.COMPLETE.value
+        )
         receipt = CycleReceipt(
             cycle_id=cycle_id,
             mode=mode.value,
@@ -2024,7 +2093,7 @@ class FactoryEngine:
             set_id=pset.set_id if pset else None,
             selected_packets=len(pset.selected_packet_ids) if pset else 0,
             accepted_packets=accepted,
-            published=False,
+            published=published,
             no_progress=no_progress,
             blockers=blockers or [],
             started_at=started,

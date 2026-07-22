@@ -1140,7 +1140,9 @@ Deliver:
 Exit criterion:
 
 ```text
-State capture and replay are deterministic.
+State capture and replay are deterministic. Adaptive live routing may draw a
+fresh seed, but that seed is persisted before use and replay consumes the exact
+recorded seed; identical receipt inputs therefore reproduce the same decision.
 ```
 
 ## Build Stage 2 — Provider and model registry
@@ -1390,4 +1392,3 @@ The most important design decisions are:
 10. **Do not pre-plan future waves.** Recalculate after every integrated state change.
 
 The first practical implementation should stop at **Build Stage 5**: deterministic state, provider/model registry, qualification, planning, packet compilation and one isolated sequential worker. Once that path is demonstrably correct and replayable, concurrency and adaptive routing can be added without reproducing the control-plane failures already observed in ANQR.
-

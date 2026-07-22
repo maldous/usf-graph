@@ -148,10 +148,49 @@ class StardogPublisher:
 
     @staticmethod
     def obligation_absent(resnapshot: dict[str, Any], obligation_id: str) -> bool:
-        """True when ``obligation_id`` no longer appears anywhere in the re-read
-        work plan / bootstrap (the delivery genuinely closed the gap)."""
-        blob = json.dumps(resnapshot, sort_keys=True)
-        return obligation_id not in blob
+        """True only when the exact ID is absent from actionable gap planes.
+
+        Historical or structural references elsewhere in bootstrap must not keep
+        a closed obligation open, and substring matches must not confuse related
+        identifiers. A truncated or malformed work-plan fails closed.
+        """
+
+        def identifiers(items: object) -> set[str] | None:
+            if not isinstance(items, list):
+                return None
+            found: set[str] = set()
+            for item in items:
+                if isinstance(item, str):
+                    found.add(item)
+                    continue
+                if not isinstance(item, dict):
+                    return None
+                for key in ("id", "iri", "obligation", "subject"):
+                    value = item.get(key)
+                    if value:
+                        found.add(str(value))
+                if item.get("type") and item.get("subject"):
+                    found.add(f"{item['type']}:{item['subject']}")
+            return found
+
+        work_plan = resnapshot.get("work_plan")
+        bootstrap = resnapshot.get("bootstrap")
+        if not isinstance(work_plan, dict) or not isinstance(bootstrap, dict):
+            return False
+        if work_plan.get("truncated") is True:
+            return False
+        work_items = None
+        for key in ("gaps", "items", "obligations", "tasks"):
+            if key in work_plan:
+                work_items = work_plan[key]
+                break
+        if work_items is None:
+            return False
+        work_ids = identifiers(work_items)
+        open_ids = identifiers(bootstrap.get("openGaps", []))
+        if work_ids is None or open_ids is None:
+            return False
+        return obligation_id not in (work_ids | open_ids)
 
     # ---- frozen install + tests ----------------------------------------- #
 

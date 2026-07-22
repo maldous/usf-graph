@@ -16,10 +16,11 @@ from pathlib import Path
 import pytest
 
 from usf_factory.config import load_config
-from usf_factory.enums import ProtectedAction, RemediationKind, Risk
+from usf_factory.engine import FactoryEngine
+from usf_factory.enums import AdmissionRole, ProtectedAction, RemediationKind, Risk
 from usf_factory.errors import RunAuthorizationError
 from usf_factory.materialisation import ScopeResult
-from usf_factory.models import Obligation, ObligationGraph, SemanticSnapshot
+from usf_factory.models import Obligation, ObligationGraph, Packet, SemanticSnapshot
 from usf_factory.packet_compiler import compile_packets
 from usf_factory.programme_state import classify_remediation, parse_programme_obligations
 from usf_factory.run_authorization import (
@@ -27,6 +28,7 @@ from usf_factory.run_authorization import (
     load_run_authorization,
     write_run_authorization,
 )
+from usf_factory.workforce import WorkforceProfile
 
 FUTURE = "2999-01-01T00:00:00Z"
 PAST = "2000-01-01T00:00:00Z"
@@ -190,6 +192,63 @@ def test_run_authorization_risk_and_paid_budget():
     # USD 0 budget ⇒ paid inference never allowed even if the action were listed.
     paid = _auth(permitted_actions=[ProtectedAction.PAID_INFERENCE], paid_api_budget_usd=0.0)
     assert not paid.paid_inference_allowed()
+
+
+@pytest.mark.adversarial
+def test_run_authorization_provider_and_subscription_scopes_are_enforced(ctx):
+    ctx.run_authorization = _auth(
+        raw_source_provider="local-safe",
+        metadata_review_provider="review-only",
+        allow_subscription_inference=False,
+    )
+    engine = FactoryEngine(ctx)
+    packet = Packet(
+        obligation_id="o",
+        snapshot_id="s",
+        authority_digest="a",
+        base_head="h",
+        objective="x",
+        task_class="repository-implementation",
+        risk=Risk.MEDIUM,
+        data_classification="private-source",
+        write_paths=["x.py"],
+    )
+    wrong_raw = WorkforceProfile(
+        profile_id="raw", provider_id="cloud", requested_model_id="model", inference_mode="free"
+    )
+    assert "raw source" in engine._authorization_provider_reason(
+        packet, AdmissionRole.PATCH_PRODUCER, wrong_raw
+    )
+    wrong_review = WorkforceProfile(
+        profile_id="review",
+        provider_id="cloud",
+        requested_model_id="model",
+        inference_mode="free",
+    )
+    assert "metadata review" in engine._authorization_provider_reason(
+        packet, AdmissionRole.REVIEWER, wrong_review
+    )
+    subscription = WorkforceProfile(
+        profile_id="subscription",
+        provider_id="local-safe",
+        requested_model_id="model",
+        inference_mode="subscription",
+    )
+    assert "subscription" in engine._authorization_provider_reason(
+        packet, AdmissionRole.PATCH_PRODUCER, subscription
+    )
+
+
+@pytest.mark.adversarial
+def test_paid_budget_is_intersection_of_config_and_run_authorization(ctx):
+    ctx.config.safety.allow_billable = True
+    ctx.config.budgets.billable_usd = 10.0
+    ctx.run_authorization = _auth(
+        permitted_actions=[ProtectedAction.PAID_INFERENCE], paid_api_budget_usd=3.0
+    )
+    assert FactoryEngine(ctx)._paid_budget_limit() == 3.0
+    ctx.run_authorization = _auth(paid_api_budget_usd=3.0, permitted_actions=[])
+    assert FactoryEngine(ctx)._paid_budget_limit() == 0.0
 
 
 @pytest.mark.adversarial

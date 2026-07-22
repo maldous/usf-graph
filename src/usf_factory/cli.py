@@ -442,6 +442,21 @@ def realize(
                 "[yellow]no --authorization-file: delivery is prepare-only "
                 "(no push/merge/publish will fire)[/]"
             )
+        if ctx.run_authorization is not None:
+            auth = ctx.run_authorization
+            if allow_subscription_inference and not auth.allow_subscription_inference:
+                err.print("[red]RunAuthorization prohibits subscription inference[/]")
+                raise typer.Exit(code=1)
+            if max_paid_cost_usd > auth.paid_api_budget_usd:
+                err.print("[red]requested paid budget exceeds RunAuthorization[/]")
+                raise typer.Exit(code=1)
+            max_cycles = min(max_cycles, auth.max_continuous_cycles)
+            max_packets_per_wave = min(max_packets_per_wave, auth.max_packets_per_wave)
+            ctx.config.budgets.billable_usd = min(
+                float(ctx.config.budgets.billable_usd),
+                float(auth.paid_api_budget_usd),
+                float(max_paid_cost_usd),
+            )
         coordinator = build_delivery_coordinator(ctx)
         # A factory-run suite can record an execution receipt, but cannot self-admit
         # authority ValidationEvidence. Genuine external evidence uses the explicit

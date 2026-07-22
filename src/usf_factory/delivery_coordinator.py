@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .canonical import canonical_json, short_digest, stable_id
+from .canonical import canonical_json, digest_bytes, short_digest, stable_id
 from .clock import utc_now_iso
 from .context import RuntimeContext
 from .enums import DeliveryState, ProtectedAction, RemediationKind, Risk
@@ -357,8 +357,8 @@ class DeliveryCoordinator:
         transport: AuthorityEvidenceTransport,
         *,
         artifact_verifier: Callable[[str], bool],
-        producer_validation_receipt_digest: str,
-        independent_review_receipt_digest: str,
+        producer_validation_receipt_ref: str,
+        independent_review_receipt_ref: str,
         reviewer_profile_id: str,
         risk: Risk = Risk.LOW,
     ) -> DeliveryRecord:
@@ -369,6 +369,16 @@ class DeliveryCoordinator:
         Stardog transaction remain mandatory later lifecycle stages.
         """
         validate_authority_evidence_transport(transport, artifact_verifier=artifact_verifier)
+        try:
+            producer_bytes = self.ctx.store.cas_get(producer_validation_receipt_ref)
+        except Exception as exc:
+            raise ValueError("AUTHORITY_EVIDENCE_VALIDATION_RECEIPT_UNVERIFIED") from exc
+        try:
+            review_bytes = self.ctx.store.cas_get(independent_review_receipt_ref)
+        except Exception as exc:
+            raise ValueError("AUTHORITY_EVIDENCE_REVIEW_RECEIPT_UNVERIFIED") from exc
+        producer_validation_receipt_digest = digest_bytes(producer_bytes)
+        independent_review_receipt_digest = digest_bytes(review_bytes)
         if not _CONTENT_DIGEST.fullmatch(producer_validation_receipt_digest):
             raise ValueError("AUTHORITY_EVIDENCE_VALIDATION_RECEIPT_DIGEST_INVALID")
         if not _CONTENT_DIGEST.fullmatch(independent_review_receipt_digest):
@@ -763,6 +773,26 @@ class DeliveryCoordinator:
         if head_now and rec.reviewed_head and head_now != rec.reviewed_head:
             return self._hold(
                 rec, DeliveryState.BLOCKED, "PR head moved after review; refusing merge"
+            )
+        if self.publisher is None:
+            return self._hold(rec, DeliveryState.BLOCKED, "no Stardog publisher wired")
+        # Do not merge a semantic change after its authority premise moved. The
+        # binding is checked again after merge and immediately before publication.
+        live, authority_database = self.publisher.read_authority_binding()
+        publication_block = self._require(
+            rec,
+            ProtectedAction.STARDOG_PUBLICATION,
+            inp.risk,
+            authority_database=authority_database,
+        )
+        if publication_block:
+            return self._hold(rec, DeliveryState.BLOCKED, publication_block)
+        rec.authority_digest_before = live
+        if not inp.expected_pre_publication_digest or live != inp.expected_pre_publication_digest:
+            return self._hold(
+                rec,
+                DeliveryState.STALE,
+                "authority digest moved before merge; replan",
             )
         self._begin_side_effect(rec, "merge")
         r, merge_sha = self.github.merge_pr(clone, rec.pr_number)  # type: ignore[union-attr,arg-type]

@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from usf_factory.engine import FactoryEngine
 from usf_factory.enums import (
+    CycleState,
     PacketResultStatus,
     ProtectedAction,
     RemediationKind,
     Risk,
+    RunMode,
 )
 from usf_factory.models import (
     Packet,
@@ -184,3 +188,74 @@ def test_engine_prepare_only_without_authorization(ctx, tmp_usf):
     assert coord.delivered == []
     rec = ctx.store.get("publication_receipts", f"{pset.set_id}:delivery")
     assert rec is not None and rec["prepared"] in (False, True)
+
+
+@pytest.mark.adversarial
+@pytest.mark.parametrize("prior_state", ["INIT", "SNAPSHOT", "EXECUTING", "VALIDATING"])
+def test_preflight_blocks_on_incomplete_prior_cycle(ctx, tmp_usf, prior_state):
+    ctx.store.put(
+        "cycles",
+        "prior-cycle",
+        {"cycle_id": "prior-cycle", "state": prior_state},
+        extra={"state": prior_state},
+    )
+    result = FactoryEngine(ctx).preflight("new-cycle")
+    assert result["cycleState"] == "BLOCKED"
+    assert result["recoveredFrom"] == "prior-cycle"
+    assert "requires explicit reconciliation" in result["blockers"][0]
+
+
+@pytest.mark.e2e
+def test_cycle_receipt_reports_completed_protected_publication(ctx, tmp_usf):
+    eng = FactoryEngine(ctx)
+    pset, *_rest = _wave_bits(ctx)
+    ctx.store.put(
+        "publication_receipts",
+        f"{pset.set_id}:delivery",
+        {"delivery_state": "COMPLETE"},
+        extra={"set_id": pset.set_id},
+    )
+    receipt = eng._finish(
+        "cycle-published",
+        RunMode.AUTONOMOUS_SAFE,
+        CycleState.COMPLETE,
+        "2000-01-01T00:00:00Z",
+        pset=pset,
+    )
+    assert receipt.published is True
+
+
+@pytest.mark.adversarial
+def test_run_authorization_caps_packets_in_mutating_modes(ctx, tmp_usf, monkeypatch):
+    ctx.run_authorization = RunAuthorization(
+        authorization_id="packet-cap",
+        issued_at="2000-01-01T00:00:00Z",
+        expires_at=FUTURE,
+        max_packets_per_wave=1,
+    )
+    packets = [
+        Packet(
+            obligation_id=f"obl-{index}",
+            snapshot_id="s",
+            authority_digest="a",
+            base_head="h",
+            objective="x",
+            task_class="semantic-planning",
+            risk=Risk.LOW,
+        )
+        for index in range(3)
+    ]
+    pset = PacketSet(
+        snapshot_id="s",
+        graph_id="g",
+        packets=packets,
+        selected_packet_ids=[packet.packet_id for packet in packets],
+    )
+    engine = FactoryEngine(ctx)
+
+    async def no_op(_packet, _cycle_id, _mode):
+        return None
+
+    monkeypatch.setattr(engine, "_execute_one", no_op)
+    asyncio.run(engine.execute_packets(pset, RunMode.AUTONOMOUS_SAFE, "cycle"))
+    assert len(engine._dispatched_packet_ids) == 1

@@ -62,9 +62,11 @@ validation obligation.
 
 Genuine authority-evidence candidates must be produced independently and enter
 the factory through the explicit `AuthorityEvidenceTransport` interface. The
-interface verifies the exact patch digest, evidence identities and immutable
-artifact digests before the protected delivery lifecycle can begin. Admission
-still requires the canonical `usf-graph` tests, validate-and-rollback,
+interface verifies the exact patch digest, evidence identities, immutable
+artifact digests and the actual content-addressed producer/reviewer receipt
+bytes before the protected delivery lifecycle can begin. A claimed receipt
+digest without locally verified bytes is rejected. Admission still requires
+the canonical `usf-graph` tests, validate-and-rollback,
 transactional publication, zero source/live drift and post-publication work-plan
 reconciliation. The factory never upgrades its own receipt into authority
 evidence.

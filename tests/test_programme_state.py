@@ -12,7 +12,7 @@ from usf_factory.enums import RunMode
 from usf_factory.errors import SnapshotError
 from usf_factory.models import Packet
 from usf_factory.programme_state import parse_programme_obligations
-from usf_factory.snapshots import _complete_work_plan
+from usf_factory.snapshots import _collect_obligation_ids, _complete_work_plan
 
 
 @pytest.mark.unit
@@ -54,6 +54,16 @@ def test_work_plan_accepts_exact_raw_and_tagged_sha256_witnesses():
 
     plan = _complete_work_plan(TaggedProjection(digest=raw_digest), raw_digest)
     assert plan["authorityDigest"] == f"sha256:{raw_digest}"
+
+
+@pytest.mark.unit
+def test_snapshot_unresolved_ids_exclude_structural_obligation_inventories():
+    bootstrap = {
+        "openGaps": [{"id": "actionable"}],
+        "proofObligations": [{"id": "structural-proof"}],
+        "validationObligations": [{"id": "structural-validation"}],
+    }
+    assert _collect_obligation_ids(bootstrap) == ["actionable"]
 
 
 @pytest.mark.adversarial

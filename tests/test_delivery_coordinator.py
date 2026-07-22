@@ -55,6 +55,9 @@ class FakeGitHub:
         self.merged = 0
         self.head = "reviewedsha000"
         self.fail: set[str] = set()
+        self.pr_exists = False
+        self.ready_state = False
+        self.remote_merged = False
 
     def clone_writable(self, dest, base_head):
         self.calls.append("clone")
@@ -93,18 +96,26 @@ class FakeGitHub:
 
     def open_draft_pr(self, clone, *, base, head, title, body):
         self.calls.append("open_pr")
+        self.pr_exists = True
         return CommandResult(True, 0, "https://gh/pr/7", ""), 7, "https://gh/pr/7"
 
     def pr_for_head(self, clone, head):
-        return CommandResult(True, 0, "", ""), {
-            "number": 7,
-            "url": "https://gh/pr/7",
-            "headRefOid": self.head,
-        }
+        return CommandResult(True, 0, "", ""), (
+            {
+                "number": 7,
+                "url": "https://gh/pr/7",
+                "headRefOid": self.head,
+            }
+            if self.pr_exists
+            else {}
+        )
 
     def mark_ready(self, clone, pr):
         self.calls.append("ready")
-        return CommandResult("ready" not in self.fail, 0, "", "")
+        ok = "ready" not in self.fail
+        if ok:
+            self.ready_state = True
+        return CommandResult(ok, 0, "", "")
 
     def wait_for_checks(self, clone, pr, *, timeout=900.0):
         self.calls.append("checks")
@@ -120,10 +131,18 @@ class FakeGitHub:
     def merge_pr(self, clone, pr, *, method="squash"):
         self.calls.append("merge")
         self.merged += 1
-        return CommandResult("merge" not in self.fail, 0, "", ""), "mergesha111"
+        ok = "merge" not in self.fail
+        if ok:
+            self.remote_merged = True
+        return CommandResult(ok, 0, "", ""), "mergesha111"
 
     def pr_state(self, clone, pr):
-        return {"state": "OPEN", "merged": False, "isDraft": False}
+        return {
+            "state": "MERGED" if self.remote_merged else "OPEN",
+            "merged": self.remote_merged,
+            "isDraft": not self.ready_state,
+            "mergeCommit": {"oid": "mergesha111"} if self.remote_merged else None,
+        }
 
 
 class FakePublisher:
@@ -258,7 +277,7 @@ def test_stale_publication_digest_aborts_safely(ctx, tmp_usf):
     rec = coord.deliver(_inp())
     assert rec.state == DeliveryState.STALE.value
     assert pub.published == 0  # never force-published on a moved digest
-    assert gh.merged == 1  # merge happened; publication correctly aborted
+    assert gh.merged == 0  # stale authority is detected before main is changed
 
 
 @pytest.mark.adversarial
@@ -377,6 +396,41 @@ def test_crash_after_push_leaves_reconcilable_persisted_intent(ctx, tmp_usf):
     resumed = DeliveryCoordinator(ctx, github=gh, publisher=pub).resume_uncertain()
     assert [record.state for record in resumed] == [DeliveryState.COMPLETE.value]
     assert gh.pushed == 1
+
+
+@pytest.mark.adversarial
+@pytest.mark.parametrize("action", ["open_pr", "mark_ready", "merge"])
+def test_crash_after_github_side_effect_reconciles_without_duplicate(ctx, tmp_usf, action):
+    _authorize(ctx)
+    gh, pub = FakeGitHub(), FakePublisher()
+    method_name = {
+        "open_pr": "open_draft_pr",
+        "mark_ready": "mark_ready",
+        "merge": "merge_pr",
+    }[action]
+    original = getattr(gh, method_name)
+    calls = 0
+
+    def crash_after_effect(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        original(*args, **kwargs)
+        raise RuntimeError(f"simulated process loss after {action}")
+
+    setattr(gh, method_name, crash_after_effect)
+    coordinator = DeliveryCoordinator(ctx, github=gh, publisher=pub)
+    inp = _inp(set_id=f"crash-after-{action}")
+    with pytest.raises(RuntimeError, match=f"after {action}"):
+        coordinator.deliver(inp)
+    persisted = coordinator.load(coordinator._delivery_id(inp))
+    assert persisted is not None
+    assert persisted.state == DeliveryState.UNCERTAIN_SIDE_EFFECT.value
+    assert persisted.reconciliation["uncertain_action"] == action
+
+    setattr(gh, method_name, original)
+    resumed = coordinator.resume_uncertain()
+    assert [record.state for record in resumed] == [DeliveryState.COMPLETE.value]
+    assert calls == 1
 
 
 @pytest.mark.adversarial

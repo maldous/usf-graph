@@ -43,8 +43,14 @@ def _read_digest(path: Path) -> str | None:
 
 
 def _collect_obligation_ids(bootstrap: dict[str, Any]) -> list[str]:
+    """Collect only actionable bootstrap gaps.
+
+    Proof and validation obligation inventories describe contract structure;
+    their presence is not evidence that they are currently unsatisfied. The
+    live work-plan and ``openGaps`` projection are the actionable closure plane.
+    """
     ids: list[str] = []
-    for key in ("openGaps", "proofObligations", "validationObligations"):
+    for key in ("openGaps",):
         for item in bootstrap.get(key) or []:
             if isinstance(item, dict):
                 oid = item.get("id") or item.get("iri") or item.get("obligation")
