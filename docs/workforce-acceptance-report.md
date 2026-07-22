@@ -1,5 +1,13 @@
 # Dynamic Workforce — live acceptance & completion report
 
+> **Historical acceptance snapshot.** This report records the W1–W6 state at
+> commit `163467d`; it is retained as bounded execution evidence, not as the
+> current implementation description. The activation branch now makes the
+> dynamic workforce the sole live selector, verifies the actual routed model,
+> exercises Scenario E before invocation, and aligns protected delivery with
+> the current `usf-graph` contract. See the top-level README, architecture and
+> launch-readiness documents for current scope and nonclaims.
+
 Branch `factory/activation-v1`, PR #2 (draft). Dynamic, evidence-based workforce
 and provider/model allocation (spec §1–§16). All runs non-mutating; `/usf`
 unchanged; committed protected gates false; paid API spend **$0**.
