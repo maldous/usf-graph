@@ -1628,7 +1628,13 @@ function evaluateDecision(store, decision, globalCriteria, findings, context) {
   }
 
   const decisionSpecificFindings = findings.length - findingStart;
-  if (decisionSpecificFindings === 0 && contextDependencyFailures.length > 0) {
+  // EVALUATION_DEPENDENCY_DRIFT must be collected as an applicable finding whenever the
+  // evaluation's dependency binding drifts, then ordered by REASON_PRECEDENCE rather than
+  // suppressed. When the evidence context is otherwise valid, emit it even alongside other
+  // decision-specific findings so a genuine drift still wins over a coexisting lower-precedence
+  // finding (for example FAKE_OR_DUPLICATE_CREDIBLE_CANDIDATE). When the context itself is
+  // invalid, the specific root-cause finding leads and drift remains a catch-all.
+  if (contextDependencyFailures.length > 0 && (context?.ok || decisionSpecificFindings === 0)) {
     addFinding(findings, 'EVALUATION_DEPENDENCY_DRIFT', evaluation, contextDependencyFailures.join(','));
   }
   finish();

@@ -116,7 +116,7 @@ const selectedComponentDefinitions = {
     ['verifiedauthorityexport', 'repositorylocalcomponent', 'authorityexport', 'Provide digest-bound read-only isolated validation input', ['localdev', 'hermetic']],
   ],
   semanticauthoritycontrolselection: [
-    ['livestardogauthority', 'externalprovidercomponent', 'provider', 'Provide the sole live authority and controlled mutation boundary', ['authoritycontrol']],
+    ['livestardogauthority', 'externalprovidercomponent', 'provider', 'Provide the sole live authority and controlled mutation boundary', ['authoritycontrol', 'productionshaped']],
     ['verifiedauthorityexport', 'repositorylocalcomponent', 'authorityexport', 'Provide digest-bound read-only isolated validation input', ['localdev', 'hermetic']],
   ],
 };

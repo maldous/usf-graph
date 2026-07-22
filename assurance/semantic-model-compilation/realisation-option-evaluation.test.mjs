@@ -172,6 +172,25 @@ function assertRejected(expected, mutate, mutateContext = () => {}) {
   if (affected) assert.equal(result.closureStates.find(({ decision: item }) => item === affected)?.state, 'INCOMPLETE');
 }
 
+const ZERO_DIGEST = `sha256:${'0'.repeat(64)}`;
+const applyEvaluationDependencyDrift = (store) => replaceLiteral(store, evaluation, term('evaluationDependencySetDigest'), ZERO_DIGEST);
+const applyFakeCredibleCandidate = (store) => {
+  const fake = iri('urn:usf:realisationoption:unsupporteddecoy');
+  const credibility = iri('urn:usf:candidatecredibilityassessment:unsupporteddecoy');
+  add(store, decision, term('considersOption'), fake);
+  add(store, evaluation, term('hasCandidateCredibilityAssessment'), credibility);
+  add(store, credibility, RDF_TYPE, term('CandidateCredibilityAssessment'));
+  add(store, credibility, term('credibilityForOption'), fake);
+  add(store, credibility, term('credibilityState'), iri('urn:usf:candidatecredibilitystate:credible'));
+  add(store, credibility, term('credibilityEvidence'), iri('urn:usf:evidenceresult:realisationoptionevaluation'));
+};
+const evaluateWith = (...mutators) => {
+  const store = clone();
+  const context = cloneContext();
+  for (const mutate of mutators) mutate(store);
+  return evaluateRealisationOptionClosure(store, context);
+};
+
 test('current candidate closes every required zero counter deterministically', () => {
   assert.equal(baselineContext.ok, true, JSON.stringify(baselineContext.failures));
   const firstRun = runRealisationOptionClosure(root, '/var/lib/usf-cas', expectedWitness);
@@ -239,6 +258,35 @@ test('decision and dependency defects reach exact precedence branches', () => {
   assertRejected('DECISION_CONTRACT_CARDINALITY', (store) => remove(store, decision, term('decisionForContract')));
   assertRejected('DECISION_EVALUATION_CARDINALITY', (store) => remove(store, decision, term('hasDecisionEvaluation')));
   assertRejected('EVALUATION_DEPENDENCY_DRIFT', (store) => replaceLiteral(store, evaluation, term('evaluationDependencySetDigest'), `sha256:${'0'.repeat(64)}`));
+});
+
+test('dual dependency-drift and fake-candidate defects keep EVALUATION_DEPENDENCY_DRIFT first and increment both counters', () => {
+  const result = evaluateWith(applyEvaluationDependencyDrift, applyFakeCredibleCandidate);
+  assert.equal(result.ok, false);
+  const affected = result.findings.filter(({ decision: item }) => item === decision.value).map(({ reasonCode }) => reasonCode);
+  assert.ok(affected.includes('EVALUATION_DEPENDENCY_DRIFT'), JSON.stringify(result.findings.slice(0, 8)));
+  assert.ok(affected.includes('FAKE_OR_DUPLICATE_CREDIBLE_CANDIDATE'), JSON.stringify(result.findings.slice(0, 8)));
+  assert.ok(affected.indexOf('EVALUATION_DEPENDENCY_DRIFT') < affected.indexOf('FAKE_OR_DUPLICATE_CREDIBLE_CANDIDATE'),
+    JSON.stringify(result.findings.slice(0, 8)));
+  assert.equal(result.findings[0].reasonCode, 'EVALUATION_DEPENDENCY_DRIFT', JSON.stringify(result.findings.slice(0, 8)));
+  assert.ok(result.gateCounters[REASON_COUNTER.EVALUATION_DEPENDENCY_DRIFT] > 0, 'dependency-drift counter did not increment');
+  assert.ok(result.gateCounters[REASON_COUNTER.FAKE_OR_DUPLICATE_CREDIBLE_CANDIDATE] > 0, 'credible-candidate counter did not increment');
+  const repeat = evaluateWith(applyEvaluationDependencyDrift, applyFakeCredibleCandidate);
+  assert.deepEqual(repeat, result);
+});
+
+test('isolated dependency drift and the dual defect are order-independent and non-leaking', () => {
+  const isolatedForward = evaluateWith(applyEvaluationDependencyDrift);
+  const dualForward = evaluateWith(applyEvaluationDependencyDrift, applyFakeCredibleCandidate);
+  const dualReverse = evaluateWith(applyEvaluationDependencyDrift, applyFakeCredibleCandidate);
+  const isolatedReverse = evaluateWith(applyEvaluationDependencyDrift);
+  assert.deepEqual(isolatedReverse, isolatedForward);
+  assert.deepEqual(dualReverse, dualForward);
+  assert.equal(isolatedForward.findings[0].reasonCode, 'EVALUATION_DEPENDENCY_DRIFT', JSON.stringify(isolatedForward.findings.slice(0, 8)));
+  assert.ok(!isolatedForward.findings.some(({ reasonCode }) => reasonCode === 'FAKE_OR_DUPLICATE_CREDIBLE_CANDIDATE'),
+    JSON.stringify(isolatedForward.findings.slice(0, 8)));
+  const baselineRerun = runRealisationOptionClosure(root, '/var/lib/usf-cas', expectedWitness);
+  assert.equal(baselineRerun.ok, true, JSON.stringify(baselineRerun.findings));
 });
 
 test('candidate-set defects reach exact precedence branches', () => {
@@ -336,7 +384,7 @@ test('composition defects reach exact precedence branches', () => {
   const proof = first(baseline, selected, term('hasCompositionCoverageProof'));
   const components = objects(baseline, selected, term('hasOptionComponent'));
   const responsibilityList = objects(baseline, selected, term('hasComponentResponsibility'));
-  const component = components.find((candidate) => responsibilityList.filter((item) => objects(baseline, item, term('responsibilityForComponent')).some(({ value }) => value === candidate.value)).length > 1);
+  const component = components.find((candidate) => responsibilityList.some((item) => objects(baseline, item, term('responsibilityForComponent')).some(({ value }) => value === candidate.value)));
   const componentResponsibilities = responsibilityList.filter((item) => objects(baseline, item, term('responsibilityForComponent')).some(({ value }) => value === component.value));
   assertRejected('COMPONENT_RESPONSIBILITY_MISSING', (store, context) => {
     for (const responsibility of componentResponsibilities) {
@@ -345,9 +393,14 @@ test('composition defects reach exact precedence branches', () => {
     synchroniseComponentAssessmentResponsibilities(store, context, selected, component);
   });
   assertRejected('COMPONENT_BOUNDARY_INCOMPLETE', (store) => remove(store, component, term('componentSecurityBoundary')));
-  assertRejected('COMPOSITION_FACET_UNCOVERED', (store, context) => {
-    remove(store, selected, term('hasComponentResponsibility'), componentResponsibilities[0]);
-    synchroniseComponentAssessmentResponsibilities(store, context, selected, component);
+  assertRejected('COMPOSITION_FACET_UNCOVERED', (store) => {
+    // Each selected component owns exactly one facet, so redirect one responsibility onto an
+    // already-covered requirement: its former facet becomes uncovered and the target facet gains a
+    // duplicate owner, while every component keeps a valid responsibility (no COMPONENT_RESPONSIBILITY_MISSING).
+    const [firstResponsibility, secondResponsibility] = responsibilityList;
+    const secondRequirement = first(store, secondResponsibility, term('responsibilityForRequirement'));
+    remove(store, firstResponsibility, term('responsibilityForRequirement'));
+    add(store, firstResponsibility, term('responsibilityForRequirement'), secondRequirement);
   });
   assertRejected('COMPONENT_VERSION_INCOMPATIBLE', (store) => {
     const dependencySource = components.find((candidate) => objects(store, candidate, term('dependsOnOptionComponent')).length > 0);
