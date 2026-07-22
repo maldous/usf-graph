@@ -41,6 +41,21 @@ def test_work_plan_pagination_is_complete_and_digest_bound():
     assert {item["id"] for item in plan["gaps"]} == {f"O-{index}" for index in range(121)}
 
 
+@pytest.mark.unit
+def test_work_plan_accepts_exact_raw_and_tagged_sha256_witnesses():
+    raw_digest = "a" * 64
+
+    class TaggedProjection(FakeAuthority):
+        def work_plan(self, arguments=None):
+            result = super().work_plan(arguments)
+            payload = result.json()
+            payload["authorityDigest"] = f"sha256:{raw_digest}"
+            return self._tcr(payload)
+
+    plan = _complete_work_plan(TaggedProjection(digest=raw_digest), raw_digest)
+    assert plan["authorityDigest"] == f"sha256:{raw_digest}"
+
+
 @pytest.mark.adversarial
 def test_work_plan_pagination_fails_on_missing_or_moved_authority():
     class Broken(FakeAuthority):
