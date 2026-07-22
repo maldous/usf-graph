@@ -134,10 +134,10 @@ precedence, and conflict handling.
 ```
 Provider discovery ─► Model registry ─► Qualification ─┐
                                                        ▼
-USF MCP ─► Semantic snapshot ─► Planner ─► Critic ─► Deterministic packet
-(read-only)   (deterministic)                          compiler + conflict DAG
+USF MCP ─► Semantic snapshot ─► Work-plan projection ─► Deterministic packet
+(read-only)   (deterministic)                             compiler + conflict DAG
                                                        │
-                                          Scheduler (task-specific, explainable)
+                         Qualified dynamic workforce + adaptive routing
                                                        │
                                     Isolated workers (disposable clones, no /usf)
                                                        │
@@ -145,7 +145,9 @@ USF MCP ─► Semantic snapshot ─► Planner ─► Critic ─► Determinist
                                                        │
                                AI integrator (only for semantic reconciliation)
                                                        │
-                                Independent review ─► Deterministic validation
+                     Provider-diverse review ─► Deterministic local validation
+                                                       │
+                      Protected graph delivery ─► reconcile authority/work plan
                                                        │
                               Attribution + learning ─► recompute state ─► repeat
 ```
