@@ -81,12 +81,20 @@ fresh liveness invocation only. No whole-catalogue tournament was run.
 
 ## Exact unfilled capabilities / honest scope
 - The W1–W6 modules (`workforce_policy`, `workforce`, `adaptive_routing`,
-  `dispatch`, `lazy_qualification`) are built, unit-tested (331 passed / 2
-  skipped), and demonstrated live over the real admitted workforce. **Full
-  rewiring of the engine `run` loop** to select per-packet from the
-  `WorkforceSnapshot` + `adaptive_routing` + `dispatch` (replacing the legacy
-  `scheduler`/`roster` path) is the remaining integration step and is **not yet
-  wired** — `bootstrap-runtime` already consumes the dynamic policy.
+  `dispatch`, `lazy_qualification`) are built, unit-tested, and demonstrated live
+  over the real admitted workforce.
+- **W8 wired the effective WorkforcePolicy into the engine `run` loop**: live
+  `candidate_agents` now drops any policy-excluded provider/model/family/adapter
+  (an excluded target is never scheduled/probed/invoked in the run loop, not only
+  in `bootstrap-runtime`), and the all-admitted fallback is fail-closed (§11) —
+  the legacy scan runs only as a migration when no active-roster record has ever
+  existed. `runtime.build_engine` + the CLI `run` command compose committed +
+  operator + run policy layers.
+- **Still remaining:** replacing the legacy `scheduler`'s ranking/selection in the
+  run loop with `adaptive_routing` (Thompson) + `dispatch` (redraw) per packet —
+  the policy exclusions and fail-closed selection are now enforced live, but the
+  adaptive-sampling draw itself is not yet the run loop's selector (it is
+  unit-tested and demonstrated over the real workforce).
 - With only two subscription CLIs admitted and provider-diverse review required,
   excluding either still leaves a producer, but excluding one removes independent
   review for the other (Scenario C) — the correct fail-closed posture.
