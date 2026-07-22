@@ -60,6 +60,7 @@ class SandboxResult:
 class SandboxRunner:
     limits: SandboxLimits = field(default_factory=SandboxLimits)
     drop_to_user: str = "nobody"
+    _namespace_usable: bool | None = field(default=None, init=False, repr=False)
 
     # ---- capability reporting (honest) ---------------------------------- #
 
@@ -75,7 +76,7 @@ class SandboxRunner:
 
     def capabilities(self) -> dict[str, bool]:
         drop = self._resolve_uid() is not None
-        ns = shutil.which("bwrap") is not None
+        ns = self._namespace_available()
         return {
             "privilege_drop": drop,  # protects 0600 secrets + root-owned /usf
             "rlimits": True,  # CPU/memory/file-size/nproc
@@ -85,6 +86,54 @@ class SandboxRunner:
             "filesystem_namespace": ns,  # not available in this chroot
             "network_namespace": ns,  # not available in this chroot
         }
+
+    def _namespace_available(self) -> bool:
+        """Return true only when the exact namespace wrapper can execute.
+
+        Package presence is not a capability: chroots, container policies and
+        seccomp can leave ``bwrap`` installed while denying namespace creation.
+        Probe under the same identity and limits used for an actual command so
+        an unusable binary cannot turn otherwise safe execution into failure.
+        """
+        if self._namespace_usable is not None:
+            return self._namespace_usable
+        executable = shutil.which("bwrap")
+        if executable is None:
+            self._namespace_usable = False
+            return False
+        probe = [
+            executable,
+            "--unshare-all",
+            "--die-with-parent",
+            "--new-session",
+            "--ro-bind",
+            "/usr",
+            "/usr",
+            "--ro-bind",
+            "/bin",
+            "/bin",
+            "--proc",
+            "/proc",
+            "--dev",
+            "/dev",
+            "--",
+            "/usr/bin/true",
+        ]
+        try:
+            completed = subprocess.run(
+                probe,
+                env={"PATH": "/usr/local/bin:/usr/bin:/bin"},
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5.0,
+                check=False,
+                preexec_fn=self._preexec(self._resolve_uid()),
+            )
+            self._namespace_usable = completed.returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            self._namespace_usable = False
+        return self._namespace_usable
 
     # ---- execution ------------------------------------------------------- #
 
@@ -134,9 +183,9 @@ class SandboxRunner:
     def _namespace_wrapper(self, argv: list[str]) -> list[str]:
         """Prefix argv with a namespace sandbox if one is available (none in this
         environment). Kept so isolation upgrades automatically when present."""
-        if shutil.which("bwrap"):
+        if self._namespace_available():
             return [
-                "bwrap",
+                str(shutil.which("bwrap")),
                 "--unshare-all",
                 "--die-with-parent",
                 "--new-session",
