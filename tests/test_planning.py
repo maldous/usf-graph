@@ -8,7 +8,7 @@ import pytest
 
 from usf_factory.config import load_config
 from usf_factory.conflict_graph import build_conflict_edges, classify_conflict, select_antichain
-from usf_factory.enums import ConflictClass
+from usf_factory.enums import ConflictClass, RemediationKind
 from usf_factory.models import Obligation, ObligationGraph, Packet, SemanticSnapshot
 from usf_factory.packet_compiler import compile_packets
 from usf_factory.paths import repo_root
@@ -115,6 +115,7 @@ def test_packet_compiler_defers_oversized():
                 id="big",
                 root_cause="rc",
                 task_class="repository-implementation",
+                remediation_kind=RemediationKind.SOURCE_CHANGE,
                 suggested_write_scope=many,
                 acceptance_criteria=["ok"],
             )

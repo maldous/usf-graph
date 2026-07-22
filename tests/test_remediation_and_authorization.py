@@ -1,0 +1,216 @@
+"""Remediation classification (build task §1) + operator RunAuthorization (scope).
+
+These cover: deterministic gap→RemediationKind classification; that a
+VALIDATION_EVIDENCE / PROOF_EVIDENCE / ANALYSIS_ONLY remediation never receives
+repository write scope even from a verified materialisation owner; and that the
+RunAuthorization loads fail-closed, is owner-only, expires, and is the sole
+per-run enabler of protected actions.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+
+import pytest
+
+from usf_factory.config import load_config
+from usf_factory.enums import ProtectedAction, RemediationKind, Risk
+from usf_factory.errors import RunAuthorizationError
+from usf_factory.materialisation import ScopeResult
+from usf_factory.models import Obligation, ObligationGraph, SemanticSnapshot
+from usf_factory.packet_compiler import compile_packets
+from usf_factory.programme_state import classify_remediation, parse_programme_obligations
+from usf_factory.run_authorization import (
+    RunAuthorization,
+    load_run_authorization,
+    write_run_authorization,
+)
+
+FUTURE = "2999-01-01T00:00:00Z"
+PAST = "2000-01-01T00:00:00Z"
+
+
+# --- §1 classification ------------------------------------------------------ #
+
+
+@pytest.mark.unit
+def test_classify_remediation_exact_mapping():
+    assert (
+        classify_remediation("missing-current-passing-validation")
+        is RemediationKind.VALIDATION_EVIDENCE
+    )
+    assert classify_remediation("missing-validation") is RemediationKind.VALIDATION_EVIDENCE
+    assert classify_remediation("missing-successful-proof") is RemediationKind.PROOF_EVIDENCE
+    assert classify_remediation("missing-proof") is RemediationKind.PROOF_EVIDENCE
+    assert classify_remediation("missing-constraint") is RemediationKind.SOURCE_CHANGE
+    assert classify_remediation("missing-shape") is RemediationKind.SOURCE_CHANGE
+    assert classify_remediation("shacl-violation") is RemediationKind.SOURCE_CHANGE
+    # Unknown → ANALYSIS_ONLY; explicit human-decision marker → HUMAN_DECISION.
+    assert classify_remediation("something-new") is RemediationKind.ANALYSIS_ONLY
+    assert (
+        classify_remediation("missing-shape", human_decision=True) is RemediationKind.HUMAN_DECISION
+    )
+
+
+@pytest.mark.unit
+def test_missing_current_passing_validation_is_not_sparql_authoring():
+    wp = {"gaps": [{"type": "missing-current-passing-validation", "subject": "urn:usf:vo"}]}
+    obls = parse_programme_obligations({}, wp)
+    assert obls[0]["remediation_kind"] == "VALIDATION_EVIDENCE"
+    assert obls[0]["task_class"] == "semantic-planning"
+    assert obls[0]["task_class"] != "sparql-authoring"
+
+
+@pytest.mark.unit
+def test_source_change_gap_keeps_editing_task_class():
+    wp = {"gaps": [{"type": "shacl-violation", "subject": "urn:usf:shape"}]}
+    obls = parse_programme_obligations({}, wp)
+    assert obls[0]["remediation_kind"] == "SOURCE_CHANGE"
+    assert obls[0]["task_class"] == "shacl-repair"
+
+
+# --- §1 write-scope gate ---------------------------------------------------- #
+
+
+class _ContractIndex:
+    """Minimal snapshot-bound contract with a verified owner for every subject."""
+
+    snapshot_bound = True
+    source_digest = "sha256:" + "0" * 64
+
+    def __init__(self, head: str) -> None:
+        self.source_commit = head
+
+    def derive_scope(self, subjects: list[str], *, authorize_writes: bool = False) -> ScopeResult:
+        return ScopeResult(
+            read_paths=["semantic-model/x.trig"],
+            write_paths=["semantic-model/x.trig"] if authorize_writes else [],
+            validation_profiles=["syntax-parse"],
+        )
+
+
+def _graph(kind: RemediationKind) -> ObligationGraph:
+    return ObligationGraph(
+        snapshot_id="s",
+        obligations=[
+            Obligation(
+                id="o",
+                root_cause="rc",
+                task_class="shacl-repair",
+                remediation_kind=kind,
+                semantic_subjects=["urn:usf:x"],
+                acceptance_criteria=["ok"],
+            )
+        ],
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "kind,expect_write",
+    [
+        (RemediationKind.SOURCE_CHANGE, True),
+        (RemediationKind.VALIDATION_EVIDENCE, False),
+        (RemediationKind.PROOF_EVIDENCE, False),
+        (RemediationKind.ANALYSIS_ONLY, False),
+        (RemediationKind.HUMAN_DECISION, False),
+    ],
+)
+def test_only_source_change_gets_write_scope(kind, expect_write):
+    cfg = load_config()
+    snap = SemanticSnapshot(authority_digest="a", repository_head="h", working_tree_digest="w")
+    pset, findings = compile_packets(
+        _graph(kind), snap, cfg.task_classes, materialisation_index=_ContractIndex("h")
+    )
+    pkt = next(p for p in pset.packets if p.obligation_id == "o")
+    assert pkt.remediation_kind is kind
+    if expect_write:
+        assert pkt.write_paths == ["semantic-model/x.trig"]
+    else:
+        assert pkt.write_paths == []
+        assert any("read-only" in f for f in findings)
+
+
+# --- RunAuthorization ------------------------------------------------------- #
+
+
+def _auth(**over) -> RunAuthorization:
+    base = dict(
+        authorization_id="run-1",
+        issued_at="2026-07-21T00:00:00Z",
+        expires_at=FUTURE,
+        repositories=["maldous/usf-factory", "maldous/usf-graph"],
+        authority_database="USF",
+        permitted_actions=[ProtectedAction.PUSH_PR, ProtectedAction.STARDOG_PUBLICATION],
+    )
+    base.update(over)
+    return RunAuthorization(**base)
+
+
+@pytest.mark.unit
+def test_run_authorization_roundtrip_and_digest(tmp_path: Path):
+    a = _auth()
+    p = tmp_path / "auth.json"
+    digest = write_run_authorization(a, p)
+    assert (p.stat().st_mode & 0o777) == 0o600
+    loaded = load_run_authorization(p)
+    assert loaded.digest() == digest == a.digest()
+    assert loaded.authorization_id == "run-1"
+
+
+@pytest.mark.unit
+def test_run_authorization_permits_only_listed_and_unexpired():
+    a = _auth()
+    assert a.permits_action(ProtectedAction.PUSH_PR, now="2026-07-22T00:00:00Z")
+    assert a.permits_action(ProtectedAction.STARDOG_PUBLICATION, now="2026-07-22T00:00:00Z")
+    # Not listed → refused.
+    assert not a.permits_action(ProtectedAction.TERMINAL_COMPLETION, now="2026-07-22T00:00:00Z")
+    # Expired → nothing permitted.
+    expired = _auth(expires_at=PAST)
+    assert not expired.permits_action(ProtectedAction.PUSH_PR, now="2026-07-22T00:00:00Z")
+
+
+@pytest.mark.unit
+def test_run_authorization_risk_and_paid_budget():
+    a = _auth()
+    assert a.permits_risk(Risk.LOW) and a.permits_risk(Risk.MEDIUM)
+    assert not a.permits_risk(Risk.HIGH) and not a.permits_risk(Risk.PROTECTED)
+    # USD 0 budget ⇒ paid inference never allowed even if the action were listed.
+    paid = _auth(permitted_actions=[ProtectedAction.PAID_INFERENCE], paid_api_budget_usd=0.0)
+    assert not paid.paid_inference_allowed()
+
+
+@pytest.mark.adversarial
+def test_run_authorization_rejects_insecure_file(tmp_path: Path):
+    p = tmp_path / "auth.json"
+    p.write_text(json.dumps(_auth().content_dict()), encoding="utf-8")
+    os.chmod(p, 0o644)  # group/other readable → must be refused
+    with pytest.raises(RunAuthorizationError):
+        load_run_authorization(p)
+
+
+@pytest.mark.adversarial
+def test_run_authorization_rejects_symlink(tmp_path: Path):
+    real = tmp_path / "real.json"
+    write_run_authorization(_auth(), real)
+    link = tmp_path / "link.json"
+    link.symlink_to(real)
+    with pytest.raises(RunAuthorizationError):
+        load_run_authorization(link)
+
+
+@pytest.mark.unit
+def test_context_action_effective_requires_authorization(ctx):
+    # No authorization ⇒ no protected action is effective, even though the
+    # capability may exist in code.
+    assert ctx.run_authorization is None
+    assert not ctx.is_action_effective(ProtectedAction.PUSH_PR)
+    ctx.run_authorization = _auth()
+    assert ctx.is_action_effective(ProtectedAction.PUSH_PR)
+    assert ctx.is_action_effective(ProtectedAction.STARDOG_PUBLICATION)
+    assert not ctx.is_action_effective(ProtectedAction.TERMINAL_COMPLETION)
+    # Committed safety.yaml gate stays false regardless (per-run enabler is the
+    # RunAuthorization, not the persistent gate).
+    assert not ctx.is_gate_enabled(ProtectedAction.PUSH_PR)

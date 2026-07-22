@@ -178,6 +178,20 @@ class PacketResultStatus(StrEnum):
     HUMAN_DECISION_REQUIRED = "HUMAN_DECISION_REQUIRED"
 
 
+class RemediationKind(StrEnum):
+    """The correct remediation lifecycle for an authority gap (build task §1).
+
+    Only ``SOURCE_CHANGE`` may ever be granted repository write scope; every other
+    kind is read-only with respect to the governed source it validates/analyses.
+    """
+
+    ANALYSIS_ONLY = "ANALYSIS_ONLY"
+    VALIDATION_EVIDENCE = "VALIDATION_EVIDENCE"
+    PROOF_EVIDENCE = "PROOF_EVIDENCE"
+    SOURCE_CHANGE = "SOURCE_CHANGE"
+    HUMAN_DECISION = "HUMAN_DECISION"
+
+
 class ProbeKind(StrEnum):
     """The ten mechanical probes (build task §8.1)."""
 

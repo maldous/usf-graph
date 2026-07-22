@@ -31,6 +31,7 @@ from .enums import (
     PacketResultStatus,
     PrivacyClass,
     ProbeKind,
+    RemediationKind,
     Risk,
 )
 
@@ -525,6 +526,7 @@ class Obligation(FactoryModel):
     acceptance_criteria: list[str] = Field(default_factory=list)
     risk: Risk = Risk.MEDIUM
     task_class: str = "unknown"
+    remediation_kind: RemediationKind = RemediationKind.ANALYSIS_ONLY
     suggested_read_scope: list[str] = Field(default_factory=list)
     suggested_write_scope: list[str] = Field(default_factory=list)
     uncertainties: list[str] = Field(default_factory=list)
@@ -570,6 +572,7 @@ class Packet(FactoryModel):
     objective: str
     task_class: str
     risk: Risk = Risk.MEDIUM
+    remediation_kind: RemediationKind = RemediationKind.ANALYSIS_ONLY
     semantic_subjects: list[str] = Field(default_factory=list)
     read_paths: list[str] = Field(default_factory=list)
     write_paths: list[str] = Field(default_factory=list)

@@ -21,6 +21,7 @@ from .errors import ProtectedActionError
 from .event_store import Store, open_store
 from .models import Event
 from .paths import FactoryPaths, resolve_paths
+from .run_authorization import RunAuthorization
 
 
 @dataclass
@@ -30,6 +31,8 @@ class RuntimeContext:
     store: Store
     env_file: Path
     usf_repo: Path = _paths.USF_REPO
+    # Per-run operator grant. None ⇒ no protected action is effective this run.
+    run_authorization: RunAuthorization | None = None
 
     # ---- credentials (names only unless writing) ------------------------ #
 
@@ -78,6 +81,28 @@ class RuntimeContext:
             raise ProtectedActionError(
                 f"protected action '{action.value}' is disabled by default; "
                 f"enable it explicitly in config/safety.yaml"
+            )
+
+    # ---- per-run effective authorization -------------------------------- #
+
+    def is_action_effective(self, action: ProtectedAction) -> bool:
+        """True only when a live RunAuthorization explicitly permits ``action``.
+
+        This is the per-run enabler required for any irreversible side effect
+        (push/PR/merge/publish/terminal). Committed gates in ``config/safety.yaml``
+        stay ``false`` by default; a protected action becomes effective for the
+        current run only through an unexpired operator RunAuthorization that names
+        it. The capability must also be built (the caller only reaches this check
+        when the code path exists).
+        """
+        auth = self.run_authorization
+        return auth is not None and auth.permits_action(action)
+
+    def require_effective(self, action: ProtectedAction) -> None:
+        if not self.is_action_effective(action):
+            raise ProtectedActionError(
+                f"protected action '{action.value}' is not authorised for this run "
+                f"(no RunAuthorization permits it, or it has expired)"
             )
 
     # ---- events --------------------------------------------------------- #

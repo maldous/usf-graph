@@ -9,6 +9,7 @@ import subprocess
 import pytest
 
 from usf_factory.config import load_config
+from usf_factory.enums import RemediationKind
 from usf_factory.materialisation import build_index, build_index_at
 from usf_factory.models import Obligation, ObligationGraph, SemanticSnapshot
 from usf_factory.ownership import record_operator_approval, verify_index
@@ -174,6 +175,7 @@ def test_semantic_write_scope_requires_verified_owner(ctx, git_repo):
                 id="o1",
                 root_cause="fix gadget",
                 task_class="shacl-repair",
+                remediation_kind=RemediationKind.SOURCE_CHANGE,
                 semantic_subjects=["https://ex/ns#Gadget"],
                 suggested_write_scope=["whatever/the/planner/wants.py"],  # ignored
                 acceptance_criteria=["ok"],
