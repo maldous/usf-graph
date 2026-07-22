@@ -44,6 +44,9 @@ _RECORD_TABLES: dict[str, list[str]] = {
     # One coverage row per provider per evaluation run; the active role roster.
     "provider_evaluations": ["provider_id", "eval_suite_version"],
     "role_rosters": [],
+    # Dynamic evidence-based workforce snapshot (bounded cache of eligible
+    # profiles; TTL + digest staleness) — replaces the fixed-primary roster.
+    "workforce_snapshots": ["policy_digest", "config_digest"],
     # Demonstrated (observed) adapter capabilities, e.g. bounded_patch_synthesis
     # proven by a real git-derived patch; and per-profile runtime metrics.
     "capability_observations": ["provider_id", "capability"],
