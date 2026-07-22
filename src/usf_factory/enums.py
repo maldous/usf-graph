@@ -178,6 +178,19 @@ class PacketResultStatus(StrEnum):
     HUMAN_DECISION_REQUIRED = "HUMAN_DECISION_REQUIRED"
 
 
+class InferenceMode(StrEnum):
+    """The inference class of a candidate transport — an operator-excludable axis.
+
+    Never a provider identity: a provider/model is classified into one of these
+    from its transport + pricing evidence, and the WorkforcePolicy gates each
+    class independently (allow_local/free/subscription/paid)."""
+
+    LOCAL = "local"
+    FREE = "free"
+    SUBSCRIPTION = "subscription"
+    PAID = "paid"
+
+
 class RemediationKind(StrEnum):
     """The correct remediation lifecycle for an authority gap (build task §1).
 
