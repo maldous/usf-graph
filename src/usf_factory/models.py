@@ -635,6 +635,12 @@ class RoutingCandidate(FactoryModel):
     exclusion_reasons: list[str] = Field(default_factory=list)
     score: float = 0.0
     score_breakdown: dict[str, float] = Field(default_factory=dict)
+    provider_id: str = ""
+    family: str = ""
+    inference_mode: str = ""
+    utility: float = 0.0
+    posterior: float = 0.0  # Beta-Bernoulli sample (adaptive draw)
+    probability: float = 0.0  # normalized selection probability
 
 
 class RoutingDecision(FactoryModel):
@@ -642,9 +648,16 @@ class RoutingDecision(FactoryModel):
     task_class: str
     role: AdmissionRole
     selected_profile_id: str | None = None
-    selection_kind: str = "exploit"  # exploit | second_tier | explore | none
+    selection_kind: str = "exploit"  # exploit | adaptive | deterministic-replay | none
+    routing_mode: str = "adaptive"
     candidates: list[RoutingCandidate] = Field(default_factory=list)
-    seed: str = ""
+    # A FRESH cryptographic dispatch seed (never derived from packet/snapshot
+    # identity); a decision replays exactly from this recorded seed.
+    run_seed: str = ""
+    seed: str = ""  # retained for back-compat with the legacy scheduler
+    policy_digest: str = ""
+    snapshot_id: str = ""
+    risk: str = ""
     decided_at: str = ""
 
     _volatile_fields = frozenset({"decided_at"})

@@ -51,6 +51,8 @@ class WorkforceProfile(FactoryModel):
     qualification_score: float = 0.0
     semantic_rule_fidelity: float = 0.0
     accepted_success: float = 0.0
+    accepted_count: int = 0
+    rejected_count: int = 0
     uncached_per_accepted: float = 0.0
     cache_reuse: float = 0.0
     latency_ms: float = 0.0
@@ -108,6 +110,12 @@ def _build_profile(
     cap = _profile_capabilities(ctx, profile)
     metrics = _profile_metrics(ctx, profile.profile_id)
     sem = _semantic_scores(ctx, profile.provider_id)
+    try:
+        metric_rows = ctx.store.records("profile_metrics", "agent_profile_id=?", (profile.profile_id,))
+    except Exception:
+        metric_rows = []
+    accepted_count = sum(int(r.get("accepted") or 0) for r in metric_rows)
+    rejected_count = sum(int(r.get("rejected") or 0) for r in metric_rows)
     providers = ctx.config.providers.by_id()
     pcfg = providers.get(profile.provider_id)
     transports = ["plain_invoke"]
@@ -131,6 +139,8 @@ def _build_profile(
         admitted_roles=sorted(roles),
         semantic_rule_fidelity=float(sem.get("semantic_rule_fidelity", 0.0)),
         accepted_success=float(metrics.get("accepted_success", 0.0)),
+        accepted_count=accepted_count,
+        rejected_count=rejected_count,
         uncached_per_accepted=float(metrics.get("uncached_per_accepted", 0.0)),
         cache_reuse=float(metrics.get("cache_reuse", 0.0)),
         latency_ms=float(metrics.get("latency_ms", 0.0)),
