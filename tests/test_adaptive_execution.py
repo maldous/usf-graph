@@ -14,13 +14,14 @@ from usf_factory.adaptive_execution import (
     WorkloadIdentity,
     choose_operating_point,
     compare_strategies,
+    workload_identity,
 )
 from usf_factory.canonical import content_digest
 from usf_factory.config import load_config
 from usf_factory.engine import FactoryEngine
-from usf_factory.enums import AuthMode, Risk, RunMode
+from usf_factory.enums import AuthMode, PacketResultStatus, Risk, RunMode
 from usf_factory.event_store import open_store
-from usf_factory.models import AgentProfile, Packet, PacketSet
+from usf_factory.models import AgentProfile, Packet, PacketResult, PacketSet
 
 HEALTHY = ResourceSnapshot()
 
@@ -297,47 +298,95 @@ def test_validation_credit_binds_only_the_exact_successful_redraw(ctx):
 
 
 @pytest.mark.e2e
-def test_same_model_handles_distinct_packets_without_duplicate_identity(ctx):
+async def test_same_model_invocations_overlap_only_for_distinct_packets(ctx):
     controller = AdaptiveExecutionController(
         ctx.store, session_id="session", resource_sampler=lambda: HEALTHY, random_float=lambda: 0.5
     )
-    decision = content_digest({"level": 2})
-    ctx.store.put(
-        "adaptive_controller_states",
-        "session",
-        {"permitted_active": 2, "decision_digest": decision},
-        extra={"controller_session": "session"},
-    )
     packets = [_packet("first"), _packet("second")]
+    agent = _agent()
+    identity = workload_identity(packets[0], agent, HEALTHY)
+    for level in (1, 2):
+        observation = {
+            **_observation(level),
+            "workload_key": identity.key,
+            "provider_id": agent.provider_id,
+            "actual_model": agent.requested_model_id,
+            "task_class": packets[0].task_class,
+        }
+        ctx.store.put(
+            "adaptive_observations",
+            f"seed-{level}",
+            observation,
+            extra={
+                "workload_key": identity.key,
+                "provider_id": agent.provider_id,
+                "actual_model": agent.requested_model_id,
+                "task_class": packets[0].task_class,
+            },
+        )
     coordinator_token = ctx.store.acquire_lease(
         "coordinator", "coordinator", "2999-01-01T00:00:00Z"
     )
     assert coordinator_token is not None
-    admissions = []
+    claims: list[int] = []
     for index, packet in enumerate(packets):
-        run_id = f"run-{index}"
         token = ctx.store.claim_packet_fenced(
-            packet.packet_id, run_id, "coordinator", "2999-01-01T00:00:00Z"
+            packet.packet_id, f"run-{index}", "coordinator", "2999-01-01T00:00:00Z"
         )
-        admissions.append(
-            ctx.store.try_admit_invocation(
-                attempt_id=f"attempt-{index}",
-                packet_id=packet.packet_id,
-                run_id=run_id,
-                claim_token=int(token or 0),
-                coordinator_owner="coordinator",
-                coordinator_token=coordinator_token,
-                controller_session=controller.session_id,
-                workload_key="same-provider-model",
-                provider_id=_agent().provider_id,
-                permitted_active=2,
-                decision_digest=decision,
-                payload={"requested_model": _agent().requested_model_id},
-            )
+        assert token is not None
+        claims.append(token)
+
+    active_packets: set[str] = set()
+    observed_packets: set[str] = set()
+    both_started = asyncio.Event()
+    maximum_active = 0
+
+    async def invoke(index: int) -> None:
+        nonlocal maximum_active
+        packet = packets[index]
+        admission = await controller.acquire(
+            packet=packet,
+            agent=agent,
+            run_id=f"run-{index}",
+            claim_token=claims[index],
+            coordinator_owner="coordinator",
+            coordinator_token=coordinator_token,
         )
-    assert all(token is not None for token in admissions)
-    assert len({packet.packet_id for packet in packets}) == 2
-    assert ctx.store.count("adaptive_invocations", "status='active'") == 2
+        attempt_id, token, admitted_identity, decision, concurrency, queue_delay = admission
+        assert admitted_identity.provider_id == agent.provider_id
+        assert admitted_identity.requested_model == agent.requested_model_id
+        active_packets.add(packet.packet_id)
+        observed_packets.add(packet.packet_id)
+        maximum_active = max(maximum_active, len(active_packets))
+        if len(active_packets) == 2:
+            both_started.set()
+        await asyncio.wait_for(both_started.wait(), timeout=1.0)
+        result = PacketResult(
+            packet_id=packet.packet_id,
+            execution_attempt_id=attempt_id,
+            status=PacketResultStatus.COMPLETED,
+            agent_profile_id=agent.profile_id,
+            actual_provider=agent.provider_id,
+            actual_model=agent.requested_model_id,
+        )
+        controller.settle(
+            attempt_id=attempt_id,
+            admission_token=token,
+            identity=admitted_identity,
+            decision=decision,
+            active_concurrency=concurrency,
+            packet=packet,
+            result=result,
+            reason="ok",
+            queue_delay_s=queue_delay,
+            elapsed_s=0.1,
+        )
+        active_packets.remove(packet.packet_id)
+
+    await asyncio.gather(*(invoke(index) for index in range(len(packets))))
+    assert maximum_active == 2
+    assert observed_packets == {packet.packet_id for packet in packets}
+    assert ctx.store.count("adaptive_invocations", "status='active'") == 0
 
 
 @pytest.mark.adversarial
