@@ -114,6 +114,47 @@ class FailureClass(StrEnum):
     UNCERTAIN_MUTATION = "UNCERTAIN_MUTATION"
 
 
+class DispatchFailure(StrEnum):
+    """Dynamic dispatch/fallback taxonomy (dynamic workforce spec §8). Distinct
+    from FailureClass (worker attribution): this classifies why a dispatch attempt
+    could not yield an accepted result, driving redraw-vs-block."""
+
+    AUTH_FAILED = "AUTH_FAILED"
+    QUOTA_BLOCKED = "QUOTA_BLOCKED"
+    RATE_LIMITED = "RATE_LIMITED"
+    MODEL_UNAVAILABLE = "MODEL_UNAVAILABLE"
+    MODEL_REJECTED = "MODEL_REJECTED"
+    TIMEOUT = "TIMEOUT"
+    OUTPUT_INVALID = "OUTPUT_INVALID"
+    OUTPUT_BUDGET_EXCEEDED = "OUTPUT_BUDGET_EXCEEDED"
+    TRANSPORT_FAILED = "TRANSPORT_FAILED"
+    CONTAINMENT_FAILED = "CONTAINMENT_FAILED"
+    EGRESS_BLOCKED = "EGRESS_BLOCKED"
+    SEMANTIC_REJECTED = "SEMANTIC_REJECTED"
+    VALIDATION_FAILED = "VALIDATION_FAILED"
+
+
+# Dispatch failures that justify removing the candidate and REDRAWING from the
+# remaining eligible population (no side effect was committed). SEMANTIC_REJECTED
+# and VALIDATION_FAILED concern the produced result's quality, not candidate
+# availability, so they are terminal for the attempt (never a silent redraw).
+TRANSIENT_DISPATCH_FAILURES: frozenset[DispatchFailure] = frozenset(
+    {
+        DispatchFailure.AUTH_FAILED,
+        DispatchFailure.QUOTA_BLOCKED,
+        DispatchFailure.RATE_LIMITED,
+        DispatchFailure.MODEL_UNAVAILABLE,
+        DispatchFailure.TIMEOUT,
+        DispatchFailure.TRANSPORT_FAILED,
+        DispatchFailure.MODEL_REJECTED,
+        DispatchFailure.OUTPUT_INVALID,
+        DispatchFailure.OUTPUT_BUDGET_EXCEEDED,
+        DispatchFailure.CONTAINMENT_FAILED,
+        DispatchFailure.EGRESS_BLOCKED,
+    }
+)
+
+
 # Failures NOT attributable to the worker (do not penalize the worker).
 NON_WORKER_FAULTS: frozenset[FailureClass] = frozenset(
     {
