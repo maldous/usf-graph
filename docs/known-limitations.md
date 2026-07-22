@@ -1,155 +1,70 @@
-# Known limitations & nonconformance
+# Known limitations and nonclaims
 
-## Activation milestone (factory/activation-v1)
+This document describes the current `factory/activation-v1` boundary. Historical
+build reports remain useful development records but do not override this status.
 
-The activation work made the pipeline REAL and exercised it (see
-`docs/activation-report.md`): genuine mechanical probing + immutable
-qualification/admission (lfm2.5 admitted from live evidence), candidate-vs-
-verified materialisation ownership, AI planner + independent critic, substantive
-review bundle + semantic-delta + AI integrator, real rdflib/pyshacl validation,
-and the `activate` + continuous-shadow commands. Live plan-only LEARNED; a live
-shadow wave ran with the admitted local analyst.
+## Authority boundary
 
-**Remaining after activation (honest):**
+`usf-factory` is intentionally a traditional build-first orchestration system.
+It is not semantic authority and does not derive its internal implementation
+from the USF graph. At the integration boundary it must nevertheless consume the
+current graph contract exactly and fail closed on drift.
 
-- **Live semantic WRITE is not yet demonstrated.** Gated by design: needs a
-  VERIFIED materialisation owner (0 verified over `/usf` until an operator
-  approves one or the layout contract resolves), an admitted PATCH_PRODUCER + a
-  provider-diverse REVIEWER (the small local model qualified only as
-  analyst/planner/integrator), and the operator-enabled mutating gate — the
-  correct fail-closed posture, not a defect.
-- **Live USF Node/authority validation gates** (competency, negative-fixtures,
-  derived-regen, source/live drift, proof/readiness) remain env-blocked; RDF/
-  TriG/SPARQL parse + SHACL + integrity-SPARQL are now REAL (rdflib/pyshacl).
-- **External-provider sweep** (OpenRouter free router, zero-price models,
-  Codex/Claude subscription) is implemented but was not exhaustively run in the
-  0-USD local-only first assessment.
-- **Context bundles (Phase 12):** ReviewContextBundle implemented with token
-  accounting; dedicated Planner/Packet/Integration bundles + full per-obligation
-  metrics remain partial.
-- **Per-provider rate limiting / UCB-Thompson exploration (Phase 6):**
-  concurrency is bounded by a semaphore and health/quota are honoured; explicit
-  per-provider rate limiters + bandit exploration remain partial.
+A factory validation run creates a `FactoryValidationReceipt`. The receipt is an
+operational observation, not admitted `usf:ValidationEvidence`, and cannot close
+a graph obligation. The factory can transport independently produced,
+content-addressed authority evidence through `AuthorityEvidenceTransport`; the
+graph compiler, validate-and-rollback, transactional publication and
+post-publication drift/work-plan checks remain authoritative.
 
-## Second post-merge review: P0 hotfix AND P1 wave are applied on `main`
+The repository-external artefact-materialisation validation obligation currently
+has no genuine authority-evidence producer. Its semantic intent is preserved in
+`usf-graph`, but it must remain explicitly deferred rather than becoming
+actionable work until that producer and admission lifecycle exist.
 
-P0 (source classification/egress recheck, fail-closed rejected results, durable
-read-only evidence, no-green-skip validation, broker hardening) and the P1 wave
-are both implemented and tested:
+## Protected delivery
 
-1. **Materialisation write contract** — semantic packets take write scope ONLY
-   from a snapshot-bound contract (`build_index_at(mirror, snapshot.repository_head)`,
-   verified owners only; planner write suggestions are ignored with a finding);
-   non-semantic classes need explicit `planner_write_scope_allowed` in
-   task-classes.yaml; the index digest is bound into every packet.
-2. **Admission workflow** — `models probe/qualify <provider/model>` persist the
-   AgentProfile (adapter/auth from providers.yaml); `models admit` recomputes
-   roles from stored qualification evidence (explicit grants need
-   `--operator-override` and are recorded); `models profiles` inventories. A
-   gated qualify persists NO evidence.
-3. **Routing facts** — candidates use catalogue context/pricing, recorded
-   provider health (unrecorded ⇒ DEGRADED, never fabricated HEALTHY), adapter
-   capability for tools (never `*`), and an honest paid-model quota rule;
-   dispatch reserves the catalogue-derived estimate, commits usage-derived
-   actual cost, and releases reservations on failure.
-4. **Attribution** — the tool loop records the provider-REPORTED routed model +
-   tokens per turn; `PacketResult.usage` carries actual_models /
-   actual_model_verified / token counts / wall time; an unreported model is
-   explicitly UNVERIFIED, never silently equated with the request.
-5. **Packet claim heartbeats** — claims are renewed during execution
-   (`renew_claim`, holder-fenced); renewal failure cancels the worker
-   immediately; the packet wall-clock budget is a hard timeout; the initial
-   coordinator lease covers the synchronous preflight phase.
-6. **Substantive review** — EVERY wave patch requires a real reviewer unless
-   all selected packets are explicitly low-risk mechanical; no reviewer ⇒
-   BLOCKED, reviewer rejection ⇒ BLOCKED; the production factory only yields a
-   reviewer holding an ADMITTED reviewer role.
+Protected actions are disabled by committed defaults. Enabling them requires a
+current `RunAuthorization` whose repository, authority database, risk, action
+and quota scopes all match. The delivery coordinator binds accepted diff,
+review/validation receipts, policy, workforce, authorization and obligation set
+into one identity. It uses exact PR heads and required checks and re-pins the
+authority immediately before publication.
 
-## Remaining open items
+Cycle transitions and external-effect intents are durable. An ambiguous push,
+PR operation, merge or publication is reconciled from exact CAS-bound input and
+remote state before retry; unavailable reconciliation blocks.
 
-- **Live execution still ENVIRONMENT_BLOCKED** here (no reachable model,
-  namespaces unavailable); billable inference disabled by policy.
-- **Reviewer provider-diversity** is chosen by the production factory but not
-  yet enforced against the wave authors' providers at the engine level.
-- **Latency facts** in ranking still default (no recorded per-provider latency
-  yet); packet-level cost estimates use a fixed token heuristic.
-- **verify.sh is an operator process, not independent CI evidence**: hardened
-  (commit-bound receipt, `--attest`, known-secret-value scan, shellcheck), but
-  dependency-hash pinning, vulnerability audit, and a self-hosted runner /
-  pre-receive gate remain open.
-- **Strict per-transition CAS** on the event store remains planned.
+The driver contracts and adverse outcomes are tested with disposable fakes and
+the real `usf-graph` CLI schema. A live protected merge/publication against the
+production GitHub repository or live Stardog is intentionally not part of the
+test suite and is not claimed.
 
-> **Update (branch `factory/complete-runtime-v1`, v0.2.0):** the runtime was
-> substantially completed — routing-driven execution (no more `DryRunWorker`),
-> brokered mutation with orchestrator-derived diffs, a materialisation index,
-> coordinator heartbeat + fencing, real validation runners, budget ledger, and
-> functional probe/qualify self-checks. The authoritative per-capability status
-> is now **`docs/completion-report.md`**. Live mutating execution and native-CLI
-> sandboxing remain **ENVIRONMENT_BLOCKED** in this chroot (no local model,
-> namespaces unavailable); all protected actions stay disabled by default. The
-> table below is retained as the prior baseline.
+## Remaining release limitations
 
+- `scripts/verify.sh --attest` is a local, commit-bound attestation rather than
+  an independent required GitHub check. A merge-capable run must still observe
+  at least one external required check on the exact reviewed head.
+- Dependency versions are locked, but the Python lock does not yet carry hashes
+  for every transitive artifact and no independent vulnerability attestation is
+  bundled.
+- Namespace-based filesystem and network confinement is unavailable in the
+  present chroot. Privilege reduction, sanitized environments, scopes, rlimits
+  and no-new-privileges remain enforced; mutation should stay disabled on hosts
+  without the required containment capability.
+- Some graph-specific assurance gates require the repository-local Node/compiler
+  toolchain. When unavailable they fail closed; local Python SHACL or integrity
+  results are never promoted as authority proof.
+- External-provider qualification and billable routing are policy- and
+  credential-dependent and have not been exhaustively exercised in this branch.
+- A factory receipt corroborates executed bytes only. It does not establish
+  evidence admission, semantic proof, contract closure or production readiness.
 
-This document records, honestly, the gap between **current reality** and the
-**target** semantic factory, incorporating an external adversarial review. It is
-the authoritative status source; `BUILD_REPORT.md` summarizes it.
+## Safe current use
 
-## What this is today
-
-> A safe, replayable control-plane for the USF Semantic Factory with the full
-> live path (agent runtime, OS sandbox, durable leases/fencing, real
-> integration, programme-state planning) **implemented and tested but gated
-> off**. Default operation remains non-mutating (observe / plan-only).
-
-The mutating/autonomous path stays **disabled by default**. In particular, note
-the environment caveat below: namespace-based filesystem/network isolation is not
-available in this chroot, so mutation should remain disabled here even though the
-code paths exist. Do not enable any of these without an operator decision:
-
-```yaml
-autonomous_safe_enabled: true
-allow_source_egress: true
-allow_main_integration: true
-allow_stardog_publication: true
-allow_terminal_completion: true
-```
-
-## Review findings — status
-
-Fixed = corrected with a regression test in this repository. Partial = a bounded
-mitigation landed; the full item remains. Planned = design is present but the
-live implementation is a larger workstream.
-
-| # | Finding | Status |
-| --- | --- | --- |
-| P0-2 | Snapshot could fail *open* (synthesized authority digest) | **Fixed** — `snapshots.compile_snapshot` fails closed: no synthesized digest, health must be ok, required tools must be present, triple/graph counts required. Engine BLOCKs on `SnapshotError`. |
-| P0-3 | Malformed/unknown model result could become `COMPLETED` | **Fixed** — strict JSON parse (no regex recovery), strict schema (`additionalProperties:false`), unknown/missing status → `FAILED`, mutating packet requires a real patch; worker patches stored in CAS. |
-| P0-4 | Adapter derived model id from opaque `agent_profile_id` | **Fixed** — `AgentRequest` carries explicit `provider_id`/`requested_model_id`/`adapter_id`; adapters refuse an `agent-…` id and validate provider match. |
-| P0-9 | Packet compiler could select an unknown-task-class packet | **Fixed** — unknown task classes are excluded from selection. Full subject→file/shape/test mapping remains **Planned** (until then, live obligations compile to read-only packets, so there is no accidental mutation). |
-| P0-11 | Qualification ignored missing answers | **Fixed** — every suite case counts; a missing answer scores 0. |
-| P0-12 | "Hidden" holdout committed in repo | **Partial** — holdout dir is overridable; committed holdout treated as examples and rotated. True private holdout store is **Planned**. |
-| P0-13 | Roles were a linear hierarchy (write escalation) | **Fixed** — roles are orthogonal; only `READ_ONLY_ANALYST` is implied by any admitted role. |
-| P0-7 | Broad env inheritance to CLI subprocesses | **Fixed** — CLI adapters and the sandbox runner run with a sanitized, secret-free env. (Relocating `/root/.env` itself remains a deploy choice; the build task mandated `/root/.env`.) |
-| P0-1 | Plan derived from a fixture, not current USF work | **Fixed** — `ProgrammePlanner` + `parse_programme_obligations` derive obligations deterministically from live MCP work-plan/bootstrap contents; snapshot carries `programme_obligations`, `checkpoint_present`, `ledger_present`. Fixtures are test-only. |
-| P0-5 | No functional agent execution runtime | **Fixed** — bounded tool broker + tool-call loop (`agent_runtime.py`); real gated Codex (`codex exec --json`) / Claude (`--print --output-format json`) adapters and OpenAI tools chat; tested via stubs/fakes. |
-| P0-6 | "Sandbox" is a string checker, not OS isolation | **Fixed (within environment limits)** — `sandbox_runtime.py` enforces via the OS: privilege-drop to `nobody` (blocks reading 0600 `/root/.env` and writing root-owned `/usf` — proven in the escape suite), rlimits, no-new-privs, process-group timeout, sanitized env. **Environment caveat:** user namespaces are blocked and `bwrap` is absent here, so filesystem confinement of *world-readable* files and per-process network isolation are NOT enforced (reported by `capabilities()`); a namespace wrapper engages automatically if one becomes available. The string checker is now a pre-flight check only. |
-| P0-8 | Durable state not durable/atomic enough | **Fixed** — fencing tokens, coordinator + packet leases with heartbeat/expiry, crash reconciler (reap + fence), ULID cycle ids, CAS fsync + read-back integrity, `synchronous=FULL`, busy-timeout, foreign keys. |
-| P0-10 | Integration cannot produce a correct wave patch | **Fixed** — patches stored in CAS; integration clone checks out the exact base, applies with `git apply --index`, and derives the combined diff + changed paths from ACTUAL git output. |
-
-P1 items — **Implemented (gated where applicable):** concurrency execution
-(bounded semaphore), per-provider egress policy, provider-specific catalogue
-normalizer (OpenRouter `supported_parameters`/pricing/context) + **native
-Anthropic adapter** (`/v1/messages`), calibrated learning (immutable raw
-observations + Beta-Bernoulli estimate), operational controls (`maintenance
-backup`/`gc`, CAS GC, online backup), and a **prepare-only** PR/publication
-delivery handshake (`delivery.py`, gated; never pushes). Live health/quota/cost
-feeding into scheduling and Thompson/UCB routing remain **Planned**.
-
-## Overstated documentation, corrected
-
-- The event log records **phase transitions and side-effect boundaries**; strict
-  per-transition compare-and-swap with fencing tokens is **Planned** (P0-8), not
-  yet implemented. Earlier "persisted before and after every side effect" wording
-  described the target, not current reality.
-- Content ids use a 16-hex (64-bit) display prefix; the full SHA-256 as the sole
-  durable identity is a P2 improvement.
+Read-only observation, planning, qualification and isolated dry-run execution
+are appropriate. Protected delivery is suitable only with an explicit bounded
+authorization, exact current graph bindings, complete required checks and all
+fail-closed gates passing. This branch must not be described as autonomous
+production-ready until the full clean-clone attestation and cross-repository
+scenarios pass.

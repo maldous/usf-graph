@@ -18,7 +18,9 @@ Locations are overridable via `USF_FACTORY_STATE`, `USF_FACTORY_CACHE`,
 ## Replay model
 
 - The `events` table is **append-only** and is the source of truth for history.
-- A state transition is persisted **before and after** every side effect.
+- Every cycle transition is persisted as it occurs. Protected external side
+  effects additionally persist an `UNCERTAIN_SIDE_EFFECT` intent before the
+  driver is invoked and clear it only after an exact result is recorded.
 - Durable artifacts are **content-addressed**, so a cycle replays to identical
   ids for identical inputs.
 - `usf-factory replay <cycle-id>` prints the event log for a cycle.
@@ -31,7 +33,11 @@ Locations are overridable via `USF_FACTORY_STATE`, `USF_FACTORY_CACHE`,
   COMPLETE/FAILED/LEARNED) and reports `recoveredFrom`;
 - re-establishes the mirror via a read-only fetch from `/usf`;
 - verifies **no factory worktrees** exist under `/usf/.git/worktrees`;
-- blocks (does not auto-retry) on an uncertain mutation.
+- reconstructs protected-delivery input from integrity-verified CAS bytes and
+  reconciles an uncertain push, PR creation/readiness, merge or publication
+  against the remote system before allowing any retry;
+- blocks when exact reconciliation is unavailable or the authorization binding
+  has changed.
 
 Worktrees are **ephemeral execution storage only** — ownership lives in the state
 store, never in a worktree. A crashed cycle's disposable clones can be deleted
@@ -39,8 +45,10 @@ safely; the claim authority (`packet_claims`) prevents double dispatch.
 
 ## Uncertain mutations
 
-An `UNCERTAIN_MUTATION` result is **never** automatically retried
-(`result_validation`). The cycle records it and blocks for operator attention.
+An agent result classified `UNCERTAIN_MUTATION` is **never** automatically
+retried (`result_validation`). A coordinator-owned protected-delivery intent is
+different: preflight may reconcile it from exact persisted input and observed
+remote state, but never repeats the side effect while its outcome is ambiguous.
 
 ## No-progress handling
 

@@ -1,5 +1,13 @@
 # Launch-Readiness Report
 
+> **Superseding validation-boundary correction:** this report records a
+> historical run. Subsequent cross-repository review established that a
+> factory validation receipt is operational provenance, not admitted
+> `usf:ValidationEvidence`. The repository-external-materialisation validation
+> obligation is retained but deferred until an authority-grade producer and
+> admission path exist. The factory must not turn contract obligation inventory
+> into work without an actionable `usf_work_plan` gap.
+
 Rapid launch-readiness correction pass. All twelve confirmed blockers are fixed
 and covered by focused tests; the production factory now processes a real USF
 semantic packet, executes it in shadow with cache-efficient tokens, and the
@@ -45,16 +53,23 @@ every protected gate stays false.
      Source-bearing roles (producer/analyst/integrator) route to the **source-contained** provider (Claude); the reviewer is a **provider-diverse** uncontained provider (Codex) that only judges a bounded diff. `minimum_shadow_ok=True, minimum_candidate_ok=True`.
 3. Live plan-only cycle → **1 authority-derived packet** selected (obligation `missing-current-passing-validation:urn:usf:validationobligation:repositoryexternalartefactmaterialisation`), state LEARNED, no blockers.
 4. Live shadow `--shadow-packets 1` → **cyc-01KY2NN4MJE7BYDZ2WHRNGGETW**, state **LEARNED**, exactly **1 dispatched, 1 accepted**.
-5. **Accepted durable evidence** — Claude (`claude-opus-4-8`, verified) produced a real, source-grounded read-only finding (CAS `cas:sha256:f9d661ce…`): it read the authorized contract source, confirmed the gap, identified the canonical owner (`semantic-model/contracts/materialisation.trig`), and concluded the closure is **evidentiary** (admit a current passing validation receipt), not a source mutation.
+5. **Accepted factory finding** — Claude (`claude-opus-4-8`, verified) produced a source-grounded read-only finding (CAS `cas:sha256:f9d661ce…`). It was valid diagnostic output, but its proposed passing receipt was not authority-grade evidence and could not close the obligation.
 6. **Token/cache metrics captured + influencing routing**: input 12331 (cached **12329**, uncached **2**), output 10157 — the stable rule-bundle prefix was cache-hit (cache reuse ≈ 0.9998). Context-pack digest `sha256:4fbf74b3…`, stable-prefix digest `sha256:679710a5…`.
 
 ## Candidate semantic patch — honest outcome
 
 The candidate flow (`usf-factory candidate --allow-subscription-inference --approve-source-provider claude-cli`) verified the owner, built the bounded context pack, and dispatched the mutating packet to the admitted **producer (Claude)** with an independent **reviewer (Codex)** on a different provider.
 
-**The producer correctly declined to produce a source patch.** From the authorized bounded context, Claude determined — consistent with its shadow finding — that this obligation's closure is **evidentiary** (execute the named validation and admit a passing receipt bound to the current authority digest), so **no in-scope source mutation is warranted**. It returned no effective change and the fail-closed orchestrator rejected the no-op (`WORKER_ERROR: mutating packet completed without an effective git-derived change`); the cycle BLOCKED rather than fabricating a change.
+**The producer correctly declined to fabricate authority evidence.** The bounded
+context did not provide an authority-grade producer or admission path. It
+returned no effective change and the fail-closed orchestrator rejected the
+no-op (`WORKER_ERROR: mutating packet completed without an effective git-derived
+change`); the cycle BLOCKED rather than inventing evidence.
 
-This is the correct, safe result: the sole open authority obligation does not warrant a source edit, and the no-fabrication / smallest-change rules (and the model) refuse to invent one. Consequently the strict condition "candidate patch → AWAITING_OPERATOR_DELIVERY" is **not demonstrated on the current authority state**, because demonstrating it would require fabricating an unnecessary change. The candidate-patch **mechanism** — bounded context pack, git-derived effective diff, scope/secret enforcement, false-completion rejection, independent review, halt-at-delivery — is implemented and proven by focused tests (`test_bounded_worker.py`, `test_context_and_usage.py`) and the prior milestone's live Claude+Codex fixture mutation.
+This was a safe outcome, but it did not prove evidence admission or obligation
+closure. The candidate-patch mechanism remains independently testable; genuine
+authority evidence must arrive through the explicit digest-verified transport
+interface and still pass canonical graph validation and publication.
 
 ## Isolation & protected-gate proof
 
