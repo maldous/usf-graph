@@ -11,8 +11,9 @@ import pytest
 
 from conftest import FakeAuthority, all_dimension_scores, seed_agent
 from usf_factory.engine import FactoryEngine
-from usf_factory.enums import AdmissionRole, CycleState, RunMode
+from usf_factory.enums import AdmissionRole, CycleState, ProtectedAction, RunMode
 from usf_factory.models import Obligation, ObligationGraph, WaveReview
+from usf_factory.run_authorization import RunAuthorization
 from usf_factory.workers import BrokeredWorker
 
 
@@ -103,6 +104,18 @@ def _usf_head(repo):
     ).stdout.strip()
 
 
+def _authorize_source_egress(ctx):
+    """Enable both halves of source egress only inside an isolated fixture."""
+    ctx.config.safety.allow_source_egress = True
+    ctx.run_authorization = RunAuthorization(
+        authorization_id="fixture-source-egress",
+        issued_at="2000-01-01T00:00:00Z",
+        expires_at="2999-01-01T00:00:00Z",
+        permitted_actions=[ProtectedAction.SOURCE_EGRESS],
+        raw_source_provider="test-provider",
+    )
+
+
 @pytest.mark.e2e
 def test_executing_mode_requires_worker_factory(ctx, tmp_usf, fake_authority_factory):
     ctx.config.safety.autonomous_safe_enabled = True
@@ -118,6 +131,7 @@ def test_approve_wave_executes_fixture_packet_end_to_end(ctx, tmp_usf):
     ctx.config.safety.autonomous_safe_enabled = True
     ctx.config.egress.source_egress_enabled = True
     ctx.config.egress.provider_overrides = {"test-provider": ["private-source"]}
+    _authorize_source_egress(ctx)
     head_before = _usf_head(tmp_usf)
 
     seed_agent(
@@ -221,9 +235,8 @@ def test_shadow_mode_executes_without_integration(ctx, tmp_usf):
 
 
 @pytest.mark.e2e
-def test_concurrency_executes_four_packets(ctx, tmp_usf):
+def test_adaptive_execution_completes_four_distinct_packets(ctx, tmp_usf):
     ctx.config.safety.autonomous_safe_enabled = True
-    ctx.config.budgets.max_concurrent_workers = 4
     seed_agent(
         ctx.store,
         roles=[AdmissionRole.READ_ONLY_ANALYST, AdmissionRole.PLANNER_CANDIDATE],
@@ -252,6 +265,7 @@ def test_concurrency_executes_four_packets(ctx, tmp_usf):
     receipt = asyncio.run(eng.run_cycle(RunMode.SHADOW))
     assert receipt.selected_packets == 4
     assert ctx.store.count("packet_results") == 4
+    assert ctx.store.count("adaptive_invocations") == 4
 
 
 @pytest.mark.e2e
@@ -259,6 +273,7 @@ def test_failed_validation_blocks_and_does_not_credit_worker(ctx, tmp_usf):
     ctx.config.safety.autonomous_safe_enabled = True
     ctx.config.egress.source_egress_enabled = True
     ctx.config.egress.provider_overrides = {"test-provider": ["private-source"]}
+    _authorize_source_egress(ctx)
     seed_agent(
         ctx.store,
         roles=[AdmissionRole.READ_ONLY_ANALYST, AdmissionRole.PATCH_PRODUCER],
@@ -368,6 +383,7 @@ def test_wave_without_reviewer_blocks(ctx, tmp_usf):
     ctx.config.safety.autonomous_safe_enabled = True
     ctx.config.egress.source_egress_enabled = True
     ctx.config.egress.provider_overrides = {"test-provider": ["private-source"]}
+    _authorize_source_egress(ctx)
     eng = _impl_engine(ctx)  # no reviewer_factory
     receipt = asyncio.run(eng.run_cycle(RunMode.APPROVE_WAVE))
     assert receipt.state is CycleState.BLOCKED
@@ -380,6 +396,7 @@ def test_reviewer_rejection_blocks(ctx, tmp_usf):
     ctx.config.safety.autonomous_safe_enabled = True
     ctx.config.egress.source_egress_enabled = True
     ctx.config.egress.provider_overrides = {"test-provider": ["private-source"]}
+    _authorize_source_egress(ctx)
     eng = _impl_engine(
         ctx, reviewer_factory=lambda: _TestReviewer(approved=False, risk_flags=["broadened scope"])
     )

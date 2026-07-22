@@ -195,3 +195,25 @@ def test_changed_file_discovery_failure_cannot_become_empty_green_set(tmp_path):
     not_a_repository.mkdir()
     passed, detail = build_runners(not_a_repository)["syntax-parse"]()
     assert passed is False and "git changed-file discovery failed" in detail
+
+
+@pytest.mark.adversarial
+def test_assurance_toolchain_change_requires_pinned_independent_verifier(clone_with):
+    from usf_factory.validation_runners import build_runners
+
+    repo = clone_with({"processes/semantic-assurance/publish.mjs": "export default 1;\n"})
+    passed, detail = build_runners(repo)["independent-trust-boundary"]()
+    assert passed is False
+    assert "pinned external verifier required" in detail
+
+
+@pytest.mark.adversarial
+def test_validation_subprocess_environment_excludes_ambient_credentials(monkeypatch):
+    monkeypatch.setenv("STARDOG_PASSWORD", "must-not-propagate")
+    monkeypatch.setenv("OPENAI_API_KEY", "must-not-propagate")
+    from usf_factory.github_delivery import restricted_subprocess_environment
+
+    env = restricted_subprocess_environment(github=False)
+    assert "STARDOG_PASSWORD" not in env
+    assert "OPENAI_API_KEY" not in env
+    assert env["GIT_CONFIG_GLOBAL"] == "/dev/null"

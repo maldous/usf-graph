@@ -115,7 +115,7 @@ def test_ranking_prefers_higher_scores():
 
 @pytest.mark.unit
 def test_high_risk_always_exploits_top_ranked():
-    s = _sched()
+    s = _sched(protected_allowed=True)
     # High-risk PATCH_PRODUCER work needs both the PATCH_PRODUCER role and
     # INTEGRATOR-tier trust (roles are orthogonal, not a hierarchy).
     roles = [AdmissionRole.PATCH_PRODUCER, AdmissionRole.INTEGRATOR]
@@ -152,7 +152,7 @@ def test_roles_are_orthogonal_no_write_escalation():
 
 @pytest.mark.unit
 def test_exploration_deterministic_and_disabled_for_high_risk():
-    s = _sched()
+    s = _sched(protected_allowed=True)
     agents = [
         _agent(
             f"a{i}",

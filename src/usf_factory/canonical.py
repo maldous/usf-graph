@@ -17,9 +17,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Any
 
 _DIGEST_PREFIX = "sha256:"
+_RAW_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_TAGGED_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 def canonical_json(value: Any) -> str:
@@ -51,6 +54,30 @@ def digest_bytes(data: bytes) -> str:
 def digest_text(text: str) -> str:
     """SHA-256 of a text string (UTF-8), prefixed with ``sha256:``."""
     return digest_bytes(text.encode("utf-8"))
+
+
+def canonical_authority_digest(value: str) -> str:
+    """Canonicalise equivalent USF MCP SHA-256 witness representations.
+
+    ``usf_bootstrap`` carries the algorithm separately and can expose only the
+    64 hexadecimal digest, while gateway projections expose ``sha256:<hex>``.
+    Only that exact, lossless representation difference is normalised; other
+    identifiers remain unchanged for their caller's fail-closed validation.
+    """
+    candidate = value.strip()
+    if _RAW_SHA256_RE.fullmatch(candidate):
+        return f"{_DIGEST_PREFIX}{candidate}"
+    if _TAGGED_SHA256_RE.fullmatch(candidate):
+        return candidate
+    return candidate
+
+
+def require_sha256_digest(value: str, field: str = "digest") -> str:
+    """Return the one canonical SHA-256 form or fail closed."""
+    candidate = canonical_authority_digest(value)
+    if not _TAGGED_SHA256_RE.fullmatch(candidate):
+        raise ValueError(f"{field} must be an exact SHA-256 digest")
+    return candidate
 
 
 def content_digest(value: Any) -> str:

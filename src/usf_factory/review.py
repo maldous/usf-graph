@@ -70,11 +70,13 @@ class ReviewContextBundle:
     max_diff_bytes: int = 60000
 
     def prompt_payload(self) -> dict[str, Any]:
-        return {
+        import json
+
+        payload = {
             "setId": self.set_id,
             "packetObjectives": self.packet_objectives,
             "acceptanceCriteria": self.acceptance_criteria,
-            "effectiveDiff": self.effective_diff[: self.max_diff_bytes],
+            "effectiveDiff": self.effective_diff,
             "semanticDelta": self.semantic_delta,
             "validationGates": self.validation_gates,
             "workerAttribution": self.worker_attribution,
@@ -82,6 +84,12 @@ class ReviewContextBundle:
             "closedObligations": self.closed_obligations,
             "uncertainties": self.uncertainties,
         }
+        if (
+            len(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode())
+            > self.max_diff_bytes
+        ):
+            raise ValueError("REVIEW_CONTEXT_LIMIT_EXCEEDED")
+        return payload
 
 
 class AiReviewer:
@@ -96,12 +104,14 @@ class AiReviewer:
         provider_id: str = "",
         model_id: str = "",
         adapter_id: str = "",
+        admission_digest: str = "",
     ) -> None:
         self._invoke = invoke
         self.agent_profile_id = agent_profile_id
         self.provider_id = provider_id
         self.model_id = model_id
         self.adapter_id = adapter_id
+        self.admission_digest = admission_digest
 
     async def review(
         self, set_id: str, wave: WavePatch | None, bundle: ReviewContextBundle | None = None
@@ -154,5 +164,8 @@ class AiReviewer:
             approved=parsed and approved and not risk_flags,
             findings=findings,
             risk_flags=risk_flags,
+            reviewer_provider_id=str(resp.actual_provider or self.provider_id),
+            reviewer_actual_model=str(resp.actual_model or ""),
+            reviewer_admission_digest=self.admission_digest,
             reviewed_at=utc_now_iso(),
         )

@@ -355,7 +355,8 @@ usf-factory env status
 
 # When ready to enable more (deliberate, gated):
 #   edit config/safety.yaml       (allow_billable, autonomous_safe_enabled, …)
-#   edit config/budgets.yaml      (billable_usd, max_concurrent_workers)
+#   edit config/budgets.yaml      (billable_usd and wall-time safety budgets;
+#                                  concurrency is runtime-observed, not configured)
 usf-factory models discover
 usf-factory models qualify --allow-billable --budget-usd 20    # opt-in, billable
 usf-factory models leaderboard --task shacl-repair --dimension shacl_sparql

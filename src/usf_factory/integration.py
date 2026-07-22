@@ -1,10 +1,9 @@
 """Wave integration (DESIGN Phase 11 / build task §15).
 
-Deterministic pre-integration runs FIRST: compatible patches are applied to a
-factory-owned integration clone; if they merge cleanly and no semantic conflict
-is detected, no AI is needed. An AI integrator is invoked ONLY when a semantic
-reconciliation cannot be resolved deterministically. Attribution between worker
-patch, integrator rewrite, and discarded change is always preserved.
+Deterministic pre-integration applies compatible patches to a factory-owned
+integration clone. The production engine blocks on semantic conflict because a
+complete independently reviewed adjudication lifecycle is not implemented. The
+experimental integrator type remains available for isolated evaluation only.
 
 Semantic compatibility is checked by IRI/subject/generated-output/path — a clean
 Git merge does not imply semantic compatibility.
@@ -18,12 +17,14 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from .attribution import compute_attribution
-from .canonical import content_digest
+from .canonical import content_digest, digest_text
 from .clock import utc_now_iso
+from .github_delivery import restricted_subprocess_environment
 from .isolation import RepoIsolation
 from .models import Attribution, IntegrationAttempt, PacketResult, WavePatch
 
 PatchFetch = Callable[[PacketResult], str]  # result -> patch text
+_INTEGRATION_ENV = restricted_subprocess_environment(github=False)
 
 
 def detect_semantic_conflicts(results: list[PacketResult]) -> list[str]:
@@ -50,24 +51,34 @@ def detect_semantic_conflicts(results: list[PacketResult]) -> list[str]:
     return conflicts
 
 
-def _git_apply_check(clone: Path, patch_text: str) -> bool:
-    proc = subprocess.run(
-        ["git", "-C", str(clone), "apply", "--check", "-"],
-        input=patch_text,
-        capture_output=True,
-        text=True,
-    )
+def _git_apply_check(clone: Path, patch_text: str, *, timeout_s: float) -> bool:
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(clone), "apply", "--check", "-"],
+            input=patch_text,
+            capture_output=True,
+            text=True,
+            env=_INTEGRATION_ENV,
+            timeout=timeout_s,
+        )
+    except subprocess.TimeoutExpired:
+        return False
     return proc.returncode == 0
 
 
-def _git_apply_index(clone: Path, patch_text: str) -> bool:
+def _git_apply_index(clone: Path, patch_text: str, *, timeout_s: float) -> bool:
     """Apply into the index AND working tree so the combined diff is capturable."""
-    proc = subprocess.run(
-        ["git", "-C", str(clone), "apply", "--index", "-"],
-        input=patch_text,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(clone), "apply", "--index", "-"],
+            input=patch_text,
+            capture_output=True,
+            text=True,
+            env=_INTEGRATION_ENV,
+            timeout=timeout_s,
+        )
+    except subprocess.TimeoutExpired:
+        return False
     return proc.returncode == 0
 
 
@@ -145,6 +156,7 @@ def deterministic_preintegrate(
     patch_fetch: PatchFetch | None = None,
     apply_patches: bool = False,
     store: Any = None,
+    max_wall_s: float = 7200.0,
 ) -> tuple[IntegrationAttempt, WavePatch | None]:
     """Attempt deterministic integration of accepted results.
 
@@ -169,8 +181,8 @@ def deterministic_preintegrate(
         return attempt, None
 
     if semantic_conflicts:
-        # Deterministic merge cannot resolve semantics; caller may invoke the
-        # gated AI integrator. We stop here in the safe runtime.
+        # Deterministic merge cannot resolve semantics. The production engine
+        # treats this as an operator-required block.
         return attempt, None
 
     if not apply_patches:
@@ -197,11 +209,19 @@ def deterministic_preintegrate(
     # Real application path (used once execution is enabled).
     # 1) clone + check out the EXACT base commit (populates worktree + index).
     clone = isolation.integration_clone(set_id, base_head)
-    co = subprocess.run(
-        ["git", "-C", str(clone), "checkout", "--force", base_head],
-        capture_output=True,
-        text=True,
-    )
+    command_timeout = max(1.0, min(float(max_wall_s), 600.0))
+    try:
+        co = subprocess.run(
+            ["git", "-C", str(clone), "checkout", "--force", base_head],
+            capture_output=True,
+            text=True,
+            env=_INTEGRATION_ENV,
+            timeout=command_timeout,
+        )
+    except subprocess.TimeoutExpired:
+        attempt.deterministic_merge_ok = False
+        attempt.semantic_conflicts.append("integration checkout wall-clock limit exceeded")
+        return attempt, None
     if co.returncode != 0:
         attempt.deterministic_merge_ok = False
         attempt.semantic_conflicts.append(
@@ -213,7 +233,10 @@ def deterministic_preintegrate(
     applied: list[PacketResult] = []
     for r in sorted(with_patches, key=lambda x: x.packet_id):
         patch = patch_fetch(r) if patch_fetch else ""
-        if not (_git_apply_check(clone, patch) and _git_apply_index(clone, patch)):
+        if not (
+            _git_apply_check(clone, patch, timeout_s=command_timeout)
+            and _git_apply_index(clone, patch, timeout_s=command_timeout)
+        ):
             attempt.deterministic_merge_ok = False
             attempt.semantic_conflicts.append(f"patch for {r.packet_id} failed to apply")
             return attempt, None
@@ -224,18 +247,26 @@ def deterministic_preintegrate(
 
     # 3) derive the ACTUAL combined diff + changed paths from git (not the model).
     diff = subprocess.run(
-        ["git", "-C", str(clone), "diff", "--cached", base_head], capture_output=True, text=True
+        ["git", "-C", str(clone), "diff", "--cached", base_head],
+        capture_output=True,
+        text=True,
+        env=_INTEGRATION_ENV,
+        timeout=command_timeout,
     ).stdout
     names = subprocess.run(
         ["git", "-C", str(clone), "diff", "--cached", "--name-only", base_head],
         capture_output=True,
         text=True,
+        env=_INTEGRATION_ENV,
+        timeout=command_timeout,
     ).stdout
     changed_paths = sorted(p for p in names.splitlines() if p.strip())
     patch_ref = store.cas_put_text(diff) if store is not None else None
     wave = WavePatch(
         set_id=set_id,
-        patch_digest=content_digest({"diff": diff}),
+        # Must equal the digest of the exact CAS bytes, not a digest of a wrapper
+        # object that the delivery verifier can never reproduce.
+        patch_digest=digest_text(diff),
         patch_ref=patch_ref,
         changed_paths=changed_paths,
         semantic_subjects=sorted({s for r in applied for s in r.semantic_subjects_changed}),

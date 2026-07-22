@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from .authority import UsfAuthorityClient
+from .canonical import require_sha256_digest
 from .context import RuntimeContext
 from .github_delivery import (
     CommandResult,
@@ -45,35 +46,90 @@ class PublishStep:
     data: dict[str, Any] = field(default_factory=dict)
 
 
-def _last_json_object(text: str) -> dict[str, Any]:
-    """Best-effort: the last balanced JSON object in ``text`` (the canonical
-    publication scripts print a JSON summary). Returns {} when none is found."""
-    depth = 0
-    end = -1
-    for i in range(len(text) - 1, -1, -1):
-        c = text[i]
-        if c == "}":
-            if depth == 0:
-                end = i
-            depth += 1
-        elif c == "{":
-            depth -= 1
-            if depth == 0 and end != -1:
-                try:
-                    return dict(json.loads(text[i : end + 1]))
-                except (ValueError, TypeError):
-                    end = -1
-    return {}
+_PUBLICATION_KEYS = {
+    "mode",
+    "ok",
+    "commitOutcome",
+    "contaminationCount",
+    "graphsCleared",
+    "authoredLoaded",
+    "shapesLoaded",
+    "evaluatedAuthorityDigest",
+    "postAuthorityDigest",
+    "postTriples",
+}
+_OUTCOME_KEYS = {
+    "state",
+    "exactCandidateStateVerified",
+    "candidateDigest",
+    "candidateGraphs",
+    "transactionClosedVerified",
+    "observedDigest",
+}
+_DRIFT_KEYS = {"command", "ok", "graphCount", "mismatched"}
+
+
+def _single_json_document(text: str) -> dict[str, Any]:
+    """Parse exactly one JSON object and reject logs, prefixes and extra objects."""
+    lines = [line for line in text.splitlines() if line.strip()]
+    if len(lines) != 1:
+        raise ValueError("PUBLICATION_OUTPUT_DOCUMENT_COUNT_INVALID")
+    try:
+        value = json.loads(lines[0])
+    except (ValueError, TypeError) as exc:
+        raise ValueError("PUBLICATION_OUTPUT_NOT_JSON") from exc
+    if not isinstance(value, dict):
+        raise ValueError("PUBLICATION_OUTPUT_NOT_OBJECT")
+    return value
+
+
+def _publication_output(text: str, mode: str) -> dict[str, Any]:
+    data = _single_json_document(text)
+    if set(data) != _PUBLICATION_KEYS or data.get("mode") != mode:
+        raise ValueError("PUBLICATION_OUTPUT_SCHEMA_V1_INVALID")
+    if not isinstance(data.get("ok"), bool) or not isinstance(data.get("contaminationCount"), int):
+        raise ValueError("PUBLICATION_OUTPUT_SCHEMA_V1_INVALID")
+    for field_name in ("graphsCleared", "authoredLoaded", "shapesLoaded"):
+        if not isinstance(data.get(field_name), int):
+            raise ValueError("PUBLICATION_OUTPUT_SCHEMA_V1_INVALID")
+    if data.get("postTriples") is not None and not isinstance(data.get("postTriples"), int):
+        raise ValueError("PUBLICATION_OUTPUT_SCHEMA_V1_INVALID")
+    outcome = data.get("commitOutcome")
+    if not isinstance(outcome, dict) or not set(outcome).issubset(_OUTCOME_KEYS):
+        raise ValueError("PUBLICATION_OUTCOME_SCHEMA_V1_INVALID")
+    data["outputSchemaVersion"] = 1
+    return data
+
+
+def _drift_output(text: str) -> dict[str, Any]:
+    data = _single_json_document(text)
+    if set(data) != _DRIFT_KEYS or data.get("command") != "drift":
+        raise ValueError("DRIFT_OUTPUT_SCHEMA_V1_INVALID")
+    if not isinstance(data.get("ok"), bool) or not isinstance(data.get("graphCount"), int):
+        raise ValueError("DRIFT_OUTPUT_SCHEMA_V1_INVALID")
+    if not isinstance(data.get("mismatched"), list) or any(
+        not isinstance(item, str) for item in data["mismatched"]
+    ):
+        raise ValueError("DRIFT_OUTPUT_SCHEMA_V1_INVALID")
+    data["outputSchemaVersion"] = 1
+    return data
 
 
 _DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 def _require_digest(value: str, field: str) -> str:
-    digest = str(value or "").strip()
-    if not _DIGEST.fullmatch(digest):
-        raise ValueError(f"{field} must be an exact sha256 digest")
-    return digest
+    try:
+        return require_sha256_digest(str(value or ""), field)
+    except ValueError as exc:
+        raise ValueError(f"{field} must be an exact sha256 digest") from exc
+
+
+def _canonical_outcome_digest(outcome: dict[str, Any], key: str) -> str:
+    try:
+        return _require_digest(str(outcome.get(key) or ""), key)
+    except ValueError:
+        return ""
 
 
 class StardogPublisher:
@@ -87,6 +143,7 @@ class StardogPublisher:
         env: dict[str, str] | None = None,
         authority_factory: Callable[[], UsfAuthorityClient] = UsfAuthorityClient,
         credential_env_file: Path = Path("/usf/.env"),
+        containment_proven: bool = False,
     ) -> None:
         self.ctx = ctx
         self.runner = runner or SubprocessRunner()
@@ -95,6 +152,10 @@ class StardogPublisher:
         self.env = dict(env) if env is not None else restricted_subprocess_environment(github=False)
         self._authority_factory = authority_factory
         self.credential_env_file = credential_env_file
+        self._containment_proven = containment_proven
+
+    def publication_containment_ready(self) -> bool:
+        return self._containment_proven
 
     def _npm(
         self,
@@ -103,7 +164,8 @@ class StardogPublisher:
         timeout: float = 1800.0,
         authority_credentials: bool = False,
     ) -> CommandResult:
-        command = ["npm", *args]
+        npm_args = ["--silent", *args] if args and args[0] == "run" else list(args)
+        command = ["npm", *npm_args]
         if authority_credentials:
             # The controlled child process, not the factory or any model, sources
             # Stardog credentials. Positional arguments avoid shell interpolation.
@@ -114,7 +176,7 @@ class StardogPublisher:
                 "usf-factory-publication",
                 str(self.credential_env_file),
                 "npm",
-                *args,
+                *npm_args,
             ]
         return self.runner.run(command, cwd=str(clone), env=self.env, timeout=timeout)
 
@@ -137,20 +199,90 @@ class StardogPublisher:
         return self.read_authority_binding()[0]
 
     def resnapshot(self) -> dict[str, Any]:
-        """Re-read health + bootstrap + work_plan through MCP for reconciliation."""
+        """Read a complete, digest-stable work plan under one database binding."""
         with self._authority_factory() as client:
+            health = client.health().json() or {}
+            bootstrap = client.bootstrap().json() or {}
+            authority = bootstrap.get("authority") or {}
+            digest = _require_digest(str(authority.get("digest") or ""), "resnapshot digest")
+            database = str(health.get("database") or "")
+            gaps: list[dict[str, Any]] = []
+            offset = 0
+            seen: set[int] = set()
+            while True:
+                if offset in seen:
+                    raise ValueError("WORK_PLAN_PAGINATION_REPEATED")
+                seen.add(offset)
+                page = client.work_plan({"offset": offset}).json() or {}
+                if page.get("schemaVersion") != 1:
+                    raise ValueError("WORK_PLAN_SCHEMA_INVALID")
+                if page.get("offset") not in {None, offset}:
+                    raise ValueError("WORK_PLAN_OFFSET_MISMATCH")
+                if (
+                    _require_digest(str(page.get("authorityDigest") or ""), "work-plan digest")
+                    != digest
+                ):
+                    raise ValueError("WORK_PLAN_AUTHORITY_MOVED")
+                page_gaps = page.get("gaps")
+                if not isinstance(page_gaps, list) or any(
+                    not isinstance(gap, dict) for gap in page_gaps
+                ):
+                    raise ValueError("WORK_PLAN_GAPS_INVALID")
+                for gap in page_gaps:
+                    identity = (str(gap.get("type") or ""), str(gap.get("subject") or ""))
+                    if not all(identity):
+                        raise ValueError("WORK_PLAN_GAP_IDENTITY_INVALID")
+                    if any(
+                        (str(existing.get("type") or ""), str(existing.get("subject") or ""))
+                        == identity
+                        for existing in gaps
+                    ):
+                        raise ValueError("WORK_PLAN_DUPLICATE_GAP_IDENTITY")
+                    gaps.append(gap)
+                if len(gaps) > 1_000:
+                    raise ValueError("WORK_PLAN_LIMIT_EXCEEDED")
+                if page.get("truncated") is not True:
+                    break
+                nxt = page.get("nextOffset")
+                if not isinstance(nxt, int) or nxt <= offset:
+                    raise ValueError("WORK_PLAN_CONTINUATION_INVALID")
+                offset = nxt
+            health_after = client.health().json() or {}
+            bootstrap_after = client.bootstrap().json() or {}
+            digest_after = _require_digest(
+                str((bootstrap_after.get("authority") or {}).get("digest") or ""),
+                "post-work-plan digest",
+            )
+            if digest_after != digest or str(health_after.get("database") or "") != database:
+                raise ValueError("AUTHORITY_BINDING_MOVED_DURING_WORK_PLAN")
             return {
-                "health": client.health().json() or {},
-                "bootstrap": client.bootstrap().json() or {},
-                "work_plan": client.work_plan().json() or {},
+                "health": health_after,
+                "bootstrap": bootstrap_after,
+                "work_plan": {
+                    "schemaVersion": 1,
+                    "authorityDigest": digest,
+                    "gaps": gaps,
+                    "truncated": False,
+                },
             }
 
     @staticmethod
-    def obligation_absent(resnapshot: dict[str, Any], obligation_id: str) -> bool:
-        """True when ``obligation_id`` no longer appears anywhere in the re-read
-        work plan / bootstrap (the delivery genuinely closed the gap)."""
-        blob = json.dumps(resnapshot, sort_keys=True)
-        return obligation_id not in blob
+    def obligation_absent(resnapshot: dict[str, Any], gap_type: str, subject: str) -> bool:
+        """Closure is exact absence of one typed actionable work-plan identity."""
+        work_plan = resnapshot.get("work_plan")
+        if not isinstance(work_plan, dict):
+            return False
+        if work_plan.get("truncated") is not False or work_plan.get("schemaVersion") != 1:
+            return False
+        work_items = work_plan.get("gaps")
+        if not isinstance(work_items, list):
+            return False
+        if any(not isinstance(item, dict) for item in work_items):
+            return False
+        identities = {
+            (str(item.get("type") or ""), str(item.get("subject") or "")) for item in work_items
+        }
+        return (gap_type, subject) not in identities
 
     # ---- frozen install + tests ----------------------------------------- #
 
@@ -166,6 +298,10 @@ class StardogPublisher:
 
     def validate_and_rollback(self, clone: Path, expected_authority_digest: str) -> PublishStep:
         """Validate-and-rollback publication: require success AND zero contamination."""
+        if not self.publication_containment_ready():
+            return PublishStep(
+                "publish:authority:validate", False, "PUBLICATION_CONTAINMENT_UNAVAILABLE"
+            )
         expected = _require_digest(expected_authority_digest, "expected authority digest")
         r = self._npm(
             clone,
@@ -175,18 +311,36 @@ class StardogPublisher:
             f"--authority-digest={expected}",
             authority_credentials=True,
         )
-        data = _last_json_object(r.out)
+        try:
+            data = _publication_output(r.out, "validate")
+        except ValueError as exc:
+            return PublishStep("publish:authority:validate", False, str(exc), {})
         contamination_raw = data.get("contaminationCount")
         contamination = int(contamination_raw) if contamination_raw is not None else -1
-        evaluated = str(data.get("evaluatedAuthorityDigest") or "")
-        post_digest = str(data.get("postAuthorityDigest") or "")
+        try:
+            evaluated = _require_digest(
+                str(data.get("evaluatedAuthorityDigest") or ""), "evaluated authority digest"
+            )
+            post_digest = _require_digest(
+                str(data.get("postAuthorityDigest") or ""), "post authority digest"
+            )
+        except ValueError:
+            evaluated = post_digest = ""
         commit_outcome = data.get("commitOutcome")
         outcome_state = (
             str(commit_outcome.get("state") or "") if isinstance(commit_outcome, dict) else ""
         )
+        try:
+            candidate_digest = _require_digest(
+                str(commit_outcome.get("candidateDigest") or "")
+                if isinstance(commit_outcome, dict)
+                else "",
+                "candidate digest",
+            )
+        except ValueError:
+            candidate_digest = ""
         ok = (
             r.ok
-            and data.get("mode") == "validate"
             and data.get("ok") is True
             and contamination == 0
             and evaluated == expected
@@ -194,7 +348,7 @@ class StardogPublisher:
             and isinstance(commit_outcome, dict)
             and outcome_state == "validated-rolled-back"
             and commit_outcome.get("exactCandidateStateVerified") is True
-            and bool(_DIGEST.fullmatch(str(commit_outcome.get("candidateDigest") or "")))
+            and bool(_DIGEST.fullmatch(candidate_digest))
             and bool(commit_outcome.get("candidateGraphs"))
         )
         return PublishStep(
@@ -204,9 +358,16 @@ class StardogPublisher:
             data,
         )
 
-    def publish_committed(self, clone: Path, expected_authority_digest: str) -> PublishStep:
+    def publish_committed(
+        self, clone: Path, expected_authority_digest: str, expected_candidate_digest: str
+    ) -> PublishStep:
         """Committed authority publication; parse the canonical compiler result."""
+        if not self.publication_containment_ready():
+            return PublishStep("publish:authority", False, "PUBLICATION_CONTAINMENT_UNAVAILABLE")
         expected = _require_digest(expected_authority_digest, "expected authority digest")
+        candidate_expected = _require_digest(
+            expected_candidate_digest, "validated candidate digest"
+        )
         r = self._npm(
             clone,
             "run",
@@ -215,9 +376,14 @@ class StardogPublisher:
             f"--authority-digest={expected}",
             authority_credentials=True,
         )
-        data = _last_json_object(r.out)
-        post_digest = str(data.get("postAuthorityDigest") or "")
-        evaluated = str(data.get("evaluatedAuthorityDigest") or "")
+        try:
+            data = _publication_output(r.out, "commit")
+        except ValueError as exc:
+            return PublishStep("publish:authority", False, str(exc), {})
+        post_digest = _require_digest(str(data.get("postAuthorityDigest") or ""), "post digest")
+        evaluated = _require_digest(
+            str(data.get("evaluatedAuthorityDigest") or ""), "evaluated digest"
+        )
         commit_outcome = data.get("commitOutcome")
         outcome_state = (
             str(commit_outcome.get("state") or "") if isinstance(commit_outcome, dict) else ""
@@ -225,20 +391,31 @@ class StardogPublisher:
         exact_state = isinstance(commit_outcome, dict) and (
             commit_outcome.get("exactCandidateStateVerified") is True
         )
+        try:
+            candidate_digest = _require_digest(
+                str(commit_outcome.get("candidateDigest") or "")
+                if isinstance(commit_outcome, dict)
+                else "",
+                "commit candidate digest",
+            )
+        except ValueError:
+            candidate_digest = ""
         reconciled = (
             isinstance(commit_outcome, dict)
             and outcome_state == "reconciled-committed"
             and (
                 commit_outcome.get("transactionClosedVerified") is True
-                and commit_outcome.get("candidateDigest") == commit_outcome.get("observedDigest")
+                and _canonical_outcome_digest(commit_outcome, "candidateDigest")
+                == _canonical_outcome_digest(commit_outcome, "observedDigest")
             )
         )
         ok = (
             r.ok
-            and data.get("mode") == "commit"
             and data.get("ok") is True
             and evaluated == expected
-            and bool(_DIGEST.fullmatch(post_digest))
+            and data.get("contaminationCount") == 0
+            and candidate_digest == candidate_expected
+            and post_digest == candidate_expected
             and exact_state
             and (outcome_state == "confirmed-response" or reconciled)
         )
@@ -252,13 +429,18 @@ class StardogPublisher:
 
     def drift(self, clone: Path) -> PublishStep:
         """Source/live drift: require zero mismatched graphs."""
+        if not self.publication_containment_ready():
+            return PublishStep("authority:drift", False, "PUBLICATION_CONTAINMENT_UNAVAILABLE")
         r = self._npm(
             clone,
             "run",
             "authority:drift",
             authority_credentials=True,
         )
-        data = _last_json_object(r.out)
+        try:
+            data = _drift_output(r.out)
+        except ValueError as exc:
+            return PublishStep("authority:drift", False, str(exc), {})
         mismatched = data.get("mismatched")
         mismatch_count = len(mismatched) if isinstance(mismatched, list) else -1
         ok = (

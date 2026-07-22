@@ -133,12 +133,19 @@ def production_reviewer_factory(ctx: RuntimeContext, *, allow_billable: bool = F
             )
         except Exception:
             return None
+        from .admission import latest_admission
+        from .canonical import content_digest
+
+        admission = latest_admission(ctx, profile.profile_id)
+        if admission is None:
+            return None
         return AiReviewer(
             adapter.invoke,
             profile.profile_id,
             provider_id=profile.provider_id,
             model_id=profile.requested_model_id,
             adapter_id=profile.adapter,
+            admission_digest=content_digest(admission),
         )
 
     return make

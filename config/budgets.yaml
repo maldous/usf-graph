@@ -15,7 +15,3 @@ max_integration_wall_s: 7200   # 2 hours
 
 # Stop after this many consecutive no-progress cycles.
 max_no_progress_cycles: 2
-
-# Default maximum concurrent workers. Increase only when conflict analysis and
-# capacity permit (build task §19).
-max_concurrent_workers: 2

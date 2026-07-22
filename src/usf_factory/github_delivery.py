@@ -23,6 +23,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+from .secrets import redact
+
 _COMMON_ENV_KEYS = {
     "HOME",
     "PATH",
@@ -52,7 +54,16 @@ _GITHUB_ENV_KEYS = {
 def restricted_subprocess_environment(*, github: bool) -> dict[str, str]:
     """Minimal coordinator environment; unrelated process secrets never propagate."""
     allowed = _COMMON_ENV_KEYS | (_GITHUB_ENV_KEYS if github else set())
-    return {key: value for key, value in os.environ.items() if key in allowed}
+    result = {key: value for key, value in os.environ.items() if key in allowed}
+    result.update(
+        {
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_CONFIG_SYSTEM": "/dev/null",
+            "GIT_TERMINAL_PROMPT": "0",
+            "PYTHONNOUSERSITE": "1",
+        }
+    )
+    return result
 
 
 @dataclass
@@ -96,8 +107,13 @@ class SubprocessRunner:
                 check=False,
             )
         except (OSError, subprocess.SubprocessError) as exc:
-            return CommandResult(ok=False, code=-1, out="", err=str(exc))
-        return CommandResult(ok=p.returncode == 0, code=p.returncode, out=p.stdout, err=p.stderr)
+            return CommandResult(ok=False, code=-1, out="", err=redact(str(exc)))
+        return CommandResult(
+            ok=p.returncode == 0,
+            code=p.returncode,
+            out=redact(p.stdout),
+            err=redact(p.stderr),
+        )
 
 
 def format_trailers(trailers: dict[str, str]) -> str:
@@ -106,6 +122,10 @@ def format_trailers(trailers: dict[str, str]) -> str:
 
 
 class GitHubDelivery:
+    # Ordinary ``gh pr merge`` has no base-SHA compare-and-set.  Production
+    # merge remains disabled until a merge-queue or equivalent exact mechanism
+    # is wired and proven.  Test fixtures may explicitly provide that mechanism.
+    exact_merge_supported = False
     """Coordinator-owned Git/GitHub operations against a writable usf-graph clone.
 
     ``origin_url`` is the pushable remote (a real https URL in production, or a
@@ -170,6 +190,16 @@ class GitHubDelivery:
         model's claimed patch)."""
         return self._git(clone, "diff", "--cached").out
 
+    def local_head_and_tree(self, clone: Path) -> tuple[CommandResult, str, str]:
+        """Return the exact checked-out commit and staged tree identities."""
+        head = self._git(clone, "rev-parse", "HEAD")
+        if not head.ok:
+            return head, "", ""
+        tree = self._git(clone, "write-tree")
+        if not tree.ok:
+            return tree, "", ""
+        return tree, head.out.strip(), tree.out.strip()
+
     def create_branch(self, clone: Path, branch: str) -> CommandResult:
         return self._git(clone, "checkout", "-b", branch)
 
@@ -183,6 +213,41 @@ class GitHubDelivery:
             return r, ""
         head = self._git(clone, "rev-parse", "HEAD")
         return head, head.out.strip()
+
+    def export_commit_bundle(self, clone: Path, bundle_path: Path) -> tuple[CommandResult, bytes]:
+        """Export the exact reviewed commit as immutable recovery bytes."""
+        result = self._git(clone, "bundle", "create", str(bundle_path), "HEAD")
+        if not result.ok:
+            return result, b""
+        try:
+            payload = bundle_path.read_bytes()
+        except OSError as exc:
+            return CommandResult(False, 1, "", str(exc)), b""
+        finally:
+            bundle_path.unlink(missing_ok=True)
+        if not payload:
+            return CommandResult(False, 1, "", "empty recovery bundle"), b""
+        return result, payload
+
+    def restore_commit_bundle(
+        self,
+        clone: Path,
+        bundle_path: Path,
+        *,
+        expected_commit: str,
+        branch: str,
+    ) -> CommandResult:
+        """Restore one CAS-bound reviewed commit without recreating it."""
+        fetched = self._git(clone, "fetch", str(bundle_path), "HEAD")
+        if not fetched.ok:
+            return fetched
+        checked = self._git(clone, "checkout", "-B", branch, "FETCH_HEAD")
+        if not checked.ok:
+            return checked
+        head = self._git(clone, "rev-parse", "HEAD")
+        if not head.ok or head.out.strip() != expected_commit:
+            return CommandResult(False, 1, head.out, "recovered commit identity mismatch")
+        return head
 
     def push_branch(self, clone: Path, branch: str, *, allow_force: bool = False) -> CommandResult:
         """Push the branch to origin. NEVER force-pushes unless explicitly allowed
@@ -316,7 +381,49 @@ class GitHubDelivery:
             env=self.env,
             timeout=120.0,
         )
-        return r.out.strip()
+        return r.out.strip() if r.ok else ""
+
+    def pr_witness(self, clone: Path, pr: int) -> tuple[CommandResult, dict[str, object]]:
+        """Read exact PR head/base and reconstruct GitHub's prospective merge ref."""
+        meta = self.runner.run(
+            [
+                "gh",
+                "pr",
+                "view",
+                str(pr),
+                "--json",
+                "number,state,isDraft,headRefOid,baseRefOid",
+            ],
+            cwd=str(clone),
+            env=self.env,
+            timeout=120.0,
+        )
+        if not meta.ok:
+            return meta, {}
+        try:
+            data = json.loads(meta.out)
+        except (ValueError, TypeError):
+            return CommandResult(False, 1, meta.out, "PR metadata is not JSON"), {}
+        fetch = self._git(clone, "fetch", "origin", f"refs/pull/{pr}/merge", timeout=300.0)
+        if not fetch.ok:
+            return fetch, {}
+        values: dict[str, str] = {}
+        for key, rev in {
+            "prospectiveMergeCommit": "FETCH_HEAD",
+            "prospectiveMergeTree": "FETCH_HEAD^{tree}",
+            "prospectiveBaseParent": "FETCH_HEAD^1",
+            "prospectiveHeadParent": "FETCH_HEAD^2",
+        }.items():
+            result = self._git(clone, "rev-parse", rev)
+            if not result.ok or not result.out.strip():
+                return result, {}
+            values[key] = result.out.strip()
+        witness = {**data, **values}
+        if values["prospectiveBaseParent"] != str(data.get("baseRefOid") or "") or values[
+            "prospectiveHeadParent"
+        ] != str(data.get("headRefOid") or ""):
+            return CommandResult(False, 1, "", "prospective merge parents do not match PR"), {}
+        return meta, witness
 
     def mark_ready(self, clone: Path, pr: int) -> CommandResult:
         return self.runner.run(
@@ -343,6 +450,14 @@ class GitHubDelivery:
         )
         return r, v.out.strip()
 
+    def commit_tree(self, clone: Path, commit_sha: str) -> tuple[CommandResult, str]:
+        """Fetch and return an exact remote commit tree for reconciliation."""
+        fetched = self._git(clone, "fetch", "origin", commit_sha, timeout=300.0)
+        if not fetched.ok:
+            return fetched, ""
+        tree = self._git(clone, "rev-parse", f"{commit_sha}^{{tree}}")
+        return tree, tree.out.strip() if tree.ok else ""
+
     def pr_state(self, clone: Path, pr: int) -> dict[str, object]:
         """Reconciliation helper: the PR's current state/merge facts, or {} when
         unknown — lets a restart discover whether a side effect already happened."""
@@ -353,7 +468,7 @@ class GitHubDelivery:
                 "view",
                 str(pr),
                 "--json",
-                "state,merged,mergeCommit,headRefOid,isDraft,url,number",
+                "state,merged,mergeCommit,headRefOid,baseRefOid,isDraft,url,number",
             ],
             cwd=str(clone),
             env=self.env,

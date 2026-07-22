@@ -12,7 +12,7 @@ from usf_factory.enums import RunMode
 from usf_factory.errors import SnapshotError
 from usf_factory.models import Packet
 from usf_factory.programme_state import parse_programme_obligations
-from usf_factory.snapshots import _complete_work_plan
+from usf_factory.snapshots import _collect_obligation_ids, _complete_work_plan
 
 
 @pytest.mark.unit
@@ -35,8 +35,9 @@ def test_parse_programme_obligations_from_work_plan():
 @pytest.mark.unit
 def test_work_plan_pagination_is_complete_and_digest_bound():
     items = [{"id": f"O-{index}", "title": "work"} for index in range(121)]
-    authority = FakeAuthority(digest="sha256:page-bound", work_plan_items=items)
-    plan = _complete_work_plan(authority, "sha256:page-bound")
+    digest = "sha256:" + "b" * 64
+    authority = FakeAuthority(digest=digest, work_plan_items=items)
+    plan = _complete_work_plan(authority, digest)
     assert len(plan["gaps"]) == 121
     assert {item["id"] for item in plan["gaps"]} == {f"O-{index}" for index in range(121)}
 
@@ -56,17 +57,27 @@ def test_work_plan_accepts_exact_raw_and_tagged_sha256_witnesses():
     assert plan["authorityDigest"] == f"sha256:{raw_digest}"
 
 
+@pytest.mark.unit
+def test_snapshot_unresolved_ids_exclude_structural_obligation_inventories():
+    bootstrap = {
+        "openGaps": [{"id": "actionable"}],
+        "proofObligations": [{"id": "structural-proof"}],
+        "validationObligations": [{"id": "structural-validation"}],
+    }
+    assert _collect_obligation_ids(bootstrap) == ["actionable"]
+
+
 @pytest.mark.adversarial
 def test_work_plan_pagination_fails_on_missing_or_moved_authority():
     class Broken(FakeAuthority):
         def work_plan(self, arguments=None):
             result = super().work_plan(arguments)
             payload = result.json()
-            payload["authorityDigest"] = "sha256:moved"
+            payload["authorityDigest"] = "sha256:" + "c" * 64
             return self._tcr(payload)
 
     with pytest.raises(SnapshotError, match="differs from bootstrap"):
-        _complete_work_plan(Broken(), "sha256:expected")
+        _complete_work_plan(Broken(), "sha256:" + "a" * 64)
 
 
 @pytest.mark.adversarial
@@ -81,9 +92,21 @@ def test_parser_rejects_duplicate_or_silently_oversized_work_plan():
 def test_only_dependency_ready_obligation_selected(ctx, tmp_usf):
     # Three obligations; C depends on A. Only dependency-ready ones may run.
     items = [
-        {"id": "A", "title": "independent A", "dependencies": []},
-        {"id": "B", "title": "independent B", "dependencies": []},
-        {"id": "C", "title": "needs A", "dependsOn": ["A"]},
+        {
+            "id": "A",
+            "type": "test-gap",
+            "subject": "A",
+            "title": "independent A",
+            "dependencies": [],
+        },
+        {
+            "id": "B",
+            "type": "test-gap",
+            "subject": "B",
+            "title": "independent B",
+            "dependencies": [],
+        },
+        {"id": "C", "type": "test-gap", "subject": "C", "title": "needs A", "dependsOn": ["A"]},
     ]
 
     def authority_factory():

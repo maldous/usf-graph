@@ -15,7 +15,7 @@ from rich.table import Table
 
 from . import __version__, secrets
 from .context import RuntimeContext, build_context
-from .enums import ProtectedAction, RunMode
+from .enums import RunMode
 from .paths import ENV_FILE
 
 console = Console()
@@ -204,12 +204,6 @@ def run(
         help="authorize subscription (Claude/Codex CLI) + free inference for this run "
         "(the paid-inference gate stays off)",
     ),
-    approve_source_provider: list[str] = typer.Option(
-        [],
-        "--approve-source-provider",
-        help="audited: approve a proven-contained provider to receive raw source for "
-        "this run only (in-memory; never committed)",
-    ),
     workforce_policy: str = typer.Option("", "--workforce-policy", help="operator policy file"),
     exclude_provider: list[str] = typer.Option([], "--exclude-provider"),
     exclude_model: list[str] = typer.Option([], "--exclude-model", help="provider/model or model"),
@@ -261,15 +255,6 @@ def run(
         if (ctx.paths.state / "PAUSED").exists():
             err.print("[yellow]factory is paused; run `usf-factory resume` first[/]")
             raise typer.Exit(code=1)
-        if approve_source_provider:
-            ctx.config.egress.source_egress_enabled = True
-            overrides = dict(ctx.config.egress.provider_overrides or {})
-            for pid in approve_source_provider:
-                overrides[pid] = sorted({*overrides.get(pid, []), "private-source"})
-            ctx.config.egress.provider_overrides = overrides
-            console.print(
-                f"[yellow]audited source-egress approval for: {approve_source_provider}[/]"
-            )
         if not continuous:
             eng = build_engine(
                 ctx,
@@ -317,12 +302,12 @@ def _record_validation_receipt_gaps(ctx: RuntimeContext, coordinator: object) ->
     The receipt never closes the gap. Authority-grade evidence must arrive via
     the coordinator's explicit external evidence transport interface.
     """
-    import os
     import subprocess
 
     from .authority import UsfAuthorityClient
+    from .github_delivery import restricted_subprocess_environment
 
-    remote = os.environ.get("USF_GRAPH_REMOTE", "https://github.com/maldous/usf-graph.git")
+    remote = "https://github.com/maldous/usf-graph.git"
     wp = UsfAuthorityClient().work_plan().json() or {}
     digest = str(wp.get("authorityDigest") or "")
     gaps = [g for g in wp.get("gaps", []) if g.get("type") == "missing-current-passing-validation"]
@@ -331,7 +316,11 @@ def _record_validation_receipt_gaps(ctx: RuntimeContext, coordinator: object) ->
         return
     # base_head: the current usf-graph main tip the evidence is validated against.
     lsr = subprocess.run(
-        ["git", "ls-remote", remote, "HEAD"], capture_output=True, text=True, env=dict(os.environ)
+        ["git", "ls-remote", remote, "HEAD"],
+        capture_output=True,
+        text=True,
+        env=restricted_subprocess_environment(github=True),
+        check=False,
     )
     base = lsr.stdout.split()[0] if lsr.stdout.strip() else ""
     if not base:
@@ -345,7 +334,7 @@ def _record_validation_receipt_gaps(ctx: RuntimeContext, coordinator: object) ->
             subject=subject,
             base_head=base,
             authority_digest=digest,
-            env=dict(os.environ),
+            env=restricted_subprocess_environment(github=False),
         )
         console.print(
             f"  receipt: [bold]{receipt.receipt_id}[/]  "
@@ -355,6 +344,28 @@ def _record_validation_receipt_gaps(ctx: RuntimeContext, coordinator: object) ->
             "  [yellow]not delivered as authority evidence; an external producer and "
             "validated AuthorityEvidenceTransport are required[/]"
         )
+
+
+@app.command("record-validation-receipts")
+def record_validation_receipts_cmd(
+    authorization_file: str = typer.Option(
+        ..., "--authorization-file", help="operator RunAuthorization (mode-0600, outside repos)"
+    ),
+) -> None:
+    """Explicitly run the bounded factory-receipt sweep.
+
+    These are internal execution receipts only.  The command never presents them
+    as semantic-authority evidence and never runs as an implicit side effect of
+    ordinary realization.
+    """
+    from pathlib import Path
+
+    from .run_authorization import load_run_authorization
+    from .runtime import build_delivery_coordinator
+
+    with _ctx() as ctx:
+        ctx.run_authorization = load_run_authorization(Path(authorization_file))
+        _record_validation_receipt_gaps(ctx, build_delivery_coordinator(ctx))
 
 
 @app.command()
@@ -442,12 +453,25 @@ def realize(
                 "[yellow]no --authorization-file: delivery is prepare-only "
                 "(no push/merge/publish will fire)[/]"
             )
+        if ctx.run_authorization is not None:
+            auth = ctx.run_authorization
+            if allow_subscription_inference and not auth.allow_subscription_inference:
+                err.print("[red]RunAuthorization prohibits subscription inference[/]")
+                raise typer.Exit(code=1)
+            if max_paid_cost_usd > auth.paid_api_budget_usd:
+                err.print("[red]requested paid budget exceeds RunAuthorization[/]")
+                raise typer.Exit(code=1)
+            max_cycles = min(max_cycles, auth.max_continuous_cycles)
+            max_packets_per_wave = min(max_packets_per_wave, auth.max_packets_per_wave)
+            ctx.config.budgets.billable_usd = min(
+                float(ctx.config.budgets.billable_usd),
+                float(auth.paid_api_budget_usd),
+                float(max_paid_cost_usd),
+            )
+        elif allow_subscription_inference:
+            err.print("[red]subscription inference requires a live RunAuthorization[/]")
+            raise typer.Exit(code=1)
         coordinator = build_delivery_coordinator(ctx)
-        # A factory-run suite can record an execution receipt, but cannot self-admit
-        # authority ValidationEvidence. Genuine external evidence uses the explicit
-        # digest-verified transport interface.
-        if ctx.run_authorization is not None and ctx.is_action_effective(ProtectedAction.PUSH_PR):
-            _record_validation_receipt_gaps(ctx, coordinator)
         cap = max(1, max_packets_per_wave)
         seen_sets: set[str] = set()
         for i in range(max(1, max_cycles)):
@@ -576,16 +600,11 @@ def bootstrap_runtime_cmd(
 @app.command("candidate")
 def candidate_cmd(
     allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
-    approve_source_provider: list[str] = typer.Option(
-        [],
-        "--approve-source-provider",
-        help="explicitly approve a PROVEN-CONTAINED first-party CLI provider to receive "
-        "raw source for this audited candidate run (e.g. claude-cli)",
-    ),
 ) -> None:
     """Operator-audited candidate semantic-patch attempt. Enables, FOR THIS RUN
-    ONLY (never committed): autonomous-safe wave execution + source egress for the
-    explicitly approved, source-contained provider(s). The candidate patch stays
+    ONLY (never committed): autonomous-safe wave execution. Raw-source egress
+    remains disabled unless a committed gate, operator policy, containment proof,
+    and RunAuthorization all authorize it. The candidate patch stays
     in the factory integration clone — never applied to /usf, never pushed. Halts
     at AWAITING_OPERATOR_DELIVERY. The paid-inference / push / merge / Stardog /
     risk-acceptance / terminal-completion gates stay OFF."""
@@ -596,15 +615,6 @@ def candidate_cmd(
     with _ctx() as ctx:
         # Audited, in-memory-only authorization for this run.
         ctx.config.safety.autonomous_safe_enabled = True
-        if approve_source_provider:
-            ctx.config.egress.source_egress_enabled = True
-            overrides = dict(ctx.config.egress.provider_overrides or {})
-            for pid in approve_source_provider:
-                overrides[pid] = sorted({*overrides.get(pid, []), "private-source"})
-            ctx.config.egress.provider_overrides = overrides
-            console.print(
-                f"[yellow]audited source-egress approval for: {approve_source_provider}[/]"
-            )
         result = attempt_candidate_packet(
             ctx, SimpleNamespace(allow_billable=allow_subscription_inference)
         )

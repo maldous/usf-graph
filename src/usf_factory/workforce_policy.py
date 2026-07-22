@@ -72,7 +72,6 @@ class WorkforcePolicyLayer(FactoryModel):
     # Scalar limits (None inherits / no limit).
     max_paid_cost_usd: float | None = None
     max_subscription_value_usd: float | None = None
-    max_concurrent_by_provider: int | None = None
     max_requests_per_provider: int | None = None
     max_models_assessed: int | None = None
 
@@ -130,7 +129,6 @@ class EffectiveWorkforcePolicy(FactoryModel):
 
     max_paid_cost_usd: float | None = None
     max_subscription_value_usd: float | None = None
-    max_concurrent_by_provider: int | None = None
     max_requests_per_provider: int | None = None
     max_models_assessed: int | None = None
 
@@ -303,9 +301,6 @@ def resolve_workforce_policy(
         max_subscription_value_usd=_first_set_scalar(
             [layer.max_subscription_value_usd for _, layer in ordered]
         ),
-        max_concurrent_by_provider=_first_set_scalar(
-            [layer.max_concurrent_by_provider for _, layer in ordered]
-        ),
         max_requests_per_provider=_first_set_scalar(
             [layer.max_requests_per_provider for _, layer in ordered]
         ),
@@ -428,7 +423,6 @@ def committed_policy(config_dir: Path | str | None = None) -> WorkforcePolicyLay
         allow_paid=resolved.allow_paid,
         max_paid_cost_usd=resolved.max_paid_cost_usd,
         max_subscription_value_usd=resolved.max_subscription_value_usd,
-        max_concurrent_by_provider=resolved.max_concurrent_by_provider,
         max_requests_per_provider=resolved.max_requests_per_provider,
         max_models_assessed=resolved.max_models_assessed,
         require_verified_actual_model_for_mutation=resolved.require_verified_actual_model_for_mutation,

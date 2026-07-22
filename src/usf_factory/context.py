@@ -16,7 +16,7 @@ from . import paths as _paths
 from . import secrets
 from .clock import utc_now_iso
 from .config import FactoryConfig, load_config
-from .enums import ProtectedAction
+from .enums import ProtectedAction, Risk
 from .errors import ProtectedActionError
 from .event_store import Store, open_store
 from .models import Event
@@ -105,6 +105,49 @@ class RuntimeContext:
                 f"(the committed safety gate is disabled, no RunAuthorization "
                 f"permits it, or the authorization expired)"
             )
+
+    def protected_action_reason(
+        self,
+        action: ProtectedAction,
+        *,
+        risk: Risk | None = None,
+        repository: str = "",
+        authority_database: str = "",
+        provider: str = "",
+    ) -> str | None:
+        """One fail-closed dual-gate/scope decision for every protected action."""
+
+        if not self.is_gate_enabled(action):
+            return f"committed safety gate does not permit {action.value}"
+        auth = self.run_authorization
+        if auth is None:
+            return "no RunAuthorization for this run"
+        if not auth.permits_action(action):
+            return f"RunAuthorization does not permit {action.value} (or it expired)"
+        if risk is not None and not auth.permits_risk(risk):
+            return f"RunAuthorization does not permit risk {risk.value}"
+        if risk in {Risk.HIGH, Risk.PROTECTED} and action is not ProtectedAction.RISK_ACCEPTANCE:
+            if not self.is_gate_enabled(ProtectedAction.RISK_ACCEPTANCE):
+                return "committed RISK_ACCEPTANCE gate is required for high/protected work"
+            if not auth.permits_action(ProtectedAction.RISK_ACCEPTANCE):
+                return "RunAuthorization RISK_ACCEPTANCE permission is required"
+        if action in {ProtectedAction.PUSH_PR, ProtectedAction.MAIN_INTEGRATION} and (
+            not repository or not auth.covers_repository(repository)
+        ):
+            return f"RunAuthorization does not cover repository {repository or '<unknown>'}"
+        if action is ProtectedAction.STARDOG_PUBLICATION:
+            if not authority_database:
+                return "live authority database scope could not be verified"
+            if auth.authority_database != authority_database:
+                return "RunAuthorization does not cover the live authority database"
+        if action is ProtectedAction.SOURCE_EGRESS:
+            if not provider or not auth.raw_source_provider:
+                return "RunAuthorization has no raw-source provider binding"
+            if auth.raw_source_provider != provider:
+                return f"RunAuthorization restricts raw source to {auth.raw_source_provider}"
+            if not auth.raw_source_requires_containment:
+                return "RunAuthorization does not require source containment"
+        return None
 
     # ---- events --------------------------------------------------------- #
 

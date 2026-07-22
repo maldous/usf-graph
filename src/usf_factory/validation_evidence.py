@@ -14,16 +14,21 @@ reconciliation remain the authority-grade admission boundary.
 
 from __future__ import annotations
 
+import json
 import re
-from collections.abc import Callable
 from pathlib import Path
 
 from pydantic import Field
 
-from .canonical import digest_text, stable_id
+from .canonical import digest_bytes, digest_text, stable_id
 from .clock import utc_now_iso
 from .context import RuntimeContext
-from .github_delivery import CommandResult, CommandRunner, SubprocessRunner
+from .github_delivery import (
+    CommandResult,
+    CommandRunner,
+    SubprocessRunner,
+    restricted_subprocess_environment,
+)
 from .models import FactoryModel
 
 # The canonical deterministic suite entry point in usf-graph (package.json).
@@ -65,11 +70,34 @@ class FactoryValidationReceipt(FactoryModel):
         return stable_id("fvr", self.content_dict())
 
 
+class AuthorityEvidenceArtifact(FactoryModel):
+    """Immutable artifact bytes fetched from the factory CAS."""
+
+    locator: str
+    artifact_digest: str
+    byte_size: int = Field(ge=0)
+
+
+class AuthorityEvidenceAttestation(FactoryModel):
+    """Producer or independent-review statement over exact artifact bytes."""
+
+    schema_version: int = 1
+    role: str
+    identity: str
+    provider_id: str
+    obligation_id: str
+    base_head: str
+    authority_digest: str
+    source_patch_digest: str
+    artifact_digests: list[str]
+    accepted: bool
+
+
 class AuthorityEvidenceTransport(FactoryModel):
     """Exact externally produced authority-evidence candidate for transport.
 
     The source patch is carried as bytes-in-text and must reference immutable
-    artifact digests.  Validation here proves transport integrity only; semantic
+    artifacts. Validation here proves transport integrity only; semantic
     admission still occurs through the canonical ``usf-graph`` transaction.
     """
 
@@ -77,16 +105,21 @@ class AuthorityEvidenceTransport(FactoryModel):
     base_head: str
     authority_digest: str
     producer_id: str
+    producer_provider_id: str
+    reviewer_id: str
+    reviewer_provider_id: str
     source_patch: str
     source_patch_digest: str
-    artifact_digests: list[str] = Field(default_factory=list)
+    artifacts: list[AuthorityEvidenceArtifact] = Field(default_factory=list)
+    producer_attestation_ref: str
+    reviewer_attestation_ref: str
     evidence_refs: list[str] = Field(default_factory=list)
 
 
 def validate_authority_evidence_transport(
     transport: AuthorityEvidenceTransport,
     *,
-    artifact_verifier: Callable[[str], bool],
+    store: object,
 ) -> None:
     """Fail closed unless the exact external evidence candidate is transportable."""
 
@@ -94,6 +127,13 @@ def validate_authority_evidence_transport(
         raise ValueError("AUTHORITY_EVIDENCE_OBLIGATION_INVALID")
     if not _GIT_SHA.fullmatch(transport.base_head) or not transport.producer_id.startswith("urn:"):
         raise ValueError("AUTHORITY_EVIDENCE_PROVENANCE_MISSING")
+    if not transport.reviewer_id.startswith("urn:"):
+        raise ValueError("AUTHORITY_EVIDENCE_REVIEW_PROVENANCE_MISSING")
+    if (
+        transport.producer_id == transport.reviewer_id
+        or transport.producer_provider_id == transport.reviewer_provider_id
+    ):
+        raise ValueError("AUTHORITY_EVIDENCE_REVIEW_NOT_INDEPENDENT")
     if not _SHA256.fullmatch(transport.authority_digest):
         raise ValueError("AUTHORITY_EVIDENCE_AUTHORITY_DIGEST_INVALID")
     if digest_text(transport.source_patch) != transport.source_patch_digest:
@@ -104,17 +144,16 @@ def validate_authority_evidence_transport(
         not ref.startswith("urn:") for ref in transport.evidence_refs
     ):
         raise ValueError("AUTHORITY_EVIDENCE_REFERENCE_MISSING")
-    if not transport.artifact_digests or any(
-        not _SHA256.fullmatch(item) for item in transport.artifact_digests
-    ):
+    artifact_digests = [artifact.artifact_digest for artifact in transport.artifacts]
+    if not transport.artifacts or any(not _SHA256.fullmatch(item) for item in artifact_digests):
         raise ValueError("AUTHORITY_EVIDENCE_ARTIFACT_DIGEST_INVALID")
-    if len(set(transport.artifact_digests)) != len(transport.artifact_digests):
+    if len(set(artifact_digests)) != len(artifact_digests):
         raise ValueError("AUTHORITY_EVIDENCE_ARTIFACT_DIGEST_DUPLICATE")
     bound_values = (
         transport.authority_digest,
         transport.base_head,
         transport.producer_id,
-        *transport.artifact_digests,
+        *artifact_digests,
         *transport.evidence_refs,
     )
     if any(item not in transport.source_patch for item in bound_values):
@@ -133,9 +172,57 @@ def validate_authority_evidence_transport(
         raise ValueError("AUTHORITY_EVIDENCE_LIFECYCLE_INCOMPLETE")
     if "urn:usf-factory:ontology:ValidationExecutionReceipt" in transport.source_patch:
         raise ValueError("FACTORY_RECEIPT_IS_NOT_AUTHORITY_EVIDENCE")
-    for item in transport.artifact_digests:
-        if artifact_verifier(item) is not True:
+    for artifact in transport.artifacts:
+        if not artifact.locator.startswith("cas:sha256:"):
+            raise ValueError("AUTHORITY_EVIDENCE_ARTIFACT_LOCATOR_NOT_IMMUTABLE")
+        try:
+            artifact_bytes = store.cas_get(artifact.locator)  # type: ignore[attr-defined]
+        except Exception as exc:
+            raise ValueError("AUTHORITY_EVIDENCE_ARTIFACT_UNAVAILABLE") from exc
+        if (
+            digest_bytes(artifact_bytes) != artifact.artifact_digest
+            or len(artifact_bytes) != artifact.byte_size
+        ):
             raise ValueError("AUTHORITY_EVIDENCE_ARTIFACT_UNVERIFIED")
+
+    attestations: list[AuthorityEvidenceAttestation] = []
+    for ref, expected_role in (
+        (transport.producer_attestation_ref, "producer"),
+        (transport.reviewer_attestation_ref, "reviewer"),
+    ):
+        try:
+            raw = store.cas_get(ref)  # type: ignore[attr-defined]
+            attestation = AuthorityEvidenceAttestation.model_validate(json.loads(raw))
+        except Exception as exc:
+            raise ValueError("AUTHORITY_EVIDENCE_ATTESTATION_UNAVAILABLE") from exc
+        if attestation.role != expected_role or not attestation.accepted:
+            raise ValueError("AUTHORITY_EVIDENCE_ATTESTATION_INVALID")
+        attestations.append(attestation)
+    producer, reviewer = attestations
+    expected_common = {
+        "obligation_id": transport.obligation_id,
+        "base_head": transport.base_head,
+        "authority_digest": transport.authority_digest,
+        "source_patch_digest": transport.source_patch_digest,
+        "artifact_digests": sorted(artifact_digests),
+    }
+    for attestation in attestations:
+        actual = {
+            "obligation_id": attestation.obligation_id,
+            "base_head": attestation.base_head,
+            "authority_digest": attestation.authority_digest,
+            "source_patch_digest": attestation.source_patch_digest,
+            "artifact_digests": sorted(attestation.artifact_digests),
+        }
+        if actual != expected_common:
+            raise ValueError("AUTHORITY_EVIDENCE_ATTESTATION_BINDING_MISMATCH")
+    if (
+        producer.identity != transport.producer_id
+        or producer.provider_id != transport.producer_provider_id
+        or reviewer.identity != transport.reviewer_id
+        or reviewer.provider_id != transport.reviewer_provider_id
+    ):
+        raise ValueError("AUTHORITY_EVIDENCE_ATTESTATION_IDENTITY_MISMATCH")
 
 
 def execute_validation_receipt(
@@ -155,6 +242,7 @@ def execute_validation_receipt(
     never asserts admission, freshness, integrity or authority lifecycle state.
     """
     runner = runner or SubprocessRunner()
+    env = dict(env) if env is not None else restricted_subprocess_environment(github=False)
     checks: dict[str, bool] = {}
     detail: dict[str, str] = {}
 

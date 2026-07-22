@@ -1,8 +1,10 @@
 # USF Adaptive Semantic Factory
 
-A **deterministic, model-agnostic orchestration engine** that advances Universal
-Service Foundation (USF) semantic work by treating AI providers and models as
-replaceable, qualified workers.
+A model-agnostic orchestration engine with a **deterministic integrity and
+control plane** that advances Universal Service Foundation (USF) semantic work
+by treating AI providers and models as replaceable, qualified workers. Runtime
+invocation timing and concurrency deliberately adapt to observed conditions;
+their decisions and outcomes are auditable rather than timing-replayable.
 
 The deterministic control plane owns the loop. Models are workers. The objective
 is not to maximize model calls — it is to maximize:
@@ -21,7 +23,7 @@ providers unless explicitly authorized.
 
 ---
 
-## Status
+## Status: not ready to run protected delivery
 
 The branch contains a substantial implementation of dynamic worker discovery,
 qualification and admission; deterministic planning and packet compilation;
@@ -32,9 +34,20 @@ current `usf-graph` contract. See [`docs/architecture.md`](docs/architecture.md)
 for *current reality* vs target behavior, and `BUILD_REPORT.md` for the original
 build outcome.
 
-**Not** autonomous-production-ready. Protected mutation remains disabled by
-default, and the existence of a code path or factory receipt is never completion
-evidence.
+**RUNTIME_READINESS: NOT_READY_TO_RUN.** Protected mutation remains disabled by
+default. Ordinary `gh pr merge` cannot prove a base-pinned prospective merge
+result, and this host cannot provide the required publication filesystem/network
+containment. Both conditions fail closed. Read-only planning and isolated local
+execution remain usable; a code path, passing local test or factory receipt is
+never authority evidence or a readiness verdict.
+
+**ADAPTIVE_NONDETERMINISTIC_EXECUTION: VERIFIED_LOCALLY.** Packet execution has
+no configured worker-count target or model/provider slot limit. It begins at one
+active invocation after every coordinator restart and continuously discovers
+useful load from accepted and validated result throughput, response degradation,
+host pressure and downstream backlog. See
+[`docs/adaptive-execution.md`](docs/adaptive-execution.md). This does not waive
+either protected-delivery blocker.
 
 ## Relationship with `usf-graph`
 
@@ -62,9 +75,11 @@ validation obligation.
 
 Genuine authority-evidence candidates must be produced independently and enter
 the factory through the explicit `AuthorityEvidenceTransport` interface. The
-interface verifies the exact patch digest, evidence identities and immutable
-artifact digests before the protected delivery lifecycle can begin. Admission
-still requires the canonical `usf-graph` tests, validate-and-rollback,
+interface verifies the exact patch digest, evidence identities, immutable
+artifact digests and the actual content-addressed producer/reviewer receipt
+bytes before the protected delivery lifecycle can begin. A claimed receipt
+digest without locally verified bytes is rejected. Admission still requires
+the canonical `usf-graph` tests, validate-and-rollback,
 transactional publication, zero source/live drift and post-publication work-plan
 reconciliation. The factory never upgrades its own receipt into authority
 evidence.
@@ -137,13 +152,13 @@ Provider discovery ─► Model registry ─► Qualification ─┐
 USF MCP ─► Semantic snapshot ─► Work-plan projection ─► Deterministic packet
 (read-only)   (deterministic)                             compiler + conflict DAG
                                                        │
-                         Qualified dynamic workforce + adaptive routing
+             Qualified dynamic workforce + adaptive routing/admission
                                                        │
                                     Isolated workers (disposable clones, no /usf)
                                                        │
                           Result qualification ─► Deterministic pre-integration
                                                        │
-                               AI integrator (only for semantic reconciliation)
+                       Semantic conflict ─► explicit operator-required block
                                                        │
                      Provider-diverse review ─► Deterministic local validation
                                                        │

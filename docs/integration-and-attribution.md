@@ -15,13 +15,14 @@
 The integration clone lives under the factory's `integration/` directory, never
 `/usf`.
 
-## AI integrator only when necessary
+## Semantic conflicts require an operator
 
-If deterministic integration cannot resolve a semantic reconciliation, a
-qualified `AiIntegrator` (selected for `wave_integration`, from a different
-provider where possible; billable + gated) produces **one** candidate effective
-wave patch from the normalized results, patches, semantic deltas, and conflict
-report — never irrelevant worker transcripts.
+If deterministic integration detects a semantic conflict, the production engine
+records `OPERATOR_REQUIRED_SEMANTIC_CONFLICT` and blocks. The repository retains
+an experimental `SemanticAiIntegrator` component and fixture tests, but selecting
+or invoking that component is not a complete adjudication lifecycle and the
+engine does not claim that it resolves production conflicts. A future path would
+need independent review, revalidation and a fresh assurance bundle.
 
 ## Attribution preserved
 
@@ -77,7 +78,7 @@ counts, and confidence intervals. It:
 
 - **does not penalize** the worker for non-worker faults (planner/provider/
   quota/stale/environment);
-- measures integrator rewrite ratio;
+- can measure an integrator rewrite ratio for explicitly supplied fixture output;
 - tracks delayed `later_regression`;
 - rewards durable, integrated obligation closure — never packet count or
   self-report;

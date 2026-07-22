@@ -135,16 +135,17 @@ def test_degraded_provider_cannot_mutate(ctx, tmp_usf):
 
 
 @pytest.mark.unit
-def test_concurrency_semaphore_bounds_workers(ctx):
-    """Per-run worker concurrency is bounded by max_concurrent_workers."""
-    import asyncio as _asyncio
+def test_adaptive_controller_starts_conservatively_without_capacity_config(ctx):
+    from usf_factory.adaptive_execution import AdaptiveExecutionController, ResourceSnapshot
 
-    from usf_factory.engine import FactoryEngine
-
-    ctx.config.budgets.max_concurrent_workers = 2
-    eng = FactoryEngine(ctx)
-    sem = _asyncio.Semaphore(max(1, ctx.config.budgets.max_concurrent_workers))
-    assert sem._value == 2  # bound honoured
+    controller = AdaptiveExecutionController(
+        ctx.store,
+        session_id="activation-test",
+        resource_sampler=lambda: ResourceSnapshot(),
+        random_float=lambda: 0.5,
+    )
+    assert controller._current_level() == 1
+    assert not hasattr(ctx.config.budgets, "max_concurrent_workers")
 
 
 @pytest.mark.e2e

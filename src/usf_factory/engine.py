@@ -13,10 +13,13 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from .adaptive_execution import AdaptiveExecutionController
 from .adaptive_routing import (
     MODE_ADAPTIVE,
     MODE_EXPLOIT,
@@ -25,9 +28,10 @@ from .adaptive_routing import (
     persist_routing_decision,
 )
 from .authority import UsfAuthorityClient
+from .canonical import canonical_json, content_digest, digest_bytes
 from .conflict_graph import build_conflict_edges  # noqa: F401 (re-exported use)
 from .context import RuntimeContext
-from .dispatch import refresh_active_workforce, select_integrator, select_reviewer
+from .dispatch import refresh_active_workforce, select_reviewer
 from .dynamic_dispatch import classify_attempt, coverage_report
 from .eligibility import hard_eligibility
 from .enums import (
@@ -174,6 +178,11 @@ class FactoryEngine:
         # result detection compares against THIS, never the full selected set — a
         # packet intentionally deferred by --shadow-packets is not a failure.
         self._dispatched_packet_ids: set[str] = set()
+        # Concurrency is discovered from observed validated throughput and host
+        # pressure.  A new process receives a new session and starts at one;
+        # no configured worker-count target is consulted.
+        self.adaptive_execution = AdaptiveExecutionController(ctx.store)
+        self._adaptive_downstream_backlog = 0
 
     # Executing modes (perform packet work); observe/plan-only never execute.
     _EXECUTING_MODES = (RunMode.SHADOW, RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
@@ -193,12 +202,23 @@ class FactoryEngine:
         # revived stale worker still cannot submit against a reclaimed packet.
         reaped_leases = self.ctx.store.reap_expired_leases()
         reaped_claims = self.ctx.store.reap_expired_claims()
-        if reaped_leases or reaped_claims:
+        invocation_reconciliation = self.adaptive_execution.reconcile_after_restart()
+        if reaped_leases or reaped_claims or any(invocation_reconciliation.values()):
             self.ctx.log_event(
                 "recovery.reaped",
                 stage="INIT",
                 cycle_id=cycle_id,
-                payload={"leases": reaped_leases, "claims": reaped_claims},
+                payload={
+                    "leases": reaped_leases,
+                    "claims": reaped_claims,
+                    "adaptive_invocations": invocation_reconciliation,
+                },
+            )
+        if invocation_reconciliation["pending"]:
+            cycle_state = "BLOCKED"
+            blockers.append(
+                "ADAPTIVE_INVOCATION_RECONCILIATION_REQUIRED: "
+                + ",".join(invocation_reconciliation["pending"])
             )
 
         # Detect an incomplete prior cycle.
@@ -213,6 +233,11 @@ class FactoryEngine:
             ):
                 recovered_from = c.get("cycle_id")
                 break
+        if recovered_from:
+            cycle_state = "BLOCKED"
+            blockers.append(
+                f"incomplete prior cycle {recovered_from} requires explicit reconciliation"
+            )
         # Ensure the factory-owned mirror (read-only fetch from /usf).
         try:
             self.iso.ensure_mirror()
@@ -374,7 +399,12 @@ class FactoryEngine:
                 optimizer = None
             if optimizer is not None:
                 try:
-                    optimized = await optimizer.optimize(graph)
+                    import asyncio
+
+                    optimized = await asyncio.wait_for(
+                        optimizer.optimize(graph),
+                        timeout=float(self.ctx.config.budgets.max_planner_wall_s),
+                    )
                 except Exception as exc:
                     self.ctx.log_event(
                         "plan.optimizer_failed",
@@ -417,7 +447,12 @@ class FactoryEngine:
                 # AI critic without subscription authorization) must fail closed to
                 # "no critique", never crash the cycle.
                 try:
-                    verdict = await critic.review_plan(graph, compact_projection(snap))
+                    import asyncio
+
+                    verdict = await asyncio.wait_for(
+                        critic.review_plan(graph, compact_projection(snap)),
+                        timeout=float(self.ctx.config.budgets.max_critic_wall_s),
+                    )
                 except Exception as exc:
                     self.ctx.log_event(
                         "plan.critic_unavailable",
@@ -535,6 +570,19 @@ class FactoryEngine:
                 pass
         return HealthStatus.DEGRADED
 
+    def _paid_budget_limit(self) -> float:
+        """Effective paid-API cap: committed config intersected with run scope."""
+        auth = self.ctx.run_authorization
+        configured = float(self.ctx.config.budgets.billable_usd)
+        if (
+            configured <= 0
+            or auth is None
+            or not self.ctx.is_action_effective(ProtectedAction.PAID_INFERENCE)
+            or auth.paid_api_budget_usd <= 0
+        ):
+            return 0.0
+        return min(configured, float(auth.paid_api_budget_usd))
+
     def _schedulable(self, profile: AgentProfile, task_class: str) -> SchedulableAgent | None:
         """Build a SchedulableAgent from a profile IF it holds a valid admission;
         else None (revalidated at dispatch time — expired/mismatched is rejected)."""
@@ -568,10 +616,10 @@ class FactoryEngine:
         if is_paid_api:
             from .budget import BudgetLedger, BudgetLimits
 
-            limits = BudgetLimits(global_usd=self.ctx.config.budgets.billable_usd)
+            limits = BudgetLimits(global_usd=self._paid_budget_limit())
             ledger = BudgetLedger(self.ctx.store, limits)
             remaining = limits.global_usd - ledger.spent_total()
-            quota_ok = self.ctx.config.safety.allow_billable and remaining >= est_cost
+            quota_ok = limits.global_usd > 0 and remaining >= est_cost
         from .roster import _profile_metrics
 
         m = _profile_metrics(self.ctx, profile.profile_id)
@@ -689,6 +737,38 @@ class FactoryEngine:
         (no exploration for high or protected work, spec §4)."""
         return MODE_EXPLOIT if packet.risk in (Risk.HIGH, Risk.PROTECTED) else MODE_ADAPTIVE
 
+    def _authorization_provider_reason(
+        self, packet: Packet, role: AdmissionRole, profile: WorkforceProfile
+    ) -> str:
+        """Return the exact per-run provider-scope rejection, if any."""
+        auth = self.ctx.run_authorization
+        if (
+            role is AdmissionRole.PATCH_PRODUCER
+            and packet.data_classification in {"private-source", "restricted"}
+            and profile.privacy_class is not PrivacyClass.LOCAL_ONLY
+        ):
+            reason = self.ctx.protected_action_reason(
+                ProtectedAction.SOURCE_EGRESS,
+                risk=packet.risk,
+                provider=profile.provider_id,
+            )
+            if reason:
+                return reason
+        if auth is None:
+            return ""
+        if (
+            role is AdmissionRole.REVIEWER
+            and auth.metadata_review_provider
+            and profile.provider_id != auth.metadata_review_provider
+        ):
+            return f"RunAuthorization restricts metadata review to {auth.metadata_review_provider}"
+        if (
+            str(profile.inference_mode).lower() == "subscription"
+            and not auth.allow_subscription_inference
+        ):
+            return "RunAuthorization prohibits subscription inference"
+        return ""
+
     def _live_eligible(
         self, packet: Packet, role: AdmissionRole, snapshot: WorkforceSnapshot
     ) -> tuple[list[WorkforceProfile], list[RoutingCandidate]]:
@@ -697,13 +777,30 @@ class FactoryEngine:
         (``packet_eligibility``) AND the full live hard gates (admission validity,
         health, quota/budget, context window, egress, task-class capability) via the
         SHARED ``hard_eligibility`` — no hard gate is dropped in the dynamic path."""
-        protected = self.ctx.is_gate_enabled(ProtectedAction.RISK_ACCEPTANCE)
+        auth = self.ctx.run_authorization
+        protected = bool(
+            self.ctx.is_action_effective(ProtectedAction.RISK_ACCEPTANCE)
+            and auth is not None
+            and auth.permits_risk(packet.risk)
+        )
         eligible0, rejected = packet_eligibility(
             snapshot, self.policy, packet, role, protected_allowed=protected
         )
         egress = self.ctx.config.egress
         survivors: list[WorkforceProfile] = []
         for wp in eligible0:
+            authorization_reason = self._authorization_provider_reason(packet, role, wp)
+            if authorization_reason:
+                rejected.append(
+                    RoutingCandidate(
+                        agent_profile_id=wp.profile_id,
+                        eligible=False,
+                        exclusion_reasons=[authorization_reason],
+                        provider_id=wp.provider_id,
+                        inference_mode=wp.inference_mode,
+                    )
+                )
+                continue
             row = self.ctx.store.get("agent_profiles", wp.profile_id)
             if not row:
                 rejected.append(
@@ -900,18 +997,111 @@ class FactoryEngine:
         disposable workspace. Returns ``(result, reason)`` where reason is one of
         ``ok`` / ``timeout`` / ``fenced`` / ``budget``. The packet claim (``token``)
         is owned by the caller and preserved across attempts."""
+        egress_block = self._authorise_source_egress(packet, agent, run_id)
+        if egress_block:
+            return (
+                self._synthetic_failure(
+                    packet,
+                    agent,
+                    FailureClass.SCOPE_VIOLATION,
+                    egress_block,
+                ),
+                "source-egress",
+            )
+        worker: Any = self._worker_factory(mode, agent)  # type: ignore[misc]
+        try:
+            (
+                attempt_id,
+                admission_token,
+                workload,
+                decision,
+                active_concurrency,
+                queue_delay,
+            ) = await self.adaptive_execution.acquire(
+                packet=packet,
+                agent=agent,
+                run_id=run_id,
+                claim_token=token,
+                coordinator_owner=cycle_id,
+                coordinator_token=self._coordinator_token or 0,
+                downstream_backlog=self._adaptive_downstream_backlog,
+            )
+        except RuntimeError as exc:
+            if str(exc) not in {
+                "ADAPTIVE_PACKET_CLAIM_FENCED",
+                "ADAPTIVE_COORDINATOR_FENCED",
+            }:
+                raise
+            return None, "fenced"
+        invocation_started = time.monotonic()
+        adaptive_result: PacketResult | None = None
+        adaptive_reason = "uncertain"
+        try:
+            adaptive_result, adaptive_reason = await self._invoke_attempt_admitted(
+                agent, packet, cycle_id, run_id, token, claim_ttl, mode, worker
+            )
+            if adaptive_result is not None:
+                adaptive_result.execution_attempt_id = attempt_id
+                self._adaptive_downstream_backlog += 1
+            return adaptive_result, adaptive_reason
+        finally:
+            # The admitted call is settled even when cancellation or an
+            # unexpected exception escapes.  Unknown outcomes earn no success.
+            self.adaptive_execution.settle(
+                attempt_id=attempt_id,
+                admission_token=admission_token,
+                identity=workload,
+                decision=decision,
+                active_concurrency=active_concurrency,
+                packet=packet,
+                result=adaptive_result,
+                reason=adaptive_reason,
+                queue_delay_s=queue_delay,
+                elapsed_s=time.monotonic() - invocation_started,
+                downstream_backlog=self._adaptive_downstream_backlog,
+            )
+
+    async def _invoke_attempt_admitted(
+        self,
+        agent: AgentProfile,
+        packet: Packet,
+        cycle_id: str,
+        run_id: str,
+        token: int,
+        claim_ttl: int,
+        mode: RunMode,
+        worker: Any,
+    ) -> tuple[PacketResult | None, str]:
+        """Execute after atomic adaptive admission.
+
+        Kept separate so admission wraps every return and exception.  Capacity
+        deferral never consumes a routing redraw or invokes the provider.
+        """
         from .budget import BudgetLedger, BudgetLimits
 
         pid = packet.packet_id
-        worker: Any = self._worker_factory(mode, agent)  # type: ignore[misc]
+        paid_limit = self._paid_budget_limit()
         ledger = BudgetLedger(
-            self.ctx.store, BudgetLimits(global_usd=self.ctx.config.budgets.billable_usd)
+            self.ctx.store,
+            BudgetLimits(
+                global_usd=paid_limit,
+                daily_requests=self.ctx.config.budgets.free_daily_request_limit,
+            ),
         )
         model_row = self._model_row(agent.provider_id, agent.requested_model_id)
         est = (
             self._estimate_model_cost(model_row) if (model_row or {}).get("free") is False else 0.0
         )
-        ok, why = ledger.reserve(cycle_id=cycle_id, provider_id=agent.provider_id, estimate_usd=est)
+        if est > 0 and paid_limit <= 0:
+            why = "paid inference is outside the effective RunAuthorization budget"
+            return self._synthetic_failure(packet, agent, FailureClass.QUOTA_BLOCKED, why), "budget"
+        budget_reservation_id = f"budget:{run_id}:{agent.provider_id}"
+        ok, why = ledger.reserve_exact(
+            reservation_id=budget_reservation_id,
+            cycle_id=cycle_id,
+            provider_id=agent.provider_id,
+            estimate_usd=est,
+        )
         if not ok:
             self.ctx.log_event(
                 "execute.budget_blocked",
@@ -941,9 +1131,77 @@ class FactoryEngine:
             )
             return result, reason
         finally:
-            self._settle_budget(ledger, cycle_id, agent, model_row, est, result)
+            self._settle_budget(
+                ledger,
+                cycle_id,
+                agent,
+                model_row,
+                est,
+                result,
+                budget_reservation_id,
+            )
             if workspace is not None:
                 self.iso.cleanup(workspace)
+
+    def _authorise_source_egress(
+        self, packet: Packet, agent: AgentProfile, run_id: str
+    ) -> str | None:
+        """Recheck and persist the exact private-source grant at point of use."""
+        if packet.data_classification not in {"private-source", "restricted"}:
+            return None
+        provider = self.ctx.config.providers.by_id().get(agent.provider_id)
+        if provider is not None and provider.privacy_class is PrivacyClass.LOCAL_ONLY:
+            return None
+        reason = self.ctx.protected_action_reason(
+            ProtectedAction.SOURCE_EGRESS,
+            risk=packet.risk,
+            provider=agent.provider_id,
+        )
+        if reason:
+            return reason
+        if not self.ctx.config.egress.source_egress_enabled:
+            return "operator-maintained source-egress policy is disabled"
+        if not self.ctx.config.egress.provider_approved_for(
+            agent.provider_id, packet.data_classification
+        ):
+            return "provider is absent from the operator-maintained source-egress policy"
+        from .capabilities import capabilities_for_kind
+
+        capability = capabilities_for_kind(agent.adapter)
+        if not capability.source_contained:
+            return "adapter source containment is not demonstrated"
+        auth = self.ctx.run_authorization
+        if auth is None:
+            return "no RunAuthorization for source egress"
+        event = {
+            "schema_version": 1,
+            "packet_id": packet.packet_id,
+            "run_id": run_id,
+            "provider_id": agent.provider_id,
+            "adapter": agent.adapter,
+            "data_classification": packet.data_classification,
+            "repository_base_head": packet.base_head,
+            "authority_digest": packet.authority_digest,
+            "run_authorization_digest": auth.digest(),
+            "workforce_policy_digest": self.policy.digest(),
+            "egress_policy_digest": content_digest(self.ctx.config.egress.model_dump(mode="json")),
+            "adapter_capability_digest": content_digest(capability.as_dict()),
+            "source_contained": True,
+        }
+        event_ref = self.ctx.store.cas_put_text(canonical_json(event))
+        record = {**event, "event_ref": event_ref}
+        self.ctx.store.put(
+            "source_egress_authorizations",
+            f"{packet.packet_id}:{run_id}:{agent.provider_id}",
+            record,
+            digest=event_ref.removeprefix("cas:"),
+            extra={
+                "provider_id": agent.provider_id,
+                "packet_id": packet.packet_id,
+                "authorization_digest": auth.digest(),
+            },
+        )
+        return None
 
     async def _execute_one(
         self, packet: Packet, cycle_id: str, mode: RunMode
@@ -1178,27 +1436,44 @@ class FactoryEngine:
         model_row: dict[str, Any] | None,
         est: float,
         result: PacketResult | None,
+        reservation_id: str,
     ) -> None:
         if result is None:
-            if est:
-                ledger.release(cycle_id=cycle_id, provider_id=agent.provider_id, estimate_usd=est)
+            # Invocation outcome is unknown (timeout/fence/crash). Preserve the
+            # conservative reservation as consumed rather than assuming no bill.
+            ledger.commit(
+                cycle_id=cycle_id,
+                provider_id=agent.provider_id,
+                estimate_usd=est,
+                actual_usd=est,
+                reservation_id=reservation_id,
+            )
             return
         actual = 0.0
+        u = result.usage or {}
         if model_row:
-            u = result.usage or {}
-            actual = (
+            computed = (
                 float(model_row.get("prompt_cost_per_mtok") or 0.0)
                 * float(u.get("prompt_tokens", 0))
                 + float(model_row.get("output_cost_per_mtok") or 0.0)
                 * float(u.get("completion_tokens", 0))
             ) / 1_000_000.0
-        if est or actual:
-            ledger.commit(
-                cycle_id=cycle_id,
-                provider_id=agent.provider_id,
-                estimate_usd=est,
-                actual_usd=actual,
-            )
+            actual = computed
+        reported = u.get("provider_reported_cost")
+        if reported is not None:
+            actual = max(actual, float(reported))
+        within, reason = ledger.commit(
+            cycle_id=cycle_id,
+            provider_id=agent.provider_id,
+            estimate_usd=est,
+            actual_usd=actual,
+            reservation_id=reservation_id,
+        )
+        if not within:
+            result.status = PacketResultStatus.FAILED
+            result.failure_class = FailureClass.QUOTA_BLOCKED
+            result.failure_detail = reason
+            result.uncertainties = [*result.uncertainties, "PAID_BUDGET_ACTUAL_OVERAGE"]
 
     async def execute_packets(
         self, pset: PacketSet, mode: RunMode, cycle_id: str
@@ -1211,23 +1486,29 @@ class FactoryEngine:
         # dispatched in shadow mode (after eligibility/selection; packet identity
         # unchanged — a stable-sorted prefix of the selected set). Packets dropped
         # by the cap are INTENTIONALLY DEFERRED, not missing (see _execute_wave).
-        if mode is RunMode.SHADOW and self._max_shadow_packets is not None:
-            selected = sorted(selected, key=lambda p: p.packet_id)[
-                : max(0, self._max_shadow_packets)
-            ]
+        cap = self._max_shadow_packets
+        auth = self.ctx.run_authorization
+        if auth is not None:
+            cap = auth.max_packets_per_wave if cap is None else min(cap, auth.max_packets_per_wave)
+        if cap is not None:
+            selected = sorted(selected, key=lambda p: p.packet_id)[: max(0, cap)]
         # Record the actual dispatched set so missing-result detection compares
         # only against packets we actually tried to run.
         self._dispatched_packet_ids = {p.packet_id for p in selected}
         deferred_by_cap = [
             pid for pid in pset.selected_packet_ids if pid not in self._dispatched_packet_ids
         ]
-        sem = asyncio.Semaphore(max(1, self.ctx.config.budgets.max_concurrent_workers))
-
-        async def _guarded(packet: Packet) -> PacketResult | None:
-            async with sem:
-                return await self._execute_one(packet, cycle_id, mode)
-
-        gathered = await asyncio.gather(*(_guarded(p) for p in selected))
+        selected_ids = {packet.packet_id for packet in selected}
+        if any(selected_ids.intersection(packet.conflicts_with) for packet in selected):
+            raise RuntimeError("CONFLICTING_PACKET_SELECTION")
+        if not self.ctx.store.lease_token_current("coordinator", self._coordinator_token or 0):
+            raise RuntimeError("COORDINATOR_LEASE_REQUIRED_FOR_EXECUTION")
+        # All distinct packets may queue concurrently, but only an atomically
+        # admitted subset can enter provider invocation.  The selected load is
+        # an ephemeral controller decision, not a semaphore/configuration value.
+        gathered = await asyncio.gather(
+            *(self._execute_one(packet, cycle_id, mode) for packet in selected)
+        )
         results = [r for r in gathered if r is not None]
         self.ctx.log_event(
             "execute.done",
@@ -1565,6 +1846,7 @@ class FactoryEngine:
             patch_fetch=_fetch if apply else None,
             apply_patches=apply,
             store=self.ctx.store,
+            max_wall_s=float(self.ctx.config.budgets.max_integration_wall_s),
         )
         self.ctx.store.put(
             "integration_attempts",
@@ -1580,12 +1862,19 @@ class FactoryEngine:
                 extra={"set_id": pset.set_id},
             )
         integration_failed = bool(accepted_results) and not attempt.deterministic_merge_ok
-        # Deterministic integration is used whenever patches merge without semantic
-        # conflict. Only a genuine semantic conflict needs an AI integrator/
-        # adjudicator, and it is chosen DYNAMICALLY per conflict (never a permanent
-        # integration provider) — recorded here for the fail-closed decision.
+        # There is no implemented independently reviewed adjudication lifecycle.
+        # A semantic conflict therefore remains an explicit operator-required
+        # block; selecting a model would not constitute integration.
         if integration_failed:
-            self._select_integrator(accepted_results, attempt, cycle_id)
+            self.ctx.log_event(
+                "integration.operator_required",
+                stage="INTEGRATING",
+                cycle_id=cycle_id,
+                payload={
+                    "code": "OPERATOR_REQUIRED_SEMANTIC_CONFLICT",
+                    "conflicts": list(attempt.semantic_conflicts),
+                },
+            )
 
         # VALIDATE FIRST so the reviewer receives the actual validation evidence.
         sm.transition(CycleState.VALIDATING)
@@ -1623,16 +1912,90 @@ class FactoryEngine:
             if wave is not None
             else None
         )
-        review = await (reviewer if reviewer is not None else NoopReviewer()).review(
-            pset.set_id, wave, bundle
-        )
+        import asyncio
+
+        review_timed_out = False
+        try:
+            review = await asyncio.wait_for(
+                (reviewer if reviewer is not None else NoopReviewer()).review(
+                    pset.set_id, wave, bundle
+                ),
+                timeout=float(self.ctx.config.budgets.max_reviewer_wall_s),
+            )
+        except TimeoutError:
+            review_timed_out = True
+            review = await NoopReviewer().review(pset.set_id, wave, bundle)
+        if wave is not None:
+            providers, _families = self._authoring_providers(accepted_results)
+            author_profiles = sorted({result.agent_profile_id for result in accepted_results})
+            reviewer_provider = str(getattr(review, "reviewer_provider_id", "") or "")
+            review_payload = bundle.prompt_payload() if bundle is not None else {}
+            review_context_ref = self.ctx.store.cas_put_text(canonical_json(review_payload))
+            if not needs_review:
+                admission_payload = {
+                    "kind": "review-not-required",
+                    "policy_digest": self.policy.digest(),
+                    "set_id": pset.set_id,
+                }
+                review_data = review.model_dump(mode="json")
+                review_data.update(
+                    {
+                        "approved": True,
+                        "reviewer_profile_id": "deterministic-review-not-required",
+                        "reviewer_provider_id": "factory-local-policy",
+                        "reviewer_actual_model": "not-applicable",
+                        "reviewer_admission_digest": content_digest(admission_payload),
+                    }
+                )
+                reviewer_provider = "factory-local-policy"
+            else:
+                review_data = review.model_dump(mode="json")
+                from .admission import latest_admission
+
+                admission_payload = (
+                    latest_admission(self.ctx, str(review_data.get("reviewer_profile_id") or ""))
+                    or {}
+                )
+            admission_ref = (
+                self.ctx.store.cas_put_text(canonical_json(admission_payload))
+                if admission_payload
+                else ""
+            )
+            review_data.update(
+                {
+                    "schema_version": 2,
+                    "patch_digest": wave.patch_digest,
+                    "validation_receipt_digest": receipt.digest(),
+                    "review_context_digest": content_digest(review_payload),
+                    "review_context_ref": review_context_ref,
+                    "reviewer_admission_digest": (
+                        admission_ref.removeprefix("cas:") if admission_ref else ""
+                    ),
+                    "reviewer_admission_ref": admission_ref,
+                    "authoring_identities": author_profiles,
+                    "authoring_providers": sorted(providers),
+                    "independence_determined": bool(
+                        reviewer_provider
+                        and reviewer_provider not in providers
+                        and str(review_data.get("reviewer_profile_id") or "") not in author_profiles
+                    ),
+                }
+            )
+            try:
+                from .models import WaveReview
+
+                review = WaveReview.model_validate(review_data)
+            except Exception:
+                # Persist the observed review, but protected delivery later fails
+                # closed because no schema-v2 review receipt can be admitted.
+                pass
         self.ctx.store.put(
             "wave_reviews",
             f"{pset.set_id}:{review.reviewer_profile_id}",
             review.content_dict(),
             extra={"set_id": pset.set_id},
         )
-        review_unavailable = needs_review and reviewer is None
+        review_unavailable = needs_review and (reviewer is None or review_timed_out)
         review_rejected = needs_review and reviewer is not None and not review.approved
 
         # Post-wave re-snapshot (read-only) before terminal evaluation.
@@ -1645,6 +2008,9 @@ class FactoryEngine:
         # latency from the propagated usage). Unknown metrics stay unrecorded (not
         # fabricated zeros); they feed roster ranking tie-breaks.
         validated = bool(getattr(receipt, "all_passed", False))
+        adaptive_validated = validated and (
+            not needs_review or bool(reviewer is not None and review.approved)
+        )
         for q in quals:
             r = results_by_pid.get(q.packet_id)
             pkt = by_id.get(q.packet_id)
@@ -1652,6 +2018,16 @@ class FactoryEngine:
                 self._record_profile_metric(
                     r, pkt.task_class, accepted=q.accepted, validated=validated
                 )
+                self.adaptive_execution.record_validated_outcome(
+                    r.packet_id,
+                    attempt_id=r.execution_attempt_id,
+                    accepted=q.accepted,
+                    validated=adaptive_validated,
+                    independently_reviewed=(
+                        bool(review.approved) if needs_review and reviewer is not None else None
+                    ),
+                )
+        self._adaptive_downstream_backlog = 0
 
         # Fail-closed terminal decision.
         fail_reasons: list[str] = []
@@ -1665,7 +2041,9 @@ class FactoryEngine:
             )
             fail_reasons.append(f"packet {q.packet_id} result not accepted: {why}")
         if integration_failed:
-            fail_reasons.append(f"integration failed: {attempt.semantic_conflicts}")
+            fail_reasons.append(
+                "OPERATOR_REQUIRED_SEMANTIC_CONFLICT: " + str(attempt.semantic_conflicts)
+            )
         if review_unavailable:
             fail_reasons.append("required substantive review unavailable for this wave")
         if review_rejected:
@@ -1814,35 +2192,6 @@ class FactoryEngine:
             )
         return reviewer
 
-    def _select_integrator(
-        self, accepted_results: list[PacketResult], attempt: Any, cycle_id: str
-    ) -> str | None:
-        """DYNAMICALLY select an independent integrator/adjudicator for a semantic
-        conflict (spec §9). No permanent integration provider: the choice is made
-        per conflict from the current workforce. Records availability; deterministic
-        integration remains the default and a conflict still blocks fail-closed when
-        no independent adjudicator is available."""
-        providers, families = self._authoring_providers(accepted_results)
-        prof, reason = select_integrator(
-            self._current_workforce(),
-            self.policy,
-            authoring_providers=providers,
-            authoring_families=families,
-        )
-        self.ctx.log_event(
-            "integration.adjudicator",
-            stage="INTEGRATING",
-            cycle_id=cycle_id,
-            payload={
-                "conflicts": list(getattr(attempt, "semantic_conflicts", []) or []),
-                "selected_profile_id": prof.profile_id if prof else None,
-                "provider_id": prof.provider_id if prof else None,
-                "reason": reason,
-                "authoring_providers": sorted(providers),
-            },
-        )
-        return prof.profile_id if prof else None
-
     def _deliver_wave(
         self, pset, wave, snap, post, receipt, review, accepted_results, by_id
     ) -> str | None:
@@ -1869,7 +2218,6 @@ class FactoryEngine:
         from .delivery_coordinator import DeliveryInput
         from .enums import RemediationKind
 
-        diff_text = self.ctx.store.cas_get(wave.patch_ref).decode() if wave.patch_ref else ""
         primary = accepted_results[0] if accepted_results else None
         pkt = by_id.get(primary.packet_id) if primary is not None else None
         obligation_id = getattr(pkt, "obligation_id", None) or pset.set_id
@@ -1881,9 +2229,49 @@ class FactoryEngine:
             }
             or {obligation_id}
         )
+        gap_identities = sorted(
+            {
+                (packet.gap_identity.type, packet.gap_identity.subject)
+                for result in accepted_results
+                for packet in [by_id.get(result.packet_id)]
+                if packet is not None and packet.gap_identity is not None
+            }
+        )
+        if not gap_identities:
+            return "protected delivery requires exact actionable (gap type, subject) identity"
+        from .models import ActionableGapIdentity
+
+        exact_gaps = [
+            ActionableGapIdentity(type=kind, subject=subject) for kind, subject in gap_identities
+        ]
         rk = getattr(pkt, "remediation_kind", RemediationKind.SOURCE_CHANGE)
         rk = rk if isinstance(rk, RemediationKind) else RemediationKind(rk)
-        providers, _fams = self._authoring_providers(accepted_results)
+        from .assurance import persist_assurance_bundle
+
+        if wave.patch_ref is None:
+            return "protected delivery has no CAS-bound effective patch"
+        auth = self.ctx.run_authorization
+        if auth is None:
+            return "protected delivery has no RunAuthorization"
+        try:
+            assurance_ref, _assurance = persist_assurance_bundle(
+                self.ctx.store,
+                set_id=pset.set_id,
+                obligation_ids=obligation_ids,
+                gap_identities=exact_gaps,
+                remediation_kind=rk,
+                maximum_risk=getattr(pkt, "risk", Risk.MEDIUM),
+                repository_base_head=snap.repository_head,
+                expected_authority_digest=snap.authority_digest,
+                patch_ref=wave.patch_ref,
+                validation=receipt,
+                review=review,
+                policy_digest=self.policy.digest(),
+                workforce_snapshot_id=self._current_workforce().snapshot_id,
+                run_authorization_digest=auth.digest(),
+            )
+        except Exception as exc:
+            return f"assurance closure incomplete: {str(exc)[:200]}"
         inp = DeliveryInput(
             obligation_id=obligation_id,
             obligation_ids=obligation_ids,
@@ -1892,29 +2280,52 @@ class FactoryEngine:
             base_head=snap.repository_head,
             expected_pre_publication_digest=snap.authority_digest,
             risk=getattr(pkt, "risk", Risk.MEDIUM),
-            diff_text=diff_text,
-            validation_passed=bool(receipt.all_passed),
-            review_approved=bool(getattr(review, "approved", False)),
-            reviewer_profile_id=getattr(review, "reviewer_profile_id", ""),
-            authoring_providers=sorted(providers),
+            gap_identities=exact_gaps,
+            assurance_bundle_ref=assurance_ref,
+            assurance_bundle_digest=assurance_ref.removeprefix("cas:"),
             provider_model_receipts=[
                 {"provider_id": r.actual_provider or "", "actual_model": r.actual_model or ""}
                 for r in accepted_results
             ],
-            validation_receipt_digest=receipt.digest(),
-            review_receipt_digest=review.digest(),
-            policy_digest=self.policy.digest(),
-            workforce_snapshot_id=self._current_workforce().snapshot_id,
         )
         try:
             rec = coordinator.deliver(inp)
             state = rec.state
         except Exception as exc:
+            rec = None
             state = f"error: {str(exc)[:200]}"
+        delivery_payload = {
+            "prepared": True,
+            "reason": f"delivery state {state}",
+            "delivery_state": state,
+        }
+        if rec is not None:
+            delivery_payload.update(
+                {
+                    "delivery_id": str(getattr(rec, "delivery_id", "") or ""),
+                    "pr_url": str(getattr(rec, "pr_url", "") or ""),
+                    "merge_commit": str(getattr(rec, "merge_commit", "") or ""),
+                    "git_merged": bool(getattr(rec, "merge_commit", "")),
+                    "authority_digest_before": str(
+                        getattr(rec, "authority_digest_before", "") or ""
+                    ),
+                    "authority_digest_after": str(getattr(rec, "authority_digest_after", "") or ""),
+                    "published": bool(getattr(rec, "authority_digest_after", "")),
+                    "reconciliation_result": (
+                        "required"
+                        if getattr(rec, "reconciliation", {}).get(
+                            "publication_reconciliation_required"
+                        )
+                        else "complete"
+                        if rec.state == DeliveryState.COMPLETE.value
+                        else "pending"
+                    ),
+                }
+            )
         self.ctx.store.put(
             "publication_receipts",
             f"{pset.set_id}:delivery",
-            {"prepared": True, "reason": f"delivery state {state}", "delivery_state": state},
+            delivery_payload,
             extra={"set_id": pset.set_id},
         )
         self.ctx.log_event(
@@ -1979,25 +2390,76 @@ class FactoryEngine:
     def _validate_wave(self, pset, wave, snap):
         """Run required validation profiles for the wave against the integration
         clone. A required gate with no runner FAILS (never green-skip)."""
-        from .validation_runners import build_runners
+        from .validation_runners import build_runners, requires_independent_verifier
 
         if wave is None:
             return run_validation(pset.set_id, [])  # nothing produced to validate
         gates = sorted({g for p in pset.packets for g in p.required_validation})
+        if requires_independent_verifier(list(wave.changed_paths)):
+            gates = sorted({*gates, "independent-trust-boundary"})
         clone_path = self.ctx.paths.integration / pset.set_id
         runners = build_runners(clone_path)
-        return run_validation(pset.set_id, gates, runners)
+        import subprocess
+
+        from .github_delivery import restricted_subprocess_environment
+
+        env = restricted_subprocess_environment(github=False)
+        tree_result = subprocess.run(
+            ["git", "-C", str(clone_path), "write-tree"],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+        head_result = subprocess.run(
+            ["git", "-C", str(clone_path), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+        if tree_result.returncode != 0 or head_result.returncode != 0:
+            return run_validation(pset.set_id, gates, {})
+        toolchain: dict[str, str] = {"python": sys.version.split()[0]}
+        for package in ("rdflib", "pyshacl", "pydantic"):
+            try:
+                from importlib.metadata import version
+
+                toolchain[package] = version(package)
+            except Exception:
+                toolchain[package] = "unavailable"
+        for lock_name in ("package-lock.json", "npm-shrinkwrap.json"):
+            lock = clone_path / lock_name
+            if lock.is_file():
+                toolchain[lock_name] = digest_bytes(lock.read_bytes())
+        return run_validation(
+            pset.set_id,
+            gates,
+            runners,
+            assurance_bindings={
+                "patch_digest": wave.patch_digest,
+                "patch_ref": wave.patch_ref or "",
+                "integration_tree": tree_result.stdout.strip(),
+                "integration_head": head_result.stdout.strip(),
+                "repository_base_head": snap.repository_head,
+                "authority_digest": snap.authority_digest,
+                "toolchain_bindings": toolchain,
+            },
+            max_wall_s=float(self.ctx.config.budgets.max_validation_wall_s),
+        )
 
     def _detect_no_progress(self, snap: SemanticSnapshot, pset: PacketSet) -> bool:
-        prev = self.ctx.store.records("cycles")
-        if not prev:
-            return False
-        last = sorted(prev, key=lambda c: c.get("cycle_id", ""))[-1]
-        return (
-            last.get("snapshot_id") == snap.snapshot_id
-            and last.get("selected_packets", -1) == len(pset.selected_packet_ids)
-            and len(pset.selected_packet_ids) == 0
-        )
+        """Durable repetition threshold over the exact snapshot + packet set."""
+        streak = 1  # the cycle being evaluated
+        for prior in sorted(
+            self.ctx.store.records("cycles"),
+            key=lambda c: c.get("cycle_id", ""),
+            reverse=True,
+        ):
+            if prior.get("snapshot_id") != snap.snapshot_id or prior.get("set_id") != pset.set_id:
+                break
+            streak += 1
+        return streak >= max(1, self.ctx.config.budgets.max_no_progress_cycles)
 
     def _finish(
         self,
@@ -2014,7 +2476,14 @@ class FactoryEngine:
         blockers: list[str] | None = None,
     ) -> CycleReceipt:
         from .clock import utc_now_iso
+        from .validation import record_terminal_observation
 
+        delivery = (
+            self.ctx.store.get("publication_receipts", f"{pset.set_id}:delivery")
+            if pset is not None
+            else None
+        )
+        published = bool(delivery and delivery.get("published"))
         receipt = CycleReceipt(
             cycle_id=cycle_id,
             mode=mode.value,
@@ -2024,7 +2493,16 @@ class FactoryEngine:
             set_id=pset.set_id if pset else None,
             selected_packets=len(pset.selected_packet_ids) if pset else 0,
             accepted_packets=accepted,
-            published=False,
+            published=published,
+            delivery_id=str((delivery or {}).get("delivery_id") or ""),
+            delivery_state=str((delivery or {}).get("delivery_state") or ""),
+            pr_url=str((delivery or {}).get("pr_url") or ""),
+            merge_commit=str((delivery or {}).get("merge_commit") or ""),
+            git_merged=bool((delivery or {}).get("git_merged")),
+            authority_digest_before=str((delivery or {}).get("authority_digest_before") or ""),
+            authority_digest_after=str((delivery or {}).get("authority_digest_after") or ""),
+            reconciliation_result=str((delivery or {}).get("reconciliation_result") or ""),
+            programme_terminal_complete=state is CycleState.COMPLETE,
             no_progress=no_progress,
             blockers=blockers or [],
             started_at=started,
@@ -2036,6 +2514,8 @@ class FactoryEngine:
             receipt.content_dict(),
             extra={"state": state.value},
         )
+        if snapshot is not None and state in {CycleState.LEARNED, CycleState.COMPLETE}:
+            record_terminal_observation(self.ctx, cycle_id, snapshot)
         self.ctx.log_event(
             "cycle.finished",
             stage=state.value,

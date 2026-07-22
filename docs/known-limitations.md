@@ -36,9 +36,11 @@ PR operation, merge or publication is reconciled from exact CAS-bound input and
 remote state before retry; unavailable reconciliation blocks.
 
 The driver contracts and adverse outcomes are tested with disposable fakes and
-the real `usf-graph` CLI schema. A live protected merge/publication against the
-production GitHub repository or live Stardog is intentionally not part of the
-test suite and is not claimed.
+the real `usf-graph` CLI schema. The production GitHub driver declares exact
+merge unsupported and blocks before mutation because ordinary `gh pr merge`
+cannot pin the reviewed base and prospective tree. The publisher also blocks
+unless a host containment probe succeeds. A live protected merge/publication
+against production GitHub or Stardog is intentionally not part of the suite.
 
 ## Remaining release limitations
 
@@ -63,8 +65,7 @@ test suite and is not claimed.
 ## Safe current use
 
 Read-only observation, planning, qualification and isolated dry-run execution
-are appropriate. Protected delivery is suitable only with an explicit bounded
-authorization, exact current graph bindings, complete required checks and all
-fail-closed gates passing. This branch must not be described as autonomous
-production-ready until the full clean-clone attestation and cross-repository
-scenarios pass.
+are appropriate. Protected delivery is **not ready to run on this host**. It
+requires an explicit bounded authorization, exact current graph bindings,
+complete required checks, an exact merge mechanism and demonstrated publication
+containment. A clean local attestation does not waive either external blocker.

@@ -8,9 +8,12 @@ computed from GOAL + admitted evidence/proof — never accepted from model prose
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
+from .canonical import content_digest
 from .clock import utc_now_iso
 from .context import RuntimeContext
 from .enums import ProtectedAction
@@ -61,6 +64,8 @@ def run_validation(
     runners: dict[str, GateRunner] | None = None,
     *,
     conditional: frozenset[str] | None = None,
+    assurance_bindings: dict[str, Any] | None = None,
+    max_wall_s: float | None = None,
 ) -> ValidationReceipt:
     """Run the requested validation gates deterministically.
 
@@ -76,7 +81,13 @@ def run_validation(
     gates: dict[str, bool] = {}
     detail: dict[str, str] = {}
     any_failed = False
+    started = time.monotonic()
     for name in gate_names:
+        if max_wall_s is not None and time.monotonic() - started >= max_wall_s:
+            gates[name] = False
+            detail[name] = "FAIL: integrated validation wall-clock limit exceeded"
+            any_failed = True
+            continue
         runner = runners.get(name)
         if runner is None:
             gates[name] = False  # required gate with no runner => FAIL closed
@@ -86,6 +97,8 @@ def run_validation(
         passed, why = runner()
         if passed is None:
             if name in conditional:
+                if assurance_bindings is not None:
+                    gates[name] = True
                 detail[name] = f"n/a: {why}"  # deterministic applicability predicate
                 continue
             gates[name] = False  # required gate may not declare itself n/a
@@ -96,11 +109,36 @@ def run_validation(
         detail[name] = why
         if not passed:
             any_failed = True
+    bindings = assurance_bindings or {}
+    actual_runners = sorted(name for name in gate_names if name in runners)
+    runner_inventory = {
+        name: (
+            f"{getattr(runners[name], '__module__', '')}:"
+            f"{getattr(runners[name], '__qualname__', type(runners[name]).__qualname__)}"
+        )
+        for name in actual_runners
+    }
+    toolchain_bindings = {
+        str(k): str(v) for k, v in dict(bindings.get("toolchain_bindings") or {}).items()
+    }
     return ValidationReceipt(
+        schema_version=2 if assurance_bindings is not None else 1,
         set_id=set_id,
         gates=gates,
         all_passed=not any_failed,
         detail=detail,
+        patch_digest=str(bindings.get("patch_digest") or ""),
+        patch_ref=str(bindings.get("patch_ref") or ""),
+        integration_tree=str(bindings.get("integration_tree") or ""),
+        integration_head=str(bindings.get("integration_head") or ""),
+        repository_base_head=str(bindings.get("repository_base_head") or ""),
+        authority_digest=str(bindings.get("authority_digest") or ""),
+        required_gate_inventory=sorted(set(gate_names)),
+        actual_runner_inventory=actual_runners,
+        runner_bindings=runner_inventory,
+        runner_inventory_digest=content_digest(runner_inventory),
+        toolchain_bindings=toolchain_bindings,
+        toolchain_inventory_digest=content_digest(toolchain_bindings),
         validated_at=utc_now_iso(),
     )
 
@@ -140,58 +178,88 @@ class PublicationStateMachine:
         )
 
 
+def record_terminal_observation(
+    ctx: RuntimeContext, cycle_id: str, snapshot: SemanticSnapshot
+) -> None:
+    """Persist one completed-cycle authority observation.
+
+    The caller invokes this only after the immutable cycle receipt is durable.
+    Re-evaluating a cycle therefore cannot manufacture a second observation.
+    """
+    cycle = ctx.store.get("cycles", cycle_id)
+    if cycle is None or cycle.get("state") not in {"LEARNED", "COMPLETE"}:
+        return
+    zero_gap = (
+        snapshot.health_ok
+        and snapshot.work_plan_complete
+        and snapshot.work_plan_authority_digest == snapshot.authority_digest
+        and not snapshot.actionable_gap_identities
+        and not snapshot.unresolved_obligations
+    )
+    ctx.store.put(
+        "terminal_stability",
+        cycle_id,
+        {
+            "cycle_id": cycle_id,
+            "zero_gap": zero_gap,
+            "snapshot_id": snapshot.snapshot_id,
+            "authority_digest": snapshot.authority_digest,
+            "work_plan_complete": snapshot.work_plan_complete,
+        },
+    )
+
+
 def compute_terminal_complete(
     ctx: RuntimeContext, snapshot: SemanticSnapshot, *, require_two_snapshots: bool = True
 ) -> tuple[bool, list[str]]:
     """Compute terminal COMPLETE from GOAL + authority — never from prose.
 
     Returns (complete, reasons). Terminal completion requires, deterministically:
-    the committed gate enabled, a live RunAuthorization that permits it (when one is
-    present for the run), a zero-gap snapshot (no unresolved obligations + healthy
-    authority), AND — the stability rule (§13) — two CONSECUTIVE zero-gap snapshots,
-    so a single transient zero-gap reading can never declare completion.
+    the committed gate enabled, a live RunAuthorization that explicitly permits
+    it, a complete digest-stable zero-gap work plan, and two observations from
+    distinct previously completed cycles at the same authority digest.
     """
     reasons: list[str] = []
     if not ctx.is_gate_enabled(ProtectedAction.TERMINAL_COMPLETION):
         reasons.append("terminal-completion gate disabled")
         return False, reasons
-    # Per-run enabler: when the operator supplied a RunAuthorization for this run,
-    # it must explicitly permit terminal completion (and be unexpired).
-    if ctx.run_authorization is not None and not ctx.is_action_effective(
+    if ctx.run_authorization is None or not ctx.is_action_effective(
         ProtectedAction.TERMINAL_COMPLETION
     ):
-        reasons.append("RunAuthorization does not permit terminal completion (or expired)")
+        reasons.append("live RunAuthorization does not permit terminal completion (or expired)")
         return False, reasons
     if snapshot.unresolved_obligations:
         reasons.append(f"{len(snapshot.unresolved_obligations)} unresolved obligations")
     if not snapshot.health_ok:
         reasons.append("authority health not ok")
+    if not snapshot.work_plan_complete:
+        reasons.append("complete digest-stable work plan unavailable")
+    if snapshot.work_plan_authority_digest != snapshot.authority_digest:
+        reasons.append("work-plan authority digest does not match current authority")
+    if snapshot.actionable_gap_identities:
+        reasons.append(f"{len(snapshot.actionable_gap_identities)} actionable work-plan gaps")
 
-    zero_gap = not reasons
     if require_two_snapshots:
-        prev = ctx.store.get("terminal_stability", "last") or {}
-        # Record THIS snapshot's zero-gap status for the next evaluation. Two
-        # CONSECUTIVE zero-gap snapshots (same authority digest) are required.
-        ctx.store.put(
-            "terminal_stability",
-            "last",
-            {
-                "zero_gap": zero_gap,
-                "snapshot_id": snapshot.snapshot_id,
-                "authority_digest": snapshot.authority_digest,
-            },
-        )
-        if zero_gap:
-            stable = (
-                bool(prev.get("zero_gap"))
-                and prev.get("authority_digest") == snapshot.authority_digest
-            )
-            if not stable:
-                reasons.append("awaiting a second consecutive stable zero-gap snapshot")
+        observations = [
+            row
+            for _key, row in ctx.store.items("terminal_stability")
+            if row.get("authority_digest") == snapshot.authority_digest
+            and (ctx.store.get("cycles", str(row.get("cycle_id") or "")) or {}).get("state")
+            in {"LEARNED", "COMPLETE"}
+        ]
+        observations.sort(key=lambda row: str(row.get("cycle_id") or ""))
+        latest_by_cycle = {
+            str(row.get("cycle_id") or ""): row for row in observations if row.get("cycle_id")
+        }
+        latest = [latest_by_cycle[key] for key in sorted(latest_by_cycle)[-2:]]
+        if len(latest) < 2 or any(
+            not row.get("zero_gap") or not row.get("work_plan_complete") for row in latest
+        ):
+            reasons.append("awaiting zero-gap observations from two distinct completed cycles")
 
     complete = not reasons
     if complete:
         reasons.append(
-            "all deterministic completion conditions satisfied (two stable zero-gap snapshots)"
+            "all deterministic completion conditions satisfied (two distinct completed cycles)"
         )
     return complete, reasons

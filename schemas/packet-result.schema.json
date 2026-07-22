@@ -81,6 +81,11 @@
       "title": "Evidence Produced",
       "type": "array"
     },
+    "execution_attempt_id": {
+      "default": "",
+      "title": "Execution Attempt Id",
+      "type": "string"
+    },
     "failure_class": {
       "anyOf": [
         {

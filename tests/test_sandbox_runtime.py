@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 
 import pytest
 
@@ -29,6 +30,18 @@ def test_capabilities_are_reported_honestly():
     assert caps["process_group_timeout"]
     # In this environment namespaces are unavailable; must be reported as such.
     assert caps["privilege_drop"] == IS_ROOT
+
+
+@pytest.mark.adversarial
+def test_installed_but_unusable_namespace_tool_is_not_advertised(monkeypatch):
+    class FailedProbe:
+        returncode = 1
+
+    monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/bwrap")
+    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: FailedProbe())
+    runner = SandboxRunner()
+    assert runner.capabilities()["filesystem_namespace"] is False
+    assert runner._namespace_wrapper(["/usr/bin/true"]) == ["/usr/bin/true"]
 
 
 @pytest.mark.adversarial

@@ -38,7 +38,16 @@ from usf_factory.scheduler import SchedulableAgent, Scheduler
 
 @pytest.mark.e2e
 def test_plan_only_selects_without_executing(ctx, tmp_usf):
-    items = [{"id": f"O{i}", "title": f"indep {i}", "dependencies": []} for i in range(4)]
+    items = [
+        {
+            "id": f"O{i}",
+            "type": "test-gap",
+            "subject": f"urn:test:subject:{i}",
+            "title": f"indep {i}",
+            "dependencies": [],
+        }
+        for i in range(4)
+    ]
     eng = FactoryEngine(ctx, authority_factory=lambda: FakeAuthority(work_plan_items=items))
     receipt = asyncio.run(eng.run_cycle(RunMode.PLAN_ONLY))
     # plan-only selects the antichain but performs NO execution (no model mutation).
@@ -251,5 +260,14 @@ def test_cas_gc_removes_unreferenced(tmp_path):
     st.put("wave_patches", "w1", {"patch_ref": kept}, extra={"set_id": "s1"})
     removed = st.cas_gc()
     assert removed == 1
-    assert st.cas_has(kept)
+
+
+def test_cas_gc_preserves_transitively_referenced_bundle_children(tmp_path):
+    st = open_store(tmp_path / "s.db", tmp_path / "cas")
+    child = st.cas_put_text("immutable receipt bytes")
+    bundle = st.cas_put_text('{"receipt_ref":"' + child + '"}')
+    st.put("publication_receipts", "root", {"bundle_ref": bundle}, extra={"set_id": "s"})
+    assert st.cas_gc() == 0
+    assert st.cas_has(bundle)
+    assert st.cas_has(child)
     st.close()

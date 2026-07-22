@@ -89,7 +89,7 @@ class FakeAuthority:
     def __init__(
         self,
         *,
-        digest="sha256:fakeauthority",
+        digest="sha256:" + "a" * 64,
         triples=1234,
         graphs=7,
         unresolved=None,
