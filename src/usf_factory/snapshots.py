@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from .authority import UsfAuthorityClient
-from .canonical import digest_text
+from .canonical import canonical_authority_digest, digest_text
 from .clock import utc_now_iso
 from .errors import SnapshotError
 from .isolation import RepoIsolation
@@ -27,30 +27,10 @@ REQUIRED_TOOLS = ("usf_health", "usf_bootstrap", "usf_query", "usf_work_plan")
 
 # An authority digest must be a non-trivial identifier (never manufactured).
 _DIGEST_RE = re.compile(r"^[A-Za-z0-9:_\-]{16,}$")
-_RAW_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-_TAGGED_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 def _valid_digest(value: str) -> bool:
     return bool(value) and " " not in value and bool(_DIGEST_RE.match(value))
-
-
-def _canonical_authority_digest(value: str) -> str:
-    """Canonicalise equivalent MCP authority-witness representations.
-
-    ``usf_bootstrap`` carries the RDFC witness algorithm separately and exposes
-    its 64 hexadecimal digest, while gateway projections expose the same value
-    as ``sha256:<hex>``.  Normalising only this exact, lossless representation
-    difference preserves strict equality without weakening digest binding.
-    Non-SHA test/provider identifiers retain their existing fail-closed
-    validation contract.
-    """
-    candidate = value.strip()
-    if _RAW_SHA256_RE.fullmatch(candidate):
-        return f"sha256:{candidate}"
-    if _TAGGED_SHA256_RE.fullmatch(candidate):
-        return candidate
-    return candidate
 
 
 def _read_digest(path: Path) -> str | None:
@@ -87,7 +67,7 @@ def _collect_evidence_refs(bootstrap: dict[str, Any]) -> list[str]:
 
 def _complete_work_plan(authority: UsfAuthorityClient, authority_digest: str) -> dict[str, Any]:
     """Read every deterministic work-plan page under one authority digest."""
-    authority_digest = _canonical_authority_digest(authority_digest)
+    authority_digest = canonical_authority_digest(authority_digest)
     gaps: list[dict[str, Any]] = []
     offset = 0
     seen_offsets: set[int] = set()
@@ -99,7 +79,7 @@ def _complete_work_plan(authority: UsfAuthorityClient, authority_digest: str) ->
         page = authority.work_plan({"offset": offset}).json()
         if not isinstance(page, dict) or page.get("schemaVersion") != 1:
             raise SnapshotError("work-plan response is absent or has an unsupported schema")
-        page_digest = _canonical_authority_digest(str(page.get("authorityDigest") or ""))
+        page_digest = canonical_authority_digest(str(page.get("authorityDigest") or ""))
         if page_digest != authority_digest:
             raise SnapshotError("work-plan authority digest differs from bootstrap")
         page_gaps = page.get("gaps")
@@ -150,7 +130,7 @@ def compile_snapshot(
 
     bootstrap = authority.bootstrap().json() or {}
     auth = bootstrap.get("authority") or {}
-    authority_digest = _canonical_authority_digest(str(auth.get("digest") or ""))
+    authority_digest = canonical_authority_digest(str(auth.get("digest") or ""))
     if not _valid_digest(authority_digest):
         raise SnapshotError(
             "USF bootstrap did not supply a valid authority digest; refusing to "

@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from .authority import UsfAuthorityClient
+from .canonical import canonical_authority_digest
 from .context import RuntimeContext
 from .github_delivery import (
     CommandResult,
@@ -70,7 +71,7 @@ _DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 def _require_digest(value: str, field: str) -> str:
-    digest = str(value or "").strip()
+    digest = canonical_authority_digest(str(value or ""))
     if not _DIGEST.fullmatch(digest):
         raise ValueError(f"{field} must be an exact sha256 digest")
     return digest

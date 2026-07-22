@@ -11,6 +11,7 @@ from usf_factory.github_delivery import CommandResult, GitHubDelivery
 from usf_factory.stardog_publication import StardogPublisher
 
 DIGEST = "sha256:" + "a" * 64
+RAW_DIGEST = "a" * 64
 POST_DIGEST = "sha256:" + "b" * 64
 
 
@@ -23,9 +24,10 @@ class _ToolResult:
 
 
 class _Authority:
-    def __init__(self):
+    def __init__(self, digest=DIGEST):
         self.entered = False
         self.closed = False
+        self.digest = digest
 
     def __enter__(self):
         self.entered = True
@@ -40,7 +42,7 @@ class _Authority:
 
     def bootstrap(self):
         assert self.entered
-        return _ToolResult({"authority": {"digest": DIGEST}})
+        return _ToolResult({"authority": {"digest": self.digest}})
 
     def work_plan(self):
         assert self.entered
@@ -110,6 +112,12 @@ def test_authority_client_is_started_and_closed(ctx):
     snapshot = publisher.resnapshot()
     assert snapshot["health"]["ok"] is True
     assert len(clients) == 2 and all(c.entered and c.closed for c in clients)
+
+
+@pytest.mark.contract
+def test_authority_binding_canonicalises_live_raw_sha256_witness(ctx):
+    publisher = StardogPublisher(ctx, authority_factory=lambda: _Authority(RAW_DIGEST))
+    assert publisher.read_authority_binding() == (DIGEST, "USF")
 
 
 @pytest.mark.contract
