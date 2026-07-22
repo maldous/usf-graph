@@ -1,0 +1,24 @@
+# ---------------------------------------------------------------------------
+# Operator-maintained WorkforcePolicy (dynamic workforce spec §2 / §11).
+# ---------------------------------------------------------------------------
+# This is EXPLICIT, operator-maintained policy — NOT a hard-coded code default.
+# The factory code (committed_defaults) names no provider/model/family and
+# excludes nothing by identity. Every entry here is an operator choice, layered
+# under the operator policy file (--workforce-policy) and run-specific CLI
+# overrides (--exclude-provider / --only-provider / --allow-*-inference / ...).
+# Exclusions here always win over inclusions/auto-selection; a run may ADD
+# exclusions but a run inclusion can never override an exclusion.
+#
+# Any provider/model may perform any role it currently qualifies for; anything
+# here can be removed to re-enable it. Removing a line is the only way to make a
+# named provider eligible again — availability of a named provider is never a
+# structural dependency of the factory.
+# ---------------------------------------------------------------------------
+
+exclude_providers:
+  # Local Ollama inference is too slow to be practical for this deployment
+  # (operator practicality choice, not a code default). An exclusion always wins
+  # over any inclusion/auto-selection, so the ONLY way to re-enable ollama is to
+  # remove this line from the maintained policy (a per-run --only-provider cannot
+  # override a maintained exclusion — by design).
+  - ollama

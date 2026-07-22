@@ -36,6 +36,21 @@ _RECORD_TABLES: dict[str, list[str]] = {
     "agent_profiles": [],
     "qualification_suites": [],
     "qualification_runs": ["agent_profile_id", "expires_at"],
+    # Immutable probe runs (keyed by run_id) and admission decisions.
+    "probe_runs": ["agent_profile_id"],
+    "admission_decisions": ["agent_profile_id", "qualification_run_id"],
+    # Append-only, digest-bound ownership evidence (subject -> owner path).
+    "ownership_evidence": ["subject", "owner_path", "verified"],
+    # One coverage row per provider per evaluation run; the active role roster.
+    "provider_evaluations": ["provider_id", "eval_suite_version"],
+    "role_rosters": [],
+    # Dynamic evidence-based workforce snapshot (bounded cache of eligible
+    # profiles; TTL + digest staleness) — replaces the fixed-primary roster.
+    "workforce_snapshots": ["policy_digest", "config_digest"],
+    # Demonstrated (observed) adapter capabilities, e.g. bounded_patch_synthesis
+    # proven by a real git-derived patch; and per-profile runtime metrics.
+    "capability_observations": ["provider_id", "capability"],
+    "profile_metrics": ["agent_profile_id", "task_class"],
     "task_classes": [],
     "model_task_scores": ["agent_profile_id", "task_class", "dimension"],
     "semantic_snapshots": ["authority_digest", "repository_head"],
@@ -50,6 +65,16 @@ _RECORD_TABLES: dict[str, list[str]] = {
     "validation_receipts": ["set_id"],
     "publication_receipts": ["set_id"],
     "routing_decisions": ["packet_id"],
+    # Full replayable dynamic-dispatch outcome per packet run: the ordered attempts
+    # (with actual provider/model + fallback), and the final selection.
+    "dispatch_outcomes": ["packet_id"],
+    # Durable, idempotent delivery-lifecycle records (one per obligation delivery).
+    "delivery_records": ["obligation_id", "state"],
+    # Content-addressed factory execution observations. These are explicitly not
+    # authority ValidationEvidence and cannot close a semantic obligation.
+    "factory_validation_receipts": ["obligation_id"],
+    # Terminal-completion stability tracker (two consecutive zero-gap snapshots).
+    "terminal_stability": [],
     "cycles": ["state"],
     "budget_events": ["cycle_id", "provider_id"],
     # Latest OBSERVED health per provider (scheduler fact source; never fabricated).

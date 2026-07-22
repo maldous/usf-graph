@@ -25,12 +25,14 @@ from .enums import (
     AuthMode,
     ConflictClass,
     CycleState,
+    DeliveryState,
     FailureClass,
     HealthStatus,
     Modality,
     PacketResultStatus,
     PrivacyClass,
     ProbeKind,
+    RemediationKind,
     Risk,
 )
 
@@ -213,6 +215,43 @@ class ProbeSpec(FactoryModel):
         return stable_id("probe", self.content_dict())
 
 
+class TokenUsage(FactoryModel):
+    """Per-call token + cost accounting (from provider-reported usage where
+    available; fields default 0 when a provider omits them)."""
+
+    input_tokens: int = 0
+    cached_input_tokens: int = 0  # cache-read (hit)
+    uncached_input_tokens: int = 0
+    cache_creation_tokens: int = 0  # cache-write (cold)
+    output_tokens: int = 0
+    provider_reported_cost: float | None = None  # None => provider omitted cost
+    latency_ms: float | None = None
+    actual_provider: str | None = None
+    actual_model: str | None = None
+    requested_model: str | None = None
+    actual_model_verified: bool = False  # True iff the provider reported the model
+    fell_back_to_default: bool = False
+
+    def merged(self, other: TokenUsage) -> TokenUsage:
+        return TokenUsage(
+            input_tokens=self.input_tokens + other.input_tokens,
+            cached_input_tokens=self.cached_input_tokens + other.cached_input_tokens,
+            uncached_input_tokens=self.uncached_input_tokens + other.uncached_input_tokens,
+            cache_creation_tokens=self.cache_creation_tokens + other.cache_creation_tokens,
+            output_tokens=self.output_tokens + other.output_tokens,
+            provider_reported_cost=(
+                (self.provider_reported_cost or 0.0) + (other.provider_reported_cost or 0.0)
+                if (
+                    self.provider_reported_cost is not None
+                    or other.provider_reported_cost is not None
+                )
+                else None
+            ),
+            actual_provider=other.actual_provider or self.actual_provider,
+            actual_model=other.actual_model or self.actual_model,
+        )
+
+
 class ProbeResult(FactoryModel):
     kind: ProbeKind
     version: str
@@ -220,7 +259,9 @@ class ProbeResult(FactoryModel):
     score: float = 0.0
     detail: str = ""
     actual_model_id: str | None = None
+    actual_provider: str | None = None
     latency_ms: float | None = None
+    usage: TokenUsage = Field(default_factory=lambda: TokenUsage())
     observed_at: str = ""
 
     _volatile_fields = frozenset({"observed_at", "latency_ms"})
@@ -249,22 +290,167 @@ class QualificationSuite(FactoryModel):
         return self.digest()
 
 
-class QualificationRun(FactoryModel):
-    """Result of running the suite against one agent profile."""
+class ProbeRun(FactoryModel):
+    """Immutable record of a mechanical probe suite run against a live model.
 
+    Keyed by its own ``run_id`` (never overwritten). Records the exact model/
+    adapter/config and per-probe verdicts so a probe run is auditable evidence,
+    not a self-check."""
+
+    run_id: str
+    agent_profile_id: str
+    provider_id: str
+    requested_model_id: str
+    adapter_id: str
+    config_digest: str = ""
+    suite_digest: str = ""
+    actual_models: list[str] = Field(default_factory=list)
+    results: list[ProbeResult] = Field(default_factory=list)
+    passed: int = 0
+    total: int = 0
+    tokens_in: int = 0
+    tokens_out: int = 0
+    cached_input_tokens: int = 0
+    uncached_input_tokens: int = 0
+    cache_creation_tokens: int = 0
+    cost_usd: float = 0.0
+    cost_verified: bool = False  # True iff provider-reported cost was available
+    cli_version: str | None = None
+    inference_mode: str = ""  # free | subscription | paid
+    errors: list[str] = Field(default_factory=list)
+    started_at: str = ""
+    ended_at: str = ""
+
+    _volatile_fields = frozenset({"started_at", "ended_at"})
+
+
+class QualificationRun(FactoryModel):
+    """Immutable result of running the suite against one agent profile.
+
+    Stored under ``run_id`` (a ULID) and NEVER overwritten — admission is a
+    separate decision that references one exact run. The configuration digests
+    let the scheduler reject a run whose model/adapter/prompt/suite changed."""
+
+    run_id: str = ""
     agent_profile_id: str
     suite_id: str
     suite_version: str
+    suite_digest: str = ""
+    holdout_digest: str = ""
+    config_digest: str = ""
+    prompt_version: str = "v1"
+    tool_profile: str = "default"
+    requested_model_id: str = ""
+    actual_models: list[str] = Field(default_factory=list)
+    probe_run_id: str = ""
     dimension_scores: dict[str, float] = Field(default_factory=dict)
     task_class_scores: dict[str, float] = Field(default_factory=dict)
     cases_passed: int = 0
     cases_total: int = 0
     roles_admitted: list[AdmissionRole] = Field(default_factory=list)
+    tokens_in: int = 0
+    tokens_out: int = 0
+    cost_usd: float = 0.0
     billable: bool = False
     ran_at: str = ""
     expires_at: str = ""
 
     _volatile_fields = frozenset({"ran_at", "expires_at"})
+
+
+class AdmissionDecision(FactoryModel):
+    """An immutable admission decision referencing ONE qualification run.
+
+    Roles are computed from that run's evidence (or explicitly granted by an
+    operator, recorded as such). Admitting roles never mutates the underlying
+    qualification evidence."""
+
+    decision_id: str
+    agent_profile_id: str
+    qualification_run_id: str
+    roles: list[AdmissionRole] = Field(default_factory=list)
+    method: str = "evidence"  # evidence | operator-override
+    config_digest: str = ""
+    expires_at: str = ""
+    decided_at: str = ""
+    detail: str = ""
+
+    _volatile_fields = frozenset({"decided_at"})
+
+
+class ProviderEvaluation(FactoryModel):
+    """One coverage row per configured provider (final completion pass §4)."""
+
+    provider_id: str
+    config_digest: str = ""
+    representative_selection_reason: str = ""
+    requested_model: str = ""
+    actual_model: str | None = None
+    actual_model_verified: bool = False
+    status: str = "NO_ELIGIBLE_MODEL"
+    error_classification: str = ""
+    adapter_capabilities: dict[str, Any] = Field(default_factory=dict)
+    semantic_scores: dict[str, float] = Field(default_factory=dict)
+    usage: TokenUsage = Field(default_factory=lambda: TokenUsage())
+    paid_api_spend_usd: float = 0.0
+    subscription_reported_value_usd: float = 0.0
+    free_inference_cost_usd: float = 0.0
+    latency_ms: float | None = None
+    evidence_cas_ref: str | None = None
+    eval_suite_version: str = ""
+    rule_bundle_digest: str = ""
+    evaluated_at: str = ""
+
+    _volatile_fields = frozenset({"evaluated_at"})
+
+
+class RoleRoster(FactoryModel):
+    """A content-addressed, activatable role roster (final completion pass §8)."""
+
+    roster_id: str = ""
+    evaluation_run_id: str = ""
+    config_digest: str = ""
+    rule_bundle_digest: str = ""
+    entries: dict[str, Any] = Field(default_factory=dict)  # role -> {primary, fallbacks, ...}
+    created_at: str = ""
+
+    _volatile_fields = frozenset({"created_at"})
+
+
+class OwnershipEvidence(FactoryModel):
+    """Digest-bound evidence that a repository path OWNS a semantic subject.
+
+    A parsed RDF declaration alone is only a *candidate*. A *verified* owner
+    must be supported by explicit evidence: a USF layout/materialisation
+    contract, a generator input-output declaration, a manifest/registry entry,
+    or an append-only operator approval. Ownership is what authorizes a semantic
+    write scope — candidate ownership never suffices."""
+
+    subject: str
+    owner_path: str
+    evidence_kind: str  # layout-contract | artifact-contract | generator | manifest | operator
+    source_reference: str = ""  # tool/file that supplied the evidence
+    source_digest: str = ""
+    repository_commit: str = ""
+    parser_version: str = "own-v1"
+    verified: bool = False
+    verified_at: str = ""
+    revalidate_after: str = ""  # expiry / revalidation trigger
+    detail: str = ""
+
+    _volatile_fields = frozenset({"verified_at"})
+
+    @property
+    def evidence_id(self) -> str:
+        return stable_id(
+            "own",
+            {
+                "subject": self.subject,
+                "owner_path": self.owner_path,
+                "evidence_kind": self.evidence_kind,
+                "repository_commit": self.repository_commit,
+            },
+        )
 
 
 class ModelTaskScore(FactoryModel):
@@ -341,6 +527,7 @@ class Obligation(FactoryModel):
     acceptance_criteria: list[str] = Field(default_factory=list)
     risk: Risk = Risk.MEDIUM
     task_class: str = "unknown"
+    remediation_kind: RemediationKind = RemediationKind.ANALYSIS_ONLY
     suggested_read_scope: list[str] = Field(default_factory=list)
     suggested_write_scope: list[str] = Field(default_factory=list)
     uncertainties: list[str] = Field(default_factory=list)
@@ -386,6 +573,7 @@ class Packet(FactoryModel):
     objective: str
     task_class: str
     risk: Risk = Risk.MEDIUM
+    remediation_kind: RemediationKind = RemediationKind.ANALYSIS_ONLY
     semantic_subjects: list[str] = Field(default_factory=list)
     read_paths: list[str] = Field(default_factory=list)
     write_paths: list[str] = Field(default_factory=list)
@@ -448,6 +636,12 @@ class RoutingCandidate(FactoryModel):
     exclusion_reasons: list[str] = Field(default_factory=list)
     score: float = 0.0
     score_breakdown: dict[str, float] = Field(default_factory=dict)
+    provider_id: str = ""
+    family: str = ""
+    inference_mode: str = ""
+    utility: float = 0.0
+    posterior: float = 0.0  # Beta-Bernoulli sample (adaptive draw)
+    probability: float = 0.0  # normalized selection probability
 
 
 class RoutingDecision(FactoryModel):
@@ -455,9 +649,16 @@ class RoutingDecision(FactoryModel):
     task_class: str
     role: AdmissionRole
     selected_profile_id: str | None = None
-    selection_kind: str = "exploit"  # exploit | second_tier | explore | none
+    selection_kind: str = "exploit"  # exploit | adaptive | deterministic-replay | none
+    routing_mode: str = "adaptive"
     candidates: list[RoutingCandidate] = Field(default_factory=list)
-    seed: str = ""
+    # A FRESH cryptographic dispatch seed (never derived from packet/snapshot
+    # identity); a decision replays exactly from this recorded seed.
+    run_seed: str = ""
+    seed: str = ""  # retained for back-compat with the legacy scheduler
+    policy_digest: str = ""
+    snapshot_id: str = ""
+    risk: str = ""
     decided_at: str = ""
 
     _volatile_fields = frozenset({"decided_at"})
@@ -500,6 +701,12 @@ class AgentResponse(FactoryModel):
     cost_usd: float = 0.0
     latency_ms: float | None = None
     error: str | None = None
+    # Full provider-reported usage (tokens/cache/cost) when the provider exposes
+    # it; None when it does not (so callers can settle a conservative estimate
+    # rather than zero).
+    usage: TokenUsage | None = None
+    cli_version: str | None = None
+    quota_blocked: bool = False
 
 
 class PacketResult(FactoryModel):
@@ -659,6 +866,51 @@ class DeliveryArtifact(FactoryModel):
     prepared_at: str = ""
 
     _volatile_fields = frozenset({"prepared_at"})
+
+
+class DeliveryRecord(FactoryModel):
+    """The durable, idempotent state of one coherent obligation set's delivery through the
+    protected lifecycle (build task §12). Persisted before and after every
+    external side effect so a restart reconciles rather than blindly repeating an
+    uncertain push/merge/publish. Keyed by ``delivery_id`` (obligation + wave)."""
+
+    delivery_id: str
+    obligation_id: str
+    obligation_ids: list[str] = Field(default_factory=list)
+    set_id: str = ""
+    state: str = DeliveryState.DISCOVERED.value
+    remediation_kind: str = ""
+    # Idempotency + provenance bindings recorded with every transition.
+    idempotency_key: str = ""
+    authority_digest_before: str = ""
+    authority_digest_after: str = ""
+    expected_pre_publication_digest: str = ""
+    repo_base_head: str = ""
+    repo_merge_head: str = ""
+    policy_digest: str = ""
+    run_authorization_digest: str = ""
+    workforce_snapshot_id: str = ""
+    # Exact canonical DeliveryInput bytes used to resume an uncertain external
+    # side effect after process loss.  The CAS bytes are integrity-verified.
+    input_ref: str = ""
+    # External identifiers (from the real side effects).
+    branch: str = ""
+    pr_number: int | None = None
+    pr_url: str = ""
+    reviewed_head: str = ""
+    checked_head: str = ""
+    merge_commit: str = ""
+    graphs_published: list[str] = Field(default_factory=list)
+    # Attribution + reconciliation.
+    provider_model_receipts: list[dict[str, Any]] = Field(default_factory=list)
+    reconciliation: dict[str, Any] = Field(default_factory=dict)
+    evidence_refs: list[str] = Field(default_factory=list)
+    history: list[str] = Field(default_factory=list)
+    blocked_reason: str = ""
+    created_at: str = ""
+    updated_at: str = ""
+
+    _volatile_fields = frozenset({"created_at", "updated_at"})
 
 
 class Event(FactoryModel):

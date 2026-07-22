@@ -17,13 +17,28 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from .adaptive_routing import (
+    MODE_ADAPTIVE,
+    MODE_EXPLOIT,
+    adaptive_route,
+    packet_eligibility,
+    persist_routing_decision,
+)
 from .authority import UsfAuthorityClient
 from .conflict_graph import build_conflict_edges  # noqa: F401 (re-exported use)
 from .context import RuntimeContext
+from .dispatch import refresh_active_workforce, select_integrator, select_reviewer
+from .dynamic_dispatch import classify_attempt, coverage_report
+from .eligibility import hard_eligibility
 from .enums import (
     AdmissionRole,
+    AuthMode,
     CycleState,
+    DeliveryState,
+    DispatchFailure,
+    FailureClass,
     HealthStatus,
+    PacketResultStatus,
     PrivacyClass,
     ProtectedAction,
     Risk,
@@ -32,6 +47,7 @@ from .enums import (
 from .errors import SnapshotError
 from .isolation import RepoIsolation
 from .learning import LearningEngine
+from .materialisation import MaterialisationIndex
 from .models import (
     AgentProfile,
     CycleReceipt,
@@ -40,6 +56,7 @@ from .models import (
     PacketResult,
     PacketSet,
     ResultQualification,
+    RoutingCandidate,
     RoutingDecision,
     SemanticSnapshot,
 )
@@ -52,10 +69,16 @@ from .planner import (  # noqa: F401 (FixturePlanner used by callers/tests)
 from .programme_state import ProgrammePlanner
 from .result_validation import qualify_result
 from .review import NoopReviewer
-from .scheduler import SchedulableAgent, Scheduler
+from .scheduler import SchedulableAgent
 from .snapshots import compile_snapshot
 from .state_machine import CycleStateMachine
 from .validation import compute_terminal_complete, run_validation
+from .workforce import WorkforceProfile, WorkforceSnapshot
+from .workforce_policy import (
+    EffectiveWorkforcePolicy,
+    committed_defaults,
+    resolve_workforce_policy,
+)
 
 
 def default_planner_fixture() -> Path:
@@ -84,17 +107,36 @@ class FactoryEngine:
         *,
         authority_factory: Callable[[], UsfAuthorityClient] = UsfAuthorityClient,
         planner: Planner | None = None,
+        plan_optimizer_factory: Callable[[], object] | None = None,
         worker_factory: Callable[..., object] | None = None,
         materialisation_index: object | None = None,
         materialisation_factory: Callable[[Path, str], object] | None = None,
-        reviewer_factory: Callable[[], object] | None = None,
+        reviewer_factory: Callable[..., object] | None = None,
+        planner_critic_factory: Callable[[], object] | None = None,
+        max_shadow_packets: int | None = None,
+        policy: EffectiveWorkforcePolicy | None = None,
+        lazy_qualifier: Callable[[list[str]], bool] | None = None,
+        max_redraws: int = 3,
+        delivery_coordinator: object | None = None,
     ) -> None:
         self.ctx = ctx
         self.iso = RepoIsolation(ctx.paths, ctx.usf_repo)
+        # The effective WorkforcePolicy governs live candidate selection: excluded
+        # providers/models/families/adapters are dropped from routing (never
+        # probed/invoked), and the all-admitted fallback is fail-closed (§11). The
+        # default is provider-neutral (code); the CLI passes the composed
+        # committed+operator+run policy so operator/run exclusions apply live.
+        self.policy = policy or resolve_workforce_policy(committed_defaults())
         self._authority_factory = authority_factory
         # Production path: derive obligations deterministically from live authority
         # (ProgrammePlanner). A fixture planner is used only when injected (tests).
+        # The AUTHORITATIVE graph always comes from this deterministic planner; an
+        # AI optimizer (below) may only rank/annotate it, never generate it.
         self.planner = planner or ProgrammePlanner()
+        # plan_optimizer_factory() -> object with async optimize(graph). Optional;
+        # a failure or non-conforming optimization falls back to the deterministic
+        # authoritative graph (never zero work).
+        self._plan_optimizer_factory = plan_optimizer_factory
         self.critic = DeterministicCritic()
         self.learning = LearningEngine(ctx.store)
         # A worker_factory(mode, agent) -> Worker enables real execution. Without
@@ -107,8 +149,31 @@ class FactoryEngine:
         # reviewer_factory() -> WaveReviewer. Waves that require substantive
         # review are BLOCKED when no reviewer is available (fail closed).
         self._reviewer_factory = reviewer_factory
+        # planner_critic_factory() -> object with async review_plan(graph, proj).
+        # When the planner is an AI planner, an INDEPENDENT critic (ideally a
+        # different provider/family) judges the proposed plan.
+        self._planner_critic_factory = planner_critic_factory
+        # Shadow dispatch cap (--shadow-packets); None => no cap.
+        self._max_shadow_packets = max_shadow_packets
+        # Lazy capability recovery hook (spec §10): given the uncovered role names,
+        # qualify+admit just enough discovered candidates to restore capability and
+        # return True if it changed the admitted population (=> rebuild snapshot,
+        # retry eligibility once). None => no live qualification (block with a
+        # coverage report instead). Never qualifies indiscriminately.
+        self._lazy_qualifier = lazy_qualifier
+        # Bounded redraws per packet on transient dispatch failure (spec §6).
+        self._max_redraws = max(1, int(max_redraws))
+        # Protected delivery coordinator (spec Part B). When wired AND a live
+        # RunAuthorization permits it, an accepted+validated+reviewed wave is
+        # delivered end-to-end (branch/PR/merge/publish/reconcile). When absent or
+        # unauthorized, delivery is prepare-only (fail closed).
+        self._delivery_coordinator = delivery_coordinator
         self._coordinator_token: int | None = None
         self._lease_lost: bool = False
+        # Packets actually dispatched this wave (set by execute_packets). Missing-
+        # result detection compares against THIS, never the full selected set — a
+        # packet intentionally deferred by --shadow-packets is not a failure.
+        self._dispatched_packet_ids: set[str] = set()
 
     # Executing modes (perform packet work); observe/plan-only never execute.
     _EXECUTING_MODES = (RunMode.SHADOW, RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
@@ -138,6 +203,8 @@ class FactoryEngine:
 
         # Detect an incomplete prior cycle.
         for c in self.ctx.store.records("cycles"):
+            if c.get("cycle_id") == cycle_id:
+                continue
             st = c.get("state")
             if st not in (
                 CycleState.COMPLETE.value,
@@ -159,11 +226,30 @@ class FactoryEngine:
             cycle_state = "BLOCKED"
             blockers.append(f"unexpected /usf worktrees: {stray}")
 
+        uncertain_records: list[dict[str, Any]] = []
+        if self._delivery_coordinator is not None:
+            try:
+                resume_uncertain = getattr(self._delivery_coordinator, "resume_uncertain", None)
+                if callable(resume_uncertain):
+                    uncertain_records = [
+                        record.model_dump(mode="json") for record in resume_uncertain()
+                    ]
+            except Exception as exc:
+                blockers.append(f"delivery reconciliation failed closed: {exc}")
+        unresolved_uncertainty = [
+            record
+            for record in uncertain_records
+            if record.get("state") != DeliveryState.COMPLETE.value
+        ]
+        if unresolved_uncertainty:
+            cycle_state = "BLOCKED"
+            blockers.append("a prior protected delivery could not be reconciled")
+
         result: dict[str, Any] = {
             "cycleState": cycle_state,
             "recoveredFrom": recovered_from,
             "repositoryHead": repository_head,
-            "uncertainMutation": False,
+            "uncertainMutation": bool(unresolved_uncertainty),
             "blockers": blockers,
         }
         self.ctx.log_event("preflight", stage="INIT", cycle_id=cycle_id, payload=result)
@@ -232,6 +318,20 @@ class FactoryEngine:
                     payload={"error": str(exc)[:300]},
                 )
                 return None
+        # Mark verified owners from stored ownership evidence (operator approvals
+        # + layout-contract), so only evidence-backed owners can authorize writes.
+        if isinstance(index, MaterialisationIndex):
+            try:
+                from .ownership import verify_index
+
+                verify_index(self.ctx, index)
+            except Exception as exc:
+                self.ctx.log_event(
+                    "ownership.verify_failed",
+                    stage="COMPILED",
+                    cycle_id=cycle_id,
+                    payload={"error": str(exc)[:200]},
+                )
         digest = getattr(index, "source_digest", "") if index is not None else ""
         if digest:
             self.ctx.store.put(
@@ -250,9 +350,98 @@ class FactoryEngine:
     async def plan_and_compile(
         self, snap: SemanticSnapshot, cycle_id: str
     ) -> tuple[ObligationGraph, PacketSet, list[str]]:
-        graph = await self.planner.plan(snap)
+        # 1) AUTHORITATIVE graph: always the deterministic compiler. The AI never
+        #    replaces it.
+        try:
+            graph = await self.planner.plan(snap)
+        except Exception as exc:
+            self.ctx.log_event(
+                "plan.authoritative_planner_failed",
+                stage="PLANNED",
+                cycle_id=cycle_id,
+                payload={"planner": type(self.planner).__name__, "error": str(exc)[:200]},
+            )
+            graph = await ProgrammePlanner().plan(snap)
+        authoritative_ids = {o.id for o in graph.obligations}
+        # 2) Optional AI OPTIMIZER: rank/consolidate/annotate ONLY. Any failure or
+        #    non-conforming result falls back to the authoritative graph — a
+        #    non-empty authority plan can never be reduced to zero work.
+        if self._plan_optimizer_factory is not None and graph.obligations:
+            optimizer: Any = None
+            try:
+                optimizer = self._plan_optimizer_factory()
+            except Exception:
+                optimizer = None
+            if optimizer is not None:
+                try:
+                    optimized = await optimizer.optimize(graph)
+                except Exception as exc:
+                    self.ctx.log_event(
+                        "plan.optimizer_failed",
+                        stage="PLANNED",
+                        cycle_id=cycle_id,
+                        payload={"error": str(exc)[:200]},
+                    )
+                    optimized = graph
+                # Defence in depth: the optimizer must never invent or empty.
+                opt_ids = {o.id for o in optimized.obligations}
+                if not optimized.obligations or not opt_ids.issubset(authoritative_ids):
+                    self.ctx.log_event(
+                        "plan.optimizer_rejected",
+                        stage="PLANNED",
+                        cycle_id=cycle_id,
+                        payload={
+                            "reason": "empty-or-invented",
+                            "authoritative": len(graph.obligations),
+                        },
+                    )
+                else:
+                    graph = optimized
         graph = self.critic.amend(graph)
-        findings = self.critic.critique(graph)
+        findings = list(graph.critic_findings) + self.critic.critique(graph)
+        # Independent planner critic (Phase 5): a second, ideally provider-diverse
+        # model judges the proposed plan. Its verdict is recorded; a rejection is
+        # surfaced as a finding (the deterministic compiler stays authoritative).
+        if self._planner_critic_factory is not None and graph.obligations:
+            from .planner import compact_projection
+
+            critic: Any = None
+            try:
+                critic = self._planner_critic_factory()
+            except Exception:
+                critic = None
+            verdict = None
+            if critic is not None:
+                # The critic is ADVISORY: the deterministic compiler stays
+                # authoritative. A critic that is unavailable/unauthorized (e.g. an
+                # AI critic without subscription authorization) must fail closed to
+                # "no critique", never crash the cycle.
+                try:
+                    verdict = await critic.review_plan(graph, compact_projection(snap))
+                except Exception as exc:
+                    self.ctx.log_event(
+                        "plan.critic_unavailable",
+                        stage="PLANNED",
+                        cycle_id=cycle_id,
+                        payload={"error": str(exc)[:300]},
+                    )
+                    verdict = None
+            if verdict is not None:
+                findings = findings + [f"planner-critic: {f}" for f in verdict.get("findings", [])]
+                if not verdict.get("approved", False):
+                    findings.append(
+                        f"planner-critic ({verdict.get('reviewer', '?')}) withheld approval of the plan"
+                    )
+                self.ctx.log_event(
+                    "plan.critiqued",
+                    stage="PLANNED",
+                    cycle_id=cycle_id,
+                    payload={
+                        "approved": verdict.get("approved"),
+                        "reviewer": verdict.get("reviewer"),
+                        "findings": verdict.get("findings", [])[:10],
+                    },
+                )
         graph = graph.model_copy(update={"critic_findings": findings})
         self.ctx.store.put(
             "obligation_graphs",
@@ -302,12 +491,21 @@ class FactoryEngine:
     # Phase 8 — schedule.
     # ------------------------------------------------------------------ #
 
-    # Adapter families implementing the brokered tool loop get the full broker
-    # tool set; anything else is READ-ONLY until a capability is proven. This is
-    # the honest replacement for the old fabricated tools=["*"].
-    _TOOL_LOOP_ADAPTERS = frozenset({"brokered", "openai_compatible", "ollama"})
+    # Editing tools are granted to a profile whose ADAPTER CAPABILITY RECORD proves
+    # a safe edit transport (brokered tool loop OR bounded patch synthesis) — never
+    # by adapter name. Anything else is read-only.
     _BROKER_TOOLS = ("edit_file", "list_paths", "read_file", "run_focused_tests", "write_patch")
     _READONLY_TOOLS = ("list_paths", "read_file")
+
+    def _capability_tools(self, profile: AgentProfile) -> list[str]:
+        """Edit vs read-only tool set derived from the ACTUAL adapter capability
+        record for the profile's adapter kind (never an adapter-name set). An
+        unknown/unconstructable adapter is read-only (and ineligible for edit)."""
+        from .capabilities import capabilities_for_kind
+
+        cap = capabilities_for_kind(profile.adapter)
+        edit_capable = cap.brokered_tool_loop or cap.bounded_patch_synthesis
+        return list(self._BROKER_TOOLS if edit_capable else self._READONLY_TOOLS)
 
     def _model_row(self, provider_id: str, model_id: str) -> dict[str, Any] | None:
         rows = self.ctx.store.records("models", "provider_id=?", (provider_id,))
@@ -337,73 +535,281 @@ class FactoryEngine:
                 pass
         return HealthStatus.DEGRADED
 
-    def candidate_agents(self, task_class: str) -> list[SchedulableAgent]:
-        """Schedulable candidates from stored qualification runs + learning,
-        using RECORDED operational facts (catalogue context/pricing, provider
-        health records, adapter capability, budget state) — not fabricated ones."""
-        runs = self.ctx.store.records("qualification_runs")
-        provs = self.ctx.config.providers.by_id()
-        agents: list[SchedulableAgent] = []
-        for run in runs:
-            profile_row = self.ctx.store.get("agent_profiles", run["agent_profile_id"])
-            if not profile_row:
-                continue
-            profile = AgentProfile(**profile_row)
-            cfg = provs.get(profile.provider_id)
-            privacy = cfg.privacy_class if cfg else PrivacyClass.EXTERNAL_CLOUD
-            scores = dict(run.get("dimension_scores", {}))
-            scores.update(self.learning.scores_for(run["agent_profile_id"], task_class))
-            roles = [AdmissionRole(r) for r in run.get("roles_admitted", [])]
+    def _schedulable(self, profile: AgentProfile, task_class: str) -> SchedulableAgent | None:
+        """Build a SchedulableAgent from a profile IF it holds a valid admission;
+        else None (revalidated at dispatch time — expired/mismatched is rejected)."""
+        from .admission import admission_ineligibility
 
-            model_row = self._model_row(profile.provider_id, profile.requested_model_id)
-            context_tokens = model_row.get("context_tokens") if model_row else None
-            est_cost = self._estimate_model_cost(model_row)
-            # Honest quota: a model the catalogue records as PAID is schedulable
-            # only when billable inference is enabled and the estimate fits the
-            # remaining global budget (adapters enforce the gate again at invoke).
-            paid = model_row is not None and model_row.get("free") is False
-            quota_ok = True
-            if paid:
-                from .budget import BudgetLedger, BudgetLimits
-
-                limits = BudgetLimits(global_usd=self.ctx.config.budgets.billable_usd)
-                ledger = BudgetLedger(self.ctx.store, limits)
-                remaining = limits.global_usd - ledger.spent_total()
-                quota_ok = self.ctx.config.safety.allow_billable and remaining >= est_cost
-            tools = list(
-                self._BROKER_TOOLS
-                if profile.adapter in self._TOOL_LOOP_ADAPTERS
-                else self._READONLY_TOOLS
-            )
-            agents.append(
-                SchedulableAgent(
-                    profile=profile,
-                    provider_id=profile.provider_id,
-                    admission_roles=roles,
-                    task_scores=scores,
-                    health=self._provider_health(profile.provider_id),
-                    privacy_class=privacy,
-                    context_tokens=context_tokens,
-                    tools=tools,
-                    quota_ok=quota_ok,
-                    cost_usd=est_cost,
+        decision, run, reason = admission_ineligibility(self.ctx, profile)
+        if reason is not None or run is None or decision is None:
+            if reason and reason != "no admission decision":
+                self.ctx.log_event(
+                    "schedule.ineligible",
+                    stage="SCHEDULED",
+                    cycle_id="-",
+                    payload={"profile_id": profile.profile_id, "reason": reason},
                 )
-            )
+            return None
+        cfg = self.ctx.config.providers.by_id().get(profile.provider_id)
+        privacy = cfg.privacy_class if cfg else PrivacyClass.EXTERNAL_CLOUD
+        scores = dict(run.get("dimension_scores", {}))
+        scores.update(self.learning.scores_for(profile.profile_id, task_class))
+        roles = [AdmissionRole(r) for r in decision.get("roles", [])]
+        model_row = self._model_row(profile.provider_id, profile.requested_model_id)
+        context_tokens = model_row.get("context_tokens") if model_row else None
+        est_cost = self._estimate_model_cost(model_row)
+        # Only PAID (non-free) models draw the paid budget and are gated on it.
+        # SUBSCRIPTION (OIDC CLI) inference is exempt — it is authorized at the
+        # adapter for the run, not drawn from the paid API budget. (A genuinely
+        # free model has free is not False and is never gated here.)
+        paid = model_row is not None and model_row.get("free") is False
+        is_paid_api = paid and profile.auth_mode != AuthMode.OIDC_CLI
+        quota_ok = True
+        if is_paid_api:
+            from .budget import BudgetLedger, BudgetLimits
+
+            limits = BudgetLimits(global_usd=self.ctx.config.budgets.billable_usd)
+            ledger = BudgetLedger(self.ctx.store, limits)
+            remaining = limits.global_usd - ledger.spent_total()
+            quota_ok = self.ctx.config.safety.allow_billable and remaining >= est_cost
+        from .roster import _profile_metrics
+
+        m = _profile_metrics(self.ctx, profile.profile_id)
+        return SchedulableAgent(
+            profile=profile,
+            provider_id=profile.provider_id,
+            admission_roles=roles,
+            task_scores=scores,
+            health=self._provider_health(profile.provider_id),
+            privacy_class=privacy,
+            context_tokens=context_tokens,
+            tools=self._capability_tools(profile),
+            quota_ok=quota_ok,
+            cost_usd=est_cost,
+            uncached_ratio=(
+                m.get("uncached_per_accepted", 0.0) / max(1.0, (context_tokens or 20000))
+                if m
+                else 0.0
+            ),
+            cache_reuse=m.get("cache_reuse", 0.0) if m else 0.0,
+            prior_validation_success=m.get("accepted_success", 0.0) if m else 0.0,
+        )
+
+    def _roster_profile_ids(self, role: AdmissionRole | None) -> list[str] | None:
+        """The active roster's ordered candidate ids (primary + fallbacks) for a
+        role, or None when no active roster / no entry — meaning the caller may
+        fall back to the admitted scan (legacy / no-roster environments)."""
+        if role is None:
+            return None
+        from .roster import active_roster
+
+        r = active_roster(self.ctx)
+        if not r:
+            return None
+        entry = (r.get("entries") or {}).get(role.value) or {}
+        primary = entry.get("primary")
+        if not primary:
+            return None
+        return [primary, *[p for p in entry.get("fallbacks", []) if p != primary]]
+
+    def candidate_agents(
+        self, task_class: str, role: AdmissionRole | None = None
+    ) -> list[SchedulableAgent]:
+        """Schedulable candidates for a role. When an ACTIVE ROSTER governs the
+        role, candidates are RESTRICTED to that role's ordered entry (primary +
+        fallbacks) — never an independent scan across all admitted profiles. Only
+        when there is no active roster entry does it fall back to the admitted
+        scan. Each candidate is revalidated (immutable, non-expired, config-matching
+        qualification) and carries capability-derived tools."""
+        roster_ids = self._roster_profile_ids(role)
+        agents: list[SchedulableAgent] = []
+        if roster_ids is not None:
+            for pid in roster_ids:
+                row = self.ctx.store.get("agent_profiles", pid)
+                if not row:
+                    continue
+                profile = AgentProfile(**row)
+                if self._policy_excludes(profile):
+                    continue
+                agent = self._schedulable(profile, task_class)
+                if agent is not None:
+                    agents.append(agent)
+            return agents
+        # No fresh active-roster entry for this role. Fail-closed roster (§11):
+        # the legacy all-admitted scan is allowed ONLY as a migration when NO
+        # active-roster record has EVER existed. Once a roster exists (even stale),
+        # a missing/stale role entry blocks the role — never a silent all-admitted
+        # scan that bypasses the workforce.
+        if self.ctx.store.get("role_rosters", "active") is not None:
+            return agents  # fail closed
+        for _key, profile_row in self.ctx.store.items("agent_profiles"):
+            profile = AgentProfile(**profile_row)
+            if self._policy_excludes(profile):
+                continue
+            agent = self._schedulable(profile, task_class)
+            if agent is not None:
+                agents.append(agent)
         return agents
 
-    def schedule_packets(self, pset: PacketSet, cycle_id: str) -> list[RoutingDecision]:
-        scheduler = Scheduler(
-            self.ctx.config.routing,
-            self.ctx.config.egress,
-            protected_allowed=self.ctx.is_gate_enabled(ProtectedAction.RISK_ACCEPTANCE),
+    def _policy_excludes(self, profile: AgentProfile) -> bool:
+        """Drop a profile the effective WorkforcePolicy excludes (by provider,
+        model, family or adapter) BEFORE it can be routed/invoked."""
+        hit = self.policy.candidate_exclusion(
+            provider_id=profile.provider_id,
+            model_id=profile.requested_model_id,
+            adapter=profile.adapter,
         )
+        if hit.excluded:
+            self.ctx.log_event(
+                "selection.excluded",
+                stage="SCHEDULED",
+                payload={
+                    "profile_id": profile.profile_id,
+                    "provider_id": profile.provider_id,
+                    "reason": hit.reason,
+                    "source": hit.source,
+                },
+            )
+        return hit.excluded
+
+    # ------------------------------------------------------------------ #
+    # Dynamic dispatch (spec Part A) — the SOLE live selection authority.
+    # The legacy Scheduler is never instantiated or called from here.
+    # ------------------------------------------------------------------ #
+
+    def _current_workforce(self) -> WorkforceSnapshot:
+        """The current workforce snapshot, rebuilt if stale under the effective
+        policy/config/rule-bundle/TTL (spec §13 continuous re-check). Live candidate
+        population comes from THIS, never RoleRoster.primary."""
+        return refresh_active_workforce(self.ctx, self.policy)
+
+    @staticmethod
+    def _routing_mode_for(packet: Packet) -> str:
+        """adaptive for low/medium risk; deterministic exploit for high/protected
+        (no exploration for high or protected work, spec §4)."""
+        return MODE_EXPLOIT if packet.risk in (Risk.HIGH, Risk.PROTECTED) else MODE_ADAPTIVE
+
+    def _live_eligible(
+        self, packet: Packet, role: AdmissionRole, snapshot: WorkforceSnapshot
+    ) -> tuple[list[WorkforceProfile], list[RoutingCandidate]]:
+        """Derive the eligible population for a packet at the moment of use. Applies
+        the workforce-policy/containment/actual-model/risk/transport gates
+        (``packet_eligibility``) AND the full live hard gates (admission validity,
+        health, quota/budget, context window, egress, task-class capability) via the
+        SHARED ``hard_eligibility`` — no hard gate is dropped in the dynamic path."""
+        protected = self.ctx.is_gate_enabled(ProtectedAction.RISK_ACCEPTANCE)
+        eligible0, rejected = packet_eligibility(
+            snapshot, self.policy, packet, role, protected_allowed=protected
+        )
+        egress = self.ctx.config.egress
+        survivors: list[WorkforceProfile] = []
+        for wp in eligible0:
+            row = self.ctx.store.get("agent_profiles", wp.profile_id)
+            if not row:
+                rejected.append(
+                    RoutingCandidate(
+                        agent_profile_id=wp.profile_id,
+                        eligible=False,
+                        exclusion_reasons=["profile no longer present at time of use"],
+                        provider_id=wp.provider_id,
+                        inference_mode=wp.inference_mode,
+                    )
+                )
+                continue
+            agent = self._schedulable(AgentProfile(**row), packet.task_class)
+            if agent is None:
+                rejected.append(
+                    RoutingCandidate(
+                        agent_profile_id=wp.profile_id,
+                        eligible=False,
+                        exclusion_reasons=["admission invalid/expired at time of use"],
+                        provider_id=wp.provider_id,
+                        inference_mode=wp.inference_mode,
+                    )
+                )
+                continue
+            reasons = hard_eligibility(agent, packet, role, egress, protected_allowed=protected)
+            if reasons:
+                rejected.append(
+                    RoutingCandidate(
+                        agent_profile_id=wp.profile_id,
+                        eligible=False,
+                        exclusion_reasons=reasons,
+                        provider_id=wp.provider_id,
+                        inference_mode=wp.inference_mode,
+                    )
+                )
+                continue
+            survivors.append(wp)
+        return survivors, rejected
+
+    def _lazy_recover(
+        self,
+        packet: Packet,
+        role: AdmissionRole,
+        snapshot: WorkforceSnapshot,
+        rejected: list[RoutingCandidate],
+    ) -> tuple[list[WorkforceProfile], list[RoutingCandidate], WorkforceSnapshot]:
+        """Spec §10: when no eligible candidate exists, qualify+admit just enough
+        discovered candidates (via the injected lazy qualifier) to restore the role,
+        rebuild the snapshot, and retry eligibility ONCE. Blocks with an exact
+        coverage report when no qualifier is wired or capability stays absent."""
+        report = coverage_report(snapshot, role.value, rejected)
+        if self._lazy_qualifier is None:
+            self.ctx.log_event("selection.coverage_gap", stage="SCHEDULED", payload=report)
+            return [], rejected, snapshot
+        changed = False
+        try:
+            changed = bool(self._lazy_qualifier([role.value]))
+        except Exception as exc:  # a recovery failure never fabricates capability
+            self.ctx.log_event(
+                "selection.lazy_qualify_error",
+                stage="SCHEDULED",
+                payload={"role": role.value, "error": str(exc)[:300]},
+            )
+        if not changed:
+            self.ctx.log_event("selection.coverage_gap", stage="SCHEDULED", payload=report)
+            return [], rejected, snapshot
+        from .workforce import build_workforce_snapshot, persist_workforce_snapshot
+
+        snap2 = persist_workforce_snapshot(
+            self.ctx, build_workforce_snapshot(self.ctx, self.policy)
+        )
+        eligible, rejected2 = self._live_eligible(packet, role, snap2)
+        self.ctx.log_event(
+            "selection.lazy_qualified",
+            stage="SCHEDULED",
+            payload={
+                "role": role.value,
+                "restored": len(eligible),
+                "snapshot_id": snap2.snapshot_id,
+            },
+        )
+        return eligible, rejected2, snap2
+
+    def schedule_packets(self, pset: PacketSet, cycle_id: str) -> list[RoutingDecision]:
+        """Dynamic dispatch-plan stage (route simulation). Derives each packet's
+        eligible population from the CURRENT workforce snapshot and records an
+        adaptive routing decision — the authoritative selection is redrawn at the
+        moment of execution (``_execute_one``) with a fresh seed."""
         by_id = {p.packet_id: p for p in pset.packets}
+        snapshot = self._current_workforce()
         decisions: list[RoutingDecision] = []
         for pid in pset.selected_packet_ids:
             packet = by_id[pid]
             role = role_for_packet(packet.task_class, bool(packet.write_paths))
-            candidates = self.candidate_agents(packet.task_class)
-            decision = scheduler.schedule(packet, role, candidates)
+            eligible, rejected = self._live_eligible(packet, role, snapshot)
+            if not eligible:
+                eligible, rejected, snapshot = self._lazy_recover(packet, role, snapshot, rejected)
+            decision = adaptive_route(
+                eligible,
+                rejected,
+                packet,
+                role,
+                mode=self._routing_mode_for(packet),
+                policy_digest=self.policy.digest(),
+                snapshot_id=snapshot.snapshot_id,
+            )
             self.ctx.store.put(
                 "routing_decisions",
                 f"{pid}:{cycle_id}",
@@ -426,42 +832,80 @@ class FactoryEngine:
         prof = self.ctx.store.get("agent_profiles", row["selected_profile_id"])
         return AgentProfile(**prof) if prof else None
 
-    async def _execute_one(
-        self, packet: Packet, cycle_id: str, mode: RunMode
-    ) -> PacketResult | None:
-        from .ids import run_id as make_run_id
+    def _synthetic_failure(
+        self, packet: Packet, agent: AgentProfile, fc: FailureClass, detail: str
+    ) -> PacketResult:
+        """A PacketResult standing in for a pre-invocation dispatch failure (e.g. a
+        per-provider budget block) so it flows through the same redraw classifier."""
+        from .clock import utc_now_iso
 
-        pid = packet.packet_id
-        if self._lease_lost:
-            return None  # coordinator ownership uncertain — do not dispatch
+        return PacketResult(
+            packet_id=packet.packet_id,
+            status=PacketResultStatus.FAILED,
+            agent_profile_id=agent.profile_id,
+            actual_provider=agent.provider_id,
+            base_head=packet.base_head,
+            failure_class=fc,
+            failure_detail=detail[:500],
+            produced_at=utc_now_iso(),
+        )
 
-        agent = self._resolve_agent(pid, cycle_id)
-        if agent is None:
-            self.ctx.log_event(
-                "execute.no_route",
-                stage="EXECUTING",
-                cycle_id=cycle_id,
-                payload={"packet_id": pid, "reason": "no selected agent profile"},
+    def _record_transient(
+        self, pid: str, wp: WorkforceProfile, df: DispatchFailure | None, cycle_id: str
+    ) -> None:
+        """Record a transient dispatch failure and reflect it in provider health so
+        the next selection (this run and later) sees the degraded/unavailable
+        provider (spec §6 step 8: update health/circuit state, then redraw)."""
+        import contextlib
+
+        self.ctx.log_event(
+            "dispatch.failure",
+            stage="EXECUTING",
+            cycle_id=cycle_id,
+            payload={
+                "packet_id": pid,
+                "profile_id": wp.profile_id,
+                "provider_id": wp.provider_id,
+                "failure": df.value if df else None,
+            },
+        )
+        outage = {
+            DispatchFailure.MODEL_UNAVAILABLE,
+            DispatchFailure.TRANSPORT_FAILED,
+            DispatchFailure.AUTH_FAILED,
+        }
+        status = HealthStatus.UNAVAILABLE if df in outage else HealthStatus.DEGRADED
+        with contextlib.suppress(Exception):
+            self.ctx.store.put(
+                "provider_health",
+                wp.provider_id,
+                {
+                    "status": status.value,
+                    "reason": f"transient dispatch failure {df.value if df else 'UNKNOWN'}",
+                },
             )
-            return None
-        if self._worker_factory is None:
-            self.ctx.log_event(
-                "execute.no_worker",
-                stage="EXECUTING",
-                cycle_id=cycle_id,
-                payload={"packet_id": pid, "reason": "no worker factory wired"},
-            )
-            return None
-        worker: Any = self._worker_factory(mode, agent)
 
-        # Budget reservation before dispatch: the estimate comes from CATALOGUE
-        # pricing (0 for free/local/unrecorded); actual cost is committed after
-        # execution and the reservation released on failure.
+    async def _invoke_attempt(
+        self,
+        agent: AgentProfile,
+        packet: Packet,
+        cycle_id: str,
+        run_id: str,
+        token: int,
+        claim_ttl: int,
+        mode: RunMode,
+    ) -> tuple[PacketResult | None, str]:
+        """Invoke ONE selected candidate under budget + heartbeat + wall-clock
+        timeout, reserving/settling that provider's budget and using a fresh
+        disposable workspace. Returns ``(result, reason)`` where reason is one of
+        ``ok`` / ``timeout`` / ``fenced`` / ``budget``. The packet claim (``token``)
+        is owned by the caller and preserved across attempts."""
         from .budget import BudgetLedger, BudgetLimits
 
+        pid = packet.packet_id
+        worker: Any = self._worker_factory(mode, agent)  # type: ignore[misc]
         ledger = BudgetLedger(
-            self.ctx.store,
-            BudgetLimits(global_usd=self.ctx.config.budgets.billable_usd),
+            self.ctx.store, BudgetLimits(global_usd=self.ctx.config.budgets.billable_usd)
         )
         model_row = self._model_row(agent.provider_id, agent.requested_model_id)
         est = (
@@ -473,28 +917,18 @@ class FactoryEngine:
                 "execute.budget_blocked",
                 stage="EXECUTING",
                 cycle_id=cycle_id,
-                payload={"packet_id": pid, "reason": why},
+                payload={"packet_id": pid, "provider_id": agent.provider_id, "reason": why},
             )
-            return None
+            # A per-provider budget block is transient for THIS candidate: redraw to
+            # a cheaper/free eligible candidate rather than failing the packet.
+            return self._synthetic_failure(packet, agent, FailureClass.QUOTA_BLOCKED, why), "budget"
 
-        run_id = make_run_id(cycle_id, pid)
-        # Claim deadline derived from configured wall time + grace; RENEWED by a
-        # per-packet heartbeat below, so a long model call cannot outlive its claim.
-        claim_ttl = self.ctx.config.budgets.max_packet_wall_s + 600
-        token = self.ctx.store.claim_packet_fenced(
-            pid, run_id, "engine", self._lease_deadline(claim_ttl)
-        )
-        if token is None:
-            if est:
-                ledger.release(cycle_id=cycle_id, provider_id=agent.provider_id, estimate_usd=est)
-            return None
         workspace = None
         result: PacketResult | None = None
         try:
-            # Mutating modes need a real checkout; shadow does not mutate.
             checkout = mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
             workspace = self.iso.create_workspace(pid, run_id, packet.base_head, checkout=checkout)
-            result = await self._execute_with_claim_heartbeat(
+            result, reason = await self._execute_with_claim_heartbeat(
                 worker,
                 packet,
                 workspace,
@@ -505,10 +939,152 @@ class FactoryEngine:
                 claim_ttl=claim_ttl,
                 cycle_id=cycle_id,
             )
-            if result is None:
-                return None  # fenced (claim renewal failed) or wall-clock timeout
-            # Fencing: only persist if our claim token is still current AND we
-            # still hold the coordinator lease.
+            return result, reason
+        finally:
+            self._settle_budget(ledger, cycle_id, agent, model_row, est, result)
+            if workspace is not None:
+                self.iso.cleanup(workspace)
+
+    async def _execute_one(
+        self, packet: Packet, cycle_id: str, mode: RunMode
+    ) -> PacketResult | None:
+        """Time-of-use dynamic dispatch with bounded async redraw (spec Part A).
+
+        The packet is claimed ONCE; the same packet/snapshot/base/authority binding
+        is preserved across attempts. Selection is redrawn adaptively from the
+        current workforce at the moment of use; a transient dispatch failure removes
+        that candidate and redraws; a terminal (result-quality/safety/possible-side-
+        effect) failure stops without redraw; the claim is never re-acquired."""
+        from .ids import run_id as make_run_id
+
+        pid = packet.packet_id
+        if self._lease_lost:
+            return None  # coordinator ownership uncertain — do not dispatch
+        if self._worker_factory is None:
+            self.ctx.log_event(
+                "execute.no_worker",
+                stage="EXECUTING",
+                cycle_id=cycle_id,
+                payload={"packet_id": pid, "reason": "no worker factory wired"},
+            )
+            return None
+
+        role = role_for_packet(packet.task_class, bool(packet.write_paths))
+        # (1-8) refresh workforce, apply all hard gates, derive the eligible
+        # population at the moment of use; lazy-recover once if empty.
+        snapshot = self._current_workforce()
+        eligible, rejected = self._live_eligible(packet, role, snapshot)
+        if not eligible:
+            eligible, rejected, snapshot = self._lazy_recover(packet, role, snapshot, rejected)
+        if not eligible:
+            self.ctx.log_event(
+                "execute.no_candidate",
+                stage="EXECUTING",
+                cycle_id=cycle_id,
+                payload=coverage_report(snapshot, role.value, rejected),
+            )
+            return None
+
+        # Acquire the packet claim ONCE; preserved across redraws.
+        run_id = make_run_id(cycle_id, pid)
+        claim_ttl = self.ctx.config.budgets.max_packet_wall_s + 600
+        token = self.ctx.store.claim_packet_fenced(
+            pid, run_id, "engine", self._lease_deadline(claim_ttl)
+        )
+        if token is None:
+            return None
+
+        routing_mode = self._routing_mode_for(packet)
+        remaining = list(eligible)
+        attempts: list[dict[str, Any]] = []
+        final: PacketResult | None = None
+        n = 0
+        try:
+            while remaining and n < self._max_redraws and not self._lease_lost:
+                decision = adaptive_route(
+                    remaining,
+                    rejected,
+                    packet,
+                    role,
+                    mode=routing_mode,
+                    policy_digest=self.policy.digest(),
+                    snapshot_id=snapshot.snapshot_id,
+                )
+                persist_routing_decision(self.ctx, decision)
+                self.ctx.store.put(
+                    "routing_decisions",
+                    f"{pid}:{cycle_id}",
+                    decision.model_dump(mode="json"),
+                    extra={"packet_id": pid},
+                )
+                sel = decision.selected_profile_id
+                if sel is None:
+                    break
+                wp = next((p for p in remaining if p.profile_id == sel), None)
+                if wp is None:
+                    break
+                row = self.ctx.store.get("agent_profiles", sel)
+                if not row:
+                    remaining = [p for p in remaining if p.profile_id != sel]
+                    continue
+                agent = AgentProfile(**row)
+                n += 1
+                result, reason = await self._invoke_attempt(
+                    agent, packet, cycle_id, run_id, token, claim_ttl, mode
+                )
+                ok_attempt, df, transient = classify_attempt(
+                    result, timed_out=(reason == "timeout"), fenced=(reason == "fenced")
+                )
+                attempts.append(
+                    {
+                        "attempt": n,
+                        "profile_id": sel,
+                        "provider_id": wp.provider_id,
+                        "ok": ok_attempt,
+                        "reason": reason,
+                        "failure": df.value if df else None,
+                        "actual_model": (result.actual_model if result else None),
+                    }
+                )
+                if ok_attempt:
+                    final = result
+                    break
+                if reason == "fenced" or self._lease_lost:
+                    final = None
+                    break  # coordinator ownership uncertain — never redraw
+                if transient:
+                    self._record_transient(pid, wp, df, cycle_id)
+                    remaining = [p for p in remaining if p.profile_id != sel]
+                    continue
+                # Terminal (result-quality / safety / possible-side-effect) failure.
+                final = result
+                break
+
+            # Persist a full, replayable dispatch outcome (attempts + selection).
+            self.ctx.store.put(
+                "dispatch_outcomes",
+                f"{pid}:{run_id}",
+                {
+                    "packet_id": pid,
+                    "cycle_id": cycle_id,
+                    "role": role.value,
+                    "snapshot_id": snapshot.snapshot_id,
+                    "policy_digest": self.policy.digest(),
+                    "attempts": attempts,
+                    "selected_profile_id": (final.agent_profile_id if final else None),
+                    "ok": bool(
+                        final
+                        and final.status is PacketResultStatus.COMPLETED
+                        and final.failure_class is None
+                    ),
+                },
+                extra={"packet_id": pid},
+            )
+
+            if final is None:
+                return None
+            # Fencing: only persist if our claim token is still current AND we still
+            # hold the coordinator lease.
             if self._lease_lost or not self.ctx.store.claim_token_current(pid, token):
                 self.ctx.log_event(
                     "execute.fenced",
@@ -516,21 +1092,16 @@ class FactoryEngine:
                     cycle_id=cycle_id,
                     payload={"packet_id": pid, "reason": "stale token / lease lost"},
                 )
-                result = None
                 return None
             self.ctx.store.put(
                 "packet_results",
                 f"{pid}:{run_id}",
-                result.content_dict(),
-                extra={"packet_id": pid, "status": result.status.value},
+                final.content_dict(),
+                extra={"packet_id": pid, "status": final.status.value},
             )
-            return result
+            return final
         finally:
-            # Budget: commit actual usage-derived cost, or release the reservation.
-            self._settle_budget(ledger, cycle_id, agent, model_row, est, result)
             self.ctx.store.release_packet(pid, run_id)
-            if workspace is not None:
-                self.iso.cleanup(workspace)
 
     async def _execute_with_claim_heartbeat(
         self,
@@ -545,10 +1116,13 @@ class FactoryEngine:
         claim_ttl: int,
         cycle_id: str,
         interval_s: float = 30.0,
-    ) -> PacketResult | None:
+    ) -> tuple[PacketResult | None, str]:
         """Run the worker while RENEWING its packet claim. If renewal fails the
         worker is cancelled immediately (fenced); the packet wall-clock budget is
-        enforced as a hard timeout. Returns None when fenced/timed out."""
+        enforced as a hard timeout. Returns ``(result, "ok")`` on completion,
+        ``(None, "fenced")`` when claim renewal failed (coordinator ownership
+        uncertain — never redraw), or ``(None, "timeout")`` on wall-clock timeout
+        (a transient failure — redraw eligible)."""
         import asyncio
 
         lost = asyncio.Event()
@@ -572,13 +1146,14 @@ class FactoryEngine:
                 return_when=asyncio.FIRST_COMPLETED,
             )
             if exec_task in done:
-                return exec_task.result()
+                return exec_task.result(), "ok"
             # Claim renewal failed OR wall-clock exceeded: cancel + fence out.
             exec_task.cancel()
             import contextlib
 
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await exec_task
+            fenced = lost.is_set()
             self.ctx.log_event(
                 "execute.cancelled",
                 stage="EXECUTING",
@@ -586,11 +1161,11 @@ class FactoryEngine:
                 payload={
                     "packet_id": pid,
                     "reason": "claim renewal failed (fenced)"
-                    if lost.is_set()
+                    if fenced
                     else "packet wall-clock timeout",
                 },
             )
-            return None
+            return None, ("fenced" if fenced else "timeout")
         finally:
             hb_task.cancel()
             lost_task.cancel()
@@ -632,6 +1207,20 @@ class FactoryEngine:
 
         by_id = {p.packet_id: p for p in pset.packets}
         selected = [by_id[pid] for pid in pset.selected_packet_ids]
+        # --shadow-packets N: deterministically cap the number of packets actually
+        # dispatched in shadow mode (after eligibility/selection; packet identity
+        # unchanged — a stable-sorted prefix of the selected set). Packets dropped
+        # by the cap are INTENTIONALLY DEFERRED, not missing (see _execute_wave).
+        if mode is RunMode.SHADOW and self._max_shadow_packets is not None:
+            selected = sorted(selected, key=lambda p: p.packet_id)[
+                : max(0, self._max_shadow_packets)
+            ]
+        # Record the actual dispatched set so missing-result detection compares
+        # only against packets we actually tried to run.
+        self._dispatched_packet_ids = {p.packet_id for p in selected}
+        deferred_by_cap = [
+            pid for pid in pset.selected_packet_ids if pid not in self._dispatched_packet_ids
+        ]
         sem = asyncio.Semaphore(max(1, self.ctx.config.budgets.max_concurrent_workers))
 
         async def _guarded(packet: Packet) -> PacketResult | None:
@@ -644,9 +1233,44 @@ class FactoryEngine:
             "execute.done",
             stage="EXECUTING",
             cycle_id=cycle_id,
-            payload={"results": len(results), "mode": mode.value},
+            payload={
+                "selected": len(pset.selected_packet_ids),
+                "dispatched": len(self._dispatched_packet_ids),
+                "deferred_by_cap": len(deferred_by_cap),
+                "deferred_packet_ids": sorted(deferred_by_cap),
+                "results": len(results),
+                "mode": mode.value,
+            },
         )
         return results
+
+    def _record_profile_metric(
+        self, result: PacketResult, task_class: str, *, accepted: bool, validated: bool
+    ) -> None:
+        """Persist a per-profile/per-task runtime metric row from propagated usage.
+        Unknown token metrics are stored as-is (None) — never fabricated zeros."""
+        import contextlib
+
+        u = result.usage or {}
+        with contextlib.suppress(Exception):
+            self.ctx.store.put(
+                "profile_metrics",
+                f"{result.agent_profile_id}:{task_class}:{result.packet_id}",
+                {
+                    "agent_profile_id": result.agent_profile_id,
+                    "task_class": task_class,
+                    "accepted": 1 if accepted else 0,
+                    "rejected": 0 if accepted else 1,
+                    "semantic_validated": 1 if (accepted and validated) else 0,
+                    "uncached_input_tokens": u.get("uncached_input_tokens"),
+                    "cached_input_tokens": u.get("cached_input_tokens"),
+                    "output_tokens": u.get("output_tokens"),
+                    "latency_ms": u.get("latency_ms"),
+                    "cost_usd": u.get("provider_reported_cost"),
+                    "actual_model": result.actual_model,
+                },
+                extra={"agent_profile_id": result.agent_profile_id, "task_class": task_class},
+            )
 
     def qualify_results(
         self, pset: PacketSet, results: list[PacketResult]
@@ -704,10 +1328,32 @@ class FactoryEngine:
         from .clock import utc_now_iso
 
         cycle_id = self._next_cycle_id()
-        sm = CycleStateMachine()
         started = utc_now_iso()
         blockers: list[str] = []
         self._lease_lost = False
+
+        def persist_transition(state: CycleState) -> None:
+            self.ctx.store.put(
+                "cycles",
+                cycle_id,
+                {
+                    "cycle_id": cycle_id,
+                    "mode": mode.value,
+                    "state": state.value,
+                    "started_at": started,
+                    "ended_at": "",
+                },
+                extra={"state": state.value},
+            )
+            self.ctx.log_event(
+                "cycle.transition",
+                stage=state.value,
+                cycle_id=cycle_id,
+                payload={"state": state.value, "mode": mode.value},
+            )
+
+        sm = CycleStateMachine(on_transition=persist_transition)
+        persist_transition(CycleState.INIT)
 
         # Acquire the sole coordinator lease BEFORE any state-changing preflight
         # work (lease reaping, claim reconciliation, mirror fetch) so recovery and
@@ -836,7 +1482,7 @@ class FactoryEngine:
             mode, cycle_id, sm, started, snap, graph, pset, no_progress, blockers
         )
 
-    def _eval_terminal(self, snap: SemanticSnapshot, cycle_id: str) -> None:
+    def _eval_terminal(self, snap: SemanticSnapshot, cycle_id: str) -> bool:
         complete, reasons = compute_terminal_complete(self.ctx, snap)
         self.ctx.log_event(
             "terminal.evaluated",
@@ -844,6 +1490,7 @@ class FactoryEngine:
             cycle_id=cycle_id,
             payload={"complete": complete, "reasons": reasons},
         )
+        return complete
 
     async def _execute_wave(
         self, mode, cycle_id, sm, started, snap, graph, pset, no_progress, blockers
@@ -877,13 +1524,32 @@ class FactoryEngine:
                     "worker", r.agent_profile_id, pkt.task_class, "implementation", 0.0
                 )
 
-        # Selected packets that produced no result at all (no route / fenced / no worker).
-        missing = [pid for pid in pset.selected_packet_ids if pid not in results_by_pid]
+        # DISPATCHED packets that produced no result (no route / fenced / no worker)
+        # ARE failures. Packets intentionally deferred by the --shadow-packets cap
+        # were never dispatched, so they are NOT missing — deferred != failed.
+        dispatched = self._dispatched_packet_ids or set(pset.selected_packet_ids)
+        missing = [pid for pid in dispatched if pid not in results_by_pid]
+        deferred_by_cap = [pid for pid in pset.selected_packet_ids if pid not in dispatched]
 
-        # FAIL-CLOSED: every selected packet's result must be ACCEPTED. A recorded
+        # FAIL-CLOSED: every DISPATCHED packet's result must be ACCEPTED. A recorded
         # failure, rejection, human-decision, or skip can never yield a green
         # cycle — a failed result being durably recorded is not success.
         rejected = [q for q in quals if not q.accepted]
+
+        # Wave accounting: selected / dispatched / intentionally-deferred / completed
+        # / failed are reported distinctly (deferred is never counted as failed).
+        self.ctx.log_event(
+            "execute.accounting",
+            stage="EXECUTING",
+            cycle_id=cycle_id,
+            payload={
+                "selected": len(pset.selected_packet_ids),
+                "dispatched": len(dispatched),
+                "deferred_by_cap": sorted(deferred_by_cap),
+                "completed": sorted(q.packet_id for q in accepted),
+                "failed": sorted([*(q.packet_id for q in rejected), *missing]),
+            },
+        )
 
         sm.transition(CycleState.INTEGRATING)
         apply = mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE) and not self._lease_lost
@@ -914,32 +1580,14 @@ class FactoryEngine:
                 extra={"set_id": pset.set_id},
             )
         integration_failed = bool(accepted_results) and not attempt.deterministic_merge_ok
+        # Deterministic integration is used whenever patches merge without semantic
+        # conflict. Only a genuine semantic conflict needs an AI integrator/
+        # adjudicator, and it is chosen DYNAMICALLY per conflict (never a permanent
+        # integration provider) — recorded here for the fail-closed decision.
+        if integration_failed:
+            self._select_integrator(accepted_results, attempt, cycle_id)
 
-        sm.transition(CycleState.REVIEWING)
-        # SUBSTANTIVE review is required for EVERY wave patch unless every
-        # selected packet is explicitly low-risk mechanical work: semantic
-        # subjects, high/protected risk, or non-mechanical medium risk all
-        # demand a real reviewer. No reviewer available => BLOCKED (fail closed);
-        # an explicit reviewer rejection also blocks.
-        needs_review = wave is not None and self._wave_requires_review(pset, by_id)
-        reviewer: Any = None
-        if needs_review and self._reviewer_factory is not None:
-            try:
-                reviewer = self._reviewer_factory()
-            except Exception:
-                reviewer = None
-        review = await (reviewer if reviewer is not None else NoopReviewer()).review(
-            pset.set_id, wave
-        )
-        self.ctx.store.put(
-            "wave_reviews",
-            f"{pset.set_id}:{review.reviewer_profile_id}",
-            review.content_dict(),
-            extra={"set_id": pset.set_id},
-        )
-        review_unavailable = needs_review and reviewer is None
-        review_rejected = needs_review and reviewer is not None and not review.approved
-
+        # VALIDATE FIRST so the reviewer receives the actual validation evidence.
         sm.transition(CycleState.VALIDATING)
         receipt = self._validate_wave(pset, wave, snap)
         self.ctx.store.put(
@@ -950,11 +1598,60 @@ class FactoryEngine:
         )
         validation_failed = wave is not None and not receipt.all_passed
 
+        sm.transition(CycleState.REVIEWING)
+        # SUBSTANTIVE review is required for EVERY wave patch unless every
+        # selected packet is explicitly low-risk mechanical work: semantic
+        # subjects, high/protected risk, or non-mechanical medium risk all
+        # demand a real reviewer. No reviewer available => BLOCKED (fail closed);
+        # an explicit reviewer rejection also blocks. The reviewer gets the ACTUAL
+        # diff + semantic delta + validation evidence via the context bundle.
+        needs_review = wave is not None and self._wave_requires_review(pset, by_id)
+        reviewer: Any = None
+        if needs_review and self._reviewer_factory is not None:
+            if self._reviewer_accepts_profile():
+                # Production: adaptive, INDEPENDENT reviewer chosen from the current
+                # workforce (never an authoring provider; family-diverse per policy).
+                reviewer = self._select_and_build_reviewer(accepted_results)
+            else:
+                # Injected reviewer double (tests): preserve direct construction.
+                try:
+                    reviewer = self._reviewer_factory()
+                except Exception:
+                    reviewer = None
+        bundle = (
+            self._build_review_bundle(pset, wave, receipt, accepted_results)
+            if wave is not None
+            else None
+        )
+        review = await (reviewer if reviewer is not None else NoopReviewer()).review(
+            pset.set_id, wave, bundle
+        )
+        self.ctx.store.put(
+            "wave_reviews",
+            f"{pset.set_id}:{review.reviewer_profile_id}",
+            review.content_dict(),
+            extra={"set_id": pset.set_id},
+        )
+        review_unavailable = needs_review and reviewer is None
+        review_rejected = needs_review and reviewer is not None and not review.approved
+
         # Post-wave re-snapshot (read-only) before terminal evaluation.
         try:
             post = self.capture_snapshot(cycle_id)
         except Exception:
             post = snap
+
+        # Per-profile/per-task runtime metrics (accepted/rejected + token/cache/cost/
+        # latency from the propagated usage). Unknown metrics stay unrecorded (not
+        # fabricated zeros); they feed roster ranking tie-breaks.
+        validated = bool(getattr(receipt, "all_passed", False))
+        for q in quals:
+            r = results_by_pid.get(q.packet_id)
+            pkt = by_id.get(q.packet_id)
+            if r is not None and pkt is not None:
+                self._record_profile_metric(
+                    r, pkt.task_class, accepted=q.accepted, validated=validated
+                )
 
         # Fail-closed terminal decision.
         fail_reasons: list[str] = []
@@ -1004,18 +1701,28 @@ class FactoryEngine:
             )
 
         if wave is not None and receipt.all_passed:
-            from .delivery import prepare_delivery
-
-            art = prepare_delivery(self.ctx, wave, post, receipt)
-            self.ctx.store.put(
-                "publication_receipts",
-                f"{pset.set_id}:delivery",
-                {"prepared": art.prepared, "reason": art.reason},
-                extra={"set_id": pset.set_id},
+            delivery_error = self._deliver_wave(
+                pset, wave, snap, post, receipt, review, accepted_results, by_id
             )
+            if delivery_error:
+                sm.transition(CycleState.BLOCKED)
+                blockers.append(delivery_error)
+                return self._finish(
+                    cycle_id,
+                    mode,
+                    sm.state,
+                    started,
+                    snapshot=post,
+                    graph=graph,
+                    pset=pset,
+                    accepted=len(accepted),
+                    no_progress=no_progress,
+                    blockers=blockers,
+                )
 
         sm.transition(CycleState.LEARNED)
-        self._eval_terminal(post, cycle_id)
+        if self._eval_terminal(post, cycle_id):
+            sm.transition(CycleState.COMPLETE)
         if no_progress:
             blockers.append("no progress vs previous cycle")
         return self._finish(
@@ -1029,6 +1736,230 @@ class FactoryEngine:
             accepted=len(accepted),
             no_progress=no_progress,
             blockers=blockers,
+        )
+
+    # ------------------------------------------------------------------ #
+    # Dynamic reviewer + integrator/adjudicator selection (spec §8-§9).
+    # ------------------------------------------------------------------ #
+
+    def _reviewer_accepts_profile(self) -> bool:
+        """True when the wired reviewer factory takes a ``profile_id`` (the
+        production factory) — enabling dynamic, independent reviewer selection.
+        Injected test doubles (no such parameter) keep direct construction."""
+        import inspect
+
+        if self._reviewer_factory is None:
+            return False
+        try:
+            return "profile_id" in inspect.signature(self._reviewer_factory).parameters
+        except (TypeError, ValueError):
+            return False
+
+    def _authoring_providers(self, results: list[PacketResult]) -> tuple[set[str], set[str]]:
+        """The providers + model families that AUTHORED the accepted results — the
+        set a reviewer/integrator must be independent from."""
+        from .model_registry import canonical_family
+
+        providers: set[str] = set()
+        families: set[str] = set()
+        for r in results:
+            pid = r.actual_provider
+            model = r.actual_model
+            if not pid:
+                row = self.ctx.store.get("agent_profiles", r.agent_profile_id)
+                if row:
+                    pid = row.get("provider_id")
+                    model = model or row.get("requested_model_id")
+            if pid:
+                providers.add(pid)
+                families.add(canonical_family(pid, model or ""))
+        return providers, families
+
+    def _select_and_build_reviewer(self, accepted_results: list[PacketResult]) -> Any:
+        """Adaptively select an INDEPENDENT reviewer from the current workforce and
+        build it via the production factory. Returns None (=> wave blocks) when no
+        independent reviewer survives — an author is never silently reused."""
+        if self._reviewer_factory is None:
+            return None
+        providers, families = self._authoring_providers(accepted_results)
+        snapshot = self._current_workforce()
+        prof, reason = select_reviewer(
+            snapshot, self.policy, authoring_providers=providers, authoring_families=families
+        )
+        if prof is None:
+            self.ctx.log_event(
+                "review.no_independent_reviewer",
+                stage="REVIEWING",
+                payload={"reason": reason, "authoring_providers": sorted(providers)},
+            )
+            return None
+        try:
+            reviewer = self._reviewer_factory(profile_id=prof.profile_id)
+        except Exception as exc:
+            self.ctx.log_event(
+                "review.build_failed",
+                stage="REVIEWING",
+                payload={"reviewer_profile_id": prof.profile_id, "error": str(exc)[:300]},
+            )
+            return None
+        if reviewer is not None:
+            self.ctx.log_event(
+                "review.selected",
+                stage="REVIEWING",
+                payload={
+                    "reviewer_profile_id": prof.profile_id,
+                    "provider_id": prof.provider_id,
+                    "authoring_providers": sorted(providers),
+                },
+            )
+        return reviewer
+
+    def _select_integrator(
+        self, accepted_results: list[PacketResult], attempt: Any, cycle_id: str
+    ) -> str | None:
+        """DYNAMICALLY select an independent integrator/adjudicator for a semantic
+        conflict (spec §9). No permanent integration provider: the choice is made
+        per conflict from the current workforce. Records availability; deterministic
+        integration remains the default and a conflict still blocks fail-closed when
+        no independent adjudicator is available."""
+        providers, families = self._authoring_providers(accepted_results)
+        prof, reason = select_integrator(
+            self._current_workforce(),
+            self.policy,
+            authoring_providers=providers,
+            authoring_families=families,
+        )
+        self.ctx.log_event(
+            "integration.adjudicator",
+            stage="INTEGRATING",
+            cycle_id=cycle_id,
+            payload={
+                "conflicts": list(getattr(attempt, "semantic_conflicts", []) or []),
+                "selected_profile_id": prof.profile_id if prof else None,
+                "provider_id": prof.provider_id if prof else None,
+                "reason": reason,
+                "authoring_providers": sorted(providers),
+            },
+        )
+        return prof.profile_id if prof else None
+
+    def _deliver_wave(
+        self, pset, wave, snap, post, receipt, review, accepted_results, by_id
+    ) -> str | None:
+        """Deliver an accepted+validated+reviewed wave. When the delivery coordinator
+        is wired AND a live RunAuthorization permits push/PR, run the full protected
+        lifecycle (branch/PR/merge/publish/reconcile/close); otherwise fall back to
+        prepare-only delivery (fail closed — no side effect)."""
+        from .delivery import prepare_delivery
+
+        coordinator: Any = self._delivery_coordinator
+        authorized = coordinator is not None and self.ctx.is_action_effective(
+            ProtectedAction.PUSH_PR
+        )
+        if not authorized:
+            art = prepare_delivery(self.ctx, wave, post, receipt)
+            self.ctx.store.put(
+                "publication_receipts",
+                f"{pset.set_id}:delivery",
+                {"prepared": art.prepared, "reason": art.reason},
+                extra={"set_id": pset.set_id},
+            )
+            return None
+
+        from .delivery_coordinator import DeliveryInput
+        from .enums import RemediationKind
+
+        diff_text = self.ctx.store.cas_get(wave.patch_ref).decode() if wave.patch_ref else ""
+        primary = accepted_results[0] if accepted_results else None
+        pkt = by_id.get(primary.packet_id) if primary is not None else None
+        obligation_id = getattr(pkt, "obligation_id", None) or pset.set_id
+        obligation_ids = sorted(
+            {
+                str(by_id[result.packet_id].obligation_id)
+                for result in accepted_results
+                if result.packet_id in by_id and by_id[result.packet_id].obligation_id
+            }
+            or {obligation_id}
+        )
+        rk = getattr(pkt, "remediation_kind", RemediationKind.SOURCE_CHANGE)
+        rk = rk if isinstance(rk, RemediationKind) else RemediationKind(rk)
+        providers, _fams = self._authoring_providers(accepted_results)
+        inp = DeliveryInput(
+            obligation_id=obligation_id,
+            obligation_ids=obligation_ids,
+            set_id=pset.set_id,
+            remediation_kind=rk,
+            base_head=snap.repository_head,
+            expected_pre_publication_digest=snap.authority_digest,
+            risk=getattr(pkt, "risk", Risk.MEDIUM),
+            diff_text=diff_text,
+            validation_passed=bool(receipt.all_passed),
+            review_approved=bool(getattr(review, "approved", False)),
+            reviewer_profile_id=getattr(review, "reviewer_profile_id", ""),
+            authoring_providers=sorted(providers),
+            provider_model_receipts=[
+                {"provider_id": r.actual_provider or "", "actual_model": r.actual_model or ""}
+                for r in accepted_results
+            ],
+            validation_receipt_digest=receipt.digest(),
+            review_receipt_digest=review.digest(),
+            policy_digest=self.policy.digest(),
+            workforce_snapshot_id=self._current_workforce().snapshot_id,
+        )
+        try:
+            rec = coordinator.deliver(inp)
+            state = rec.state
+        except Exception as exc:
+            state = f"error: {str(exc)[:200]}"
+        self.ctx.store.put(
+            "publication_receipts",
+            f"{pset.set_id}:delivery",
+            {"prepared": True, "reason": f"delivery state {state}", "delivery_state": state},
+            extra={"set_id": pset.set_id},
+        )
+        self.ctx.log_event(
+            "delivery.wave",
+            stage="DELIVERING",
+            payload={"set_id": pset.set_id, "obligation_id": obligation_id, "state": state},
+        )
+        if state != DeliveryState.COMPLETE.value:
+            return f"protected delivery did not complete: {state}"
+        return None
+
+    def _build_review_bundle(self, pset, wave, receipt, accepted_results=None):
+        """Bounded ReviewContextBundle carrying the ACTUAL effective diff, the
+        patch-derived semantic delta, validation gates and worker attribution."""
+        from .review import ReviewContextBundle
+        from .semantic_delta import extract_semantic_delta
+
+        diff = ""
+        if wave is not None and getattr(wave, "patch_ref", None):
+            try:
+                diff = self.ctx.store.cas_get(wave.patch_ref).decode()
+            except Exception:
+                diff = ""
+        delta = extract_semantic_delta(diff).to_dict() if diff else {}
+        by_id = {p.packet_id: p for p in pset.packets}
+        objectives = [by_id[pid].objective for pid in pset.selected_packet_ids if pid in by_id]
+        criteria = sorted(
+            {
+                c
+                for pid in pset.selected_packet_ids
+                if pid in by_id
+                for c in by_id[pid].acceptance_criteria
+            }
+        )
+        attribution = {}
+        for r in accepted_results or []:
+            attribution[r.packet_id] = f"{r.actual_provider or '?'}/{r.actual_model or '?'}"
+        return ReviewContextBundle(
+            set_id=pset.set_id,
+            packet_objectives=objectives,
+            acceptance_criteria=criteria,
+            effective_diff=diff,
+            semantic_delta=delta,
+            validation_gates=dict(receipt.gates) if receipt is not None else {},
+            worker_attribution=attribution,
         )
 
     def _wave_requires_review(self, pset: PacketSet, by_id: dict[str, Packet]) -> bool:

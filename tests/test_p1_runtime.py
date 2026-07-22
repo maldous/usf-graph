@@ -80,7 +80,7 @@ def _agent():
     return AgentProfile(
         provider_id="openrouter",
         requested_model_id="openrouter/free",
-        adapter="brokered",
+        adapter="openai_compatible",
         auth_mode=AuthMode.API_TOKEN,
     )
 
@@ -192,18 +192,20 @@ def test_ensure_profile_persists_from_provider_config(ctx):
 
 @pytest.mark.unit
 def test_admit_from_evidence_computes_roles(ctx):
-    from usf_factory.admission import admit_from_evidence
+    from usf_factory.admission import admit_from_evidence, latest_admission
 
     profile = seed_agent(
         ctx.store,
-        roles=[AdmissionRole.UNQUALIFIED],  # stored roles are stale/wrong on purpose
+        roles=[AdmissionRole.UNQUALIFIED],  # stale roles in the seeded decision
         scores=all_dimension_scores(0.99),  # evidence satisfies every threshold
     )
     roles = admit_from_evidence(ctx, profile.profile_id)
     assert AdmissionRole.UNQUALIFIED not in roles
-    assert roles  # recomputed from evidence vs trust policy
-    run = ctx.store.get("qualification_runs", profile.profile_id)
-    assert set(run["roles_admitted"]) == {r.value for r in roles}
+    assert roles  # recomputed from immutable evidence vs trust policy
+    # A NEW admission decision was recorded; qualification evidence is untouched.
+    decision = latest_admission(ctx, profile.profile_id)
+    assert set(decision["roles"]) == {r.value for r in roles}
+    assert decision["method"] == "evidence"
 
 
 @pytest.mark.unit
@@ -216,25 +218,79 @@ def test_admit_without_evidence_fails(ctx):
 
 
 @pytest.mark.unit
+def test_qualification_evidence_is_immutable(ctx):
+    """Admitting/overriding creates new decisions; the qualification run is never
+    mutated and prior runs are never overwritten."""
+    from usf_factory.admission import admit_from_evidence, latest_qualification
+
+    profile = seed_agent(
+        ctx.store, roles=[AdmissionRole.READ_ONLY_ANALYST], scores=all_dimension_scores(0.99)
+    )
+    run_before = latest_qualification(ctx, profile.profile_id)
+    admit_from_evidence(ctx, profile.profile_id)
+    admit_from_evidence(ctx, profile.profile_id)
+    run_after = latest_qualification(ctx, profile.profile_id)
+    assert run_before["run_id"] == run_after["run_id"]  # same immutable run
+    assert run_before == run_after  # evidence never mutated
+    # Two admission decisions now reference the one run.
+    decisions = ctx.store.records(
+        "admission_decisions", "agent_profile_id=?", (profile.profile_id,)
+    )
+    assert len([d for d in decisions if d["method"] == "evidence"]) >= 2
+
+
+@pytest.mark.unit
 def test_operator_override_is_recorded(ctx):
-    from usf_factory.admission import grant_role_operator_override
+    from usf_factory.admission import grant_role_operator_override, latest_admission
 
     profile = seed_agent(
         ctx.store, roles=[AdmissionRole.READ_ONLY_ANALYST], scores=all_dimension_scores(0.1)
     )
     roles = grant_role_operator_override(ctx, profile.profile_id, AdmissionRole.REVIEWER)
     assert AdmissionRole.REVIEWER in roles
-    run = ctx.store.get("qualification_runs", profile.profile_id)
-    assert run["operator_overrides"][0]["role"] == AdmissionRole.REVIEWER.value
+    decision = latest_admission(ctx, profile.profile_id)
+    assert decision["method"] == "operator-override"
+    assert AdmissionRole.REVIEWER.value in decision["roles"]
+
+
+@pytest.mark.unit
+def test_expired_qualification_is_ineligible(ctx):
+    """A profile whose admission/qualification expired is not a candidate."""
+    from usf_factory.admission import admission_ineligibility
+    from usf_factory.models import AgentProfile
+
+    profile = seed_agent(
+        ctx.store, roles=[AdmissionRole.READ_ONLY_ANALYST], scores=all_dimension_scores()
+    )
+    prof = AgentProfile(**dict(ctx.store.get("agent_profiles", profile.profile_id)))
+    _d, _r, reason = admission_ineligibility(ctx, prof)
+    assert reason is None  # freshly seeded => eligible
+    # Expire the admission decision.
+    dec = ctx.store.records("admission_decisions", "agent_profile_id=?", (profile.profile_id,))[0]
+    dec["expires_at"] = "2000-01-01T00:00:00Z"
+    ctx.store.put(
+        "admission_decisions",
+        dec["decision_id"],
+        dec,
+        extra={
+            "agent_profile_id": profile.profile_id,
+            "qualification_run_id": dec["qualification_run_id"],
+        },
+    )
+    _d, _r, reason = admission_ineligibility(ctx, prof)
+    assert reason == "admission expired"
 
 
 @pytest.mark.unit
 def test_live_qualification_is_gated(ctx):
     from usf_factory.admission import ensure_profile, qualify_live
     from usf_factory.errors import ProtectedActionError
+    from usf_factory.probing import InferenceAuthorization
 
     profile = ensure_profile(ctx, "openrouter", "m")
     with pytest.raises(ProtectedActionError):
-        asyncio.run(qualify_live(ctx, profile, allow_billable=False, budget_usd=0.0))
+        asyncio.run(qualify_live(ctx, profile, auth=InferenceAuthorization(allow_inference=False)))
     # A gated qualify persists NO evidence.
-    assert ctx.store.get("qualification_runs", profile.profile_id) is None
+    assert (
+        ctx.store.records("qualification_runs", "agent_profile_id=?", (profile.profile_id,)) == []
+    )

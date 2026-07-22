@@ -30,6 +30,23 @@ _UNCERTAINTY_MARKERS = (
     "unsure",
     "not enough information",
     "uncertain",
+    # Common genuine-uncertainty phrasings strong models use.
+    "no way to know",
+    "cannot know",
+    "can't know",
+    "cannot possibly know",
+    "have no way",
+    "don't have access",
+    "do not have access",
+    "no access to",
+    "unable to determine",
+    "unable to know",
+    "impossible to know",
+    "cannot be determined",
+    "not possible to know",
+    "i don't have",
+    "i cannot",
+    "i can't",
 )
 
 

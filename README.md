@@ -13,23 +13,61 @@ accepted semantic obligations closed
 wall-clock time × cost × regression risk
 ```
 
-This is the first production-quality implementation of the architecture in
-[`DESIGN.md`](DESIGN.md). It is **safe by default**: it does not mutate `/usf`,
-does not mutate Stardog, does not spend money, and does not send private source
-to external providers unless explicitly authorized.
+This is a traditional build-first implementation of the architecture in
+[`DESIGN.md`](DESIGN.md). It is an operational coordinator, not a second semantic
+authority. It is **safe by default**: it does not mutate `/usf`, does not mutate
+Stardog, does not spend money, and does not send private source to external
+providers unless explicitly authorized.
 
 ---
 
 ## Status
 
-Implements Build Stages 1–5 of the roadmap in `DESIGN.md` as a coherent,
-replayable deterministic control plane, plus the interfaces and safe scaffolding
-for stages 6–10 (concurrency, integration, review, adaptive routing, controlled
-publication). See [`docs/architecture.md`](docs/architecture.md) for exactly
-what is *current reality* vs *target behavior*, and `BUILD_REPORT.md` for the
+The branch contains a substantial implementation of dynamic worker discovery,
+qualification and admission; deterministic planning and packet compilation;
+isolated execution; integration and review; local validation; and a protected,
+restartable GitHub/Stardog delivery coordinator. It remains a work in progress
+until the full attestation and cross-repository scenarios pass against the
+current `usf-graph` contract. See [`docs/architecture.md`](docs/architecture.md)
+for *current reality* vs target behavior, and `BUILD_REPORT.md` for the original
 build outcome.
 
-**Not** autonomous-production-ready. Autonomous mutation is disabled.
+**Not** autonomous-production-ready. Protected mutation remains disabled by
+default, and the existence of a code path or factory receipt is never completion
+evidence.
+
+## Relationship with `usf-graph`
+
+`usf-factory` and `usf-graph` have deliberately different roles:
+
+- **`usf-graph`** owns validated semantic authority, contracts, evidence
+  admission, proof and canonical transactional publication.
+- **`usf-factory`** is the build-first execution system that reads bounded live
+  authority, schedules qualified workers, validates candidate changes in
+  disposable clones, and coordinates protected Git and publication operations.
+
+The factory consumes actionable gaps from `usf_work_plan`. Contract-level proof
+and validation obligation inventories provide context; they do not become work
+merely because they are listed. A deferred or inactive validation obligation is
+therefore visible to contract projection but absent from the actionable work
+plan until explicitly activated.
+
+### Validation receipt versus authority evidence
+
+A factory-run deterministic suite produces a
+`FactoryValidationReceipt`. That receipt records the exact repository head,
+authority digest, checks and observed result for replay and diagnosis. It is
+not `usf:ValidationEvidence`, is not admitted, and cannot close a semantic
+validation obligation.
+
+Genuine authority-evidence candidates must be produced independently and enter
+the factory through the explicit `AuthorityEvidenceTransport` interface. The
+interface verifies the exact patch digest, evidence identities and immutable
+artifact digests before the protected delivery lifecycle can begin. Admission
+still requires the canonical `usf-graph` tests, validate-and-rollback,
+transactional publication, zero source/live drift and post-publication work-plan
+reconciliation. The factory never upgrades its own receipt into authority
+evidence.
 
 ---
 
@@ -42,7 +80,7 @@ build outcome.
 | Billable inference | **disabled** (`--allow-billable` + `--budget-usd`) |
 | Source-code egress to external providers | **disabled** (`--allow-source-egress`) |
 | Writes to `/usf` | **never** |
-| Stardog publication | **disabled** (interface only) |
+| Stardog publication | **disabled** (implemented protected interface) |
 | `run --mode observe` / `plan-only` | enabled |
 | `run --mode autonomous-safe` | implemented, **disabled** until configured |
 
@@ -72,6 +110,7 @@ usf-factory usf health             # read-only USF MCP liveness
 usf-factory cycle snapshot         # deterministic semantic snapshot (read-only)
 usf-factory cycle plan             # plan-only obligation graph + packets (mock/fixture)
 usf-factory run --mode plan-only   # a full non-mutating cycle
+scripts/verify.sh --attest         # full clean-HEAD local attestation
 ```
 
 ## Credential import
@@ -95,10 +134,10 @@ precedence, and conflict handling.
 ```
 Provider discovery ─► Model registry ─► Qualification ─┐
                                                        ▼
-USF MCP ─► Semantic snapshot ─► Planner ─► Critic ─► Deterministic packet
-(read-only)   (deterministic)                          compiler + conflict DAG
+USF MCP ─► Semantic snapshot ─► Work-plan projection ─► Deterministic packet
+(read-only)   (deterministic)                             compiler + conflict DAG
                                                        │
-                                          Scheduler (task-specific, explainable)
+                         Qualified dynamic workforce + adaptive routing
                                                        │
                                     Isolated workers (disposable clones, no /usf)
                                                        │
@@ -106,7 +145,9 @@ USF MCP ─► Semantic snapshot ─► Planner ─► Critic ─► Determinist
                                                        │
                                AI integrator (only for semantic reconciliation)
                                                        │
-                                Independent review ─► Deterministic validation
+                     Provider-diverse review ─► Deterministic local validation
+                                                       │
+                      Protected graph delivery ─► reconcile authority/work plan
                                                        │
                               Attribution + learning ─► recompute state ─► repeat
 ```

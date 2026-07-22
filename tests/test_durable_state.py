@@ -79,6 +79,8 @@ def test_budget_reservation(store):
 def test_ulid_is_sortable_and_unique():
     ids = [ulid() for _ in range(100)]
     assert len(set(ids)) == 100
-    assert ids == sorted(ids) or True  # monotonic within a ms is not guaranteed
+    # The time prefix is non-decreasing; random suffixes intentionally have no
+    # ordering guarantee within the same millisecond.
+    assert [value[:10] for value in ids] == sorted(value[:10] for value in ids)
     a = cycle_id()
     assert a.startswith("cyc-") and len(a) == 30

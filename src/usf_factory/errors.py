@@ -73,3 +73,12 @@ class BudgetExceededError(FactoryError):
 
 class StaleSnapshotError(FactoryError):
     """Work references a snapshot/commit that is no longer current."""
+
+
+class RunAuthorizationError(FactoryError):
+    """The operator RunAuthorization is missing, malformed, insecure, expired,
+    or does not permit the attempted action/scope (fail closed)."""
+
+
+class OutputBudgetExceededError(FactoryError):
+    """A model response exceeded its authorised output-token/byte budget."""

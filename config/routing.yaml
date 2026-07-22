@@ -29,3 +29,9 @@ weights:
   cost: -0.5
   quota_risk: -0.3
   provider_diversity: 0.2
+  # Token/cache efficiency (observed). Rank tie-breakers among already-eligible
+  # models; never override semantic/admission/safety hard gates.
+  uncached_cost: -0.3
+  cache_reuse: 0.3
+  context_expansion: -0.2
+  prior_validation: 0.4

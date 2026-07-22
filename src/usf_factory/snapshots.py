@@ -23,7 +23,7 @@ from .models import SemanticSnapshot
 from .paths import USF_REPO
 
 # Tools the deterministic snapshot depends on; their absence fails closed.
-REQUIRED_TOOLS = ("usf_health", "usf_bootstrap", "usf_query")
+REQUIRED_TOOLS = ("usf_health", "usf_bootstrap", "usf_query", "usf_work_plan")
 
 # An authority digest must be a non-trivial identifier (never manufactured).
 _DIGEST_RE = re.compile(r"^[A-Za-z0-9:_\-]{16,}$")
@@ -63,6 +63,43 @@ def _collect_evidence_refs(bootstrap: dict[str, Any]) -> list[str]:
             if ref:
                 refs.append(str(ref))
     return sorted(set(refs))[:200]  # bounded — never a full transcript
+
+
+def _complete_work_plan(authority: UsfAuthorityClient, authority_digest: str) -> dict[str, Any]:
+    """Read every deterministic work-plan page under one authority digest."""
+    gaps: list[dict[str, Any]] = []
+    offset = 0
+    seen_offsets: set[int] = set()
+    contract = ""
+    while True:
+        if offset in seen_offsets:
+            raise SnapshotError("work-plan pagination repeated an offset")
+        seen_offsets.add(offset)
+        page = authority.work_plan({"offset": offset}).json()
+        if not isinstance(page, dict) or page.get("schemaVersion") != 1:
+            raise SnapshotError("work-plan response is absent or has an unsupported schema")
+        if page.get("authorityDigest") != authority_digest:
+            raise SnapshotError("work-plan authority digest differs from bootstrap")
+        page_gaps = page.get("gaps")
+        if not isinstance(page_gaps, list) or any(not isinstance(item, dict) for item in page_gaps):
+            raise SnapshotError("work-plan gaps are malformed")
+        gaps.extend(page_gaps)
+        if len(gaps) > 1_000:
+            raise SnapshotError("work-plan exceeds the bounded 1000-obligation limit")
+        contract = str(page.get("contract") or contract)
+        if page.get("truncated") is not True:
+            break
+        next_offset = page.get("nextOffset")
+        if not isinstance(next_offset, int) or next_offset <= offset:
+            raise SnapshotError("work-plan continuation is missing or non-monotonic")
+        offset = next_offset
+    return {
+        "schemaVersion": 1,
+        "authorityDigest": authority_digest,
+        "contract": contract,
+        "gaps": gaps,
+        "truncated": False,
+    }
 
 
 def compile_snapshot(
@@ -109,17 +146,17 @@ def compile_snapshot(
     if isinstance(task, dict):
         active_phase = task.get("phase") or task.get("node") or task.get("id")
 
-    # Compile programme obligations from live work-plan/bootstrap CONTENTS. This
-    # is supplementary (fail-open): the authority digest/health above already
-    # fail closed, so a work-plan hiccup must not block snapshotting.
+    # Compile programme obligations from the complete live work plan. Planning
+    # from a missing or truncated projection would silently omit authority work,
+    # so this boundary is fail-closed.
     from .programme_state import parse_programme_obligations
 
-    work_plan_json: Any = None
     try:
-        if "usf_work_plan" in tools:
-            work_plan_json = authority.work_plan().json()
-    except Exception:
-        work_plan_json = None
+        work_plan_json: Any = _complete_work_plan(authority, authority_digest)
+    except SnapshotError:
+        raise
+    except Exception as exc:
+        raise SnapshotError(f"work-plan retrieval failed: {type(exc).__name__}: {exc}") from exc
     programme_obligations = parse_programme_obligations(bootstrap, work_plan_json)
 
     # --- Git (read-only, isolated) --- #

@@ -15,7 +15,7 @@ from rich.table import Table
 
 from . import __version__, secrets
 from .context import RuntimeContext, build_context
-from .enums import RunMode
+from .enums import ProtectedAction, RunMode
 from .paths import ENV_FILE
 
 console = Console()
@@ -44,6 +44,50 @@ app.add_typer(mat_app, name="materialisation")
 
 def _ctx() -> RuntimeContext:
     return build_context()
+
+
+def _build_workforce_policy(
+    workforce_policy: str,
+    exclude_provider: list[str],
+    exclude_model: list[str],
+    exclude_family: list[str],
+    exclude_adapter: list[str],
+    exclude_actual_model: list[str],
+    only_provider: list[str],
+    only_model: list[str],
+    only_family: list[str],
+    allow_local_inference: bool,
+    allow_free_inference: bool,
+    allow_subscription_inference: bool,
+    allow_paid_inference: bool,
+    max_paid_cost_usd: float,
+):
+    """Compose the effective WorkforcePolicy from committed defaults + an optional
+    operator policy file + the run-specific CLI overrides. Allow-flags are enablers
+    (unset ⇒ inherit); exclusions always win regardless of inclusions."""
+    from .paths import bundled_config_dir
+    from .workforce_policy import build_run_policy_layer, effective_policy
+
+    run_layer = build_run_policy_layer(
+        exclude_providers=exclude_provider,
+        exclude_models=exclude_model,
+        exclude_families=exclude_family,
+        exclude_adapters=exclude_adapter,
+        exclude_actual_models=exclude_actual_model,
+        only_providers=only_provider,
+        only_models=only_model,
+        only_families=only_family,
+        allow_local=True if allow_local_inference else None,
+        allow_free=True if allow_free_inference else None,
+        allow_subscription=True if allow_subscription_inference else None,
+        allow_paid=True if allow_paid_inference else None,
+        max_paid_cost_usd=max_paid_cost_usd if max_paid_cost_usd > 0 else None,
+    )
+    return effective_policy(
+        config_dir=bundled_config_dir(),
+        operator_policy_path=workforce_policy or None,
+        run_layer=run_layer,
+    )
 
 
 def _status_color(status: str) -> str:
@@ -147,8 +191,46 @@ def run(
     mode: str = typer.Option(
         "plan-only", "--mode", help="observe | plan-only | shadow | approve-wave | autonomous-safe"
     ),
+    continuous: bool = typer.Option(
+        False, "--continuous", help="loop until no-progress / quota / blocker / pause"
+    ),
+    max_cycles: int = typer.Option(20, "--max-cycles", help="hard cap for --continuous"),
+    shadow_packets: int = typer.Option(
+        -1, "--shadow-packets", help="cap packets actually dispatched in shadow mode (-1=no cap)"
+    ),
+    allow_subscription_inference: bool = typer.Option(
+        False,
+        "--allow-subscription-inference",
+        help="authorize subscription (Claude/Codex CLI) + free inference for this run "
+        "(the paid-inference gate stays off)",
+    ),
+    approve_source_provider: list[str] = typer.Option(
+        [],
+        "--approve-source-provider",
+        help="audited: approve a proven-contained provider to receive raw source for "
+        "this run only (in-memory; never committed)",
+    ),
+    workforce_policy: str = typer.Option("", "--workforce-policy", help="operator policy file"),
+    exclude_provider: list[str] = typer.Option([], "--exclude-provider"),
+    exclude_model: list[str] = typer.Option([], "--exclude-model", help="provider/model or model"),
+    exclude_family: list[str] = typer.Option([], "--exclude-family"),
+    exclude_adapter: list[str] = typer.Option([], "--exclude-adapter"),
+    exclude_actual_model: list[str] = typer.Option([], "--exclude-actual-model"),
+    only_provider: list[str] = typer.Option([], "--only-provider"),
+    only_model: list[str] = typer.Option([], "--only-model"),
+    only_family: list[str] = typer.Option([], "--only-family"),
+    allow_local_inference: bool = typer.Option(False, "--allow-local-inference"),
+    allow_free_inference: bool = typer.Option(False, "--allow-free-inference"),
+    allow_paid_inference: bool = typer.Option(False, "--allow-paid-inference"),
+    max_paid_cost_usd: float = typer.Option(0.0, "--max-paid-cost-usd", help="paid budget (0)"),
 ) -> None:
-    """Run one cycle in the given mode (observe/plan-only are non-mutating)."""
+    """Run one cycle (or a bounded continuous loop) in the given mode.
+
+    ``--continuous`` (Phase 16): refresh -> snapshot -> plan -> execute ->
+    integrate analysis -> metrics, stopping on no-progress, a blocker, pause, or
+    the cycle cap. It never re-runs an unchanged packet set and keeps merge /
+    publication / terminal completion disabled. A candidate-patch flow halts at
+    AWAITING_OPERATOR_DELIVERY."""
     try:
         run_mode = RunMode(mode)
     except ValueError:
@@ -158,14 +240,444 @@ def run(
         raise typer.Exit(code=2) from None
     from .runtime import build_engine
 
+    policy = _build_workforce_policy(
+        workforce_policy,
+        exclude_provider,
+        exclude_model,
+        exclude_family,
+        exclude_adapter,
+        exclude_actual_model,
+        only_provider,
+        only_model,
+        only_family,
+        allow_local_inference,
+        allow_free_inference,
+        allow_subscription_inference,
+        allow_paid_inference,
+        max_paid_cost_usd,
+    )
+    cap = shadow_packets if shadow_packets >= 0 else None
     with _ctx() as ctx:
         if (ctx.paths.state / "PAUSED").exists():
             err.print("[yellow]factory is paused; run `usf-factory resume` first[/]")
             raise typer.Exit(code=1)
-        # Fully-wired production engine (worker factory + materialisation index).
-        eng = build_engine(ctx, mode=run_mode)
-        receipt = asyncio.run(eng.run_cycle(run_mode))
-    _print_receipt(receipt)
+        if approve_source_provider:
+            ctx.config.egress.source_egress_enabled = True
+            overrides = dict(ctx.config.egress.provider_overrides or {})
+            for pid in approve_source_provider:
+                overrides[pid] = sorted({*overrides.get(pid, []), "private-source"})
+            ctx.config.egress.provider_overrides = overrides
+            console.print(
+                f"[yellow]audited source-egress approval for: {approve_source_provider}[/]"
+            )
+        if not continuous:
+            eng = build_engine(
+                ctx,
+                mode=run_mode,
+                max_shadow_packets=cap,
+                allow_billable=allow_subscription_inference,
+                policy=policy,
+            )
+            receipt = asyncio.run(eng.run_cycle(run_mode))
+            _print_receipt(receipt)
+            return
+        # Continuous shadow loop (bounded, fail-closed stop conditions).
+        seen_sets: set[str] = set()
+        for i in range(max(1, max_cycles)):
+            if (ctx.paths.state / "PAUSED").exists():
+                console.print("[yellow]paused; stopping continuous loop[/]")
+                break
+            eng = build_engine(
+                ctx, mode=run_mode, allow_billable=allow_subscription_inference, policy=policy
+            )
+            receipt = asyncio.run(eng.run_cycle(run_mode))
+            console.print(
+                f"cycle {i + 1}: state={receipt.state.value} "
+                f"selected={receipt.selected_packets} accepted={receipt.accepted_packets}"
+            )
+            if receipt.set_id and receipt.set_id in seen_sets:
+                console.print("[dim]same packet set as a prior cycle; stopping (no progress)[/]")
+                break
+            if receipt.set_id:
+                seen_sets.add(receipt.set_id)
+            if receipt.no_progress:
+                console.print("[dim]no progress; stopping[/]")
+                break
+            if receipt.state.value == "BLOCKED":
+                console.print(f"[yellow]blocked: {receipt.blockers}; stopping[/]")
+                break
+            if receipt.selected_packets == 0:
+                console.print("[dim]nothing to do; stopping[/]")
+                break
+
+
+def _record_validation_receipt_gaps(ctx: RuntimeContext, coordinator: object) -> None:
+    """Record local observations for actionable validation gaps.
+
+    The receipt never closes the gap. Authority-grade evidence must arrive via
+    the coordinator's explicit external evidence transport interface.
+    """
+    import os
+    import subprocess
+
+    from .authority import UsfAuthorityClient
+
+    remote = os.environ.get("USF_GRAPH_REMOTE", "https://github.com/maldous/usf-graph.git")
+    wp = UsfAuthorityClient().work_plan().json() or {}
+    digest = str(wp.get("authorityDigest") or "")
+    gaps = [g for g in wp.get("gaps", []) if g.get("type") == "missing-current-passing-validation"]
+    if not gaps:
+        console.print("[dim]no actionable validation gaps in the live work plan[/]")
+        return
+    # base_head: the current usf-graph main tip the evidence is validated against.
+    lsr = subprocess.run(
+        ["git", "ls-remote", remote, "HEAD"], capture_output=True, text=True, env=dict(os.environ)
+    )
+    base = lsr.stdout.split()[0] if lsr.stdout.strip() else ""
+    if not base:
+        console.print("[red]could not resolve usf-graph main head; skipping evidence delivery[/]")
+        return
+    for gap in gaps:
+        subject = str(gap.get("subject") or "")
+        console.print(f"[cyan]recording factory validation receipt for {subject} @ {base[:12]}[/]")
+        receipt = coordinator.record_validation_receipt(  # type: ignore[attr-defined]
+            obligation_id=subject,
+            subject=subject,
+            base_head=base,
+            authority_digest=digest,
+            env=dict(os.environ),
+        )
+        console.print(
+            f"  receipt: [bold]{receipt.receipt_id}[/]  "
+            f"passed={receipt.all_passed} independent={receipt.independent_revalidation_passed}"
+        )
+        console.print(
+            "  [yellow]not delivered as authority evidence; an external producer and "
+            "validated AuthorityEvidenceTransport are required[/]"
+        )
+
+
+@app.command()
+def realize(
+    authorization_file: str = typer.Option(
+        "", "--authorization-file", help="operator RunAuthorization (mode-0600, outside the repos)"
+    ),
+    mode: str = typer.Option(
+        "autonomous-safe", "--mode", help="shadow | approve-wave | autonomous-safe"
+    ),
+    continuous: bool = typer.Option(True, "--continuous/--single", help="loop cycles (spec §15)"),
+    max_cycles: int = typer.Option(20, "--max-cycles"),
+    max_packets_per_wave: int = typer.Option(2, "--max-packets-per-wave"),
+    allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
+    workforce_policy: str = typer.Option("", "--workforce-policy"),
+    exclude_provider: list[str] = typer.Option([], "--exclude-provider"),
+    exclude_model: list[str] = typer.Option([], "--exclude-model"),
+    exclude_family: list[str] = typer.Option([], "--exclude-family"),
+    exclude_adapter: list[str] = typer.Option([], "--exclude-adapter"),
+    exclude_actual_model: list[str] = typer.Option([], "--exclude-actual-model"),
+    only_provider: list[str] = typer.Option([], "--only-provider"),
+    only_model: list[str] = typer.Option([], "--only-model"),
+    only_family: list[str] = typer.Option([], "--only-family"),
+    allow_local_inference: bool = typer.Option(False, "--allow-local-inference"),
+    allow_free_inference: bool = typer.Option(False, "--allow-free-inference"),
+    allow_paid_inference: bool = typer.Option(False, "--allow-paid-inference"),
+    max_paid_cost_usd: float = typer.Option(0.0, "--max-paid-cost-usd"),
+) -> None:
+    """Continuous autonomous realization (spec §15): load the operator authorization
+    + workforce policy, refresh the dynamic workforce, snapshot authority, compile +
+    classify obligations, dynamically assign models at each stage, execute with
+    adaptive redraw, validate, independently review, and (when the RunAuthorization
+    permits) DELIVER + PUBLISH + reconcile Git/Stardog/MCP. Committed protected gates
+    stay false by default; every irreversible side effect is bound to the live
+    RunAuthorization. Stops on: no obligations, human decision, unauthorized risk, no
+    qualified capability, authorization expiry, an unreconciled side effect, or a
+    bounded resource limit."""
+    from pathlib import Path
+
+    from .run_authorization import load_run_authorization
+    from .runtime import build_delivery_coordinator, build_engine
+
+    try:
+        run_mode = RunMode(mode)
+    except ValueError:
+        err.print(f"[red]unknown mode '{mode}'[/]")
+        raise typer.Exit(code=2) from None
+
+    policy = _build_workforce_policy(
+        workforce_policy,
+        exclude_provider,
+        exclude_model,
+        exclude_family,
+        exclude_adapter,
+        exclude_actual_model,
+        only_provider,
+        only_model,
+        only_family,
+        allow_local_inference,
+        allow_free_inference,
+        allow_subscription_inference,
+        allow_paid_inference,
+        max_paid_cost_usd,
+    )
+    with _ctx() as ctx:
+        if (ctx.paths.state / "PAUSED").exists():
+            err.print("[yellow]factory is paused; run `usf-factory resume` first[/]")
+            raise typer.Exit(code=1)
+        # Load the operator RunAuthorization (fail closed on any security problem).
+        if authorization_file:
+            try:
+                ctx.run_authorization = load_run_authorization(Path(authorization_file))
+            except Exception as exc:
+                err.print(f"[red]RunAuthorization rejected: {exc}[/]")
+                raise typer.Exit(code=1) from None
+            if ctx.run_authorization.is_expired():
+                err.print("[red]RunAuthorization has expired; nothing is permitted[/]")
+                raise typer.Exit(code=1)
+            console.print(
+                f"[green]RunAuthorization {ctx.run_authorization.authorization_id} "
+                f"(digest {ctx.run_authorization.digest()[:16]}) loaded[/]"
+            )
+        else:
+            console.print(
+                "[yellow]no --authorization-file: delivery is prepare-only "
+                "(no push/merge/publish will fire)[/]"
+            )
+        coordinator = build_delivery_coordinator(ctx)
+        # A factory-run suite can record an execution receipt, but cannot self-admit
+        # authority ValidationEvidence. Genuine external evidence uses the explicit
+        # digest-verified transport interface.
+        if ctx.run_authorization is not None and ctx.is_action_effective(ProtectedAction.PUSH_PR):
+            _record_validation_receipt_gaps(ctx, coordinator)
+        cap = max(1, max_packets_per_wave)
+        seen_sets: set[str] = set()
+        for i in range(max(1, max_cycles)):
+            if (ctx.paths.state / "PAUSED").exists():
+                console.print("[yellow]paused; stopping[/]")
+                break
+            if ctx.run_authorization is not None and ctx.run_authorization.is_expired():
+                console.print("[yellow]authorization expired; stopping[/]")
+                break
+            eng = build_engine(
+                ctx,
+                mode=run_mode,
+                max_shadow_packets=cap,
+                allow_billable=allow_subscription_inference,
+                policy=policy,
+                delivery_coordinator=coordinator,
+            )
+            receipt = asyncio.run(eng.run_cycle(run_mode))
+            console.print(
+                f"cycle {i + 1}: state={receipt.state.value} "
+                f"selected={receipt.selected_packets} accepted={receipt.accepted_packets}"
+            )
+            if not continuous:
+                break
+            if receipt.set_id and receipt.set_id in seen_sets:
+                console.print("[dim]same packet set as a prior cycle; stopping (no progress)[/]")
+                break
+            if receipt.set_id:
+                seen_sets.add(receipt.set_id)
+            if receipt.no_progress:
+                console.print("[dim]no progress; stopping[/]")
+                break
+            if receipt.state.value == "BLOCKED":
+                console.print(f"[yellow]blocked: {receipt.blockers}; stopping[/]")
+                break
+            if receipt.selected_packets == 0:
+                console.print("[dim]no remaining obligations; stopping[/]")
+                break
+
+
+@app.command("bootstrap-runtime")
+def bootstrap_runtime_cmd(
+    workforce_policy: str = typer.Option("", "--workforce-policy", help="operator policy file"),
+    exclude_provider: list[str] = typer.Option([], "--exclude-provider"),
+    exclude_model: list[str] = typer.Option([], "--exclude-model", help="provider/model or model"),
+    exclude_family: list[str] = typer.Option([], "--exclude-family"),
+    exclude_adapter: list[str] = typer.Option([], "--exclude-adapter"),
+    exclude_actual_model: list[str] = typer.Option([], "--exclude-actual-model"),
+    only_provider: list[str] = typer.Option([], "--only-provider"),
+    only_model: list[str] = typer.Option([], "--only-model"),
+    only_family: list[str] = typer.Option([], "--only-family"),
+    allow_local_inference: bool = typer.Option(False, "--allow-local-inference"),
+    allow_free_inference: bool = typer.Option(False, "--allow-free-inference"),
+    allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
+    allow_paid_inference: bool = typer.Option(False, "--allow-paid-inference"),
+    max_paid_cost_usd: float = typer.Option(0.0, "--max-paid-cost-usd", help="paid budget (0)"),
+    max_cases: int = typer.Option(0, "--max-cases", help="bounded qualification sample (0=full)"),
+    force: bool = typer.Option(False, "--force", help="re-qualify even with fresh evidence"),
+) -> None:
+    """Clean-state launch bootstrap. The candidate population is built dynamically
+    from discovery + the effective WorkforcePolicy (no provider/model/role is
+    hard-coded); qualify only candidates lacking fresh evidence, admit from
+    evidence, build/activate the ranked roster, and print unfilled roles + blockers
+    + every exclusion and its source. Exits non-zero unless the minimum launch
+    (shadow) roster exists. No operator overrides; no lowered thresholds."""
+    from .bootstrap import bootstrap_runtime
+
+    policy = _build_workforce_policy(
+        workforce_policy,
+        exclude_provider,
+        exclude_model,
+        exclude_family,
+        exclude_adapter,
+        exclude_actual_model,
+        only_provider,
+        only_model,
+        only_family,
+        allow_local_inference,
+        allow_free_inference,
+        allow_subscription_inference,
+        allow_paid_inference,
+        max_paid_cost_usd,
+    )
+    with _ctx() as ctx:
+        report = asyncio.run(
+            bootstrap_runtime(
+                ctx,
+                policy=policy,
+                max_cost_usd=max_paid_cost_usd,
+                max_cases=max_cases,
+                force=force,
+            )
+        )
+    if report.excluded_candidates:
+        console.print(f"[yellow]excluded candidates:[/] {report.excluded_candidates}")
+    console.print(f"policy digest: {report.policy_digest}")
+    table = Table(title="active roster")
+    table.add_column("role")
+    table.add_column("primary")
+    table.add_column("provider")
+    table.add_column("transport")
+    for role, entry in (report.roster.get("entries") or {}).items():
+        table.add_row(
+            role,
+            str(entry.get("primary") or "-")[:20],
+            str(entry.get("provider") or "-"),
+            str(entry.get("transport") or entry.get("status") or "-"),
+        )
+    console.print(table)
+    console.print(f"qualified: {report.qualified}")
+    console.print(f"filled roles: {report.filled_roles}")
+    console.print(f"[yellow]unfilled roles: {report.unfilled_roles}[/]")
+    if report.blockers:
+        console.print(f"[yellow]blockers:[/] {report.blockers}")
+    console.print(
+        f"roster_fresh={report.roster_fresh} "
+        f"minimum_shadow_ok={report.minimum_shadow_ok} "
+        f"minimum_candidate_ok={report.minimum_candidate_ok}"
+    )
+    if not report.minimum_shadow_ok:
+        err.print("[red]minimum launch roster (planner + analyst) NOT satisfied[/]")
+        raise typer.Exit(code=1)
+    console.print("[green]minimum launch roster satisfied[/]")
+
+
+@app.command("candidate")
+def candidate_cmd(
+    allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
+    approve_source_provider: list[str] = typer.Option(
+        [],
+        "--approve-source-provider",
+        help="explicitly approve a PROVEN-CONTAINED first-party CLI provider to receive "
+        "raw source for this audited candidate run (e.g. claude-cli)",
+    ),
+) -> None:
+    """Operator-audited candidate semantic-patch attempt. Enables, FOR THIS RUN
+    ONLY (never committed): autonomous-safe wave execution + source egress for the
+    explicitly approved, source-contained provider(s). The candidate patch stays
+    in the factory integration clone — never applied to /usf, never pushed. Halts
+    at AWAITING_OPERATOR_DELIVERY. The paid-inference / push / merge / Stardog /
+    risk-acceptance / terminal-completion gates stay OFF."""
+    from types import SimpleNamespace
+
+    from .candidate import attempt_candidate_packet
+
+    with _ctx() as ctx:
+        # Audited, in-memory-only authorization for this run.
+        ctx.config.safety.autonomous_safe_enabled = True
+        if approve_source_provider:
+            ctx.config.egress.source_egress_enabled = True
+            overrides = dict(ctx.config.egress.provider_overrides or {})
+            for pid in approve_source_provider:
+                overrides[pid] = sorted({*overrides.get(pid, []), "private-source"})
+            ctx.config.egress.provider_overrides = overrides
+            console.print(
+                f"[yellow]audited source-egress approval for: {approve_source_provider}[/]"
+            )
+        result = attempt_candidate_packet(
+            ctx, SimpleNamespace(allow_billable=allow_subscription_inference)
+        )
+    console.print(result)
+    if result.get("status") != "AWAITING_OPERATOR_DELIVERY":
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def activate(
+    free_only: bool = typer.Option(True, "--free-only/--no-free-only"),
+    allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
+    allow_paid_inference: bool = typer.Option(False, "--allow-paid-inference"),
+    max_cost_usd: float = typer.Option(0.0, "--max-cost-usd"),
+    max_models_per_provider: int = typer.Option(3, "--max-models-per-provider"),
+    shadow_packets: int = typer.Option(1, "--shadow-packets"),
+    candidate_packet: bool = typer.Option(False, "--candidate-packet"),
+    providers: str = typer.Option(
+        "", "--providers", help="comma-separated provider ids to bound the run (default: all)"
+    ),
+    max_qual_cases: int = typer.Option(
+        0, "--max-qual-cases", help="bound qualification cases per model (0=full corpus)"
+    ),
+) -> None:
+    """Run the full activation assessment: refresh -> discover -> probe ->
+    qualify -> admit -> plan-only -> shadow wave -> (optional) one candidate
+    semantic patch -> report. Default budget 0 USD (local/free only); paid
+    inference is never a silent fallback."""
+    from .activation import ActivationOptions, run_activation
+
+    opts = ActivationOptions(
+        free_only=free_only,
+        allow_subscription_inference=allow_subscription_inference,
+        allow_paid_inference=allow_paid_inference,
+        max_cost_usd=max_cost_usd,
+        max_models_per_provider=max_models_per_provider,
+        shadow_packets=shadow_packets,
+        candidate_packet=candidate_packet,
+        providers=[p.strip() for p in providers.split(",") if p.strip()],
+        max_qual_cases=max_qual_cases,
+    )
+    with _ctx() as ctx:
+        report = run_activation(ctx, opts)
+    console.print(
+        Panel(
+            f"USF ok: {report.usf_ok}  triples: {report.triples}\n"
+            f"authority: {report.authority_digest}\nsnapshot: {report.snapshot_id}\n"
+            f"repo head: {report.repository_head}",
+            title="activation — authority",
+        )
+    )
+    t = Table(title="model outcomes")
+    for col in ("provider", "model", "probes", "classification", "roles"):
+        t.add_column(col)
+    for m in report.model_outcomes:
+        t.add_row(
+            m.provider_id,
+            m.model_id[-28:],
+            f"{m.probe_passed}/{m.probe_total}",
+            m.classification,
+            ",".join(m.roles) or "-",
+        )
+    console.print(t)
+    console.print(f"admitted profiles: {len(report.admitted)}")
+    console.print(f"plan-only: {report.plan_only}")
+    console.print(f"shadow: {report.shadow}")
+    console.print(f"candidate: {report.candidate}")
+    console.print(
+        f"tokens in/out: {report.tokens_in}/{report.tokens_out}  cost: ${report.cost_usd}"
+    )
+    if report.blockers:
+        console.print(Panel("\n".join(f"- {b}" for b in report.blockers), title="blockers"))
+    console.print(Panel(report.next_action, title="next action"))
 
 
 def _print_receipt(receipt) -> None:
@@ -368,69 +880,87 @@ def models_list(provider: str | None = typer.Option(None, "--provider")) -> None
 
 @models_app.command("probe")
 def models_probe(
-    model: str = typer.Argument(None, help="provider/model to create a profile for"),
-    allow_billable: bool = typer.Option(False, "--allow-billable"),
-    budget_usd: float = typer.Option(0.0, "--budget-usd"),
+    model: str = typer.Argument(None, help="provider/model to probe LIVE"),
+    allow_inference: bool = typer.Option(False, "--allow-inference"),
+    allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
+    allow_paid_inference: bool = typer.Option(False, "--allow-paid-inference"),
+    max_cost_usd: float = typer.Option(0.0, "--max-cost-usd"),
 ) -> None:
-    """Run the mechanical probe graders. With a provider/model argument, the
-    AgentProfile is created/persisted (the admission entry point). A zero-cost
-    self-check grades the probe specs against reference answers (proving the
-    graders execute); live model probing additionally requires --allow-billable
-    + budget and never records fabricated results."""
-    from .probes import default_probe_specs, grade_probe
+    """Run the ten mechanical probes against a LIVE model and grade them with the
+    canonical graders (a non-empty response is NOT a pass). Persists an immutable
+    ProbeRun. A genuinely free/local model runs with `--allow-inference
+    --max-cost-usd 0`; subscription and paid inference need their own flags.
 
-    if model:
-        from .admission import ensure_profile, parse_model_ref
+    With no argument, prints a graders self-check only (proves graders execute;
+    never stored as model evidence)."""
+    if not model:
+        from .probes import default_probe_specs, grade_probe
 
-        provider_id, model_id = parse_model_ref(model)
-        with _ctx() as ctx:
-            profile = ensure_profile(ctx, provider_id, model_id)
-        console.print(
-            f"profile persisted: [bold]{profile.profile_id}[/] "
-            f"({provider_id}/{model_id}, adapter={profile.adapter})"
-        )
-
-    specs = default_probe_specs()
-    # Self-check: grade each probe against a reference "correct" answer.
-    passed = 0
-    for s in specs:
-        exp = s.expected
-        ref = {
-            "iri_preservation": exp.get("iri", ""),
-            "digest_preservation": exp.get("digest", ""),
-            "stop_condition": "1\n2\n3\n" + exp.get("stop_token", ""),
-            "explicit_uncertainty": "I do not know; insufficient information.",
-            "text_response": "A checksum detects data corruption.",
-        }.get(s.kind.value, "")
-        r = grade_probe(s, ref)
-        passed += 1 if r.passed else 0
-    console.print(f"probe graders self-check: {passed}/{len(specs)} graders produced a verdict")
-    if not (allow_billable and budget_usd > 0):
-        console.print(
-            "[yellow]live model probing requires --allow-billable and --budget-usd > 0[/]"
-        )
+        specs = default_probe_specs()
+        passed = 0
+        for s in specs:
+            exp = s.expected
+            ref = {
+                "iri_preservation": exp.get("iri", ""),
+                "digest_preservation": exp.get("digest", ""),
+                "stop_condition": "1\n2\n3\n" + exp.get("stop_token", ""),
+                "explicit_uncertainty": "I do not know; insufficient information.",
+                "text_response": "A checksum detects data corruption.",
+            }.get(s.kind.value, "")
+            passed += 1 if grade_probe(s, ref).passed else 0
+        console.print(f"probe graders self-check: {passed}/{len(specs)} produced a verdict")
         return
+
+    import asyncio as _asyncio
+
+    from .admission import ensure_profile, parse_model_ref
+    from .errors import ProtectedActionError
+    from .probing import InferenceAuthorization, run_probe_suite
+
+    provider_id, model_id = parse_model_ref(model)
+    auth = InferenceAuthorization(
+        allow_inference=allow_inference,
+        allow_subscription_inference=allow_subscription_inference,
+        allow_paid_inference=allow_paid_inference,
+        max_cost_usd=max_cost_usd,
+    )
+    with _ctx() as ctx:
+        profile = ensure_profile(ctx, provider_id, model_id)
+        console.print(f"profile: [bold]{profile.profile_id}[/] ({provider_id}/{model_id})")
+        try:
+            run = _asyncio.run(run_probe_suite(ctx, profile, auth=auth))
+        except ProtectedActionError as exc:
+            console.print(f"[yellow]{exc}[/]")
+            raise typer.Exit(code=0) from None
+    table = Table(title=f"probe run {run.run_id} ({run.inference_mode})")
+    for col in ("probe", "passed", "detail"):
+        table.add_column(col)
+    for r in run.results:
+        table.add_row(r.kind.value, "[green]yes[/]" if r.passed else "[red]no[/]", r.detail[:50])
+    console.print(table)
     console.print(
-        "[yellow]no zero-cost live model reachable here (ENVIRONMENT_BLOCKED); "
-        "live probing not performed[/]"
+        f"probe run: {run.passed}/{run.total} passed; actual models: {run.actual_models}; "
+        f"cost=${run.cost_usd}; errors={len(run.errors)}"
     )
 
 
 @models_app.command("qualify")
 def models_qualify(
-    model: str = typer.Argument(None, help="provider/model to qualify LIVE (billable; gated)"),
-    allow_billable: bool = typer.Option(False, "--allow-billable"),
-    budget_usd: float = typer.Option(0.0, "--budget-usd"),
+    model: str = typer.Argument(None, help="provider/model to qualify LIVE (gated)"),
+    allow_inference: bool = typer.Option(False, "--allow-inference"),
+    allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
+    allow_paid_inference: bool = typer.Option(False, "--allow-paid-inference"),
+    max_cost_usd: float = typer.Option(0.0, "--max-cost-usd"),
 ) -> None:
     """Run the USF qualification suite.
 
     Without an argument: a zero-cost SELF-CHECK grades the corpus against
-    reference answers (proving the scorer + admission logic execute). The
-    self-check is never stored as model evidence.
+    reference answers (proving the scorer + admission logic execute). Never
+    stored as model evidence.
 
-    With provider/model: persists the AgentProfile and runs the suite against
-    the LIVE model (billable; requires --allow-billable + budget). A gated run
-    persists the profile only — no fabricated qualification evidence."""
+    With provider/model: runs the mechanical probes FIRST, then (if the
+    structural probes pass) the suite against the LIVE model, persisting an
+    immutable qualification run. Inference is gated exactly like `models probe`."""
     import asyncio as _asyncio
     from pathlib import Path
 
@@ -439,25 +969,35 @@ def models_qualify(
     if model:
         from .admission import ensure_profile, parse_model_ref, qualify_live
         from .errors import ProtectedActionError
+        from .probing import InferenceAuthorization, probe_gates_pass, run_probe_suite
 
         provider_id, model_id = parse_model_ref(model)
+        auth = InferenceAuthorization(
+            allow_inference=allow_inference,
+            allow_subscription_inference=allow_subscription_inference,
+            allow_paid_inference=allow_paid_inference,
+            max_cost_usd=max_cost_usd,
+        )
         with _ctx() as ctx:
             profile = ensure_profile(ctx, provider_id, model_id)
             console.print(f"profile: [bold]{profile.profile_id}[/]")
             try:
-                run = _asyncio.run(
-                    qualify_live(ctx, profile, allow_billable=allow_billable, budget_usd=budget_usd)
-                )
+                probe = _asyncio.run(run_probe_suite(ctx, profile, auth=auth))
+                console.print(f"probes: {probe.passed}/{probe.total} passed ({probe.run_id})")
+                if not probe_gates_pass(probe):
+                    console.print(
+                        "[yellow]structural probes failed; skipping qualification "
+                        "(model is not fit for semantic work)[/]"
+                    )
+                    raise typer.Exit(code=0)
+                run = _asyncio.run(qualify_live(ctx, profile, auth=auth, probe_run_id=probe.run_id))
             except ProtectedActionError as exc:
                 console.print(f"[yellow]{exc}[/]")
-                console.print(
-                    "[yellow]profile persisted; NO qualification evidence recorded "
-                    "(live qualification is gated)[/]"
-                )
                 raise typer.Exit(code=0) from None
         console.print(
-            f"live qualification: {run.cases_passed}/{run.cases_total} passed; "
-            f"roles: {[r.value for r in run.roles_admitted]}"
+            f"live qualification {run.run_id}: {run.cases_passed}/{run.cases_total} passed; "
+            f"evidence roles: {[r.value for r in run.roles_admitted]}; "
+            f"run 'models admit {profile.profile_id}' to admit"
         )
         return
 
@@ -511,6 +1051,188 @@ def models_admit(
             return
         roles = admit_from_evidence(ctx, profile_id)
     console.print(f"roles computed from qualification evidence: {[r.value for r in roles]}")
+
+
+@models_app.command("evaluate-providers")
+def models_evaluate_providers(
+    allow_inference: bool = typer.Option(False, "--allow-inference"),
+    allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
+    allow_paid_inference: bool = typer.Option(False, "--allow-paid-inference"),
+    max_cost_usd: float = typer.Option(0.0, "--max-cost-usd"),
+    concurrency: int = typer.Option(4, "--concurrency"),
+    provider_timeout_s: float = typer.Option(180.0, "--provider-timeout-s"),
+    force: bool = typer.Option(False, "--force"),
+    report: str = typer.Option("docs/provider-evaluation-report.md", "--report"),
+) -> None:
+    """Single provider-coverage pass: one representative model per CONFIGURED
+    provider (every provider gets exactly one row), one compact semantic
+    evaluation, bounded concurrency, continue-on-failure. Paid inference is never
+    invoked without --allow-paid-inference."""
+    import asyncio as _asyncio
+
+    from .provider_eval import EvalAuth, evaluate_all_providers
+    from .selection_report import build_and_persist_roster, render_coverage_report, write_report
+
+    auth = EvalAuth(
+        allow_inference=allow_inference,
+        allow_subscription_inference=allow_subscription_inference,
+        allow_paid_inference=allow_paid_inference,
+        max_cost_usd=max_cost_usd,
+    )
+    with _ctx() as ctx:
+        evals = _asyncio.run(
+            evaluate_all_providers(ctx, auth, concurrency=concurrency, force=force)
+        )
+        roster = build_and_persist_roster(ctx, evals)
+        md = render_coverage_report(evals, roster)
+        path = write_report(md, report)
+    t = Table(title=f"provider coverage ({len(evals)} rows)")
+    for col in ("provider", "model", "actual", "status", "fidelity", "opt", "transport"):
+        t.add_column(col)
+    for e in sorted(evals, key=lambda x: x.provider_id):
+        caps = e.adapter_capabilities or {}
+        transport = (
+            "brokered"
+            if caps.get("brokered_tool_loop")
+            else ("bounded" if caps.get("bounded_patch_synthesis") else "-")
+        )
+        t.add_row(
+            e.provider_id,
+            (e.requested_model or "-")[-22:],
+            (e.actual_model or "-")[-18:] if e.actual_model else "unverified",
+            e.status,
+            f"{e.semantic_scores.get('semantic_rule_fidelity', 0):.2f}"
+            if e.semantic_scores
+            else "-",
+            f"{e.semantic_scores.get('semantic_optimization', 0):.2f}"
+            if e.semantic_scores
+            else "-",
+            transport,
+        )
+    console.print(t)
+    paid = sum(e.paid_api_spend_usd for e in evals)
+    sub = sum(e.subscription_reported_value_usd for e in evals)
+    console.print(
+        f"paid API spend: ${paid:.2f}  | subscription reported value: ${sub:.4f} (informational)"
+    )
+    console.print(f"[green]report written:[/] {path}")
+
+
+# Assessment order: subscription CLIs, then metadata-cheap external non-Llama.
+_ASSESS_ORDER = [
+    "codex-cli",
+    "claude-cli",
+    "gemini",
+    "mistral",
+    "deepseek",
+    "openrouter",
+    "openai-api",
+    "groq",
+    "cerebras",
+    "sambanova",
+    "fireworks",
+    "together",
+    "huggingface",
+    "arcee",
+]
+
+
+@models_app.command("assess")
+def models_assess(
+    exclude_provider: list[str] = typer.Option([], "--exclude-provider"),
+    exclude_model: list[str] = typer.Option([], "--exclude-model"),
+    exclude_family: list[str] = typer.Option([], "--exclude-family"),
+    include_model: list[str] = typer.Option([], "--include-model"),
+    only_model: list[str] = typer.Option(
+        [], "--models", help="assess ONLY these provider/model ids"
+    ),
+    force_reassess: bool = typer.Option(False, "--force-reassess"),
+    skip_valid_existing: bool = typer.Option(
+        True, "--skip-valid-existing/--no-skip-valid-existing"
+    ),
+    allow_inference: bool = typer.Option(False, "--allow-inference"),
+    allow_subscription_inference: bool = typer.Option(False, "--allow-subscription-inference"),
+    allow_paid_inference: bool = typer.Option(False, "--allow-paid-inference"),
+    max_cost_usd: float = typer.Option(0.0, "--max-cost-usd"),
+    repeats: int = typer.Option(2, "--repeats", help="probe rounds per model (LCB evidence)"),
+    max_models: int = typer.Option(12, "--max-models"),
+    admit: bool = typer.Option(False, "--admit", help="admit qualified models from evidence"),
+    report: str = typer.Option(
+        "docs/provider-model-selection-report.md", "--report", help="report output path"
+    ),
+) -> None:
+    """Staged non-Llama provider/model tournament -> ranked roster + report.
+
+    Defaults exclude ollama + the llama family and skip models with valid
+    evidence. Inference is gated exactly like `models probe`."""
+    import asyncio as _asyncio
+
+    from .probing import InferenceAuthorization
+    from .selection import (
+        SelectionFilters,
+        default_filters,
+        run_tournament,
+        select_roster,
+    )
+
+    base = default_filters()
+    filters = SelectionFilters(
+        exclude_providers=sorted(set(base.exclude_providers) | set(exclude_provider)),
+        exclude_models=sorted(set(base.exclude_models) | set(exclude_model)),
+        exclude_families=sorted(set(base.exclude_families) | set(exclude_family)),
+        include_models=list(include_model),
+        only_models=list(only_model),
+        force_reassess=force_reassess,
+        skip_valid_existing=skip_valid_existing,
+    )
+    auth = InferenceAuthorization(
+        allow_inference=allow_inference,
+        allow_subscription_inference=allow_subscription_inference,
+        allow_paid_inference=allow_paid_inference,
+        max_cost_usd=max_cost_usd,
+    )
+    with _ctx() as ctx:
+        res = _asyncio.run(
+            run_tournament(
+                ctx, filters, auth=auth, order=_ASSESS_ORDER, repeats=repeats, max_models=max_models
+            )
+        )
+        roster = select_roster(res.assessments)
+        from .selection_report import render_report, write_report
+
+        md = render_report(res, roster, filters)
+        path = write_report(md, report)
+        if admit:
+            import contextlib
+
+            from .admission import admit_from_evidence
+
+            for a in res.assessments:
+                if a.role_scores:
+                    with contextlib.suppress(Exception):
+                        admit_from_evidence(ctx, a.profile_id)
+    t = Table(
+        title=f"assessment ({len(res.assessments)} models; skipped {len(res.skipped_existing)})"
+    )
+    for col in ("provider", "model", "probes", "class", "roles(LCB>0)"):
+        t.add_column(col)
+    for a in res.assessments:
+        t.add_row(
+            a.provider_id,
+            a.model_id[-26:],
+            f"{a.probe_passed}/{a.probe_total}",
+            a.classification,
+            ",".join(sorted(a.role_scores)) or "-",
+        )
+    console.print(t)
+    console.print(f"budget: spent ${res.budget_spent} / cap ${res.budget_total}")
+    console.print(
+        Panel(
+            str({k: v.get("provider", v.get("status")) for k, v in roster.items()}),
+            title="proposed roster",
+        )
+    )
+    console.print(f"[green]report written:[/] {path}")
 
 
 @models_app.command("profiles")
@@ -729,31 +1451,90 @@ def maintenance_gc() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def _build_index():
-    """Snapshot-bound build: from the factory mirror at the current USF head
-    (git object store — uncommitted /usf working-tree content can never leak in)."""
+def _build_index(ctx=None):
+    """Snapshot-bound build from the factory mirror at the current USF head, with
+    stored ownership evidence applied (verified owners marked)."""
     from .isolation import RepoIsolation
     from .materialisation import build_index_at
+    from .ownership import verify_index
 
-    with _ctx() as ctx:
-        iso = RepoIsolation(ctx.paths, ctx.usf_repo)
+    def _go(c):
+        iso = RepoIsolation(c.paths, c.usf_repo)
         iso.ensure_mirror()
-        return build_index_at(ctx.paths.mirror, iso.usf_head())
+        idx = build_index_at(c.paths.mirror, iso.usf_head())
+        verify_index(c, idx)
+        return idx
+
+    if ctx is not None:
+        return _go(ctx)
+    with _ctx() as c:
+        return _go(c)
 
 
 @mat_app.command("build")
 def materialisation_build() -> None:
     """Build the subject->materialisation index from the factory mirror at the
-    current USF head (read-only; snapshot-bound)."""
+    current USF head (read-only; snapshot-bound; ownership evidence applied)."""
     idx = _build_index()
     console.print(
         Panel(
             f"version: {idx.index_version}\nsource_digest: {idx.source_digest}\n"
             f"source_commit: {idx.source_commit}\nsnapshot_bound: {idx.snapshot_bound}\n"
             f"subjects indexed: {len(idx.entries)}\n"
-            f"verified owners: {sum(1 for e in idx.entries.values() if e.verified)}",
+            f"candidate owners: {len(idx.candidates())}\n"
+            f"verified owners: {len(idx.verified())}",
             title="materialisation index",
         )
+    )
+
+
+@mat_app.command("candidates")
+def materialisation_candidates(limit: int = typer.Option(40, "--limit")) -> None:
+    """List subjects with a CANDIDATE (parsed, unverified) owner. These may NOT
+    authorize a semantic write until verified via evidence or `approve`."""
+    idx = _build_index()
+    cands = idx.candidates()
+    table = Table(title=f"candidate owners ({len(cands)}) — NOT write-authorizing")
+    for col in ("subject", "candidate owner(s)", "method"):
+        table.add_column(col)
+    for e in cands[:limit]:
+        table.add_row(e.subject[-48:], ", ".join(e.candidate_owners)[:60], e.method)
+    console.print(table)
+
+
+@mat_app.command("verify")
+def materialisation_verify(limit: int = typer.Option(40, "--limit")) -> None:
+    """List subjects with a VERIFIED (evidence-backed) owner — the only ones that
+    may authorize a semantic write scope."""
+    idx = _build_index()
+    ver = idx.verified()
+    table = Table(title=f"verified owners ({len(ver)})")
+    for col in ("subject", "verified owner", "evidence"):
+        table.add_column(col)
+    for e in ver[:limit]:
+        table.add_row(e.subject[-48:], e.verified_owner or "-", e.verification_kind or "-")
+    console.print(table)
+
+
+@mat_app.command("approve")
+def materialisation_approve(
+    subject: str = typer.Argument(..., help="semantic subject IRI"),
+    path: str = typer.Option(..., "--path", help="repository owner path"),
+) -> None:
+    """Record an append-only, digest-bound OPERATOR ownership approval binding a
+    subject to exactly one owner path (verifies a candidate)."""
+    from .errors import ConfigError
+    from .ownership import approve_cli
+
+    with _ctx() as ctx:
+        try:
+            ev = approve_cli(ctx, subject, path)
+        except ConfigError as exc:
+            err.print(f"[red]{exc}[/]")
+            raise typer.Exit(code=1) from None
+    console.print(
+        f"[green]approved[/] {subject} -> {path} "
+        f"(evidence {ev.evidence_id}, commit {ev.repository_commit})"
     )
 
 
@@ -766,7 +1547,9 @@ def materialisation_describe(iri: str) -> None:
         raise typer.Exit(code=1)
     console.print(
         Panel(
-            f"owner: {e.owner_path}\nmethod: {e.method}  verified: {e.verified}  conf: {e.confidence}\n"
+            f"candidate owners: {e.candidate_owners}\n"
+            f"verified owner: {e.verified_owner}  ({e.verification_kind or 'unverified'})\n"
+            f"method: {e.method}  verified: {e.verified}  conf: {e.confidence}\n"
             f"shapes: {e.shapes}\nrules: {e.rules}\ntests: {e.tests}\n"
             f"generated: {e.generated_outputs}\nvalidation: {e.validation_profiles}",
             title=iri,

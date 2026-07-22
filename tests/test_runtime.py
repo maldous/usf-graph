@@ -23,7 +23,8 @@ class _TestReviewer:
         self._approved = approved
         self._risk_flags = risk_flags or []
 
-    async def review(self, set_id, wave):
+    async def review(self, set_id, wave, bundle=None):
+        self.last_bundle = bundle
         return WaveReview(
             set_id=set_id,
             reviewer_profile_id="test-reviewer",
@@ -135,6 +136,7 @@ def test_approve_wave_executes_fixture_packet_end_to_end(ctx, tmp_usf):
                 "acceptance_criteria": ["file created"],
                 "risk": "medium",
                 "task_class": "repository-implementation",
+                "remediation_kind": "SOURCE_CHANGE",
                 "suggested_read_scope": [],
                 # The required unit-tests gate may never green-skip, so the
                 # implementation packet carries its test within the write scope.
@@ -272,6 +274,7 @@ def test_failed_validation_blocks_and_does_not_credit_worker(ctx, tmp_usf):
                 "acceptance_criteria": ["c"],
                 "risk": "medium",
                 "task_class": "repository-implementation",
+                "remediation_kind": "SOURCE_CHANGE",
                 "suggested_read_scope": [],
                 "suggested_write_scope": ["gen/bad.py"],
             }
@@ -333,6 +336,7 @@ _IMPL_OBLIGATION = {
     "acceptance_criteria": ["file created"],
     "risk": "medium",
     "task_class": "repository-implementation",
+    "remediation_kind": "SOURCE_CHANGE",
     "suggested_read_scope": [],
     "suggested_write_scope": ["gen/thing.py", "tests/test_thing.py"],
 }

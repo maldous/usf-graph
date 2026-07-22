@@ -21,11 +21,13 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any
 
+from .budget import BudgetLedger, BudgetLimits
 from .clock import utc_now, utc_now_iso
 from .context import RuntimeContext
 from .enums import AdmissionRole
 from .errors import ConfigError
-from .models import AgentProfile
+from .ids import ulid
+from .models import AdmissionDecision, AgentProfile
 from .qualification import compute_admission_roles
 
 
@@ -63,29 +65,68 @@ def ensure_profile(ctx: RuntimeContext, provider_id: str, model_id: str) -> Agen
     return profile
 
 
+def _expiry(ctx: RuntimeContext, days: int | None = None) -> str:
+    d = ctx.config.qualification.expiry_days if days is None else days
+    return (utc_now() + timedelta(days=d)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def record_qualification(ctx: RuntimeContext, run: Any) -> str:
+    """Persist a qualification run IMMUTABLY under its own run_id. Returns the id.
+
+    Stored via ``model_dump`` (not ``content_dict``) so timestamps/expiry — which
+    are volatile for content addressing — are preserved in this id-keyed record."""
+    if not run.expires_at:
+        run = run.model_copy(update={"expires_at": _expiry(ctx)})
+    ctx.store.put(
+        "qualification_runs",
+        run.run_id,
+        run.model_dump(mode="json"),
+        extra={"agent_profile_id": run.agent_profile_id, "expires_at": run.expires_at},
+    )
+    return run.run_id
+
+
 def latest_qualification(ctx: RuntimeContext, profile_id: str) -> dict[str, Any] | None:
+    """Most recent qualification run for a profile (run_ids sort by time)."""
     rows = ctx.store.records("qualification_runs", "agent_profile_id=?", (profile_id,))
-    return rows[-1] if rows else None
+    if not rows:
+        return None
+    return sorted(rows, key=lambda r: r.get("ran_at", "") + r.get("run_id", ""))[-1]
+
+
+def latest_admission(ctx: RuntimeContext, profile_id: str) -> dict[str, Any] | None:
+    rows = ctx.store.records("admission_decisions", "agent_profile_id=?", (profile_id,))
+    if not rows:
+        return None
+    return sorted(rows, key=lambda r: r.get("decided_at", "") + r.get("decision_id", ""))[-1]
 
 
 def admit_from_evidence(ctx: RuntimeContext, profile_id: str) -> list[AdmissionRole]:
-    """Recompute admitted roles from STORED qualification evidence against the
-    trust policy, stamp expiry, persist. No evidence => no admission."""
+    """Compute admitted roles from the latest STORED qualification run against the
+    trust policy and record a NEW immutable AdmissionDecision. The qualification
+    evidence itself is never mutated. No evidence => no admission."""
     run = latest_qualification(ctx, profile_id)
     if run is None:
         raise ConfigError(f"no qualification evidence for {profile_id}; run 'models qualify' first")
     roles = compute_admission_roles(dict(run.get("dimension_scores", {})), ctx.config.trust)
-    expires = (utc_now() + timedelta(days=ctx.config.qualification.expiry_days)).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
+    decision = AdmissionDecision(
+        decision_id=f"adm-{ulid()}",
+        agent_profile_id=profile_id,
+        qualification_run_id=run.get("run_id", ""),
+        roles=roles,
+        method="evidence",
+        config_digest=run.get("config_digest", ""),
+        expires_at=run.get("expires_at", "") or _expiry(ctx),
+        decided_at=utc_now_iso(),
     )
-    run = dict(run)
-    run["roles_admitted"] = [r.value for r in roles]
-    run["admitted_at"] = utc_now_iso()
     ctx.store.put(
-        "qualification_runs",
-        profile_id,
-        run,
-        extra={"agent_profile_id": profile_id, "expires_at": expires},
+        "admission_decisions",
+        decision.decision_id,
+        decision.model_dump(mode="json"),
+        extra={
+            "agent_profile_id": profile_id,
+            "qualification_run_id": decision.qualification_run_id,
+        },
     )
     ctx.log_event(
         "admission.computed",
@@ -99,23 +140,32 @@ def admit_from_evidence(ctx: RuntimeContext, profile_id: str) -> list[AdmissionR
 def grant_role_operator_override(
     ctx: RuntimeContext, profile_id: str, role: AdmissionRole
 ) -> list[AdmissionRole]:
-    """Explicit OPERATOR grant of a single role, recorded as an override (an
-    audited exception to evidence-computed admission, never the default path)."""
+    """Explicit OPERATOR grant, recorded as a NEW audited admission decision
+    (never a mutation of qualification evidence). It carries forward the roles of
+    the current admission plus the granted role."""
+    current = latest_admission(ctx, profile_id)
     run = latest_qualification(ctx, profile_id)
-    if run is None:
-        raise ConfigError(f"no qualification run exists for {profile_id} to attach a grant to")
-    run = dict(run)
-    roles = {AdmissionRole(r) for r in run.get("roles_admitted", [])}
+    roles = {AdmissionRole(r) for r in (current.get("roles", []) if current else [])}
     roles.add(role)
-    run["roles_admitted"] = sorted(r.value for r in roles)
-    run.setdefault("operator_overrides", []).append(
-        {"role": role.value, "granted_at": utc_now_iso()}
+    decision = AdmissionDecision(
+        decision_id=f"adm-{ulid()}",
+        agent_profile_id=profile_id,
+        qualification_run_id=(run or {}).get("run_id", ""),
+        roles=sorted(roles, key=lambda r: r.value),
+        method="operator-override",
+        config_digest=(run or {}).get("config_digest", ""),
+        expires_at=_expiry(ctx),
+        decided_at=utc_now_iso(),
+        detail=f"operator granted {role.value}",
     )
     ctx.store.put(
-        "qualification_runs",
-        profile_id,
-        run,
-        extra={"agent_profile_id": profile_id, "expires_at": run.get("expires_at", "")},
+        "admission_decisions",
+        decision.decision_id,
+        decision.model_dump(mode="json"),
+        extra={
+            "agent_profile_id": profile_id,
+            "qualification_run_id": decision.qualification_run_id,
+        },
     )
     ctx.log_event(
         "admission.operator_override",
@@ -123,26 +173,52 @@ def grant_role_operator_override(
         cycle_id="-",
         payload={"profile_id": profile_id, "role": role.value},
     )
-    return sorted((AdmissionRole(r) for r in run["roles_admitted"]), key=lambda r: r.value)
+    return list(decision.roles)
+
+
+def admission_ineligibility(
+    ctx: RuntimeContext, profile: AgentProfile
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None]:
+    """Return (decision, run, reason). ``reason`` is None iff this profile has a
+    current admission decision referencing a valid qualification run whose
+    configuration still matches the profile. The scheduler uses this to reject
+    expired/superseded/mismatched qualification."""
+    decision = latest_admission(ctx, profile.profile_id)
+    if decision is None:
+        return None, None, "no admission decision"
+    run = ctx.store.get("qualification_runs", decision.get("qualification_run_id", ""))
+    if run is None:
+        return decision, None, "referenced qualification run missing"
+    now = utc_now_iso()
+    if decision.get("expires_at") and decision["expires_at"] < now:
+        return decision, run, "admission expired"
+    if run.get("expires_at") and run["expires_at"] < now:
+        return decision, run, "qualification expired"
+    # Superseded configuration: the profile's current digest must match the run.
+    if run.get("config_digest") and run["config_digest"] != profile.digest():
+        return decision, run, "configuration changed since qualification"
+    return decision, run, None
 
 
 def list_profiles(ctx: RuntimeContext) -> list[dict[str, Any]]:
-    """Inventory of persisted profiles with their latest qualification facts."""
+    """Inventory of persisted profiles with their latest qualification/admission."""
     out: list[dict[str, Any]] = []
     for _key, row in ctx.store.items("agent_profiles"):
         profile = AgentProfile(**row)
         run = latest_qualification(ctx, profile.profile_id)
+        decision = latest_admission(ctx, profile.profile_id)
         out.append(
             {
                 "profile_id": profile.profile_id,
                 "provider_id": profile.provider_id,
                 "model": profile.requested_model_id,
                 "adapter": profile.adapter,
-                "roles": list(run.get("roles_admitted", [])) if run else [],
+                "roles": list(decision.get("roles", [])) if decision else [],
                 "cases": f"{run.get('cases_passed', 0)}/{run.get('cases_total', 0)}"
                 if run
                 else "-",
                 "qualified": run is not None,
+                "admitted": decision is not None,
             }
         )
     return sorted(out, key=lambda r: (r["provider_id"], r["model"]))
@@ -152,32 +228,58 @@ async def qualify_live(
     ctx: RuntimeContext,
     profile: AgentProfile,
     *,
-    allow_billable: bool,
-    budget_usd: float,
+    auth: Any,
+    probe_run_id: str = "",
+    max_cases: int = 0,
 ) -> Any:
-    """Run the qualification suite against the LIVE model and persist the run.
+    """Run the qualification suite against the LIVE model and persist an immutable
+    run. Inference is gated by the InferenceAuthorization and a budget
+    reservation (same rules as probing). A refusal persists NOTHING.
 
-    Gated: refuses without --allow-billable and a positive budget. A refusal
-    persists NOTHING (a gated qualify never fabricates evidence)."""
+    ``max_cases`` (>0) qualifies against a DETERMINISTIC bounded sample of the
+    corpus — genuine model answers over a smaller, weight-ordered subset — which
+    keeps slow local inference tractable. The run records cases_total so the
+    sampling is explicit, never hidden."""
     from pathlib import Path
 
     from .errors import ProtectedActionError
+    from .probing import (
+        _authorize,
+        _model_row,
+        classify_inference_mode,
+        qualification_cost_estimate,
+    )
+    from .providers import build_registry
     from .qualification import build_run, collect_answers, load_corpus
 
-    if not (allow_billable and budget_usd > 0):
-        raise ProtectedActionError(
-            "live qualification is billable: requires --allow-billable and --budget-usd > 0"
-        )
-    from .providers import build_registry
-
-    # The adapter enforces its own billable gate as well (config-level), so an
-    # operator must enable billing in BOTH places for a live call to happen.
-    adapter = build_registry(ctx).adapter(profile.provider_id)
+    model_row = _model_row(ctx, profile.provider_id, profile.requested_model_id)
+    mode = classify_inference_mode(profile, model_row)
+    # Load the suite FIRST so the cost bound is based on the ACTUAL case count
+    # (the sampled subset when max_cases is set), not the 10-probe estimate.
     suite = load_corpus(
         Path(ctx.config.qualification.corpus_dir), Path(ctx.config.qualification.holdout_dir)
     )
+    if max_cases and max_cases < len(suite.cases):
+        sampled = sorted(suite.cases, key=lambda c: (-c.weight, c.case_id))[:max_cases]
+        suite = suite.model_copy(update={"cases": sampled})
+    est = qualification_cost_estimate(model_row, len(suite.cases), reps=1)
+    ok, why = _authorize(mode, auth, est)
+    if not ok:
+        raise ProtectedActionError(f"live qualification not authorized ({mode}): {why}")
+
+    ledger = BudgetLedger(ctx.store, BudgetLimits(global_usd=max(auth.max_cost_usd, 0.0)))
+    reserved, rwhy = ledger.reserve(
+        cycle_id="qualify", provider_id=profile.provider_id, estimate_usd=est
+    )
+    if not reserved:
+        raise ProtectedActionError(f"qualification budget blocked: {rwhy}")
+
+    adapter = build_registry(ctx, allow_billable=True).adapter(profile.provider_id)
+    actual_models: set[str] = set()
+    tokens_in = tokens_out = 0
 
     async def _respond(case: Any) -> str:
+        nonlocal tokens_in, tokens_out
         from .models import AgentRequest
 
         resp = await adapter.invoke(
@@ -190,24 +292,40 @@ async def qualify_live(
                 adapter_id=profile.adapter,
             )
         )
+        if resp.actual_model:
+            actual_models.add(resp.actual_model)
+        tokens_in += resp.tokens_in or 0
+        tokens_out += resp.tokens_out or 0
         return resp.output_text
 
-    answers = await collect_answers(suite, _respond)
+    try:
+        answers = await collect_answers(suite, _respond)
+    finally:
+        if est:
+            ledger.commit(
+                cycle_id="qualify",
+                provider_id=profile.provider_id,
+                estimate_usd=est,
+                actual_usd=0.0,
+            )
+
     run = build_run(
         agent_profile_id=profile.profile_id,
         suite=suite,
         answers=answers,
         trust=ctx.config.trust,
-        billable=True,
+        billable=mode != "free",
         expiry_days=ctx.config.qualification.expiry_days,
+        config_digest=profile.digest(),
+        requested_model_id=profile.requested_model_id,
+        prompt_version=profile.prompt_version,
+        tool_profile=profile.tool_profile,
+        holdout_digest=suite.suite_digest(),
+        probe_run_id=probe_run_id,
+        actual_models=sorted(actual_models),
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
+        cost_usd=0.0 if mode == "free" else est,
     )
-    expires = (utc_now() + timedelta(days=ctx.config.qualification.expiry_days)).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    )
-    ctx.store.put(
-        "qualification_runs",
-        profile.profile_id,
-        run.content_dict(),
-        extra={"agent_profile_id": profile.profile_id, "expires_at": expires},
-    )
+    record_qualification(ctx, run)  # immutable, keyed by run_id
     return run

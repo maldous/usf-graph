@@ -38,78 +38,227 @@ class _UnsupportedWorker:
         )
 
 
-def production_worker_factory(ctx: RuntimeContext):
-    """(mode, agent) -> Worker, using the provider adapter's tool-loop chat."""
+def production_worker_factory(ctx: RuntimeContext, *, allow_billable: bool = False):
+    """(mode, agent) -> Worker, using the provider adapter's tool-loop chat.
+
+    ``allow_billable`` authorizes SUBSCRIPTION (OIDC-CLI) + free inference for the
+    run without enabling the paid-inference gate: paid API models are still
+    quota-blocked at scheduling (safety.allow_billable stays false) and none is on
+    the roster, so only Claude/Codex/local are actually invoked."""
     from .providers import build_registry
 
-    reg = build_registry(ctx)
+    reg = build_registry(ctx, allow_billable=allow_billable)
 
     def make(mode: RunMode, agent: AgentProfile):
-        from .workers import BrokeredWorker
+        from .capabilities import capabilities_for
+        from .enums import PrivacyClass
+        from .isolation import RepoIsolation
+        from .workers import AiWorker, BrokeredWorker
 
         try:
             adapter = reg.adapter(agent.provider_id)
         except Exception:
             return _UnsupportedWorker(f"no adapter for provider {agent.provider_id}")
-        chat = getattr(adapter, "chat_with_tools", None)
-        if chat is None:
-            return _UnsupportedWorker(
-                f"provider {agent.provider_id} adapter has no brokered tool-loop"
-            )
-        if hasattr(adapter, "with_loop_model"):
-            adapter.with_loop_model(agent.requested_model_id)
-        mutating = mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
-        # Broker-level egress recheck (defense in depth behind the scheduler):
-        # content-returning tools are refused unless policy allows raw source to
-        # THIS provider (local, or gate enabled + explicitly approved).
-        from .enums import PrivacyClass
-
         pcfg = ctx.config.providers.by_id().get(agent.provider_id)
+        cap = (
+            adapter.capabilities()
+            if hasattr(adapter, "capabilities")
+            else capabilities_for(adapter, pcfg)
+        )
+        mutating = mode in (RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
         privacy = (pcfg.privacy_class if pcfg else PrivacyClass.EXTERNAL_CLOUD).value
-        source_ok, _why = ctx.config.egress.source_content_allowed(agent.provider_id, privacy)
-        return BrokeredWorker(
-            chat, store=ctx.store, mutating=mutating, source_content_allowed=source_ok
+        source_ok, egress_why = ctx.config.egress.source_content_allowed(agent.provider_id, privacy)
+        # Containment overrides egress: a provider that can read beyond the prompt
+        # (e.g. Codex's read-only sandbox permits FS reads) NEVER receives raw
+        # source, even if the egress gate is on — restrict it to metadata.
+        if source_ok and not getattr(cap, "source_contained", False):
+            source_ok = False
+            egress_why = f"{agent.provider_id} not source-contained (metadata only)"
+
+        # Prefer the brokered tool loop; else the bounded context-and-patch worker
+        # (AiWorker) — Claude/Codex CLIs are first-class producers this way; else
+        # fail closed.
+        if cap.brokered_tool_loop:
+            if hasattr(adapter, "with_loop_model"):
+                adapter.with_loop_model(agent.requested_model_id)
+            return BrokeredWorker(
+                adapter.chat_with_tools,  # type: ignore[attr-defined]
+                store=ctx.store,
+                mutating=mutating,
+                source_content_allowed=source_ok,
+            )
+        if cap.bounded_patch_synthesis:
+            # The orchestrator builds a bounded, digest-bound context pack from the
+            # mirror at base_head and applies + re-derives the diff in the disposable
+            # clone; the adapter (CLI) never touches the workspace or the repo.
+            return AiWorker(
+                adapter.invoke,
+                isolation=RepoIsolation(ctx.paths, ctx.usf_repo),
+                store=ctx.store,
+                ctx=ctx,
+                source_content_allowed=source_ok,
+                egress_reason=egress_why,
+            )
+        return _UnsupportedWorker(f"provider {agent.provider_id} has no safe execution transport")
+
+    return make
+
+
+def production_reviewer_factory(ctx: RuntimeContext, *, allow_billable: bool = False):
+    """(profile_id=None) -> WaveReviewer | None. Builds an AiReviewer for the
+    profile the ENGINE selected dynamically (adaptive, independent from the
+    authoring providers). When no ``profile_id`` is given it falls back to the
+    active roster's reviewer. Returns None when no qualified reviewer exists — the
+    engine then BLOCKS waves that require review (fail closed; approval is never
+    synthesized). The ``profile_id`` parameter is what enables dynamic selection."""
+    from .enums import AdmissionRole
+    from .providers import build_registry
+    from .review import AiReviewer
+
+    def make(profile_id: str | None = None):
+        if profile_id is not None:
+            row = ctx.store.get("agent_profiles", profile_id)
+            profile = AgentProfile(**row) if row else None
+        else:
+            from .roster import roster_profile_for
+
+            # Compat fallback: the active roster's reviewer (built with provider
+            # independence) — never first-found storage order.
+            profile = roster_profile_for(ctx, AdmissionRole.REVIEWER)
+        if profile is None:
+            return None
+        try:
+            adapter = build_registry(ctx, allow_billable=allow_billable).adapter(
+                profile.provider_id
+            )
+        except Exception:
+            return None
+        return AiReviewer(
+            adapter.invoke,
+            profile.profile_id,
+            provider_id=profile.provider_id,
+            model_id=profile.requested_model_id,
+            adapter_id=profile.adapter,
         )
 
     return make
 
 
-def production_reviewer_factory(ctx: RuntimeContext):
-    """() -> WaveReviewer | raises. Returns a factory yielding an AiReviewer
-    backed by an ADMITTED reviewer-role profile, or None when no qualified
-    reviewer exists — the engine then BLOCKS waves that require review (fail
-    closed; approval is never synthesized)."""
-    from .enums import AdmissionRole
+def _admitted_profiles(ctx: RuntimeContext, role):
+    """Profiles holding a valid admission for ``role`` (provider-diverse selection
+    material). Returns list of (profile, provider_family)."""
+    from .admission import admission_ineligibility
     from .models import AgentProfile
+
+    out = []
+    for _key, row in ctx.store.items("agent_profiles"):
+        profile = AgentProfile(**row)
+        decision, _run, reason = admission_ineligibility(ctx, profile)
+        if reason is not None or decision is None:
+            continue
+        if role.value in set(decision.get("roles", [])):
+            out.append(profile)
+    return out
+
+
+def select_plan_optimizer(ctx: RuntimeContext, *, allow_billable: bool = False):
+    """A qualified AI plan OPTIMIZER if a planner-role model is admitted, else
+    None (=> the deterministic authoritative graph is used unchanged). The
+    optimizer never generates obligations — it only ranks/consolidates/annotates
+    the deterministic authoritative graph."""
+    from .enums import AdmissionRole
+    from .planner import AiPlanOptimizer
     from .providers import build_registry
-    from .review import AiReviewer
+    from .roster import roster_profile_for
+
+    # ONLY the ACTIVE roster governs the planner role — never a first-found scan.
+    profile = roster_profile_for(ctx, AdmissionRole.PLANNER_CANDIDATE)
+    if profile is None:
+        return None, None
+    try:
+        adapter = build_registry(ctx, allow_billable=allow_billable).adapter(profile.provider_id)
+    except Exception:
+        return None, None
+    task_classes = list(ctx.config.task_classes.by_name())
+    optimizer = AiPlanOptimizer(
+        adapter.invoke,
+        profile.profile_id,
+        task_classes=task_classes,
+        provider_id=profile.provider_id,
+        model_id=profile.requested_model_id,
+        adapter_id=profile.adapter,
+    )
+    return optimizer, profile
+
+
+def production_planner_critic_factory(
+    ctx: RuntimeContext, exclude_provider: str | None = None, *, allow_billable: bool = False
+):
+    """() -> planner critic. Prefers an admitted REVIEWER on a DIFFERENT provider
+    than the planner; falls back to the deterministic critic adapter."""
+    from .enums import AdmissionRole
+    from .planner import AiPlannerCritic, DeterministicCriticAdapter
+    from .providers import build_registry
 
     def make():
-        runs = ctx.store.records("qualification_runs")
-        for run in runs:
-            if AdmissionRole.REVIEWER.value not in set(run.get("roles_admitted", [])):
+        for profile in _admitted_profiles(ctx, AdmissionRole.REVIEWER):
+            if exclude_provider and profile.provider_id == exclude_provider:
                 continue
-            row = ctx.store.get("agent_profiles", run["agent_profile_id"])
-            if not row:
-                continue
-            profile = AgentProfile(**row)
             try:
-                adapter = build_registry(ctx).adapter(profile.provider_id)
+                adapter = build_registry(ctx, allow_billable=allow_billable).adapter(
+                    profile.provider_id
+                )
             except Exception:
                 continue
-            return AiReviewer(adapter.invoke, profile.profile_id)
-        return None
+            return AiPlannerCritic(
+                adapter.invoke,
+                profile.profile_id,
+                provider_id=profile.provider_id,
+                model_id=profile.requested_model_id,
+            )
+        return DeterministicCriticAdapter()
 
     return make
 
 
-def build_engine(ctx: RuntimeContext, *, mode: RunMode | None = None):
+def build_delivery_coordinator(ctx: RuntimeContext, *, origin_url: str | None = None) -> object:
+    """Wire the protected delivery coordinator with REAL git/gh + npm/Stardog
+    drivers. Credentials flow only through the coordinator's subprocess environment
+    (gh's own auth + the repo's canonical publish scripts); no model receives them.
+    The coordinator only ever FIRES a side effect when a live RunAuthorization
+    permits it — building it here is always safe (prepare-only otherwise)."""
+    import os
+
+    from .delivery_coordinator import DeliveryCoordinator
+    from .github_delivery import GitHubDelivery
+    from .stardog_publication import StardogPublisher
+
+    remote = origin_url or os.environ.get(
+        "USF_GRAPH_REMOTE", "https://github.com/maldous/usf-graph.git"
+    )
+    github = GitHubDelivery(origin_url=remote)
+    publisher = StardogPublisher(ctx)
+    return DeliveryCoordinator(ctx, github=github, publisher=publisher)
+
+
+def build_engine(
+    ctx: RuntimeContext,
+    *,
+    mode: RunMode | None = None,
+    max_shadow_packets: int | None = None,
+    allow_billable: bool = False,
+    policy: object | None = None,
+    delivery_coordinator: object | None = None,
+):
     """Construct a fully-wired production FactoryEngine.
 
-    For executing modes the materialisation index is built by the ENGINE from
-    the factory mirror at the exact snapshot head (snapshot-bound => it can act
-    as the write contract for semantic packets); the production worker and
-    reviewer factories are wired in.
+    Pipeline wiring: the deterministic authoritative planner ALWAYS, plus an
+    optional AI plan OPTIMIZER (roster planner) with an INDEPENDENT planner critic
+    (different provider where possible); the snapshot-bound materialisation index;
+    the production worker and wave-reviewer factories. ``allow_billable`` authorizes
+    subscription/free inference for this run (the paid-inference gate stays off).
+    ``delivery_coordinator`` (optional) enables the protected delivery lifecycle for
+    an accepted+validated+reviewed wave (still gated on a live RunAuthorization).
     """
     from .engine import FactoryEngine
 
@@ -120,12 +269,33 @@ def build_engine(ctx: RuntimeContext, *, mode: RunMode | None = None):
         def materialisation_factory(mirror, head):
             return build_index_at(mirror, head)
 
-    def reviewer_factory():
-        return production_reviewer_factory(ctx)()
+    optimizer, optimizer_profile = select_plan_optimizer(ctx, allow_billable=allow_billable)
+    critic_factory = production_planner_critic_factory(
+        ctx,
+        exclude_provider=optimizer_profile.provider_id if optimizer_profile else None,
+        allow_billable=allow_billable,
+    )
+
+    _reviewer_make = production_reviewer_factory(ctx, allow_billable=allow_billable)
+
+    def reviewer_factory(profile_id: str | None = None):
+        # Preserves the ``profile_id`` parameter so the engine's dynamic, independent
+        # reviewer selection reaches the production factory.
+        return _reviewer_make(profile_id=profile_id)
+
+    def plan_optimizer_factory():
+        opt, _ = select_plan_optimizer(ctx, allow_billable=allow_billable)
+        return opt
 
     return FactoryEngine(
         ctx,
-        worker_factory=production_worker_factory(ctx),
+        planner=None,  # deterministic ProgrammePlanner is always authoritative
+        plan_optimizer_factory=plan_optimizer_factory if optimizer is not None else None,
+        worker_factory=production_worker_factory(ctx, allow_billable=allow_billable),
         materialisation_factory=materialisation_factory,
         reviewer_factory=reviewer_factory,
+        planner_critic_factory=critic_factory if optimizer is not None else None,
+        max_shadow_packets=max_shadow_packets,
+        policy=policy,  # type: ignore[arg-type]  # EffectiveWorkforcePolicy | None
+        delivery_coordinator=delivery_coordinator,
     )

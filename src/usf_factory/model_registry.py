@@ -15,6 +15,7 @@ from .models import AgentProfile, DiscoveredModel, ModelRecord, ProviderConfig
 
 _FAMILY_STRIP = re.compile(r"[:@].*$")  # drop tags like ":free", "@version"
 _VERSION_SUFFIX = re.compile(r"[-_]?\d{4}[-_]?\d{2}[-_]?\d{2}$")  # trailing dates
+_ROUTER_ALIASES = {"openrouter/auto", "openrouter/free"}
 
 
 def canonical_family(provider_id: str, model_id: str) -> str:
@@ -27,6 +28,30 @@ def canonical_family(provider_id: str, model_id: str) -> str:
     base = _FAMILY_STRIP.sub("", base)
     base = _VERSION_SUFFIX.sub("", base)
     return base.strip("-_").lower() or model_id.lower()
+
+
+# Broad family GROUPS for exclusion (a model belongs to one if any keyword
+# appears in its provider-prefixed id). Matching is substring-based on the full
+# id so ``meta-llama/llama-3.3-70b-instruct`` and ``groq/llama-3.1-8b`` both hit
+# "llama", while ``mistralai/mixtral`` does not.
+_FAMILY_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "llama": ("llama", "meta-llama", "llama-3", "llama-4", "llama3", "llama4"),
+}
+
+
+def family_matches(provider_id: str, model_id: str, family: str) -> bool:
+    """True iff (provider/model) belongs to the given family GROUP. The family may
+    be a known group name (e.g. "llama" => any llama keyword) or a raw substring."""
+    fid = f"{provider_id}/{model_id}".lower()
+    fam = family.lower().strip()
+    keywords = _FAMILY_KEYWORDS.get(fam, (fam,))
+    return any(k in fid for k in keywords)
+
+
+def is_router_alias(provider_id: str, model_id: str) -> bool:
+    """Whether the requested identity delegates selection to an opaque router."""
+    full = f"{provider_id}/{model_id}".lower()
+    return full in _ROUTER_ALIASES or model_id.lower() in ("auto", "openrouter/auto")
 
 
 def normalize_model(

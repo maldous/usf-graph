@@ -93,6 +93,25 @@ def main() -> int:
                 )
             elif name == "usf_query":
                 _send({"jsonrpc": "2.0", "id": mid, "result": _text({"rows": []})})
+            elif name == "usf_work_plan":
+                offset = int(msg["params"].get("arguments", {}).get("offset", 0))
+                _send(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": mid,
+                        "result": _text(
+                            {
+                                "schemaVersion": 1,
+                                "authorityDigest": "sha256:stub",
+                                "contract": "urn:usf:semanticcontract:test",
+                                "offset": offset,
+                                "gaps": [],
+                                "truncated": False,
+                                "nextOffset": None,
+                            }
+                        ),
+                    }
+                )
             else:
                 _send({"jsonrpc": "2.0", "id": mid, "result": _text({"echo": name})})
         else:

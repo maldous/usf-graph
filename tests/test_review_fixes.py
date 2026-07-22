@@ -80,7 +80,7 @@ def test_unknown_field_rejected_by_strict_schema():
 def test_mutating_completion_without_patch_fails():
     r = asyncio.run(_run(json.dumps({"status": "COMPLETED"}), raw=True))
     assert r.status is PacketResultStatus.FAILED
-    assert "without a patch" in r.failure_detail
+    assert "without an effective" in r.failure_detail or "without a patch" in r.failure_detail
 
 
 @pytest.mark.adversarial
@@ -144,7 +144,16 @@ def test_adapter_refuses_opaque_profile_id():
 class _Auth:
     def __init__(self, digest="sha256:validdigest0000000000", ok=True, tools=None):
         self._d, self._ok = digest, ok
-        self._tools = tools if tools is not None else ["usf_health", "usf_bootstrap", "usf_query"]
+        self._tools = (
+            tools
+            if tools is not None
+            else [
+                "usf_health",
+                "usf_bootstrap",
+                "usf_query",
+                "usf_work_plan",
+            ]
+        )
 
     def __enter__(self):
         return self
@@ -163,6 +172,18 @@ class _Auth:
 
     def bootstrap(self, arguments=None):
         return self._tcr({"authority": {"digest": self._d, "triples": 10, "coveredGraphCount": 2}})
+
+    def work_plan(self, arguments=None):
+        return self._tcr(
+            {
+                "schemaVersion": 1,
+                "authorityDigest": self._d,
+                "contract": "urn:usf:semanticcontract:test",
+                "gaps": [],
+                "truncated": False,
+                "nextOffset": None,
+            }
+        )
 
 
 @pytest.mark.unit

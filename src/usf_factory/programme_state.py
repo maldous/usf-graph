@@ -15,9 +15,53 @@ from __future__ import annotations
 from typing import Any
 
 from .clock import utc_now_iso
+from .enums import RemediationKind
 from .models import Obligation, ObligationGraph, SemanticSnapshot
 
-MAX_OBLIGATIONS = 100
+MAX_OBLIGATIONS = 1_000
+
+# Authority work-plan gap `type` -> the CORRECT remediation lifecycle (build
+# task §1). Only SOURCE_CHANGE ever edits governed source. VALIDATION_EVIDENCE
+# and PROOF_EVIDENCE identify the required lifecycle, but a factory receipt is
+# not authority evidence and cannot close the gap. Unknown gap types fall back
+# to ANALYSIS_ONLY (bounded durable evidence, never a false closure).
+_GAP_REMEDIATION: dict[str, RemediationKind] = {
+    "missing-current-passing-validation": RemediationKind.VALIDATION_EVIDENCE,
+    "missing-validation": RemediationKind.VALIDATION_EVIDENCE,
+    "missing-successful-proof": RemediationKind.PROOF_EVIDENCE,
+    "missing-proof": RemediationKind.PROOF_EVIDENCE,
+    "missing-constraint": RemediationKind.SOURCE_CHANGE,
+    "missing-shape": RemediationKind.SOURCE_CHANGE,
+    "shacl-violation": RemediationKind.SOURCE_CHANGE,
+}
+
+# Deterministic task class per gap for the SOURCE_CHANGE kind (which edits
+# source). Every non-SOURCE_CHANGE kind compiles to the read-only
+# semantic-planning class — in particular missing-current-passing-validation is
+# NEVER mapped to sparql-authoring (build task §1).
+_SOURCE_CHANGE_TASK_CLASS: dict[str, str] = {
+    "missing-constraint": "sparql-authoring",
+    "missing-shape": "shacl-repair",
+    "shacl-violation": "shacl-repair",
+}
+_READ_ONLY_TASK_CLASS = "semantic-planning"
+
+
+def classify_remediation(gap_type: str, *, human_decision: bool = False) -> RemediationKind:
+    """Deterministically classify an authority gap into its remediation kind.
+
+    An explicit authority human-decision marker always wins; an unknown gap type
+    falls back to ANALYSIS_ONLY (never an accidental source change or false close).
+    """
+    if human_decision:
+        return RemediationKind.HUMAN_DECISION
+    return _GAP_REMEDIATION.get(gap_type, RemediationKind.ANALYSIS_ONLY)
+
+
+def _task_class_for(gap_type: str, remediation: RemediationKind) -> str:
+    if remediation is RemediationKind.SOURCE_CHANGE:
+        return _SOURCE_CHANGE_TASK_CLASS.get(gap_type, "shacl-repair")
+    return _READ_ONLY_TASK_CLASS
 
 
 def _as_list(value: Any, *keys: str) -> list[Any]:
@@ -31,7 +75,17 @@ def _as_list(value: Any, *keys: str) -> list[Any]:
 
 
 def _obl_id(item: dict[str, Any], index: int) -> str:
-    return str(item.get("id") or item.get("iri") or item.get("obligation") or f"obl-{index}")
+    explicit = item.get("id") or item.get("iri") or item.get("obligation")
+    if explicit:
+        return str(explicit)
+    # Work-plan gaps identify by (type, subject); preserve that as provenance.
+    typ = item.get("type")
+    subj = item.get("subject")
+    if typ and subj:
+        return f"{typ}:{subj}"
+    if subj:
+        return str(subj)
+    return f"obl-{index}"
 
 
 def _deps(item: dict[str, Any]) -> list[str]:
@@ -50,29 +104,68 @@ def parse_programme_obligations(bootstrap: dict[str, Any], work_plan: Any) -> li
     """
     out: dict[str, dict[str, Any]] = {}
 
-    raw = _as_list(work_plan, "items", "plan", "workItems", "obligations", "tasks")
+    raw = _as_list(work_plan, "items", "plan", "workItems", "obligations", "tasks", "gaps")
+    if len(raw) > MAX_OBLIGATIONS:
+        raise ValueError(f"work plan exceeds bounded obligation limit ({MAX_OBLIGATIONS})")
     for i, item in enumerate(raw):
         if not isinstance(item, dict):
-            continue
+            raise ValueError(f"work-plan item {i} is not an object")
         oid = _obl_id(item, i)
+        if oid in out:
+            raise ValueError(f"duplicate work-plan obligation identity: {oid}")
+        gap_type = str(item.get("type") or "")
+        # A gap carries (type, subject); a richer work-plan item may carry
+        # subjects[] + taskClass. Preserve the authority subject either way.
+        subjects = [str(s) for s in _as_list(item.get("subjects"), "subjects")]
+        if not subjects and item.get("subject"):
+            subjects = [str(item["subject"])]
+        explicit_kind = item.get("remediationKind")
+        human_decision = bool(item.get("humanDecisionRequired", False)) or (
+            explicit_kind == RemediationKind.HUMAN_DECISION.value
+        )
+        valid_kinds = {k.value for k in RemediationKind}
+        if isinstance(explicit_kind, str) and explicit_kind in valid_kinds:
+            remediation = RemediationKind(explicit_kind)
+        else:
+            remediation = classify_remediation(gap_type, human_decision=human_decision)
+        task_class = str(item.get("taskClass") or _task_class_for(gap_type, remediation))
+        root_cause = str(
+            item.get("rootCause")
+            or item.get("title")
+            or item.get("description")
+            or (f"authority gap '{gap_type}' on {item.get('subject')}" if gap_type else oid)
+        )
+        acceptance = [
+            str(c) for c in _as_list(item.get("acceptanceCriteria"), "acceptanceCriteria")
+        ] or [
+            "Produce a bounded read-only FINDING (durable evidence): state the current "
+            "validation status of the subject, its canonical owner path, and the smallest "
+            "validation/change that would close the gap. Return COMPLETED with "
+            "evidence_produced. Do NOT request a human decision unless an authority fact "
+            "required for the finding is genuinely unobtainable. Propose no mutation unless "
+            "an authorised owner write scope is provided.",
+        ]
         out[oid] = {
             "id": oid,
-            "root_cause": str(
-                item.get("rootCause") or item.get("title") or item.get("description") or oid
-            ),
+            "root_cause": root_cause,
+            "required_outcomes": [
+                f"bounded finding on the current state of {item.get('subject') or oid}"
+            ],
             "dependencies": _deps(item),
-            "semantic_subjects": [str(s) for s in _as_list(item.get("subjects"), "subjects")],
-            "task_class": str(item.get("taskClass") or "semantic-planning"),
-            "acceptance_criteria": [
-                str(c) for c in _as_list(item.get("acceptanceCriteria"), "acceptanceCriteria")
-            ]
-            or ["bounded analysis; no mutation without an authorised subject->file mapping"],
+            "semantic_subjects": subjects,
+            "task_class": task_class,
+            "remediation_kind": remediation.value,
+            "acceptance_criteria": acceptance,
             "risk": str(item.get("risk") or "low"),
-            "human_decision_required": bool(item.get("humanDecisionRequired", False)),
+            "human_decision_required": human_decision
+            or remediation is RemediationKind.HUMAN_DECISION,
         }
 
-    # Supplement with bootstrap obligation ids not already present.
-    for key in ("openGaps", "proofObligations", "validationObligations"):
+    # Bootstrap proof/validation obligation lists describe contract structure;
+    # they are not themselves an actionable work projection. Only openGaps may
+    # supplement the work plan. This prevents deferred or already-satisfied
+    # obligations from becoming factory work merely because they are visible.
+    for key in ("openGaps",):
         for i, item in enumerate(bootstrap.get(key) or []):
             oid = _obl_id(item, i) if isinstance(item, dict) else str(item)
             if oid in out:
@@ -83,13 +176,16 @@ def parse_programme_obligations(bootstrap: dict[str, Any], work_plan: Any) -> li
                 "dependencies": _deps(item) if isinstance(item, dict) else [],
                 "semantic_subjects": [oid],
                 "task_class": "semantic-planning",
+                "remediation_kind": RemediationKind.ANALYSIS_ONLY.value,
                 "acceptance_criteria": ["bounded analysis produced; no mutation"],
                 "risk": "low",
                 "human_decision_required": False,
             }
 
     ordered = sorted(out.values(), key=lambda o: o["id"])
-    return ordered[:MAX_OBLIGATIONS]
+    if len(ordered) > MAX_OBLIGATIONS:
+        raise ValueError(f"combined obligation set exceeds bounded limit ({MAX_OBLIGATIONS})")
+    return ordered
 
 
 class ProgrammePlanner:

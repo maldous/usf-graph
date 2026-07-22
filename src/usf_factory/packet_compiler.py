@@ -13,7 +13,7 @@ from collections.abc import Callable
 from .clock import utc_now_iso
 from .config import TaskClassConfig, TaskClassDef
 from .conflict_graph import build_conflict_edges, select_antichain
-from .enums import Risk
+from .enums import RemediationKind, Risk
 from .models import (
     ObligationGraph,
     Packet,
@@ -114,9 +114,22 @@ def compile_packets(
                     f"obligation (writes require the materialisation contract)"
                 )
             write_paths: list[str] = []
+            # Only a SOURCE_CHANGE remediation may take repository write scope,
+            # even from a verified materialisation owner (build task §1).
+            # VALIDATION_EVIDENCE / PROOF_EVIDENCE / ANALYSIS_ONLY / HUMAN_DECISION
+            # remain read-only w.r.t. the governed source they validate.
+            authorize_writes = index_is_contract and (
+                obl.remediation_kind is RemediationKind.SOURCE_CHANGE
+            )
+            if index_is_contract and not authorize_writes:
+                findings.append(
+                    f"obligation {obl.id}: remediation_kind "
+                    f"'{obl.remediation_kind.value}' is read-only w.r.t. governed source; "
+                    f"no write scope granted (only SOURCE_CHANGE may edit governed source)"
+                )
             if materialisation_index is not None:
                 scope = materialisation_index.derive_scope(
-                    sorted(set(obl.semantic_subjects)), authorize_writes=index_is_contract
+                    sorted(set(obl.semantic_subjects)), authorize_writes=authorize_writes
                 )
                 read_paths = sorted(set(read_paths) | set(scope.read_paths))
                 generated_outputs = sorted(set(scope.generated_outputs))
@@ -153,6 +166,17 @@ def compile_packets(
                 )
                 write_paths = []
 
+        # Fail-closed remediation guard (build task §1): nothing but a
+        # SOURCE_CHANGE may carry repository write scope, regardless of how it was
+        # derived (semantic contract owner OR the non-semantic planner path).
+        if write_paths and obl.remediation_kind is not RemediationKind.SOURCE_CHANGE:
+            findings.append(
+                f"obligation {obl.id}: remediation_kind "
+                f"'{obl.remediation_kind.value}' is not SOURCE_CHANGE; stripped write "
+                f"scope {write_paths} (read-only remediation)"
+            )
+            write_paths = []
+
         input_digests: dict[str, str] = {}
         if digest_fn is not None:
             for path in read_paths + write_paths:
@@ -164,9 +188,22 @@ def compile_packets(
         if obl.required_outcomes:
             objective = f"{obl.root_cause} => " + "; ".join(obl.required_outcomes)
 
-        validation = sorted(
-            set((list(task.default_validation) if task else []) + derived_validation)
-        )
+        # Validation profile:
+        #  * A READ-ONLY packet produces no patch, so there is nothing for the wave
+        #    validators to check — acceptance is durable analysis evidence instead.
+        #  * A SEMANTIC (subject-bearing) mutating packet is validated by its
+        #    authority-derived RDF/SHACL/SPARQL profile (from the materialisation
+        #    contract) — never by code-oriented task-class defaults (e.g. pytest),
+        #    which do not validate RDF semantics.
+        #  * A NON-SEMANTIC mutating packet keeps the task-class code profile.
+        if not write_paths:
+            validation = []
+        elif obl.semantic_subjects:
+            validation = sorted(set(derived_validation) | {"syntax-parse"})
+        else:
+            validation = sorted(
+                set((list(task.default_validation) if task else []) + derived_validation)
+            )
         packet = Packet(
             obligation_id=obl.id,
             snapshot_id=snapshot.snapshot_id,
@@ -175,6 +212,7 @@ def compile_packets(
             objective=objective,
             task_class=obl.task_class,
             risk=obl.risk,
+            remediation_kind=obl.remediation_kind,
             semantic_subjects=sorted(set(obl.semantic_subjects)),
             read_paths=read_paths,
             write_paths=write_paths,

@@ -9,8 +9,8 @@ implementation, and separates **current reality** from **target behavior**.
 | --- | --- | --- |
 | **Control** (deterministic) | state machine, claims/leases, scheduling, freshness, recovery, event log | `state_machine`, `event_store`, `scheduler`, `engine` |
 | **Intelligence** (AI, replaceable) | planner, critic, workers, integrator, reviewers | `planner`, `workers`, `integration`, `review` |
-| **Execution** | disposable clones, tools, patches, tests | `isolation`, `sandbox`, `workers` |
-| **Assurance** | SHACL/SPARQL/tests, evidence, proof, publication | `validation`, `authority` |
+| **Execution** | disposable clones, tools, patches, tests | `isolation`, `sandbox_runtime`, `agent_runtime`, `workers` |
+| **Assurance** | local validation receipts, graph-bound evidence transport, protected publication | `validation_runners`, `validation_evidence`, `delivery_coordinator`, `stardog_publication` |
 
 The **deterministic control plane owns the loop**; models are workers. AI never
 owns leases, claims, freshness, merge order, quotas, publication, or terminal
@@ -36,17 +36,22 @@ src/usf_factory/
 ├── qualification.py    USF qualification suite, scoring, admission roles
 ├── authority.py        read-only USF MCP STDIO JSON-RPC client
 ├── snapshots.py        deterministic semantic snapshot compiler
-├── planner.py          fixture/AI planner + deterministic critic
+├── programme_state.py live work-plan projection into deterministic obligations
+├── planner.py          optional fixture/AI planner + deterministic critic
 ├── packet_compiler.py  deterministic packet compilation
 ├── conflict_graph.py   conflict classes + antichain selection
-├── scheduler.py        eligibility + ranking + seeded exploration + explanations
+├── workforce.py        qualified dynamic workforce snapshot
+├── adaptive_routing.py eligibility + recorded seeded exploration
 ├── isolation.py        /usf mirror + disposable clones (never touches /usf)
 ├── workers.py          worker adapters + sandbox enforcement
 ├── result_validation.py deterministic result qualification + failure taxonomy
 ├── attribution.py      stage attribution + integrator rewrite ratio
 ├── integration.py      deterministic pre-integration + semantic conflict + AI integrator
 ├── review.py           independent wave review (advisory)
-├── validation.py       validation gates + publication state machine (gated)
+├── validation_runners.py deterministic local assurance gates
+├── validation_evidence.py factory receipts + authority-evidence transport boundary
+├── delivery_coordinator.py protected GitHub/graph delivery lifecycle
+├── stardog_publication.py exact usf-graph publication command contract
 ├── learning.py         stage-specific metrics (EWMA, CI, min-sample)
 ├── engine.py           the cycle orchestrator
 ├── doctor.py           self-check
@@ -58,14 +63,15 @@ src/usf_factory/
 ```
 Phase 0  preflight/recovery   engine.preflight       ensure mirror, detect incomplete cycle, no /usf worktrees
 Phase 1-4 snapshot            engine.capture_snapshot compile_snapshot() via read-only MCP + git
-Phase 5  plan + critic        engine.plan_and_compile FixturePlanner (default) + DeterministicCritic
+Phase 5  plan + critic        engine.plan_and_compile ProgrammePlanner + optional optimizer/critic
 Phase 6  packet compile       compile_packets        deterministic packets + conflict DAG + antichain
-Phase 8  schedule             engine.schedule_packets eligibility + ranking + explanation (RoutingDecision)
-Phase 9  execute (isolated)   engine.execute_packets  DryRunWorker in the safe runtime (no mutation)
+Phase 8  schedule             engine.schedule_packets qualified dynamic workforce + adaptive routing
+Phase 9  execute (isolated)   engine.execute_packets  admitted workers in disposable clones
 Phase 10 result qualify       engine.qualify_results  deterministic checks + failure taxonomy
 Phase 11 pre-integrate        deterministic_preintegrate  semantic conflict check; AI integrator only if needed
-Phase 12 review               NoopReviewer / AiReviewer   advisory only
-Phase 13 validate             run_validation          deterministic gates; publication gated + disabled
+Phase 12 review               provider-diverse substantive review where required
+Phase 13 validate             run_validation          deterministic local gates, fail-closed
+Delivery protected lifecycle delivery coordinator    branch/PR/check/merge/validate/publish/reconcile
 Phase 14 learn                LearningEngine          stage-specific scores (skips non-worker faults)
 Phase 15 re-snapshot          next cycle              packet set discarded; recompute from current state
 ```
@@ -78,11 +84,13 @@ Each wave is a **disposable antichain**; there is no pre-planned "Wave 2".
   durable artifact a stable id independent of wall-clock/locale/order.
 - Snapshots, obligation graphs, packets, and packet sets reproduce identical ids
   for identical inputs (verified in `tests/test_e2e.py::test_cycle_is_deterministic`).
-- Exploration uses a **seeded** RNG derived from `(seed, snapshot_id, packet_id)`
-  — routing replays identically.
-- Phase transitions and side-effect boundaries are recorded in the append-only
-  event log (strict per-transition CAS + fencing tokens are a target; see
-  `docs/known-limitations.md`).
+- Adaptive exploration uses a fresh cryptographic seed recorded in the routing
+  receipt. Receipt replay is deterministic from that recorded seed; two new live
+  runs over otherwise identical inputs are intentionally allowed to explore
+  different candidates.
+- Phase transitions are persisted as they occur. External delivery effects have
+  CAS-bound input and persisted uncertain intent, and are reconciled before any
+  retry. Coordinator and packet fencing tokens reject stale owners.
 
 ## Current reality vs target
 
@@ -91,17 +99,20 @@ Each wave is a **disposable antichain**; there is no pre-planned "Wave 2".
 - Provider registry (17 providers + anthropic-api stub; Codebuff excluded), enablement gating, metadata-only discovery.
 - Read-only USF MCP client + deterministic snapshot compiler (works against the live server).
 - Mechanical probes + USF qualification suite + admission roles.
-- Fixture planner + critic + deterministic packet compiler + conflict DAG + antichain.
-- Task-specific, explainable scheduler with seeded exploration.
+- Live work-plan planner, optional optimizer/critic, deterministic packet compiler,
+  conflict DAG and antichain.
+- Qualified dynamic workforce with task-specific adaptive routing and recorded seeds.
 - Git mirror isolation + disposable clones; sandbox enforcement.
 - Result qualification + failure taxonomy; deterministic pre-integration + semantic conflict detection; advisory review; validation gate runner; learning with CI.
-- Full **non-mutating** cycle (observe / plan-only).
+- Full non-mutating cycle and a protected delivery coordinator whose mutation
+  gates remain disabled by default.
 
-**Target behavior (interfaces present, gated/disabled):**
+**Not yet demonstrated as release-ready:**
 - Billable model probing/qualification (`--allow-billable`, `--budget-usd`).
-- AI worker/integrator/reviewer execution (billable + egress gated).
-- Concurrency beyond the default of 2 workers.
-- Controlled Stardog publication (`PublicationStateMachine`, disabled).
-- `autonomous-safe` mutating execution (disabled by config).
+- clean-clone protected GitHub and Stardog delivery against disposable remotes
+  and fixture databases;
+- independent CI/attestation bound to the exact PR head;
+- namespace-enforced filesystem/network isolation on a host that supports it;
+- `autonomous-safe` live mutation (disabled by committed config and run authorization).
 
 See `BUILD_REPORT.md` for the exact status and next commands.

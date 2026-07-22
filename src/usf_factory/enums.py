@@ -114,6 +114,51 @@ class FailureClass(StrEnum):
     UNCERTAIN_MUTATION = "UNCERTAIN_MUTATION"
 
 
+class DispatchFailure(StrEnum):
+    """Dynamic dispatch/fallback taxonomy (dynamic workforce spec §8). Distinct
+    from FailureClass (worker attribution): this classifies why a dispatch attempt
+    could not yield an accepted result, driving redraw-vs-block."""
+
+    AUTH_FAILED = "AUTH_FAILED"
+    QUOTA_BLOCKED = "QUOTA_BLOCKED"
+    RATE_LIMITED = "RATE_LIMITED"
+    MODEL_UNAVAILABLE = "MODEL_UNAVAILABLE"
+    MODEL_REJECTED = "MODEL_REJECTED"
+    TIMEOUT = "TIMEOUT"
+    OUTPUT_INVALID = "OUTPUT_INVALID"
+    OUTPUT_BUDGET_EXCEEDED = "OUTPUT_BUDGET_EXCEEDED"
+    TRANSPORT_FAILED = "TRANSPORT_FAILED"
+    CONTAINMENT_FAILED = "CONTAINMENT_FAILED"
+    EGRESS_BLOCKED = "EGRESS_BLOCKED"
+    SEMANTIC_REJECTED = "SEMANTIC_REJECTED"
+    VALIDATION_FAILED = "VALIDATION_FAILED"
+
+
+# Dispatch failures that justify removing the candidate and REDRAWING from the
+# remaining eligible population (no side effect was committed): availability /
+# transport / quota / rate / output-shape problems that another eligible
+# candidate may not have.
+#
+# TERMINAL (never a silent redraw): SEMANTIC_REJECTED and VALIDATION_FAILED
+# concern the produced result's quality; CONTAINMENT_FAILED and EGRESS_BLOCKED
+# are safety/policy violations (spec §8 "do not redraw silently for ... containment
+# violation; policy violation"). A candidate that BREACHES containment or egress
+# during an attempt is stopped, not quietly swapped for another.
+TRANSIENT_DISPATCH_FAILURES: frozenset[DispatchFailure] = frozenset(
+    {
+        DispatchFailure.AUTH_FAILED,
+        DispatchFailure.QUOTA_BLOCKED,
+        DispatchFailure.RATE_LIMITED,
+        DispatchFailure.MODEL_UNAVAILABLE,
+        DispatchFailure.TIMEOUT,
+        DispatchFailure.TRANSPORT_FAILED,
+        DispatchFailure.MODEL_REJECTED,
+        DispatchFailure.OUTPUT_INVALID,
+        DispatchFailure.OUTPUT_BUDGET_EXCEEDED,
+    }
+)
+
+
 # Failures NOT attributable to the worker (do not penalize the worker).
 NON_WORKER_FAULTS: frozenset[FailureClass] = frozenset(
     {
@@ -176,6 +221,61 @@ class PacketResultStatus(StrEnum):
     SKIPPED = "SKIPPED"
     BLOCKED = "BLOCKED"
     HUMAN_DECISION_REQUIRED = "HUMAN_DECISION_REQUIRED"
+
+
+class InferenceMode(StrEnum):
+    """The inference class of a candidate transport — an operator-excludable axis.
+
+    Never a provider identity: a provider/model is classified into one of these
+    from its transport + pricing evidence, and the WorkforcePolicy gates each
+    class independently (allow_local/free/subscription/paid)."""
+
+    LOCAL = "local"
+    FREE = "free"
+    SUBSCRIPTION = "subscription"
+    PAID = "paid"
+
+
+class RemediationKind(StrEnum):
+    """The correct remediation lifecycle for an authority gap (build task §1).
+
+    Only ``SOURCE_CHANGE`` may ever be granted repository write scope; every other
+    kind is read-only with respect to the governed source it validates/analyses.
+    """
+
+    ANALYSIS_ONLY = "ANALYSIS_ONLY"
+    VALIDATION_EVIDENCE = "VALIDATION_EVIDENCE"
+    PROOF_EVIDENCE = "PROOF_EVIDENCE"
+    SOURCE_CHANGE = "SOURCE_CHANGE"
+    HUMAN_DECISION = "HUMAN_DECISION"
+
+
+class DeliveryState(StrEnum):
+    """Durable, idempotent delivery lifecycle from an accepted result through
+    authority reconciliation and obligation closure (build task §12). Every
+    forward state is persisted BEFORE and AFTER its external side effect so a
+    restart reconciles rather than blindly repeating.
+    """
+
+    DISCOVERED = "DISCOVERED"  # obligation + accepted evidence/patch identified
+    LOCAL_VALIDATED = "LOCAL_VALIDATED"  # deterministic validation passed
+    REVIEW_APPROVED = "REVIEW_APPROVED"  # independent review approved
+    DELIVERY_PREPARED = "DELIVERY_PREPARED"  # branch/commit/PR artifact prepared
+    BRANCH_PUSHED = "BRANCH_PUSHED"  # factory branch pushed to the remote
+    PR_OPENED = "PR_OPENED"  # draft PR opened
+    CI_PASSED = "CI_PASSED"  # required checks passed on the reviewed head
+    PR_MERGED = "PR_MERGED"  # PR merged (no force)
+    AUTHORITY_VALIDATED = "AUTHORITY_VALIDATED"  # validate-and-rollback publication ok
+    AUTHORITY_PUBLISHED = "AUTHORITY_PUBLISHED"  # committed authority publication done
+    DRIFT_RECONCILED = "DRIFT_RECONCILED"  # source/live drift zero + MCP resnapshot
+    OBLIGATION_CLOSED = "OBLIGATION_CLOSED"  # the exact obligation confirmed absent
+    COMPLETE = "COMPLETE"  # terminal success
+
+    # Non-success terminals / holds.
+    STALE = "STALE"  # authority digest moved under us => replan
+    BLOCKED = "BLOCKED"  # a hard gate / authorization / independence gap
+    FAILED = "FAILED"  # a step failed cleanly (no uncertain side effect)
+    UNCERTAIN_SIDE_EFFECT = "UNCERTAIN_SIDE_EFFECT"  # push/merge/publish outcome unknown
 
 
 class ProbeKind(StrEnum):
