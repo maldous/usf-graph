@@ -104,6 +104,10 @@ test('tool names are model-callable (no dots)', () => {
     'usf_work_plan', 'usf_evidence_admit', 'usf_proof_evaluate',
     'usf_validation_record',
   ]);
+  const workPlan = TOOLS.find((tool) => tool.name === 'usf_work_plan');
+  assert.deepEqual(workPlan.inputSchema.properties.offset, {
+    type: 'integer', minimum: 0, maximum: 10000,
+  });
 });
 
 test('lifecycle mutation tools advertise the boundary but refuse direct RDF mutation', async () => {

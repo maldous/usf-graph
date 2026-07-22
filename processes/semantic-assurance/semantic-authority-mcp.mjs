@@ -133,7 +133,7 @@ export const TOOLS = [
   {
     name: 'usf_work_plan',
     description: 'usf.work.plan: project current semantic gaps suitable for work tracking. The projection is not authority and creates no ticket.',
-    inputSchema: { type: 'object', properties: { contract: { type: 'string' } }, additionalProperties: false },
+    inputSchema: { type: 'object', properties: { contract: { type: 'string' }, offset: { type: 'integer', minimum: 0, maximum: 10000 } }, additionalProperties: false },
   },
   ...['evidence_admit', 'proof_evaluate', 'validation_record'].map((name) => ({
     name: `usf_${name}`,

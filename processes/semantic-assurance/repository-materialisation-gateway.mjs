@@ -426,9 +426,17 @@ export async function projectContract(ctx, args = {}) {
 
 export async function planWork(ctx, args = {}) {
   const contract = await resolveContract(ctx.client, args.contract || CONTRACT);
+  const offset = Number.isInteger(args.offset) && args.offset >= 0 ? args.offset : 0;
+  if (offset > 10_000) throw new Error('work-plan offset exceeds bounded maximum');
+  const pageSize = 50;
   const rows = await ctx.client.select(`SELECT ?gap ?subject WHERE {
     { <${contract}> <urn:usf:ontology:mandatoryProofObligation> ?subject . FILTER NOT EXISTS { <${contract}> <urn:usf:ontology:reliesOnProofResult> ?result . ?result <urn:usf:ontology:proofResultForObligation> ?subject ; <urn:usf:ontology:hasProofResultState> <urn:usf:proofresultstate:successful> } BIND("missing-successful-proof" AS ?gap) }
-    UNION { <${contract}> <urn:usf:ontology:requiredValidation> ?subject . FILTER NOT EXISTS {
+    UNION { <${contract}> <urn:usf:ontology:requiredValidation> ?subject .
+      FILTER NOT EXISTS {
+        ?subject <urn:usf:ontology:semanticLifecycleState> ?validationLifecycle .
+        FILTER (?validationLifecycle != <urn:usf:semanticlifecyclestate:active>)
+      }
+      FILTER NOT EXISTS {
       ?execution <urn:usf:ontology:executesValidation> ?subject ; <urn:usf:ontology:producesValidationResult> ?result .
       ?result <urn:usf:ontology:resultState> <urn:usf:resultstate:passed> ; <urn:usf:ontology:entersEvidenceLifecycleAs> ?evidence .
       ?evidence a <urn:usf:ontology:ValidationEvidence> ;
@@ -437,10 +445,21 @@ export async function planWork(ctx, args = {}) {
         <urn:usf:ontology:hasIntegrityState> <urn:usf:evidenceintegritystate:valid> ;
         <urn:usf:ontology:withinValidityScope> true ;
         <urn:usf:ontology:applicableToObligation> ?subject .
-    } BIND("missing-current-passing-validation" AS ?gap) }
-  } ORDER BY ?gap ?subject LIMIT 50`);
+      } BIND("missing-current-passing-validation" AS ?gap) }
+  } ORDER BY ?gap ?subject LIMIT ${pageSize + 1} OFFSET ${offset}`);
   const witness = await authorityWitness(ctx.client);
-  return { schemaVersion: 1, authorityDigest: `sha256:${witness.digest}`, contract, gaps: rows.map((row) => ({ type: value(row, 'gap'), subject: value(row, 'subject') })), issueProjectionAuthority: false };
+  const truncated = rows.length > pageSize;
+  return {
+    schemaVersion: 1,
+    authorityDigest: `sha256:${witness.digest}`,
+    contract,
+    offset,
+    pageSize,
+    truncated,
+    nextOffset: truncated ? offset + pageSize : null,
+    gaps: rows.slice(0, pageSize).map((row) => ({ type: value(row, 'gap'), subject: value(row, 'subject') })),
+    issueProjectionAuthority: false,
+  };
 }
 
 export function refuseLifecycleMutation(operation) {

@@ -130,8 +130,58 @@ test('work planning accepts only passing validation backed by current applicable
   for (const required of [
     'entersEvidenceLifecycleAs', 'ValidationEvidence', 'evidenceadmissionstate:admitted',
     'evidencefreshnessstate:fresh', 'evidenceintegritystate:valid', 'withinValidityScope',
-    'applicableToObligation',
+    'applicableToObligation', 'semanticLifecycleState', 'semanticlifecyclestate:active',
   ]) assert.match(workQuery, new RegExp(required));
+});
+
+test('work planning exposes deterministic bounded pagination without silent truncation', async () => {
+  let workQuery;
+  const client = fakeClient();
+  const originalSelect = client.select;
+  client.select = async (query) => {
+    if (query.includes('SELECT ?gap ?subject')) {
+      workQuery = query;
+      return Array.from({ length: 51 }, (_, index) => ({
+        gap: binding('missing-current-passing-validation'),
+        subject: binding(`urn:usf:validationobligation:${index}`),
+      }));
+    }
+    return originalSelect(query);
+  };
+  const result = await planWork({ client }, { contract, offset: 50 });
+  assert.equal(result.gaps.length, 50);
+  assert.equal(result.truncated, true);
+  assert.equal(result.offset, 50);
+  assert.equal(result.nextOffset, 100);
+  assert.match(workQuery, /LIMIT 51 OFFSET 50/);
+});
+
+test('work planning projects active or unclassified validation obligations but excludes explicit non-active lifecycle states', async () => {
+  const queries = [];
+  const client = fakeClient();
+  const originalSelect = client.select;
+  client.select = async (query) => {
+    if (query.includes('SELECT ?gap ?subject')) {
+      queries.push(query);
+      return [];
+    }
+    return originalSelect(query);
+  };
+
+  await planWork({ client }, { contract });
+  assert.equal(queries.length, 1);
+  const query = queries[0];
+  assert.match(query, /FILTER NOT EXISTS \{\s*\?subject <urn:usf:ontology:semanticLifecycleState> \?validationLifecycle/);
+  assert.match(query, /FILTER \(\?validationLifecycle != <urn:usf:semanticlifecyclestate:active>\)/);
+
+  // The query is fail-closed for every explicitly non-active state while retaining
+  // legacy unclassified obligations and later explicit activation.
+  const projected = (state) => state == null || state === 'urn:usf:semanticlifecyclestate:active';
+  assert.equal(projected(null), true);
+  assert.equal(projected('urn:usf:semanticlifecyclestate:active'), true);
+  for (const state of ['deferred', 'draft', 'planned', 'proposed', 'deprecated', 'replaced', 'retired']) {
+    assert.equal(projected(`urn:usf:semanticlifecyclestate:${state}`), false);
+  }
 });
 
 test("proof-blocked contract projection is available but grants no materialisation authority", async () => {

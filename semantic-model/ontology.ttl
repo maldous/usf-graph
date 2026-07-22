@@ -4948,7 +4948,10 @@ usf:proofNonclaim usf:termUsageState <urn:usf:termusagestate:reservedfuturescope
 usf:recordsDecision usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>.
 usf:reducesConfidenceOf usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>.
 usf:reopensADR usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>.
-usf:requiredValidation usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>.
+usf:requiredValidation usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "evidence-proof-contract-enforcement";
+    usf:termUsageRationale "USED: an active contract may retain validation obligations whose own semantic lifecycle controls whether they are currently actionable; the work-plan query must not project an explicitly non-active obligation.".
 usf:requiresADR usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>.
 usf:storageLocator usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>.
 usf:supersedesDecision usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>.
