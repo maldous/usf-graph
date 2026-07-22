@@ -215,7 +215,8 @@ Before any planning:
 * reconcile packet and integration state;
 * verify USF MCP health;
 * verify credentials without exposing values;
-* verify disk, memory and concurrency capacity.
+* verify disk and memory safety, reconcile invocation fences, and begin
+  runtime concurrency discovery conservatively.
 
 Output:
 
@@ -1052,7 +1053,7 @@ systemd for service operation
 | Failure mode                                    | How it could fail                                                       | Required mitigation                                                                   |
 | ----------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | Orchestrator becomes larger than USF            | Months spent building a factory instead of closing semantic obligations | Deliver in controlled stages; enforce orchestration-overhead budget                   |
-| Too many agents reduce throughput               | Coordination, prompts, review and merge exceed implementation time      | Optimize accepted progress/hour; cap concurrency by integration capacity              |
+| Too many agents reduce throughput               | Coordination, prompts, review and merge exceed implementation time      | Optimize validated progress/hour; adapt invocation load to measured integration capacity |
 | Provider catalogue becomes stale                | Model removed, renamed or changed after qualification                   | Content-address catalogues, TTLs, actual-model receipts and automatic requalification |
 | Routed provider substitutes a model             | Requested model and actual model differ                                 | Record returned model; reject when policy requires a pinned model                     |
 | Free-provider quality collapses                 | Availability and behavior vary                                          | Circuit breakers, low initial trust, task-specific qualification and fallback         |

@@ -46,6 +46,8 @@ def test_shadow_cap_defers_are_not_missing(ctx):
         )
 
     eng._execute_one = fake_one  # type: ignore[assignment]
+    eng._coordinator_token = ctx.store.acquire_lease("coordinator", "cyc", "2999-01-01T00:00:00Z")
+    assert eng._coordinator_token is not None
     results = asyncio.run(eng.execute_packets(pset, RunMode.SHADOW, "cyc"))
 
     assert len(results) == 1  # exactly one dispatched
@@ -77,5 +79,7 @@ def test_no_cap_dispatches_all(ctx):
         )
 
     eng._execute_one = fake_one  # type: ignore[assignment]
+    eng._coordinator_token = ctx.store.acquire_lease("coordinator", "cyc", "2999-01-01T00:00:00Z")
+    assert eng._coordinator_token is not None
     results = asyncio.run(eng.execute_packets(pset, RunMode.SHADOW, "cyc"))
     assert len(results) == 3 and len(eng._dispatched_packet_ids) == 3

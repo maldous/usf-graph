@@ -263,6 +263,8 @@ def test_shadow_packets_caps_dispatch(ctx):
         return None
 
     eng._execute_one = fake_one  # type: ignore[assignment]
+    eng._coordinator_token = ctx.store.acquire_lease("coordinator", "cyc", "2999-01-01T00:00:00Z")
+    assert eng._coordinator_token is not None
     asyncio.run(eng.execute_packets(pset, RunMode.SHADOW, "cyc"))
     assert dispatched["n"] == 1  # capped from 3 -> 1
 

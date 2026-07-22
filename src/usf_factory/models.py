@@ -733,6 +733,9 @@ class PacketResult(FactoryModel):
     """A worker's structured result (DESIGN Phase 10)."""
 
     packet_id: str
+    # Factory-owned adaptive invocation identity. Workers cannot choose it; the
+    # coordinator binds it after the fenced invocation returns.
+    execution_attempt_id: str = ""
     status: PacketResultStatus
     agent_profile_id: str
     actual_provider: str | None = None

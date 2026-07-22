@@ -39,6 +39,10 @@ Locations are overridable via `USF_FACTORY_STATE`, `USF_FACTORY_CACHE`,
   against the remote system before allowing any retry;
 - blocks when exact reconciliation is unavailable or the authorization binding
   has changed.
+- reaps only expired packet claims, fences a prior adaptive invocation only
+  after that durable timeout proves it irrecoverably unavailable, and blocks on
+  any still-live or otherwise uncertain prior invocation. It never restores the
+  old concurrency decision or launches a speculative replacement.
 
 Worktrees are **ephemeral execution storage only** — ownership lives in the state
 store, never in a worktree. A protected delivery persists a Git bundle for the
@@ -55,8 +59,9 @@ versioned transition chain fail closed as `LEGACY_DELIVERY_TRANSITION_UNBOUND`.
 
 ## SQLite migration
 
-Startup creates the additive transition, quota, budget and assurance-index tables
-without rewriting prior history. Schema-v1 assurance receipts cannot authorize a
+Startup creates the additive transition, quota, budget, assurance-index and
+adaptive decision/invocation/observation tables without rewriting prior history.
+Schema-v1 assurance receipts cannot authorize a
 protected delivery. Existing complete records remain readable; existing active
 records without a transition head must be inspected and migrated explicitly.
 

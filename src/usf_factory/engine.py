@@ -14,10 +14,12 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from .adaptive_execution import AdaptiveExecutionController
 from .adaptive_routing import (
     MODE_ADAPTIVE,
     MODE_EXPLOIT,
@@ -176,6 +178,11 @@ class FactoryEngine:
         # result detection compares against THIS, never the full selected set — a
         # packet intentionally deferred by --shadow-packets is not a failure.
         self._dispatched_packet_ids: set[str] = set()
+        # Concurrency is discovered from observed validated throughput and host
+        # pressure.  A new process receives a new session and starts at one;
+        # no configured worker-count target is consulted.
+        self.adaptive_execution = AdaptiveExecutionController(ctx.store)
+        self._adaptive_downstream_backlog = 0
 
     # Executing modes (perform packet work); observe/plan-only never execute.
     _EXECUTING_MODES = (RunMode.SHADOW, RunMode.APPROVE_WAVE, RunMode.AUTONOMOUS_SAFE)
@@ -195,12 +202,23 @@ class FactoryEngine:
         # revived stale worker still cannot submit against a reclaimed packet.
         reaped_leases = self.ctx.store.reap_expired_leases()
         reaped_claims = self.ctx.store.reap_expired_claims()
-        if reaped_leases or reaped_claims:
+        invocation_reconciliation = self.adaptive_execution.reconcile_after_restart()
+        if reaped_leases or reaped_claims or any(invocation_reconciliation.values()):
             self.ctx.log_event(
                 "recovery.reaped",
                 stage="INIT",
                 cycle_id=cycle_id,
-                payload={"leases": reaped_leases, "claims": reaped_claims},
+                payload={
+                    "leases": reaped_leases,
+                    "claims": reaped_claims,
+                    "adaptive_invocations": invocation_reconciliation,
+                },
+            )
+        if invocation_reconciliation["pending"]:
+            cycle_state = "BLOCKED"
+            blockers.append(
+                "ADAPTIVE_INVOCATION_RECONCILIATION_REQUIRED: "
+                + ",".join(invocation_reconciliation["pending"])
             )
 
         # Detect an incomplete prior cycle.
@@ -979,9 +997,6 @@ class FactoryEngine:
         disposable workspace. Returns ``(result, reason)`` where reason is one of
         ``ok`` / ``timeout`` / ``fenced`` / ``budget``. The packet claim (``token``)
         is owned by the caller and preserved across attempts."""
-        from .budget import BudgetLedger, BudgetLimits
-
-        pid = packet.packet_id
         egress_block = self._authorise_source_egress(packet, agent, run_id)
         if egress_block:
             return (
@@ -994,6 +1009,77 @@ class FactoryEngine:
                 "source-egress",
             )
         worker: Any = self._worker_factory(mode, agent)  # type: ignore[misc]
+        try:
+            (
+                attempt_id,
+                admission_token,
+                workload,
+                decision,
+                active_concurrency,
+                queue_delay,
+            ) = await self.adaptive_execution.acquire(
+                packet=packet,
+                agent=agent,
+                run_id=run_id,
+                claim_token=token,
+                coordinator_owner=cycle_id,
+                coordinator_token=self._coordinator_token or 0,
+                downstream_backlog=self._adaptive_downstream_backlog,
+            )
+        except RuntimeError as exc:
+            if str(exc) not in {
+                "ADAPTIVE_PACKET_CLAIM_FENCED",
+                "ADAPTIVE_COORDINATOR_FENCED",
+            }:
+                raise
+            return None, "fenced"
+        invocation_started = time.monotonic()
+        adaptive_result: PacketResult | None = None
+        adaptive_reason = "uncertain"
+        try:
+            adaptive_result, adaptive_reason = await self._invoke_attempt_admitted(
+                agent, packet, cycle_id, run_id, token, claim_ttl, mode, worker
+            )
+            if adaptive_result is not None:
+                adaptive_result.execution_attempt_id = attempt_id
+                self._adaptive_downstream_backlog += 1
+            return adaptive_result, adaptive_reason
+        finally:
+            # The admitted call is settled even when cancellation or an
+            # unexpected exception escapes.  Unknown outcomes earn no success.
+            self.adaptive_execution.settle(
+                attempt_id=attempt_id,
+                admission_token=admission_token,
+                identity=workload,
+                decision=decision,
+                active_concurrency=active_concurrency,
+                packet=packet,
+                result=adaptive_result,
+                reason=adaptive_reason,
+                queue_delay_s=queue_delay,
+                elapsed_s=time.monotonic() - invocation_started,
+                downstream_backlog=self._adaptive_downstream_backlog,
+            )
+
+    async def _invoke_attempt_admitted(
+        self,
+        agent: AgentProfile,
+        packet: Packet,
+        cycle_id: str,
+        run_id: str,
+        token: int,
+        claim_ttl: int,
+        mode: RunMode,
+        worker: Any,
+    ) -> tuple[PacketResult | None, str]:
+        """Execute after atomic adaptive admission.
+
+        Kept separate so admission wraps every return and exception.  Capacity
+        deferral never consumes a routing redraw or invokes the provider.
+        """
+        from .budget import BudgetLedger, BudgetLimits
+
+        pid = packet.packet_id
         paid_limit = self._paid_budget_limit()
         ledger = BudgetLedger(
             self.ctx.store,
@@ -1412,13 +1498,17 @@ class FactoryEngine:
         deferred_by_cap = [
             pid for pid in pset.selected_packet_ids if pid not in self._dispatched_packet_ids
         ]
-        sem = asyncio.Semaphore(max(1, self.ctx.config.budgets.max_concurrent_workers))
-
-        async def _guarded(packet: Packet) -> PacketResult | None:
-            async with sem:
-                return await self._execute_one(packet, cycle_id, mode)
-
-        gathered = await asyncio.gather(*(_guarded(p) for p in selected))
+        selected_ids = {packet.packet_id for packet in selected}
+        if any(selected_ids.intersection(packet.conflicts_with) for packet in selected):
+            raise RuntimeError("CONFLICTING_PACKET_SELECTION")
+        if not self.ctx.store.lease_token_current("coordinator", self._coordinator_token or 0):
+            raise RuntimeError("COORDINATOR_LEASE_REQUIRED_FOR_EXECUTION")
+        # All distinct packets may queue concurrently, but only an atomically
+        # admitted subset can enter provider invocation.  The selected load is
+        # an ephemeral controller decision, not a semaphore/configuration value.
+        gathered = await asyncio.gather(
+            *(self._execute_one(packet, cycle_id, mode) for packet in selected)
+        )
         results = [r for r in gathered if r is not None]
         self.ctx.log_event(
             "execute.done",
@@ -1918,6 +2008,9 @@ class FactoryEngine:
         # latency from the propagated usage). Unknown metrics stay unrecorded (not
         # fabricated zeros); they feed roster ranking tie-breaks.
         validated = bool(getattr(receipt, "all_passed", False))
+        adaptive_validated = validated and (
+            not needs_review or bool(reviewer is not None and review.approved)
+        )
         for q in quals:
             r = results_by_pid.get(q.packet_id)
             pkt = by_id.get(q.packet_id)
@@ -1925,6 +2018,16 @@ class FactoryEngine:
                 self._record_profile_metric(
                     r, pkt.task_class, accepted=q.accepted, validated=validated
                 )
+                self.adaptive_execution.record_validated_outcome(
+                    r.packet_id,
+                    attempt_id=r.execution_attempt_id,
+                    accepted=q.accepted,
+                    validated=adaptive_validated,
+                    independently_reviewed=(
+                        bool(review.approved) if needs_review and reviewer is not None else None
+                    ),
+                )
+        self._adaptive_downstream_backlog = 0
 
         # Fail-closed terminal decision.
         fail_reasons: list[str] = []

@@ -154,7 +154,6 @@ class BudgetConfig(_Base):
     # (mirror fetch, recovery), during which the heartbeat cannot renew it.
     max_preflight_wall_s: int = 900
     max_no_progress_cycles: int = 2
-    max_concurrent_workers: int = 2
 
 
 class QualificationConfig(_Base):

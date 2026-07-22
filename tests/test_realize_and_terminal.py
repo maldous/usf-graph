@@ -410,6 +410,10 @@ def test_run_authorization_caps_packets_in_mutating_modes(ctx, tmp_usf, monkeypa
         selected_packet_ids=[packet.packet_id for packet in packets],
     )
     engine = FactoryEngine(ctx)
+    engine._coordinator_token = ctx.store.acquire_lease(
+        "coordinator", "cycle", "2999-01-01T00:00:00Z"
+    )
+    assert engine._coordinator_token is not None
 
     async def no_op(_packet, _cycle_id, _mode):
         return None

@@ -42,7 +42,8 @@ src/usf_factory/
 ├── packet_compiler.py  deterministic packet compilation
 ├── conflict_graph.py   conflict classes + antichain selection
 ├── workforce.py        qualified dynamic workforce snapshot
-├── adaptive_routing.py eligibility + recorded seeded exploration
+├── adaptive_routing.py eligibility + recorded candidate exploration
+├── adaptive_execution.py observed-performance invocation admission and simulation
 ├── isolation.py        /usf mirror + disposable clones (never touches /usf)
 ├── workers.py          worker adapters + sandbox enforcement
 ├── result_validation.py deterministic result qualification + failure taxonomy
@@ -67,7 +68,7 @@ Phase 1-4 snapshot            engine.capture_snapshot compile_snapshot() via rea
 Phase 5  plan + critic        engine.plan_and_compile ProgrammePlanner + optional optimizer/critic
 Phase 6  packet compile       compile_packets        deterministic packets + conflict DAG + antichain
 Phase 8  schedule             engine.schedule_packets qualified dynamic workforce + adaptive routing
-Phase 9  execute (isolated)   engine.execute_packets  admitted workers in disposable clones
+Phase 9  execute (isolated)   engine.execute_packets  adaptively admitted workers in disposable clones
 Phase 10 result qualify       engine.qualify_results  deterministic checks + failure taxonomy
 Phase 11 pre-integrate        deterministic_preintegrate  conflict check; unresolved conflict blocks for operator
 Phase 12 review               provider-diverse substantive review where required
@@ -85,10 +86,12 @@ Each wave is a **disposable antichain**; there is no pre-planned "Wave 2".
   durable artifact a stable id independent of wall-clock/locale/order.
 - Snapshots, obligation graphs, packets, and packet sets reproduce identical ids
   for identical inputs (verified in `tests/test_e2e.py::test_cycle_is_deterministic`).
-- Adaptive exploration uses a fresh cryptographic seed recorded in the routing
-  receipt. Receipt replay is deterministic from that recorded seed; two new live
-  runs over otherwise identical inputs are intentionally allowed to explore
-  different candidates.
+- Adaptive invocation admission starts at one after restart, measures exact
+  outcomes and host conditions, and uses unseeded adjacent probing. Timing and
+  chosen load are intentionally not replayed. Its immutable observations,
+  decision digests, active-at-admission count, fences and result bindings explain
+  each decision. Canonical packet identity, integration order and result
+  qualification remain deterministic.
 - Phase transitions are persisted as they occur. External delivery effects have
   CAS-bound input and persisted uncertain intent, and are reconciled before any
   retry. Coordinator and packet fencing tokens reject stale owners.
@@ -107,6 +110,8 @@ Each wave is a **disposable antichain**; there is no pre-planned "Wave 2".
 - Live work-plan planner, optional optimizer/critic, deterministic packet compiler,
   conflict DAG and antichain.
 - Qualified dynamic workforce with task-specific adaptive routing and recorded seeds.
+- Runtime-discovered packet parallelism with atomic, coordinator- and
+  packet-fenced invocation admission; no configured capacity target.
 - Git mirror isolation + disposable clones; sandbox enforcement.
 - Result qualification + failure taxonomy; deterministic pre-integration + semantic conflict detection; advisory review; validation gate runner; learning with CI.
 - Full non-mutating cycle and a protected delivery coordinator whose mutation

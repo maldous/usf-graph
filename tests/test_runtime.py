@@ -235,9 +235,8 @@ def test_shadow_mode_executes_without_integration(ctx, tmp_usf):
 
 
 @pytest.mark.e2e
-def test_concurrency_executes_four_packets(ctx, tmp_usf):
+def test_adaptive_execution_completes_four_distinct_packets(ctx, tmp_usf):
     ctx.config.safety.autonomous_safe_enabled = True
-    ctx.config.budgets.max_concurrent_workers = 4
     seed_agent(
         ctx.store,
         roles=[AdmissionRole.READ_ONLY_ANALYST, AdmissionRole.PLANNER_CANDIDATE],
@@ -266,6 +265,7 @@ def test_concurrency_executes_four_packets(ctx, tmp_usf):
     receipt = asyncio.run(eng.run_cycle(RunMode.SHADOW))
     assert receipt.selected_packets == 4
     assert ctx.store.count("packet_results") == 4
+    assert ctx.store.count("adaptive_invocations") == 4
 
 
 @pytest.mark.e2e

@@ -31,7 +31,16 @@ ANALYST = AdmissionRole.READ_ONLY_ANALYST
 
 def _base(eng: FactoryEngine) -> str:
     """Ensure the factory mirror exists (preflight normally does this) and return
-    its head, so direct ``_execute_one`` calls have a real base commit to clone."""
+    its head, so direct ``_execute_one`` calls have a real base commit to clone.
+
+    Direct invocation tests also establish the coordinator fence that a normal
+    ``run_cycle`` owns before execution.
+    """
+    if eng._coordinator_token is None:
+        eng._coordinator_token = eng.ctx.store.acquire_lease(
+            "coordinator", CID, "2999-01-01T00:00:00Z"
+        )
+        assert eng._coordinator_token is not None
     eng.iso.ensure_mirror()
     return eng.iso.mirror_head()
 

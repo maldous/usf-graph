@@ -1,8 +1,10 @@
 # USF Adaptive Semantic Factory
 
-A **deterministic, model-agnostic orchestration engine** that advances Universal
-Service Foundation (USF) semantic work by treating AI providers and models as
-replaceable, qualified workers.
+A model-agnostic orchestration engine with a **deterministic integrity and
+control plane** that advances Universal Service Foundation (USF) semantic work
+by treating AI providers and models as replaceable, qualified workers. Runtime
+invocation timing and concurrency deliberately adapt to observed conditions;
+their decisions and outcomes are auditable rather than timing-replayable.
 
 The deterministic control plane owns the loop. Models are workers. The objective
 is not to maximize model calls — it is to maximize:
@@ -38,6 +40,14 @@ result, and this host cannot provide the required publication filesystem/network
 containment. Both conditions fail closed. Read-only planning and isolated local
 execution remain usable; a code path, passing local test or factory receipt is
 never authority evidence or a readiness verdict.
+
+**ADAPTIVE_NONDETERMINISTIC_EXECUTION: VERIFIED_LOCALLY.** Packet execution has
+no configured worker-count target or model/provider slot limit. It begins at one
+active invocation after every coordinator restart and continuously discovers
+useful load from accepted and validated result throughput, response degradation,
+host pressure and downstream backlog. See
+[`docs/adaptive-execution.md`](docs/adaptive-execution.md). This does not waive
+either protected-delivery blocker.
 
 ## Relationship with `usf-graph`
 
@@ -142,7 +152,7 @@ Provider discovery ─► Model registry ─► Qualification ─┐
 USF MCP ─► Semantic snapshot ─► Work-plan projection ─► Deterministic packet
 (read-only)   (deterministic)                             compiler + conflict DAG
                                                        │
-                         Qualified dynamic workforce + adaptive routing
+             Qualified dynamic workforce + adaptive routing/admission
                                                        │
                                     Isolated workers (disposable clones, no /usf)
                                                        │
