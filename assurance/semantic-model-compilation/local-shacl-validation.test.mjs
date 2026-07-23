@@ -1,17 +1,20 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import {
   effectiveLocalShaclPythonSource,
   localShaclPythonSource,
+  runLocalShaclValidation,
   validateLocalShaclRuntime,
 } from './local-shacl-validation.mjs';
 
 const roots = [];
+const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
 
 function runtimeFixture() {
   const root = mkdtempSync(join(tmpdir(), 'local-shacl-runtime-'));
@@ -110,6 +113,42 @@ test('effective harness binds one in-memory planted-fixture contract with exact 
   assert.equal(effectiveLocalShaclPythonSource.includes('focus_nodes=focus_nodes'), true);
   assert.equal(effectiveLocalShaclPythonSource.includes('unexpectedCodeCount'), true);
   assert.equal(effectiveLocalShaclPythonSource.includes('multipleCodeCount'), true);
+});
+
+test('effective harness executes the planted-fixture contract against registered graph and shapes', {
+  skip: !process.env.USF_LOCAL_SHACL_TEST_PYTHON,
+  timeout: 600_000,
+}, () => {
+  const executablePath = process.env.USF_LOCAL_SHACL_TEST_PYTHON;
+  const resolvedExecutablePath = realpathSync(executablePath);
+  const executableDigest = `sha256:${createHash('sha256').update(readFileSync(resolvedExecutablePath)).digest('hex')}`;
+  const evidence = JSON.parse(runLocalShaclValidation({
+    repositoryRoot,
+    runtime: { executablePath, resolvedExecutablePath, executableDigest },
+    arguments: [
+      '--expect-no-service',
+      '--focus',
+      'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation',
+    ],
+  }));
+  assert.deepEqual({
+    caseCount: evidence.plantedFixtureEvidence.caseCount,
+    contractConforms: evidence.plantedFixtureEvidence.contractConforms,
+    missingExpectedCount: evidence.plantedFixtureEvidence.missingExpectedCount,
+    multipleCodeCount: evidence.plantedFixtureEvidence.multipleCodeCount,
+    rawValidationConforms: evidence.plantedFixtureEvidence.rawValidationConforms,
+    unexpectedCodeCount: evidence.plantedFixtureEvidence.unexpectedCodeCount,
+    unrecognisedResultCount: evidence.plantedFixtureEvidence.unrecognisedResultCount,
+  }, {
+    caseCount: 25,
+    contractConforms: true,
+    missingExpectedCount: 0,
+    multipleCodeCount: 0,
+    rawValidationConforms: false,
+    unexpectedCodeCount: 0,
+    unrecognisedResultCount: 0,
+  });
+  assert.equal(evidence.plantedFixtureEvidenceDigest, evidence.plantedFixtureEvidence.evidenceDigest);
 });
 
 test('effective harness isolates optional review observations from authored semantic inputs', () => {

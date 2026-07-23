@@ -478,9 +478,9 @@ function validateEvidenceManifest(manifest) {
         || manifest.invocationMode !== 'NODE_TEST_PROGRAMMATIC_EXACT_FILES'
         || manifest.isolationMode !== 'none'
         || manifest.networkIsolation !== 'LINUX_NETWORK_NAMESPACE'
-        || manifest.localShaclPlantedFixtureCaseCount !== 12
-        || manifest.localShaclPlantedFixturePositiveControlCount !== 4
-        || manifest.localShaclPlantedFixtureNegativeControlCount !== 8
+        || manifest.localShaclPlantedFixtureCaseCount !== 25
+        || manifest.localShaclPlantedFixturePositiveControlCount !== 7
+        || manifest.localShaclPlantedFixtureNegativeControlCount !== 18
         || manifest.localShaclPlantedFixtureMissingExpectedCount !== 0
         || manifest.localShaclPlantedFixtureUnexpectedCodeCount !== 0
         || manifest.localShaclPlantedFixtureMultipleCodeCount !== 0
@@ -643,9 +643,18 @@ function validatePlantedFixtureEvidence(evidence) {
   const expectedCodes = [
     'PERMUTATION_FAMILY_SIGNATURE_COMPONENT_MISMATCH',
     'PERMUTATION_FAMILY_SIGNATURE_SUBJECT_ABSENT',
+    'PERMUTATION_RELATIONSHIP_REVIEW_AUTHORISATION_PROHIBITED',
+    'PERMUTATION_RELATIONSHIP_REVIEW_SIGNATURE_ABSENT',
     'PERMUTATION_REVIEW_TERM_ALGORITHM_ABSENT',
     'PERMUTATION_REVIEW_TERM_SET_MISMATCH',
+    'PERMUTATION_SEMANTIC_REVIEW_ALGORITHM_ABSENT',
+    'PERMUTATION_SEMANTIC_REVIEW_DISPOSITION_ABSENT',
+    'PERMUTATION_SEMANTIC_REVIEW_EVIDENCE_ABSENT',
+    'PERMUTATION_SEMANTIC_REVIEW_RATIONALE_ABSENT',
     'UNIVERSAL_CANDIDATE_AUTHORISATION_PROHIBITED',
+    'UNIVERSAL_CANDIDATE_ENDPOINT_MODE_INVALID',
+    'UNIVERSAL_CANDIDATE_FORM_COMPONENT_CONFLICT',
+    'UNIVERSAL_CANDIDATE_KIND_ABSENT',
     'UNIVERSAL_CANDIDATE_SUBJECT_ABSENT',
     'UNIVERSAL_CANDIDATE_WARRANTED_WITH_GAPS',
     'UNIVERSAL_REVIEW_TERM_ABSENT',
@@ -663,9 +672,9 @@ function validatePlantedFixtureEvidence(evidence) {
       || evidence.schemaVersion !== 1
       || evidence.validationScope !== 'PLANTED_PERMUTATION_REVIEW_FIXTURES'
       || evidence.fixtureIsolation !== 'IN_MEMORY_UNPUBLISHED_CANDIDATE'
-      || evidence.caseCount !== 12
-      || evidence.positiveControlCount !== 4
-      || evidence.negativeControlCount !== 8
+      || evidence.caseCount !== 25
+      || evidence.positiveControlCount !== 7
+      || evidence.negativeControlCount !== 18
       || !Array.isArray(evidence.catalogue)
       || !Array.isArray(evidence.resultRecords)
       || !Array.isArray(evidence.reasonCodeSet)

@@ -186,16 +186,29 @@ function rebindOptionClosure(overrides = {}, omitted = []) {
 function plantedFixtureEvidence(overrides = {}) {
   const cases = [
     ['candidate-authorisation-prohibited', 'UNIVERSAL_CANDIDATE_AUTHORISATION_PROHIBITED'],
+    ['candidate-datatype-endpoint-absent', 'UNIVERSAL_CANDIDATE_ENDPOINT_MODE_INVALID'],
+    ['candidate-form-component-conflict', 'UNIVERSAL_CANDIDATE_FORM_COMPONENT_CONFLICT'],
+    ['candidate-kind-absent', 'UNIVERSAL_CANDIDATE_KIND_ABSENT'],
     ['candidate-missing-subject', 'UNIVERSAL_CANDIDATE_SUBJECT_ABSENT'],
+    ['candidate-object-endpoint-conflict', 'UNIVERSAL_CANDIDATE_ENDPOINT_MODE_INVALID'],
     ['candidate-warranted-with-gaps', 'UNIVERSAL_CANDIDATE_WARRANTED_WITH_GAPS'],
     ['mismatched-family-components', 'PERMUTATION_FAMILY_SIGNATURE_COMPONENT_MISMATCH'],
     ['missing-family-subject', 'PERMUTATION_FAMILY_SIGNATURE_SUBJECT_ABSENT'],
     ['missing-reviewed-term', 'UNIVERSAL_REVIEW_TERM_ABSENT'],
     ['missing-term-algorithm', 'PERMUTATION_REVIEW_TERM_ALGORITHM_ABSENT'],
+    ['positive-datatype-candidate', null],
     ['positive-family-candidate', null],
     ['positive-family-review', null],
+    ['positive-object-candidate', null],
+    ['positive-relationship-review', null],
     ['positive-review-coverage', null],
     ['positive-term-review', null],
+    ['relationship-review-authorisation-prohibited', 'PERMUTATION_RELATIONSHIP_REVIEW_AUTHORISATION_PROHIBITED'],
+    ['relationship-review-signature-absent', 'PERMUTATION_RELATIONSHIP_REVIEW_SIGNATURE_ABSENT'],
+    ['semantic-review-algorithm-absent', 'PERMUTATION_SEMANTIC_REVIEW_ALGORITHM_ABSENT'],
+    ['semantic-review-disposition-absent', 'PERMUTATION_SEMANTIC_REVIEW_DISPOSITION_ABSENT'],
+    ['semantic-review-evidence-absent', 'PERMUTATION_SEMANTIC_REVIEW_EVIDENCE_ABSENT'],
+    ['semantic-review-rationale-absent', 'PERMUTATION_SEMANTIC_REVIEW_RATIONALE_ABSENT'],
     ['term-set-mismatch', 'PERMUTATION_REVIEW_TERM_SET_MISMATCH'],
   ];
   const catalogue = cases.map(([id, code]) => ({
@@ -219,8 +232,8 @@ function plantedFixtureEvidence(overrides = {}) {
     validationScope: 'PLANTED_PERMUTATION_REVIEW_FIXTURES',
     fixtureIsolation: 'IN_MEMORY_UNPUBLISHED_CANDIDATE',
     caseCount: catalogue.length,
-    positiveControlCount: 4,
-    negativeControlCount: 8,
+    positiveControlCount: 7,
+    negativeControlCount: 18,
     catalogue,
     catalogueDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(catalogue)),
     focusNodeSetDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(catalogue.map(({ focusNode }) => focusNode).sort())),
@@ -409,9 +422,9 @@ test('emits digest-bound evidence and a verified deterministic integrity envelop
   assert.equal(hermetic.localShaclRegisteredConstraintCount, 125);
   assert.equal(hermetic.localShaclActualServiceAlgebraNodeCount, 0);
   assert.equal(hermetic.localShaclValidationPhaseResultDigest, localShaclResult().evidence.validationPhaseResultDigest);
-  assert.equal(hermetic.localShaclPlantedFixtureCaseCount, 12);
-  assert.equal(hermetic.localShaclPlantedFixtureNegativeControlCount, 8);
-  assert.equal(hermetic.localShaclPlantedFixturePositiveControlCount, 4);
+  assert.equal(hermetic.localShaclPlantedFixtureCaseCount, 25);
+  assert.equal(hermetic.localShaclPlantedFixtureNegativeControlCount, 18);
+  assert.equal(hermetic.localShaclPlantedFixturePositiveControlCount, 7);
   assert.equal(hermetic.localShaclPlantedFixtureEvidenceDigest, localShaclResult().evidence.plantedFixtureEvidence.evidenceDigest);
   assert.equal(authorityControl.liveServiceConstraintCount, 0);
   assert.equal(authorityControl.liveServiceConstraintSetDigest, hermetic.localShaclLiveServiceConstraintSetDigest);
@@ -520,6 +533,9 @@ test('rejects incomplete or broadened local SHACL validation phases before live 
 
 test('rejects malformed planted-fixture evidence with exact outer digest bindings', () => {
   for (const mutation of [
+    { caseCount: 24 },
+    { positiveControlCount: 6 },
+    { negativeControlCount: 17 },
     { unexpectedCodeCount: 1, contractConforms: false },
     { missingExpectedCount: 1, contractConforms: false },
     { multipleCodeCount: 1, contractConforms: false },
@@ -771,14 +787,14 @@ test('rejects mixed, mislabeled, live-claiming and self-referential evidence', (
     localShaclLiveServiceConstraintSetDigest: compilerProofInternals.EMPTY_SET_DIGEST,
     localShaclLocallyEvaluatedConstraintCount: 125,
     localShaclPlantedFixtureCatalogueDigest: compilerProofInternals.sha256('fixture-catalogue'),
-    localShaclPlantedFixtureCaseCount: 12,
+    localShaclPlantedFixtureCaseCount: 25,
     localShaclPlantedFixtureEvidenceDigest: compilerProofInternals.sha256('fixture-evidence'),
     localShaclPlantedFixtureFixtureGraphDigest: compilerProofInternals.sha256('fixture-graph'),
     localShaclPlantedFixtureFocusNodeSetDigest: compilerProofInternals.sha256('fixture-focus'),
     localShaclPlantedFixtureMissingExpectedCount: 0,
     localShaclPlantedFixtureMultipleCodeCount: 0,
-    localShaclPlantedFixtureNegativeControlCount: 8,
-    localShaclPlantedFixturePositiveControlCount: 4,
+    localShaclPlantedFixtureNegativeControlCount: 18,
+    localShaclPlantedFixturePositiveControlCount: 7,
     localShaclPlantedFixtureReasonCodeSetDigest: compilerProofInternals.sha256('fixture-codes'),
     localShaclPlantedFixtureResultDigest: compilerProofInternals.sha256('fixture-results'),
     localShaclPlantedFixtureUnexpectedCodeCount: 0,
