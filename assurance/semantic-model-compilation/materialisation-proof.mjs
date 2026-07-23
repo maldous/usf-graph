@@ -18,7 +18,7 @@ const REQUIRED_PACKAGE_LOCK_DIGEST = 'sha256:e0f320742ed96b54765a39ccac219c05d72
 const REQUIRED_PACKAGES = Object.freeze({ n3: '2.1.1', 'rdf-canonize': '5.0.0', stardog: '10.0.1', yaml: '2.9.0' });
 const GIT_EXECUTABLE = '/usr/bin/git';
 const GPG_EXECUTABLE = '/usr/bin/gpg';
-const failureContext = { commands: [] };
+const failureContext = { commands: [], phase: 'PREFLIGHT' };
 const cases = [];
 
 const stable = (value) => Array.isArray(value) ? value.map(stable) : value && typeof value === 'object'
@@ -52,13 +52,15 @@ function record(id, expected, observed, { negative = false, detail = null } = {}
 }
 
 process.on('uncaughtException', (error) => {
+  const failureCode = error?.code
+    || `VALIDATION_EVIDENCE_${failureContext.phase}_FAILED`;
   const receipt = {
     schemaVersion: 1,
     recordKind: 'USF_VALIDATION_EVIDENCE_CANDIDATE',
     passed: false,
     eligibleForAdmission: false,
     authorityClaims: [],
-    failureCodes: [error?.code || 'VALIDATION_EVIDENCE_PRODUCER_FAILED'],
+    failureCodes: [failureCode],
     ...failureContext,
   };
   process.stdout.write(`${canonicalJson(receipt)}\n`);
@@ -318,6 +320,10 @@ if (process.argv.includes('--test-assertion-failure-only')) {
 if (process.argv.includes('--test-undefined-assertion-failure-only')) {
   record('test-undefined-failure', 'required', undefined, { negative: true });
 }
+if (process.argv.includes('--test-phase-failure-only')) {
+  failureContext.phase = 'TEST_PHASE_PROVENANCE';
+  throw new Error('test-only unclassified failure');
+}
 
 const require = createRequire(join(repo, 'package.json'));
 const canonicalModule = (path) => pathToFileURL(join(repo, path));
@@ -444,6 +450,7 @@ function oneObject(store, subject, predicate) {
 
 function binding(value) { return { value }; }
 
+failureContext.phase = 'LIVE_AUTHORITY_PROJECTION';
 const config = loadConfig();
 const projectionClient = createClient(config);
 const compilerValidationClient = createCompilerValidationClient({
@@ -466,6 +473,7 @@ const livePacket = await projectContract(live, { contract, objective: 'Refresh c
 record('active-packet-authorises-actions', true, livePacket.authorisedActions.length > 0);
 record('active-packet-authorises-paths', true, livePacket.authorisedPaths.length > 0);
 
+failureContext.phase = 'LOCAL_AUTHORITY_DATASET';
 const manifest = loadManifest(semanticModelDirectory);
 checkLocal(manifest);
 const candidateDataset = loadAuthorityDataset(manifest);
@@ -473,6 +481,7 @@ record('candidate-contract-active', ACTIVE, oneObject(candidateDataset.store, co
 record('candidate-contract-relies-on-current-proof', proofResult, oneObject(candidateDataset.store, contract, 'urn:usf:ontology:reliesOnProofResult'));
 record('candidate-realisation-implementable', 'urn:usf:realisationstate:implementable', oneObject(candidateDataset.store, realisation, 'urn:usf:ontology:realisationState'));
 
+failureContext.phase = 'SEMANTIC_COMPILER_VALIDATION';
 const publicationAuthorityWitness = await readSemanticAuthorityWitness(projectionClient);
 let candidate;
 try {
@@ -506,10 +515,12 @@ failureContext.commands.push({
 });
 record('candidate-transaction-rolled-back', 'validated-rolled-back', candidate.commitOutcome.state);
 record('candidate-exact-state-verified', true, candidate.commitOutcome.exactCandidateStateVerified);
+failureContext.phase = 'CANDIDATE_DEPENDENCY_BINDING';
 const candidateGraphInventory = candidate.commitOutcome.candidateGraphs;
 const candidateDependencySetDigest = authorityDependencySetDigest(candidateGraphInventory);
 if (expectedDependencySetDigest) record('candidate-dependency-set-digest', expectedDependencySetDigest, candidateDependencySetDigest);
 
+failureContext.phase = 'MATERIALISATION_AUTHORITY_LAYOUT';
 const activeContext = current;
 const blockedContext = {
   ...activeContext,
@@ -526,6 +537,7 @@ const selectedRule = activeContext.rules.find((rule) => rule.family === 'urn:usf
   && rule.pathRole === 'urn:usf:pathrole:assurancesource'
   && rule.representationFormat === 'urn:usf:representationformat:ecmascriptmodule2024');
 if (!selectedRule) fail('ASSURANCE_ECMASCRIPT_MATERIALISATION_RULE_UNAVAILABLE');
+failureContext.phase = 'MATERIALISATION_PLAN';
 const content = 'export const materialisationControlPlaneFixture = true;\n';
 const operation = {
   action: 'write-file', artefactFamily: selectedRule.family, content,
@@ -545,6 +557,7 @@ record('plan-bounded', true, Buffer.byteLength(jcs(firstPlan)) <= 65_536);
 record('plan-validation', true, validateMaterialisationPlan(activeContext, firstPlan).ok);
 
 const applyRoot = mkdtempSync(join(tmpdir(), 'materialisation-apply-proof-'));
+failureContext.phase = 'MATERIALISATION_EXECUTION';
 try {
   record('materialisation-dry-run', true, materialisePlan({ authority: activeContext, plan: firstPlan, repositoryRoot: applyRoot }).dryRun);
   record('materialisation-first-apply', true, materialisePlan({ authority: activeContext, plan: firstPlan, repositoryRoot: applyRoot, apply: true }).applied);
@@ -586,6 +599,7 @@ try {
   rmSync(outsideRoot, { recursive: true, force: true });
 }
 
+failureContext.phase = 'MATERIALISATION_NEGATIVE_VALIDATION';
 const stalePlan = structuredClone(firstPlan);
 stalePlan.authorityDigest = `sha256:${'0'.repeat(64)}`;
 delete stalePlan.planDigest;
@@ -597,6 +611,7 @@ delete tamperedPlan.planDigest;
 tamperedPlan.planDigest = digest(jcs(tamperedPlan));
 record('tampered-content-plan', true, validateMaterialisationPlan(activeContext, tamperedPlan).failures.some((item) => item.code === 'operation-content-mismatch'), { negative: true });
 
+failureContext.phase = 'FOCUSED_CONTROL_PLANE_TESTS';
 const focusedTestArguments = ['--test',
   'capabilities/repository-external-artefact-materialisation/materialisation-plan.test.mjs',
   'configuration/semantic-assurance/semantic-authority.test.mjs',
@@ -620,6 +635,7 @@ const focusedTests = runBoundCommand('focused-control-plane-tests', process.exec
 const focusedTestCount = Number(focusedTests.match(/# tests ([0-9]+)/)?.[1] || 0);
 record('focused-control-plane-tests', 'passed', focusedTestCount > 0 && /# fail 0/.test(focusedTests) ? 'passed' : 'failed');
 
+failureContext.phase = 'EVIDENCE_ASSEMBLY';
 const implementationSources = sourceSetDigest([
   'assurance/semantic-model-compilation/materialisation-proof.hostile-test.mjs',
   'capabilities/semantic-model-compilation/authority-binding.mjs',
@@ -700,6 +716,7 @@ const evidenceManifest = { ...evidenceCore, exactEvidenceSetDigest };
 const evidenceManifestBytes = Buffer.from(jcs(evidenceManifest));
 const evidenceManifestDescriptor = putCas(evidenceManifestBytes, 'application/json');
 
+failureContext.phase = 'EVIDENCE_ATTESTATION';
 const seed = createHash('sha256').update('repository-materialisation-control-plane-integrity-key').digest();
 const privateKey = createPrivateKey({ key: Buffer.concat([Buffer.from('302e020100300506032b657004220420', 'hex'), seed]), format: 'der', type: 'pkcs8' });
 const publicKey = createPublicKey(privateKey);
@@ -730,6 +747,7 @@ mkdirSync(outputRoot, { recursive: true });
 writeFileSync(join(outputRoot, 'evidence-manifest.json'), evidenceManifestBytes, { mode: 0o600 });
 writeFileSync(join(outputRoot, 'proof-attestation.dsse.json'), proofAttestationBytes, { mode: 0o600 });
 
+failureContext.phase = 'EVIDENCE_RECEIPT_OUTPUT';
 process.stdout.write(`${JSON.stringify({
   schemaVersion: 1,
   recordKind: 'USF_VALIDATION_EVIDENCE_CANDIDATE_RECEIPT',

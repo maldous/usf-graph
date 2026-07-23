@@ -200,6 +200,17 @@ test('undefined assertion values retain the exact failure code and digest bindin
   assert.deepEqual(receipt.authorityClaims, []);
 });
 
+test('unclassified failures retain their exact stable execution phase', () => {
+  const { result, receipt } = runProducer({ mode: '--test-phase-failure-only' });
+  assert.equal(result.status, 1);
+  assert.deepEqual(receipt.failureCodes, [
+    'VALIDATION_EVIDENCE_TEST_PHASE_PROVENANCE_FAILED',
+  ]);
+  assert.equal(receipt.phase, 'TEST_PHASE_PROVENANCE');
+  assert.equal(receipt.eligibleForAdmission, false);
+  assert.deepEqual(receipt.authorityClaims, []);
+});
+
 test('post-preflight loading resolves the canonical authority binding and semantic-model manifest', () => {
   const { result, receipt } = runProducer({ mode: '--test-authority-loading-only' });
   assert.equal(result.status, 0);
