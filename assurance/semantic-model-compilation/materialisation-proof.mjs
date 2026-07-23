@@ -557,16 +557,20 @@ record('plan-bounded', true, Buffer.byteLength(jcs(firstPlan)) <= 65_536);
 record('plan-validation', true, validateMaterialisationPlan(activeContext, firstPlan).ok);
 
 const applyRoot = mkdtempSync(join(tmpdir(), 'materialisation-apply-proof-'));
-failureContext.phase = 'MATERIALISATION_EXECUTION';
+failureContext.phase = 'MATERIALISATION_DRY_RUN';
 try {
   record('materialisation-dry-run', true, materialisePlan({ authority: activeContext, plan: firstPlan, repositoryRoot: applyRoot }).dryRun);
+  failureContext.phase = 'MATERIALISATION_FIRST_APPLY';
   record('materialisation-first-apply', true, materialisePlan({ authority: activeContext, plan: firstPlan, repositoryRoot: applyRoot, apply: true }).applied);
+  failureContext.phase = 'MATERIALISATION_IDEMPOTENCE';
   const repeated = materialisePlan({ authority: activeContext, plan: firstPlan, repositoryRoot: applyRoot, apply: true });
   record('materialisation-idempotence', 'already-applied', repeated.operations[0].state);
 } finally {
+  failureContext.phase = 'MATERIALISATION_APPLY_CLEANUP';
   rmSync(applyRoot, { recursive: true, force: true });
 }
 
+failureContext.phase = 'MATERIALISATION_ROLLBACK_SETUP';
 const rollbackRoot = mkdtempSync(join(tmpdir(), 'materialisation-rollback-proof-'));
 try {
   mkdirSync(join(rollbackRoot, 'assurance'), { recursive: true });
@@ -578,23 +582,28 @@ try {
   ], contract);
   writeFileSync(existing, 'concurrent-change\n');
   let rollbackState = 'accepted';
+  failureContext.phase = 'MATERIALISATION_ROLLBACK_EXECUTION';
   try { materialisePlan({ authority: activeContext, plan: rollbackPlan, repositoryRoot: rollbackRoot, apply: true }); }
   catch { rollbackState = existsSync(join(rollbackRoot, 'assurance/transient.fixture.mjs')) ? 'partial' : 'rolled-back'; }
   record('materialisation-rollback', 'rolled-back', rollbackState, { negative: true });
 } finally {
+  failureContext.phase = 'MATERIALISATION_ROLLBACK_CLEANUP';
   rmSync(rollbackRoot, { recursive: true, force: true });
 }
 
+failureContext.phase = 'MATERIALISATION_SYMLINK_SETUP';
 const outsideRoot = mkdtempSync(join(tmpdir(), 'materialisation-outside-proof-'));
 const symlinkRoot = mkdtempSync(join(tmpdir(), 'materialisation-symlink-proof-'));
 try {
   symlinkSync(outsideRoot, join(symlinkRoot, 'assurance'), 'dir');
   let traversal = 'accepted';
+  failureContext.phase = 'MATERIALISATION_SYMLINK_EXECUTION';
   try { materialisePlan({ authority: activeContext, plan: firstPlan, repositoryRoot: symlinkRoot, apply: true }); }
   catch { traversal = 'rejected'; }
   record('symbolic-link-traversal', 'rejected', traversal, { negative: true });
   record('symbolic-link-outside-write', false, existsSync(join(outsideRoot, 'materialisation-control-plane.fixture.mjs')), { negative: true });
 } finally {
+  failureContext.phase = 'MATERIALISATION_SYMLINK_CLEANUP';
   rmSync(symlinkRoot, { recursive: true, force: true });
   rmSync(outsideRoot, { recursive: true, force: true });
 }
