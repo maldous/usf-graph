@@ -118,7 +118,7 @@
 <urn:usf:proofalgorithm:repositorymaterialisationcontrolplane> a usf:ProofAlgorithm;
     usf:canonicalName "repositorymaterialisationcontrolplane";
     usf:proofAlgorithmSourcePath "assurance/semantic-model-compilation/materialisation-proof.mjs";
-    usf:proofAlgorithmSourceDigest "sha256:3d31fa5e2c00a3345486b960d132347808f849c5b91cd35118624cdb92495df0".
+    usf:proofAlgorithmSourceDigest "sha256:d7f6a76965a1de5ea3ad02144e541f1de6d3c9586a539dd453a7f5cbb3c5c4e5".
 <urn:usf:proofalgorithmversion:repositorymaterialisationcontrolplane36730e3b16012c4f4c228b12217cf340be2fcfdccaec6b024846b4ef9ba4f6ae> a usf:ProofAlgorithmVersion;
     usf:canonicalName "repositorymaterialisationcontrolplane36730e3b16012c4f4c228b12217cf340be2fcfdccaec6b024846b4ef9ba4f6ae";
     usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:repositorymaterialisationcontrolplane>;
@@ -127,6 +127,10 @@
     usf:canonicalName "repositorymaterialisationcontrolplane3d31fa5e2c00a3345486b960d132347808f849c5b91cd35118624cdb92495df0";
     usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:repositorymaterialisationcontrolplane>;
     usf:proofAlgorithmVersionIdentifier "1.2.0".
+<urn:usf:proofalgorithmversion:repositorymaterialisationcontrolplaned7f6a76965a1de5ea3ad02144e541f1de6d3c9586a539dd453a7f5cbb3c5c4e5> a usf:ProofAlgorithmVersion;
+    usf:canonicalName "repositorymaterialisationcontrolplaned7f6a76965a1de5ea3ad02144e541f1de6d3c9586a539dd453a7f5cbb3c5c4e5";
+    usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:repositorymaterialisationcontrolplane>;
+    usf:proofAlgorithmVersionIdentifier "1.3.0".
 <urn:usf:proof:repositorymaterialisationcontrolplane> a usf:Proof;
     usf:canonicalName "repositorymaterialisationcontrolplane";
     usf:atRung rung:behaviour;
