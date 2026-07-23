@@ -118,7 +118,7 @@
 <urn:usf:proofalgorithm:repositorymaterialisationcontrolplane> a usf:ProofAlgorithm;
     usf:canonicalName "repositorymaterialisationcontrolplane";
     usf:proofAlgorithmSourcePath "assurance/semantic-model-compilation/materialisation-proof.mjs";
-    usf:proofAlgorithmSourceDigest "sha256:0462179a9c31f58a376ae028dcf831458adac1e95b3ac7939410415b5f580bf8".
+    usf:proofAlgorithmSourceDigest "sha256:15c68978f6c0a791ccfd4adcf6fa437a3e861bc18e53d56cb33eb170cddcf0b6".
 <urn:usf:proofalgorithmversion:repositorymaterialisationcontrolplane36730e3b16012c4f4c228b12217cf340be2fcfdccaec6b024846b4ef9ba4f6ae> a usf:ProofAlgorithmVersion;
     usf:canonicalName "repositorymaterialisationcontrolplane36730e3b16012c4f4c228b12217cf340be2fcfdccaec6b024846b4ef9ba4f6ae";
     usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:repositorymaterialisationcontrolplane>;
@@ -135,6 +135,10 @@
     usf:canonicalName "repositorymaterialisationcontrolplane0462179a9c31f58a376ae028dcf831458adac1e95b3ac7939410415b5f580bf8";
     usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:repositorymaterialisationcontrolplane>;
     usf:proofAlgorithmVersionIdentifier "1.3.1".
+<urn:usf:proofalgorithmversion:repositorymaterialisationcontrolplane15c68978f6c0a791ccfd4adcf6fa437a3e861bc18e53d56cb33eb170cddcf0b6> a usf:ProofAlgorithmVersion;
+    usf:canonicalName "repositorymaterialisationcontrolplane15c68978f6c0a791ccfd4adcf6fa437a3e861bc18e53d56cb33eb170cddcf0b6";
+    usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:repositorymaterialisationcontrolplane>;
+    usf:proofAlgorithmVersionIdentifier "1.3.2".
 <urn:usf:proof:repositorymaterialisationcontrolplane> a usf:Proof;
     usf:canonicalName "repositorymaterialisationcontrolplane";
     usf:atRung rung:behaviour;
@@ -162,26 +166,26 @@
     usf:hasProofResultState <urn:usf:proofresultstate:successful>;
     usf:proofResultForObligation <urn:usf:proofobligation:repositoryexternalartefactmaterialisation>;
     usf:usesAdmittedEvidence <urn:usf:evidenceresult:repositorymaterialisationcontrolplane>;
-    usf:evidenceSetDigest "sha256:6c64e6b11a59577a93d21619afe008c9ecba60ca3bfb0db01fce0f2e4c2e59de";
+    usf:evidenceSetDigest "sha256:f64408f39fe5c8f5ca6d57ddfdd453b3e22b52c6d901a5aaa30c4823c6fa7d64";
     usf:usesProofAlgorithm <urn:usf:proofalgorithm:repositorymaterialisationcontrolplane>;
-    usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:repositorymaterialisationcontrolplane0462179a9c31f58a376ae028dcf831458adac1e95b3ac7939410415b5f580bf8>;
+    usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:repositorymaterialisationcontrolplane15c68978f6c0a791ccfd4adcf6fa437a3e861bc18e53d56cb33eb170cddcf0b6>;
     usf:evaluatedByValidator <urn:usf:validatorrule:validatematerialisationcontrolplane>;
     usf:proofExecutionEnvironment env:hermetic;
     usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
     usf:confidenceBasis <urn:usf:evidenceresult:repositorymaterialisationcontrolplane>;
     usf:uncertaintyStatement "The result proves current fail-closed pre-activation and deterministic post-activation planner, validator, bounded packet and transactional apply behaviour against the accepted repository layout decision. It does not prove final repository contents, executable capability delivery, environment readiness or clean-clone closure.";
     usf:proofNonclaim <urn:usf:nonclaim:materialisationcontrolplaneproofisruntimecapabilitydelivery>, <urn:usf:nonclaim:hermeticevaluationsignatureprovidesproductionauthenticity>;
-    usf:evaluatedAt "2026-07-23T06:34:15Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+    usf:evaluatedAt "2026-07-23T17:39:45Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
     usf:hasAuthorityBinding <urn:usf:proofauthoritybinding:repositorymaterialisationcontrolplane>;
     usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 <urn:usf:proofauthoritybinding:repositorymaterialisationcontrolplane> a usf:ProofAuthorityBinding;
     usf:canonicalName "repositorymaterialisationcontrolplane";
-    usf:bindingEvaluatedAuthorityDigest "sha256:6b361518342b1c0a9185b627dd8378a04f054ac4e55c3a9a446861de1cd0f04b";
-    usf:bindingDependencySetDigest "sha256:b52325a1bafef6d9269930181480c6e7392da4609d605fb58b2928c8c47c5a07";
+    usf:bindingEvaluatedAuthorityDigest "sha256:521fb88cd4c4975e80c63e7359ebbed6a9d6b712961720ee89469c93ff0123f5";
+    usf:bindingDependencySetDigest "sha256:4d1ca4ba4182d8699f99d2d94385403e2ef88c5079f3c583f295e2f01910d953";
     usf:bindingDependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
     usf:usesAuthorityBindingRule <urn:usf:authoritybindingrule:selfpublicationclosure>;
     usf:requiresPostPublicationReevaluation true;
-    usf:authorityBindingEvidenceDigest "sha256:df69b2b994ce6cb78f9b81039e6a469fdecb083ec63b4a4e3ec56336cb6cf0fe";
+    usf:authorityBindingEvidenceDigest "sha256:2b291e65acfb5d8e62c9b19858ed7ea7d573513ae5b079280f00b56942c37a74";
     usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:coverage"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:obligations"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:readiness"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:surfaces"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:proofs"^^<http://www.w3.org/2001/XMLSchema#anyURI>.
 <urn:usf:proofobligation:compilerliveauthoritycontrol> a usf:ProofObligation;
     usf:canonicalName "compilerliveauthoritycontrol";
