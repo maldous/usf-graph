@@ -19,6 +19,7 @@ const REQUIRED_PACKAGES = Object.freeze({ n3: '2.1.1', 'rdf-canonize': '5.0.0', 
 const GIT_EXECUTABLE = '/usr/bin/git';
 const GPG_EXECUTABLE = '/usr/bin/gpg';
 const failureContext = { commands: [] };
+const cases = [];
 
 const stable = (value) => Array.isArray(value) ? value.map(stable) : value && typeof value === 'object'
   ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])])) : value;
@@ -33,6 +34,19 @@ class EvidenceProducerError extends Error {
 }
 
 function fail(code) { throw new EvidenceProducerError(code); }
+
+function record(id, expected, observed, { negative = false, detail = null } = {}) {
+  const passed = expected === observed;
+  cases.push({ id, expected, observed, passed, negative, ...(detail ? { detail } : {}) });
+  if (!passed) {
+    failureContext.failedAssertion = {
+      id,
+      expectedDigest: sha256(canonicalJson(expected)),
+      observedDigest: sha256(canonicalJson(observed)),
+    };
+    fail(`ASSERTION_FAILED_${id.toUpperCase().replaceAll('-', '_')}`);
+  }
+}
 
 process.on('uncaughtException', (error) => {
   const receipt = {
@@ -295,6 +309,9 @@ if (process.argv.includes('--test-preflight-only')) {
   })}\n`);
   process.exit(0);
 }
+if (process.argv.includes('--test-assertion-failure-only')) {
+  record('test-explicit-failure', true, false, { negative: true });
+}
 
 const require = createRequire(join(repo, 'package.json'));
 const canonicalModule = (path) => pathToFileURL(join(repo, path));
@@ -397,14 +414,6 @@ const PROOF_BLOCKED = 'urn:usf:contractactivationstate:proofblocked';
 const SUCCESSFUL = 'urn:usf:proofresultstate:successful';
 const ACCEPTED = 'urn:usf:decisionstate:accepted';
 const { namedNode } = DataFactory;
-const cases = [];
-
-function record(id, expected, observed, { negative = false, detail = null } = {}) {
-  const passed = expected === observed;
-  cases.push({ id, expected, observed, passed, negative, ...(detail ? { detail } : {}) });
-  if (!passed) throw new Error(`${id}: expected ${expected}, observed ${observed}`);
-}
-
 function sourceSetDigest(paths) {
   const records = paths.slice().sort().map((path) => ({ path, digest: sha256(readFileSync(join(repo, path))) }));
   return { records, digest: digest(jcs(records)) };
@@ -510,7 +519,7 @@ record('current-authority-context-active', ACTIVE, activeContext.contract.activa
 const selectedRule = activeContext.rules.find((rule) => rule.family === 'urn:usf:artefactfamily:assurancesource'
   && rule.pathRole === 'urn:usf:pathrole:assurancesource'
   && rule.representationFormat === 'urn:usf:representationformat:ecmascriptmodule2024');
-if (!selectedRule) throw new Error('current authority has no assurance ECMAScript materialisation rule');
+if (!selectedRule) fail('ASSURANCE_ECMASCRIPT_MATERIALISATION_RULE_UNAVAILABLE');
 const content = 'export const materialisationControlPlaneFixture = true;\n';
 const operation = {
   action: 'write-file', artefactFamily: selectedRule.family, content,

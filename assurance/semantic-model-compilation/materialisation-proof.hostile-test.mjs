@@ -172,6 +172,19 @@ test('preflight receipt is deterministic for identical explicit inputs', () => {
   assert.deepEqual(first.receipt, second.receipt);
 });
 
+test('assertion failures report a stable exact code without claiming evidence success', () => {
+  const { result, receipt } = runProducer({ mode: '--test-assertion-failure-only' });
+  assert.equal(result.status, 1);
+  assert.deepEqual(receipt.failureCodes, ['ASSERTION_FAILED_TEST_EXPLICIT_FAILURE']);
+  assert.deepEqual(receipt.failedAssertion, {
+    id: 'test-explicit-failure',
+    expectedDigest: sha256('true'),
+    observedDigest: sha256('false'),
+  });
+  assert.equal(receipt.eligibleForAdmission, false);
+  assert.deepEqual(receipt.authorityClaims, []);
+});
+
 test('post-preflight loading resolves the canonical authority binding and semantic-model manifest', () => {
   const { result, receipt } = runProducer({ mode: '--test-authority-loading-only' });
   assert.equal(result.status, 0);
