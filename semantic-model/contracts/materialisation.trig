@@ -122,7 +122,7 @@ cf:repositoryexternalartefactmaterialisationuisemantics a usf:ContractFacet;
 <urn:usf:validationobligation:repositoryexternalartefactmaterialisation> a usf:ValidationObligation;
     usf:canonicalName "repositoryexternalartefactmaterialisation";
     usf:definition "Reserved validation-evidence lifecycle for repository-external artefact materialisation. It becomes actionable only when explicitly activated after an authority-grade evidence producer and admission path are available; factory execution receipts do not satisfy it.";
-    usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:deferred>;
+    usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:active>;
     usf:validationForContract <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation>.
 <urn:usf:validationenvironment:isolatedcleanclone> a usf:ValidationEnvironment;
     usf:canonicalName "isolatedcleanclone";
