@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
+import { discoverTestInventory, TEST_PROFILES } from '../../assurance/semantic-model-compilation/test-runner.mjs';
 import { compilerProofCommandInternals, compilerProofSourcePaths, runCompilerProof } from './compiler-proof-command.mjs';
 
 const authorityDigest = `sha256:${'a'.repeat(64)}`;
@@ -72,4 +73,37 @@ test('accepts only the exact configuration and explicit secret resolver pair wit
   assert.ok(shaclScope.shapeSourceFileCount > 0);
   assert.match(shaclScope.registeredConstraintSetDigest, /^sha256:[0-9a-f]{64}$/);
   assert.match(shaclScope.shapeSourceSetDigest, /^sha256:[0-9a-f]{64}$/);
+});
+
+test('binds every discovered semantic-assurance test into the immutable proof source inventory', () => {
+  const inventory = discoverTestInventory({
+    repositoryRoot: process.cwd(),
+    authorisedRoots: TEST_PROFILES['semantic-assurance'],
+  });
+  assert.equal(
+    compilerProofCommandInternals.validateCompilerProofSourceInventory(
+      compilerProofSourcePaths,
+      inventory,
+    ),
+    inventory,
+  );
+  const omitted = compilerProofSourcePaths.filter(
+    (path) => path !== 'processes/semantic-assurance/repository-materialisation-gateway.test.mjs',
+  );
+  assert.throws(
+    () => compilerProofCommandInternals.validateCompilerProofSourceInventory(omitted, inventory),
+    /compiler proof source inventory omits discovered tests: processes\/semantic-assurance\/repository-materialisation-gateway\.test\.mjs/,
+  );
+  for (const path of [
+    'capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs',
+    'configuration/semantic-assurance/stardog-connection.mjs',
+    'processes/semantic-assurance/repository-materialisation-command.mjs',
+    'processes/semantic-assurance/repository-materialisation-gateway.mjs',
+    'processes/semantic-assurance/semantic-authority-mcp.mjs',
+    'processes/semantic-assurance/semantic-bootstrap-packet.mjs',
+    'processes/semantic-assurance/sparql-guard.mjs',
+    'provider-bindings/stardog/stardog-read-gateway.mjs',
+  ]) {
+    assert.equal(compilerProofSourcePaths.includes(path), true, path);
+  }
 });

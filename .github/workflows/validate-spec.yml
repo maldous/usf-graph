@@ -41,6 +41,9 @@ jobs:
           test "$(npm --version)" = "10.9.8"
       - name: Acquire the exact locked dependency set
         run: npm ci
-      - name: Run the immutable semantic-assurance gate
+      - name: Run the immutable semantic-assurance gate (GitHub-hosted)
+        if: ${{ runner.environment == 'github-hosted' }}
+        run: sudo env "PATH=$PATH" npm run test:semantic-assurance
+      - name: Run the immutable semantic-assurance gate (trusted self-hosted)
+        if: ${{ runner.environment == 'self-hosted' }}
         run: npm run test:semantic-assurance
-

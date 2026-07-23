@@ -223,8 +223,8 @@ const PLANTED_FIXTURE_PYTHON_SOURCE = `def planted_fixture_evidence(authored_dat
         add(candidate, USF.candidateFamilyAuthorityDigest, digest(identifier + ":authority"))
         add(candidate, USF.candidateFamilyInventoryDigest, digest(identifier + ":inventory"))
         add(candidate, USF.candidateFamilyDigest, digest(identifier + ":candidate"))
-        add(candidate, USF.candidateFamilyMissingTermCount, Literal(missing_count, datatype=rdflib.XSD.nonNegativeInteger))
-        add(candidate, USF.candidateFamilyEmptyAxisCount, Literal(0, datatype=rdflib.XSD.nonNegativeInteger))
+        add(candidate, USF.candidateFamilyMissingTermCount, Literal(missing_count, datatype=rdflib.XSD.integer))
+        add(candidate, USF.candidateFamilyEmptyAxisCount, Literal(0, datatype=rdflib.XSD.integer))
         if authorisation_claim:
             add(candidate, USF.establishesSemanticTruth, Literal(True))
         return candidate
@@ -265,7 +265,7 @@ const PLANTED_FIXTURE_PYTHON_SOURCE = `def planted_fixture_evidence(authored_dat
         add(review, USF.reviewedRelationshipObjectTermKind, named_node_kind)
         add(review, USF.reviewedRelationshipObjectClass, USF.Permission)
         add(review, USF.reviewedRelationshipObjectClassSetDigest, digest(identifier + ":objects"))
-        add(review, USF.reviewedRelationshipActiveOccurrenceCount, Literal(1, datatype=rdflib.XSD.nonNegativeInteger))
+        add(review, USF.reviewedRelationshipActiveOccurrenceCount, Literal(1, datatype=rdflib.XSD.integer))
         add(review, USF.reviewedRelationshipActiveOccurrenceSetDigest, digest(identifier + ":occurrences"))
         add(review, USF.reviewedRelationshipWitnessSetDigest, digest(identifier + ":witnesses"))
         add(review, USF.semanticReviewDisposition, semantic_review_disposition)

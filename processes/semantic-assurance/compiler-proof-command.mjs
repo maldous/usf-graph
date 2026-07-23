@@ -27,16 +27,27 @@ export const compilerProofSourcePaths = Object.freeze([
   'capabilities/semantic-model-compilation/compiler.test.mjs',
   'capabilities/semantic-model-compilation/manifest.mjs',
   'capabilities/semantic-model-compilation/origin-independence.mjs',
+  'capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs',
   'configuration/semantic-assurance/semantic-authority.mjs',
   'configuration/semantic-assurance/semantic-authority.test.mjs',
+  'configuration/semantic-assurance/stardog-connection.mjs',
   'provider-bindings/stardog/semantic-authority.mjs',
   'provider-bindings/stardog/semantic-authority.test.mjs',
+  'provider-bindings/stardog/stardog-read-gateway.mjs',
   'processes/semantic-assurance/compiler-proof-command.mjs',
   'processes/semantic-assurance/compiler-proof-command.test.mjs',
+  'processes/semantic-assurance/repository-materialisation-command.mjs',
+  'processes/semantic-assurance/repository-materialisation-command.test.mjs',
+  'processes/semantic-assurance/repository-materialisation-gateway.mjs',
+  'processes/semantic-assurance/repository-materialisation-gateway.test.mjs',
   'processes/semantic-assurance/semantic-model-compilation-command.mjs',
   'processes/semantic-assurance/semantic-model-compilation-command.test.mjs',
   'processes/semantic-assurance/semantic-authority-gateway.mjs',
   'processes/semantic-assurance/semantic-authority-gateway.test.mjs',
+  'processes/semantic-assurance/semantic-authority-mcp.mjs',
+  'processes/semantic-assurance/semantic-authority-mcp.test.mjs',
+  'processes/semantic-assurance/semantic-bootstrap-packet.mjs',
+  'processes/semantic-assurance/sparql-guard.mjs',
   'assurance/semantic-model-compilation/compiler-proof.mjs',
   'assurance/semantic-model-compilation/compiler-proof.test.mjs',
   'assurance/semantic-model-compilation/test-launcher.mjs',
@@ -142,6 +153,20 @@ function validateAuthorityControlBinding(authorityControl, authorityDigest) {
   return Object.freeze({ configuration, resolveSecret: authorityControl.resolveSecret });
 }
 
+function validateCompilerProofSourceInventory(sourcePaths, testInventory) {
+  if (!Array.isArray(sourcePaths) || !Array.isArray(testInventory?.records)) {
+    throw new TypeError('compiler proof source and discovered test inventories are required');
+  }
+  const sources = new Set(sourcePaths);
+  const missing = testInventory.records
+    .map(({ path }) => path)
+    .filter((path) => !sources.has(path));
+  if (missing.length > 0) {
+    throw new Error(`compiler proof source inventory omits discovered tests: ${missing.join(',')}`);
+  }
+  return testInventory;
+}
+
 export async function runCompilerProof({
   authorityDigest,
   evaluatedAt,
@@ -165,10 +190,10 @@ export async function runCompilerProof({
     focusRootCount: focusRoots.length,
     focusRootDigest: sha256(JSON.stringify(focusRoots)),
   });
-  const testInventory = discoverTestInventory({
+  const testInventory = validateCompilerProofSourceInventory(compilerProofSourcePaths, discoverTestInventory({
     repositoryRoot,
     authorisedRoots: TEST_PROFILES['semantic-assurance'],
-  });
+  }));
   const testPaths = testInventory.records.map(({ path }) => path);
   const substituteSourcePaths = [
     'capabilities/semantic-model-compilation/compiler.test.mjs',
@@ -226,5 +251,6 @@ export async function runCompilerProof({
 export const compilerProofCommandInternals = Object.freeze({
   deriveRegisteredShaclScope,
   validateAuthorityControlBinding,
+  validateCompilerProofSourceInventory,
   validateLocalShaclRuntime,
 });

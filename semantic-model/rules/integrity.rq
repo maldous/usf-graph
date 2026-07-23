@@ -317,6 +317,34 @@ SELECT DISTINCT ?violation ?subject WHERE {
       ?evaluation usf:evaluationForDecision ?subject ; usf:evaluationClosureState <urn:usf:evaluationclosurestate:complete> . }
     BIND("accepteddecisionevaluationincomplete" AS ?violation)
   } UNION {
+    # Complementary accepted decisions remain independently valid, but a
+    # contract with more than one requires one explicit effective selection.
+    ?left a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ;
+      usf:decisionForContract ?subject .
+    ?right a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ;
+      usf:decisionForContract ?subject .
+    FILTER(?left != ?right)
+    FILTER NOT EXISTS { ?subject usf:effectiveRealisationDecision ?effective }
+    BIND("effectivedecisionselectioninvalid" AS ?violation)
+  } UNION {
+    ?subject usf:effectiveRealisationDecision ?left, ?right .
+    FILTER(?left != ?right)
+    BIND("effectivedecisionselectioninvalid" AS ?violation)
+  } UNION {
+    ?subject usf:effectiveRealisationDecision ?effective .
+    FILTER NOT EXISTS {
+      ?subject a usf:SemanticContract .
+      ?effective a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ;
+        usf:decisionForContract ?subject ; usf:authorisesRepository ?repository .
+      ?realisation a usf:Realisation ; usf:realisesContract ?subject ;
+        usf:authorisedByDecision ?effective .
+      FILTER NOT EXISTS {
+        ?effective usf:authorisesRepository ?otherRepository .
+        FILTER(?otherRepository != ?repository)
+      }
+    }
+    BIND("effectivedecisionselectioninvalid" AS ?violation)
+  } UNION {
     ?subject a usf:RealisationDecision ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:selectsOption ?left, ?right .
     FILTER(?left != ?right)
     BIND("multipleselectedoptions" AS ?violation)

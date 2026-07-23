@@ -4,15 +4,21 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
 
+import { DataFactory, Parser, Store } from 'n3';
+
 import {
   applyLayoutPlan, createLayoutPlan, digest, layoutContext, materialisationInternals, refuseLifecycleMutation,
   planWork, projectContract, sourceDigest, validateLayoutPlan, verifyArtifact,
 } from './repository-materialisation-gateway.mjs';
 
+const { namedNode } = DataFactory;
 const contract = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation';
 const family = 'urn:usf:artefactfamily:compiler';
 const format = 'urn:usf:representationformat:ecmascriptmodule';
 const role = 'urn:usf:pathrole:compilersource';
+const compilerContract = 'urn:usf:semanticcontract:compilersemanticenforcement';
+const compilerDecision = 'urn:usf:realisationdecision:semanticmodelcompilationrealisation';
+const authorityDecision = 'urn:usf:realisationdecision:semanticauthoritycontrolselection';
 
 function binding(value) { return { value }; }
 function defaultContractRows() {
@@ -24,8 +30,29 @@ function defaultContractRows() {
     proofState: binding('urn:usf:proofresultstate:successful'),
     decision: binding('urn:usf:realisationdecision:repositoryexternalartefactmaterialisation'),
     decisionState: binding('urn:usf:decisionstate:accepted'),
+    authorisedRepository: binding('usf'),
     authorisedPath: binding('capabilities/semantic-model-compilation'),
   }];
+}
+function complementaryCompilerRows(effectiveDecisions = [compilerDecision]) {
+  const base = {
+    canonicalName: binding('compilersemanticenforcement'),
+    lifecycle: binding('urn:usf:semanticlifecyclestate:active'),
+    activation: binding('urn:usf:contractactivationstate:active'),
+    proof: binding('urn:usf:proofresult:compilersemanticenforcement'),
+    proofState: binding('urn:usf:proofresultstate:successful'),
+    decisionState: binding('urn:usf:decisionstate:accepted'),
+    authorisedRepository: binding('maldous/usf-graph'),
+  };
+  const rows = [
+    { ...base, decision: binding(compilerDecision), authorisedPath: binding('package.json') },
+    { ...base, decision: binding(authorityDecision), authorisedPath: binding('provider-bindings/stardog') },
+  ];
+  if (effectiveDecisions.length === 0) return rows;
+  return rows.flatMap((row) => effectiveDecisions.map((effective) => ({
+    ...row,
+    effectiveDecision: binding(effective),
+  })));
 }
 function fakeClient({ descriptor, contractRows = defaultContractRows() } = {}) {
   return {
@@ -43,6 +70,55 @@ function fakeClient({ descriptor, contractRows = defaultContractRows() } = {}) {
   };
 }
 
+test('semantic authority explicitly selects the compiler decision and exact graph repository', () => {
+  const bindings = new Store(new Parser({ format: 'application/trig' }).parse(
+    readFileSync(new URL('../../semantic-model/realisation/bindings.trig', import.meta.url), 'utf8'),
+  ));
+  const predicate = namedNode('urn:usf:ontology:effectiveRealisationDecision');
+  assert.deepEqual(
+    bindings.getObjects(namedNode(compilerContract), predicate, null).map(({ value }) => value),
+    [compilerDecision],
+  );
+  for (const decision of [compilerDecision, authorityDecision]) {
+    assert.deepEqual(
+      bindings.getObjects(
+        namedNode(decision),
+        namedNode('urn:usf:ontology:authorisesRepository'),
+        null,
+      ).map(({ value }) => value),
+      ['maldous/usf-graph'],
+    );
+  }
+
+  const ontology = new Store(new Parser({ format: 'text/turtle' }).parse(
+    readFileSync(new URL('../../semantic-model/ontology.ttl', import.meta.url), 'utf8'),
+  ));
+  const property = namedNode('urn:usf:ontology:effectiveRealisationDecision');
+  for (const type of [
+    'http://www.w3.org/2002/07/owl#ObjectProperty',
+    'http://www.w3.org/2002/07/owl#FunctionalProperty',
+  ]) {
+    assert.equal(ontology.has(
+      property,
+      namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
+      namedNode(type),
+      null,
+    ), true);
+  }
+  assert.equal(ontology.has(
+    property,
+    namedNode('http://www.w3.org/2000/01/rdf-schema#domain'),
+    namedNode('urn:usf:ontology:SemanticContract'),
+    null,
+  ), true);
+  assert.equal(ontology.has(
+    property,
+    namedNode('http://www.w3.org/2000/01/rdf-schema#range'),
+    namedNode('urn:usf:ontology:RealisationDecision'),
+    null,
+  ), true);
+});
+
 test('layout context is live-digest-bound and exposes active proof and authorised paths', async () => {
   const context = await layoutContext({ client: fakeClient() });
   assert.match(context.authorityDigest, /^sha256:[0-9a-f]{64}$/);
@@ -56,7 +132,47 @@ test('layout context is live-digest-bound and exposes active proof and authorise
   assert.equal(context.contract.activationState, 'urn:usf:contractactivationstate:active');
   assert.equal(context.contract.proofResultState, 'urn:usf:proofresultstate:successful');
   assert.equal(context.acceptedDecisionCount, 1);
+  assert.equal(context.decisionResolution, 'unique-accepted');
+  assert.deepEqual(context.authorisedRepositories, ['usf']);
   assert.deepEqual(context.authorisedPaths, ['capabilities/semantic-model-compilation']);
+});
+
+test('explicit effective decision selects one of multiple complementary accepted decisions', async () => {
+  const context = await layoutContext({
+    client: fakeClient({ contractRows: complementaryCompilerRows() }),
+  }, { contract: compilerContract });
+  assert.equal(context.acceptedDecisionCount, 2);
+  assert.equal(context.effectiveDecisionCount, 1);
+  assert.equal(context.decisionResolution, 'explicit');
+  assert.equal(context.contract.decision, compilerDecision);
+  assert.equal(context.contract.authorisedRepository, 'maldous/usf-graph');
+  assert.deepEqual(context.authorisedRepositories, ['maldous/usf-graph']);
+  assert.deepEqual(context.authorisedPaths, ['package.json']);
+  const packet = await projectContract({
+    client: fakeClient({ contractRows: complementaryCompilerRows() }),
+  }, { contract: compilerContract });
+  assert.deepEqual(packet.authorisedRepositories, ['maldous/usf-graph']);
+  assert.deepEqual(packet.authorisedPaths, ['package.json']);
+  assert.ok(packet.authorisedActions.length > 0);
+});
+
+test('multiple accepted decisions fail closed without exactly one valid effective marker', async () => {
+  for (const [rows, expectedResolution] of [
+    [complementaryCompilerRows([]), 'missing-effective-decision'],
+    [complementaryCompilerRows([compilerDecision, authorityDecision]), 'multiple-effective-decisions'],
+    [complementaryCompilerRows(['urn:usf:realisationdecision:notforcontract']), 'invalid-effective-decision'],
+  ]) {
+    const client = fakeClient({ contractRows: rows });
+    const context = await layoutContext({ client }, { contract: compilerContract });
+    assert.equal(context.decisionResolution, expectedResolution);
+    assert.equal(context.contract.decision, null);
+    assert.deepEqual(context.authorisedRepositories, []);
+    assert.deepEqual(context.authorisedPaths, []);
+    const packet = await projectContract({ client }, { contract: compilerContract });
+    assert.deepEqual(packet.authorisedActions, []);
+    assert.deepEqual(packet.authorisedRepositories, []);
+    assert.deepEqual(packet.authorisedPaths, []);
+  }
 });
 
 test('layout context rejects a truncated materialisation-rule projection', async () => {

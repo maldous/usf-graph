@@ -539,6 +539,9 @@ usf:considersOption a owl:ObjectProperty;
 usf:decisionForContract a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:RealisationDecision;
     rdfs:range usf:SemanticContract.
+usf:effectiveRealisationDecision a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticContract;
+    rdfs:range usf:RealisationDecision.
 usf:selectsOption a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:RealisationDecision;
     rdfs:range usf:RealisationOption.

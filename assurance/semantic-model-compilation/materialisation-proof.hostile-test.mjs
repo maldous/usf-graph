@@ -98,6 +98,8 @@ before(() => {
   gnupgHome = join(root, 'gnupg');
   mkdirSync(join(repository, 'assurance/semantic-model-compilation'), { recursive: true });
   mkdirSync(join(repository, 'capabilities/semantic-model-compilation'), { recursive: true });
+  mkdirSync(join(repository, 'configuration/semantic-assurance'), { recursive: true });
+  mkdirSync(join(repository, 'provider-bindings/stardog'), { recursive: true });
   mkdirSync(join(repository, 'semantic-model'), { recursive: true });
   mkdirSync(gnupgHome, { mode: 0o700 });
   mkdirSync(join(root, 'cas'), { mode: 0o700 });
@@ -106,6 +108,14 @@ before(() => {
   cpSync(
     join(sourceRoot, 'capabilities/semantic-model-compilation/authority-binding.mjs'),
     join(repository, 'capabilities/semantic-model-compilation/authority-binding.mjs'),
+  );
+  cpSync(
+    join(sourceRoot, 'configuration/semantic-assurance/semantic-authority.mjs'),
+    join(repository, 'configuration/semantic-assurance/semantic-authority.mjs'),
+  );
+  cpSync(
+    join(sourceRoot, 'provider-bindings/stardog/semantic-authority.mjs'),
+    join(repository, 'provider-bindings/stardog/semantic-authority.mjs'),
   );
   cpSync(join(sourceRoot, 'semantic-model/manifest.yaml'), join(repository, 'semantic-model/manifest.yaml'));
   cpSync(join(sourceRoot, 'package-lock.json'), join(repository, 'package-lock.json'));
@@ -171,6 +181,32 @@ test('post-preflight loading resolves the canonical authority binding and semant
   assert.equal(receipt.semanticManifestPath, join(repository, 'semantic-model/manifest.yaml'));
   assert.match(receipt.semanticManifestDigest, /^sha256:[0-9a-f]{64}$/u);
   assert.equal(receipt.realisationValidationPassed, false);
+  assert.equal(receipt.eligibleForAdmission, false);
+  assert.deepEqual(receipt.authorityClaims, []);
+});
+
+test('producer compile assembly supplies the canonical receipt-capable semantic authority client', () => {
+  const { result, receipt } = runProducer({
+    mode: '--test-client-assembly-only',
+    environment: { USF_TEST_COMPILER_CLIENT_MODE: 'receipt-capable' },
+  });
+  assert.equal(result.status, 0);
+  assert.equal(receipt.recordKind, 'USF_TEST_ONLY_COMPILER_CLIENT_ASSEMBLY');
+  assert.equal(receipt.assemblyPassed, true);
+  assert.equal(receipt.receiptCapable, true);
+  assert.equal(receipt.expectedAuthorityDigest, `sha256:${'1'.repeat(64)}`);
+  assert.equal(receipt.realisationValidationPassed, false);
+  assert.equal(receipt.eligibleForAdmission, false);
+  assert.deepEqual(receipt.authorityClaims, []);
+});
+
+test('producer compile assembly fails closed when the provider lacks validation receipts', () => {
+  const { result, receipt } = runProducer({
+    mode: '--test-client-assembly-only',
+    environment: { USF_TEST_COMPILER_CLIENT_MODE: 'missing-receipts' },
+  });
+  assert.equal(result.status, 1);
+  assert.deepEqual(receipt.failureCodes, ['SEMANTIC_AUTHORITY_RECEIPT_PROVIDER_REQUIRED']);
   assert.equal(receipt.eligibleForAdmission, false);
   assert.deepEqual(receipt.authorityClaims, []);
 });
