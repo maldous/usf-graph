@@ -53,6 +53,45 @@ function pythonTuple(source, name) {
   return source.slice(start + startMarker.length, end);
 }
 
+function plantedFixtureSource() {
+  const start = effectiveLocalShaclPythonSource.indexOf('def planted_fixture_evidence(');
+  const end = effectiveLocalShaclPythonSource.indexOf('\ndef main():\n', start);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  return effectiveLocalShaclPythonSource.slice(start, end);
+}
+
+function assertPlantedFixtureContractBinding() {
+  const source = plantedFixtureSource();
+  const expectedCalls = source.match(/^\s+expected\(.+\)$/gmu) ?? [];
+  const positiveCalls = expectedCalls.filter((line) => line.endsWith(', [])'));
+  assert.equal(expectedCalls.length, 25);
+  assert.equal(positiveCalls.length, 7);
+  assert.equal(expectedCalls.length - positiveCalls.length, 18);
+  for (const binding of [
+    'USF.candidateFamilyMissingTermCount, Literal(missing_count, datatype=rdflib.XSD.integer)',
+    'USF.candidateFamilyEmptyAxisCount, Literal(0, datatype=rdflib.XSD.integer)',
+    'USF.reviewedRelationshipActiveOccurrenceCount, Literal(1, datatype=rdflib.XSD.integer)',
+  ]) {
+    assert.equal((source.match(new RegExp(binding.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'gu')) ?? []).length, 1);
+  }
+  assert.equal(source.includes('rdflib.XSD.nonNegativeInteger'), false);
+  assert.equal(source.includes(
+    '"contractConforms": missing_expected_count == 0 and unexpected_code_count == 0 and multiple_code_count == 0 and not unrecognised_results and not conforms,'
+  ), true);
+  assert.equal(source.includes(
+    'raise RuntimeError("PLANTED_FIXTURE_CONTRACT_FAILED:" + canonical_json(core))'
+  ), true);
+  assert.equal((effectiveLocalShaclPythonSource.match(/planted_fixtures = planted_fixture_evidence/gu) ?? []).length, 1);
+  assert.equal((effectiveLocalShaclPythonSource.match(/"plantedFixtureEvidence": planted_fixtures/gu) ?? []).length, 1);
+}
+
+function plantedFixtureTestMode(environment) {
+  return environment.USF_LOCAL_SHACL_TEST_PYTHON
+    ? 'EXECUTE_PINNED_RUNTIME'
+    : 'VERIFY_EMBEDDED_CONTRACT';
+}
+
 test('effective focus policy closes structured permutation ownership in exact directions', () => {
   const rawForward = pythonTuple(localShaclPythonSource, 'FORWARD_PREDICATES');
   const forward = pythonTuple(effectiveLocalShaclPythonSource, 'FORWARD_PREDICATES');
@@ -115,10 +154,20 @@ test('effective harness binds one in-memory planted-fixture contract with exact 
   assert.equal(effectiveLocalShaclPythonSource.includes('multipleCodeCount'), true);
 });
 
+test('planted-fixture regression selects executable and child-process-free branches exactly', () => {
+  assert.equal(plantedFixtureTestMode({}), 'VERIFY_EMBEDDED_CONTRACT');
+  assert.equal(plantedFixtureTestMode({ USF_HERMETIC_TEST_MODE: '1' }), 'VERIFY_EMBEDDED_CONTRACT');
+  assert.equal(plantedFixtureTestMode({
+    USF_HERMETIC_TEST_MODE: '1',
+    USF_LOCAL_SHACL_TEST_PYTHON: '/pinned/python',
+  }), 'EXECUTE_PINNED_RUNTIME');
+});
+
 test('effective harness executes the planted-fixture contract against registered graph and shapes', {
-  skip: !process.env.USF_LOCAL_SHACL_TEST_PYTHON,
   timeout: 600_000,
 }, () => {
+  assertPlantedFixtureContractBinding();
+  if (plantedFixtureTestMode(process.env) === 'VERIFY_EMBEDDED_CONTRACT') return;
   const executablePath = process.env.USF_LOCAL_SHACL_TEST_PYTHON;
   const resolvedExecutablePath = realpathSync(executablePath);
   const executableDigest = `sha256:${createHash('sha256').update(readFileSync(resolvedExecutablePath)).digest('hex')}`;
