@@ -131,13 +131,19 @@ export async function layoutContext(ctx, args = {}) {
   const contract = await resolveContract(ctx.client, args.contract || CONTRACT);
   const [witness, contractRows, roleRows, ruleRows, ruleCountRows] = await Promise.all([
     authorityWitness(ctx.client),
-    ctx.client.select(`SELECT ?canonicalName ?lifecycle ?activation ?proof ?proofState ?decision ?decisionState ?authorisedPath WHERE {
+    ctx.client.select(`SELECT ?canonicalName ?lifecycle ?activation ?proof ?proofState ?effectiveDecision ?decision ?decisionState ?authorisedRepository ?authorisedPath WHERE {
       <${contract}> <urn:usf:ontology:canonicalName> ?canonicalName .
       OPTIONAL { <${contract}> <urn:usf:ontology:semanticLifecycleState> ?lifecycle }
       OPTIONAL { <${contract}> <urn:usf:ontology:hasActivationState> ?activation }
       OPTIONAL { <${contract}> <urn:usf:ontology:reliesOnProofResult> ?proof . ?proof <urn:usf:ontology:hasProofResultState> ?proofState . }
-      OPTIONAL { ?realisation <urn:usf:ontology:realisesContract> <${contract}> ; <urn:usf:ontology:authorisedByDecision> ?decision . ?decision <urn:usf:ontology:decisionState> ?decisionState . OPTIONAL { ?decision <urn:usf:ontology:authorisesSourcePath> ?authorisedPath } }
-    } ORDER BY ?authorisedPath LIMIT 256`),
+      OPTIONAL { <${contract}> <urn:usf:ontology:effectiveRealisationDecision> ?effectiveDecision }
+      OPTIONAL {
+        ?realisation <urn:usf:ontology:realisesContract> <${contract}> ; <urn:usf:ontology:authorisedByDecision> ?decision .
+        ?decision <urn:usf:ontology:decisionForContract> <${contract}> ; <urn:usf:ontology:decisionState> ?decisionState .
+        OPTIONAL { ?decision <urn:usf:ontology:authorisesRepository> ?authorisedRepository }
+        OPTIONAL { ?decision <urn:usf:ontology:authorisesSourcePath> ?authorisedPath }
+      }
+    } ORDER BY ?decision ?authorisedRepository ?authorisedPath LIMIT 512`),
     ctx.client.select('SELECT ?role ?canonicalName ?parent ?onDemand WHERE { ?role a <urn:usf:ontology:PathRole> ; <urn:usf:ontology:canonicalName> ?canonicalName ; <urn:usf:ontology:authorisedParentPath> ?parent ; <urn:usf:ontology:materialisesOnDemand> ?onDemand . FILTER NOT EXISTS { ?role <urn:usf:ontology:semanticAdequacyDisposition> ?disposition . FILTER(?disposition != <urn:usf:semanticadequacydisposition:independentlywarrantedretained>) } } ORDER BY ?canonicalName LIMIT 256'),
     ctx.client.select(`SELECT ?family ?familyName ?storage ?pathRole ?format ?namingPattern WHERE { ${MATERIALISATION_RULE_WHERE} } ORDER BY ?familyName ?format LIMIT 512`),
     ctx.client.select(`SELECT (COUNT(*) AS ?count) WHERE { ${MATERIALISATION_RULE_WHERE} }`),
@@ -149,18 +155,50 @@ export async function layoutContext(ctx, args = {}) {
   }
   const head = contractRows[0];
   const decisions = new Map();
+  const effectiveDecisionIds = new Set();
   for (const row of contractRows) {
+    const effectiveDecision = value(row, 'effectiveDecision');
+    if (effectiveDecision) effectiveDecisionIds.add(effectiveDecision);
     const id = value(row, 'decision');
     if (!id) continue;
     const state = value(row, 'decisionState');
-    const existing = decisions.get(id) || { id, state, authorisedPaths: new Set() };
+    const existing = decisions.get(id) || {
+      id,
+      state,
+      authorisedRepositories: new Set(),
+      authorisedPaths: new Set(),
+    };
     if (existing.state !== state) throw new Error('realisation decision has inconsistent state');
+    const repository = value(row, 'authorisedRepository');
+    if (repository) existing.authorisedRepositories.add(repository);
     const path = value(row, 'authorisedPath');
     if (path) existing.authorisedPaths.add(path);
     decisions.set(id, existing);
   }
   const acceptedDecisions = [...decisions.values()].filter((decision) => decision.state === ACCEPTED);
-  const acceptedDecision = acceptedDecisions.length === 1 ? acceptedDecisions[0] : null;
+  let decisionResolution = 'unresolved';
+  let candidateDecision = null;
+  if (effectiveDecisionIds.size === 1) {
+    candidateDecision = decisions.get([...effectiveDecisionIds][0]) ?? null;
+    decisionResolution = candidateDecision?.state === ACCEPTED ? 'explicit' : 'invalid-effective-decision';
+  } else if (effectiveDecisionIds.size > 1) {
+    decisionResolution = 'multiple-effective-decisions';
+  } else if (acceptedDecisions.length === 1) {
+    [candidateDecision] = acceptedDecisions;
+    decisionResolution = 'unique-accepted';
+  } else if (acceptedDecisions.length > 1) {
+    decisionResolution = 'missing-effective-decision';
+  } else {
+    decisionResolution = 'no-accepted-decision';
+  }
+  if (candidateDecision?.authorisedRepositories.size !== 1) {
+    candidateDecision = null;
+    if (decisionResolution === 'explicit' || decisionResolution === 'unique-accepted') {
+      decisionResolution = 'invalid-authorised-repository';
+    }
+  }
+  const acceptedDecision = candidateDecision?.state === ACCEPTED ? candidateDecision : null;
+  const repositories = acceptedDecision ? [...acceptedDecision.authorisedRepositories].sort() : [];
   const paths = acceptedDecision ? [...acceptedDecision.authorisedPaths].sort() : [];
   return {
     schemaVersion: 1,
@@ -180,9 +218,13 @@ export async function layoutContext(ctx, args = {}) {
       proofResultState: value(head, 'proofState'),
       decision: acceptedDecision?.id ?? null,
       decisionState: acceptedDecision?.state ?? null,
+      authorisedRepository: repositories[0] ?? null,
     },
     realisationDecisionCount: decisions.size,
     acceptedDecisionCount: acceptedDecisions.length,
+    effectiveDecisionCount: effectiveDecisionIds.size,
+    decisionResolution,
+    authorisedRepositories: repositories,
     authorisedPaths: paths,
     pathRoles: roleRows.map((row) => ({ id: value(row, 'role'), canonicalName: value(row, 'canonicalName'), parent: value(row, 'parent'), onDemand: value(row, 'onDemand') === 'true' })),
     materialisationRuleCount: expectedRuleCount,
@@ -239,7 +281,9 @@ export async function validateLayoutPlan(ctx, plan) {
   if (plan?.schemaVersion !== 1) failures.push({ code: 'plan-schema-version' });
   if (plan?.authorityDigest !== context.authorityDigest) failures.push({ code: 'plan-authority-digest' });
   if (context.contract.activationState !== ACTIVE || context.contract.proofResultState !== SUCCESSFUL) failures.push({ code: 'plan-contract-not-active-proven' });
-  if (context.acceptedDecisionCount !== 1) failures.push({ code: 'plan-decision-not-uniquely-accepted' });
+  if (!context.contract.decision || context.contract.decisionState !== ACCEPTED) {
+    failures.push({ code: 'plan-decision-not-uniquely-accepted' });
+  }
   if (!Array.isArray(plan?.operations) || plan.operations.length < 1 || plan.operations.length > MAX_OPERATIONS) failures.push({ code: 'plan-operation-bound' });
   else plan.operations.forEach((operation, index) => failures.push(...validateOperation(operation, index, context)));
   const unsigned = { ...plan };
@@ -393,7 +437,7 @@ export async function projectContract(ctx, args = {}) {
   const validationIds = ids(validations);
   const authorised = context.contract.activationState === ACTIVE
     && context.contract.proofResultState === SUCCESSFUL
-    && context.acceptedDecisionCount === 1;
+    && context.contract.decisionState === ACCEPTED;
   const packet = {
     schemaVersion: 1,
     semanticIdentifiers: [context.contract.id, context.contract.proofResult, context.contract.decision, ...validationIds].filter(Boolean),
@@ -403,6 +447,7 @@ export async function projectContract(ctx, args = {}) {
     claims: ids(assertions.filter((row) => value(row, 'relation') === 'urn:usf:ontology:asserts')),
     nonclaims: ids(assertions.filter((row) => value(row, 'relation') === 'urn:usf:ontology:disclaims')),
     authorisedActions: authorised ? [...ACTIONS] : [],
+    authorisedRepositories: authorised ? context.authorisedRepositories : [],
     authorisedPaths: authorised ? context.authorisedPaths : [],
     authorisedFormats: authorised ? [...new Set(context.rules.map((item) => item.representationFormat))].sort() : [],
     acceptanceObligations: [...new Set([...ids(requirements), ...ids(obligations)])].sort(),

@@ -410,6 +410,8 @@ adp:stardogsemanticauthority a usf:Adapter;
 <urn:usf:adrrecord:semanticauthorityaccess> a usf:ADRRecord;
     usf:canonicalName "semanticauthorityaccess";
     usf:recordsDecision <urn:usf:realisationdecision:semanticauthorityaccess>.
+sc:compilersemanticenforcement
+    usf:effectiveRealisationDecision <urn:usf:realisationdecision:semanticmodelcompilationrealisation>.
 <urn:usf:realisationdecision:semanticmodelcompilationrealisation> a usf:RealisationDecision;
     usf:canonicalName "semanticmodelcompilationrealisation";
     usf:decisionState <urn:usf:decisionstate:accepted>;
@@ -418,7 +420,7 @@ adp:stardogsemanticauthority a usf:Adapter;
     usf:selectsOption <urn:usf:realisationoption:nodeecmascriptsemanticmodelcompiler>;
     usf:hasDecisionEvaluation <urn:usf:decisionevaluation:semanticmodelcompilationrealisation>;
     usf:decisionRationale "The Node.js 22.23.1 ECMAScript-module option is selected as a realisation decision, not a semantic requirement: its single repository-local runtime executes the compiler, commands and proof tooling; the locked libraries provide direct RDF parsing, RDFC-1.0 canonicalisation, YAML parsing and native Stardog transaction access. Java and Python can satisfy the contract but add a second toolchain without a clearer responsibility, security, data-ownership or deployment boundary. Live Stardog remains the sole current authority and mutation boundary, while an exact digest-bound export is retained only for network-isolated read-only validation.";
-    usf:authorisesRepository "usf";
+    usf:authorisesRepository "maldous/usf-graph";
     usf:authorisesSourcePath "package.json", "package-lock.json", "capabilities/semantic-model-compilation", "configuration/semantic-assurance", "processes/semantic-assurance", "provider-bindings/stardog", "semantic-model", "assurance";
     usf:authorisesRealisationType usf:Implementation, usf:Adapter, usf:Binding;
     usf:supersedesDecision <urn:usf:realisationdecision:semanticauthorityaccess>;
@@ -431,7 +433,7 @@ adp:stardogsemanticauthority a usf:Adapter;
     usf:selectsOption <urn:usf:realisationoption:livestardogwithverifiedreadonlyexport>;
     usf:hasDecisionEvaluation <urn:usf:decisionevaluation:semanticauthoritycontrolselection>;
     usf:decisionRationale "Validated live Stardog is the required current authority and controlled mutation boundary. A separately bounded verified export is required for deterministic read-only isolation; neither a live-only binding nor a generic RDF substitute can satisfy both obligations.";
-    usf:authorisesRepository "usf";
+    usf:authorisesRepository "maldous/usf-graph";
     usf:authorisesSourcePath "configuration/semantic-assurance", "processes/semantic-assurance", "provider-bindings/stardog", "semantic-model", "assurance";
     usf:authorisesRealisationType usf:Implementation, usf:Adapter, usf:Binding;
     usf:supersedesDecision <urn:usf:realisationdecision:semanticauthorityaccess>.
