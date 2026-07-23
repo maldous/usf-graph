@@ -1153,8 +1153,12 @@ for (const decision of decisions) {
   for (const [name, kind, role] of selectedComponentDefinitions[decision.name]) {
     const component = iri('optioncomponent', `${option}${name}`);
     const componentMapping = iri('selectedcomponentmapping', `${option}${name}`);
-    const common = `<${componentMapping}> a usf:SelectedComponentConcreteMapping; usf:canonicalName ${q(`${option}${name}`)}; usf:componentMappingForOption <${iri('realisationoption', option)}>; usf:componentMappingForComponent <${component}>; usf:mappingAuthorityDigest ${q(authorityDigest)}; usf:mappingEvaluationDigest ${q(evidenceDigest)}; usf:mappingImplementationSourceDigest ${q(implementationSourceDigest)}; usf:mappingState <urn:usf:mappingstate:active>`;
     const kindClass = { repositorylocalcomponent: 'RepositoryLocalComponent', packagecomponent: 'PackageComponent', runtimecomponent: 'RuntimeComponent', externalprovidercomponent: 'ExternalProviderComponent', containerimagecomponent: 'ContainerImageComponent' }[kind];
+    const targetKind = role === 'provider' ? 'providerbinding'
+      : role === 'adapter' ? 'adapter'
+        : ['PackageComponent', 'RuntimeComponent', 'ContainerImageComponent'].includes(kindClass)
+          ? 'dependencybinding' : 'implementation';
+    const common = `<${componentMapping}> a usf:SelectedComponentConcreteMapping; usf:canonicalName ${q(`${option}${name}`)}; usf:componentMappingForOption <${iri('realisationoption', option)}>; usf:componentMappingForComponent <${component}>; usf:componentMappingTargetKind <urn:usf:componentmappingtargetkind:${targetKind}>; usf:mappingAuthorityDigest ${q(authorityDigest)}; usf:mappingEvaluationDigest ${q(evidenceDigest)}; usf:mappingImplementationSourceDigest ${q(implementationSourceDigest)}; usf:mappingState <urn:usf:mappingstate:active>`;
     if (role === 'provider') {
       const bindings = providerBindingsByComponent.get(component) || [];
       graph.push(`${common}; usf:componentMappingToProviderBinding ${bindings.map((value) => `<${value}>`).join(', ')} .`);

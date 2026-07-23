@@ -316,6 +316,7 @@ function validateExecutionSourceClosure(manifest) {
     '--allow-fs-read=<SNAPSHOT_ROOT>',
     '--allow-fs-read=<RUNTIME_ROOT>',
     '--allow-fs-write=<RUNTIME_ROOT>',
+    '--allow-fs-read=/var/lib/usf-cas',
     '--allow-fs-read=<NODE_EXECUTABLE>',
     ...manifest.nativeRuntimeBindings.map(({ path }) => `--allow-fs-read=${path}`),
     '--no-addons',
