@@ -25,6 +25,9 @@ const stable = (value) => Array.isArray(value) ? value.map(stable) : value && ty
   ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])])) : value;
 const canonicalJson = (value) => JSON.stringify(stable(value));
 const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+const assertionDigest = (value) => sha256(canonicalJson(value === undefined
+  ? { valueState: 'UNDEFINED' }
+  : { valueState: 'DEFINED', value }));
 
 class EvidenceProducerError extends Error {
   constructor(code) {
@@ -41,8 +44,8 @@ function record(id, expected, observed, { negative = false, detail = null } = {}
   if (!passed) {
     failureContext.failedAssertion = {
       id,
-      expectedDigest: sha256(canonicalJson(expected)),
-      observedDigest: sha256(canonicalJson(observed)),
+      expectedDigest: assertionDigest(expected),
+      observedDigest: assertionDigest(observed),
     };
     fail(`ASSERTION_FAILED_${id.toUpperCase().replaceAll('-', '_')}`);
   }
@@ -311,6 +314,9 @@ if (process.argv.includes('--test-preflight-only')) {
 }
 if (process.argv.includes('--test-assertion-failure-only')) {
   record('test-explicit-failure', true, false, { negative: true });
+}
+if (process.argv.includes('--test-undefined-assertion-failure-only')) {
+  record('test-undefined-failure', 'required', undefined, { negative: true });
 }
 
 const require = createRequire(join(repo, 'package.json'));
