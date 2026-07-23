@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -70,6 +70,26 @@ test('applies a plan idempotently and reports exact operation states', () => {
   assert.equal(readFileSync(join(root, 'capabilities/example/example-capability.mjs'), 'utf8'), content);
   const second = materialisePlan({ authority: authority(), plan, repositoryRoot: root, apply: true });
   assert.equal(second.operations[0].state, 'already-applied');
+});
+
+test('declared file mode and idempotence do not inherit a restrictive supervisor umask', () => {
+  const root = mkdtempSync(join(tmpdir(), 'materialisation-cell-'));
+  const content = 'export const ready = true;\n';
+  const plan = createMaterialisationPlan(authority(), [writeOperation(content)]);
+  const priorUmask = process.umask(0o077);
+  try {
+    const first = materialisePlan({
+      authority: authority(), plan, repositoryRoot: root, apply: true,
+    });
+    const second = materialisePlan({
+      authority: authority(), plan, repositoryRoot: root, apply: true,
+    });
+    assert.equal(first.operations[0].state, 'applied');
+    assert.equal(statSync(join(root, 'capabilities/example/example-capability.mjs')).mode & 0o777, 0o644);
+    assert.equal(second.operations[0].state, 'already-applied');
+  } finally {
+    process.umask(priorUmask);
+  }
 });
 
 test('dry-run performs no repository mutation', () => {

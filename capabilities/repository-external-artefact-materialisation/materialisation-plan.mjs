@@ -248,6 +248,11 @@ export function materialisePlan({ authority, plan, repositoryRoot, casRoot, appl
         ensureDirectories(root, dirname(target), rollback);
         const temporary = `${target}.materialise-${process.pid}-${operation.index}`;
         writeFileSync(temporary, bytes, { flag: 'wx', mode: intendedMode });
+        // Creation modes are filtered through the supervising process umask.
+        // The authority-bound plan requires the exact declared mode, so bind it
+        // explicitly before the atomic rename rather than inheriting ambient
+        // service-manager policy.
+        chmodSync(temporary, intendedMode);
         renameSync(temporary, target);
         rollback.push(() => {
           if (prior === null) unlinkSync(target);
