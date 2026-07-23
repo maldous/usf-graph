@@ -572,6 +572,21 @@ test('concrete realisation mapping defects reach exact precedence branches', () 
   assertRejected('SELECTION_MAPPING_DEPENDENCY_DRIFT', (store) => replaceLiteral(store, componentMapping, term('mappingImplementationSourceDigest'), `sha256:${'0'.repeat(64)}`));
 });
 
+test('every selected component mapping declares its exact controlled target kind', () => {
+  for (const mapping of subjects(baseline, RDF_TYPE, term('SelectedComponentConcreteMapping'))) {
+    const kinds = objects(baseline, mapping, term('componentMappingTargetKind'));
+    assert.equal(kinds.length, 1, mapping.value);
+    const targetFamilies = [
+      ['implementation', 'componentMappingToImplementation'],
+      ['adapter', 'componentMappingToAdapter'],
+      ['providerbinding', 'componentMappingToProviderBinding'],
+      ['dependencybinding', 'componentMappingToDependencyBinding'],
+    ].filter(([, predicate]) => objects(baseline, mapping, term(predicate)).length > 0);
+    assert.equal(targetFamilies.length, 1, mapping.value);
+    assert.equal(kinds[0].value, `urn:usf:componentmappingtargetkind:${targetFamilies[0][0]}`, mapping.value);
+  }
+});
+
 test('every executable reason has an exact counter mapping and isolated mutation', () => {
   assert.equal(Object.keys(REASON_COUNTER).length, REASON_PRECEDENCE.length);
   assert.equal(new Set(Object.values(REASON_COUNTER)).size, GATE_COUNTER_NAMES.length);

@@ -54,7 +54,7 @@ function focusedResult(root, passed = true) {
   };
   const nodeFlags = [
     '--frozen-intrinsics', '--permission', '--allow-fs-read=<SNAPSHOT_ROOT>', '--allow-fs-read=<RUNTIME_ROOT>', '--allow-fs-write=<RUNTIME_ROOT>',
-    '--allow-fs-read=<NODE_EXECUTABLE>', '--allow-fs-read=/runtime/libnode.so', '--no-addons',
+    '--allow-fs-read=/var/lib/usf-cas', '--allow-fs-read=<NODE_EXECUTABLE>', '--allow-fs-read=/runtime/libnode.so', '--no-addons',
     '<REPOSITORY_LOCAL_TEST_LAUNCHER>', 'tests.mjs',
   ];
   const launcherDigest = bootstrapModuleRecords.find(({ path }) => path === 'proof.mjs').digest;
@@ -679,7 +679,7 @@ test('rejects mixed, mislabeled, live-claiming and self-referential evidence', (
   };
   const nodeFlags = [
     '--frozen-intrinsics', '--permission', '--allow-fs-read=<SNAPSHOT_ROOT>', '--allow-fs-read=<RUNTIME_ROOT>', '--allow-fs-write=<RUNTIME_ROOT>',
-    '--allow-fs-read=<NODE_EXECUTABLE>', '--allow-fs-read=/runtime/libnode.so', '--no-addons',
+    '--allow-fs-read=/var/lib/usf-cas', '--allow-fs-read=<NODE_EXECUTABLE>', '--allow-fs-read=/runtime/libnode.so', '--no-addons',
     '<REPOSITORY_LOCAL_TEST_LAUNCHER>', 'tests.mjs',
   ];
   const invocationDigest = compilerProofInternals.sha256(compilerProofInternals.canonicalJson({
@@ -867,6 +867,18 @@ test('rejects mixed, mislabeled, live-claiming and self-referential evidence', (
     evidenceScope: compilerProofInternals.HERMETIC_SCOPE,
     nodeFlags: common.nodeFlags.filter((flag) => flag !== '--frozen-intrinsics'),
   }), /locked runtime inputs/);
+  assert.throws(() => compilerProofInternals.evidenceManifest({
+    ...common,
+    evidenceScope: compilerProofInternals.HERMETIC_SCOPE,
+    nodeFlags: common.nodeFlags.filter((flag) => flag !== '--allow-fs-read=/var/lib/usf-cas'),
+  }), /execution source, dependency, snapshot or invocation closure/);
+  assert.throws(() => compilerProofInternals.evidenceManifest({
+    ...common,
+    evidenceScope: compilerProofInternals.HERMETIC_SCOPE,
+    nodeFlags: common.nodeFlags.map((flag) => flag === '--allow-fs-read=/var/lib/usf-cas'
+      ? '--allow-fs-read=/var/lib/usf-cas-substitute'
+      : flag),
+  }), /execution source, dependency, snapshot or invocation closure/);
   const substitutedBootstrap = [{ path: 'proof.mjs', digest: compilerProofInternals.sha256('substituted-launcher') }, bootstrapModuleRecords[1]];
   assert.throws(() => compilerProofInternals.evidenceManifest({
     ...common,
