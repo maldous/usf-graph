@@ -5,6 +5,8 @@ import { Parser, Store } from 'n3';
 import { parse as parseYaml } from 'yaml';
 
 import { evaluateCompilerSemanticEnforcement } from '../../assurance/semantic-model-compilation/compiler-proof.mjs';
+import { shapeConstraints } from '../../capabilities/semantic-model-compilation/compiler.mjs';
+import { loadManifest } from '../../capabilities/semantic-model-compilation/manifest.mjs';
 import { runLocalShaclValidation, validateLocalShaclRuntime } from '../../assurance/semantic-model-compilation/local-shacl-validation.mjs';
 import {
   canonicalJson,
@@ -135,11 +137,16 @@ function deriveRegisteredShaclScope(repositoryRoot) {
     return { ...record, identity: sha256(canonicalJson(record)) };
   }).sort((left, right) => utf8Compare(left.identity, right.identity));
   if (new Set(descriptors.map(({ identity }) => identity)).size !== descriptors.length) throw new Error('registered SHACL constraint identity is ambiguous');
+  const liveValidationRecords = shapeConstraints(loadManifest(join(repositoryRoot, 'semantic-model')))
+    .map(({ file, content }) => ({ path: `semantic-model/${file}`, digest: sha256(content) }))
+    .sort((left, right) => utf8Compare(left.path, right.path));
   return Object.freeze({
     registeredSparqlConstraintCount: descriptors.length,
     registeredConstraintSetDigest: sha256(canonicalJson(descriptors)),
     shapeSourceFileCount: sourceRecords.length,
     shapeSourceSetDigest: sha256(canonicalJson(sourceRecords)),
+    liveValidationDocumentCount: liveValidationRecords.length,
+    liveValidationDocumentSetDigest: sha256(canonicalJson(liveValidationRecords)),
   });
 }
 
