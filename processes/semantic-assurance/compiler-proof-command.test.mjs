@@ -94,4 +94,16 @@ test('binds every discovered semantic-assurance test into the immutable proof so
     () => compilerProofCommandInternals.validateCompilerProofSourceInventory(omitted, inventory),
     /compiler proof source inventory omits discovered tests: processes\/semantic-assurance\/repository-materialisation-gateway\.test\.mjs/,
   );
+  for (const path of [
+    'capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs',
+    'configuration/semantic-assurance/stardog-connection.mjs',
+    'processes/semantic-assurance/repository-materialisation-command.mjs',
+    'processes/semantic-assurance/repository-materialisation-gateway.mjs',
+    'processes/semantic-assurance/semantic-authority-mcp.mjs',
+    'processes/semantic-assurance/semantic-bootstrap-packet.mjs',
+    'processes/semantic-assurance/sparql-guard.mjs',
+    'provider-bindings/stardog/stardog-read-gateway.mjs',
+  ]) {
+    assert.equal(compilerProofSourcePaths.includes(path), true, path);
+  }
 });
