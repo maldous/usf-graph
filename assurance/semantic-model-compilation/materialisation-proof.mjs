@@ -324,6 +324,15 @@ if (process.argv.includes('--test-phase-failure-only')) {
   failureContext.phase = 'TEST_PHASE_PROVENANCE';
   throw new Error('test-only unclassified failure');
 }
+if (process.argv.includes('--test-cleanup-phase-preservation-only')) {
+  const testRoot = mkdtempSync(join(tmpdir(), 'materialisation-cleanup-phase-test-'));
+  failureContext.phase = 'TEST_PRIMARY_PHASE';
+  try {
+    throw new Error('test-only primary failure');
+  } finally {
+    removeProofRoot(testRoot, 'TEST_CLEANUP_PHASE');
+  }
+}
 
 const require = createRequire(join(repo, 'package.json'));
 const canonicalModule = (path) => pathToFileURL(join(repo, path));
@@ -442,6 +451,15 @@ function putCas(bytes, mediaType) {
   return { digest: contentDigest, byteSize: value.length, mediaType, locator: `cas://sha256/${hex}` };
 }
 
+function removeProofRoot(path, cleanupPhase) {
+  try {
+    rmSync(path, { recursive: true, force: true });
+  } catch (error) {
+    failureContext.phase = cleanupPhase;
+    throw error;
+  }
+}
+
 function oneObject(store, subject, predicate) {
   const values = store.getObjects(namedNode(subject), namedNode(predicate), null).map((term) => term.value);
   if (values.length !== 1) throw new Error(`${subject} must have exactly one ${predicate}`);
@@ -557,16 +575,19 @@ record('plan-bounded', true, Buffer.byteLength(jcs(firstPlan)) <= 65_536);
 record('plan-validation', true, validateMaterialisationPlan(activeContext, firstPlan).ok);
 
 const applyRoot = mkdtempSync(join(tmpdir(), 'materialisation-apply-proof-'));
-failureContext.phase = 'MATERIALISATION_EXECUTION';
+failureContext.phase = 'MATERIALISATION_DRY_RUN';
 try {
   record('materialisation-dry-run', true, materialisePlan({ authority: activeContext, plan: firstPlan, repositoryRoot: applyRoot }).dryRun);
+  failureContext.phase = 'MATERIALISATION_FIRST_APPLY';
   record('materialisation-first-apply', true, materialisePlan({ authority: activeContext, plan: firstPlan, repositoryRoot: applyRoot, apply: true }).applied);
+  failureContext.phase = 'MATERIALISATION_IDEMPOTENCE';
   const repeated = materialisePlan({ authority: activeContext, plan: firstPlan, repositoryRoot: applyRoot, apply: true });
   record('materialisation-idempotence', 'already-applied', repeated.operations[0].state);
 } finally {
-  rmSync(applyRoot, { recursive: true, force: true });
+  removeProofRoot(applyRoot, 'MATERIALISATION_APPLY_CLEANUP');
 }
 
+failureContext.phase = 'MATERIALISATION_ROLLBACK_SETUP';
 const rollbackRoot = mkdtempSync(join(tmpdir(), 'materialisation-rollback-proof-'));
 try {
   mkdirSync(join(rollbackRoot, 'assurance'), { recursive: true });
@@ -578,25 +599,28 @@ try {
   ], contract);
   writeFileSync(existing, 'concurrent-change\n');
   let rollbackState = 'accepted';
+  failureContext.phase = 'MATERIALISATION_ROLLBACK_EXECUTION';
   try { materialisePlan({ authority: activeContext, plan: rollbackPlan, repositoryRoot: rollbackRoot, apply: true }); }
   catch { rollbackState = existsSync(join(rollbackRoot, 'assurance/transient.fixture.mjs')) ? 'partial' : 'rolled-back'; }
   record('materialisation-rollback', 'rolled-back', rollbackState, { negative: true });
 } finally {
-  rmSync(rollbackRoot, { recursive: true, force: true });
+  removeProofRoot(rollbackRoot, 'MATERIALISATION_ROLLBACK_CLEANUP');
 }
 
+failureContext.phase = 'MATERIALISATION_SYMLINK_SETUP';
 const outsideRoot = mkdtempSync(join(tmpdir(), 'materialisation-outside-proof-'));
 const symlinkRoot = mkdtempSync(join(tmpdir(), 'materialisation-symlink-proof-'));
 try {
   symlinkSync(outsideRoot, join(symlinkRoot, 'assurance'), 'dir');
   let traversal = 'accepted';
+  failureContext.phase = 'MATERIALISATION_SYMLINK_EXECUTION';
   try { materialisePlan({ authority: activeContext, plan: firstPlan, repositoryRoot: symlinkRoot, apply: true }); }
   catch { traversal = 'rejected'; }
   record('symbolic-link-traversal', 'rejected', traversal, { negative: true });
   record('symbolic-link-outside-write', false, existsSync(join(outsideRoot, 'materialisation-control-plane.fixture.mjs')), { negative: true });
 } finally {
-  rmSync(symlinkRoot, { recursive: true, force: true });
-  rmSync(outsideRoot, { recursive: true, force: true });
+  removeProofRoot(symlinkRoot, 'MATERIALISATION_SYMLINK_CLEANUP');
+  removeProofRoot(outsideRoot, 'MATERIALISATION_SYMLINK_CLEANUP');
 }
 
 failureContext.phase = 'MATERIALISATION_NEGATIVE_VALIDATION';

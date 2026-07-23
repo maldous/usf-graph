@@ -211,6 +211,19 @@ test('unclassified failures retain their exact stable execution phase', () => {
   assert.deepEqual(receipt.authorityClaims, []);
 });
 
+test('successful cleanup does not overwrite the primary failure phase', () => {
+  const { result, receipt } = runProducer({
+    mode: '--test-cleanup-phase-preservation-only',
+  });
+  assert.equal(result.status, 1);
+  assert.deepEqual(receipt.failureCodes, [
+    'VALIDATION_EVIDENCE_TEST_PRIMARY_PHASE_FAILED',
+  ]);
+  assert.equal(receipt.phase, 'TEST_PRIMARY_PHASE');
+  assert.equal(receipt.eligibleForAdmission, false);
+  assert.deepEqual(receipt.authorityClaims, []);
+});
+
 test('post-preflight loading resolves the canonical authority binding and semantic-model manifest', () => {
   const { result, receipt } = runProducer({ mode: '--test-authority-loading-only' });
   assert.equal(result.status, 0);
