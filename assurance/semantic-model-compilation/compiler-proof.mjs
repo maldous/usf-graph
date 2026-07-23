@@ -39,6 +39,7 @@ const HERMETIC_MANIFEST_FIELDS = [
   'localShaclExpectedFocusRootCount', 'localShaclExpectedFocusRootDigest',
   'localShaclExpectedRegisteredConstraintCount', 'localShaclExpectedRegisteredConstraintSetDigest',
   'localShaclExpectedShapeSourceFileCount', 'localShaclExpectedShapeSourceSetDigest',
+  'liveShaclExpectedDocumentCount', 'liveShaclExpectedDocumentSetDigest',
   'localShaclFocusNodeCount', 'localShaclFocusNodeDigest', 'localShaclFocusRootCount',
   'localShaclFocusRootDigest', 'localShaclHarnessSourceDigest',
   'localShaclLiveServiceConstraintSetDigest', 'localShaclLocallyEvaluatedConstraintCount',
@@ -447,6 +448,7 @@ function validateEvidenceManifest(manifest) {
       'localShaclDeterministicOutputDigest', 'localShaclExpectedFocusRootDigest',
       'localShaclExpectedRegisteredConstraintSetDigest',
       'localShaclExpectedShapeSourceSetDigest',
+      'liveShaclExpectedDocumentSetDigest',
       'localShaclFocusNodeDigest', 'localShaclFocusRootDigest', 'localShaclHarnessSourceDigest',
       'localShaclLiveServiceConstraintSetDigest',
       'localShaclPlantedFixtureCatalogueDigest', 'localShaclPlantedFixtureEvidenceDigest',
@@ -510,6 +512,8 @@ function validateEvidenceManifest(manifest) {
         || !Number.isInteger(manifest.localShaclExpectedShapeSourceFileCount)
         || manifest.localShaclExpectedShapeSourceFileCount < 1
         || manifest.localShaclShapeSourceSetDigest !== manifest.localShaclExpectedShapeSourceSetDigest
+        || !Number.isInteger(manifest.liveShaclExpectedDocumentCount)
+        || manifest.liveShaclExpectedDocumentCount < 1
         || manifest.localShaclActualServiceAlgebraNodeCount !== 0
         || manifest.localShaclSubstringBasedExclusionCount !== 0
         || manifest.localShaclUnexpectedExclusionCount !== 0
@@ -631,9 +635,8 @@ function validateCompositeScopes(manifests) {
       || hermetic.localShaclExpectedRegisteredConstraintCount !== authorityControl.liveValidatedSparqlConstraintCount
       || hermetic.localShaclExpectedRegisteredConstraintSetDigest !== authorityControl.liveValidatedConstraintSetDigest
       || hermetic.localShaclRegisteredConstraintSetDigest !== authorityControl.liveValidatedConstraintSetDigest
-      || hermetic.localShaclExpectedShapeSourceFileCount !== authorityControl.liveValidatedShapeSourceFileCount
-      || hermetic.localShaclExpectedShapeSourceSetDigest !== authorityControl.liveValidatedShapeSourceSetDigest
-      || hermetic.localShaclShapeSourceSetDigest !== authorityControl.liveValidatedShapeSourceSetDigest
+      || hermetic.liveShaclExpectedDocumentCount !== authorityControl.liveValidatedShapeSourceFileCount
+      || hermetic.liveShaclExpectedDocumentSetDigest !== authorityControl.liveValidatedShapeSourceSetDigest
       || hermetic.localShaclLiveServiceConstraintSetDigest !== authorityControl.liveServiceConstraintSetDigest) {
     throw new Error('composite proof must preserve distinct evidence identities and exact cross-scope constraint boundaries');
   }
@@ -756,13 +759,18 @@ function validateLocalShaclEvidence(result) {
   }
   const expectedScope = result.expectedScope;
   if (!expectedScope || typeof expectedScope !== 'object' || Array.isArray(expectedScope)
-      || canonicalJson(Object.keys(expectedScope).sort()) !== canonicalJson(['focusRootCount', 'focusRootDigest', 'registeredConstraintSetDigest', 'registeredSparqlConstraintCount', 'shapeSourceFileCount', 'shapeSourceSetDigest'])
+      || canonicalJson(Object.keys(expectedScope).sort()) !== canonicalJson([
+        'focusRootCount', 'focusRootDigest', 'liveValidationDocumentCount', 'liveValidationDocumentSetDigest',
+        'registeredConstraintSetDigest', 'registeredSparqlConstraintCount', 'shapeSourceFileCount', 'shapeSourceSetDigest',
+      ])
       || !Number.isInteger(expectedScope.registeredSparqlConstraintCount) || expectedScope.registeredSparqlConstraintCount < 1
       || !Number.isInteger(expectedScope.focusRootCount) || expectedScope.focusRootCount < 1
       || !SHA256.test(expectedScope.focusRootDigest || '')
       || !SHA256.test(expectedScope.registeredConstraintSetDigest || '')
       || !Number.isInteger(expectedScope.shapeSourceFileCount) || expectedScope.shapeSourceFileCount < 1
-      || !SHA256.test(expectedScope.shapeSourceSetDigest || '')) {
+      || !SHA256.test(expectedScope.shapeSourceSetDigest || '')
+      || !Number.isInteger(expectedScope.liveValidationDocumentCount) || expectedScope.liveValidationDocumentCount < 1
+      || !SHA256.test(expectedScope.liveValidationDocumentSetDigest || '')) {
     throw new Error('local SHACL evidence requires an independently derived exact scope');
   }
   const evidence = result.evidence;
@@ -825,9 +833,8 @@ function validateLiveValidationEvidence(result, localShacl) {
   const receiptFields = ['conforms', 'observationSetDigest', 'receiptDigest', 'validatedDocumentCount', 'validatedDocumentSetDigest'];
   if (!result || typeof result !== 'object' || Array.isArray(result)
       || canonicalJson(Object.keys(result).sort()) !== canonicalJson(topFields)
-      || result.validatedDocumentCount !== localShacl.expectedScope.shapeSourceFileCount
-      || result.validatedDocumentSetDigest !== localShacl.expectedScope.shapeSourceSetDigest
-      || result.validatedDocumentSetDigest !== localShacl.shapeSourceSetDigest) {
+      || result.validatedDocumentCount !== localShacl.expectedScope.liveValidationDocumentCount
+      || result.validatedDocumentSetDigest !== localShacl.expectedScope.liveValidationDocumentSetDigest) {
     throw new Error('live SHACL validation evidence does not bind the exact locally validated shape sources');
   }
   for (const receipt of [result.authored, result.derived]) {
@@ -1043,6 +1050,8 @@ export async function evaluateCompilerSemanticEnforcement({
     localShaclExpectedRegisteredConstraintSetDigest: localShacl.expectedScope.registeredConstraintSetDigest,
     localShaclExpectedShapeSourceFileCount: localShacl.expectedScope.shapeSourceFileCount,
     localShaclExpectedShapeSourceSetDigest: localShacl.expectedScope.shapeSourceSetDigest,
+    liveShaclExpectedDocumentCount: localShacl.expectedScope.liveValidationDocumentCount,
+    liveShaclExpectedDocumentSetDigest: localShacl.expectedScope.liveValidationDocumentSetDigest,
     localShaclFocusNodeCount: localShacl.focusNodeCount,
     localShaclFocusNodeDigest: localShacl.focusNodeDigest,
     localShaclFocusRootCount: localShacl.focusRootCount,

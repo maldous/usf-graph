@@ -332,6 +332,8 @@ function localShaclResult(overrides = {}) {
       registeredConstraintSetDigest: evidence.registeredConstraintSetDigest,
       shapeSourceFileCount: 11,
       shapeSourceSetDigest: evidence.shapeSourceSetDigest,
+      liveValidationDocumentCount: 10,
+      liveValidationDocumentSetDigest: compilerProofInternals.sha256('live-validation-documents'),
       focusRootCount: evidence.focusRootCount,
       focusRootDigest: evidence.focusRootDigest,
     },
@@ -342,8 +344,8 @@ function liveValidationResult(local = localShaclResult()) {
   const makeReceipt = (phase) => {
     const core = {
       conforms: true,
-      validatedDocumentCount: local.expectedScope.shapeSourceFileCount,
-      validatedDocumentSetDigest: local.expectedScope.shapeSourceSetDigest,
+      validatedDocumentCount: local.expectedScope.liveValidationDocumentCount,
+      validatedDocumentSetDigest: local.expectedScope.liveValidationDocumentSetDigest,
       observationSetDigest: compilerProofInternals.sha256(phase),
     };
     return { ...core, receiptDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(core)) };
@@ -351,8 +353,8 @@ function liveValidationResult(local = localShaclResult()) {
   const core = {
     authored: makeReceipt('authored-live-validation'),
     derived: makeReceipt('derived-live-validation'),
-    validatedDocumentCount: local.expectedScope.shapeSourceFileCount,
-    validatedDocumentSetDigest: local.expectedScope.shapeSourceSetDigest,
+    validatedDocumentCount: local.expectedScope.liveValidationDocumentCount,
+    validatedDocumentSetDigest: local.expectedScope.liveValidationDocumentSetDigest,
   };
   return { ...core, receiptDigest: compilerProofInternals.sha256(compilerProofInternals.canonicalJson(core)) };
 }
@@ -779,6 +781,8 @@ test('rejects mixed, mislabeled, live-claiming and self-referential evidence', (
     localShaclExpectedRegisteredConstraintSetDigest: compilerProofInternals.sha256('constraint-set'),
     localShaclExpectedShapeSourceFileCount: 11,
     localShaclExpectedShapeSourceSetDigest: compilerProofInternals.sha256('shape-sources'),
+    liveShaclExpectedDocumentCount: 10,
+    liveShaclExpectedDocumentSetDigest: compilerProofInternals.sha256('live-validation-documents'),
     localShaclFocusNodeCount: 557,
     localShaclFocusNodeDigest: compilerProofInternals.sha256('focus-nodes'),
     localShaclFocusRootCount: 336,

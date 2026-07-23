@@ -445,7 +445,7 @@ export function buildPlan(manifest) {
 // Preserve module boundaries so the Stardog adapter can validate bounded
 // documents. A single concatenated request exceeds the managed service's
 // accepted SHACL payload even though every module is valid Turtle.
-function shapeConstraints(manifest) {
+export function shapeConstraints(manifest) {
   const documents = manifest.shapes
     .filter((shape) => shape.liveValidation !== false)
     .map((shape) => ({ file: shape.file, path: shape.path, content: readText(shape.path) }));
@@ -946,7 +946,7 @@ export async function compile({
       authored: authoredValidationReceipt,
       ...(reviewValidationReceipt ? { review: reviewValidationReceipt } : {}),
       derived: derivedValidationReceipt,
-      validatedDocumentCount: manifest.shapes.length,
+      validatedDocumentCount: authoredValidationReceipt.validatedDocumentCount,
       validatedDocumentSetDigest: authoredValidationReceipt.validatedDocumentSetDigest,
     };
     return {

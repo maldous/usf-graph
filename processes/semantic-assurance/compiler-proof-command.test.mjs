@@ -71,8 +71,12 @@ test('accepts only the exact configuration and explicit secret resolver pair wit
   const shaclScope = compilerProofCommandInternals.deriveRegisteredShaclScope(process.cwd());
   assert.ok(shaclScope.registeredSparqlConstraintCount > 0);
   assert.ok(shaclScope.shapeSourceFileCount > 0);
+  assert.ok(shaclScope.liveValidationDocumentCount > 0);
+  assert.ok(shaclScope.liveValidationDocumentCount < shaclScope.shapeSourceFileCount);
   assert.match(shaclScope.registeredConstraintSetDigest, /^sha256:[0-9a-f]{64}$/);
   assert.match(shaclScope.shapeSourceSetDigest, /^sha256:[0-9a-f]{64}$/);
+  assert.match(shaclScope.liveValidationDocumentSetDigest, /^sha256:[0-9a-f]{64}$/);
+  assert.notEqual(shaclScope.liveValidationDocumentSetDigest, shaclScope.shapeSourceSetDigest);
 });
 
 test('binds every discovered semantic-assurance test into the immutable proof source inventory', () => {
