@@ -54,6 +54,52 @@ function requiredEnvironment(name, pattern, failureCode) {
   return value;
 }
 
+function createCompilerValidationClient({
+  sdk,
+  connectionConfiguration,
+  expectedAuthorityDigest,
+  validateConfiguration,
+  createSemanticClient,
+}) {
+  const secrets = new Map();
+  let authentication;
+  if (connectionConfiguration?.auth?.kind === 'token') {
+    const tokenReference = 'secret://semantic-authority/token';
+    secrets.set(tokenReference, connectionConfiguration.auth.token);
+    authentication = { mode: 'token', tokenReference };
+  } else if (connectionConfiguration?.auth?.kind === 'basic') {
+    const usernameReference = 'secret://semantic-authority/username';
+    const passwordReference = 'secret://semantic-authority/password';
+    secrets.set(usernameReference, connectionConfiguration.auth.username);
+    secrets.set(passwordReference, connectionConfiguration.auth.password);
+    authentication = { mode: 'basic', usernameReference, passwordReference };
+  } else {
+    fail('SEMANTIC_AUTHORITY_AUTHENTICATION_UNSUPPORTED');
+  }
+  const configuration = validateConfiguration({
+    accessMode: 'live',
+    expectedAuthorityDigest,
+    endpoint: connectionConfiguration.endpoint,
+    database: connectionConfiguration.database,
+    authentication,
+  });
+  const client = createSemanticClient({
+    sdk,
+    configuration,
+    resolveSecret: (reference) => {
+      if (!secrets.has(reference)) fail('SEMANTIC_AUTHORITY_SECRET_REFERENCE_UNEXPECTED');
+      return secrets.get(reference);
+    },
+  });
+  if (client?.expectedAuthorityDigest !== expectedAuthorityDigest) {
+    fail('SEMANTIC_AUTHORITY_CLIENT_DIGEST_MISMATCH');
+  }
+  if (typeof client.validateInTransactionWithReceipt !== 'function') {
+    fail('SEMANTIC_AUTHORITY_RECEIPT_PROVIDER_REQUIRED');
+  }
+  return client;
+}
+
 function exactRegularFile(path, failureCode) {
   let canonical;
   try {
@@ -273,13 +319,58 @@ if (process.argv.includes('--test-authority-loading-only')) {
   })}\n`);
   process.exit(0);
 }
+if (process.argv.includes('--test-client-assembly-only')) {
+  const { validateSemanticAuthorityConfiguration } = await import(
+    canonicalModule('configuration/semantic-assurance/semantic-authority.mjs')
+  );
+  const { createStardogSemanticAuthorityClient } = await import(
+    canonicalModule('provider-bindings/stardog/semantic-authority.mjs')
+  );
+  const testMode = process.env.USF_TEST_COMPILER_CLIENT_MODE || '';
+  if (!['receipt-capable', 'missing-receipts'].includes(testMode)) {
+    fail('TEST_COMPILER_CLIENT_MODE_REQUIRED');
+  }
+  const createSemanticClient = testMode === 'receipt-capable'
+    ? createStardogSemanticAuthorityClient
+    : ({ configuration }) => ({ expectedAuthorityDigest: configuration.expectedAuthorityDigest });
+  const client = createCompilerValidationClient({
+    sdk: { Connection: class {}, db: {}, query: {} },
+    connectionConfiguration: {
+      endpoint: 'https://authority.example.test',
+      database: 'USF',
+      auth: { kind: 'token', token: 'test-only-secret' },
+    },
+    expectedAuthorityDigest: evaluatedAuthorityDigest,
+    validateConfiguration: validateSemanticAuthorityConfiguration,
+    createSemanticClient,
+  });
+  process.stdout.write(`${canonicalJson({
+    schemaVersion: 1,
+    recordKind: 'USF_TEST_ONLY_COMPILER_CLIENT_ASSEMBLY',
+    assemblyPassed: true,
+    receiptCapable: typeof client.validateInTransactionWithReceipt === 'function',
+    expectedAuthorityDigest: client.expectedAuthorityDigest,
+    realisationValidationPassed: false,
+    eligibleForAdmission: false,
+    authorityClaims: [],
+    ...producerPreflight,
+    commands: failureContext.commands,
+  })}\n`);
+  process.exit(0);
+}
 const { DataFactory } = require('n3');
 const { authorityWitness } = await import(canonicalModule('processes/semantic-assurance/semantic-bootstrap-packet.mjs'));
 const { loadConfig } = await import(canonicalModule('configuration/semantic-assurance/stardog-connection.mjs'));
+const { validateSemanticAuthorityConfiguration } = await import(
+  canonicalModule('configuration/semantic-assurance/semantic-authority.mjs')
+);
 const { compile, checkLocal } = await import(canonicalModule('capabilities/semantic-model-compilation/compiler.mjs'));
 const { loadAuthorityDataset } = await import(canonicalModule('processes/semantic-assurance/authority-dataset.mjs'));
 const { loadManifest } = await import(canonicalModule('capabilities/semantic-model-compilation/manifest.mjs'));
 const { createClient } = await import(canonicalModule('provider-bindings/stardog/stardog-read-gateway.mjs'));
+const { createStardogSemanticAuthorityClient } = await import(
+  canonicalModule('provider-bindings/stardog/semantic-authority.mjs')
+);
 const { readSemanticAuthorityWitness } = await import(canonicalModule('processes/semantic-assurance/semantic-authority-gateway.mjs'));
 const {
   digest, jcs, layoutContext, projectContract,
@@ -339,9 +430,16 @@ function oneObject(store, subject, predicate) {
 function binding(value) { return { value }; }
 
 const config = loadConfig();
-const client = createClient(config);
-const live = { client, config };
-const liveWitness = await authorityWitness(client);
+const projectionClient = createClient(config);
+const compilerValidationClient = createCompilerValidationClient({
+  sdk: require('stardog'),
+  connectionConfiguration: config,
+  expectedAuthorityDigest: evaluatedAuthorityDigest,
+  validateConfiguration: validateSemanticAuthorityConfiguration,
+  createSemanticClient: createStardogSemanticAuthorityClient,
+});
+const live = { client: projectionClient, config };
+const liveWitness = await authorityWitness(projectionClient);
 record('live-authority-digest', evaluatedAuthorityDigest, `sha256:${liveWitness.digest}`);
 const current = await layoutContext(live, { contract });
 record('live-contract-active', ACTIVE, current.contract.activationState);
@@ -360,12 +458,12 @@ record('candidate-contract-active', ACTIVE, oneObject(candidateDataset.store, co
 record('candidate-contract-relies-on-current-proof', proofResult, oneObject(candidateDataset.store, contract, 'urn:usf:ontology:reliesOnProofResult'));
 record('candidate-realisation-implementable', 'urn:usf:realisationstate:implementable', oneObject(candidateDataset.store, realisation, 'urn:usf:ontology:realisationState'));
 
-const publicationAuthorityWitness = await readSemanticAuthorityWitness(client);
+const publicationAuthorityWitness = await readSemanticAuthorityWitness(projectionClient);
 let candidate;
 try {
   candidate = await compile({
     authorityWitness: publicationAuthorityWitness,
-    client,
+    client: compilerValidationClient,
     manifest,
     publicationBudgetPolicy: manifest.publicationBudget,
     publicationMode: 'validate',
