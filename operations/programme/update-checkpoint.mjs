@@ -15,6 +15,12 @@ import {
   writeSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import {
+  assertExactAuthorityPropagation,
+  authorityIdentity,
+  loadAuthorityBindingManifest,
+  readAuthorityField,
+} from '../../capabilities/semantic-model-compilation/programme-authority-binding.mjs';
 
 const repositoryRoot = process.cwd();
 const stateRoot = join(repositoryRoot, '.work', 'programme');
@@ -162,7 +168,56 @@ function repositoryProcesses() {
   return records.sort((left, right) => left.processId - right.processId);
 }
 
-const recordedAt = new Date().toISOString();
+// Explicit inputs only. The generator holds no compiled-in authority identity:
+// a pinned digest produces a mutually consistent artefact set bound to
+// superseded truth, and mutual consistency is exactly what stops such a set
+// from failing closed. Authority identity arrives through one mechanically
+// captured manifest or generation refuses to run.
+function exactArgument(name, { required = true } = {}) {
+  const prefix = `--${name}=`;
+  const supplied = process.argv.filter((value) => value.startsWith(prefix));
+  if (supplied.length === 0) {
+    if (!required) return null;
+    throw new Error(`exactly one ${prefix}<value> argument is required`);
+  }
+  if (supplied.length !== 1 || supplied[0].length === prefix.length) {
+    throw new Error(`exactly one ${prefix}<value> argument is required`);
+  }
+  return supplied[0].slice(prefix.length);
+}
+
+const authorityBindingPath = exactArgument('authority-binding');
+const authorityBindingDigest = exactArgument('authority-binding-digest');
+const authorityBindingResolved = join(repositoryRoot, authorityBindingPath);
+if (!authorityBindingResolved.startsWith(`${repositoryRoot}/`)) {
+  throw new Error('authority binding manifest path escapes the repository');
+}
+if (!existsSync(authorityBindingResolved)) {
+  throw new Error(`authority binding manifest is absent: ${authorityBindingPath}`);
+}
+const authorityBinding = loadAuthorityBindingManifest({
+  bytes: readFileSync(authorityBindingResolved),
+  expectedDigest: authorityBindingDigest,
+});
+// Authority identity is the digest and only the digest. Triple and graph counts
+// travel with it as observational metadata and are never consulted for identity.
+const currentAuthorityDigest = authorityIdentity(authorityBinding);
+const currentAuthorityTripleCount = authorityBinding.authority.tripleCount;
+const currentAuthorityGraphCount = authorityBinding.authority.graphCount;
+const waveArtefactByRole = new Map(authorityBinding.waveArtefacts.map((artefact) => [artefact.role, artefact]));
+function requireWaveArtefact(role) {
+  const artefact = waveArtefactByRole.get(role);
+  if (!artefact) throw new Error(`authority binding manifest does not declare wave artefact role: ${role}`);
+  return artefact;
+}
+
+// A canonical instant may be supplied so identical explicit inputs reproduce
+// byte-identical output; otherwise the wall clock is used for a live run.
+const suppliedRecordedAt = exactArgument('recorded-at', { required: false });
+if (suppliedRecordedAt !== null && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/u.test(suppliedRecordedAt)) {
+  throw new Error('--recorded-at must be an ISO-8601 UTC instant');
+}
+const recordedAt = suppliedRecordedAt ?? new Date().toISOString();
 const priorCheckpointBytes = existsSync(checkpointPath)
   ? readFileSync(checkpointPath)
   : existsSync(legacyCheckpointPath)
@@ -199,7 +254,7 @@ const directiveReconciled = goalDigest === reconciledGoalDigest;
 const optionAcquisition = {
   acquisitionInputDigest: 'sha256:7d5f9939c26e1524a5d38e6eecd46d26a8bb476f69e8ad1859f459150db59a3d',
   acquisitionSetDigest: 'sha256:be26125ea7f9ba92a44e05f711678c97b0769b75c102f0efb14875eea37623c0',
-  authorityDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
+  authorityDigest: currentAuthorityDigest,
   byteSize: 5526,
   casPath: '/var/lib/usf-cas/sha256/7d/7d5f9939c26e1524a5d38e6eecd46d26a8bb476f69e8ad1859f459150db59a3d',
   collectedAt: '2026-07-20T02:00:39Z',
@@ -217,15 +272,20 @@ if (optionAcquisitionRecord.authorityDigest !== optionAcquisition.authorityDiges
   throw new Error('realisation-option acquisition CAS record does not match its authority or set binding');
 }
 
-const currentWavePaths = {
-  foundationAssessment: '.work/generated/foundation-domain-closure-assessment-236215bd95c4298f94f50e591009e9ae3704d2100f65c25e5c142ef44ac5c2ab.json',
-  foundationProof: '.work/generated/foundation-domain-closure-proof-af1efba4f69c6c0d5574ccc1409e6aaf767045932da6c4cae07ed5d4362a6f1d.json',
-  universalAnalysis: '.work/generated/universal-family-completeness-analysis-030e9a63ace37fe62df643470d742ba7cd780015ac2be801af76d365570646f2.json',
-  universalInventory: '.work/generated/universal-semantic-inventory-62243ea8564ff04a54bb4894d0ad626e93da50e2856fe507f698b644e77050db.json',
-  universalProof: '.work/generated/universal-semantic-coverage-proof-a1769c24de356e3fe1c1ce1c8632173d60a7ed622f02493353f78e1b90dfb833.json',
-  universalRegistry: '.work/generated/universal-family-registry-395507bac3d3a30faff847fd6c2bb3e7351cfac1d2b66048c5564d8bd086a5a3.json',
-  universalReviewProjection: '.work/generated/universal-review-projection-81818a6d0a0e25b4666d0bd2516c974bf4f9f50563f3b5ebc6f01493a9065c06.json',
-};
+// Wave artefact locations come from the supplied binding, never from constants:
+// a content-addressed filename pinned in source is a second place for a stale
+// authority to hide.
+const currentWavePaths = Object.fromEntries([
+  'foundationAssessment',
+  'foundationProof',
+  'universalAnalysis',
+  'universalInventory',
+  'universalProof',
+  'universalRegistry',
+  'universalReviewProjection',
+].map((role) => [role, requireWaveArtefact(role).path]));
+const authorityPacketArtefact = requireWaveArtefact('authorityPacket');
+const authorityProjectionArtefact = requireWaveArtefact('authorityProjection');
 const currentWaveArtifacts = Object.fromEntries(Object.entries(currentWavePaths)
   .map(([key, path]) => [key, readContentAddressedJson(path)]));
 const foundationAssessmentRecord = currentWaveArtifacts.foundationAssessment.record;
@@ -339,9 +399,10 @@ const universalReconstructionMismatchCount = universalProofMismatchFields
 
 const nextExactAction = directiveReconciled ? {
   action: 'Independent review refuted the five permission-atom axis findings and re-recorded those signatures as warranted (pd:closurepermissionatom enumerates precursor usf:Permission by design; usf:PermissionAtom is a derived output). Evaluate each of the seven remaining SEMANTIC_CORRECTION_REQUIRED findings against executable semantics (dimensionAxisClassClosure, valueSourceClassIri, ontology domain/range, generator derivation, family-model invariants) before any implementation; do not assume validity from the finding alone.',
-  authorityDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
+  authorityDigest: currentAuthorityDigest,
   command: "node --test assurance/permutation-closure/family-model.test.mjs assurance/permutation-closure/universe-generator.test.mjs",
   preconditions: [
+    'the supplied authority binding manifest was captured from current live authority',
     'authority digest and authority packet/projection byte digests remain exact',
     'no authority mutation transaction or modifying worker is active',
     'foundation-domain closure assessment and independent proof remain current',
@@ -357,10 +418,11 @@ const nextExactAction = directiveReconciled ? {
   ],
 } : {
   action: 'Read the changed GOAL.md completely, update this tracked checkpoint generator and any directive validators to the current dependency order, then regenerate the checkpoint before trusting any generated next action.',
-  authorityDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
-  command: 'node operations/programme/update-checkpoint.mjs',
+  authorityDigest: currentAuthorityDigest,
+  command: 'node operations/programme/update-checkpoint.mjs --authority-binding=<manifest> --authority-binding-digest=<sha256>',
   preconditions: [
     'the checked-out HEAD includes the latest GOAL.md from the programme remote',
+    'a current authority binding manifest has been captured through the approved authority boundary',
   ],
   semanticIdentifiers: [
     'DIRECTIVE_AND_CHECKPOINT_RECONCILIATION',
@@ -539,8 +601,8 @@ const currentWaveArtifactBindings = [
   { fileDigest: permutationClosure.universalFamilyModel.reviewProjectionFileDigest, internalDigest: permutationClosure.universalFamilyModel.reviewProjectionDigest, internalField: 'reviewProjectionDigest', path: permutationClosure.universalFamilyModel.reviewProjectionPath },
   { fileDigest: permutationClosure.universalFamilyModel.analysisFileDigest, internalDigest: permutationClosure.universalFamilyModel.analysisDigest, internalField: 'analysisDigest', path: permutationClosure.universalFamilyModel.analysisPath },
   { fileDigest: permutationClosure.universalFamilyModel.independentProofFileDigest, internalDigest: permutationClosure.universalFamilyModel.independentProofDigest, internalField: 'proofDigest', path: permutationClosure.universalFamilyModel.independentProofPath },
-  { fileDigest: 'sha256:2b557090632299e1b28feef07f4f770cdd1b9229019a4586824cc06a9fdb4739', internalDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd', internalField: 'authorityDigest', path: '.work/generated/permutation-authority-packet-2b557090632299e1b28feef07f4f770cdd1b9229019a4586824cc06a9fdb4739.json' },
-  { fileDigest: 'sha256:886abdaedb6bb18f82bb90a218a525d64bd1027b999f49f0dc11e001df4e1c16', internalDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd', internalField: 'authorityDigest', path: '.work/generated/permutation-authority-projection-886abdaedb6bb18f82bb90a218a525d64bd1027b999f49f0dc11e001df4e1c16.json' },
+  { fileDigest: authorityPacketArtefact.fileDigest, internalDigest: currentAuthorityDigest, internalField: authorityPacketArtefact.authorityField, path: authorityPacketArtefact.path },
+  { fileDigest: authorityProjectionArtefact.fileDigest, internalDigest: currentAuthorityDigest, internalField: authorityProjectionArtefact.authorityField, path: authorityProjectionArtefact.path },
 ];
 for (const binding of currentWaveArtifactBindings) {
   const observedFileDigest = digestWorkingPath(binding.path);
@@ -548,10 +610,29 @@ for (const binding of currentWaveArtifactBindings) {
   const record = JSON.parse(readFileSync(join(repositoryRoot, binding.path), 'utf8'));
   if (record[binding.internalField] !== binding.internalDigest) throw new Error(`current wave artefact internal digest mismatch: ${binding.path}:${binding.internalField}`);
 }
-const authorityProjectionRecord = JSON.parse(readFileSync(join(repositoryRoot, '.work/generated/permutation-authority-projection-886abdaedb6bb18f82bb90a218a525d64bd1027b999f49f0dc11e001df4e1c16.json'), 'utf8'));
-if (authorityProjectionRecord.basePacketDigest !== 'sha256:2b557090632299e1b28feef07f4f770cdd1b9229019a4586824cc06a9fdb4739') {
+const authorityProjectionRecord = JSON.parse(readFileSync(join(repositoryRoot, authorityProjectionArtefact.path), 'utf8'));
+if (authorityProjectionRecord.basePacketDigest !== authorityPacketArtefact.fileDigest) {
   throw new Error('current authority projection does not bind the verified authority packet');
 }
+
+// Exact propagation across the whole generated set: every wave artefact, both
+// authority inputs and the acquisition record must carry the one supplied
+// identity. A single divergence fails generation rather than producing another
+// internally agreeable but wrongly bound checkpoint.
+assertExactAuthorityPropagation({
+  artefacts: [
+    { observedDigest: optionAcquisitionRecord.authorityDigest, role: 'optionAcquisition' },
+    ...authorityBinding.waveArtefacts.map(({ authorityField, path, role }) => {
+      const record = JSON.parse(readFileSync(join(repositoryRoot, path), 'utf8'));
+      return {
+        boundByReference: authorityField === null,
+        observedDigest: readAuthorityField(record, authorityField),
+        role,
+      };
+    }),
+  ],
+  binding: authorityBinding,
+});
 
 const dependencyReviewPath = join(stateRoot, 'compiler-cutover-dependency-review.json');
 const dependencyReviewDigest = existsSync(dependencyReviewPath) ? sha256(readFileSync(dependencyReviewPath)) : null;
@@ -562,6 +643,22 @@ if (dependencyReviewDigest) {
   );
 }
 const observedProcesses = repositoryProcesses();
+
+// Provenance for how this authority identity was captured. Recorded so a reader
+// can tell which boundary produced the binding, when, and from which database —
+// rather than having to trust that some constant in this file was still current.
+const authorityBindingProvenance = {
+  capturedAt: authorityBinding.capture.capturedAt,
+  captureMethod: authorityBinding.capture.method,
+  captureToolDigest: authorityBinding.capture.toolDigest,
+  database: authorityBinding.authority.database,
+  digestAlgorithm: authorityBinding.authority.digestAlgorithm,
+  endpoint: authorityBinding.authority.endpoint,
+  graphInventoryDigest: authorityBinding.authority.graphInventoryDigest,
+  manifestDigest: authorityBinding.manifestDigest,
+  manifestPath: authorityBindingPath,
+  witnessSource: authorityBinding.capture.witnessSource,
+};
 
 const changedPathsRecord = {
   baseCommit: head,
@@ -575,12 +672,12 @@ const changedPathsDigest = atomicWrite(join(stateRoot, 'changed-paths.json'), ca
 
 const ledger = {
   authority: {
-    currentDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
-    inputPacketDigest: 'sha256:2b557090632299e1b28feef07f4f770cdd1b9229019a4586824cc06a9fdb4739',
-    inputProjectionDigest: 'sha256:886abdaedb6bb18f82bb90a218a525d64bd1027b999f49f0dc11e001df4e1c16',
-    localCandidateState: 'UNPUBLISHED_NOT_SEMANTIC_AUTHORITY',
-    sourceLiveDrift: 'NOT_ASSERTED_FOR_UNPUBLISHED_CANDIDATE',
-    tripleCount: 86536,
+    binding: authorityBindingProvenance,
+    currentDigest: currentAuthorityDigest,
+    graphCount: currentAuthorityGraphCount,
+    inputPacketDigest: authorityPacketArtefact.fileDigest,
+    inputProjectionDigest: authorityProjectionArtefact.fileDigest,
+    tripleCount: currentAuthorityTripleCount,
   },
   completedBoundaries: [
     'REJECTED_REALISATION_REMOVED_AND_INVALIDATED',
@@ -636,19 +733,19 @@ if (!statusStableBeforeCheckpoint) {
 const checkpoint = {
   activeWorkPackets: [],
   authority: {
-    currentDigest: 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd',
+    binding: authorityBindingProvenance,
+    currentDigest: currentAuthorityDigest,
+    graphCount: currentAuthorityGraphCount,
     inputPacket: {
-      digest: 'sha256:2b557090632299e1b28feef07f4f770cdd1b9229019a4586824cc06a9fdb4739',
-      path: '.work/generated/permutation-authority-packet-2b557090632299e1b28feef07f4f770cdd1b9229019a4586824cc06a9fdb4739.json',
+      digest: authorityPacketArtefact.fileDigest,
+      path: authorityPacketArtefact.path,
     },
     inputProjection: {
-      digest: 'sha256:886abdaedb6bb18f82bb90a218a525d64bd1027b999f49f0dc11e001df4e1c16',
-      path: '.work/generated/permutation-authority-projection-886abdaedb6bb18f82bb90a218a525d64bd1027b999f49f0dc11e001df4e1c16.json',
+      digest: authorityProjectionArtefact.fileDigest,
+      path: authorityProjectionArtefact.path,
       scope: 'BOUNDED_USF_MCP_SELECT_NOT_FULL_TERM_PARITY',
     },
-    localCandidateState: 'UNPUBLISHED_NOT_SEMANTIC_AUTHORITY',
-    sourceLiveDrift: 'NOT_ASSERTED_FOR_UNPUBLISHED_CANDIDATE',
-    tripleCount: 86536,
+    tripleCount: currentAuthorityTripleCount,
   },
   cas: {
     descriptors: [
@@ -873,7 +970,9 @@ const checkpoint = {
       state: 'STALE_RELATIONSHIP_REVIEW_CANDIDATE_SOURCE_WAVE_REQUIRES_FINAL_SOURCE_FREEZE',
     },
     semanticCheck: { state: 'CURRENT_LOCAL_SHACL_AND_INTEGRATED_WAVE_PASS' },
-    sourceLiveDrift: 'NOT_ASSERTED_FOR_UNPUBLISHED_CANDIDATE',
+    // This generator does not query live authority and therefore asserts no
+    // drift verdict. Parity is measured by `npm run authority:drift`.
+    sourceLiveDrift: 'NOT_MEASURED_BY_GENERATOR_RUN_AUTHORITY_DRIFT',
   },
 };
 
