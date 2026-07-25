@@ -833,7 +833,12 @@ export function runTestProfile(profile, options = {}) {
   const repositoryRoot = options.repositoryRoot || resolve(fileURLToPath(new URL('../..', import.meta.url)));
   const inventory = discoverTestInventory({ repositoryRoot, authorisedRoots });
   return executeTestInventory(inventory, {
-    snapshotPaths: ['.github', 'assurance', 'capabilities', 'configuration', 'node_modules', 'package-lock.json', 'package.json', 'processes', 'provider-bindings', 'semantic-model'],
+    // 'operations' carries no discovered tests, so it never enters the snapshot
+    // through test discovery, yet the authority-binding regression tests read
+    // operations/programme/update-checkpoint.mjs to prove no compiled-in
+    // authority digest survives there. Without it the guard is unenforceable in
+    // the very gate that must enforce it.
+    snapshotPaths: ['.github', 'assurance', 'capabilities', 'configuration', 'node_modules', 'operations', 'package-lock.json', 'package.json', 'processes', 'provider-bindings', 'semantic-model'],
     snapshotExclusions: ['node_modules/.bin'],
     ...options,
     repositoryRoot,

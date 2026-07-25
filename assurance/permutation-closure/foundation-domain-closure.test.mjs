@@ -24,7 +24,12 @@ import {
 } from './foundation-gap-remediation.mjs';
 
 const O = 'urn:usf:ontology:';
-const AUTHORITY = 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd';
+// Synthetic authority identity for locally constructed fixtures. This is a
+// historical digest reused as an arbitrary constant: these tests build their
+// own in-memory model and never consult live authority, so the value carries
+// no current binding. Named explicitly so an audit for stale authority pins
+// does not mistake it for one.
+const SYNTHETIC_FIXTURE_AUTHORITY = 'sha256:aa7d94bad4fdb5f08ee08cab0e2a29596c90c39560358d05cf1465b1ca3798dd';
 const temporaryRoots = [];
 const digestValue = (value) => sha256(canonicalJson(value));
 
@@ -66,7 +71,7 @@ function verifiedAuthorityInputs() {
   temporaryRoots.push(root);
   const packet = {
     activeIdentities: { contractCount: 1 },
-    authorityDigest: AUTHORITY,
+    authorityDigest: SYNTHETIC_FIXTURE_AUTHORITY,
     controlledDimensions: { roles: [] },
     liveSignals: {
       capabilities: 1,
@@ -86,7 +91,7 @@ function verifiedAuthorityInputs() {
   const packetFile = writeAddressedJson(root, 'packet', packet);
   const type = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
   const projectionCore = {
-    authorityDigest: AUTHORITY,
+    authorityDigest: SYNTHETIC_FIXTURE_AUTHORITY,
     gatewayOperationCapabilityBindings: [],
     operationClassBindings: [[`${O}Operation`, null]],
     projectedClassIris: [
@@ -107,7 +112,7 @@ function verifiedAuthorityInputs() {
     basePacketDigest: packetFile.digest,
   });
   return loadVerifiedAuthorityInputs({
-    authorityDigest: AUTHORITY,
+    authorityDigest: SYNTHETIC_FIXTURE_AUTHORITY,
     authorityPacketDigest: packetFile.digest,
     authorityPacketPath: packetFile.path,
     authorityProjectionDigest: projectionFile.digest,
