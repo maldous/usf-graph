@@ -1,8 +1,11 @@
 {
   "mcpServers": {
     "usf": {
-      "command": "node",
-      "args": ["processes/semantic-assurance/semantic-authority-mcp.mjs"],
+      "command": "sh",
+      "args": [
+        "-c",
+        "set -a; [ -f \"${USF_ENV_FILE:-./.env}\" ] && . \"${USF_ENV_FILE:-./.env}\"; set +a; exec node processes/semantic-assurance/semantic-authority-mcp.mjs"
+      ],
       "env": {
         "STARDOG_SERVER": "${STARDOG_SERVER:-}",
         "STARDOG_DATABASE": "${STARDOG_DATABASE:-}",
