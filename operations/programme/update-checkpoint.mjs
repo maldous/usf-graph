@@ -251,26 +251,42 @@ changes.sort((left, right) => (left.currentPath ?? left.previousPath).localeComp
 // older checkpoint can never bypass the current directive.
 const reconciledGoalDigest = 'sha256:8d06ec86a9b96ff2f61698fa3d06e503bc92537fb3b22cfb7a55e6617ccea66f';
 const directiveReconciled = goalDigest === reconciledGoalDigest;
-const optionAcquisition = {
+// The realisation-option acquisition is historical evidence: a set collected at
+// a past instant under whatever authority was current then. Its authority
+// binding is a record of what happened and is never rewritten to the current
+// digest — doing so would forge the provenance of a signed CAS payload. The
+// generator reads the binding the payload actually carries and classifies its
+// currency, so a superseded acquisition surfaces as an explicit state instead
+// of either crashing generation or silently passing as current.
+const optionAcquisitionSource = {
   acquisitionInputDigest: 'sha256:7d5f9939c26e1524a5d38e6eecd46d26a8bb476f69e8ad1859f459150db59a3d',
   acquisitionSetDigest: 'sha256:be26125ea7f9ba92a44e05f711678c97b0769b75c102f0efb14875eea37623c0',
-  authorityDigest: currentAuthorityDigest,
   byteSize: 5526,
   casPath: '/var/lib/usf-cas/sha256/7d/7d5f9939c26e1524a5d38e6eecd46d26a8bb476f69e8ad1859f459150db59a3d',
   collectedAt: '2026-07-20T02:00:39Z',
   collectorDigest: 'sha256:315cb068463808d958d621840c715ce66f93a1a14c1777bc1bd498ec06ad1c69',
-  state: 'VERIFIED_LOCAL_ACQUISITION_PENDING_SIGNED_EVIDENCE',
   validUntil: '2027-07-15T02:00:39Z',
 };
-const optionAcquisitionBytes = readFileSync(optionAcquisition.casPath);
-if (sha256(optionAcquisitionBytes) !== optionAcquisition.acquisitionInputDigest) {
+const optionAcquisitionBytes = readFileSync(optionAcquisitionSource.casPath);
+if (sha256(optionAcquisitionBytes) !== optionAcquisitionSource.acquisitionInputDigest) {
   throw new Error('realisation-option acquisition CAS bytes do not match the recorded digest');
 }
 const optionAcquisitionRecord = JSON.parse(optionAcquisitionBytes);
-if (optionAcquisitionRecord.authorityDigest !== optionAcquisition.authorityDigest
-  || optionAcquisitionRecord.acquisitionSetDigest !== optionAcquisition.acquisitionSetDigest) {
-  throw new Error('realisation-option acquisition CAS record does not match its authority or set binding');
+if (optionAcquisitionRecord.acquisitionSetDigest !== optionAcquisitionSource.acquisitionSetDigest) {
+  throw new Error('realisation-option acquisition CAS record does not match its acquisition set binding');
 }
+const optionAcquisitionAuthorityCurrent = optionAcquisitionRecord.authorityDigest === currentAuthorityDigest;
+const optionAcquisition = {
+  ...optionAcquisitionSource,
+  // Preserved exactly as the payload records it.
+  authorityDigest: optionAcquisitionRecord.authorityDigest,
+  authorityCurrency: optionAcquisitionAuthorityCurrent
+    ? 'BOUND_TO_CURRENT_AUTHORITY'
+    : 'BOUND_TO_SUPERSEDED_AUTHORITY_REACQUISITION_REQUIRED',
+  state: optionAcquisitionAuthorityCurrent
+    ? 'VERIFIED_LOCAL_ACQUISITION_PENDING_SIGNED_EVIDENCE'
+    : 'SUPERSEDED_AUTHORITY_ACQUISITION_NOT_CURRENT_EVIDENCE',
+};
 
 // Wave artefact locations come from the supplied binding, never from constants:
 // a content-addressed filename pinned in source is a second place for a stale
@@ -383,9 +399,9 @@ requireEqual(universalProofRecord.analysisDigest, universalAnalysisRecord.analys
 requireEqual(universalProofRecord.inventoryDigest, universalInventoryRecord.inventoryDigest, 'universal proof inventory binding');
 requireEqual(universalProofRecord.registryDigest, universalRegistryRecord.registryDigest, 'universal proof registry binding');
 requireEqual(universalProofRecord.reviewProjectionDigest, universalReviewProjectionRecord.reviewProjectionDigest, 'universal proof review projection binding');
-requireEqual(universalProofRecord.authorityBinding.authorityDigest, optionAcquisition.authorityDigest, 'universal proof authority binding');
-requireEqual(universalInventoryRecord.authorityBinding.authorityDigest, optionAcquisition.authorityDigest, 'universal inventory authority binding');
-requireEqual(universalAnalysisRecord.authorityDigest, optionAcquisition.authorityDigest, 'universal analysis authority binding');
+requireEqual(universalProofRecord.authorityBinding.authorityDigest, currentAuthorityDigest, 'universal proof authority binding');
+requireEqual(universalInventoryRecord.authorityBinding.authorityDigest, currentAuthorityDigest, 'universal inventory authority binding');
+requireEqual(universalAnalysisRecord.authorityDigest, currentAuthorityDigest, 'universal analysis authority binding');
 
 const universalProofMismatchFields = [
   'analysisReconstructionMismatchCount',
@@ -620,8 +636,9 @@ if (authorityProjectionRecord.basePacketDigest !== authorityPacketArtefact.fileD
 // identity. A single divergence fails generation rather than producing another
 // internally agreeable but wrongly bound checkpoint.
 assertExactAuthorityPropagation({
+  // Scoped to the current wave. The acquisition record is historical evidence
+  // with its own past binding and is classified above, not propagated to.
   artefacts: [
-    { observedDigest: optionAcquisitionRecord.authorityDigest, role: 'optionAcquisition' },
     ...authorityBinding.waveArtefacts.map(({ authorityField, path, role }) => {
       const record = JSON.parse(readFileSync(join(repositoryRoot, path), 'utf8'));
       return {
