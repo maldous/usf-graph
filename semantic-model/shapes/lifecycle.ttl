@@ -33,7 +33,8 @@ _:b38_b38_n3-559 sh:message "Active contracts require current successful proof f
 _:b38_b38_n3-560 sh:path usf:canonicalName;
     sh:hasValue "implementable".
 <urn:usf:shape:implementablestatedefinition> sh:property _:b38_b38_n3-560.
-_:b38_b38_n3-561 sh:path usf:allowsRealisationPredecessor.
+_:b38_b38_n3-561 sh:path usf:allowsRealisationPredecessor;
+    sh:class usf:RealisationState.
 <urn:usf:shape:implementablestatedefinition> sh:property _:b38_b38_n3-561.
 _:b38_b38_n3-562 sh:path usf:allowsRealisationSuccessor;
     sh:minCount 1;
@@ -110,11 +111,22 @@ _:b38_b38_n3-574 sh:message "ADR, external-work-record, report and test authorit
     # with activation, actionability and closure at once.
     sh:property [ sh:path usf:semanticLifecycleState; sh:maxCount 0;
         sh:message "a ValidationObligation must not use semanticLifecycleState; use usf:hasValidationActivationState" ];
+    # usf:ValidationObligationActivationState is an open class, so sh:class
+    # alone admits a declared fourth value that is neither reserved nor blocked
+    # and therefore escapes the closure gate below. The enumeration is exactly
+    # the three values declared in vocabulary.ttl.
     sh:property [ sh:path usf:hasValidationActivationState; sh:minCount 1; sh:maxCount 1;
         sh:class usf:ValidationObligationActivationState;
-        sh:message "a ValidationObligation must declare exactly one activation state" ];
+        sh:in (<urn:usf:validationactivationstate:reserved>
+               <urn:usf:validationactivationstate:activated>
+               <urn:usf:validationactivationstate:blocked>);
+        sh:message "a ValidationObligation must declare exactly one activation state drawn from reserved, activated and blocked" ];
     sh:property [ sh:path usf:validationForContract; sh:minCount 1; sh:maxCount 1;
-        sh:message "a ValidationObligation must bind exactly one contract" ].
+        sh:message "a ValidationObligation must bind exactly one contract" ];
+    # Satisfaction is single-valued. Two satisfying results are two competing
+    # closure claims, not a stronger one: neither can be shown to be current.
+    sh:property [ sh:path usf:satisfiedByValidationResult; sh:maxCount 1;
+        sh:message "a ValidationObligation must not be satisfied by more than one ValidationResult" ].
 
 <urn:usf:shape:validationresultbinding> a sh:NodeShape;
     sh:targetObjectsOf usf:satisfiedByValidationResult;
@@ -123,18 +135,58 @@ _:b38_b38_n3-574 sh:message "ADR, external-work-record, report and test authorit
     sh:property [ sh:path usf:resultForValidationObligation; sh:minCount 1; sh:maxCount 1;
         sh:class usf:ValidationObligation;
         sh:message "a satisfying ValidationResult must bind exactly one ValidationObligation" ];
-    sh:property [ sh:path usf:resultState; sh:minCount 1; sh:hasValue <urn:usf:resultstate:passed>;
-        sh:message "a satisfying ValidationResult must be passing" ];
+    # sh:hasValue passed alone is satisfied by passed AND failed together, which
+    # is a contradiction, not a pass. Exactly one state, and it must be passed.
+    sh:property [ sh:path usf:resultState; sh:minCount 1; sh:maxCount 1;
+        sh:hasValue <urn:usf:resultstate:passed>;
+        sh:message "a satisfying ValidationResult must declare exactly one result state and it must be passed" ];
     sh:property [ sh:path usf:usesAdmittedValidationEvidence; sh:minCount 1;
+        sh:class usf:EvidenceResult;
         sh:message "a satisfying ValidationResult must cite the admitted evidence it evaluated" ];
     sh:property [ sh:path usf:validationEvaluatedAuthorityDigest; sh:minCount 1; sh:maxCount 1;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
         sh:message "a satisfying ValidationResult must bind the exact authority it was evaluated against" ];
     sh:property [ sh:path usf:validationEvaluatedSourceHead; sh:minCount 1; sh:maxCount 1;
+        sh:datatype xsd:string;
+        sh:pattern "^[0-9a-f]{40}$";
         sh:message "a satisfying ValidationResult must bind the exact source head it was evaluated against" ];
+    # Self-publication closure, mirroring shp:ProofAuthorityBindingShape: the
+    # authority a result was evaluated against cannot include the publication of
+    # that result, so satisfaction is always conditional on a post-publication
+    # re-evaluation and must say so structurally.
+    sh:property [ sh:path usf:requiresPostPublicationReevaluation; sh:minCount 1; sh:maxCount 1;
+        sh:datatype xsd:boolean; sh:hasValue true;
+        sh:message "a satisfying ValidationResult must declare that it requires post-publication re-evaluation" ];
     sh:property [ sh:path usf:hasValidationInvalidationCondition; sh:maxCount 0;
         sh:message "an invalidated ValidationResult must not continue to satisfy an obligation" ];
     sh:property [ sh:path usf:supersededByValidationResult; sh:maxCount 0;
-        sh:message "a superseded ValidationResult must not continue to satisfy an obligation" ].
+        sh:message "a superseded ValidationResult must not continue to satisfy an obligation" ];
+    # The cited evidence must itself be admitted, fresh, integrity-valid, in
+    # scope, applicable to THIS obligation, carry the complete emitted →
+    # integrity-verified pipeline with its collection, normalisation, ingestion,
+    # signature, checksum and passing integrity verification, be neither the
+    # result nor the obligation, and agree with the result on the authority
+    # digest that was evaluated. urn:usf:nonclaim:controlplanereceiptdoesnotsatisfyvalidation
+    # states this in prose; without it a control-plane receipt closes an
+    # obligation against a superseded authority digest.
+    sh:sparql [ sh:message "a satisfying ValidationResult must cite exact admitted fresh integrity-valid applicable evidence with a complete non-circular evidence pipeline whose evaluated authority digest equals its own; urn:usf:nonclaim:controlplanereceiptdoesnotsatisfyvalidation requires current authority and source-head bindings";
+        sh:select """PREFIX usf: <urn:usf:ontology:>
+PREFIX admission: <urn:usf:evidenceadmissionstate:>
+PREFIX freshnessstate: <urn:usf:evidencefreshnessstate:>
+PREFIX integritystate: <urn:usf:evidenceintegritystate:>
+PREFIX resultstate: <urn:usf:resultstate:>
+PREFIX es: <urn:usf:evidencestage:>
+SELECT $this WHERE {
+  $this usf:resultForValidationObligation ?o ; usf:usesAdmittedValidationEvidence ?e .
+  FILTER (
+    NOT EXISTS {?e usf:hasAdmissionState admission:admitted ; usf:hasFreshnessState freshnessstate:fresh ; usf:hasIntegrityState integritystate:valid ; usf:withinValidityScope true ; usf:applicableToObligation ?o}
+    || NOT EXISTS {?e usf:evidenceStage es:emitted, es:collected, es:normalised, es:ingested, es:signed, es:integrityverified ; usf:collectedBy ?collection ; usf:normalisedBy ?normalisation ; usf:ingestedBy ?ingestion ; usf:evidenceSignature ?signature ; usf:evidenceChecksum ?checksum ; usf:integrityVerification ?verification . ?collection a usf:EvidenceCollection . ?normalisation a usf:EvidenceNormalisation . ?ingestion a usf:EvidenceIngestion . ?signature a usf:Signature . ?checksum a usf:Checksum . ?verification a usf:IntegrityVerification ; usf:verifiesEvidence ?e ; usf:verificationState resultstate:passed}
+    || EXISTS {$this usf:usesAdmittedValidationEvidence $this}
+    || ?e = ?o
+    || EXISTS {$this usf:validationEvaluatedAuthorityDigest ?d . ?e usf:evaluatedAuthorityDigest ?ed . FILTER (?d != ?ed)}
+  )
+}""" ].
 
 <urn:usf:shape:validationexecutiontargeting> a sh:NodeShape;
     sh:targetClass usf:ValidationExecution;
@@ -152,6 +204,30 @@ _:b38_b38_n3-574 sh:message "ADR, external-work-record, report and test authorit
                               <urn:usf:validationactivationstate:blocked>))
             $this <urn:usf:ontology:satisfiedByValidationResult> ?r .
         }""" ].
+
+<urn:usf:shape:activatedvalidationobligation> a sh:NodeShape;
+    sh:targetClass usf:ValidationObligation;
+    # Activation is the gate every other satisfaction constraint hangs from, so
+    # a bare usf:hasValidationActivationState activated triple must not be
+    # enough to make an obligation closeable. Activation has to name who
+    # activated it, when, why, and which evidence prerequisites were met.
+    sh:sparql [ sh:message "an activated ValidationObligation must record exactly one activation authority, exactly one activation time, at least one activation reason, and at least one activation prerequisite satisfied by admitted fresh integrity-valid evidence";
+        sh:select """PREFIX usf: <urn:usf:ontology:>
+PREFIX admission: <urn:usf:evidenceadmissionstate:>
+PREFIX freshnessstate: <urn:usf:evidencefreshnessstate:>
+PREFIX integritystate: <urn:usf:evidenceintegritystate:>
+SELECT $this WHERE {
+  $this usf:hasValidationActivationState <urn:usf:validationactivationstate:activated> .
+  FILTER (
+    NOT EXISTS {$this usf:validationActivationAuthority ?authority}
+    || EXISTS {$this usf:validationActivationAuthority ?authority, ?otherAuthority . FILTER (?authority != ?otherAuthority)}
+    || NOT EXISTS {$this usf:validationActivatedAt ?activatedAt}
+    || EXISTS {$this usf:validationActivatedAt ?activatedAt, ?otherActivatedAt . FILTER (?activatedAt != ?otherActivatedAt)}
+    || NOT EXISTS {$this usf:validationActivationReason ?reason}
+    || NOT EXISTS {$this usf:validationActivationPrerequisite ?requirement}
+    || EXISTS {$this usf:validationActivationPrerequisite ?requirement . FILTER NOT EXISTS {?requirement usf:satisfiedByEvidence ?evidence . ?evidence usf:hasAdmissionState admission:admitted ; usf:hasFreshnessState freshnessstate:fresh ; usf:hasIntegrityState integritystate:valid}}
+  )
+}""" ].
 
 <urn:usf:shape:validationsatisfactionidentity> a sh:NodeShape;
     sh:targetClass usf:ValidationObligation;

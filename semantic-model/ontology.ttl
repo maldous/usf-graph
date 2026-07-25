@@ -4958,6 +4958,8 @@ usf:requiredValidation usf:termUsageState <urn:usf:termusagestate:usedbysemantic
 usf:requiresADR usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>.
 usf:storageLocator usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>.
 usf:supersedesDecision usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>.
+usf:supersedesEvidence usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
+    usf:termUsageRationale "Forward direction of evidence supersession. Its inverse usf:isSupersededByEvidence is already reserved and neither direction has instances; declaring only the inverse left the forward term undispositioned and made evidence supersession look asymmetric. Supersession never invalidates evidence on its own: admission, freshness and integrity states remain the only closure inputs.".
 usf:supersedesProofResult usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>.
 usf:supportsClaim usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>.
 usf:suspendsContract usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>.
@@ -7281,6 +7283,12 @@ usf:validationActivationPrerequisite a owl:ObjectProperty;
 usf:validationActivationReason a owl:DatatypeProperty;
     rdfs:domain usf:ValidationObligation;
     rdfs:range xsd:string.
+usf:validationActivationAuthority a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationObligation;
+    rdfs:range usf:Entity.
+usf:validationActivatedAt a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationObligation;
+    rdfs:range xsd:dateTime.
 
 # Result binding. Execution targeting alone is insufficient for satisfaction.
 usf:resultForValidationObligation a owl:ObjectProperty, owl:FunctionalProperty;
@@ -7315,9 +7323,13 @@ usf:validationNonclaim a owl:ObjectProperty;
 
 # Declared ahead of first use, deliberately. No obligation is satisfied yet —
 # all three are reserved — and no activation prerequisites are declared, so
-# these two terms have no instances. They are part of the contract a consumer
+# these terms have no instances. They are part of the contract a consumer
 # must implement against, not speculative vocabulary.
 usf:satisfiedByValidationResult usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
     usf:termUsageRationale "Satisfaction relation for ValidationObligation. Unused until an obligation is activated and an applicable passing ValidationResult exists; a consumer must never infer satisfaction from its absence.".
 usf:validationActivationPrerequisite usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
     usf:termUsageRationale "Structured activation prerequisite for ValidationObligation. Unused until an obligation declares machine-readable prerequisites; absence means the obligation stays reserved.".
+usf:validationActivationAuthority usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
+    usf:termUsageRationale "Activating authority for ValidationObligation. Unused while every obligation is reserved; <urn:usf:shape:activatedvalidationobligation> requires exactly one value before an activated obligation is closeable, so a bare activation flip cannot stand in for it.".
+usf:validationActivatedAt usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
+    usf:termUsageRationale "Activation instant for ValidationObligation. Unused while every obligation is reserved; <urn:usf:shape:activatedvalidationobligation> requires exactly one value so an activation can be placed in time against an authority digest.".
