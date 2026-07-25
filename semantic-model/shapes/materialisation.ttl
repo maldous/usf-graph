@@ -653,7 +653,9 @@ shp:RepositoryArchitectureDecisionShape a sh:NodeShape;
 _:b39_b39_n3-709 sh:path usf:decisionState;
     sh:minCount 1;
     sh:maxCount 1;
-    sh:class usf:DecisionState.
+    sh:class usf:DecisionState;
+    sh:in (<urn:usf:decisionstate:proposed> <urn:usf:decisionstate:accepted> <urn:usf:decisionstate:reopened> <urn:usf:decisionstate:superseded> <urn:usf:decisionstate:rejected>);
+    sh:message "DECISION_STATE_NOT_CLOSED: repository architecture decision must declare exactly one of the five declared decision states".
 shp:RepositoryArchitectureDecisionShape sh:property _:b39_b39_n3-709.
 _:b39_b39_n3-710 sh:path usf:decisionRationale;
     sh:minCount 1;

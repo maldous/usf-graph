@@ -1617,3 +1617,58 @@ _:pfcr12 sh:prefixes usf:prefixes;
     sh:message "UNIVERSAL_CANDIDATE_AUTHORISATION_PROHIBITED: a family candidate cannot establish truth, activate a contract, admit evidence or establish proof directly";
     sh:select "SELECT $this WHERE { $this ?predicate ?value . FILTER (?predicate IN (usf:establishesSemanticTruth, usf:directlyActivatesContract, usf:directlyAdmitsEvidence, usf:directlyEstablishesProof)) } LIMIT 1".
 shp:PermutationFamilyCandidateShape sh:sparql _:pfcr12.
+
+# --- Declarative digest formats for permutation proof and derivation records ---
+# These digests were previously only regex-checked inside sh:sparql bodies or not
+# checked at all. Cardinality is unchanged: valueDerivationDigest and
+# valueSourceDigest are present on a subset of instances today, and no in-use
+# digest predicate holds more than one value per subject.
+
+_:cvp_value_derivation_digest sh:path usf:valueDerivationDigest;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "VALUE_DERIVATION_DIGEST_INVALID: derivation digest must be an exact SHA-256 digest".
+shp:PermutationValueDerivationShape sh:property _:cvp_value_derivation_digest.
+_:cvp_value_source_digest sh:path usf:valueSourceDigest;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "VALUE_SOURCE_DIGEST_INVALID: dimension value-source digest must be an exact SHA-256 digest".
+shp:DimensionValueSourceShape sh:property _:cvp_value_source_digest.
+
+shp:CompositionCoverageProofShape a sh:NodeShape;
+    usf:canonicalName "compositioncoverageproofshape";
+    sh:targetClass usf:CompositionCoverageProof;
+    sh:property [ sh:path usf:compositionProofDigest; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "COMPOSITION_PROOF_DIGEST_INVALID: composition proof digest must be an exact SHA-256 digest" ];
+    sh:property [ sh:path usf:compositionProofAuthorityDigest; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "COMPOSITION_PROOF_AUTHORITY_DIGEST_INVALID: composition proof authority digest must be an exact SHA-256 digest" ];
+    sh:property [ sh:path usf:compositionProofImplementationDigest; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "COMPOSITION_PROOF_IMPLEMENTATION_DIGEST_INVALID: composition proof implementation digest must be an exact SHA-256 digest" ];
+    sh:property [ sh:path usf:compositionProjectionDigest; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "COMPOSITION_PROJECTION_DIGEST_INVALID: composition projection digest must be an exact SHA-256 digest" ];
+    sh:property [ sh:path usf:compositionPermutationPayloadDigest; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "COMPOSITION_PERMUTATION_PAYLOAD_DIGEST_INVALID: composition permutation payload digest must be an exact SHA-256 digest" ].
+
+shp:PermutationEquivalenceProofShape a sh:NodeShape;
+    usf:canonicalName "permutationequivalenceproofshape";
+    sh:targetClass usf:PermutationEquivalenceProof;
+    sh:property [ sh:path usf:equivalenceProofAuthorityDigest; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "EQUIVALENCE_PROOF_AUTHORITY_DIGEST_INVALID: equivalence proof authority digest must be an exact SHA-256 digest" ];
+    sh:property [ sh:path usf:equivalenceProofImplementationDigest; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "EQUIVALENCE_PROOF_IMPLEMENTATION_DIGEST_INVALID: equivalence proof implementation digest must be an exact SHA-256 digest" ];
+    sh:property [ sh:path usf:equivalenceProofRuleSetDigest; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "EQUIVALENCE_PROOF_RULE_SET_DIGEST_INVALID: equivalence proof rule-set digest must be an exact SHA-256 digest" ];
+    sh:property [ sh:path usf:equivalenceProofMatchedRowsDigest; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "EQUIVALENCE_PROOF_MATCHED_ROWS_DIGEST_INVALID: equivalence proof matched-rows digest must be an exact SHA-256 digest" ].
+
+shp:CompositionPermutationAssessmentShape a sh:NodeShape;
+    usf:canonicalName "compositionpermutationassessmentshape";
+    sh:targetClass usf:CompositionPermutationAssessment;
+    sh:property [ sh:path usf:permutationDimensionSetDigest; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "PERMUTATION_DIMENSION_SET_DIGEST_INVALID: permutation dimension-set digest must be an exact SHA-256 digest" ].
+
+shp:PermutationRuleSetShape a sh:NodeShape;
+    usf:canonicalName "permutationrulesetshape";
+    sh:targetClass usf:PermutationRuleSet;
+    sh:property [ sh:path usf:permutationRuleSetDigest; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "PERMUTATION_RULE_SET_DIGEST_INVALID: permutation rule-set digest must be an exact SHA-256 digest" ].

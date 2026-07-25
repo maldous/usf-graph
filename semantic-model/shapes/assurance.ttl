@@ -633,3 +633,139 @@ _:b32_b32_n3-230 sh:path _:b32_b32_n3-231;
     sh:minCount 1;
     sh:message "defectcoverage: every defect must be detected by at least one validator rule".
 shp:DefectShape sh:property _:b32_b32_n3-230.
+
+# --- Controlled-value closure -----------------------------------------------
+# Two independent defects are closed here.
+#
+# (1) OPEN VOCABULARY. Every gate on these states used only sh:class, so a newly
+#     declared member of the class was accepted everywhere the class was accepted.
+#     Each vocabulary now carries a node shape that constrains the controlled
+#     value itself to the exact declared member set, so a novel member is refused
+#     at declaration rather than at each use site.
+# (2) CONTRADICTORY VALUES. These predicates are owl:FunctionalProperty in the
+#     ontology, but OWL functionality is not a SHACL constraint: without
+#     sh:maxCount 1 a single node could assert successful and failed, or admitted
+#     and rejected, and still conform. Exact cardinality is now declared.
+#
+# Member sets are transcribed from the authored declarations in
+# semantic-model/assurance/evidence.trig and semantic-model/assurance/proofs.trig
+# and are gated by assurance/semantic-model-compilation/controlled-value-closure.test.mjs,
+# which fails if a vocabulary gains or loses a member without this closure changing.
+
+shp:ProofResultStateClosureShape a sh:NodeShape;
+    usf:canonicalName "proofresultstateclosureshape";
+    sh:targetClass usf:ProofResultState;
+    sh:in (<urn:usf:proofresultstate:successful> <urn:usf:proofresultstate:failed> <urn:usf:proofresultstate:invalidated> <urn:usf:proofresultstate:unknown>);
+    sh:message "PROOF_RESULT_STATE_NOT_CLOSED: ProofResultState admits exactly the four declared members".
+
+shp:ProofConfidenceStateClosureShape a sh:NodeShape;
+    usf:canonicalName "proofconfidencestateclosureshape";
+    sh:targetClass usf:ProofConfidenceState;
+    sh:in (<urn:usf:proofconfidencestate:warranted> <urn:usf:proofconfidencestate:reduced> <urn:usf:proofconfidencestate:withdrawn> <urn:usf:proofconfidencestate:unknown>);
+    sh:message "PROOF_CONFIDENCE_STATE_NOT_CLOSED: ProofConfidenceState admits exactly the four declared members".
+
+shp:ProofInvalidationConditionClosureShape a sh:NodeShape;
+    usf:canonicalName "proofinvalidationconditionclosureshape";
+    sh:targetClass usf:ProofInvalidationCondition;
+    sh:in (<urn:usf:proofinvalidationcondition:evidenceinvalidated> <urn:usf:proofinvalidationcondition:evidencestale> <urn:usf:proofinvalidationcondition:authoritydigestchanged>);
+    sh:message "PROOF_INVALIDATION_CONDITION_NOT_CLOSED: ProofInvalidationCondition admits exactly the three declared members".
+
+shp:EvidenceAdmissionStateClosureShape a sh:NodeShape;
+    usf:canonicalName "evidenceadmissionstateclosureshape";
+    sh:targetClass usf:EvidenceAdmissionState;
+    sh:in (<urn:usf:evidenceadmissionstate:pending> <urn:usf:evidenceadmissionstate:admitted> <urn:usf:evidenceadmissionstate:rejected> <urn:usf:evidenceadmissionstate:invalidated>);
+    sh:message "EVIDENCE_ADMISSION_STATE_NOT_CLOSED: EvidenceAdmissionState admits exactly the four declared members".
+
+shp:EvidenceFreshnessStateClosureShape a sh:NodeShape;
+    usf:canonicalName "evidencefreshnessstateclosureshape";
+    sh:targetClass usf:EvidenceFreshnessState;
+    sh:in (<urn:usf:evidencefreshnessstate:fresh> <urn:usf:evidencefreshnessstate:stale>);
+    sh:message "EVIDENCE_FRESHNESS_STATE_NOT_CLOSED: EvidenceFreshnessState admits exactly the two declared members".
+
+shp:EvidenceIntegrityStateClosureShape a sh:NodeShape;
+    usf:canonicalName "evidenceintegritystateclosureshape";
+    sh:targetClass usf:EvidenceIntegrityState;
+    sh:in (<urn:usf:evidenceintegritystate:valid> <urn:usf:evidenceintegritystate:invalid>);
+    sh:message "EVIDENCE_INTEGRITY_STATE_NOT_CLOSED: EvidenceIntegrityState admits exactly the two declared members".
+
+# Exact single-valued proof-result state and confidence state.
+_:cva_proof_result_state sh:path usf:hasProofResultState;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:ProofResultState;
+    sh:in (<urn:usf:proofresultstate:successful> <urn:usf:proofresultstate:failed> <urn:usf:proofresultstate:invalidated> <urn:usf:proofresultstate:unknown>);
+    sh:message "PROOF_RESULT_STATE_NOT_EXACT: proof result must declare exactly one declared proof-result state".
+shp:ProofResultShape sh:property _:cva_proof_result_state.
+_:cva_proof_confidence_state sh:path usf:hasConfidenceState;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:ProofConfidenceState;
+    sh:in (<urn:usf:proofconfidencestate:warranted> <urn:usf:proofconfidencestate:reduced> <urn:usf:proofconfidencestate:withdrawn> <urn:usf:proofconfidencestate:unknown>);
+    sh:message "PROOF_CONFIDENCE_STATE_NOT_EXACT: proof result must declare exactly one declared proof-confidence state".
+shp:ProofResultShape sh:property _:cva_proof_confidence_state.
+_:cva_evidence_set_digest sh:path usf:evidenceSetDigest;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "PROOF_EVIDENCE_SET_DIGEST_INVALID: proof evidence-set digest must be an exact SHA-256 digest".
+shp:ProofResultShape sh:property _:cva_evidence_set_digest.
+
+# Exact single-valued evidence admission, freshness and integrity state.
+_:cva_evidence_admission_state sh:path usf:hasAdmissionState;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:EvidenceAdmissionState;
+    sh:in (<urn:usf:evidenceadmissionstate:pending> <urn:usf:evidenceadmissionstate:admitted> <urn:usf:evidenceadmissionstate:rejected> <urn:usf:evidenceadmissionstate:invalidated>);
+    sh:message "EVIDENCE_ADMISSION_STATE_NOT_EXACT: evidence result must declare exactly one declared admission state".
+shp:EvidenceResultShape sh:property _:cva_evidence_admission_state.
+_:cva_evidence_freshness_state sh:path usf:hasFreshnessState;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:EvidenceFreshnessState;
+    sh:in (<urn:usf:evidencefreshnessstate:fresh> <urn:usf:evidencefreshnessstate:stale>);
+    sh:message "EVIDENCE_FRESHNESS_STATE_NOT_EXACT: evidence result must declare exactly one declared freshness state".
+shp:EvidenceResultShape sh:property _:cva_evidence_freshness_state.
+_:cva_evidence_integrity_state sh:path usf:hasIntegrityState;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:EvidenceIntegrityState;
+    sh:in (<urn:usf:evidenceintegritystate:valid> <urn:usf:evidenceintegritystate:invalid>);
+    sh:message "EVIDENCE_INTEGRITY_STATE_NOT_EXACT: evidence result must declare exactly one declared integrity state".
+shp:EvidenceResultShape sh:property _:cva_evidence_integrity_state.
+
+# Declarative digest formats for evidence-lifecycle digests. Cardinality is
+# deliberately unchanged: several of these are optional in the current model.
+_:cva_content_digest sh:path usf:contentDigest;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "EVIDENCE_CONTENT_DIGEST_INVALID: evidence content digest must be an exact SHA-256 digest".
+shp:EvidenceResultShape sh:property _:cva_content_digest.
+_:cva_evaluated_authority_digest sh:path usf:evaluatedAuthorityDigest;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "EVIDENCE_EVALUATED_AUTHORITY_DIGEST_INVALID: evaluated authority digest must be an exact SHA-256 digest".
+shp:EvidenceResultShape sh:property _:cva_evaluated_authority_digest.
+_:cva_evidence_producer_digest sh:path usf:evidenceProducerDigest;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "EVIDENCE_PRODUCER_DIGEST_INVALID: evidence producer digest must be an exact SHA-256 digest".
+shp:EvidenceResultShape sh:property _:cva_evidence_producer_digest.
+_:cva_scope_derivation_input_digest sh:path usf:scopeDerivationInputDigest;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "EVIDENCE_SCOPE_DERIVATION_INPUT_DIGEST_INVALID: scope derivation input digest must be an exact SHA-256 digest".
+shp:EvidenceScopeManifestShape sh:property _:cva_scope_derivation_input_digest.
+_:cva_scope_derivation_result_digest sh:path usf:scopeDerivationResultDigest;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "EVIDENCE_SCOPE_DERIVATION_RESULT_DIGEST_INVALID: scope derivation result digest must be an exact SHA-256 digest".
+shp:EvidenceScopeManifestShape sh:property _:cva_scope_derivation_result_digest.
+
+shp:EvidenceCollectionShape a sh:NodeShape;
+    usf:canonicalName "evidencecollectionshape";
+    sh:targetClass usf:EvidenceCollection;
+    sh:property [
+        sh:path usf:sourceDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "EVIDENCE_COLLECTION_SOURCE_DIGEST_INVALID: collected-source digest must be an exact SHA-256 digest"
+    ].

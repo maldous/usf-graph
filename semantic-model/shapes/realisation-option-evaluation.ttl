@@ -10,6 +10,7 @@ _:oe_decision_state sh:path usf:decisionState;
     sh:minCount 1;
     sh:maxCount 1;
     sh:class usf:DecisionState;
+    sh:in (<urn:usf:decisionstate:proposed> <urn:usf:decisionstate:accepted> <urn:usf:decisionstate:reopened> <urn:usf:decisionstate:superseded> <urn:usf:decisionstate:rejected>);
     sh:message "decisionstatecardinality: realisation decision must declare exactly one state".
 shp:RealisationDecisionShape sh:property _:oe_decision_state.
 _:oe_decision_contract sh:message "decisioncontractmissing: accepted realisation decision must identify exactly one governed contract";
@@ -397,3 +398,213 @@ shp:ComponentResponsibilityShape a sh:NodeShape;
 _:oe_component_responsibility_coherence sh:message "componentresponsibilityownershipincoherent: owner must contain the responsibility and its component";
     sh:select "PREFIX usf: <urn:usf:ontology:>\nSELECT $this WHERE {\n  $this usf:responsibilityForComponent ?component ; usf:responsibilityOwner ?owner .\n  FILTER NOT EXISTS { ?owner usf:hasComponentResponsibility $this ; usf:hasOptionComponent ?component }\n}".
 shp:ComponentResponsibilityShape sh:sparql _:oe_component_responsibility_coherence.
+
+# --- Controlled-value closure and declarative digest formats ------------------
+# Every digest-bearing predicate below was previously format-checked only inside
+# sh:sparql FILTER REGEX bodies, which means an instance that never reaches those
+# guarded paths carried an unvalidated digest. The declarative constraint is added
+# alongside the existing SPARQL guards, not instead of them.
+#
+# Cardinality is deliberately unchanged for the digest predicates: several are
+# optional today (for example componentToolchainDigest is present on 6 of 17
+# component identities), and no in-use digest predicate holds more than one value
+# per subject, so no contradiction exists to close.
+#
+# Two digest families legitimately carry a non-SHA-256 form: npm Subresource
+# Integrity strings ("sha512-" + base64) observed verbatim from the upstream
+# registry for third-party packages. Rewriting them would falsify the observed
+# component identity, so they are constrained with the narrower dual pattern
+# already used by _:oe_selected_package_integrity rather than left unconstrained.
+
+_:cvo_assessment_authority_digest sh:path usf:assessmentAuthorityDigest;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "ASSESSMENT_AUTHORITY_DIGEST_INVALID: criterion assessment authority digest must be an exact SHA-256 digest".
+shp:CriterionAssessmentShape sh:property _:cvo_assessment_authority_digest.
+_:cvo_assessment_evidence_digest sh:path usf:assessmentEvidenceDigest;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "ASSESSMENT_EVIDENCE_DIGEST_INVALID: criterion assessment evidence digest must be an exact SHA-256 digest".
+shp:CriterionAssessmentShape sh:property _:cvo_assessment_evidence_digest.
+_:cvo_binding_authority_digest sh:path usf:bindingAuthorityDigest;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "CRITERION_BINDING_AUTHORITY_DIGEST_INVALID: evidence-binding authority digest must be an exact SHA-256 digest".
+shp:CriterionEvidenceBindingShape sh:property _:cvo_binding_authority_digest.
+_:cvo_binding_evidence_digest sh:path usf:bindingEvidenceDigest;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "CRITERION_BINDING_EVIDENCE_DIGEST_INVALID: evidence-binding evidence digest must be an exact SHA-256 digest".
+shp:CriterionEvidenceBindingShape sh:property _:cvo_binding_evidence_digest.
+
+shp:DecisionEvaluationShape a sh:NodeShape;
+    usf:canonicalName "decisionevaluationshape";
+    sh:targetClass usf:DecisionEvaluation;
+    # evaluationClosureState is exactly-one-at-most rather than mandatory: the
+    # existing _:oe_accepted_closure constraint deliberately treats it as a
+    # derived value that may be absent, and making it mandatory here would make
+    # that guard unreachable. The contradiction defect is closed by maxCount 1.
+    sh:property [
+        sh:path usf:evaluationClosureState;
+        sh:maxCount 1;
+        sh:class usf:EvaluationClosureState;
+        sh:in (<urn:usf:evaluationclosurestate:complete> <urn:usf:evaluationclosurestate:incomplete> <urn:usf:evaluationclosurestate:invalidated>);
+        sh:message "EVALUATION_CLOSURE_STATE_NOT_EXACT: decision evaluation must declare at most one declared closure state"
+    ];
+    sh:property [
+        sh:path usf:evaluationAuthorityDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "EVALUATION_AUTHORITY_DIGEST_INVALID: evaluation authority digest must be an exact SHA-256 digest"
+    ];
+    sh:property [
+        sh:path usf:evaluationDependencySetDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "EVALUATION_DEPENDENCY_SET_DIGEST_INVALID: evaluation dependency-set digest must be an exact SHA-256 digest"
+    ];
+    sh:property [
+        sh:path usf:evaluationEvidenceDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "EVALUATION_EVIDENCE_DIGEST_INVALID: evaluation evidence digest must be an exact SHA-256 digest"
+    ];
+    sh:property [
+        sh:path usf:evaluationImplementationSourceDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "EVALUATION_IMPLEMENTATION_SOURCE_DIGEST_INVALID: evaluation implementation-source digest must be an exact SHA-256 digest"
+    ];
+    sh:property [
+        sh:path usf:evaluationProducerDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "EVALUATION_PRODUCER_DIGEST_INVALID: evaluation producer digest must be an exact SHA-256 digest"
+    ].
+
+shp:CandidateCredibilityAssessmentShape a sh:NodeShape;
+    usf:canonicalName "candidatecredibilityassessmentshape";
+    sh:targetClass usf:CandidateCredibilityAssessment;
+    sh:property [
+        sh:path usf:credibilityState;
+        sh:minCount 1;
+        sh:maxCount 1;
+        sh:class usf:CandidateCredibilityState;
+        sh:message "CANDIDATE_CREDIBILITY_STATE_NOT_EXACT: candidate credibility assessment must declare exactly one controlled credibility state"
+    ].
+
+shp:CandidateSearchSpaceShape a sh:NodeShape;
+    usf:canonicalName "candidatesearchspaceshape";
+    sh:targetClass usf:CandidateSearchSpace;
+    sh:property [
+        sh:path usf:candidateSearchSpaceDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "CANDIDATE_SEARCH_SPACE_DIGEST_INVALID: candidate search-space digest must be an exact SHA-256 digest"
+    ].
+
+shp:ComponentCompatibilityAssessmentShape a sh:NodeShape;
+    usf:canonicalName "componentcompatibilityassessmentshape";
+    sh:targetClass usf:ComponentCompatibilityAssessment;
+    sh:property [
+        sh:path usf:compatibilitySourceIntegrityDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "COMPATIBILITY_SOURCE_INTEGRITY_DIGEST_INVALID: repository-local source integrity digest must be an exact SHA-256 digest"
+    ];
+    sh:property [
+        sh:path usf:compatibilityTargetIntegrityDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^(sha256:[0-9a-f]{64}|sha512-[A-Za-z0-9+/=]+)$";
+        sh:message "COMPATIBILITY_TARGET_INTEGRITY_DIGEST_INVALID: target integrity digest must be an exact SHA-256 digest or an upstream npm SHA-512 subresource-integrity string"
+    ].
+
+shp:ComponentIdentityShape a sh:NodeShape;
+    usf:canonicalName "componentidentityshape";
+    sh:targetClass usf:ComponentIdentity;
+    sh:property [
+        sh:path usf:componentIntegrityDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^(sha256:[0-9a-f]{64}|sha512-[A-Za-z0-9+/=]+)$";
+        sh:message "COMPONENT_INTEGRITY_DIGEST_INVALID: component integrity digest must be an exact SHA-256 digest or an upstream npm SHA-512 subresource-integrity string"
+    ];
+    sh:property [
+        sh:path usf:componentObservationDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "COMPONENT_OBSERVATION_DIGEST_INVALID: component observation digest must be an exact SHA-256 digest"
+    ];
+    sh:property [
+        sh:path usf:componentDependencyLockDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "COMPONENT_DEPENDENCY_LOCK_DIGEST_INVALID: component dependency-lock digest must be an exact SHA-256 digest"
+    ];
+    sh:property [
+        sh:path usf:componentImplementationSourceDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "COMPONENT_IMPLEMENTATION_SOURCE_DIGEST_INVALID: component implementation-source digest must be an exact SHA-256 digest"
+    ];
+    sh:property [
+        sh:path usf:componentToolchainDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "COMPONENT_TOOLCHAIN_DIGEST_INVALID: component toolchain digest must be an exact SHA-256 digest"
+    ].
+
+shp:ComponentIntegrityConstraintShape a sh:NodeShape;
+    usf:canonicalName "componentintegrityconstraintshape";
+    sh:targetClass usf:ComponentIntegrityConstraint;
+    sh:property [
+        sh:path usf:integrityConstraintDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^(sha256:[0-9a-f]{64}|sha512-[A-Za-z0-9+/=]+)$";
+        sh:message "INTEGRITY_CONSTRAINT_DIGEST_INVALID: integrity-constraint digest must be an exact SHA-256 digest or an upstream npm SHA-512 subresource-integrity string"
+    ].
+
+shp:SupplyChainAssessmentShape a sh:NodeShape;
+    usf:canonicalName "supplychainassessmentshape";
+    sh:targetClass usf:SupplyChainAssessment;
+    sh:property [
+        sh:path usf:componentDependencySetDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "COMPONENT_DEPENDENCY_SET_DIGEST_INVALID: component dependency-set digest must be an exact SHA-256 digest"
+    ].
+
+shp:DependencyBindingShape a sh:NodeShape;
+    usf:canonicalName "dependencybindingshape";
+    sh:targetClass usf:DependencyBinding;
+    sh:property [
+        sh:path usf:dependencyBindingIntegrityDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^(sha256:[0-9a-f]{64}|sha512-[A-Za-z0-9+/=]+)$";
+        sh:message "DEPENDENCY_BINDING_INTEGRITY_DIGEST_INVALID: dependency-binding integrity digest must be an exact SHA-256 digest or an upstream npm SHA-512 subresource-integrity string"
+    ];
+    sh:property [
+        sh:path usf:dependencyBindingLockDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "DEPENDENCY_BINDING_LOCK_DIGEST_INVALID: dependency-binding lock digest must be an exact SHA-256 digest"
+    ].
+
+shp:LicenceCompatibilityPolicyShape a sh:NodeShape;
+    usf:canonicalName "licencecompatibilitypolicyshape";
+    sh:targetClass usf:LicenceCompatibilityPolicy;
+    sh:property [
+        sh:path usf:licencePolicyDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "LICENCE_POLICY_DIGEST_INVALID: licence-compatibility policy digest must be an exact SHA-256 digest"
+    ].
+
+shp:VulnerabilityAssessmentShape a sh:NodeShape;
+    usf:canonicalName "vulnerabilityassessmentshape";
+    sh:targetClass usf:VulnerabilityAssessment;
+    sh:property [
+        sh:path usf:vulnerabilityPolicyDigest;
+        sh:datatype xsd:string;
+        sh:pattern "^sha256:[0-9a-f]{64}$";
+        sh:message "VULNERABILITY_POLICY_DIGEST_INVALID: vulnerability policy digest must be an exact SHA-256 digest"
+    ].

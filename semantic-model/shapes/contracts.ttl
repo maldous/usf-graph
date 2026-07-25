@@ -594,3 +594,30 @@ _:b33_b33_n3-328 sh:path usf:mapsToCapability;
     sh:class usf:Capability;
     sh:message "journeycapability: journey must map to at least one capability".
 shp:JourneyShape sh:property _:b33_b33_n3-328.
+
+# --- Controlled-value closure: contract activation ---------------------------
+# usf:hasActivationState and usf:semanticLifecycleState are owl:FunctionalProperty
+# in the ontology, but that is not enforced by SHACL. Without exact cardinality a
+# live contract could assert active and retired simultaneously and still conform.
+# shp:SemanticContractShape reaches contracts only as objects of usf:hasContract,
+# so the gate is additionally declared against the class itself.
+
+shp:ContractActivationStateClosureShape a sh:NodeShape;
+    usf:canonicalName "contractactivationstateclosureshape";
+    sh:targetClass usf:ContractActivationState;
+    sh:in (<urn:usf:contractactivationstate:draft> <urn:usf:contractactivationstate:proofblocked> <urn:usf:contractactivationstate:eligible> <urn:usf:contractactivationstate:active> <urn:usf:contractactivationstate:suspended> <urn:usf:contractactivationstate:superseded> <urn:usf:contractactivationstate:retired>);
+    sh:message "CONTRACT_ACTIVATION_STATE_NOT_CLOSED: ContractActivationState admits exactly the seven declared members".
+
+_:cvc_activation_state sh:path usf:hasActivationState;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:ContractActivationState;
+    sh:in (<urn:usf:contractactivationstate:draft> <urn:usf:contractactivationstate:proofblocked> <urn:usf:contractactivationstate:eligible> <urn:usf:contractactivationstate:active> <urn:usf:contractactivationstate:suspended> <urn:usf:contractactivationstate:superseded> <urn:usf:contractactivationstate:retired>);
+    sh:message "CONTRACT_ACTIVATION_STATE_NOT_EXACT: semantic contract must declare exactly one declared activation state".
+shp:ActiveSemanticContractEncapsulationShape sh:property _:cvc_activation_state.
+_:cvc_lifecycle_state sh:path usf:semanticLifecycleState;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:SemanticLifecycleState;
+    sh:message "CONTRACT_LIFECYCLE_STATE_NOT_EXACT: semantic contract must declare exactly one semantic lifecycle state".
+shp:ActiveSemanticContractEncapsulationShape sh:property _:cvc_lifecycle_state.

@@ -93,7 +93,9 @@ shp:PassingProofResultShape a sh:NodeShape;
 _:b40_b40_n3-728 sh:path usf:resultState;
     sh:minCount 1;
     sh:maxCount 1;
-    sh:class usf:ResultState.
+    sh:class usf:ResultState;
+    sh:in (<urn:usf:resultstate:passed> <urn:usf:resultstate:failed> <urn:usf:resultstate:detecteddefect> <urn:usf:resultstate:notrun> <urn:usf:resultstate:unknown>);
+    sh:message "RESULT_STATE_NOT_CLOSED: proof result must declare exactly one of the five declared result states".
 shp:PassingProofResultShape sh:property _:b40_b40_n3-728.
 _:b40_b40_n3-729 sh:path usf:resultForProof;
     sh:minCount 1;
@@ -146,7 +148,9 @@ shp:TestResultShape sh:property _:b40_b40_n3-740.
 _:b40_b40_n3-741 sh:path usf:resultState;
     sh:minCount 1;
     sh:maxCount 1;
-    sh:class usf:ResultState.
+    sh:class usf:ResultState;
+    sh:in (<urn:usf:resultstate:passed> <urn:usf:resultstate:failed> <urn:usf:resultstate:detecteddefect> <urn:usf:resultstate:notrun> <urn:usf:resultstate:unknown>);
+    sh:message "RESULT_STATE_NOT_CLOSED: test result must declare exactly one of the five declared result states".
 shp:TestResultShape sh:property _:b40_b40_n3-741.
 _:b40_b40_n3-742 sh:message "detecteddefectwithoutdefect: detected-defect result must identify a planted defect";
     sh:prefixes usf:prefixes;
@@ -235,3 +239,20 @@ _:b40_b40_n3-757 sh:path usf:verificationState;
     sh:maxCount 1;
     sh:class usf:ResultState.
 shp:IntegrityVerificationShape sh:property _:b40_b40_n3-757.
+
+# --- Controlled-value closure: result and validation-invalidation vocabularies
+# usf:resultState is asserted by ProofResult, TestResult and ValidationResult.
+# Closing the class itself gates every use site, including the ValidationResult
+# property shape declared in semantic-model/shapes/lifecycle.ttl.
+
+shp:ResultStateClosureShape a sh:NodeShape;
+    usf:canonicalName "resultstateclosureshape";
+    sh:targetClass usf:ResultState;
+    sh:in (<urn:usf:resultstate:passed> <urn:usf:resultstate:failed> <urn:usf:resultstate:detecteddefect> <urn:usf:resultstate:notrun> <urn:usf:resultstate:unknown>);
+    sh:message "RESULT_STATE_NOT_CLOSED: ResultState admits exactly the five declared members".
+
+shp:ValidationInvalidationConditionClosureShape a sh:NodeShape;
+    usf:canonicalName "validationinvalidationconditionclosureshape";
+    sh:targetClass usf:ValidationInvalidationCondition;
+    sh:in (<urn:usf:validationinvalidationcondition:authoritydigestchanged> <urn:usf:validationinvalidationcondition:sourceheadchanged> <urn:usf:validationinvalidationcondition:evidenceinvalidated> <urn:usf:validationinvalidationcondition:evidencestale> <urn:usf:validationinvalidationcondition:validationcontractchanged> <urn:usf:validationinvalidationcondition:resultsuperseded>);
+    sh:message "VALIDATION_INVALIDATION_CONDITION_NOT_CLOSED: ValidationInvalidationCondition admits exactly the six declared members".

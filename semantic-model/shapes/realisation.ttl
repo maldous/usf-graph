@@ -31,6 +31,7 @@ _:b41_b41_n3-763 sh:path usf:realisationState;
     sh:minCount 1;
     sh:maxCount 1;
     sh:class usf:RealisationState;
+    sh:in (<urn:usf:realisationstate:contractonly> <urn:usf:realisationstate:implementable> <urn:usf:realisationstate:deferred> <urn:usf:realisationstate:notclaimed> <urn:usf:realisationstate:deprecated>);
     sh:message "realisationstate: realisation must declare one state".
 shp:RealisationShape sh:property _:b41_b41_n3-763.
 _:b41_b41_n3-764 sh:prefixes usf:prefixes;
@@ -131,3 +132,27 @@ shp:BindingShape sh:sparql _:binding_port_mode_coherence.
 #     sh:message "BINDING_ENVIRONMENT_MODE_PROHIBITED: the binding environment must permit the binding provider mode";
 #     sh:select "SELECT $this WHERE { $this usf:bindingEnvironment ?environment ; usf:hasProviderMode ?mode . FILTER NOT EXISTS { ?environment usf:permitsProviderMode ?mode } }".
 # shp:BindingShape sh:sparql _:binding_environment_mode_coherence.
+
+# --- Controlled-value closure: realisation and decision vocabularies ---------
+# These three vocabularies gate whether an implementation may exist at all, so a
+# novel declared member is a direct authorisation bypass. Closure is declared here
+# rather than in shapes/realisation-option-evaluation.ttl because that document is
+# registered liveValidation:false and would not gate the live authority.
+
+shp:RealisationStateClosureShape a sh:NodeShape;
+    usf:canonicalName "realisationstateclosureshape";
+    sh:targetClass usf:RealisationState;
+    sh:in (<urn:usf:realisationstate:contractonly> <urn:usf:realisationstate:implementable> <urn:usf:realisationstate:deferred> <urn:usf:realisationstate:notclaimed> <urn:usf:realisationstate:deprecated>);
+    sh:message "REALISATION_STATE_NOT_CLOSED: RealisationState admits exactly the five declared members".
+
+shp:DecisionStateClosureShape a sh:NodeShape;
+    usf:canonicalName "decisionstateclosureshape";
+    sh:targetClass usf:DecisionState;
+    sh:in (<urn:usf:decisionstate:proposed> <urn:usf:decisionstate:accepted> <urn:usf:decisionstate:reopened> <urn:usf:decisionstate:superseded> <urn:usf:decisionstate:rejected>);
+    sh:message "DECISION_STATE_NOT_CLOSED: DecisionState admits exactly the five declared members".
+
+shp:EvaluationClosureStateClosureShape a sh:NodeShape;
+    usf:canonicalName "evaluationclosurestateclosureshape";
+    sh:targetClass usf:EvaluationClosureState;
+    sh:in (<urn:usf:evaluationclosurestate:complete> <urn:usf:evaluationclosurestate:incomplete> <urn:usf:evaluationclosurestate:invalidated>);
+    sh:message "EVALUATION_CLOSURE_STATE_NOT_CLOSED: EvaluationClosureState admits exactly the three declared members".
