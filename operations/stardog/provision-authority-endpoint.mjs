@@ -62,6 +62,19 @@ export function provisioningParameters(manifestFacts) {
       providerClass: 'stardogcloudfree',
       stardogUsername: 'USF',
     },
+    // Options the database MUST have. These are not cosmetic: without them a
+    // restored endpoint fails the canonical publication in ways whose error
+    // messages point somewhere else entirely.
+    required: {
+      // rules/integrity.rq tests unresolved references with
+      // FILTER NOT EXISTS { ?subject ?p2 ?o2 } and no GRAPH clause, so it reads
+      // the default graph. Unless the default graph is the union of the named
+      // graphs, that filter always succeeds and every referenced urn:usf: IRI
+      // is reported as an unresolved reference — 20 spurious violations against
+      // IRIs that are correctly declared in vocabulary.ttl. This was never
+      // recorded anywhere and cost a full diagnosis cycle to rediscover.
+      'query.all.graphs': true,
+    },
     serverDefault: {
       // The repository records no database-creation options anywhere: no
       // reasoning schema, no index strategy, no search configuration, no
@@ -119,6 +132,20 @@ export async function createDatabase(conn, database, options = {}) {
   return true;
 }
 
+// Verify the options publication depends on. Reported rather than enforced:
+// Stardog Cloud Free accepts the PUT and silently keeps the old value, so the
+// only reliable remedy is the portal. Surfacing the exact option beats letting
+// the canonical publication fail later with unrelated-looking integrity errors.
+export async function checkRequiredOptions(conn, database, required) {
+  const res = await stardog.db.options.getAll(conn, database);
+  if (!res?.ok) throw new Error(`could not read database options (status ${res?.status})`);
+  const observed = res.body ?? {};
+  const unsatisfied = Object.entries(required)
+    .filter(([key, expected]) => String(observed[key]).toLowerCase() !== String(expected).toLowerCase())
+    .map(([key, expected]) => ({ key, expected, observed: observed[key] ?? null }));
+  return { ok: unsatisfied.length === 0, unsatisfied };
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const apply = process.argv.includes('--apply');
   try {
@@ -153,11 +180,17 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       if (!exists && apply) {
         created = await createDatabase(conn, facts.database, parameters.serverDefault.creationOptions);
       }
+      const options = exists || created
+        ? await checkRequiredOptions(conn, facts.database, parameters.required)
+        : { ok: false, unsatisfied: [{ key: 'database', expected: 'present', observed: null }] };
       process.stdout.write(`${JSON.stringify({
         ...report,
         databaseExisted: exists,
         databaseCreated: created,
-        outcome: exists || created ? 'DATABASE_READY' : 'DATABASE_ABSENT_DRY_RUN',
+        requiredOptions: options,
+        outcome: !options.ok
+          ? 'REQUIRED_OPTIONS_UNSATISFIED'
+          : exists || created ? 'DATABASE_READY' : 'DATABASE_ABSENT_DRY_RUN',
         // Graph loading is deliberately not performed here.
         nextAction: exists || created
           ? 'load all graphs through the canonical path: npm run publish:authority:validate then npm run publish:authority'
