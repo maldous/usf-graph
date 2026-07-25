@@ -1320,10 +1320,29 @@ dvs:interactionpattern a usf:DimensionValueSource;
     usf:canonicalName "interactionpattern";
     usf:valueSourceKind "classinstances";
     usf:valueSourceClassIri "urn:usf:ontology:InteractionPattern"^^xsd:anyURI.
+# The Interface axis is scoped to the subject capability.
+#
+# It was a global classinstances scan over usf:Interface while the applicability
+# rule prule:interfaces was capability-scoped (Capability -> hasContract ->
+# <-interfaceForContract). Same family, two different notions of "interface":
+# the disposition was decided from the capability's own interfaces, then the
+# axis enumerated all of them. With 16 interfaces across 16 capabilities in a
+# one-to-one arrangement, every required subject received 15 foreign interface
+# values and the cell count was inflated sixteenfold.
+#
+# pvd:interfaces already expresses exactly the applicability path and is
+# promoted here from an intermediate operand to a derivation root.
+# pselector:interfaces cannot serve as the value source: it aggregates with
+# psa:countdistinct, which the applicability clause requires and which
+# shapes/permutation.ttl forbids for a value-source selector.
+#
+# pd:closureinterface is also bound by pf:capabilityinterfaceoperation, which is
+# likewise registered against psr:capabilityruntime. Re-scoping is correct for
+# both: a capability-subject family must enumerate that capability's interfaces.
 dvs:interface a usf:DimensionValueSource;
     usf:canonicalName "interface";
-    usf:valueSourceKind "classinstances";
-    usf:valueSourceClassIri "urn:usf:ontology:Interface"^^xsd:anyURI.
+    usf:valueSourceKind "derivedselector";
+    usf:definition "Values derived from the interfaces exposed by the registered subject capability's contract; no global Interface class scan supplies the axis.".
 dvs:legalholdstate a usf:DimensionValueSource;
     usf:canonicalName "legalholdstate";
     usf:valueSourceKind "controlledlist".
@@ -1664,7 +1683,11 @@ dvs:direction usf:valueSourceScope dvss:foundationcatalogue.
 dvs:environmentclass usf:valueSourceScope dvss:foundationcatalogue.
 dvs:errorclass usf:valueSourceScope dvss:authorityinstanceset.
 dvs:interactionpattern usf:valueSourceScope dvss:foundationcatalogue.
-dvs:interface usf:valueSourceScope dvss:authorityinstanceset.
+dvs:interface usf:valueSourceScope dvss:capabilityrelationship.
+dvs:interface usf:valueSourceDerivationPredicate usf:hasContract, usf:interfaceForContract.
+dvs:interface usf:valueSourceSubjectClass usf:Capability; usf:valueSourceDerivationRoot pvd:interfaces; usf:valueSourceTerminalClass usf:Interface; usf:valueSourceTerminalKind pvtk:namednode.
+dvs:interface usf:valueSourceDigest "sha256:4a49d11564fe04a2f25346c0247a1c0a9bda1f5634d2e051e2c19b6397d5bd1b".
+pvd:interfaces usf:valueDerivationDigest "sha256:a45146680d7dff8dcbc1529c3b11c6442d6d41c1aa63b4440c5282e4657b323e".
 dvs:permissionatom usf:valueSourceScope dvss:authorityinstanceset.
 dvs:port usf:valueSourceScope dvss:authorityinstanceset.
 dvs:principalkind usf:valueSourceScope dvss:foundationcatalogue.
