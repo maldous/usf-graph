@@ -1313,3 +1313,18 @@ permutation:notapplicablewithprovenconstraint a usf:PermutationDisposition;
 <urn:usf:provideridentity:declaredexternalsources> a usf:EvidenceProviderIdentity; usf:canonicalName "declaredexternalsources".
 <urn:usf:provideridentity:repositorylocalacquisition> a usf:EvidenceProviderIdentity; usf:canonicalName "repositorylocalacquisition".
 <urn:usf:provideridentity:repositorylocalevaluator> a usf:EvidenceProviderIdentity; usf:canonicalName "repositorylocalevaluator".
+
+# Validation obligation activation states. Reserved is the safe default: an
+# obligation with no explicit activation state is not actionable.
+<urn:usf:validationactivationstate:reserved> a usf:ValidationObligationActivationState; usf:canonicalName "reserved".
+<urn:usf:validationactivationstate:activated> a usf:ValidationObligationActivationState; usf:canonicalName "activated".
+<urn:usf:validationactivationstate:blocked> a usf:ValidationObligationActivationState; usf:canonicalName "blocked".
+
+# Conditions that end a satisfaction. Historical results are never deleted;
+# they stop being applicable.
+<urn:usf:validationinvalidationcondition:authoritydigestchanged> a usf:ValidationInvalidationCondition; usf:canonicalName "authoritydigestchanged".
+<urn:usf:validationinvalidationcondition:sourceheadchanged> a usf:ValidationInvalidationCondition; usf:canonicalName "sourceheadchanged".
+<urn:usf:validationinvalidationcondition:evidenceinvalidated> a usf:ValidationInvalidationCondition; usf:canonicalName "evidenceinvalidated".
+<urn:usf:validationinvalidationcondition:evidencestale> a usf:ValidationInvalidationCondition; usf:canonicalName "evidencestale".
+<urn:usf:validationinvalidationcondition:validationcontractchanged> a usf:ValidationInvalidationCondition; usf:canonicalName "validationcontractchanged".
+<urn:usf:validationinvalidationcondition:resultsuperseded> a usf:ValidationInvalidationCondition; usf:canonicalName "resultsuperseded".
