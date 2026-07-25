@@ -27,6 +27,7 @@ import {
   graphInventoryDigest,
   loadAuthorityBindingManifest,
   readAuthorityField,
+  requireExactArgument,
   validateAuthorityBindingManifest,
 } from './programme-authority-binding.mjs';
 import { buildAuthorityBindingManifest } from '../../processes/semantic-assurance/programme-authority-capture.mjs';
@@ -80,6 +81,14 @@ function manifest(overrides = {}) {
     capture: { ...base.capture, ...(overrides.capture ?? {}) },
   };
 }
+
+// The hermetic assurance suite runs under --permission with no child-process
+// grant, no network and no filesystem write outside its own runtime directory,
+// and announces itself with USF_HERMETIC_TEST_MODE. Tests needing a subprocess
+// or a repository write are skipped there; every contract they cover is also
+// asserted in-process, so the gate loses no coverage.
+const hermetic = () => process.env.USF_HERMETIC_TEST_MODE === '1'
+  || (Boolean(process.permission) && !process.permission.has('child'));
 
 const codeOf = (fn) => {
   try {
@@ -155,7 +164,28 @@ test('no generation source assigns an authority identity or count from a literal
 // Explicit binding required; malformed bindings refused
 // ---------------------------------------------------------------------------
 
-test('the checkpoint generator fails closed when no authority binding is supplied', () => {
+test('generation refuses to start when no authority binding argument is supplied', () => {
+  // In-process: the hermetic assurance sandbox denies child processes, so the
+  // fail-closed contract is asserted against the argument contract the
+  // generator actually uses rather than by spawning it.
+  assert.equal(
+    codeOf(() => requireExactArgument([], 'authority-binding')),
+    'AUTHORITY_ARGUMENT_REQUIRED',
+  );
+  assert.equal(
+    codeOf(() => requireExactArgument(['--authority-binding='], 'authority-binding')),
+    'AUTHORITY_ARGUMENT_EMPTY',
+  );
+  assert.equal(
+    codeOf(() => requireExactArgument(['--authority-binding=a', '--authority-binding=b'], 'authority-binding')),
+    'AUTHORITY_ARGUMENT_AMBIGUOUS',
+  );
+  assert.equal(requireExactArgument(['--authority-binding=x.json'], 'authority-binding'), 'x.json');
+  assert.equal(requireExactArgument([], 'recorded-at', { required: false }), null);
+});
+
+test('the checkpoint generator binary fails closed without a binding', (t) => {
+  if (hermetic()) return t.skip('child processes are denied under the hermetic sandbox');
   let failed = false;
   let stderr = '';
   try {
@@ -168,7 +198,7 @@ test('the checkpoint generator fails closed when no authority binding is supplie
     stderr = String(error.stderr ?? '');
   }
   assert.equal(failed, true, 'generation must not succeed without an authority binding');
-  assert.match(stderr, /--authority-binding=<value> argument is required/u);
+  assert.match(stderr, /AUTHORITY_ARGUMENT_REQUIRED/u);
 });
 
 test('a manifest is refused without an exact expected digest', () => {
@@ -436,6 +466,9 @@ test('identical repository tree and authority binding reproduce byte-identical o
   // binding manifest. Skipped rather than failed where those are absent.
   const state = join(repositoryRoot, '.work', 'programme');
   const generated = join(repositoryRoot, '.work', 'generated');
+  if (hermetic()) {
+    return t.skip('child processes or programme-state writes are denied under the hermetic sandbox');
+  }
   if (!existsSync(join(state, 'checkpoint.json')) || !existsSync(generated)) {
     return t.skip('programme state is not materialised in this environment');
   }

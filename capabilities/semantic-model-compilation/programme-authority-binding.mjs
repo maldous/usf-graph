@@ -255,6 +255,30 @@ export function loadAuthorityBindingManifest({ bytes, expectedDigest }) {
   return Object.freeze({ ...manifest, manifestDigest: observed });
 }
 
+// Exact-argument contract for programme generation entry points.
+//
+// Lives here rather than inside the generator script so the fail-closed
+// behaviour can be asserted in-process: the hermetic assurance sandbox runs
+// with --permission and denies child processes, so a test that could only
+// observe this by spawning the CLI would be untestable under the gate that
+// matters most.
+export function requireExactArgument(argv, name, { required = true } = {}) {
+  const prefix = `--${name}=`;
+  const supplied = (argv ?? []).filter((value) => typeof value === 'string' && value.startsWith(prefix));
+  if (supplied.length === 0) {
+    if (!required) return null;
+    fail('AUTHORITY_ARGUMENT_REQUIRED', `exactly one ${prefix}<value> argument is required`, { name });
+  }
+  if (supplied.length > 1) {
+    fail('AUTHORITY_ARGUMENT_AMBIGUOUS', `exactly one ${prefix}<value> argument is required`, { name });
+  }
+  const value = supplied[0].slice(prefix.length);
+  if (value.length === 0) {
+    fail('AUTHORITY_ARGUMENT_EMPTY', `${prefix}<value> requires a non-empty value`, { name });
+  }
+  return value;
+}
+
 // Read an artefact's declared authority field. A null field means the artefact
 // declares no authority binding of its own; callers must treat that as
 // "bound by reference" and never as a silent pass.

@@ -20,6 +20,7 @@ import {
   authorityIdentity,
   loadAuthorityBindingManifest,
   readAuthorityField,
+  requireExactArgument,
 } from '../../capabilities/semantic-model-compilation/programme-authority-binding.mjs';
 
 const repositoryRoot = process.cwd();
@@ -173,18 +174,7 @@ function repositoryProcesses() {
 // superseded truth, and mutual consistency is exactly what stops such a set
 // from failing closed. Authority identity arrives through one mechanically
 // captured manifest or generation refuses to run.
-function exactArgument(name, { required = true } = {}) {
-  const prefix = `--${name}=`;
-  const supplied = process.argv.filter((value) => value.startsWith(prefix));
-  if (supplied.length === 0) {
-    if (!required) return null;
-    throw new Error(`exactly one ${prefix}<value> argument is required`);
-  }
-  if (supplied.length !== 1 || supplied[0].length === prefix.length) {
-    throw new Error(`exactly one ${prefix}<value> argument is required`);
-  }
-  return supplied[0].slice(prefix.length);
-}
+const exactArgument = (name, options) => requireExactArgument(process.argv, name, options);
 
 const authorityBindingPath = exactArgument('authority-binding');
 const authorityBindingDigest = exactArgument('authority-binding-digest');

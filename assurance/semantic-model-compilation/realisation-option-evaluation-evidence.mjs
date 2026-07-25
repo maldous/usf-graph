@@ -132,6 +132,8 @@ const sourcePaths = [
   'semantic-model/execution/validators.trig',
   'capabilities/semantic-model-compilation/compiler.mjs', 'capabilities/semantic-model-compilation/compiler.test.mjs',
   'capabilities/semantic-model-compilation/manifest.mjs', 'capabilities/semantic-model-compilation/origin-independence.mjs',
+  'capabilities/semantic-model-compilation/programme-authority-binding.mjs',
+  'capabilities/semantic-model-compilation/programme-authority-binding.test.mjs',
   'configuration/semantic-assurance/semantic-authority.mjs', 'configuration/semantic-assurance/semantic-authority.test.mjs',
   'provider-bindings/stardog/semantic-authority.mjs', 'provider-bindings/stardog/semantic-authority.test.mjs',
   'processes/semantic-assurance/compiler-proof-command.mjs', 'processes/semantic-assurance/compiler-proof-command.test.mjs',
