@@ -3,6 +3,18 @@
 // --check compares every managed graph's canonical live digest against the
 // registered repository source; --write-derived refreshes the derived
 // snapshot files from live rule output before checking them.
+//
+// Connection values are resolved through stardog-connection.mjs, so the
+// operator env file overrides an inherited STARDOG_* value exactly as it does
+// for the MCP launcher and the publication path. `npm run authority:drift` was
+// the command that failed with getaddrinfo ENOTFOUND against a reclaimed
+// endpoint while the live one sat in the env file.
+//
+// The last logged published digest is reported alongside the graph comparison.
+// The exit-code contract is unchanged: `ok` and `mismatched` continue to mean
+// source/live graph parity and nothing else, and a logged-digest mismatch adds
+// fields without changing either. operations/stardog/authority-publication-log.json
+// is an operational audit record, not semantic authority.
 import stardog from 'stardog';
 import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -11,8 +23,10 @@ import { DataFactory, Parser, Store, Writer } from 'n3';
 
 const { createStardogSemanticAuthorityClient } = await import('../../provider-bindings/stardog/semantic-authority.mjs');
 const { validateSemanticAuthorityConfiguration } = await import('../../configuration/semantic-assurance/semantic-authority.mjs');
+const { resolveEnvironment } = await import('../../configuration/semantic-assurance/stardog-connection.mjs');
 const { loadManifest, authoredLoadList, managedGraphs } = await import('../../capabilities/semantic-model-compilation/manifest.mjs');
 const { canonicalNQuads, canonicalGraphDigest } = await import('../../capabilities/semantic-model-compilation/compiler.mjs');
+const { readSemanticAuthorityWitness } = await import('./semantic-authority-gateway.mjs');
 
 const NQUADS = 'application/n-quads';
 const { literal, namedNode, quad } = DataFactory;
@@ -34,8 +48,8 @@ function repositoryRoot() {
 }
 
 function client() {
-  const { STARDOG_SERVER, STARDOG_DATABASE, STARDOG_TOKEN } = process.env;
-  if (!STARDOG_SERVER || !STARDOG_DATABASE || !STARDOG_TOKEN) throw new Error('STARDOG_SERVER, STARDOG_DATABASE and STARDOG_TOKEN are required in the environment');
+  const { STARDOG_SERVER, STARDOG_DATABASE, STARDOG_TOKEN } = resolveEnvironment().env;
+  if (!STARDOG_SERVER || !STARDOG_DATABASE || !STARDOG_TOKEN) throw new Error('STARDOG_SERVER, STARDOG_DATABASE and STARDOG_TOKEN are required in the environment or the operator env file');
   const TOKEN_REFERENCE = 'secret://semantic-authority/token';
   return createStardogSemanticAuthorityClient({
     sdk: stardog,
@@ -122,6 +136,53 @@ export async function checkDrift({ manifest, live }) {
   return Object.freeze({ ok: mismatched.length === 0, mismatched, graphCount: report.length, report });
 }
 
+// The publication log is read directly rather than through the publication
+// module: this command is read-only and must not import a module whose load
+// patches the global fetch dispatcher and pulls in provisioning.
+export const PUBLICATION_LOG_PATH = join('operations', 'stardog', 'authority-publication-log.json');
+
+export function readPublicationLogEntries(path, readFile = readFileSync) {
+  let text;
+  try {
+    text = readFile(path, 'utf8');
+  } catch (error) {
+    if (error?.code === 'ENOENT') return [];
+    throw error;
+  }
+  const entries = JSON.parse(text);
+  if (!Array.isArray(entries)) throw new Error('authority publication log must be a JSON array');
+  return entries;
+}
+
+// Report whether the last logged published digest is still the live one. `ok`
+// and `mismatched` are NOT repurposed: these are additional fields, and a
+// logged-digest mismatch does not change the exit code. When the log is empty —
+// its seeded state — nothing is claimed and the live witness is not recomputed.
+export async function checkLoggedPublication({ live, path, readFile = readFileSync, readWitness = readSemanticAuthorityWitness }) {
+  const entries = readPublicationLogEntries(path, readFile);
+  const last = entries.length === 0 ? null : entries[entries.length - 1];
+  if (!last) {
+    return Object.freeze({
+      loggedPublicationCount: 0,
+      lastLoggedAuthorityDigest: null,
+      lastLoggedPublishedAt: null,
+      lastLoggedSourceHead: null,
+      liveAuthorityDigest: null,
+      loggedDigestMatchesLive: null,
+    });
+  }
+  const witness = await readWitness(live);
+  const liveAuthorityDigest = witness?.digest ?? witness?.authorityDigest ?? null;
+  return Object.freeze({
+    loggedPublicationCount: entries.length,
+    lastLoggedAuthorityDigest: last.authorityDigest ?? null,
+    lastLoggedPublishedAt: last.publishedAt ?? null,
+    lastLoggedSourceHead: last.sourceHead ?? null,
+    liveAuthorityDigest,
+    loggedDigestMatchesLive: (last.authorityDigest ?? null) === liveAuthorityDigest,
+  });
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const manifest = loadManifest(join(repositoryRoot(), 'semantic-model'));
   const live = client();
@@ -130,6 +191,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     process.stdout.write(`${JSON.stringify({ command: 'snapshot-derived', written })}\n`);
   }
   const drift = await checkDrift({ manifest, live });
-  process.stdout.write(`${JSON.stringify({ command: 'drift', ok: drift.ok, graphCount: drift.graphCount, mismatched: drift.mismatched })}\n`);
+  const logged = await checkLoggedPublication({ live, path: join(repositoryRoot(), PUBLICATION_LOG_PATH) });
+  process.stdout.write(`${JSON.stringify({
+    command: 'drift',
+    ok: drift.ok,
+    graphCount: drift.graphCount,
+    mismatched: drift.mismatched,
+    ...logged,
+    publicationLogRole: 'operational-record-not-semantic-authority',
+  })}\n`);
+  // Unchanged contract: only source/live graph parity decides the exit code.
   if (!drift.ok) process.exitCode = 1;
 }

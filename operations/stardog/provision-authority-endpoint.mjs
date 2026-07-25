@@ -49,6 +49,31 @@ export function readManifestFacts(root = repositoryRoot) {
   };
 }
 
+// Options the database MUST have. These are not cosmetic: without them a
+// restored endpoint fails the canonical publication in ways whose error
+// messages point somewhere else entirely. This is the single tracked
+// definition — the canonical publication imports it and must never restate the
+// literals, or the provisioning check and the publication preflight will drift.
+export const REQUIRED_DATABASE_OPTIONS = Object.freeze({
+  // rules/integrity.rq tests unresolved references with
+  // FILTER NOT EXISTS { ?subject ?p2 ?o2 } and no GRAPH clause, so it reads
+  // the default graph. Unless the default graph is the union of the named
+  // graphs, that filter always succeeds and every referenced urn:usf: IRI
+  // is reported as an unresolved reference — 20 spurious violations against
+  // IRIs that are correctly declared in vocabulary.ttl. This was never
+  // recorded anywhere and cost a full diagnosis cycle to rediscover.
+  //
+  // The converse case is worse and silent: 85 of integrity.rq's 96 branches
+  // match patterns with no GRAPH clause, so with the option unset they match
+  // nothing at all and cannot report a violation. Roughly 89% of whole-dataset
+  // integrity enforcement evaporates without a single error message.
+  'query.all.graphs': true,
+  // The live database has schema reasoning enabled, and that — not any tracked
+  // declaration — is what actually realises the reasoning-schema assertion in
+  // semantic-model/authority.ttl. It was recorded nowhere before this entry.
+  'auto.schema.reasoning': true,
+});
+
 // Provenance of every provisioning parameter. RECOVERED values come from
 // tracked source; SERVER_DEFAULT values were never recorded anywhere in the
 // repository and are therefore whatever the server chooses. They are listed
@@ -62,19 +87,7 @@ export function provisioningParameters(manifestFacts) {
       providerClass: 'stardogcloudfree',
       stardogUsername: 'USF',
     },
-    // Options the database MUST have. These are not cosmetic: without them a
-    // restored endpoint fails the canonical publication in ways whose error
-    // messages point somewhere else entirely.
-    required: {
-      // rules/integrity.rq tests unresolved references with
-      // FILTER NOT EXISTS { ?subject ?p2 ?o2 } and no GRAPH clause, so it reads
-      // the default graph. Unless the default graph is the union of the named
-      // graphs, that filter always succeeds and every referenced urn:usf: IRI
-      // is reported as an unresolved reference — 20 spurious violations against
-      // IRIs that are correctly declared in vocabulary.ttl. This was never
-      // recorded anywhere and cost a full diagnosis cycle to rediscover.
-      'query.all.graphs': true,
-    },
+    required: REQUIRED_DATABASE_OPTIONS,
     serverDefault: {
       // The repository records no database-creation options anywhere: no
       // reasoning schema, no index strategy, no search configuration, no
@@ -88,7 +101,7 @@ export function provisioningParameters(manifestFacts) {
       'database creation options (including any immutable options)',
       'additional users beyond the connecting account',
       'roles and permission grants',
-      'reasoning schema declarations',
+      'reasoning schema graph declarations (the auto.schema.reasoning switch is tracked; which graphs are schemas is not)',
       'search/index configuration',
     ],
   };
@@ -98,7 +111,10 @@ export function provisioningParameters(manifestFacts) {
 // Endpoint operations
 // ---------------------------------------------------------------------------
 
-function client(config) {
+// Build the SDK connection from a validated configuration. Exported so the
+// canonical publication can run the required-option preflight against the same
+// endpoint resolution rather than assembling a second, divergent connection.
+export function authorityConnection(config) {
   return new stardog.Connection({
     endpoint: config.endpoint,
     ...(config.auth.kind === 'token'
@@ -106,6 +122,7 @@ function client(config) {
       : { username: config.auth.username, password: config.auth.password }),
   });
 }
+
 
 export async function endpointReachable(conn) {
   try {
@@ -132,18 +149,38 @@ export async function createDatabase(conn, database, options = {}) {
   return true;
 }
 
-// Verify the options publication depends on. Reported rather than enforced:
-// Stardog Cloud Free accepts the PUT and silently keeps the old value, so the
-// only reliable remedy is the portal. Surfacing the exact option beats letting
-// the canonical publication fail later with unrelated-looking integrity errors.
-export async function checkRequiredOptions(conn, database, required) {
-  const res = await stardog.db.options.getAll(conn, database);
+// Verify the options publication depends on. Stardog Cloud Free accepts the PUT
+// and silently keeps the old value, so the only reliable remedy is the portal —
+// but an unsatisfied option is now FATAL rather than merely reported, both here
+// in --apply and in the canonical publication preflight. Surfacing the exact
+// option beats letting the publication fail later with unrelated-looking
+// integrity errors, or worse, silently succeed against 11 of 96 branches.
+//
+// The options reader is injectable so the enforcement path is testable without
+// a live endpoint. Only the tracked required keys and their expected/observed
+// values ever leave this function: the full options body is never returned or
+// printed, because it is server configuration the caller has no need to log.
+export async function checkRequiredOptions(
+  conn,
+  database,
+  required,
+  readAllOptions = (connection, name) => stardog.db.options.getAll(connection, name),
+) {
+  const res = await readAllOptions(conn, database);
   if (!res?.ok) throw new Error(`could not read database options (status ${res?.status})`);
   const observed = res.body ?? {};
   const unsatisfied = Object.entries(required)
     .filter(([key, expected]) => String(observed[key]).toLowerCase() !== String(expected).toLowerCase())
     .map(([key, expected]) => ({ key, expected, observed: observed[key] ?? null }));
   return { ok: unsatisfied.length === 0, unsatisfied };
+}
+
+// Render the unsatisfied set as one deterministic, credential-free line.
+export function describeUnsatisfiedOptions(unsatisfied) {
+  return [...unsatisfied]
+    .sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0)
+    .map(({ key, expected, observed }) => `${key} expected ${expected} observed ${observed ?? 'absent'}`)
+    .join('; ');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
@@ -153,7 +190,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     const parameters = provisioningParameters(facts);
     const config = loadConfig();
     const described = describeConfig(config);
-    const conn = client(config);
+    const conn = authorityConnection(config);
 
     const reachable = await endpointReachable(conn);
     const report = {
@@ -180,22 +217,32 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       if (!exists && apply) {
         created = await createDatabase(conn, facts.database, parameters.serverDefault.creationOptions);
       }
-      const options = exists || created
+      const present = exists || created;
+      const options = present
         ? await checkRequiredOptions(conn, facts.database, parameters.required)
         : { ok: false, unsatisfied: [{ key: 'database', expected: 'present', observed: null }] };
+      // FATAL in --apply: a provisioned endpoint that silently lacks a required
+      // option is not a provisioned endpoint. Reporting it and exiting 0 is how
+      // a database with 89% of its integrity enforcement disabled gets declared
+      // ready. A dry run still only reports, so an operator can inspect first.
+      const fatal = apply && !options.ok;
       process.stdout.write(`${JSON.stringify({
         ...report,
         databaseExisted: exists,
         databaseCreated: created,
         requiredOptions: options,
-        outcome: !options.ok
-          ? 'REQUIRED_OPTIONS_UNSATISFIED'
-          : exists || created ? 'DATABASE_READY' : 'DATABASE_ABSENT_DRY_RUN',
+        requiredOptionEnforcement: apply ? 'fatal' : 'reported',
+        outcome: present
+          ? options.ok ? 'DATABASE_READY' : 'REQUIRED_OPTIONS_UNSATISFIED'
+          : 'DATABASE_ABSENT_DRY_RUN',
         // Graph loading is deliberately not performed here.
-        nextAction: exists || created
-          ? 'load all graphs through the canonical path: npm run publish:authority:validate then npm run publish:authority'
-          : 're-run with --apply to create the database',
+        nextAction: !options.ok && present
+          ? `set the required database options in the Stardog Cloud portal, then re-run: ${describeUnsatisfiedOptions(options.unsatisfied)}`
+          : present
+            ? 'load all graphs through the canonical path: npm run publish:authority:validate then npm run publish:authority'
+            : 're-run with --apply to create the database',
       }, null, 2)}\n`);
+      if (fatal) process.exitCode = 1;
     }
   } catch (error) {
     process.stderr.write(`${error.code ?? error.name}: ${error.message}\n`);
