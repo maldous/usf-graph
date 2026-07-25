@@ -54,12 +54,26 @@ function complementaryCompilerRows(effectiveDecisions = [compilerDecision]) {
     effectiveDecision: binding(effective),
   })));
 }
-function fakeClient({ descriptor, contractRows = defaultContractRows() } = {}) {
+const validationObligation = 'urn:usf:validationobligation:repositoryexternalartefactmaterialisation';
+const activated = 'urn:usf:validationactivationstate:activated';
+const reserved = 'urn:usf:validationactivationstate:reserved';
+const receiptNonclaim = 'urn:usf:nonclaim:controlplanereceiptdoesnotsatisfyvalidation';
+function validationRow({ id, forContract = contract, activationState, satisfyingResult, nonclaim }) {
+  const row = { id: binding(id) };
+  if (forContract !== null) row.forContract = binding(forContract);
+  if (activationState !== undefined) row.activationState = binding(activationState);
+  if (satisfyingResult !== undefined) row.satisfyingResult = binding(satisfyingResult);
+  if (nonclaim !== undefined) row.nonclaim = binding(nonclaim);
+  return row;
+}
+function fakeClient({ descriptor, contractRows = defaultContractRows(), validationRows = [], assertionRows = [] } = {}) {
   return {
     size: async () => 10,
     construct: async () => '<urn:s> <urn:p> "materialisation" .\n',
     select: async (query) => {
       if (query.includes('COUNT(*) AS ?count')) return [{ count: binding('1') }];
+      if (query.includes('a <urn:usf:ontology:ValidationObligation>')) return validationRows;
+      if (query.includes('FILTER(?relation IN')) return assertionRows;
       if (query.includes('SELECT DISTINCT ?g')) return [{ g: binding('urn:g') }];
       if (query.includes('?canonicalName ?lifecycle')) return contractRows;
       if (query.includes('a <urn:usf:ontology:PathRole>')) return [{ role: binding(role), canonicalName: binding('compilersource'), parent: binding('capabilities/semantic-model-compilation'), onDemand: binding('true') }];
@@ -219,15 +233,148 @@ test('layout plan validates exact content, path role, family, format, digest and
 });
 
 test('contract projection includes focused validation obligations beyond bootstrap pagination', async () => {
-  const client = fakeClient();
+  let validationQuery;
+  const client = fakeClient({
+    validationRows: [validationRow({ id: 'urn:usf:validationobligation:v1', activationState: activated })],
+  });
   const originalSelect = client.select;
   client.select = async (query) => {
-    if (query.includes('a <urn:usf:ontology:ValidationObligation>')) return [{ id: binding('urn:usf:validationobligation:v1') }];
+    if (query.includes('a <urn:usf:ontology:ValidationObligation>')) validationQuery = query;
     return originalSelect(query);
   };
   const packet = await projectContract({ client }, { contract });
-  assert.deepEqual(packet.validationObligations, ['urn:usf:validationobligation:v1']);
+  assert.deepEqual(packet.validationObligations, [{
+    id: 'urn:usf:validationobligation:v1',
+    activationState: activated,
+    actionable: true,
+    satisfied: false,
+    satisfyingResults: [],
+    nonclaims: [],
+  }]);
   assert.ok(packet.semanticIdentifiers.includes('urn:usf:validationobligation:v1'));
+  assert.ok(packet.semanticIdentifiers.every((identifier) => typeof identifier === 'string'));
+  for (const required of [
+    'urn:usf:ontology:hasValidationActivationState', 'urn:usf:ontology:satisfiedByValidationResult',
+    'urn:usf:ontology:validationNonclaim', 'urn:usf:ontology:validationForContract',
+  ]) assert.ok(validationQuery.includes(required), required);
+  assert.match(validationQuery, /ORDER BY \?id \?activationState \?satisfyingResult \?nonclaim LIMIT 256/);
+  assert.equal(/\b(?:INSERT|DELETE|LOAD|CLEAR|DROP)\b/.test(validationQuery), false);
+});
+
+test('a reserved validation obligation is never projected as actionable and its nonclaim reaches the packet', async () => {
+  const packet = await projectContract({
+    client: fakeClient({
+      assertionRows: [{ relation: binding('urn:usf:ontology:disclaims'), id: binding('urn:usf:nonclaim:contractdoesnotwarrantfactoryexecution') }],
+      validationRows: [validationRow({ id: validationObligation, activationState: reserved, nonclaim: receiptNonclaim })],
+    }),
+  }, { contract });
+  assert.deepEqual(packet.validationObligations, [{
+    id: validationObligation,
+    activationState: reserved,
+    actionable: false,
+    satisfied: false,
+    satisfyingResults: [],
+    nonclaims: [receiptNonclaim],
+  }]);
+  // The nonclaim that forbids control-plane satisfaction is merged into the
+  // consumer-visible top-level nonclaims, de-duplicated and sorted.
+  assert.deepEqual(packet.nonclaims, [
+    receiptNonclaim,
+    'urn:usf:nonclaim:contractdoesnotwarrantfactoryexecution',
+  ].sort());
+  assert.ok(packet.stopConditions.some((condition) => condition.includes('validation obligation is not activated')
+    && condition.includes('control-plane')));
+});
+
+test('an absent activation state projects null and is never actionable without inventing a state', async () => {
+  const packet = await projectContract({
+    client: fakeClient({ validationRows: [validationRow({ id: 'urn:usf:validationobligation:unclassified' })] }),
+  }, { contract });
+  assert.deepEqual(packet.validationObligations, [{
+    id: 'urn:usf:validationobligation:unclassified',
+    activationState: null,
+    actionable: false,
+    satisfied: false,
+    satisfyingResults: [],
+    nonclaims: [],
+  }]);
+});
+
+test('satisfaction is projected only from asserted validation results, deterministically ordered', async () => {
+  const rows = [
+    validationRow({ id: 'urn:usf:validationobligation:v2', activationState: activated, satisfyingResult: 'urn:usf:validationresult:b' }),
+    validationRow({ id: 'urn:usf:validationobligation:v1', activationState: reserved, satisfyingResult: 'urn:usf:validationresult:c' }),
+    validationRow({ id: 'urn:usf:validationobligation:v2', activationState: activated, satisfyingResult: 'urn:usf:validationresult:a' }),
+    validationRow({ id: 'urn:usf:validationobligation:v2', activationState: activated, nonclaim: receiptNonclaim }),
+  ];
+  const packet = await projectContract({ client: fakeClient({ validationRows: rows }) }, { contract });
+  assert.deepEqual(packet.validationObligations, [
+    {
+      id: 'urn:usf:validationobligation:v1',
+      activationState: reserved,
+      actionable: false,
+      satisfied: true,
+      satisfyingResults: ['urn:usf:validationresult:c'],
+      nonclaims: [],
+    },
+    {
+      id: 'urn:usf:validationobligation:v2',
+      activationState: activated,
+      actionable: true,
+      satisfied: true,
+      satisfyingResults: ['urn:usf:validationresult:a', 'urn:usf:validationresult:b'],
+      nonclaims: [receiptNonclaim],
+    },
+  ]);
+  assert.deepEqual(packet.semanticIdentifiers.filter((identifier) => identifier.startsWith('urn:usf:validationobligation:')), [
+    'urn:usf:validationobligation:v1', 'urn:usf:validationobligation:v2',
+  ]);
+  const shuffled = await projectContract({ client: fakeClient({ validationRows: [...rows].reverse() }) }, { contract });
+  assert.equal(shuffled.packetDigest, packet.packetDigest);
+  assert.equal(shuffled.serializedBytes, packet.serializedBytes);
+  assert.equal(shuffled.itemCount, packet.itemCount);
+});
+
+test('nested validation-obligation members are counted against the packet item bound', async () => {
+  const bare = await projectContract({
+    client: fakeClient({ validationRows: [validationRow({ id: validationObligation, activationState: reserved })] }),
+  }, { contract });
+  const nested = await projectContract({
+    client: fakeClient({
+      validationRows: [
+        validationRow({ id: validationObligation, activationState: reserved, satisfyingResult: 'urn:usf:validationresult:a' }),
+        validationRow({ id: validationObligation, activationState: reserved, satisfyingResult: 'urn:usf:validationresult:b' }),
+        validationRow({ id: validationObligation, activationState: reserved, nonclaim: receiptNonclaim }),
+      ],
+    }),
+  }, { contract });
+  assert.equal(bare.validationObligations.length, nested.validationObligations.length);
+  // Four extra projected leaves: two satisfying results, the obligation
+  // nonclaim, and the same nonclaim merged into top-level nonclaims.
+  assert.equal(nested.itemCount - bare.itemCount, 4);
+  assert.ok(nested.itemCount <= nested.bounds.maximumItems);
+  assert.notEqual(nested.packetDigest, bare.packetDigest);
+});
+
+test('an obligation carrying conflicting activation states fails closed', async () => {
+  await assert.rejects(() => projectContract({
+    client: fakeClient({
+      validationRows: [
+        validationRow({ id: validationObligation, activationState: activated }),
+        validationRow({ id: validationObligation, activationState: reserved }),
+      ],
+    }),
+  }, { contract }), /inconsistent activation state/);
+});
+
+test('validation obligations bound to another contract are not projected', async () => {
+  const packet = await projectContract({
+    client: fakeClient({
+      validationRows: [validationRow({ id: 'urn:usf:validationobligation:elsewhere', forContract: compilerContract, activationState: activated })],
+    }),
+  }, { contract });
+  assert.deepEqual(packet.validationObligations, []);
+  assert.deepEqual(packet.semanticIdentifiers.filter((identifier) => identifier.startsWith('urn:usf:validationobligation:')), []);
 });
 
 test('work planning accepts only passing validation backed by current applicable evidence', async () => {

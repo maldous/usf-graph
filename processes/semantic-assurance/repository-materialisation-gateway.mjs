@@ -11,6 +11,7 @@ const CONTRACT = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisa
 const ACTIVE = 'urn:usf:contractactivationstate:active';
 const SUCCESSFUL = 'urn:usf:proofresultstate:successful';
 const ACCEPTED = 'urn:usf:decisionstate:accepted';
+const VALIDATION_ACTIVATED = 'urn:usf:validationactivationstate:activated';
 const MAX_PLAN_BYTES = 65_536;
 const MAX_OPERATIONS = 256;
 const MAX_PACKET_BYTES = 65_536;
@@ -40,6 +41,12 @@ export const stable = (input) => Array.isArray(input)
     : input;
 export const jcs = (input) => JSON.stringify(stable(input));
 export const digest = (input) => `sha256:${createHash('sha256').update(input).digest('hex')}`;
+
+const countProjectedItems = (item) => (Array.isArray(item)
+  ? item.reduce((count, element) => count + countProjectedItems(element), 0)
+  : item !== null && typeof item === 'object'
+    ? Object.values(item).reduce((count, element) => count + countProjectedItems(element), 0)
+    : 1);
 
 function bounded(valueToMeasure, maximum, label) {
   const bytes = Buffer.byteLength(jcs(valueToMeasure));
@@ -429,12 +436,53 @@ export async function projectContract(ctx, args = {}) {
     ctx.client.select(`SELECT ?relation ?id WHERE { <${context.contract.id}> ?relation ?id . FILTER(?relation IN (<urn:usf:ontology:asserts>, <urn:usf:ontology:disclaims>)) } ORDER BY ?relation ?id LIMIT 256`),
     ctx.client.select(`SELECT DISTINCT ?id WHERE { { ?id a <urn:usf:ontology:EvidenceRequirement> ; <urn:usf:ontology:obligationFor> <${context.contract.id}> } UNION { ?obligation <urn:usf:ontology:obligationFor> <${context.contract.id}> ; <urn:usf:ontology:requiresEvidence> ?id . ?id a <urn:usf:ontology:EvidenceRequirement> } } ORDER BY ?id LIMIT 256`),
     ctx.client.select(`SELECT DISTINCT ?id WHERE { ?id a <urn:usf:ontology:ProofObligation> ; <urn:usf:ontology:obligationFor> <${context.contract.id}> } ORDER BY ?id LIMIT 256`),
-    ctx.client.select(`SELECT DISTINCT ?id WHERE { ?id a <urn:usf:ontology:ValidationObligation> ; <urn:usf:ontology:validationForContract> <${context.contract.id}> } ORDER BY ?id LIMIT 256`),
+    ctx.client.select(`SELECT DISTINCT ?id ?forContract ?activationState ?satisfyingResult ?nonclaim WHERE {
+      ?id a <urn:usf:ontology:ValidationObligation> ; <urn:usf:ontology:validationForContract> ?forContract .
+      FILTER(?forContract = <${context.contract.id}>)
+      OPTIONAL { ?id <urn:usf:ontology:hasValidationActivationState> ?activationState }
+      OPTIONAL { ?id <urn:usf:ontology:satisfiedByValidationResult> ?satisfyingResult }
+      OPTIONAL { ?id <urn:usf:ontology:validationNonclaim> ?nonclaim }
+    } ORDER BY ?id ?activationState ?satisfyingResult ?nonclaim LIMIT 256`),
   ]);
   const after = await authorityWitness(ctx.client);
   if (context.authorityDigest !== `sha256:${after.digest}`) throw new Error('live authority changed while building agent task packet');
   const ids = (rows) => [...new Set(rows.map((row) => value(row, 'id')).filter(Boolean))].sort();
-  const validationIds = ids(validations);
+  // A ValidationObligation is projected with the state that decides whether a
+  // worker may act on it at all. Absence of an explicit activation state means
+  // reserved and never actionable, but no substitute state is invented: the
+  // projected activationState stays null so a consumer cannot mistake an
+  // inferred default for an asserted one.
+  const validationIndex = new Map();
+  for (const row of validations) {
+    const id = value(row, 'id');
+    if (!id) continue;
+    const forContract = value(row, 'forContract');
+    if (forContract !== null && forContract !== context.contract.id) continue;
+    const entry = validationIndex.get(id)
+      ?? { id, activationStates: new Set(), satisfyingResults: new Set(), nonclaims: new Set() };
+    const activationState = value(row, 'activationState');
+    if (activationState) entry.activationStates.add(activationState);
+    const satisfyingResult = value(row, 'satisfyingResult');
+    if (satisfyingResult) entry.satisfyingResults.add(satisfyingResult);
+    const nonclaim = value(row, 'nonclaim');
+    if (nonclaim) entry.nonclaims.add(nonclaim);
+    validationIndex.set(id, entry);
+  }
+  const validationObligations = [...validationIndex.keys()].sort().map((id) => {
+    const entry = validationIndex.get(id);
+    if (entry.activationStates.size > 1) throw new Error('validation obligation has inconsistent activation state');
+    const activationState = entry.activationStates.size === 1 ? [...entry.activationStates][0] : null;
+    const satisfyingResults = [...entry.satisfyingResults].sort();
+    return {
+      id,
+      activationState,
+      actionable: activationState === VALIDATION_ACTIVATED,
+      satisfied: satisfyingResults.length > 0,
+      satisfyingResults,
+      nonclaims: [...entry.nonclaims].sort(),
+    };
+  });
+  const validationIds = validationObligations.map((obligation) => obligation.id);
   const authorised = context.contract.activationState === ACTIVE
     && context.contract.proofResultState === SUCCESSFUL
     && context.contract.decisionState === ACCEPTED;
@@ -445,18 +493,25 @@ export async function projectContract(ctx, args = {}) {
     contractState: { lifecycle: context.contract.lifecycleState, activation: context.contract.activationState, decision: context.contract.decisionState, proof: context.contract.proofResultState },
     objective: args.objective || `Realise and validate ${context.contract.canonicalName} from current semantic authority.`,
     claims: ids(assertions.filter((row) => value(row, 'relation') === 'urn:usf:ontology:asserts')),
-    nonclaims: ids(assertions.filter((row) => value(row, 'relation') === 'urn:usf:ontology:disclaims')),
+    nonclaims: [...new Set([
+      ...ids(assertions.filter((row) => value(row, 'relation') === 'urn:usf:ontology:disclaims')),
+      ...validationObligations.flatMap((obligation) => obligation.nonclaims),
+    ])].sort(),
     authorisedActions: authorised ? [...ACTIONS] : [],
     authorisedRepositories: authorised ? context.authorisedRepositories : [],
     authorisedPaths: authorised ? context.authorisedPaths : [],
     authorisedFormats: authorised ? [...new Set(context.rules.map((item) => item.representationFormat))].sort() : [],
     acceptanceObligations: [...new Set([...ids(requirements), ...ids(obligations)])].sort(),
-    validationObligations: validationIds,
+    validationObligations,
     resultRequirements: ['return changed paths and their digests', 'return every validation result and stable result code', 'return explicit nonclaims and residual risk'],
-    stopConditions: ['authority digest changed', 'contract or decision is not active', 'path, format, action, or storage class is not authorised', 'required evidence is missing, stale, invalid, or unknown', 'payload digest or signature verification fails'],
+    stopConditions: ['authority digest changed', 'contract or decision is not active', 'validation obligation is not activated, so it is not actionable and no control-plane, factory, publication, or merge receipt satisfies it', 'path, format, action, or storage class is not authorised', 'required evidence is missing, stale, invalid, or unknown', 'payload digest or signature verification fails'],
     bounds: { maximumSerializedBytes: MAX_PACKET_BYTES, maximumItems: MAX_PACKET_ITEMS },
   };
-  const itemCount = Object.values(packet).reduce((count, item) => count + (Array.isArray(item) ? item.length : 1), 0);
+  // Array fields carry nested records now, so the bound is counted over
+  // projected leaves rather than top-level array length: a nested obligation
+  // record must not smuggle unbounded members past MAX_PACKET_ITEMS. Scalar
+  // and object-valued fields keep counting as one, as they always did.
+  const itemCount = Object.values(packet).reduce((count, item) => count + (Array.isArray(item) ? countProjectedItems(item) : 1), 0);
   if (itemCount > MAX_PACKET_ITEMS) throw new Error('agent task packet exceeds item bound');
   packet.itemCount = itemCount;
   packet.packetDigest = digest(jcs(packet));
