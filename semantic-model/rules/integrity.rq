@@ -127,8 +127,15 @@ SELECT DISTINCT ?violation ?subject WHERE {
     FILTER(!STRSTARTS(STR(?duplicateGraphB), "urn:usf:graph:observed") && !STRSTARTS(STR(?duplicateGraphB), "urn:usf:graph:derived"))
     BIND("crossgraphduplicate" AS ?violation)
   } UNION {
-    # declared ontology term with no usage anywhere and no explicit usage disposition
-    GRAPH <urn:usf:graph:ontology> { ?subject a ?declaredTermKind }
+    # declared ontology term with no usage anywhere and no explicit usage
+    # disposition. Every definition graph may declare terms (authority.ttl grants
+    # gcl:definitiongraph usf:mayDeclareTerms true), so the scan covers the whole
+    # definitionGraphs set from semantic-model/manifest.yaml and not the ontology
+    # graph alone: a term declared in taxonomy, vocabulary, authority or registry
+    # otherwise escapes this rule entirely.
+    GRAPH ?definitionGraph { ?subject a ?declaredTermKind }
+    VALUES ?definitionGraph { <urn:usf:graph:ontology> <urn:usf:graph:taxonomy> <urn:usf:graph:vocabulary>
+                              <urn:usf:graph:authority> <urn:usf:graph:registry> }
     VALUES ?declaredTermKind { owl:Class owl:ObjectProperty owl:DatatypeProperty owl:AnnotationProperty }
     FILTER(isIRI(?subject) && STRSTARTS(STR(?subject), "urn:usf:ontology:"))
     FILTER NOT EXISTS { ?usageSubject ?subject ?usageObject }
@@ -865,5 +872,81 @@ SELECT DISTINCT ?violation ?subject WHERE {
     GRAPH <urn:usf:graph:capabilities> { ?subject a usf:SemanticContract }
     FILTER NOT EXISTS { ?anyRealisation usf:realisesContract ?subject }
     BIND("contractwithoutrealisation" AS ?violation)
+  } UNION {
+    # ValidationObligation satisfaction is structural, never volunteered.
+    # usf:hasValidationInvalidationCondition was vocabulary without a mechanism:
+    # nothing derives or materialises it, so a satisfying ValidationResult stayed
+    # satisfying for as long as no producer chose to assert its own invalidation.
+    # The five branches below withdraw satisfaction from structure alone, the way
+    # rules/readiness.rq derives an invalidated evaluation closure from evidence
+    # state without ever reading a pre-existing closure state. They are
+    # whole-dataset and stand alone; the ValidationObligation SHACL shapes
+    # constrain the same ground per focus node, deliberately.
+    #
+    # the recorded authority binding disagrees with the evidence it cites
+    ?obligation usf:satisfiedByValidationResult ?subject .
+    ?subject usf:validationEvaluatedAuthorityDigest ?boundAuthorityDigest ;
+      usf:usesAdmittedValidationEvidence ?citedEvidence .
+    ?citedEvidence usf:evaluatedAuthorityDigest ?citedAuthorityDigest .
+    FILTER(?boundAuthorityDigest != ?citedAuthorityDigest)
+    BIND("validationauthoritybindingdrift" AS ?violation)
+  } UNION {
+    # satisfaction requires positively cited evidence that is simultaneously
+    # admitted, fresh, integrity-valid, within its validity scope and applicable
+    # to the bound obligation. Citing nothing admissible is not satisfaction by
+    # omission, and one inadmissible citation is enough to withdraw it.
+    ?obligation usf:satisfiedByValidationResult ?subject .
+    ?subject usf:resultForValidationObligation ?boundObligation .
+    FILTER(
+      NOT EXISTS {
+        ?subject usf:usesAdmittedValidationEvidence ?admissibleEvidence .
+        ?admissibleEvidence usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted> ;
+          usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh> ;
+          usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid> ;
+          usf:withinValidityScope true ;
+          usf:applicableToObligation ?boundObligation .
+      } ||
+      EXISTS {
+        ?subject usf:usesAdmittedValidationEvidence ?inadmissibleEvidence .
+        FILTER(
+          NOT EXISTS { ?inadmissibleEvidence usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted> } ||
+          NOT EXISTS { ?inadmissibleEvidence usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh> } ||
+          NOT EXISTS { ?inadmissibleEvidence usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid> } ||
+          NOT EXISTS { ?inadmissibleEvidence usf:withinValidityScope true } ||
+          NOT EXISTS { ?inadmissibleEvidence usf:applicableToObligation ?boundObligation }
+        )
+      }
+    )
+    BIND("validationevidenceinadmissible" AS ?violation)
+  } UNION {
+    # an invalidated or superseded result keeps its lineage but cannot continue
+    # to satisfy: the condition is a withdrawal, not an annotation.
+    ?obligation usf:satisfiedByValidationResult ?subject .
+    { ?subject usf:hasValidationInvalidationCondition ?invalidationCondition }
+    UNION
+    { ?subject usf:supersededByValidationResult ?supersedingResult }
+    BIND("invalidatedvalidationstillsatisfying" AS ?violation)
+  } UNION {
+    # activation is a warranted act, not a state flip: an activated obligation
+    # must record who activated it, when, why and against which prerequisite.
+    ?subject usf:hasValidationActivationState <urn:usf:validationactivationstate:activated> .
+    FILTER(
+      NOT EXISTS { ?subject usf:validationActivationAuthority ?activationAuthority } ||
+      NOT EXISTS { ?subject usf:validationActivatedAt ?activatedAt } ||
+      NOT EXISTS { ?subject usf:validationActivationReason ?activationReason } ||
+      NOT EXISTS { ?subject usf:validationActivationPrerequisite ?activationPrerequisite }
+    )
+    BIND("validationactivationunwarranted" AS ?violation)
+  } UNION {
+    # identity isolation: a satisfying result must be a ValidationResult and must
+    # itself name exactly the obligation it satisfies. An unbound or
+    # foreign-bound result closes nothing.
+    ?obligation usf:satisfiedByValidationResult ?subject .
+    FILTER(
+      NOT EXISTS { ?subject a usf:ValidationResult } ||
+      NOT EXISTS { ?subject usf:resultForValidationObligation ?anyBoundObligation } ||
+      EXISTS { ?subject usf:resultForValidationObligation ?otherObligation . FILTER(?otherObligation != ?obligation) }
+    )
+    BIND("validationsatisfactionbindingmismatch" AS ?violation)
   }
 }

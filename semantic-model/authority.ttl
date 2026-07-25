@@ -9,7 +9,9 @@
     usf:soleSemanticAuthority true;
     usf:validatedInStardog true;
     usf:defaultReasoningSchemaGraph ng:ontology, ng:taxonomy;
-    usf:authorityVerificationState "validator-and-shacl-conformant".
+    usf:authorityVerificationState "validator-and-shacl-conformant";
+    rdfs:comment "How usf:defaultReasoningSchemaGraph is realised at runtime: not as a configured schema-graph list. The live database options recorded for this authority on 2026-07-25 are reasoning.schema.graphs = [tag:stardog:api:context:schema], reasoning.schemas = [] and auto.schema.reasoning = true, so Stardog assembles the reasoning schema automatically from the loaded axioms instead of from a declared graph list. The two named graphs asserted here therefore state which graphs' OWL/RDFS axioms are intended to be schema; they are not the value of any database option. Tracked source is consistent with that: operations/stardog/provision-authority-endpoint.mjs records no creation-time database options, lists 'reasoning schema declarations' as not recoverable from this repository, and requires only query.all.graphs = true.";
+    rdfs:comment "SHACL evaluation applies no reasoning. The recorded live option icv.reasoning.enabled = false, and the tracked evaluation path in provider-bindings/stardog/semantic-authority.mjs calls the Stardog ICV validate/report operations with a content type only, never a reasoning option. rdfs:domain and rdfs:range in semantic-model/ontology.ttl are consequently documentation of intent rather than enforcement: a domain or range violation is caught only where an explicit SHACL shape, an integrity rule under semantic-model/rules/ or a tracked test asserts it. No inference is available to a SHACL shape, so no shape may depend on an entailed type or on entailed property membership.".
 gcl:definitiongraph usf:mayDeclareTerms true;
     usf:mayAssertInstances true;
     usf:authoritative false;
