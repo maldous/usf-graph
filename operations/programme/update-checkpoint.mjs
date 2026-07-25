@@ -18,6 +18,7 @@ import { dirname, join } from 'node:path';
 import {
   assertExactAuthorityPropagation,
   authorityIdentity,
+  canonicalBindingBytes,
   loadAuthorityBindingManifest,
   readAuthorityField,
   requireExactArgument,
@@ -32,17 +33,13 @@ function sha256(bytes) {
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 }
 
-function sortValue(value) {
-  if (Array.isArray(value)) return value.map(sortValue);
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, sortValue(value[key])]));
-  }
-  return value;
-}
-
-function canonicalBytes(value) {
-  return Buffer.from(`${JSON.stringify(sortValue(value), null, 2)}\n`);
-}
+// Canonical rendering is the generator's determinism boundary and is imported
+// rather than reimplemented here. Every generated artefact passes through this
+// one pure function, so byte-level determinism is a property of a unit that can
+// be exercised directly inside the hermetic gate — a duplicated local
+// serialiser could drift from it silently and would only be observable by
+// running the whole generator twice, which the gate cannot do.
+const canonicalBytes = canonicalBindingBytes;
 
 function gitBuffer(args) {
   return execFileSync('git', args, { cwd: repositoryRoot, maxBuffer: 1024 * 1024 * 1024 });

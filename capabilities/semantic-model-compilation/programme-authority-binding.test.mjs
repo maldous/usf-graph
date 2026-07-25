@@ -440,6 +440,58 @@ test('capture rejects a bound-by-reference declaration on an artefact that does 
 });
 
 
+// ---------------------------------------------------------------------------
+// Deterministic rendering
+// ---------------------------------------------------------------------------
+//
+// Running the generator end-to-end twice cannot be asserted inside the hermetic
+// gate: it is a top-level script that requires git and repository writes, and
+// the boundary grants neither a child process nor filesystem write outside its
+// own runtime directory. What can be asserted — and is asserted here — is that
+// the one canonical rendering boundary every generated artefact passes through
+// is pure and order-insensitive, and that the generator has not reintroduced a
+// private serialiser that could drift from it.
+
+test('canonical rendering is byte-identical across repeated invocations', () => {
+  const value = manifest();
+  const first = canonicalBindingBytes(value);
+  const second = canonicalBindingBytes(value);
+  const third = canonicalBindingBytes(JSON.parse(JSON.stringify(value)));
+  assert.equal(first.equals(second), true, 'repeated rendering must be byte-identical');
+  assert.equal(first.equals(third), true, 'structurally equal input must render identically');
+  assert.equal(bindingDigest(first), bindingDigest(third));
+});
+
+test('canonical rendering is insensitive to key insertion order', () => {
+  // The generator assembles records from maps, git output and filesystem
+  // enumeration, none of which guarantee key order. Rendering must not inherit
+  // that non-determinism.
+  const ordered = { alpha: 1, beta: { x: [1, 2, 3], y: 'z' }, gamma: [{ a: 1, b: 2 }] };
+  const shuffled = { gamma: [{ b: 2, a: 1 }], beta: { y: 'z', x: [1, 2, 3] }, alpha: 1 };
+  assert.equal(
+    canonicalBindingBytes(ordered).equals(canonicalBindingBytes(shuffled)),
+    true,
+    'key order must not change rendered bytes',
+  );
+});
+
+test('canonical rendering preserves array order, which is semantic', () => {
+  assert.notEqual(
+    bindingDigest(canonicalBindingBytes({ v: [1, 2] })),
+    bindingDigest(canonicalBindingBytes({ v: [2, 1] })),
+  );
+});
+
+test('the generator renders through the shared boundary and defines no private serialiser', () => {
+  const source = readFileSync(join(repositoryRoot, 'operations/programme/update-checkpoint.mjs'), 'utf8');
+  assert.match(source, /canonicalBindingBytes/u, 'the generator must import the shared rendering boundary');
+  assert.equal(
+    /function\s+sortValue\s*\(|function\s+canonicalBytes\s*\(/u.test(source),
+    false,
+    'the generator must not define a private canonical serialiser that can drift from the shared one',
+  );
+});
+
 test('dotted authority field paths resolve, and absent paths read as undefined', () => {
   const record = { authorityBinding: { authorityDigest: DIGEST_A } };
   assert.equal(readAuthorityField(record, 'authorityBinding.authorityDigest'), DIGEST_A);
