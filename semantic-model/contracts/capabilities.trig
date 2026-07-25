@@ -2337,6 +2337,8 @@ sc:compilersemanticenforcement a usf:SemanticContract;
     usf:canonicalName "localvalidationtoolchain".
 <urn:usf:validationobligation:compilersemanticenforcement> a usf:ValidationObligation;
     usf:canonicalName "compilersemanticenforcement";
+    usf:hasValidationActivationState <urn:usf:validationactivationstate:reserved>;
+    usf:validationActivationReason "No authority-grade validation producer or admission path is declared for this obligation yet. Reserved is the safe default: an obligation with no explicit activation state must never be treated as actionable or closeable.";
     usf:validationForContract sc:compilersemanticenforcement.
 <urn:usf:validationenvironment:compilerhermeticsubstitute> a usf:ValidationEnvironment;
     usf:canonicalName "compilerhermeticsubstitute";
@@ -2670,6 +2672,8 @@ sc:deterministicdevelopmentandtestsubstitutes a usf:SemanticContract;
     usf:contractConstraint "The capability owns reusable deterministic provider substitution semantics and controls; consuming capabilities own their business behaviour and provider ports, and provider-specific implementations remain adapters selected by a separately accepted realisation decision.", "Development and test may use only repository-local or digest-verified inputs with explicit configuration; hidden host files, caches, original-source checkouts, pre-existing databases, mutable image tags and external work-tracker state are forbidden dependencies.", "Production-shaped staging must exercise separately warranted production-shaped provider bindings; deterministic substitutes may support controlled fault injection but cannot be used to claim live-provider, staging or production readiness.".
 <urn:usf:validationobligation:deterministicdevelopmentandtestsubstitutes> a usf:ValidationObligation;
     usf:canonicalName "deterministicdevelopmentandtestsubstitutes";
+    usf:hasValidationActivationState <urn:usf:validationactivationstate:reserved>;
+    usf:validationActivationReason "No authority-grade validation producer or admission path is declared for this obligation yet. Reserved is the safe default: an obligation with no explicit activation state must never be treated as actionable or closeable.";
     usf:validationForContract sc:deterministicdevelopmentandtestsubstitutes.
 cap:semanticmodelcompilation a usf:Capability;
     usf:canonicalName "semanticmodelcompilation";

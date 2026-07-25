@@ -7261,3 +7261,63 @@ usf:atomPrincipalRestriction usf:termUsageState <urn:usf:termusagestate:reserved
 usf:atomDelegable usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>.
 usf:atomBreakGlassEligible usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>.
 usf:atomSupersedesPermission usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>.
+
+# --- ValidationObligation lifecycle -----------------------------------------
+# Mirrors the ProofObligation -> ProofResult chain. Validation-specific
+# predicates are declared separately rather than widening proof domains: an
+# obligation family must not be satisfiable by another family's result.
+usf:ValidationObligationActivationState a owl:Class;
+    rdfs:label "validation obligation activation state".
+usf:ValidationInvalidationCondition a owl:Class;
+    rdfs:label "validation invalidation condition".
+
+# Activation. Absence of an explicit state means reserved, never actionable.
+usf:hasValidationActivationState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationObligation;
+    rdfs:range usf:ValidationObligationActivationState.
+usf:validationActivationPrerequisite a owl:ObjectProperty;
+    rdfs:domain usf:ValidationObligation;
+    rdfs:range usf:EvidenceRequirement.
+usf:validationActivationReason a owl:DatatypeProperty;
+    rdfs:domain usf:ValidationObligation;
+    rdfs:range xsd:string.
+
+# Result binding. Execution targeting alone is insufficient for satisfaction.
+usf:resultForValidationObligation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationResult;
+    rdfs:range usf:ValidationObligation.
+usf:usesAdmittedValidationEvidence a owl:ObjectProperty;
+    rdfs:domain usf:ValidationResult;
+    rdfs:range usf:EvidenceResult.
+
+# Exact applicability bindings. Satisfaction survives only while these hold.
+usf:validationEvaluatedAuthorityDigest a owl:DatatypeProperty;
+    rdfs:domain usf:ValidationResult;
+    rdfs:range xsd:string.
+usf:validationEvaluatedSourceHead a owl:DatatypeProperty;
+    rdfs:domain usf:ValidationResult;
+    rdfs:range xsd:string.
+
+# Satisfaction, invalidation, supersession.
+usf:satisfiedByValidationResult a owl:ObjectProperty;
+    rdfs:domain usf:ValidationObligation;
+    rdfs:range usf:ValidationResult;
+    rdfs:label "satisfied by validation result".
+usf:hasValidationInvalidationCondition a owl:ObjectProperty;
+    rdfs:domain usf:ValidationResult;
+    rdfs:range usf:ValidationInvalidationCondition.
+usf:supersededByValidationResult a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationResult;
+    rdfs:range usf:ValidationResult.
+usf:validationNonclaim a owl:ObjectProperty;
+    rdfs:domain usf:ValidationObligation;
+    rdfs:range usf:NonClaim.
+
+# Declared ahead of first use, deliberately. No obligation is satisfied yet —
+# all three are reserved — and no activation prerequisites are declared, so
+# these two terms have no instances. They are part of the contract a consumer
+# must implement against, not speculative vocabulary.
+usf:satisfiedByValidationResult usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
+    usf:termUsageRationale "Satisfaction relation for ValidationObligation. Unused until an obligation is activated and an applicable passing ValidationResult exists; a consumer must never infer satisfaction from its absence.".
+usf:validationActivationPrerequisite usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
+    usf:termUsageRationale "Structured activation prerequisite for ValidationObligation. Unused until an obligation declares machine-readable prerequisites; absence means the obligation stays reserved.".

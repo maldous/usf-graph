@@ -122,8 +122,13 @@ cf:repositoryexternalartefactmaterialisationuisemantics a usf:ContractFacet;
 <urn:usf:validationobligation:repositoryexternalartefactmaterialisation> a usf:ValidationObligation;
     usf:canonicalName "repositoryexternalartefactmaterialisation";
     usf:definition "Reserved validation-evidence lifecycle for repository-external artefact materialisation. It becomes actionable only when explicitly activated after an authority-grade evidence producer and admission path are available; factory execution receipts do not satisfy it.";
-    usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:active>;
+    usf:hasValidationActivationState <urn:usf:validationactivationstate:reserved>;
+    usf:validationActivationReason "Awaiting an authority-grade evidence producer and admission path. The prose definition said reserved while usf:semanticLifecycleState said active, and that property's domain is usf:SemanticContract, so the assertion was both contradictory and a domain violation. The machine-readable state now agrees with the prose.";
+    usf:validationNonclaim <urn:usf:nonclaim:controlplanereceiptdoesnotsatisfyvalidation>;
     usf:validationForContract <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation>.
+<urn:usf:nonclaim:controlplanereceiptdoesnotsatisfyvalidation> a usf:NonClaim;
+    usf:canonicalName "controlplanereceiptdoesnotsatisfyvalidation";
+    usf:definition "A control-plane proof, factory execution receipt, publication receipt or Git merge receipt does not satisfy a ValidationObligation. Satisfaction requires a ValidationResult bound to the exact obligation by usf:resultForValidationObligation, passing, citing admitted evidence, and carrying current authority and source-head bindings.".
 <urn:usf:validationenvironment:isolatedcleanclone> a usf:ValidationEnvironment;
     usf:canonicalName "isolatedcleanclone";
     usf:hasEnvironmentClass <urn:usf:environmentclass:hermetic>;
