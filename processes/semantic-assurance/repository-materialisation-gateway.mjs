@@ -1,9 +1,6 @@
 import { createHash } from 'node:crypto';
-import {
-  chmodSync, createReadStream, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync,
-  readlinkSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync,
-} from 'node:fs';
-import { basename, dirname, relative, resolve, sep } from 'node:path';
+import { createReadStream, existsSync, lstatSync, realpathSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import { authorityWitness, validContractRef } from './semantic-bootstrap-packet.mjs';
 
@@ -113,13 +110,9 @@ function strongestState(states) {
   for (const candidate of ACTION_STATE_PRECEDENCE) if (states.includes(candidate)) return candidate;
   return ACTION_STATES.unresolved;
 }
-const MAX_PLAN_BYTES = 65_536;
-const MAX_OPERATIONS = 256;
 const MAX_PACKET_BYTES = 65_536;
 const MAX_PACKET_ITEMS = 256;
-const MAX_TRACKED_WRITE_BYTES = 16 * 1024 * 1024;
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
-const ACTIONS = new Set(['create-directory', 'write-file', 'move-path', 'delete-path']);
 
 const value = (row, key) => row[key]?.value ?? null;
 const MATERIALISATION_RULE_WHERE = `
@@ -135,13 +128,36 @@ const MATERIALISATION_RULE_WHERE = `
   FILTER NOT EXISTS { ?rule <urn:usf:ontology:semanticAdequacyDisposition> ?ruleDisposition . FILTER(?ruleDisposition != <urn:usf:semanticadequacydisposition:independentlywarrantedretained>) }
   FILTER NOT EXISTS { ?naming <urn:usf:ontology:semanticAdequacyDisposition> ?namingDisposition . FILTER(?namingDisposition != <urn:usf:semanticadequacydisposition:independentlywarrantedretained>) }
 `;
-export const stable = (input) => Array.isArray(input)
-  ? input.map(stable)
-  : input && typeof input === 'object'
-    ? Object.fromEntries(Object.keys(input).sort().map((key) => [key, stable(input[key])]))
-    : input;
-export const jcs = (input) => JSON.stringify(stable(input));
-export const digest = (input) => `sha256:${createHash('sha256').update(input).digest('hex')}`;
+// EVERY mechanical concern is imported, never reimplemented: path normalisation
+// and containment, symlink rejection, operation validation, plan
+// canonicalisation and digest, CAS lookup and verification, the filesystem
+// apply, idempotence, rollback and rollback error aggregation all live once in
+// the lower pure capability module. This gateway keeps exclusive ownership of
+// the live authority read, the realisation verdict, the complete contract,
+// decision and proof conclusions, witness bracketing, coordinator authorisation
+// and the production create/validate/dry-run/apply tools.
+import {
+  MATERIALISATION_ACTIONS,
+  MATERIALISATION_BOUNDS,
+  assertNoSymlinkSegments,
+  canonicalJson,
+  containedBy,
+  executePlanOperations,
+  sha256 as planDigestOf,
+  sourceDigest as planSourceDigest,
+  resolveCasObject,
+  rollbackAndThrow as rethrowWithRollback,
+  stable as stableInput,
+  validatePlanOperation,
+} from '../../capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs';
+
+const { MAX_PLAN_BYTES, MAX_OPERATIONS, MAX_TRACKED_WRITE_BYTES } = MATERIALISATION_BOUNDS;
+const ACTIONS = new Set(MATERIALISATION_ACTIONS);
+
+export const stable = stableInput;
+export const jcs = canonicalJson;
+export const digest = planDigestOf;
+export const sourceDigest = planSourceDigest;
 
 function bounded(valueToMeasure, maximum, label) {
   const bytes = Buffer.byteLength(jcs(valueToMeasure));
@@ -149,46 +165,10 @@ function bounded(valueToMeasure, maximum, label) {
   return bytes;
 }
 
-import {
-  assertNoSymlinkSegments,
-  containedBy,
-  decisionAuthorisesPath,
-  inside,
-  safeRelativePath,
-  treeEntries,
-} from '../../capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs';
-
-// Path, containment, symlink and tree mechanics are NOT reimplemented here. They
-// live once in the lower capability module and are imported below, so the
-// canonical gateway and the control-plane proof engine cannot disagree about
-// which paths are portable or which segments are forbidden. This gateway keeps
-// exclusive ownership of the live authority read, the realisation verdict and the
-// witness bracketing around every decision and apply.
-
-function rethrowWithRollback(primaryError, rollback) {
-  const rollbackErrors = [];
-  for (const undo of rollback.reverse()) {
-    try { undo(); } catch (error) { rollbackErrors.push(error); }
-  }
-  if (rollbackErrors.length) {
-    throw new AggregateError(
-      [primaryError, ...rollbackErrors],
-      'materialisation failed and rollback was not fully completed',
-      { cause: primaryError },
-    );
-  }
-  throw primaryError;
-}
-
 async function hashFile(path) {
   const hash = createHash('sha256');
   for await (const chunk of createReadStream(path)) hash.update(chunk);
   return `sha256:${hash.digest('hex')}`;
-}
-
-export function sourceDigest(path) {
-  const stat = lstatSync(path);
-  return stat.isDirectory() ? digest(jcs(treeEntries(path))) : digest(readFileSync(path));
 }
 
 async function resolveContract(client, reference = CONTRACT) {
@@ -340,44 +320,6 @@ function withAuthority(semantics, witness, ctx) {
   };
 }
 
-function validateOperation(operation, index, context) {
-  const failures = [];
-  if (!operation || operation.index !== index) failures.push('operation-index');
-  if (!ACTIONS.has(operation?.action)) failures.push('operation-action');
-  let path;
-  try { path = safeRelativePath(operation?.path); } catch { failures.push('operation-path'); }
-  if (path && !decisionAuthorisesPath(path, context.authorisedPaths)) failures.push('operation-decision-path');
-  const role = context.pathRoles.find((item) => item.id === operation?.pathRole);
-  if (!role) failures.push('operation-path-role');
-  if (path && role && role.parent !== '.' && path !== role.parent && !path.startsWith(`${role.parent}/`)) failures.push('operation-unauthorised-parent');
-  if (path && role?.parent === '.' && path.includes('/')) failures.push('operation-root-descendant');
-  if (operation?.sourceDigest !== undefined && !SHA256.test(operation.sourceDigest)) failures.push('operation-source-digest');
-  if (operation?.action === 'move-path') {
-    try {
-      const sourcePath = safeRelativePath(operation.sourcePath, 'sourcePath');
-      if (!decisionAuthorisesPath(sourcePath, context.authorisedPaths)) failures.push('operation-move-source-decision-path');
-    } catch { failures.push('operation-move-source'); }
-    if (operation?.sourceDigest === undefined) failures.push('operation-source-digest');
-  }
-  if (operation?.action === 'delete-path' && operation?.sourceDigest === undefined) failures.push('operation-source-digest');
-  if (operation?.action === 'write-file') {
-    if (!SHA256.test(operation.contentDigest || '')) failures.push('operation-content-digest');
-    const authorised = context.rules.find((rule) => rule.family === operation.artefactFamily && rule.representationFormat === operation.representationFormat && rule.pathRole === operation.pathRole);
-    if (!authorised) failures.push('operation-write-representation');
-    else if (path && !new RegExp(authorised.namingPattern).test(basename(path))) failures.push('operation-filename');
-    const inline = typeof operation.content === 'string' && ['utf8', 'base64'].includes(operation.contentEncoding);
-    const located = typeof operation.contentLocator === 'string' && /^cas:\/\/sha256\/[0-9a-f]{64}$/.test(operation.contentLocator)
-      && operation.contentLocator.slice('cas://sha256/'.length) === operation.contentDigest?.slice(7);
-    if (inline === located) failures.push('operation-content');
-    if (operation.fileMode !== undefined && !['0644', '0755'].includes(operation.fileMode)) failures.push('operation-file-mode');
-    if (inline) {
-      const bytes = Buffer.from(operation.content, operation.contentEncoding === 'base64' ? 'base64' : 'utf8');
-      if (digest(bytes) !== operation.contentDigest) failures.push('operation-content-mismatch');
-    }
-  }
-  return failures.map((code) => ({ index, code }));
-}
-
 // The verdict is accepted from a caller that already read it, so plan creation,
 // validation and apply all judge the same authority read. Absent one, it is read
 // here rather than assumed.
@@ -400,7 +342,7 @@ export async function validateLayoutPlan(ctx, plan, verdict = null) {
     failures.push({ code: 'plan-decision-not-uniquely-accepted' });
   }
   if (!Array.isArray(plan?.operations) || plan.operations.length < 1 || plan.operations.length > MAX_OPERATIONS) failures.push({ code: 'plan-operation-bound' });
-  else plan.operations.forEach((operation, index) => failures.push(...validateOperation(operation, index, context)));
+  else plan.operations.forEach((operation, index) => failures.push(...validatePlanOperation(operation, index, context)));
   const unsigned = { ...plan };
   delete unsigned.planDigest;
   const expectedDigest = digest(jcs(unsigned));
@@ -454,92 +396,19 @@ export async function applyLayoutPlan(ctx, args = {}) {
   if (plan.authorityDigest !== preApply.digest) {
     throw new Error(`${AUTHORITY_MOVED_CODE}: plan authority ${plan.authorityDigest} does not match live authority ${preApply.digest} at apply time`);
   }
-  const root = realpathSync(ctx.repositoryRoot);
-  const results = [];
-  const rollback = [];
-  try {
-    for (const operation of plan.operations) {
-      const target = inside(root, operation.path);
-      assertNoSymlinkSegments(root, target, `materialisation target ${operation.path}`);
-      if (operation.action === 'create-directory') {
-        const existed = existsSync(target);
-        mkdirSync(target, { recursive: true });
-        if (!existed) rollback.push(() => { if (existsSync(target)) rmdirSync(target); });
-      } else if (operation.action === 'write-file') {
-        let bytes;
-        if (operation.contentLocator) {
-          if (!ctx.casRoot) throw new Error('operator-local CAS root is required for located plan content');
-          const casRoot = realpathSync(ctx.casRoot);
-          const hex = operation.contentDigest.slice(7);
-          const located = resolve(casRoot, 'sha256', hex.slice(0, 2), hex);
-          if (!containedBy(casRoot, located) || !existsSync(located)) throw new Error(`plan content not found: ${operation.path}`);
-          const locatedStat = lstatSync(located);
-          if (locatedStat.isSymbolicLink() || !locatedStat.isFile() || !containedBy(casRoot, realpathSync(located))) {
-            throw new Error(`plan content is not a regular CAS object: ${operation.path}`);
-          }
-          if (locatedStat.size > MAX_TRACKED_WRITE_BYTES) throw new Error(`tracked write exceeds ${MAX_TRACKED_WRITE_BYTES} bytes: ${operation.path}`);
-          bytes = readFileSync(located);
-          if (digest(bytes) !== operation.contentDigest) throw new Error(`plan content digest mismatch: ${operation.path}`);
-        } else {
-          bytes = Buffer.from(operation.content, operation.contentEncoding === 'base64' ? 'base64' : 'utf8');
-        }
-        const existed = existsSync(target);
-        const prior = existed ? readFileSync(target) : null;
-        const priorMode = existed ? (statSync(target).mode & 0o777) : null;
-        const intendedMode = Number.parseInt(operation.fileMode || '0644', 8);
-        if (existed && digest(prior) === operation.contentDigest && priorMode === intendedMode) {
-          results.push({ index: operation.index, action: operation.action, path: operation.path, state: 'already-applied' });
-          continue;
-        }
-        if (existed && (!operation.sourceDigest || digest(prior) !== operation.sourceDigest)) throw new Error(`write source digest mismatch: ${operation.path}`);
-        mkdirSync(dirname(target), { recursive: true });
-        const temporary = `${target}.usf-materialise-${process.pid}-${operation.index}`;
-        writeFileSync(temporary, bytes, { flag: 'wx' });
-        chmodSync(temporary, intendedMode);
-        renameSync(temporary, target);
-        rollback.push(() => {
-          if (prior === null) unlinkSync(target);
-          else { writeFileSync(target, prior); chmodSync(target, priorMode); }
-        });
-      } else if (operation.action === 'move-path') {
-        const source = inside(root, operation.sourcePath);
-        assertNoSymlinkSegments(root, source, `materialisation source ${operation.sourcePath}`);
-        if (!existsSync(source)) {
-          if (!existsSync(target) || sourceDigest(target) !== operation.sourceDigest) throw new Error(`move source missing: ${operation.sourcePath}`);
-          results.push({ index: operation.index, action: operation.action, path: operation.path, state: 'already-applied' });
-          continue;
-        }
-        if (sourceDigest(source) !== operation.sourceDigest) throw new Error(`move source digest mismatch: ${operation.sourcePath}`);
-        if (existsSync(target)) throw new Error(`move collision: ${operation.path}`);
-        mkdirSync(dirname(target), { recursive: true });
-        renameSync(source, target);
-        rollback.push(() => renameSync(target, source));
-      } else if (operation.action === 'delete-path') {
-        if (!existsSync(target)) {
-          results.push({ index: operation.index, action: operation.action, path: operation.path, state: 'already-applied' });
-          continue;
-        }
-        if (sourceDigest(target) !== operation.sourceDigest) throw new Error(`delete source digest mismatch: ${operation.path}`);
-        const stat = lstatSync(target);
-        const priorType = stat.isDirectory() ? 'directory' : 'file';
-        const prior = priorType === 'directory' ? null : readFileSync(target);
-        const priorMode = stat.mode & 0o7777;
-        if (stat.isDirectory()) rmdirSync(target); else unlinkSync(target);
-        rollback.push(() => {
-          if (priorType === 'directory') mkdirSync(target, { mode: priorMode });
-          else writeFileSync(target, prior, { flag: 'wx', mode: priorMode });
-          chmodSync(target, priorMode);
-        });
-      }
-      results.push({ index: operation.index, action: operation.action, path: operation.path, state: 'applied' });
-    }
-  } catch (error) {
-    rethrowWithRollback(error, rollback);
-  }
+  // The filesystem apply, CAS resolution, idempotence and rollback are the pure
+  // module's, not a second copy: this call returns the still-open rollback stack
+  // so the post-apply authority check below can undo the complete run through
+  // that same implementation.
+  const execution = executePlanOperations({
+    plan,
+    repositoryRoot: ctx.repositoryRoot,
+    casRoot: ctx.casRoot,
+  });
   // After every operation but before reporting success: if authority moved while
   // the filesystem was being changed, the plan was authorised against a state that
   // no longer exists. Run the complete rollback stack and fail closed; rollback
-  // errors are preserved through AggregateError by rethrowWithRollback.
+  // errors are preserved through AggregateError by the pure module.
   try {
     assertWitnessUnchanged(
       verdict.witness,
@@ -547,9 +416,9 @@ export async function applyLayoutPlan(ctx, args = {}) {
       'post-apply authority check',
     );
   } catch (error) {
-    rethrowWithRollback(error, rollback);
+    execution.rollbackAndThrow(error);
   }
-  return { applied: true, validation, operations: results };
+  return { applied: true, validation, operations: execution.operations };
 }
 
 export async function describeArtifact(ctx, args = {}) {
@@ -565,18 +434,16 @@ export async function describeArtifact(ctx, args = {}) {
 export async function verifyArtifact(ctx, args = {}) {
   const descriptor = await describeArtifact(ctx, args);
   if (!ctx.casRoot) throw new Error('operator-local CAS root is not configured');
-  const casRoot = realpathSync(ctx.casRoot);
-  const hex = descriptor.digest.slice(7);
-  const path = resolve(casRoot, 'sha256', hex.slice(0, 2), hex);
-  if (!containedBy(casRoot, path)) throw new Error('CAS path escaped configured root');
-  if (!existsSync(path)) return { verified: false, descriptor, code: 'artifact-not-found' };
-  const stat = lstatSync(path);
-  if (stat.isSymbolicLink() || !stat.isFile() || !containedBy(casRoot, realpathSync(path))) {
-    return { verified: false, descriptor, code: 'artifact-not-regular-file' };
+  // CAS locator layout and its containment, symlink and regular-file checks are
+  // the pure module's single implementation, not a second copy here.
+  const located = resolveCasObject(ctx.casRoot, descriptor.digest, { label: 'artifact' });
+  if (!located.found) {
+    if (located.code === 'cas-path-escaped-root') throw new Error('CAS path escaped configured root');
+    return { verified: false, descriptor, code: located.code === 'cas-object-not-found' ? 'artifact-not-found' : 'artifact-not-regular-file' };
   }
-  const observedDigest = await hashFile(path);
-  const verified = stat.isFile() && stat.size === descriptor.byteSize && observedDigest === descriptor.digest;
-  return { verified, descriptor, observed: { byteSize: stat.size, digest: observedDigest } };
+  const observedDigest = await hashFile(located.path);
+  const verified = located.byteSize === descriptor.byteSize && observedDigest === descriptor.digest;
+  return { verified, descriptor, observed: { byteSize: located.byteSize, digest: observedDigest } };
 }
 
 // Applicability and obligation state for one contract. Every field is either an
@@ -946,4 +813,10 @@ export function refuseLifecycleMutation(operation) {
 }
 
 export const materialisationConstants = Object.freeze({ CONTRACT, MAX_PLAN_BYTES, MAX_OPERATIONS, MAX_PACKET_BYTES, MAX_PACKET_ITEMS, MAX_TRACKED_WRITE_BYTES });
-export const materialisationInternals = Object.freeze({ assertNoSymlinkSegments, containedBy, rethrowWithRollback });
+// Re-exported from the pure module so the gateway's own tests exercise the one
+// shared implementation rather than a gateway-private copy of it.
+export const materialisationInternals = Object.freeze({
+  assertNoSymlinkSegments,
+  containedBy,
+  rethrowWithRollback,
+});

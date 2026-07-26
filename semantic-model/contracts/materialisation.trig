@@ -287,7 +287,7 @@ actor:externalservice a usf:Entity;
     usf:caseNamingRule "Directories and ordinary filenames use lowercase ASCII kebab case; AGENTS.md, GOAL.md and product-required shim or skill filenames are the only uppercase compatibility exceptions.";
     usf:abbreviationNamingRule "Use an abbreviation only when it is the independently clearest domain term; lowercase it in paths, define it semantically, and never invent an abbreviation to shorten an inherited name.";
     usf:historicalNameDispositionRule "Every inherited name is bound to the accepted counterfactual disposition inventory and is independently selected, renamed, consolidated, split, removed or historical-only; matching history is permitted only with independent warrant.";
-    usf:prohibitedCanonicalToken "wave-zero", "wave-one", "wave-two", "wave-three", "wave-four", "wave-five", "wave-six", "initial-suite", "bootstrap", "reference-kernel", "executable-suite", "migration", "legacy", "replacement", "temporary", "v2", "external-tracker-identifier", "external-work-record-ordinal", "core", "common", "shared", "utils", "helpers", "misc";
+    usf:prohibitedCanonicalToken "wave-zero", "wave-one", "wave-two", "wave-three", "wave-four", "wave-five", "wave-six", "initial-suite", "bootstrap", "reference-kernel", "executable-suite", "migration", "legacy", "replacement", "temporary", "transitional", "v2", "external-tracker-identifier", "external-work-record-ordinal", "core", "common", "shared", "utils", "helpers", "misc";
     usf:trackerDerivedIdentityProhibited true;
     usf:sourceDerivedIdentityProhibited true;
     usf:operationalSequenceIdentityProhibited true.
