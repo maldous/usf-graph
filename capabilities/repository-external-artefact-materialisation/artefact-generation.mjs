@@ -223,7 +223,12 @@ function render(output, data) {
     return `import fs from 'node:fs';\nimport crypto from 'node:crypto';\nconst mode=process.argv[2];\nconst manifest=JSON.parse(fs.readFileSync(new URL('../../release/manifest.json',import.meta.url)));\nconst digest=(p)=>crypto.createHash('sha256').update(fs.readFileSync(new URL('../../../../'+p,import.meta.url))).digest('hex');\nconst failures=manifest.files.filter(f=>digest(f.path)!==f.sha256);\nif(failures.length){console.error(JSON.stringify({status:'fail',failures}));process.exit(1)}\nconsole.log(JSON.stringify({status:'pass',mode,checked:manifest.files.length}));\n`;
   }
   if (/\/automation\/(?:proof-anchor|validate-spec)\.yaml$/.test(output.path)) {
-    return `name: semantic-projection-validation\non:\n  push:\npermissions:\n  contents: read\nconcurrency:\n  group: semantic-projection-\${{ github.sha }}\n  cancel-in-progress: false\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '22'\n      - run: npm test --prefix tools/compiler\n`;
+    // The workflow body must name commands that exist in the tree it ships
+    // with. It previously ran `npm test --prefix tools/compiler`, a path retired
+    // with the duplicate compiler: a structurally valid workflow that could not
+    // execute anywhere. The generated projection validates itself through its
+    // own generated package scripts and release integrity chain.
+    return `name: semantic-projection-validation\non:\n  push:\npermissions:\n  contents: read\nconcurrency:\n  group: semantic-projection-\${{ github.sha }}\n  cancel-in-progress: false\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '22'\n      - run: npm test --prefix source\n      - run: npm run --prefix source validate\n`;
   }
   if (output.path.endsWith('.graphql')) {
     return `# Generated framework-neutral contract projection.\nscalar USFSemanticResource\ntype Query { semanticResources: [USFSemanticResource!]! }\n`;
