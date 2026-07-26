@@ -180,6 +180,49 @@ the model could not express the decision boundary safely.
 - **Tests.** M10, plus a regression that every authored contract carries a mark
   and that the eight descriptive subclasses are exactly as enumerated.
 
+## C11 — The content witness is a pure function of graph content
+
+- **Descriptive intent.** What "the current authority" is: a value derived only
+  from the canonical graph inventory.
+- **Autonomous decision.** D14 publication, and every projection that binds or
+  compares an authority digest (D2, D3, D8, D9, D10).
+- **Unsafe inference.** The digest folded a server-reported statement count into
+  its body as `total=<n>`. `db.size` is eventually consistent, so a witness read
+  immediately after a commit produced a *different digest over byte-identical
+  content* — a value that looked exactly like an authority digest but matched no
+  settled state. A consumer pinning it would fail closed against live forever.
+- **Operational contract.** The witness total is the sum of the canonical
+  per-graph inventory. `client.size()`/`client.connectivity()` are not consulted
+  by either witness reader, and `totalSource` names the derivation. Receipt v2
+  carries `receiptSchemaVersion`, explicit `beforePublication`,
+  `afterPublication` and `settled` phases, and `settled.stable`. `usf_health`
+  reports `serverStatementStatistic` and no longer exposes an ambiguous `triples`.
+- **Fail-closed rule.** `assertSupportedPublicationReceipt` rejects an
+  unsupported schema version, any superseded field, a non-inventory total, a
+  malformed phase, and an unstable settled witness. `settledAuthorityDigest` is
+  the only accessor for current authority and runs the full guard.
+- **Invalidation.** A settled witness differing from the post-publication witness
+  marks the receipt unstable, so no digest is presented as authority.
+- **Tests.** W1–W13; W1 asserts the statistic is never even read.
+
+## C12 — Both reserved axes are named and covered
+
+- **Descriptive intent.** Separate "whether validation is in scope is deferred"
+  (contract) from "the obligation is not yet executable" (obligation).
+- **Autonomous decision.** D9, D10.
+- **Unsafe inference.** One word for two axes invites reading a deferred
+  applicability determination as a reserved obligation, or either as satisfied.
+- **Operational contract.** Distinct IRIs and distinct gap codes
+  (`validation-applicability-reserved` on the contract,
+  `validation-obligation-reserved` on the obligation), both RESERVED_NO_ACTION,
+  both validation-scoped so neither withdraws realisation authority.
+- **Fail-closed rule.** Neither reports satisfaction; reserved applicability
+  binding no obligation still withholds the conclusion.
+- **Invalidation.** Resolving applicability to `required` moves the decision onto
+  the activation axis.
+- **Tests.** V1–V4, including a zero-instance census proving coverage was achieved
+  without authoring a live instance.
+
 ## Invariants now asserted
 
 1. Every governed contract declares exactly one applicability state with a
@@ -196,3 +239,9 @@ the model could not express the decision boundary safely.
 9. A bounded bootstrap packet never omits a gap at offset 0.
 10. Source and live authority agree: `authority:drift` `ok: true`, 40 graphs, no
     mismatches.
+11. The authority digest is a pure function of the canonical graph inventory; no
+    server statistic can move it. (W1–W3)
+12. Exactly one receipt field may be read as current authority, and only through a
+    guard that fails closed on every malformed or superseded shape. (W4–W13)
+13. Applicability-level reserved has zero instances, remains declared vocabulary,
+    and is distinct from activation-level reserved in code, subject and axis. (V1–V4)

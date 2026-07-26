@@ -79,11 +79,14 @@ test('usf_query caps SELECT rows and reports truncation', async () => {
   assert.equal(out.bindings.length, 200);
 });
 
-test('usf_health reports size through the client', async () => {
+test('usf_health reports the server statistic under a name that is not a witness', async () => {
   const client = { size: async () => 577473 };
   const config = { endpoint: 'https://x', database: 'USF', auth: { kind: 'token' } };
   const out = await callTool('usf_health', {}, { client, config });
-  assert.equal(out.triples, 577473);
+  assert.equal(out.serverStatementStatistic, 577473);
+  // The ambiguous field is gone: a liveness statistic must not be readable as
+  // the content witness total.
+  assert.equal('triples' in out, false);
   assert.equal(out.ok, true);
   assert.equal(out.database, 'USF');
 });

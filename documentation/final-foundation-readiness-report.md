@@ -88,8 +88,9 @@ row reading zero.
 
 ## Adversarial validation
 
-- Cases: **43**
-- Unsafe states rejected or resolved to a non-PROCEED state: **43**
+- Cases: **60** (20 projection + 12 bootstrap + 11 model/rule + 13 publication
+  witness/receipt + 4 reserved applicability)
+- Unsafe states rejected or resolved to a non-PROCEED state: **60**
 - Unsafe states accepted: **0**
 - Remaining false-closure paths: **0** in scope
 
@@ -124,8 +125,8 @@ row reading zero.
 
 - Source HEAD: `1637909` (`main`, clean at session start); corrections are in the
   working tree and **not yet committed**
-- Canonical validation: `npm run test:semantic-assurance` → **195 tests, 195
-  pass, 0 fail, 0 skipped**
+- Canonical validation: `npm run test:semantic-assurance` → **208 tests, 208
+  pass, 0 fail, 0 skipped** (195 at PR #17; 180 at the pre-correction baseline)
 - Publication: `--mode=validate` `ok: true`, contamination 0, budget PASS;
   `--mode=commit` `ok: true`, `confirmed-response`
 - Authority digest: `sha256:ecf2ed2af25dae21640cfc9ff2e58d572fea3268dcba9dfebe3a4745710ff537`
@@ -141,24 +142,22 @@ row reading zero.
 
 ## Remaining blockers
 
-1. **Source is uncommitted.** Live authority is ahead of `origin/main`. Commit
-   and push the branch, or revert the publication, before any other session
-   relies on it.
-2. **R1** — validation-satisfaction currentness is enforced at the projection
-   boundary only; no in-graph rule ties a satisfaction to current authority.
-3. **R3** — gate criteria carry no validation obligations, so gate readiness does
-   not consider validation.
-4. **R4** — `TestObligation` has no satisfaction path in use; the family is
-   descriptive and every instance counts unsatisfied.
-5. **R5** — the authority digest folds a server-reported statement count into a
-   content digest, so a receipt read before the store settles yields a different
-   digest over identical content. Proven: recomputing over the current, unchanged
-   40-graph inventory with the receipt's total (110,537) reproduces
-   `f0b212be…` exactly, so all 40 per-graph digests matched and only the total
-   differed. Consumers must read the settled witness; the durable fix is to sum
-   the inventory instead of trusting `db.size`.
-6. **R6** — applicability-level `reserved` is uninstantiated and has no dedicated
-   regression; it cannot select PROCEED.
+1. **R1** — validation-satisfaction currentness is enforced at the projection
+   boundary, not in-graph: the graph holds no current-authority resource to bind
+   against. The same gap applies to `evaluatedAuthorityDigest` on
+   realisation-option evidence, checked only for internal consistency.
+2. **R2** — `decisionResolution`'s 8-value vocabulary lives in JavaScript, not the
+   model. Closed and fail-closed, but outside semantic authority.
+3. **R3** — gate criteria carry no validation obligations, so validation does not
+   reach the gate projection. Nothing to check today; adding the join would encode
+   a relation the model does not assert.
+4. **R4** — `TestObligation` (130 instances) has no satisfaction path in use;
+   `satisfiedByTestResult` has 0 instances. Every instance counts unsatisfied.
+5. **R5** — `usf_health` reports a `db.size` liveness statistic, named
+   `serverStatementStatistic` so it cannot be read as a content witness.
+
+Closed since the first readiness report: the former R5 (a server count folded into
+the content digest) and R6 (uncovered reserved applicability axis), by C11 and C12.
 
 None of these can produce success, exemption, readiness or completion from
 silence. All fail closed.

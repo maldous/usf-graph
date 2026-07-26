@@ -20,7 +20,7 @@ records what the projection would previously have concluded from silence.
 | D11 | Mutate a lifecycle (`usf_evidence_admit`, `usf_proof_evaluate`, `usf_validation_record`) | — | never over MCP | — | explicit refusal | always refused; only the compiler transaction may change authority |
 | D12 | Declare readiness (`derived:readiness`) | blocking/advisory obligation satisfaction, evidence freshness, provider and environment match, evaluation closure, **validation applicability and obligation state** | `ready` requires every blocking obligation satisfied and no unsatisfied, blocked or unresolved validation state | `ready` was reachable with an activated, unsatisfied validation obligation, because `ValidationObligation` is neither an `AssuranceObligation` nor `obligationFor`-bound | `rr:validationunsatisfied`, `rr:validationblocked`, `rr:validationapplicabilityunresolved` | unresolved applicability ⇒ `unknown`; blocked or unsatisfied ⇒ `notready` |
 | D13 | Derive obligations (`rules/obligations.rq`) | governed subjects, assurance cells | every governed subject receives proof and test obligations | — | `obligationEffect` defaults to blocking | a subject with no authored effect is treated as blocking |
-| D14 | Publish authority (compiler transaction) | source graphs, shapes, rules, expected authority digest | expected digest equals live digest; SHACL conforms; integrity returns zero rows; budget passes | — | compare-and-swap | any failure rolls back every targeted graph |
+| D14 | Publish authority (compiler transaction) | source graphs, shapes, rules, expected authority digest, canonical graph inventory | expected digest equals live digest; SHACL conforms; integrity returns zero rows; budget passes; the settled witness equals the post-publication witness | a receipt digest folding a transient `db.size` total read as the settled authority | receipt v2: `receiptSchemaVersion`, `authorityWitness.{beforePublication,afterPublication,settled}`, `totalSource=canonical-graph-inventory` | compare-and-swap with full rollback; `assertSupportedPublicationReceipt` fails closed on an unsupported schema, a superseded field, a non-inventory total, a malformed phase or an unstable settled witness |
 | D15 | Close a realisation-option decision (`evaluationClosureState`) | digest-bound admitted composite evidence, dependency/producer/authority digests | evidence admitted, fresh, integrity-valid, in scope, and digest-bound | — | `evaluationClosureState` | invalid evidence ⇒ closure incomplete ⇒ `rr:optionevaluationincomplete` |
 
 ## Which decisions carry which state
@@ -46,7 +46,7 @@ can carry several states, and two of them can never reach some states at all.
 | D11 | unconditional refusal | — | — | always | — |
 | D12 | readiness state + reason vocabulary | `ready` | — | `notready` | `unknown` |
 | D13 | blocking-by-default `obligationEffect` | — | — | — | — |
-| D14 | compare-and-swap; error and full rollback | — | — | error | — |
+| D14 | compare-and-swap; receipt v2 guard; error and full rollback | — | — | error / rejected receipt | — |
 | D15 | `evaluationClosureState` vocabulary | `complete` | — | incomplete | incomplete |
 
 D8 can never be RESERVED_NO_ACTION because the two validation-scoped gap codes

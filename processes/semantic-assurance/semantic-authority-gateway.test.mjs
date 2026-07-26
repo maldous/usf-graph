@@ -84,7 +84,7 @@ test('builds a deterministic content-sensitive witness from canonical graph byte
 });
 
 test('witness construction rejects duplicate graph identities and incomplete clients', async () => {
-  await assert.rejects(() => readSemanticAuthorityWitness({}), /connectivity, select and construct/);
+  await assert.rejects(() => readSemanticAuthorityWitness({}), /select and construct/);
   await assert.rejects(() => readSemanticAuthorityWitness({
     connectivity: async () => 1,
     select: async () => [{ g: binding('urn:usf:graph:a') }, { g: binding('urn:usf:graph:a') }],
