@@ -27,16 +27,25 @@ export function semanticAuthorityInventoryDigest(inventory, triples) {
   return `sha256:${createHash('sha256').update(`${body}\ntotal=${triples}`).digest('hex')}`;
 }
 
+// The witness total is the sum of the canonical per-graph inventory, never a
+// server statement statistic. db.size (exposed as both client.size() and
+// client.connectivity()) is eventually consistent: immediately after a commit
+// transaction it over-reports, and because the total is folded into the digest
+// body as a trailing `total=<n>` term, a transient count produced a different
+// digest over byte-identical content. Deriving the total from the inventory
+// makes the witness a pure function of graph content.
+export const WITNESS_TOTAL_SOURCE = 'canonical-graph-inventory';
+
+function inventoryTotal(inventory) {
+  return inventory.reduce((total, record) => total + record.triples, 0);
+}
+
 export async function readSemanticAuthorityWitness(client) {
-  if (!client || typeof client.connectivity !== 'function' || typeof client.select !== 'function' || typeof client.construct !== 'function') {
-    throw new Error('semantic authority witness requires connectivity, select and construct operations');
+  if (!client || typeof client.select !== 'function' || typeof client.construct !== 'function') {
+    throw new Error('semantic authority witness requires select and construct operations');
   }
-  const [rawTriples, rows] = await Promise.all([
-    client.connectivity(),
-    client.select('SELECT DISTINCT ?g WHERE { GRAPH ?g { ?s ?p ?o } } ORDER BY ?g'),
-  ]);
-  const triples = Number(rawTriples);
-  if (!Number.isSafeInteger(triples) || triples < 0 || !Array.isArray(rows)) throw new Error('semantic authority witness response is invalid');
+  const rows = await client.select('SELECT DISTINCT ?g WHERE { GRAPH ?g { ?s ?p ?o } } ORDER BY ?g');
+  if (!Array.isArray(rows)) throw new Error('semantic authority witness response is invalid');
   const graphs = rows.map((row) => value(row, 'g'));
   if (graphs.some((graph) => typeof graph !== 'string' || graph.length === 0) || new Set(graphs).size !== graphs.length) {
     throw new Error('semantic authority witness graph inventory is invalid');
@@ -48,8 +57,11 @@ export async function readSemanticAuthorityWitness(client) {
     const record = await canonicalGraphDigest(content);
     if (record.triples > 0) inventory.push({ graph, ...record });
   }
+  const triples = inventoryTotal(inventory);
+  if (!Number.isSafeInteger(triples) || triples < 0) throw new Error('semantic authority witness inventory total is invalid');
   return Object.freeze({
     algorithm: 'sha256-rdfc10-graph-inventory-v2',
+    totalSource: WITNESS_TOTAL_SOURCE,
     digest: semanticAuthorityInventoryDigest(inventory, triples),
     inventory: Object.freeze(inventory),
     triples,
@@ -163,11 +175,20 @@ export function createSemanticAuthorityGateway({ client, readAuthorityWitness })
       return materialisePlan({ authority: await layoutContext(plan?.contract), plan, repositoryRoot, casRoot, apply });
     },
 
+    // Health reports both numbers under names that say what they are. The
+      // witness total is content-derived and authoritative; the server statistic
+      // is liveness only and must never be used as a witness or compared to a
+      // digest, because it is eventually consistent after a commit.
     async health() {
-      const [triples, witness] = await Promise.all([client.connectivity(), readAuthorityWitness(client)]);
+      const [serverStatementStatistic, witness] = await Promise.all([client.connectivity(), readAuthorityWitness(client)]);
       const observedDigest = authorityDigest(witness);
       if (client.expectedAuthorityDigest && client.expectedAuthorityDigest !== observedDigest) throw new Error('observed semantic authority digest differs from configured digest');
-      return { triples, authorityDigest: observedDigest };
+      return {
+        triples: witness.triples,
+        totalSource: witness.totalSource,
+        serverStatementStatistic,
+        authorityDigest: observedDigest,
+      };
     },
   });
 }

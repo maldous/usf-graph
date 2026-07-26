@@ -7,8 +7,9 @@ import test from 'node:test';
 import { DataFactory, Parser, Store } from 'n3';
 
 import {
-  applyLayoutPlan, createLayoutPlan, digest, GAP_DISPOSITIONS, layoutContext, materialisationInternals,
-  refuseLifecycleMutation, planWork, projectContract, sourceDigest, validateLayoutPlan, verifyArtifact,
+  ACTION_STATES, applyLayoutPlan, createLayoutPlan, digest, GAP_DISPOSITIONS, layoutContext,
+  materialisationInternals, realisationVerdict, REALISATION_STATE_FAILURE_CODES, refuseLifecycleMutation,
+  planWork, projectContract, sourceDigest, validateLayoutPlan, verifyArtifact,
 } from './repository-materialisation-gateway.mjs';
 
 const { namedNode } = DataFactory;
@@ -55,9 +56,10 @@ function complementaryCompilerRows(effectiveDecisions = [compilerDecision]) {
   })));
 }
 const validationObligation = 'urn:usf:validationobligation:repositoryexternalartefactmaterialisation';
-// The fake's authority witness is one graph with one triple; that fixes the
-// digest a satisfying result has to bind to be current.
-const witnessDigest = 'sha256:63ff556923a7d46c522fb694fde9fe9ff5f0e9f1f8785db5a67ad578d2934ccf';
+// The fake's authority witness is one graph with one triple. The witness total
+// is the inventory sum, not the client's size() reading, so that one triple fixes
+// the digest a satisfying result has to bind to be current.
+const witnessDigest = 'sha256:a28dfd4cb3960f9078f558caf098cb215aabad01c74593035ccab63acaf90e76';
 
 function defaultApplicabilityRows(state = 'urn:usf:validationapplicabilitystate:required', extra = {}) {
   return [{
@@ -669,6 +671,108 @@ test('adversarial validation states never authorise action and never report sati
   }
 });
 
+// --- R6: applicability-level reserved, distinct from activation-level reserved -
+// "reserved" names two different axes and they must never be conflated:
+//   applicability reserved -> whether validation is in scope is deliberately deferred
+//   activation   reserved -> the obligation exists but is not yet executable
+// The applicability-level state has no live instance. These cases prove the code
+// path is correct without authoring one, because inventing an instance to satisfy
+// coverage is the defect this model exists to prevent.
+test('applicability-level reserved resolves to RESERVED_NO_ACTION on its own axis', async () => {
+  const client = fakeClient({
+    applicabilityRows: defaultApplicabilityRows('urn:usf:validationapplicabilitystate:reserved'),
+    // Reserved applicability still binds its obligations; give it an activated
+    // one so the outcome cannot be attributed to activation-level reservation.
+    validationObligationRows: defaultValidationObligationRows('urn:usf:validationactivationstate:activated'),
+  });
+  const packet = await projectContract({ client }, { contract });
+  assert.equal(packet.validationApplicability.state, 'urn:usf:validationapplicabilitystate:reserved');
+  assert.equal(packet.validationActionState, 'RESERVED_NO_ACTION');
+  assert.equal(packet.validationSatisfied, false);
+  assert.equal(GAP_DISPOSITIONS['validation-applicability-reserved'], 'RESERVED_NO_ACTION');
+
+  const plan = await planWork({ client }, { contract });
+  const applicabilityGap = plan.gaps.find((gap) => gap.type === 'validation-applicability-reserved');
+  assert.ok(applicabilityGap, 'applicability-level reserved must emit its own gap');
+  assert.equal(applicabilityGap.disposition, 'RESERVED_NO_ACTION');
+  // Its subject is the contract, not an obligation: the deferral is a
+  // contract-level determination.
+  assert.equal(applicabilityGap.subject, contract);
+  assert.equal(plan.validationSatisfied, false);
+  assert.equal(plan.completionClaim, false);
+  assert.notEqual(plan.actionState, 'PROCEED');
+});
+
+test('the two reserved axes are distinct codes on distinct subjects and cannot be confused', async () => {
+  // Both axes reserved: each contributes its own code, on its own subject. The
+  // obligation is reserved in both runs, so the only variable is applicability.
+  const applicabilityReserved = await planWork({
+    client: fakeClient({
+      applicabilityRows: defaultApplicabilityRows('urn:usf:validationapplicabilitystate:reserved'),
+    }),
+  }, { contract });
+  const activationReserved = await planWork({ client: fakeClient() }, { contract });
+
+  const codes = (plan) => plan.gaps.map((gap) => gap.type).sort();
+  assert.deepEqual(codes(applicabilityReserved), ['validation-applicability-reserved', 'validation-obligation-reserved']);
+  assert.deepEqual(codes(activationReserved), ['validation-obligation-reserved']);
+  // The applicability axis adds exactly one conclusion and changes nothing else.
+  assert.deepEqual(
+    codes(applicabilityReserved).filter((code) => !codes(activationReserved).includes(code)),
+    ['validation-applicability-reserved'],
+  );
+  // Distinct IRIs, distinct gap codes, distinct subjects — and neither leaks the
+  // other's conclusion.
+  assert.equal(applicabilityReserved.validationApplicability, 'urn:usf:validationapplicabilitystate:reserved');
+  assert.equal(activationReserved.validationApplicability, 'urn:usf:validationapplicabilitystate:required');
+  const subjectOf = (plan, type) => plan.gaps.find((gap) => gap.type === type).subject;
+  assert.equal(subjectOf(applicabilityReserved, 'validation-applicability-reserved'), contract);
+  assert.equal(subjectOf(applicabilityReserved, 'validation-obligation-reserved'), validationObligation);
+  assert.equal(subjectOf(activationReserved, 'validation-obligation-reserved'), validationObligation);
+  // Both are validation-scoped, so neither withdraws realisation authority, and
+  // neither reports satisfaction.
+  for (const plan of [applicabilityReserved, activationReserved]) {
+    assert.equal(plan.actionState, 'RESERVED_NO_ACTION');
+    assert.equal(plan.validationSatisfied, false);
+  }
+});
+
+test('reserved applicability that binds no obligation is unresolved, not reserved', async () => {
+  // Reserved asserts validation is in scope; with nothing bound there is nothing
+  // to defer, so the conclusion is withheld rather than downgraded.
+  const client = fakeClient({
+    applicabilityRows: defaultApplicabilityRows('urn:usf:validationapplicabilitystate:reserved'),
+    validationObligationRows: [],
+  });
+  const packet = await projectContract({ client }, { contract });
+  assert.equal(packet.validationActionState, 'RESERVED_NO_ACTION');
+  assert.equal(packet.validationSatisfied, false);
+  const plan = await planWork({ client }, { contract });
+  assert.deepEqual(plan.gaps.map((gap) => gap.type), ['validation-applicability-reserved']);
+  assert.notEqual(plan.actionState, 'PROCEED');
+});
+
+test('the current authored model contains no applicability-level reserved instance', () => {
+  // Hermetic equivalent of a live census: the authored contract graphs are the
+  // source of live authority and are drift-verified identical to it. Coverage of
+  // the reserved branch above therefore proves the code path without inventing a
+  // live instance.
+  const model = authoredModel();
+  const reserved = model
+    .getSubjects(namedNode(`${ONT}hasValidationApplicability`), namedNode(`${VAS}reserved`), null)
+    .map(({ value }) => value);
+  assert.deepEqual(reserved, []);
+  // ...and the state remains declared, so the branch is reachable vocabulary
+  // rather than a dead code path.
+  assert.equal(model.has(namedNode(`${VAS}reserved`), namedNode(RDF_TYPE), namedNode(`${ONT}ValidationApplicabilityState`), null), true);
+  // The activation-level reserved state, by contrast, does have instances.
+  assert.ok(model.getSubjects(
+    namedNode(`${ONT}hasValidationActivationState`),
+    namedNode('urn:usf:validationactivationstate:reserved'),
+    null,
+  ).length >= 3);
+});
+
 test('work planning refuses a contract declaring more than one applicability state', async () => {
   const client = fakeClient({
     applicabilityRows: [
@@ -747,6 +851,207 @@ test('model-incomplete contract projection is available with null lifecycle and 
   assert.deepEqual(packet.authorisedActions, []);
   assert.deepEqual(packet.authorisedPaths, []);
   assert.deepEqual(packet.authorisedFormats, []);
+});
+
+// --- one authoritative realisation verdict, consumed by every plan surface ----
+// Before this, projectContract computed a validation-aware realisation state while
+// createLayoutPlan / validateLayoutPlan / applyLayoutPlan judged only activation,
+// proof and decision from layoutContext. An activated-but-unsatisfied validation
+// obligation therefore produced actionState=BLOCK in the projection while
+// usf_layout_plan still succeeded and coordinator apply remained reachable. These
+// cases call the plan tools DIRECTLY, so they prove the bypass is closed rather
+// than that the projection happens to agree.
+
+const planOperation = () => {
+  const content = 'export const value = 1;\n';
+  return {
+    action: 'write-file', artefactFamily: family, content, contentDigest: digest(content),
+    contentEncoding: 'utf8', index: 0, path: 'capabilities/semantic-model-compilation/value.mjs',
+    pathRole: role, representationFormat: format,
+  };
+};
+
+// A plan minted while the contract did authorise realisation, replayed against a
+// client that no longer does. Nothing about the plan itself is malformed.
+async function goodPlan() {
+  return createLayoutPlan({ client: fakeClient() }, { contract, operations: [planOperation()] });
+}
+
+const nonProceedClients = [
+  {
+    name: 'activated but unsatisfied validation',
+    client: () => fakeClient({ validationObligationRows: defaultValidationObligationRows('urn:usf:validationactivationstate:activated') }),
+    expected: ACTION_STATES.block,
+    reason: 'missing-current-passing-validation',
+  },
+  {
+    name: 'blocked validation obligation',
+    client: () => fakeClient({ validationObligationRows: defaultValidationObligationRows('urn:usf:validationactivationstate:blocked') }),
+    expected: ACTION_STATES.block,
+    reason: 'validation-obligation-blocked',
+  },
+  {
+    name: 'absent applicability',
+    client: () => fakeClient({ applicabilityRows: [] }),
+    expected: ACTION_STATES.unresolved,
+    reason: 'validation-applicability-unresolved',
+  },
+  {
+    name: 'explicitly unresolved applicability',
+    client: () => fakeClient({ applicabilityRows: defaultApplicabilityRows('urn:usf:validationapplicabilitystate:unresolved') }),
+    expected: ACTION_STATES.unresolved,
+    reason: 'validation-applicability-unresolved',
+  },
+  {
+    name: 'obligation activation unknown',
+    client: () => fakeClient({ validationObligationRows: defaultValidationObligationRows('urn:usf:validationactivationstate:invented') }),
+    expected: ACTION_STATES.unresolved,
+    reason: 'validation-obligation-activation-unresolved',
+  },
+  {
+    name: 'missing semantic lifecycle',
+    client: () => {
+      const rows = defaultContractRows();
+      delete rows[0].lifecycle;
+      return fakeClient({ contractRows: rows });
+    },
+    expected: ACTION_STATES.unresolved,
+    reason: 'contract-lifecycle-unresolved',
+  },
+  {
+    name: 'non-active semantic lifecycle',
+    client: () => {
+      const rows = defaultContractRows();
+      rows[0].lifecycle = binding('urn:usf:semanticlifecyclestate:retired');
+      return fakeClient({ contractRows: rows });
+    },
+    expected: ACTION_STATES.block,
+    reason: 'contract-lifecycle-not-active',
+  },
+  {
+    name: 'unsuccessful proof result',
+    client: () => {
+      const rows = defaultContractRows();
+      rows[0].proofState = binding('urn:usf:proofresultstate:failed');
+      return fakeClient({ contractRows: rows });
+    },
+    expected: ACTION_STATES.block,
+    reason: 'contract-proof-not-successful',
+  },
+  {
+    name: 'absent proof result',
+    client: () => {
+      const rows = defaultContractRows();
+      delete rows[0].proof;
+      delete rows[0].proofState;
+      return fakeClient({ contractRows: rows });
+    },
+    expected: ACTION_STATES.unresolved,
+    reason: 'contract-proof-result-unresolved',
+  },
+  {
+    name: 'no accepted decision',
+    client: () => {
+      const rows = defaultContractRows();
+      rows[0].decisionState = binding('urn:usf:decisionstate:draft');
+      return fakeClient({ contractRows: rows });
+    },
+    expected: ACTION_STATES.unresolved,
+    reason: 'decision-no-accepted-decision',
+  },
+];
+
+test('the shared realisation verdict resolves every non-PROCEED state with its reason', async () => {
+  for (const item of nonProceedClients) {
+    const verdict = await realisationVerdict({ client: item.client() }, { contract });
+    assert.equal(verdict.actionState, item.expected, item.name);
+    assert.ok(verdict.actionStateReasons.includes(item.reason), `${item.name}: expected reason ${item.reason}, saw ${verdict.actionStateReasons.join(',')}`);
+    assert.equal(verdict.stateFailureCode, REALISATION_STATE_FAILURE_CODES[item.expected], item.name);
+  }
+});
+
+test('a non-PROCEED realisation state cannot create, validate or apply a plan', async () => {
+  const plan = await goodPlan();
+  for (const item of nonProceedClients) {
+    // create
+    await assert.rejects(
+      () => createLayoutPlan({ client: item.client() }, { contract, operations: [planOperation()] }),
+      new RegExp(REALISATION_STATE_FAILURE_CODES[item.expected]),
+      `create: ${item.name}`,
+    );
+    // validate — a stable code, the state, and the reasons
+    const validation = await validateLayoutPlan({ client: item.client() }, plan);
+    assert.equal(validation.ok, false, `validate: ${item.name}`);
+    assert.equal(validation.realisationActionState, item.expected, `validate state: ${item.name}`);
+    const stateFailure = validation.failures.find((failure) => failure.code === REALISATION_STATE_FAILURE_CODES[item.expected]);
+    assert.ok(stateFailure, `validate code: ${item.name}`);
+    assert.ok(stateFailure.reasons.includes(item.reason), `validate reason: ${item.name}`);
+    // apply — refused, and never applied, even with coordinator authority
+    const applied = await applyLayoutPlan(
+      { client: item.client(), coordinator: true, repositoryRoot: '/usf' },
+      { plan, apply: true },
+    );
+    assert.equal(applied.applied, false, `apply: ${item.name}`);
+    assert.equal(applied.realisationActionState, item.expected, `apply state: ${item.name}`);
+    assert.equal(applied.stateFailureCode, REALISATION_STATE_FAILURE_CODES[item.expected], `apply code: ${item.name}`);
+  }
+});
+
+test('ambiguous scalar contract conclusions fail closed instead of taking the first row', async () => {
+  const cases = [
+    ['canonical name', 'canonicalName', binding('somethingelse')],
+    ['semantic lifecycle state', 'lifecycle', binding('urn:usf:semanticlifecyclestate:retired')],
+    ['activation state', 'activation', binding('urn:usf:contractactivationstate:proofblocked')],
+    ['proof result', 'proof', binding('urn:usf:proofresult:other')],
+    ['proof result state', 'proofState', binding('urn:usf:proofresultstate:failed')],
+  ];
+  for (const [label, key, contradictory] of cases) {
+    const rows = [...defaultContractRows(), { ...defaultContractRows()[0], [key]: contradictory }];
+    const client = fakeClient({ contractRows: rows });
+    await assert.rejects(() => realisationVerdict({ client }, { contract }), new RegExp(`ambiguous ${label}`), label);
+    // The ambiguity must stop the plan surfaces too, not just the verdict.
+    await assert.rejects(() => createLayoutPlan({ client }, { contract, operations: [planOperation()] }), new RegExp(`ambiguous ${label}`), `create: ${label}`);
+    await assert.rejects(() => projectContract({ client }, { contract }), new RegExp(`ambiguous ${label}`), `project: ${label}`);
+  }
+});
+
+test('an unknown gap code has no disposition and cannot silently authorise anything', () => {
+  for (const code of Object.keys(GAP_DISPOSITIONS)) {
+    assert.notEqual(GAP_DISPOSITIONS[code], ACTION_STATES.proceed, code);
+  }
+  assert.equal(GAP_DISPOSITIONS['validation-obligation-invented'], undefined);
+  assert.deepEqual(Object.keys(REALISATION_STATE_FAILURE_CODES).sort(), [
+    ACTION_STATES.block, ACTION_STATES.reserved, ACTION_STATES.unresolved,
+  ].sort());
+});
+
+// The intended state of the live materialisation contract: validation is required
+// and its obligation is reserved, so realisation authority stands while the
+// validated claim is withheld. A dry-run must complete and claim nothing.
+test('the reserved-validation contract stays PROCEED and dry-runs without a validation claim', async () => {
+  const ctx = { client: fakeClient() };
+  const verdict = await realisationVerdict(ctx, { contract });
+  assert.equal(verdict.actionState, ACTION_STATES.proceed);
+  assert.deepEqual(verdict.actionStateReasons, []);
+  assert.equal(verdict.validation.validationActionState, ACTION_STATES.reserved);
+  assert.equal(verdict.validation.validationSatisfied, false);
+
+  const plan = await createLayoutPlan(ctx, { contract, operations: [planOperation()] });
+  const validation = await validateLayoutPlan(ctx, plan);
+  assert.equal(validation.ok, true);
+  assert.equal(validation.realisationActionState, ACTION_STATES.proceed);
+  assert.equal(validation.validationSatisfied, false, 'a passing plan must still make no validation claim');
+
+  const dryRun = await applyLayoutPlan(ctx, { plan, apply: false });
+  assert.equal(dryRun.applied, false);
+  assert.equal(dryRun.dryRun, true);
+  assert.equal(dryRun.validation.ok, true);
+  assert.equal(dryRun.validation.validationSatisfied, false);
+
+  const packet = await projectContract(ctx, { contract });
+  assert.equal(packet.actionState, ACTION_STATES.proceed);
+  assert.equal(packet.validationActionState, ACTION_STATES.reserved);
+  assert.equal(packet.validationSatisfied, false);
 });
 
 test('materialiser defaults to dry-run and apply is coordinator-only and idempotent', async () => {

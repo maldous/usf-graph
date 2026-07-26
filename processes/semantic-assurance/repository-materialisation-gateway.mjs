@@ -9,6 +9,7 @@ import { authorityWitness, validContractRef } from './semantic-bootstrap-packet.
 
 const CONTRACT = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation';
 const ACTIVE = 'urn:usf:contractactivationstate:active';
+const ACTIVE_LIFECYCLE = 'urn:usf:semanticlifecyclestate:active';
 const SUCCESSFUL = 'urn:usf:proofresultstate:successful';
 const ACCEPTED = 'urn:usf:decisionstate:accepted';
 const RESOLVED_DECISION = new Set(['explicit', 'unique-accepted']);
@@ -206,11 +207,25 @@ export async function layoutContext(ctx, args = {}) {
     ctx.client.select(`SELECT (COUNT(*) AS ?count) WHERE { ${MATERIALISATION_RULE_WHERE} }`),
   ]);
   if (contractRows.length === 0) throw new Error('contract does not exist in live authority');
+  // Every scalar conclusion must resolve exactly once. The rows are a cross
+  // product of OPTIONAL patterns, so repetition is expected but disagreement is
+  // not: taking the first row would let a contradictory second row hide behind a
+  // favourable one.
+  const sole = (key, label) => {
+    const distinct = [...new Set(contractRows.map((row) => value(row, key)).filter((item) => item !== null))];
+    if (distinct.length > 1) throw new Error(`contract has ambiguous ${label} in live authority: ${distinct.join(', ')}`);
+    return distinct[0] ?? null;
+  };
+  const canonicalName = sole('canonicalName', 'canonical name');
+  const lifecycleState = sole('lifecycle', 'semantic lifecycle state');
+  const activationState = sole('activation', 'activation state');
+  const proofResult = sole('proof', 'proof result');
+  const proofResultState = sole('proofState', 'proof result state');
+  if (canonicalName === null) throw new Error('contract has no canonical name in live authority');
   const expectedRuleCount = Number(value(ruleCountRows[0], 'count'));
   if (ruleCountRows.length !== 1 || !Number.isSafeInteger(expectedRuleCount) || expectedRuleCount !== ruleRows.length) {
     throw new Error('materialisation rule projection is incomplete');
   }
-  const head = contractRows[0];
   const decisions = new Map();
   const effectiveDecisionIds = new Set();
   for (const row of contractRows) {
@@ -268,11 +283,11 @@ export async function layoutContext(ctx, args = {}) {
     })),
     contract: {
       id: contract,
-      canonicalName: value(head, 'canonicalName'),
-      lifecycleState: value(head, 'lifecycle'),
-      activationState: value(head, 'activation'),
-      proofResult: value(head, 'proof'),
-      proofResultState: value(head, 'proofState'),
+      canonicalName,
+      lifecycleState,
+      activationState,
+      proofResult,
+      proofResultState,
       decision: acceptedDecision?.id ?? null,
       decisionState: acceptedDecision?.state ?? null,
       authorisedRepository: repositories[0] ?? null,
@@ -331,12 +346,23 @@ function validateOperation(operation, index, context) {
   return failures.map((code) => ({ index, code }));
 }
 
-export async function validateLayoutPlan(ctx, plan) {
+// The verdict is accepted from a caller that already read it, so plan creation,
+// validation and apply all judge the same authority read. Absent one, it is read
+// here rather than assumed.
+export async function validateLayoutPlan(ctx, plan, verdict = null) {
   bounded(plan, MAX_PLAN_BYTES, 'materialisation plan');
-  const context = await layoutContext(ctx, { contract: plan?.contract });
+  const resolved = verdict || await realisationVerdict(ctx, { contract: plan?.contract });
+  const { context } = resolved;
   const failures = [];
   if (plan?.schemaVersion !== 1) failures.push({ code: 'plan-schema-version' });
   if (plan?.authorityDigest !== context.authorityDigest) failures.push({ code: 'plan-authority-digest' });
+  // One stable code per non-PROCEED realisation state, carrying the verdict's own
+  // reasons. Calling this tool directly can no longer bypass the projection.
+  if (resolved.actionState !== ACTION_STATES.proceed) {
+    failures.push({ code: resolved.stateFailureCode, actionState: resolved.actionState, reasons: resolved.actionStateReasons });
+  }
+  // Retained specific codes for the conjuncts a reviewer reads directly.
+  if (context.contract.lifecycleState !== ACTIVE_LIFECYCLE) failures.push({ code: 'plan-contract-lifecycle-not-active' });
   if (context.contract.activationState !== ACTIVE || context.contract.proofResultState !== SUCCESSFUL) failures.push({ code: 'plan-contract-not-active-proven' });
   if (!context.contract.decision || context.contract.decisionState !== ACCEPTED) {
     failures.push({ code: 'plan-decision-not-uniquely-accepted' });
@@ -347,15 +373,30 @@ export async function validateLayoutPlan(ctx, plan) {
   delete unsigned.planDigest;
   const expectedDigest = digest(jcs(unsigned));
   if (plan?.planDigest !== expectedDigest) failures.push({ code: 'plan-digest' });
-  return { ok: failures.length === 0, authorityDigest: context.authorityDigest, expectedPlanDigest: expectedDigest, operationCount: plan?.operations?.length ?? 0, failures };
+  return {
+    ok: failures.length === 0,
+    authorityDigest: context.authorityDigest,
+    realisationActionState: resolved.actionState,
+    realisationActionStateReasons: resolved.actionStateReasons,
+    validationSatisfied: resolved.validation.validationSatisfied,
+    expectedPlanDigest: expectedDigest,
+    operationCount: plan?.operations?.length ?? 0,
+    failures,
+  };
 }
 
 export async function createLayoutPlan(ctx, args = {}) {
   if (!Array.isArray(args.operations)) throw new Error('operations must be an array');
-  const context = await layoutContext(ctx, { contract: args.contract || CONTRACT });
+  const verdict = await realisationVerdict(ctx, { contract: args.contract || CONTRACT });
+  // Refuse before a plan exists. A plan is an authorisation artefact, so it must
+  // not be constructible from a contract that does not authorise realisation.
+  if (verdict.actionState !== ACTION_STATES.proceed) {
+    throw new Error(`${verdict.stateFailureCode}: realisation action state is ${verdict.actionState} (${verdict.actionStateReasons.join(',') || 'no reasons'})`);
+  }
+  const { context } = verdict;
   const plan = { schemaVersion: 1, authorityDigest: context.authorityDigest, contract: context.contract.id, operations: args.operations };
   plan.planDigest = digest(jcs(plan));
-  const result = await validateLayoutPlan(ctx, plan);
+  const result = await validateLayoutPlan(ctx, plan, verdict);
   if (!result.ok) throw new Error(`invalid materialisation plan: ${result.failures.map((item) => `${item.index ?? '-'}:${item.code}`).join(',')}`);
   bounded(plan, MAX_PLAN_BYTES, 'materialisation plan');
   return plan;
@@ -363,8 +404,13 @@ export async function createLayoutPlan(ctx, args = {}) {
 
 export async function applyLayoutPlan(ctx, args = {}) {
   const plan = args.plan;
-  const validation = await validateLayoutPlan(ctx, plan);
-  if (!validation.ok) return { applied: false, validation };
+  // Apply judges the same verdict as creation and validation, so a plan minted
+  // under PROCEED cannot be applied after the state has moved.
+  const verdict = await realisationVerdict(ctx, { contract: plan?.contract });
+  const validation = await validateLayoutPlan(ctx, plan, verdict);
+  if (!validation.ok) {
+    return { applied: false, realisationActionState: verdict.actionState, stateFailureCode: verdict.stateFailureCode, validation };
+  }
   if (args.apply !== true) return { applied: false, dryRun: true, validation };
   if (ctx.coordinator !== true || !ctx.repositoryRoot) throw new Error('materialisation apply is coordinator-only');
   const root = realpathSync(ctx.repositoryRoot);
@@ -632,36 +678,76 @@ function validationVerdict(contract, scope, authorityDigest) {
   };
 }
 
+// The single authoritative realisation verdict. Every surface that can create,
+// validate or apply a materialisation plan consumes this, so a plan tool cannot
+// reach a conclusion the projection would refuse. Duplicating the state logic is
+// what previously let usf_layout_plan succeed while usf_contract_project said
+// BLOCK for the same contract.
+//
+// One digest-stable authority read: callers pass the verdict on rather than
+// re-reading, so a plan cannot be validated against a different authority than
+// the one it was created against.
+export const REALISATION_STATE_FAILURE_CODES = Object.freeze({
+  [ACTION_STATES.block]: 'plan-realisation-blocked',
+  [ACTION_STATES.reserved]: 'plan-realisation-reserved',
+  [ACTION_STATES.unresolved]: 'plan-realisation-unresolved',
+});
+
+export async function realisationVerdict(ctx, args = {}) {
+  const context = await layoutContext(ctx, { contract: args.contract || CONTRACT });
+  const scope = await validationScope(ctx.client, context.contract.id);
+  const validation = validationVerdict(context.contract.id, scope, context.authorityDigest);
+
+  // Each conjunct is explicit. A null state is unproven, not permission; a wrong
+  // state is an explicit negative. Both withhold PROCEED, and they are reported
+  // separately so the reason survives.
+  const reasons = [];
+  const require = (observed, expected, unresolvedCode, blockCode) => {
+    if (observed === null) reasons.push({ code: unresolvedCode, state: ACTION_STATES.unresolved });
+    else if (observed !== expected) reasons.push({ code: blockCode, state: ACTION_STATES.block });
+  };
+  require(context.contract.lifecycleState, ACTIVE_LIFECYCLE, 'contract-lifecycle-unresolved', 'contract-lifecycle-not-active');
+  require(context.contract.activationState, ACTIVE, 'contract-activation-unresolved', 'contract-not-active');
+  require(context.contract.proofResultState, SUCCESSFUL, 'contract-proof-result-unresolved', 'contract-proof-not-successful');
+  if (context.contract.proofResult === null) reasons.push({ code: 'contract-proof-result-absent', state: ACTION_STATES.unresolved });
+  if (!RESOLVED_DECISION.has(context.decisionResolution)) {
+    const unresolved = context.decisionResolution === 'unresolved' || context.decisionResolution === 'no-accepted-decision';
+    reasons.push({ code: `decision-${context.decisionResolution}`, state: unresolved ? ACTION_STATES.unresolved : ACTION_STATES.block });
+  } else if (context.contract.decisionState !== ACCEPTED) {
+    reasons.push({ code: 'decision-not-accepted', state: ACTION_STATES.block });
+  }
+  // Validation-scoped gaps (both reserved axes) are excluded here on purpose: a
+  // reserved obligation withholds the validated claim, not realisation authority
+  // an accepted decision and a successful proof already granted.
+  for (const gap of validation.realisationBlocking) reasons.push({ code: gap.code, state: resolveDisposition(gap.code) });
+
+  const actionState = reasons.length === 0 ? ACTION_STATES.proceed : strongestState(reasons.map((item) => item.state));
+  return Object.freeze({
+    context,
+    scope,
+    validation,
+    actionState,
+    actionStateReasons: reasons.map((item) => item.code).sort(),
+    stateFailureCode: REALISATION_STATE_FAILURE_CODES[actionState] ?? null,
+  });
+}
+
 export async function projectContract(ctx, args = {}) {
   const contract = args.contract || CONTRACT;
-  const context = await layoutContext(ctx, { contract });
-  const [assertions, requirements, obligations, scope] = await Promise.all([
+  const verdict = args.verdict || await realisationVerdict(ctx, { contract });
+  const { context, scope } = verdict;
+  const [assertions, requirements, obligations] = await Promise.all([
     ctx.client.select(`SELECT ?relation ?id WHERE { <${context.contract.id}> ?relation ?id . FILTER(?relation IN (<urn:usf:ontology:asserts>, <urn:usf:ontology:disclaims>)) } ORDER BY ?relation ?id LIMIT 256`),
     ctx.client.select(`SELECT DISTINCT ?id WHERE { { ?id a <urn:usf:ontology:EvidenceRequirement> ; <urn:usf:ontology:obligationFor> <${context.contract.id}> } UNION { ?obligation <urn:usf:ontology:obligationFor> <${context.contract.id}> ; <urn:usf:ontology:requiresEvidence> ?id . ?id a <urn:usf:ontology:EvidenceRequirement> } } ORDER BY ?id LIMIT 256`),
     ctx.client.select(`SELECT DISTINCT ?id WHERE { ?id a <urn:usf:ontology:ProofObligation> ; <urn:usf:ontology:obligationFor> <${context.contract.id}> } ORDER BY ?id LIMIT 256`),
-    validationScope(ctx.client, context.contract.id),
   ]);
   const after = await authorityWitness(ctx.client);
   if (context.authorityDigest !== `sha256:${after.digest}`) throw new Error('live authority changed while building agent task packet');
   const ids = (rows) => [...new Set(rows.map((row) => value(row, 'id')).filter(Boolean))].sort();
-  const verdict = validationVerdict(context.contract.id, scope, context.authorityDigest);
   const validationIds = scope.obligations.map((item) => item.id).sort();
-
-  // Realisation authority. Every conjunct must be explicitly present: a null
-  // lifecycle, activation, proof or decision state resolves to unresolved, not
-  // to permission. Reserved validation withholds the validated claim only.
-  const stateReasons = [];
-  if (context.contract.activationState === null) stateReasons.push({ code: 'contract-activation-unresolved', state: ACTION_STATES.unresolved });
-  else if (context.contract.activationState !== ACTIVE) stateReasons.push({ code: 'contract-not-active', state: ACTION_STATES.block });
-  if (context.contract.proofResultState === null) stateReasons.push({ code: 'contract-proof-result-unresolved', state: ACTION_STATES.unresolved });
-  else if (context.contract.proofResultState !== SUCCESSFUL) stateReasons.push({ code: 'contract-proof-not-successful', state: ACTION_STATES.block });
-  if (!RESOLVED_DECISION.has(context.decisionResolution)) {
-    stateReasons.push({ code: `decision-${context.decisionResolution}`, state: context.decisionResolution === 'unresolved' || context.decisionResolution === 'no-accepted-decision' ? ACTION_STATES.unresolved : ACTION_STATES.block });
-  } else if (context.contract.decisionState !== ACCEPTED) {
-    stateReasons.push({ code: 'decision-not-accepted', state: ACTION_STATES.block });
-  }
-  for (const gap of verdict.realisationBlocking) stateReasons.push({ code: gap.code, state: resolveDisposition(gap.code) });
-  const actionState = stateReasons.length === 0 ? ACTION_STATES.proceed : strongestState(stateReasons.map((item) => item.state));
+  // Realisation authority comes from the one shared verdict, so this packet and
+  // the plan tools can never disagree about the same contract.
+  const { actionState, actionStateReasons, validation } = verdict;
   const authorised = actionState === ACTION_STATES.proceed;
 
   const packet = {
@@ -670,7 +756,7 @@ export async function projectContract(ctx, args = {}) {
     authorityDigest: context.authorityDigest,
     contractState: { lifecycle: context.contract.lifecycleState, activation: context.contract.activationState, decision: context.contract.decisionState, proof: context.contract.proofResultState, decisionResolution: context.decisionResolution },
     actionState,
-    actionStateReasons: stateReasons.map((item) => item.code).sort(),
+    actionStateReasons,
     objective: args.objective || `Realise and validate ${context.contract.canonicalName} from current semantic authority.`,
     claims: ids(assertions.filter((row) => value(row, 'relation') === 'urn:usf:ontology:asserts')),
     nonclaims: ids(assertions.filter((row) => value(row, 'relation') === 'urn:usf:ontology:disclaims')),
@@ -692,9 +778,9 @@ export async function projectContract(ctx, args = {}) {
       satisfactionCurrent: satisfactionCurrent(item, context.authorityDigest),
       recordedSatisfactionCount: item.satisfactions.length,
     })),
-    validationActionState: verdict.validationActionState,
-    validationSatisfied: verdict.validationSatisfied,
-    validationGaps: verdict.gaps.map((gap) => ({ code: gap.code, subject: gap.subject, disposition: resolveDisposition(gap.code) })),
+    validationActionState: validation.validationActionState,
+    validationSatisfied: validation.validationSatisfied,
+    validationGaps: validation.gaps.map((gap) => ({ code: gap.code, subject: gap.subject, disposition: resolveDisposition(gap.code) })),
     resultRequirements: ['return changed paths and their digests', 'return every validation result and stable result code', 'return explicit nonclaims and residual risk'],
     stopConditions: [
       'authority digest changed',
