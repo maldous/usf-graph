@@ -381,8 +381,12 @@ test('the materialisation repository root is the repository, not its parent', ()
   // carries this repository's package.json and authorised path roles.
   assert.equal(MCP_REPOSITORY_ROOT, resolve(dirname(fileURLToPath(import.meta.url)), '..', '..'));
   assert.ok(existsSync(join(MCP_REPOSITORY_ROOT, 'package.json')));
-  for (const authorisedRoot of ['processes', 'capabilities', 'semantic-model', 'documentation']) {
-    assert.ok(existsSync(join(MCP_REPOSITORY_ROOT, authorisedRoot)), authorisedRoot);
+  // Only roots the semantic-assurance gate snapshots may be asserted here: the
+  // gate executes from an immutable snapshot containing exactly snapshotPaths,
+  // so an authorised-but-unsnapshotted root such as `documentation` is legitimately
+  // absent under the gate and must not be treated as a wrong repository root.
+  for (const snapshottedRoot of ['processes', 'capabilities', 'semantic-model']) {
+    assert.ok(existsSync(join(MCP_REPOSITORY_ROOT, snapshottedRoot)), snapshottedRoot);
   }
   assert.notEqual(MCP_REPOSITORY_ROOT, resolve(MCP_REPOSITORY_ROOT, '..'));
 });
