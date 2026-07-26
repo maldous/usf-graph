@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -43,9 +43,19 @@ test('thin process assembly validates and applies explicit inputs', () => {
   let output = '';
   const writer = { write: (chunk) => { output += chunk; } };
   assert.equal(runRepositoryMaterialisationCommand(['validate', authorityPath, planPath], writer).ok, true);
-  assert.equal(runRepositoryMaterialisationCommand(['apply', authorityPath, planPath, repository], writer).applied, true);
-  assert.equal(readFileSync(join(repository, 'capabilities/example/assembled.mjs'), 'utf8'), 'export const assembled = true;\n');
-  assert.match(output, /"applied":true/);
+  assert.match(output, /"ok":true/);
+  // dry-run and apply are gone: this command took its authority projection from a
+  // FILE, so a hand-written projection could drive a coordinator apply with no live
+  // authority decision. Materialisation apply exists only in the canonical gateway
+  // under a digest-stable realisation verdict.
+  for (const mutating of ['dry-run', 'apply']) {
+    assert.throws(
+      () => runRepositoryMaterialisationCommand([mutating, authorityPath, planPath, repository], writer),
+      /only available through the canonical materialisation gateway/,
+      mutating,
+    );
+  }
+  assert.equal(existsSync(join(repository, 'capabilities/example/assembled.mjs')), false);
 });
 
 test('thin process assembly rejects ambient defaults and unknown commands', () => {

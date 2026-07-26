@@ -68,11 +68,118 @@ Positive counterparts, each asserted separately:
 | M10 | a lifecycle requirement misfiring on a descriptive `SemanticContract` subclass | governance-mark discriminator in both the shape and the rule | live: 0 of 128 descriptive instances demanded an answer; first attempt without it produced 256 violations |
 | M11 | readiness reaching `ready` past validation | three readiness terms inserted before the ready/degraded tail | live: 0 contracts `ready` or `degraded`; derived readiness byte-identical to the pre-change snapshot |
 
+## Publication witness and receipt (R5)
+
+External review found the first version of this guard trusted the receipt's own
+`settled.stable` boolean. Stability is now **derived** from complete phase equality
+and a declared flag is only ever cross-checked, so nothing in a receipt is evidence
+for itself.
+
+| # | Adversarial state | Required outcome |
+|---|---|---|
+| W1 | server count reports 2, 110,537, 0, 999,999 and −1 across reads while graph content is byte-identical | one digest for all five; total is the inventory sum; the statistic is **never read** (asserted by call count) |
+| W2 | one graph's content changes | digest moves — the witness still tracks content |
+| W3 | any total other than the inventory sum folded into the digest | different digest — the mechanism that produced the superseded receipt value |
+| W4 | receipt carrying `postAuthorityDigest`, `postTriples` or top-level `evaluatedAuthorityDigest` | rejected as superseded fields |
+| W5 | the full historical receipt shape | rejected on schema version before any field is read |
+| W6 | `receiptSchemaVersion` absent, `null`, `0`, `1`, `3`, `99`, `"2"`, `{}`, `[]` | rejected — older and newer both fail closed |
+| W7 | receipt that is `undefined`, `null`, a string, a number or an array | rejected |
+| W8 | `totalSource` absent, `db.size`, `server-statement-statistic`, `connectivity` | rejected |
+| W9 | `authorityWitness` absent, `null`, a string, a number or an array | rejected |
+| W10 | any phase absent, `null`, a string, a number, `[]`, `{}`, digest-only, counts-only | rejected per phase |
+| **W11** | **differing `afterPublication` and `settled` digests with forged `stable: true`** | **rejected — stability is derived, not read** |
+| **W12** | **equal digests but different `graphCount` or `triples`** | **rejected — complete phase equality is required** |
+| W13 | declared `settled.stable` of `false`, `"true"`, `0`, `null` against genuinely stable phases | rejected as self-contradictory; omitting the flag entirely is accepted |
+| W14 | `algorithm` absent, `null`, `''`, `…-v1`, `sha256`, uppercased | rejected — the exact published algorithm is required |
+| W15 | digests with uppercase hex, uppercase scheme, 63 or 65 hex chars, non-hex, no prefix, `sha1:`, trailing space, empty, `null`, `undefined`, number, object — for `expected`, `evaluated` and all three phases | rejected — exact lowercase `sha256:<64 hex>` only |
+| W16 | `graphCount`/`triples` of `-1`, `1.5`, `NaN`, above `MAX_SAFE_INTEGER`, `"40"`, `null`, `undefined`, `true`, `{}` | rejected — non-negative safe integers only |
+| W17 | `beforePublication` ≠ `expected`; `evaluated` ≠ `expected` | rejected — the receipt must describe one compare-and-swap |
+| W18 | validate mode whose `settled` digest is not the original authority | rejected — rollback must be proven to have restored it |
+| W19 | `mode` absent, `null`, `''`, `dry-run`, `COMMIT`, `apply`, a number | rejected — the relationship is mode-specific |
+| W20 | `settledAuthorityDigest` on any of the above | throws — it is the only accessor and runs the complete guard |
+
+## Materialisation plan and apply (review: execution-boundary bypass)
+
+`projectContract` computed a validation-aware realisation state while
+`createLayoutPlan`, `validateLayoutPlan` and `applyLayoutPlan` judged only
+activation, proof and decision from `layoutContext`. An activated-but-unsatisfied
+validation obligation therefore produced `actionState=BLOCK` in the projection
+while `usf_layout_plan` still succeeded and coordinator apply remained reachable.
+There is now one `realisationVerdict`, and these cases call the plan tools
+**directly** so they prove the bypass is closed rather than that the projection
+happens to agree.
+
+| # | State | Required outcome at create / validate / apply |
+|---|---|---|
+| P1 | activated but unsatisfied validation obligation | BLOCK · `plan-realisation-blocked` · reason `missing-current-passing-validation` |
+| P2 | blocked validation obligation | BLOCK · reason `validation-obligation-blocked` |
+| P3 | absent applicability | UNRESOLVED_FAIL_CLOSED · `plan-realisation-unresolved` |
+| P4 | explicitly unresolved applicability | UNRESOLVED_FAIL_CLOSED |
+| P5 | unknown obligation activation value | UNRESOLVED_FAIL_CLOSED · reason `validation-obligation-activation-unresolved` |
+| P6 | missing semantic lifecycle | UNRESOLVED_FAIL_CLOSED · reason `contract-lifecycle-unresolved` |
+| P7 | non-active semantic lifecycle (`retired`) | BLOCK · reason `contract-lifecycle-not-active` |
+| P8 | unsuccessful proof result | BLOCK · reason `contract-proof-not-successful` |
+| P9 | absent proof result | UNRESOLVED_FAIL_CLOSED · reason `contract-proof-result-unresolved` |
+| P10 | no accepted decision (draft) | UNRESOLVED_FAIL_CLOSED · reason `decision-no-accepted-decision` |
+| P11 | ambiguous canonical name, lifecycle, activation, proof result or proof state | the verdict, `createLayoutPlan` and `projectContract` all reject with `ambiguous <conclusion>` |
+| P12 | every declared gap code | none maps to PROCEED; the state→failure-code table is complete |
+| P13 | **the live reserved-validation contract** | realisation **PROCEED**, validation `RESERVED_NO_ACTION`, `validationSatisfied=false`, dry-run completes and the passing plan still carries `validationSatisfied: false` |
+
+P1–P10 are each asserted at all three surfaces (30 refusals) plus the verdict
+itself; P11 at three surfaces (15 refusals). A plan minted while the contract did
+authorise realisation is replayed against each state, so nothing about the plan is
+malformed — only the authority is.
+
+## Reserved applicability axis (R6)
+
+Applicability-level `reserved` (is validation in scope?) and activation-level
+`reserved` (is the obligation executable?) are different axes with distinct gap
+codes on distinct subjects. Every RESERVED_NO_ACTION observed live comes from
+activation-level `reserved` on the three bound obligations; the applicability axis
+has zero live instances and is covered below **without authoring one**.
+
+| # | Case | Required outcome |
+|---|---|---|
+| V1 | applicability-level `reserved` with an activated obligation | `validationActionState=RESERVED_NO_ACTION`; gap `validation-applicability-reserved`, disposition RESERVED_NO_ACTION, subject is the **contract**; not satisfied; not PROCEED |
+| V2 | applicability-level vs activation-level `reserved`, obligation held constant | distinct codes on distinct subjects; the applicability axis adds exactly one conclusion and changes nothing else; neither reports satisfaction; neither withdraws realisation authority |
+| V3 | applicability-level `reserved` binding no obligation | still non-PROCEED; the conclusion is withheld rather than downgraded |
+| V4 | census of the authored model (the drift-verified source of live authority) | **zero** applicability-level reserved instances, the state still declared vocabulary, activation-level reserved ≥3 |
+
+## Authority movement and the single materialisation path (second-pass review)
+
+A verdict is a statement about one authority state. The witness now **brackets** the
+complete semantic read, and apply re-proves it immediately before the first mutation
+and again after the last.
+
+| # | Window in which authority moves | Required outcome |
+|---|---|---|
+| A1 | inside any bracketed read | `materialisation-authority-moved`, naming the phase |
+| A2 | between the opening witness and the contract queries | rejected in `realisationVerdict` **and** `layoutContext` |
+| A3 | between the contract queries and the validation-scope queries | rejected — both are inside one bracket |
+| A4 | after the verdict, before plan validation | `plan-authority-digest` failure; plan cannot validate |
+| A5 | during the projection queries that follow the verdict | rejected — their closing witness must equal the verdict witness exactly |
+| A6 | immediately before the first apply operation | refused **before any filesystem mutation**; target absent and the repository root empty |
+| A7 | after the final operation, before returning | complete rollback stack executed, `materialisation-authority-moved` raised, **never** `applied:true`; rollback failures preserved through `AggregateError` |
+| A8 | authority stable throughout | the same plan applies and reports `applied:true` |
+
+A7 proves **exact** rollback: the created path is removed, the overwritten path is
+restored byte-for-byte, its mode and type are restored, and the directory contains
+exactly what it did before.
+
+| # | Second-path case | Required outcome |
+|---|---|---|
+| D1 | `createSemanticAuthorityGateway()` surface | exactly `['health']`; `createPlan`, `validatePlan`, `materialise` and `layoutContext` absent, and the module no longer calls the plan engine |
+| D2 | production modules exporting a materialisation decision path | exactly two: the canonical gateway and the engine it is layered over — anything else fails the structural regression |
+| D3 | production modules importing the engine's apply capability | none outside the canonical gateway |
+| D4 | `repository-materialisation-command.mjs` `dry-run`/`apply` | refused with a message pointing at the canonical gateway; nothing written |
+
 ## Totals
 
-- Adversarial cases: **43** (20 projection + 12 bootstrap + 11 model/rule)
-- Unsafe states rejected or resolved to a non-PROCEED state: **43**
+- Adversarial cases: **92** (20 projection + 12 bootstrap + 11 model/rule + 20
+  publication witness/receipt + 4 reserved applicability + 13 plan/apply + 8
+  authority movement + 4 second-path structural)
+- Unsafe states rejected or resolved to a non-PROCEED state: **92**
 - Unsafe states accepted: **0**
-- Remaining false-closure paths: **0** in this scope; R1–R5 in
-  `operational-completeness-findings.md` are read-only or receipt-level and
-  cannot select PROCEED.
+- Remaining false-closure paths: **0** in this scope. The single residual boundary
+  (R5, `usf_health`'s liveness statistic) is named so it cannot be read as a
+  witness and cannot select PROCEED.

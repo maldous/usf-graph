@@ -180,6 +180,146 @@ the model could not express the decision boundary safely.
 - **Tests.** M10, plus a regression that every authored contract carries a mark
   and that the eight descriptive subclasses are exactly as enumerated.
 
+## C11 — The content witness is a pure function of graph content
+
+- **Descriptive intent.** What "the current authority" is: a value derived only
+  from the canonical graph inventory.
+- **Autonomous decision.** D14 publication, and every projection that binds or
+  compares an authority digest (D2, D3, D8, D9, D10).
+- **Unsafe inference.** The digest folded a server-reported statement count into
+  its body as `total=<n>`. `db.size` is eventually consistent, so a witness read
+  immediately after a commit produced a *different digest over byte-identical
+  content* — a value that looked exactly like an authority digest but matched no
+  settled state. A consumer pinning it would fail closed against live forever.
+- **Operational contract.** The witness total is the sum of the canonical
+  per-graph inventory. `client.size()`/`client.connectivity()` are not consulted
+  by either witness reader, and `totalSource` names the derivation. Receipt v2
+  carries `receiptSchemaVersion`, explicit `beforePublication`,
+  `afterPublication` and `settled` phases, and `settled.stable`. `usf_health`
+  reports `serverStatementStatistic` and no longer exposes an ambiguous `triples`.
+- **Fail-closed rule.** `assertSupportedPublicationReceipt` rejects an
+  unsupported schema version, any superseded field, a non-inventory total, a
+  malformed phase, and an unstable settled witness. `settledAuthorityDigest` is
+  the only accessor for current authority and runs the full guard.
+- **Invalidation.** A settled witness differing from the post-publication witness
+  marks the receipt unstable, so no digest is presented as authority.
+- **Tests.** W1–W13; W1 asserts the statistic is never even read.
+
+## C12 — Both reserved axes are named and covered
+
+- **Descriptive intent.** Separate "whether validation is in scope is deferred"
+  (contract) from "the obligation is not yet executable" (obligation).
+- **Autonomous decision.** D9, D10.
+- **Unsafe inference.** One word for two axes invites reading a deferred
+  applicability determination as a reserved obligation, or either as satisfied.
+- **Operational contract.** Distinct IRIs and distinct gap codes
+  (`validation-applicability-reserved` on the contract,
+  `validation-obligation-reserved` on the obligation), both RESERVED_NO_ACTION,
+  both validation-scoped so neither withdraws realisation authority.
+- **Fail-closed rule.** Neither reports satisfaction; reserved applicability
+  binding no obligation still withholds the conclusion.
+- **Invalidation.** Resolving applicability to `required` moves the decision onto
+  the activation axis.
+- **Tests.** V1–V4, including a zero-instance census proving coverage was achieved
+  without authoring a live instance.
+
+## C13 — One authoritative realisation verdict
+
+- **Descriptive intent.** Whether a contract authorises realisation right now, as a
+  single conclusion rather than one per consumer.
+- **Autonomous decision.** D4 plan creation, D5 plan validation, D6 apply, D8
+  realisation authority.
+- **Unsafe inference.** The projection judged activation, proof, decision **and**
+  validation; the plan tools judged only the first three from `layoutContext`. An
+  activated-but-unsatisfied validation obligation produced `actionState=BLOCK` in
+  `usf_contract_project` while `usf_layout_plan` still succeeded and coordinator
+  apply remained reachable. Two implementations of one decision is the defect.
+- **Operational contract.** `realisationVerdict` is the only implementation. It
+  resolves exactly one contract identity, requires semantic lifecycle `active`,
+  activation `active`, a present and successful proof result, exactly one resolved
+  accepted decision, and folds in the complete validation verdict. All four
+  surfaces consume it, and the verdict is passed between them so plan creation,
+  validation and apply judge one digest-stable authority read.
+- **Fail-closed rule.** A null conclusion is UNRESOLVED_FAIL_CLOSED; a wrong one is
+  BLOCK. `createLayoutPlan` throws the stable code before a plan exists;
+  `validateLayoutPlan` returns `plan-realisation-{blocked,reserved,unresolved}` with
+  the verdict's reasons; apply refuses before any filesystem work.
+- **Preserved boundary.** A reserved validation obligation still withholds only the
+  validated claim: both reserved gap codes are excluded from realisation blocking,
+  so the live contract stays PROCEED with `validationSatisfied: false`.
+- **Invalidation.** Any conjunct changing withdraws PROCEED at the next authority
+  read, including for a plan already minted.
+- **Tests.** P1–P13; P1–P10 asserted at all three surfaces.
+
+## C14 — Receipt stability is proven, not declared
+
+- **Descriptive intent.** Whether two independent reads of published content agree.
+- **Autonomous decision.** D14, and any consumer reading current authority.
+- **Unsafe inference.** The guard read `settled.stable` from the receipt it was
+  validating. A receipt whose `afterPublication` and `settled` witnesses disagreed
+  passed by asserting `stable: true` about itself, and `settledAuthorityDigest()`
+  returned a digest matching no settled state.
+- **Operational contract.** Stability is derived from complete equality of digest,
+  `graphCount` and `triples`. A declared flag may remain in the schema but is only
+  cross-checked and never read as evidence. The exact witness algorithm, exact
+  lowercase `sha256:<64 hex>` syntax for every digest, non-negative safe integer
+  counts, a known mode, and the `expected` = `evaluated` = `beforePublication`
+  relationship are all required; validate mode must additionally prove `settled`
+  equals `beforePublication`, so rollback is shown to have restored authority.
+- **Fail-closed rule.** Every one of those is a rejection, and
+  `settledAuthorityDigest` runs the complete guard so it cannot be bypassed.
+- **Invalidation.** A settled witness that differs from the post-publication
+  witness makes the receipt unusable rather than optimistically readable.
+- **Tests.** W1–W20, with W11–W13 covering the forged-stability finding directly.
+
+## C15 — The verdict brackets its entire semantic read
+
+- **Descriptive intent.** A realisation verdict is a conclusion about exactly one
+  authority state.
+- **Autonomous decision.** D4 plan creation, D5 validation, D6 apply, D8/D9
+  projection.
+- **Unsafe inference.** The witness was read *concurrently* with the contract and
+  rule queries, and the validation scope was read afterwards with no closing
+  witness. A verdict could therefore be assembled from two different authority
+  states and still present a single digest. Apply read once before mutation and
+  never rechecked, so authority could move mid-write and the method still returned
+  `applied:true`.
+- **Operational contract.** `stableAuthorityRead(client, phase, read)` takes an
+  inventory-derived witness, runs the complete read, takes a second witness, and
+  requires exact equality of digest, graph inventory count and triple total.
+  `realisationVerdict` uses one bracket over the layout semantics **and** the whole
+  validation scope. Projection queries that necessarily follow the verdict are
+  proven against the verdict witness. Apply re-proves the witness immediately
+  before the first mutation and again after the last.
+- **Fail-closed rule.** Any inequality raises `materialisation-authority-moved`,
+  naming the phase. Post-mutation movement runs the complete rollback stack first,
+  and rollback failures are preserved through `AggregateError` rather than
+  replacing the primary error.
+- **Invalidation.** A moved witness invalidates the verdict, the plan and any
+  in-flight apply.
+- **Tests.** A1–A8, with A7 proving exact rollback of paths, bytes, types and modes.
+
+## C16 — Exactly one executable materialisation decision path
+
+- **Descriptive intent.** One implementation decides whether a materialisation may
+  happen.
+- **Autonomous decision.** D4, D5, D6.
+- **Unsafe inference.** `createSemanticAuthorityGateway()` exposed a second
+  `createPlan`/`validatePlan`/`materialise` API over its own layout context and
+  decision selection, consuming no verdict and enforcing neither the lifecycle
+  conjunct nor any validation state — and its own test proved coordinator apply
+  succeeded through it. `repository-materialisation-command.mjs` offered
+  `dry-run`/`apply` over an authority projection read from a file, so a
+  hand-written projection could drive a coordinator apply.
+- **Operational contract.** The duplicated API is **deleted**; a witness-only
+  `health` surface remains. The command is **validate-only** and names where apply
+  lives. The canonical gateway is the sole apply path.
+- **Fail-closed rule.** A structural regression enumerates production modules and
+  fails if any module outside the canonical gateway exports a materialisation
+  decision path or imports the engine's apply capability.
+- **Invalidation.** Adding such an export or import fails the gate.
+- **Tests.** D1–D4.
+
 ## Invariants now asserted
 
 1. Every governed contract declares exactly one applicability state with a
@@ -196,3 +336,24 @@ the model could not express the decision boundary safely.
 9. A bounded bootstrap packet never omits a gap at offset 0.
 10. Source and live authority agree: `authority:drift` `ok: true`, 40 graphs, no
     mismatches.
+11. The authority digest is a pure function of the canonical graph inventory; no
+    server statistic can move it. (W1–W3)
+12. Exactly one receipt field may be read as current authority, and only through a
+    guard that fails closed on every malformed or superseded shape. (W4–W13)
+13. Applicability-level reserved has zero instances, remains declared vocabulary,
+    and is distinct from activation-level reserved in code, subject and axis. (V1–V4)
+14. Exactly one realisation-verdict implementation exists, and `usf_contract_project`,
+    `usf_layout_plan`, `usf_layout_validate` and `usf_materialise` all consume it.
+    (P1–P13)
+15. Semantic lifecycle `active` is a required realisation conjunct, and every scalar
+    contract conclusion resolves to exactly one distinct value or fails closed. (P6,
+    P7, P11)
+16. Receipt stability is derived from complete phase equality; no receipt field is
+    evidence for itself. (W11–W13)
+17. Every realisation verdict is bracketed by before/after inventory witnesses that
+    must agree on digest, graph count and triple total. (A1–A5)
+18. Apply proves the witness immediately before the first mutation and again after
+    the last; movement rolls the plan back exactly and never reports applied.
+    (A6–A8)
+19. Exactly one production module exports a materialisation decision path, and no
+    other production module can apply. (D1–D4)

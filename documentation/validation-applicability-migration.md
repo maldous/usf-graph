@@ -24,9 +24,19 @@ and must fail closed.
 Every state also requires `usf:validationApplicabilityReason`.
 
 Applicability and obligation activation are separate axes and are never
-conflated: `required` says validation is in scope; the obligation's own
-`hasValidationActivationState` (`reserved` | `activated` | `blocked`) says
-whether it is executable. Neither implies satisfaction.
+conflated. Both use the word "reserved", so each is always named in full:
+
+- **applicability-level** `urn:usf:validationapplicabilitystate:reserved` — whether
+  validation is in scope is deliberately deferred. Contract-level. **0 instances.**
+- **activation-level** `urn:usf:validationactivationstate:reserved` — the obligation
+  exists but is not yet executable. Obligation-level. **3 instances.**
+
+`required` says validation is in scope; the obligation's own
+`hasValidationActivationState` (`reserved` | `activated` | `blocked`) says whether
+it is executable. Neither implies satisfaction. The two axes emit distinct gap
+codes on distinct subjects (`validation-applicability-reserved` on the contract,
+`validation-obligation-reserved` on the obligation) and both are
+regression-covered.
 
 ## Enforcement
 

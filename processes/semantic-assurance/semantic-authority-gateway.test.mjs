@@ -1,70 +1,132 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { join, relative } from 'node:path';
 import test from 'node:test';
 
-import { sha256 } from '../../capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs';
 import { createSemanticAuthorityGateway, readSemanticAuthorityWitness, semanticAuthorityInventoryDigest } from './semantic-authority-gateway.mjs';
 
 const authorityDigest = `sha256:${'d'.repeat(64)}`;
-const contract = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation';
-const decision = 'urn:usf:realisationdecision:repositoryarchitectureandnaming';
-const role = 'urn:usf:pathrole:capabilitysource';
-const family = 'urn:usf:artefactfamily:capabilitysource';
-const format = 'urn:usf:representationformat:ecmascriptmodule2024';
 const binding = (value) => ({ value });
+const witness = async () => ({
+  digest: authorityDigest,
+  algorithm: 'sha256-rdfc10-graph-inventory-v2',
+  totalSource: 'canonical-graph-inventory',
+  triples: 7,
+  inventory: [],
+});
 
-function client(expected = authorityDigest) {
-  return {
-    expectedAuthorityDigest: expected,
-    connectivity: async () => 100,
-    select: async (sparql) => {
-      if (sparql.includes('COUNT(*) AS ?count')) return [{ count: binding('1') }];
-      if (sparql.includes('SELECT ?canonicalName ?lifecycle')) return [{ canonicalName: binding('repositoryexternalartefactmaterialisation'), lifecycle: binding('urn:usf:semanticlifecyclestate:active'), activation: binding('urn:usf:contractactivationstate:active'), proof: binding('urn:usf:proofresult:repositorymaterialisationcontrolplane'), proofState: binding('urn:usf:proofresultstate:successful'), decision: binding(decision), decisionState: binding('urn:usf:decisionstate:accepted'), authorisedPath: binding('capabilities') }];
-      if (sparql.includes('a <urn:usf:ontology:PathRole>')) return [{ role: binding(role), canonicalName: binding('capabilitysource'), parent: binding('capabilities'), onDemand: binding('true') }];
-      if (sparql.includes('a <urn:usf:ontology:ArtefactFamily>')) return [{ family: binding(family), familyName: binding('capabilitysource'), storage: binding('urn:usf:storageclass:gittrackedsource'), pathRole: binding(role), format: binding(format), namingPattern: binding('^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\.[a-z0-9]+)+$') }];
-      throw new Error(`unexpected query: ${sparql}`);
-    },
+// --- the duplicated materialisation API is deleted, not merely uncalled --------
+// This module used to expose createPlan / validatePlan / materialise over its own
+// layout context and decision selection. It never consumed the shared
+// realisationVerdict, so it enforced neither the semantic lifecycle conjunct nor
+// any validation state — and the test that lived here proved coordinator apply
+// succeeded through it. Those methods are gone; what remains is witness-only.
+
+test('the authority gateway exposes no second materialisation decision path', () => {
+  const gateway = createSemanticAuthorityGateway({
+    client: { select: async () => [], connectivity: async () => 1 },
+    readAuthorityWitness: witness,
+  });
+  assert.deepEqual(Object.keys(gateway).sort(), ['health']);
+  for (const removed of ['createPlan', 'validatePlan', 'materialise', 'layoutContext']) {
+    assert.equal(removed in gateway, false, `${removed} must not be exposed here`);
+  }
+  const source = readFileSync(new URL('./semantic-authority-gateway.mjs', import.meta.url), 'utf8');
+  for (const symbol of ['createMaterialisationPlan', 'validateMaterialisationPlan', 'materialisePlan']) {
+    assert.equal(source.includes(`${symbol}(`), false, `${symbol} must no longer be called here`);
+  }
+});
+
+test('health names the content witness and the server statistic distinctly', async () => {
+  const gateway = createSemanticAuthorityGateway({
+    client: { select: async () => [], connectivity: async () => 577_473 },
+    readAuthorityWitness: witness,
+  });
+  const health = await gateway.health();
+  assert.equal(health.authorityDigest, authorityDigest);
+  assert.equal(health.triples, 7, 'the content witness total is inventory-derived');
+  assert.equal(health.totalSource, 'canonical-graph-inventory');
+  assert.equal(health.serverStatementStatistic, 577_473, 'the server statistic is liveness only');
+});
+
+test('health fails closed when the observed digest differs from the configured one', async () => {
+  const gateway = createSemanticAuthorityGateway({
+    client: { expectedAuthorityDigest: `sha256:${'e'.repeat(64)}`, select: async () => [], connectivity: async () => 1 },
+    readAuthorityWitness: witness,
+  });
+  await assert.rejects(() => gateway.health(), /differs from configured digest/);
+});
+
+// --- structural regression: exactly one production materialisation path --------
+
+const REPOSITORY_ROOT = fileURLToPath(new URL('../..', import.meta.url));
+// Directories that ship executable production behaviour. `assurance/` is excluded
+// deliberately: it holds proof harnesses that exercise the engine and are not a
+// production surface.
+const PRODUCTION_ROOTS = ['capabilities', 'configuration', 'operations', 'processes', 'provider-bindings'];
+// The one canonical executable materialisation decision path.
+const CANONICAL_GATEWAY = 'processes/semantic-assurance/repository-materialisation-gateway.mjs';
+// The lower-level plan/validate/apply engine. It makes no authority decision of its
+// own — it is handed an already-decided authority projection — and after this change
+// no production module imports its apply capability.
+const ENGINE = 'capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs';
+const MATERIALISATION_EXPORTS = /export\s+(?:async\s+)?function\s+(createLayoutPlan|validateLayoutPlan|applyLayoutPlan|createMaterialisationPlan|validateMaterialisationPlan|materialisePlan)\b/g;
+
+function productionModules() {
+  const found = [];
+  const walk = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const absolute = join(directory, entry.name);
+      if (entry.isDirectory()) { walk(absolute); continue; }
+      if (!entry.isFile() || !entry.name.endsWith('.mjs') || entry.name.endsWith('.test.mjs')) continue;
+      found.push(relative(REPOSITORY_ROOT, absolute).split('\\').join('/'));
+    }
   };
+  for (const root of PRODUCTION_ROOTS) {
+    const absolute = join(REPOSITORY_ROOT, root);
+    if (statSync(absolute).isDirectory()) walk(absolute);
+  }
+  return found;
 }
 
-const witness = async () => ({ digest: authorityDigest, algorithm: 'sha256-rdfc10-graph-inventory-v2', inventory: [] });
-
-test('assembles live authority context, deterministic planning and validation', async () => {
-  const gateway = createSemanticAuthorityGateway({ client: client(), readAuthorityWitness: witness });
-  const content = 'export const gateway = true;\n';
-  const operation = { action: 'write-file', artefactFamily: family, content, contentDigest: sha256(content), contentEncoding: 'utf8', index: 0, path: 'capabilities/example/gateway.mjs', pathRole: role, representationFormat: format };
-  const plan = await gateway.createPlan({ operations: [operation] });
-  assert.equal((await gateway.validatePlan(plan)).ok, true);
-  assert.equal((await gateway.health()).authorityDigest, authorityDigest);
+test('exactly one production module exports a materialisation decision path', () => {
+  const owners = new Map();
+  for (const path of productionModules()) {
+    const source = readFileSync(join(REPOSITORY_ROOT, path), 'utf8');
+    const exported = [...source.matchAll(MATERIALISATION_EXPORTS)].map((match) => match[1]);
+    if (exported.length > 0) owners.set(path, exported.sort());
+  }
+  // Only the canonical gateway and the engine it is layered over may export these.
+  // Anything else is a second decision path and must be deleted or routed through
+  // realisationVerdict.
+  assert.deepEqual(
+    [...owners.keys()].sort(),
+    [ENGINE, CANONICAL_GATEWAY].sort(),
+    `unexpected materialisation implementations: ${JSON.stringify([...owners.entries()])}`,
+  );
+  assert.deepEqual(owners.get(CANONICAL_GATEWAY), ['applyLayoutPlan', 'createLayoutPlan', 'validateLayoutPlan']);
+  assert.deepEqual(owners.get(ENGINE), ['createMaterialisationPlan', 'materialisePlan', 'validateMaterialisationPlan']);
 });
 
-test('requires explicit coordinator authority before apply and writes only after it is supplied', async () => {
-  const gateway = createSemanticAuthorityGateway({ client: client(), readAuthorityWitness: witness });
-  const content = 'export const gateway = true;\n';
-  const plan = await gateway.createPlan({ operations: [{ action: 'write-file', artefactFamily: family, content, contentDigest: sha256(content), contentEncoding: 'utf8', index: 0, path: 'capabilities/example/gateway.mjs', pathRole: role, representationFormat: format }] });
-  const root = mkdtempSync(join(tmpdir(), 'semantic-authority-gateway-'));
-  await assert.rejects(() => gateway.materialise({ plan, repositoryRoot: root, apply: true }), /coordinator authority/);
-  assert.equal((await gateway.materialise({ plan, repositoryRoot: root, apply: true, coordinator: true })).applied, true);
-  assert.equal(readFileSync(join(root, 'capabilities/example/gateway.mjs'), 'utf8'), content);
+test('no production module can apply a materialisation outside the canonical path', () => {
+  const importers = [];
+  for (const path of productionModules()) {
+    if (path === ENGINE) continue;
+    const source = readFileSync(join(REPOSITORY_ROOT, path), 'utf8');
+    if (!source.includes('materialisation-plan.mjs')) continue;
+    // Importing the engine is only acceptable when it cannot apply; materialisePlan
+    // is the apply capability.
+    if (/\bmaterialisePlan\b/.test(source)) importers.push(path);
+  }
+  assert.deepEqual(
+    importers,
+    [],
+    `these production modules can apply outside the canonical gateway: ${importers.join(', ')}`,
+  );
 });
 
-test('fails closed on authority drift before planning', async () => {
-  const gateway = createSemanticAuthorityGateway({ client: client(`sha256:${'e'.repeat(64)}`), readAuthorityWitness: witness });
-  await assert.rejects(() => gateway.createPlan({ operations: [] }), /differs from configured digest/);
-});
-
-test('fails closed when a bounded materialisation-rule projection is truncated', async () => {
-  const incomplete = client();
-  const select = incomplete.select;
-  incomplete.select = async (sparql) => sparql.includes('COUNT(*) AS ?count')
-    ? [{ count: binding('2') }]
-    : select(sparql);
-  const gateway = createSemanticAuthorityGateway({ client: incomplete, readAuthorityWitness: witness });
-  await assert.rejects(() => gateway.layoutContext(), /rule projection is incomplete/);
-});
-
+// --- witness utilities (genuinely shared, retained) ----------------------------
 
 test('builds a deterministic content-sensitive witness from canonical graph bytes', async () => {
   const graphContent = new Map([
@@ -84,7 +146,7 @@ test('builds a deterministic content-sensitive witness from canonical graph byte
 });
 
 test('witness construction rejects duplicate graph identities and incomplete clients', async () => {
-  await assert.rejects(() => readSemanticAuthorityWitness({}), /connectivity, select and construct/);
+  await assert.rejects(() => readSemanticAuthorityWitness({}), /select and construct/);
   await assert.rejects(() => readSemanticAuthorityWitness({
     connectivity: async () => 1,
     select: async () => [{ g: binding('urn:usf:graph:a') }, { g: binding('urn:usf:graph:a') }],
