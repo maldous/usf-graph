@@ -7,8 +7,8 @@ import test from 'node:test';
 import { DataFactory, Parser, Store } from 'n3';
 
 import {
-  applyLayoutPlan, createLayoutPlan, digest, layoutContext, materialisationInternals, refuseLifecycleMutation,
-  planWork, projectContract, sourceDigest, validateLayoutPlan, verifyArtifact,
+  applyLayoutPlan, createLayoutPlan, digest, GAP_DISPOSITIONS, layoutContext, materialisationInternals,
+  refuseLifecycleMutation, planWork, projectContract, sourceDigest, validateLayoutPlan, verifyArtifact,
 } from './repository-materialisation-gateway.mjs';
 
 const { namedNode } = DataFactory;
@@ -54,7 +54,48 @@ function complementaryCompilerRows(effectiveDecisions = [compilerDecision]) {
     effectiveDecision: binding(effective),
   })));
 }
-function fakeClient({ descriptor, contractRows = defaultContractRows() } = {}) {
+const validationObligation = 'urn:usf:validationobligation:repositoryexternalartefactmaterialisation';
+// The fake's authority witness is one graph with one triple; that fixes the
+// digest a satisfying result has to bind to be current.
+const witnessDigest = 'sha256:63ff556923a7d46c522fb694fde9fe9ff5f0e9f1f8785db5a67ad578d2934ccf';
+
+function defaultApplicabilityRows(state = 'urn:usf:validationapplicabilitystate:required', extra = {}) {
+  return [{
+    state: binding(state),
+    reason: binding('Validation is required: this contract binds an explicit ValidationObligation.'),
+    ...extra,
+  }];
+}
+// Live state after the applicability migration: validation is required and the
+// obligation is reserved, so nothing is satisfied and nothing is executable.
+function defaultValidationObligationRows(activation = 'urn:usf:validationactivationstate:reserved', extra = {}) {
+  return [{ id: binding(validationObligation), activation: binding(activation), ...extra }];
+}
+function satisfyingResultRow({
+  result = 'urn:usf:validationresult:materialisation',
+  boundObligation = validationObligation,
+  resultState = 'urn:usf:resultstate:passed',
+  boundAuthority = witnessDigest,
+  boundHead = 'a'.repeat(40),
+  ...rest
+} = {}) {
+  return {
+    satisfaction: binding(result),
+    ...(boundObligation === null ? {} : { boundObligation: binding(boundObligation) }),
+    ...(resultState === null ? {} : { resultState: binding(resultState) }),
+    ...(boundAuthority === null ? {} : { boundAuthority: binding(boundAuthority) }),
+    ...(boundHead === null ? {} : { boundHead: binding(boundHead) }),
+    ...rest,
+  };
+}
+
+function fakeClient({
+  descriptor,
+  contractRows = defaultContractRows(),
+  applicabilityRows = defaultApplicabilityRows(),
+  validationObligationRows = defaultValidationObligationRows(),
+  proofGapRows = [],
+} = {}) {
   return {
     size: async () => 10,
     construct: async () => '<urn:s> <urn:p> "materialisation" .\n',
@@ -62,6 +103,9 @@ function fakeClient({ descriptor, contractRows = defaultContractRows() } = {}) {
       if (query.includes('COUNT(*) AS ?count')) return [{ count: binding('1') }];
       if (query.includes('SELECT DISTINCT ?g')) return [{ g: binding('urn:g') }];
       if (query.includes('?canonicalName ?lifecycle')) return contractRows;
+      if (query.includes('<urn:usf:ontology:hasValidationApplicability> ?state')) return applicabilityRows;
+      if (query.includes('a <urn:usf:ontology:ValidationObligation>')) return validationObligationRows;
+      if (query.includes('<urn:usf:ontology:mandatoryProofObligation> ?subject')) return proofGapRows;
       if (query.includes('a <urn:usf:ontology:PathRole>')) return [{ role: binding(role), canonicalName: binding('compilersource'), parent: binding('capabilities/semantic-model-compilation'), onDemand: binding('true') }];
       if (query.includes('a <urn:usf:ontology:ArtefactFamily>')) return [{ family: binding(family), familyName: binding('compiler'), storage: binding('urn:usf:storageclass:gittrackedsource'), pathRole: binding(role), format: binding(format), namingPattern: binding('^[A-Za-z0-9._-]+$') }];
       if (query.includes('ExternalPayloadDescriptor')) return descriptor ? [Object.fromEntries(Object.entries(descriptor).map(([key, item]) => [key, binding(item)]))] : [];
@@ -135,6 +179,179 @@ test('layout context is live-digest-bound and exposes active proof and authorise
   assert.equal(context.decisionResolution, 'unique-accepted');
   assert.deepEqual(context.authorisedRepositories, ['usf']);
   assert.deepEqual(context.authorisedPaths, ['capabilities/semantic-model-compilation']);
+});
+
+// --- authored-model closure ------------------------------------------------
+// The projections above can only fail closed if the model actually carries an
+// explicit applicability state for every governed contract. These read the
+// authored source directly, so a contract added later without one fails here.
+const ONT = 'urn:usf:ontology:';
+const VAS = 'urn:usf:validationapplicabilitystate:';
+const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
+
+function authoredModel() {
+  const store = new Store();
+  for (const file of ['contracts/capabilities.trig', 'contracts/materialisation.trig']) {
+    store.addQuads(new Parser({ format: 'application/trig' }).parse(
+      readFileSync(new URL(`../../semantic-model/${file}`, import.meta.url), 'utf8'),
+    ));
+  }
+  for (const file of ['ontology.ttl', 'vocabulary.ttl']) {
+    store.addQuads(new Parser({ format: 'text/turtle' }).parse(
+      readFileSync(new URL(`../../semantic-model/${file}`, import.meta.url), 'utf8'),
+    ));
+  }
+  return store;
+}
+
+test('the validation applicability vocabulary is a closed five-state set bound to contracts', () => {
+  const model = authoredModel();
+  const declared = model
+    .getSubjects(namedNode(RDF_TYPE), namedNode(`${ONT}ValidationApplicabilityState`), null)
+    .map(({ value }) => value)
+    .sort();
+  assert.deepEqual(declared, [
+    `${VAS}conditional`, `${VAS}notrequired`, `${VAS}required`, `${VAS}reserved`, `${VAS}unresolved`,
+  ]);
+  const property = namedNode(`${ONT}hasValidationApplicability`);
+  for (const type of ['http://www.w3.org/2002/07/owl#ObjectProperty', 'http://www.w3.org/2002/07/owl#FunctionalProperty']) {
+    assert.equal(model.has(property, namedNode(RDF_TYPE), namedNode(type), null), true, type);
+  }
+  assert.deepEqual(
+    model.getObjects(property, namedNode('http://www.w3.org/2000/01/rdf-schema#domain'), null).map(({ value }) => value),
+    [`${ONT}SemanticContract`],
+  );
+  assert.deepEqual(
+    model.getObjects(property, namedNode('http://www.w3.org/2000/01/rdf-schema#range'), null).map(({ value }) => value),
+    [`${ONT}ValidationApplicabilityState`],
+  );
+});
+
+test('every authored semantic contract declares exactly one applicability state with a stated basis', () => {
+  const model = authoredModel();
+  const contracts = [...new Set(model
+    .getSubjects(namedNode(RDF_TYPE), namedNode(`${ONT}SemanticContract`), null)
+    .map(({ value }) => value))];
+  assert.ok(contracts.length >= 64, `expected the full contract set, saw ${contracts.length}`);
+  for (const contract of contracts) {
+    const states = model.getObjects(namedNode(contract), namedNode(`${ONT}hasValidationApplicability`), null).map(({ value }) => value);
+    assert.equal(states.length, 1, `${contract} must declare exactly one applicability state`);
+    assert.ok(states[0].startsWith(VAS), `${contract} applicability must come from the closed vocabulary`);
+    assert.ok(
+      model.getObjects(namedNode(contract), namedNode(`${ONT}validationApplicabilityReason`), null).length >= 1,
+      `${contract} must state the basis of its applicability`,
+    );
+  }
+});
+
+test('the applicability migration promoted no contract to an exemption or an unearned conclusion', () => {
+  const model = authoredModel();
+  const contracts = [...new Set(model
+    .getSubjects(namedNode(RDF_TYPE), namedNode(`${ONT}SemanticContract`), null)
+    .map(({ value }) => value))];
+  const byState = new Map();
+  for (const contract of contracts) {
+    const [state] = model.getObjects(namedNode(contract), namedNode(`${ONT}hasValidationApplicability`), null).map(({ value }) => value);
+    byState.set(state, [...(byState.get(state) || []), contract]);
+  }
+  // Nothing may be migrated to exemption, and nothing may claim a conditional
+  // or reserved determination that no authored condition supports.
+  assert.deepEqual(byState.get(`${VAS}notrequired`), undefined);
+  assert.deepEqual(byState.get(`${VAS}conditional`), undefined);
+  assert.deepEqual(byState.get(`${VAS}reserved`), undefined);
+
+  for (const contract of byState.get(`${VAS}unresolved`) || []) {
+    const node = namedNode(contract);
+    // Unresolved must stay unresolved: no bound obligation, no exemption
+    // authority, and never on a contract whose activation implies it was proven.
+    assert.deepEqual(model.getObjects(node, namedNode(`${ONT}requiredValidation`), null), []);
+    assert.deepEqual(model.getObjects(node, namedNode(`${ONT}validationApplicabilityAuthority`), null), []);
+    assert.deepEqual(
+      model.getObjects(node, namedNode(`${ONT}hasActivationState`), null).map(({ value }) => value),
+      ['urn:usf:contractactivationstate:proofblocked'],
+      `${contract} is unresolved, so it must not be an active contract`,
+    );
+  }
+  for (const contract of byState.get(`${VAS}required`) || []) {
+    assert.ok(
+      model.getObjects(namedNode(contract), namedNode(`${ONT}requiredValidation`), null).length >= 1,
+      `${contract} declares required applicability so it must bind an obligation`,
+    );
+  }
+  assert.equal((byState.get(`${VAS}required`) || []).length, 3);
+  assert.equal((byState.get(`${VAS}unresolved`) || []).length, contracts.length - 3);
+});
+
+// usf:SemanticContract is a superclass of several descriptive classes, so under
+// the reasoning schema "every SemanticContract" is not "every governed
+// contract". The applicability requirement is keyed on governance marks, and
+// this pins both halves of that boundary.
+test('the governed-contract discriminator selects every governed contract and no descriptive subclass', () => {
+  const model = authoredModel();
+  const marks = ['hasActivationState', 'mandatoryProofObligation', 'requiredValidation', 'declaresFacet'];
+  const contracts = [...new Set(model
+    .getSubjects(namedNode(RDF_TYPE), namedNode(`${ONT}SemanticContract`), null)
+    .map(({ value }) => value))];
+  for (const contract of contracts) {
+    assert.ok(
+      marks.some((mark) => model.getObjects(namedNode(contract), namedNode(`${ONT}${mark}`), null).length > 0),
+      `${contract} must carry a governance mark, otherwise the applicability requirement cannot reach it`,
+    );
+  }
+  const descriptive = model
+    .getSubjects(namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'), namedNode(`${ONT}SemanticContract`), null)
+    .map(({ value }) => value)
+    .sort();
+  assert.deepEqual(descriptive, [
+    `${ONT}AccessibilityProfile`, `${ONT}ArtefactPlan`, `${ONT}AutomationWorkflowContract`,
+    `${ONT}CompatibilityContract`, `${ONT}LocalisationProfile`, `${ONT}RendererContract`,
+    `${ONT}UISemanticModel`, `${ONT}ViewModel`,
+  ]);
+
+  // Both enforcement layers must key on the same four marks, or one of them
+  // would demand a lifecycle answer from a view model while the other did not.
+  const shapes = readFileSync(new URL('../../semantic-model/shapes/lifecycle.ttl', import.meta.url), 'utf8');
+  const integrity = readFileSync(new URL('../../semantic-model/rules/integrity.rq', import.meta.url), 'utf8');
+  for (const mark of marks) {
+    assert.ok(shapes.includes(`<urn:usf:ontology:${mark}> ?governedMark`), `shape must key on ${mark}`);
+    assert.ok(integrity.includes(`usf:${mark} ?governedMark`), `integrity rule must key on ${mark}`);
+  }
+});
+
+test('the rule layer carries a whole-dataset violation for every applicability and satisfaction leak', () => {
+  const integrity = readFileSync(new URL('../../semantic-model/rules/integrity.rq', import.meta.url), 'utf8');
+  for (const [code, discriminator] of [
+    ['contractvalidationapplicabilityundeclared', 'FILTER NOT EXISTS { ?subject usf:hasValidationApplicability ?applicability }'],
+    ['validationobligationoutsidecontractapplicability', 'usf:validationForContract ?validationContract'],
+    ['validationsatisfactionwithoutcurrentidentitybinding', 'usf:validationEvaluatedSourceHead ?claimedHead'],
+    ['reservedvalidationobligationsatisfied', 'urn:usf:validationactivationstate:blocked'],
+    ['evidencefreshnessaxisdivergence', 'usf:hasFreshness ?legacyFreshness ; usf:hasFreshnessState ?lifecycleFreshness'],
+  ]) {
+    assert.ok(integrity.includes(`BIND("${code}" AS ?violation)`), `integrity rule must bind ${code}`);
+    assert.ok(integrity.includes(discriminator), `integrity rule ${code} must retain its discriminating pattern`);
+  }
+});
+
+test('readiness cannot reach ready past an unsatisfied, blocked or unresolved validation state', () => {
+  const readiness = readFileSync(new URL('../../semantic-model/rules/readiness.rq', import.meta.url), 'utf8');
+  for (const term of ['?validationUnsatisfied', '?validationBlocked', '?validationApplicabilityUnresolved']) {
+    assert.ok(readiness.includes(`AS ${term}`), `readiness must derive ${term}`);
+  }
+  // Each new term must sit inside the precedence chain before its ready and
+  // degraded tail, otherwise it could never change the outcome it exists to
+  // change. Existing negative states keep priority, so a contract that is
+  // already notready stays notready with its original, more specific reason.
+  assert.ok(readiness.includes('?validationBlocked || ?validationUnsatisfied, rds:notready'));
+  assert.ok(readiness.includes('?validationApplicabilityUnresolved, rds:unknown'));
+  assert.ok(readiness.indexOf('?missingBlocking, rds:notready') < readiness.indexOf('?validationBlocked || ?validationUnsatisfied, rds:notready'));
+  assert.ok(readiness.indexOf('?validationApplicabilityUnresolved, rds:unknown') < readiness.indexOf('?missingAdvisory, rds:degraded'));
+  for (const reason of ['rr:validationunsatisfied', 'rr:validationblocked', 'rr:validationapplicabilityunresolved']) {
+    assert.ok(readiness.includes(reason), `readiness must report ${reason}`);
+  }
+  const vocabulary = readFileSync(new URL('../../semantic-model/vocabulary.ttl', import.meta.url), 'utf8');
+  for (const reason of ['validationunsatisfied', 'validationblocked', 'validationapplicabilityunresolved']) {
+    assert.ok(vocabulary.includes(`rr:${reason} a usf:ReadinessReason`), `${reason} must be a declared readiness reason`);
+  }
 });
 
 test('explicit effective decision selects one of multiple complementary accepted decisions', async () => {
@@ -218,86 +435,292 @@ test('layout plan validates exact content, path role, family, format, digest and
   assert.ok(validation.failures.some((finding) => finding.code === 'operation-content-mismatch'));
 });
 
-test('contract projection includes focused validation obligations beyond bootstrap pagination', async () => {
-  const client = fakeClient();
-  const originalSelect = client.select;
-  client.select = async (query) => {
-    if (query.includes('a <urn:usf:ontology:ValidationObligation>')) return [{ id: binding('urn:usf:validationobligation:v1') }];
-    return originalSelect(query);
-  };
+test('contract projection reports each validation obligation with its activation and satisfaction state', async () => {
+  const packet = await projectContract({ client: fakeClient() }, { contract });
+  assert.deepEqual(packet.validationObligations, [{
+    id: validationObligation,
+    activation: 'urn:usf:validationactivationstate:reserved',
+    satisfactionCurrent: false,
+    recordedSatisfactionCount: 0,
+  }]);
+  assert.ok(packet.semanticIdentifiers.includes(validationObligation));
+});
+
+// The boundary that keeps the model honest in both directions: a reserved
+// obligation must not withdraw realisation authority that an accepted decision
+// and a successful proof already granted, and must not be reported as satisfied.
+test('reserved validation withholds the validated claim without withdrawing realisation authority', async () => {
+  const packet = await projectContract({ client: fakeClient() }, { contract });
+  assert.equal(packet.actionState, 'PROCEED');
+  assert.deepEqual(packet.actionStateReasons, []);
+  assert.ok(packet.authorisedActions.length > 0);
+  assert.equal(packet.validationActionState, 'RESERVED_NO_ACTION');
+  assert.equal(packet.validationSatisfied, false);
+  assert.deepEqual(packet.validationGaps.map((gap) => gap.code), ['validation-obligation-reserved']);
+  assert.ok(packet.stopConditions.includes('validationSatisfied is false and the task would claim validation'));
+});
+
+test('an activated but unsatisfied validation obligation blocks realisation authority', async () => {
+  const client = fakeClient({ validationObligationRows: defaultValidationObligationRows('urn:usf:validationactivationstate:activated') });
   const packet = await projectContract({ client }, { contract });
-  assert.deepEqual(packet.validationObligations, ['urn:usf:validationobligation:v1']);
-  assert.ok(packet.semanticIdentifiers.includes('urn:usf:validationobligation:v1'));
+  assert.equal(packet.actionState, 'BLOCK');
+  assert.deepEqual(packet.actionStateReasons, ['missing-current-passing-validation']);
+  assert.deepEqual(packet.authorisedActions, []);
+  assert.deepEqual(packet.authorisedPaths, []);
+  assert.equal(packet.validationActionState, 'PROCEED');
+  assert.equal(packet.validationSatisfied, false);
 });
 
-test('work planning accepts only passing validation backed by current applicable evidence', async () => {
-  let workQuery;
-  const client = fakeClient();
-  const originalSelect = client.select;
-  client.select = async (query) => {
-    if (query.includes('SELECT ?gap ?subject')) {
-      workQuery = query;
-      return [{ gap: binding('missing-current-passing-validation'), subject: binding('urn:usf:validationobligation:v1') }];
-    }
-    return originalSelect(query);
-  };
-  const result = await planWork({ client }, { contract });
-  assert.equal(result.gaps[0].type, 'missing-current-passing-validation');
-  for (const required of [
-    'entersEvidenceLifecycleAs', 'ValidationEvidence', 'evidenceadmissionstate:admitted',
-    'evidencefreshnessstate:fresh', 'evidenceintegritystate:valid', 'withinValidityScope',
-    'applicableToObligation', 'semanticLifecycleState', 'semanticlifecyclestate:active',
-  ]) assert.match(workQuery, new RegExp(required));
+test('a fully bound current satisfaction is the only state that reports validation satisfied', async () => {
+  const client = fakeClient({
+    validationObligationRows: [{
+      ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+      ...satisfyingResultRow(),
+    }],
+  });
+  const packet = await projectContract({ client }, { contract });
+  assert.equal(packet.validationSatisfied, true);
+  assert.equal(packet.validationObligations[0].satisfactionCurrent, true);
+  assert.deepEqual(packet.validationGaps, []);
+  assert.equal(packet.actionState, 'PROCEED');
+  const plan = await planWork({ client }, { contract });
+  assert.equal(plan.gapCount, 0);
+  assert.equal(plan.actionState, 'PROCEED');
+  assert.equal(plan.validationSatisfied, true);
+  assert.equal(plan.completionClaim, false);
 });
 
-test('work planning exposes deterministic bounded pagination without silent truncation', async () => {
-  let workQuery;
-  const client = fakeClient();
-  const originalSelect = client.select;
-  client.select = async (query) => {
-    if (query.includes('SELECT ?gap ?subject')) {
-      workQuery = query;
-      return Array.from({ length: 51 }, (_, index) => ({
-        gap: binding('missing-current-passing-validation'),
-        subject: binding(`urn:usf:validationobligation:${index}`),
-      }));
+// Adversarial matrix. Each row is the smallest state that could previously have
+// been read as "validation is fine", paired with the state the factory must now
+// resolve to. None of them may reach PROCEED.
+const adversarialCases = [
+  {
+    name: 'no applicability statement at all',
+    client: { applicabilityRows: [] },
+    gap: 'validation-applicability-unresolved',
+    actionState: 'UNRESOLVED_FAIL_CLOSED',
+    validationActionState: 'UNRESOLVED_FAIL_CLOSED',
+  },
+  {
+    name: 'explicitly unresolved applicability',
+    client: { applicabilityRows: defaultApplicabilityRows('urn:usf:validationapplicabilitystate:unresolved') },
+    gap: 'validation-applicability-unresolved',
+    actionState: 'UNRESOLVED_FAIL_CLOSED',
+    validationActionState: 'UNRESOLVED_FAIL_CLOSED',
+  },
+  {
+    name: 'conditional applicability with no structured condition',
+    client: { applicabilityRows: defaultApplicabilityRows('urn:usf:validationapplicabilitystate:conditional'), validationObligationRows: [] },
+    gap: 'validation-applicability-conditional-unevaluated',
+    actionState: 'UNRESOLVED_FAIL_CLOSED',
+    validationActionState: 'UNRESOLVED_FAIL_CLOSED',
+  },
+  {
+    name: 'exemption claimed without proof authority',
+    client: { applicabilityRows: defaultApplicabilityRows('urn:usf:validationapplicabilitystate:notrequired'), validationObligationRows: [] },
+    gap: 'validation-exemption-unwarranted',
+    actionState: 'BLOCK',
+    validationActionState: 'UNRESOLVED_FAIL_CLOSED',
+  },
+  {
+    name: 'exemption cited against an unsuccessful proof result',
+    client: {
+      applicabilityRows: defaultApplicabilityRows('urn:usf:validationapplicabilitystate:notrequired', {
+        authority: binding('urn:usf:proofresult:other'),
+        authorityState: binding('urn:usf:proofresultstate:failed'),
+      }),
+      validationObligationRows: [],
+    },
+    gap: 'validation-exemption-unwarranted',
+    actionState: 'BLOCK',
+    validationActionState: 'UNRESOLVED_FAIL_CLOSED',
+  },
+  {
+    name: 'obligation with no activation state',
+    client: { validationObligationRows: [{ id: binding(validationObligation) }] },
+    gap: 'validation-obligation-activation-unresolved',
+    actionState: 'UNRESOLVED_FAIL_CLOSED',
+    validationActionState: 'UNRESOLVED_FAIL_CLOSED',
+  },
+  {
+    name: 'obligation with an unknown activation state',
+    client: { validationObligationRows: defaultValidationObligationRows('urn:usf:validationactivationstate:invented') },
+    gap: 'validation-obligation-activation-unresolved',
+    actionState: 'UNRESOLVED_FAIL_CLOSED',
+    validationActionState: 'UNRESOLVED_FAIL_CLOSED',
+  },
+  {
+    name: 'blocked obligation',
+    client: { validationObligationRows: defaultValidationObligationRows('urn:usf:validationactivationstate:blocked') },
+    gap: 'validation-obligation-blocked',
+    actionState: 'BLOCK',
+    validationActionState: 'BLOCK',
+  },
+  {
+    name: 'required applicability binding no obligation',
+    client: { validationObligationRows: [] },
+    gap: null,
+    actionState: 'PROCEED',
+    validationActionState: 'UNRESOLVED_FAIL_CLOSED',
+  },
+  {
+    name: 'satisfying result bound to a different obligation',
+    client: {
+      validationObligationRows: [{
+        ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+        ...satisfyingResultRow({ boundObligation: 'urn:usf:validationobligation:sibling' }),
+      }],
+    },
+    gap: 'validation-satisfaction-not-current',
+    actionState: 'BLOCK',
+    validationActionState: 'PROCEED',
+  },
+  {
+    name: 'satisfying result bound to a superseded authority digest',
+    client: {
+      validationObligationRows: [{
+        ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+        ...satisfyingResultRow({ boundAuthority: `sha256:${'0'.repeat(64)}` }),
+      }],
+    },
+    gap: 'validation-satisfaction-not-current',
+    actionState: 'BLOCK',
+    validationActionState: 'PROCEED',
+  },
+  {
+    name: 'satisfying result with no bound authority digest',
+    client: {
+      validationObligationRows: [{
+        ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+        ...satisfyingResultRow({ boundAuthority: null }),
+      }],
+    },
+    gap: 'validation-satisfaction-not-current',
+    actionState: 'BLOCK',
+    validationActionState: 'PROCEED',
+  },
+  {
+    name: 'satisfying result with no bound source head',
+    client: {
+      validationObligationRows: [{
+        ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+        ...satisfyingResultRow({ boundHead: null }),
+      }],
+    },
+    gap: 'validation-satisfaction-not-current',
+    actionState: 'BLOCK',
+    validationActionState: 'PROCEED',
+  },
+  {
+    name: 'satisfying result that did not pass',
+    client: {
+      validationObligationRows: [{
+        ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+        ...satisfyingResultRow({ resultState: 'urn:usf:resultstate:failed' }),
+      }],
+    },
+    gap: 'validation-satisfaction-not-current',
+    actionState: 'BLOCK',
+    validationActionState: 'PROCEED',
+  },
+  {
+    name: 'satisfying result carrying an invalidation condition',
+    client: {
+      validationObligationRows: [{
+        ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+        ...satisfyingResultRow({ invalidation: binding('urn:usf:validationinvalidationcondition:evidencestale') }),
+      }],
+    },
+    gap: 'validation-satisfaction-not-current',
+    actionState: 'BLOCK',
+    validationActionState: 'PROCEED',
+  },
+  {
+    name: 'satisfying result already superseded',
+    client: {
+      validationObligationRows: [{
+        ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+        ...satisfyingResultRow({ superseded: binding('urn:usf:validationresult:successor') }),
+      }],
+    },
+    gap: 'validation-satisfaction-not-current',
+    actionState: 'BLOCK',
+    validationActionState: 'PROCEED',
+  },
+];
+
+test('adversarial validation states never authorise action and never report satisfaction', async () => {
+  for (const item of adversarialCases) {
+    const client = fakeClient(item.client);
+    const packet = await projectContract({ client }, { contract });
+    assert.equal(packet.validationSatisfied, false, item.name);
+    assert.equal(packet.actionState, item.actionState, item.name);
+    assert.equal(packet.validationActionState, item.validationActionState, item.name);
+    if (item.actionState !== 'PROCEED') assert.deepEqual(packet.authorisedActions, [], item.name);
+    const plan = await planWork({ client }, { contract });
+    assert.equal(plan.validationSatisfied, false, item.name);
+    assert.equal(plan.completionClaim, false, item.name);
+    if (item.gap === null) {
+      assert.equal(plan.gapCount, 0, item.name);
+    } else {
+      assert.ok(plan.gaps.some((gap) => gap.type === item.gap), `${item.name}: expected gap ${item.gap}`);
+      assert.notEqual(plan.actionState, 'PROCEED', item.name);
     }
-    return originalSelect(query);
-  };
-  const result = await planWork({ client }, { contract, offset: 50 });
-  assert.equal(result.gaps.length, 50);
-  assert.equal(result.truncated, true);
-  assert.equal(result.offset, 50);
-  assert.equal(result.nextOffset, 100);
-  assert.match(workQuery, /LIMIT 51 OFFSET 50/);
-});
-
-test('work planning projects active or unclassified validation obligations but excludes explicit non-active lifecycle states', async () => {
-  const queries = [];
-  const client = fakeClient();
-  const originalSelect = client.select;
-  client.select = async (query) => {
-    if (query.includes('SELECT ?gap ?subject')) {
-      queries.push(query);
-      return [];
-    }
-    return originalSelect(query);
-  };
-
-  await planWork({ client }, { contract });
-  assert.equal(queries.length, 1);
-  const query = queries[0];
-  assert.match(query, /FILTER NOT EXISTS \{\s*\?subject <urn:usf:ontology:semanticLifecycleState> \?validationLifecycle/);
-  assert.match(query, /FILTER \(\?validationLifecycle != <urn:usf:semanticlifecyclestate:active>\)/);
-
-  // The query is fail-closed for every explicitly non-active state while retaining
-  // legacy unclassified obligations and later explicit activation.
-  const projected = (state) => state == null || state === 'urn:usf:semanticlifecyclestate:active';
-  assert.equal(projected(null), true);
-  assert.equal(projected('urn:usf:semanticlifecyclestate:active'), true);
-  for (const state of ['deferred', 'draft', 'planned', 'proposed', 'deprecated', 'replaced', 'retired']) {
-    assert.equal(projected(`urn:usf:semanticlifecyclestate:${state}`), false);
   }
+});
+
+test('work planning refuses a contract declaring more than one applicability state', async () => {
+  const client = fakeClient({
+    applicabilityRows: [
+      ...defaultApplicabilityRows('urn:usf:validationapplicabilitystate:required'),
+      ...defaultApplicabilityRows('urn:usf:validationapplicabilitystate:notrequired'),
+    ],
+  });
+  await assert.rejects(() => planWork({ client }, { contract }), /more than one validation applicability state/);
+});
+
+test('every work-plan gap code declares a factory disposition and none of them is PROCEED', () => {
+  const codes = Object.keys(GAP_DISPOSITIONS);
+  assert.ok(codes.length > 0);
+  for (const code of codes) {
+    assert.ok(['BLOCK', 'RESERVED_NO_ACTION', 'UNRESOLVED_FAIL_CLOSED'].includes(GAP_DISPOSITIONS[code]), code);
+  }
+});
+
+test('work-plan pagination reports the whole disposition census, so a page cannot hide a blocked state', async () => {
+  const proofGapRows = Array.from({ length: 60 }, (_, index) => ({ subject: binding(`urn:usf:proofobligation:p${index}`) }));
+  const client = fakeClient({
+    proofGapRows,
+    validationObligationRows: defaultValidationObligationRows('urn:usf:validationactivationstate:blocked'),
+  });
+  const first = await planWork({ client }, { contract });
+  assert.equal(first.gapCount, 61);
+  assert.equal(first.gaps.length, 50);
+  assert.equal(first.truncated, true);
+  assert.equal(first.nextOffset, 50);
+  assert.equal(first.dispositionCounts.BLOCK, 61);
+  assert.equal(first.actionState, 'BLOCK');
+
+  const second = await planWork({ client }, { contract, offset: 50 });
+  assert.equal(second.gaps.length, 11);
+  assert.equal(second.truncated, false);
+  assert.equal(second.nextOffset, null);
+  // The census and the state are identical on every page: pagination cannot
+  // turn a blocked contract into an empty, apparently clean plan.
+  assert.deepEqual(second.dispositionCounts, first.dispositionCounts);
+  assert.equal(second.actionState, 'BLOCK');
+  assert.equal(second.gapCount, 61);
+});
+
+test('work planning fails closed when live authority changes while the plan is built', async () => {
+  const client = fakeClient();
+  let calls = 0;
+  const construct = client.construct;
+  client.construct = async (...args) => {
+    calls += 1;
+    return calls > 1 ? '<urn:s> <urn:p> "drifted" .\n' : construct(...args);
+  };
+  await assert.rejects(() => planWork({ client }, { contract }), /live authority changed/);
 });
 
 test("proof-blocked contract projection is available but grants no materialisation authority", async () => {

@@ -752,6 +752,12 @@ rr:failedtest a usf:ReadinessReason;
     usf:canonicalName "failedtest".
 rr:unsignedevidence a usf:ReadinessReason;
     usf:canonicalName "unsignedevidence".
+rr:validationunsatisfied a usf:ReadinessReason;
+    usf:canonicalName "validationunsatisfied".
+rr:validationblocked a usf:ReadinessReason;
+    usf:canonicalName "validationblocked".
+rr:validationapplicabilityunresolved a usf:ReadinessReason;
+    usf:canonicalName "validationapplicabilityunresolved".
 <urn:usf:semanticlifecyclestate:proposed> a usf:SemanticLifecycleState;
     usf:canonicalName "proposed".
 <urn:usf:semanticlifecyclestate:planned> a usf:SemanticLifecycleState;
@@ -1328,3 +1334,14 @@ permutation:notapplicablewithprovenconstraint a usf:PermutationDisposition;
 <urn:usf:validationinvalidationcondition:evidencestale> a usf:ValidationInvalidationCondition; usf:canonicalName "evidencestale".
 <urn:usf:validationinvalidationcondition:validationcontractchanged> a usf:ValidationInvalidationCondition; usf:canonicalName "validationcontractchanged".
 <urn:usf:validationinvalidationcondition:resultsuperseded> a usf:ValidationInvalidationCondition; usf:canonicalName "resultsuperseded".
+
+# Validation applicability states. Exactly one is current per governed
+# contract. The set is closed: a consumer that cannot match one of these five
+# has no applicability answer and must fail closed. "unresolved" is the
+# explicit state for a contract whose applicability the existing model cannot
+# justify — it is not a synonym for notRequired, satisfied or complete.
+<urn:usf:validationapplicabilitystate:required> a usf:ValidationApplicabilityState; usf:canonicalName "required".
+<urn:usf:validationapplicabilitystate:notrequired> a usf:ValidationApplicabilityState; usf:canonicalName "notrequired".
+<urn:usf:validationapplicabilitystate:conditional> a usf:ValidationApplicabilityState; usf:canonicalName "conditional".
+<urn:usf:validationapplicabilitystate:reserved> a usf:ValidationApplicabilityState; usf:canonicalName "reserved".
+<urn:usf:validationapplicabilitystate:unresolved> a usf:ValidationApplicabilityState; usf:canonicalName "unresolved".

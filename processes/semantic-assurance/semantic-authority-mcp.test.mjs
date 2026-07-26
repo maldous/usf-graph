@@ -156,7 +156,7 @@ test('bootstrap contract packet assembles the traceability chain', async () => {
     construct: async () => '<urn:s> <urn:p> "first" .\n',
     select: async (q) => {
       if (q.includes('SELECT DISTINCT ?g')) return [{ g: { value: 'urn:g' } }];
-      if (q.includes('SELECT ?c ?cn')) return [{ c: { value: 'urn:usf:contract:x' }, cn: { value: 'x' }, state: { value: 'urn:usf:contractactivationstate:active' } }];
+      if (q.includes('SELECT ?c ?cn')) return [{ c: { value: 'urn:usf:contract:x' }, cn: { value: 'x' }, state: { value: 'urn:usf:contractactivationstate:active' }, applicability: { value: 'urn:usf:validationapplicabilitystate:required' } }];
       if (q.includes('?relation ?id')) return [
         { relation: { value: 'urn:usf:ontology:asserts' }, id: { value: 'urn:usf:claim:c1' }, canonicalName: { value: 'c1' } },
         { relation: { value: 'urn:usf:ontology:disclaims' }, id: { value: 'urn:usf:nonclaim:n1' }, canonicalName: { value: 'n1' } },
@@ -168,7 +168,7 @@ test('bootstrap contract packet assembles the traceability chain', async () => {
       if (q.includes('a <urn:usf:ontology:ProofResult>')) return [{ id: { value: 'urn:usf:proofresult:p1' }, state: { value: 'urn:usf:proofresultstate:successful' }, evidenceSetDigest: { value: 'sha256:e1' } }];
       if (q.includes('a <urn:usf:ontology:Realisation>')) return [{ id: { value: 'urn:usf:realisation:r1' }, state: { value: 'urn:usf:realisationstate:implementable' }, decision: { value: 'urn:usf:decision:d1' }, path: { value: 'census/local-semantic-validation' } }];
       if (q.includes('authorisedByDecision')) return [{ id: { value: 'urn:usf:decision:d1' }, state: { value: 'urn:usf:decisionstate:accepted' }, path: { value: 'census/local-semantic-validation' }, type: { value: 'urn:usf:ontology:Implementation' } }];
-      if (q.includes('a <urn:usf:ontology:ValidationObligation>')) return [{ id: { value: 'urn:usf:validationobligation:v1' } }];
+      if (q.includes('a <urn:usf:ontology:ValidationObligation>')) return [{ id: { value: 'urn:usf:validationobligation:v1' }, activation: { value: 'urn:usf:validationactivationstate:reserved' } }];
       if (q.includes('a <urn:usf:ontology:ValidationExecution>')) return [];
       if (q.includes('a <urn:usf:ontology:ValidationResult>')) return [{
         id: { value: 'urn:usf:validationresult:v1' },
@@ -199,10 +199,109 @@ test('bootstrap contract packet assembles the traceability chain', async () => {
   assert.equal(packet.evidenceResults[0].admissionState, 'admitted');
   assert.equal(packet.proofResults[0].evidenceSetDigest, 'sha256:e1');
   assert.equal(packet.validationObligations[0].id, 'urn:usf:validationobligation:v1');
-  assert.equal(packet.validationResults[0].current, true);
+  assert.equal(packet.validationObligations[0].activationState, 'reserved');
+  // The evidence-admission chain holds, and it is still reported — but it is not
+  // satisfaction. This result names no obligation through
+  // resultForValidationObligation and binds no authority or source head, so it
+  // is a historical observation, not a current conclusion.
+  assert.equal(packet.validationResults[0].evidenceAdmitted, true);
+  assert.equal(packet.validationResults[0].current, false);
+  assert.equal(packet.validationApplicability, 'urn:usf:validationapplicabilitystate:required');
+  assert.equal(packet.gapEvaluation, 'evaluated');
+  assert.equal(packet.completionClaim, false);
+  assert.deepEqual(packet.openGaps.map((gap) => gap.code).sort(), [
+    'current-validation-result-unavailable',
+    'validation-obligation-reserved',
+  ]);
   assert.equal(packet.bounds.maximumTraversalDepth, MAX_BOOTSTRAP_DEPTH);
   assert.ok(packet.serializedBytes <= MAX_BOOTSTRAP_BYTES);
   assert.ok(packet.bindingCount <= MAX_BOOTSTRAP_BINDINGS);
+});
+
+// One helper, three bootstrap boundaries: identity, orientation-mode silence and
+// gap survival under the byte bound.
+function bootstrapClient({ core, validationResult, claimCount = 1 } = {}) {
+  return {
+    size: async () => 3,
+    construct: async () => '<urn:s> <urn:p> "first" .\n',
+    select: async (q) => {
+      if (q.includes('SELECT DISTINCT ?g')) return [{ g: { value: 'urn:g' } }];
+      if (q.includes('SELECT ?c ?cn')) return core ?? [{ c: { value: 'urn:usf:contract:x' }, cn: { value: 'x' }, state: { value: 'urn:usf:contractactivationstate:active' }, applicability: { value: 'urn:usf:validationapplicabilitystate:required' } }];
+      if (q.includes('?relation ?id')) return Array.from({ length: claimCount }, (_, index) => ({ relation: { value: 'urn:usf:ontology:asserts' }, id: { value: `urn:usf:claim:c${index}` }, canonicalName: { value: `c${index}`.padEnd(120, 'x') } }));
+      if (q.includes('a <urn:usf:ontology:ValidationObligation>')) return [{ id: { value: 'urn:usf:validationobligation:v1' }, activation: { value: 'urn:usf:validationactivationstate:activated' } }];
+      if (q.includes('a <urn:usf:ontology:ValidationResult>')) return validationResult ?? [];
+      if (q.includes('?id ?canonicalName WHERE') || q.includes('SELECT ?id ?canonicalName')) return [];
+      return [];
+    },
+  };
+}
+
+test('bootstrap refuses an ambiguous contract reference instead of describing the first match', async () => {
+  const client = bootstrapClient({
+    core: [
+      { c: { value: 'urn:usf:contract:x' }, cn: { value: 'x' } },
+      { c: { value: 'urn:usf:contract:xduplicate' }, cn: { value: 'x' } },
+    ],
+  });
+  await assert.rejects(
+    () => bootstrapPacket({ client, config: { database: 'USF' } }, { contract: 'x' }),
+    /exactly one semantic contract/,
+  );
+});
+
+test('bootstrap orientation mode marks its empty arrays as unevaluated rather than clean', async () => {
+  const client = bootstrapClient();
+  const packet = await bootstrapPacket({ client, config: { database: 'USF' } }, { task: 'orientation' });
+  assert.equal(packet.gapEvaluation, 'not-evaluated-contract-scope-required');
+  assert.equal(packet.actionState, 'UNRESOLVED_FAIL_CLOSED');
+  assert.equal(packet.completionClaim, false);
+  assert.deepEqual(packet.openGaps, []);
+});
+
+test('bootstrap keeps every open gap when the byte bound truncates the packet', async () => {
+  // Enough padded claims to exhaust the 8 KiB bound many times over. The gaps
+  // must still be complete: they lead the fill order and the bound is enforced
+  // against the full gap set.
+  const client = bootstrapClient({ claimCount: 200 });
+  const packet = await bootstrapPacket({ client, config: { database: 'USF' } }, { contract: 'x' });
+  assert.equal(packet.truncated, true);
+  assert.ok(packet.serializedBytes <= MAX_BOOTSTRAP_BYTES);
+  assert.deepEqual(packet.openGaps.map((gap) => gap.code).sort(), [
+    'current-validation-result-unavailable',
+    'evidence-unavailable',
+    'proof-result-unavailable',
+    'realisation-not-implementable',
+  ]);
+});
+
+test('bootstrap reports a validation result current only when it is identity-bound and authority-bound', async () => {
+  const bound = {
+    id: { value: 'urn:usf:validationresult:v1' },
+    execution: { value: 'urn:usf:validationexecution:v1' },
+    obligation: { value: 'urn:usf:validationobligation:v1' },
+    state: { value: 'urn:usf:resultstate:passed' },
+    boundObligation: { value: 'urn:usf:validationobligation:v1' },
+    boundAuthority: { value: 'sha256:abc' },
+    boundHead: { value: 'a'.repeat(40) },
+  };
+  const current = await bootstrapPacket({ client: bootstrapClient({ validationResult: [bound] }), config: { database: 'USF' } }, { contract: 'x' });
+  assert.equal(current.validationResults[0].current, true);
+  assert.ok(!current.openGaps.some((gap) => gap.code === 'current-validation-result-unavailable'));
+
+  for (const [label, mutation] of [
+    ['bound to a sibling obligation', { boundObligation: { value: 'urn:usf:validationobligation:sibling' } }],
+    ['no bound authority digest', { boundAuthority: undefined }],
+    ['no bound source head', { boundHead: undefined }],
+    ['carrying an invalidation condition', { invalidation: { value: 'urn:usf:validationinvalidationcondition:evidencestale' } }],
+    ['already superseded', { superseded: { value: 'urn:usf:validationresult:successor' } }],
+    ['not passing', { state: { value: 'urn:usf:resultstate:failed' } }],
+  ]) {
+    const row = { ...bound, ...mutation };
+    for (const key of Object.keys(mutation)) if (mutation[key] === undefined) delete row[key];
+    const packet = await bootstrapPacket({ client: bootstrapClient({ validationResult: [row] }), config: { database: 'USF' } }, { contract: 'x' });
+    assert.equal(packet.validationResults[0].current, false, label);
+    assert.ok(packet.openGaps.some((gap) => gap.code === 'current-validation-result-unavailable'), label);
+  }
 });
 
 test('bootstrap continuation is deterministic and invalidates after digest change', async () => {

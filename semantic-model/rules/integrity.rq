@@ -865,5 +865,72 @@ SELECT DISTINCT ?violation ?subject WHERE {
     GRAPH <urn:usf:graph:capabilities> { ?subject a usf:SemanticContract }
     FILTER NOT EXISTS { ?anyRealisation usf:realisesContract ?subject }
     BIND("contractwithoutrealisation" AS ?violation)
+  } UNION {
+    # a governed contract with no explicit validation applicability. Silence is
+    # not notRequired: without a declared state the factory has no answer and
+    # must fail closed, so the missing statement is itself the violation.
+    # Governance is marked by an activation state, a mandatory proof obligation,
+    # a required validation or a declared facet. usf:SemanticContract alone would
+    # also select the descriptive subclasses (ArtefactPlan, ViewModel and the
+    # rest), which carry no lifecycle and owe no applicability answer.
+    ?subject a usf:SemanticContract .
+    { ?subject usf:hasActivationState ?governedMark } UNION
+    { ?subject usf:mandatoryProofObligation ?governedMark } UNION
+    { ?subject usf:requiredValidation ?governedMark } UNION
+    { ?subject usf:declaresFacet ?governedMark }
+    FILTER NOT EXISTS { ?subject usf:hasValidationApplicability ?applicability }
+    BIND("contractvalidationapplicabilityundeclared" AS ?violation)
+  } UNION {
+    # a ValidationObligation whose contract does not admit validation into
+    # scope. The obligation would exist while the contract denied or deferred
+    # it, and each projection could pick whichever side suited it.
+    ?subject a usf:ValidationObligation ; usf:validationForContract ?validationContract .
+    FILTER NOT EXISTS {
+      ?validationContract usf:hasValidationApplicability ?scopedState .
+      FILTER(?scopedState IN (<urn:usf:validationapplicabilitystate:required>,
+                              <urn:usf:validationapplicabilitystate:reserved>,
+                              <urn:usf:validationapplicabilitystate:conditional>))
+    }
+    BIND("validationobligationoutsidecontractapplicability" AS ?violation)
+  } UNION {
+    # a satisfaction claim that is not identity-bound and current. Every
+    # conjunct is a way a passing result from elsewhere, or from an earlier
+    # authority or source state, could have been read as satisfying this
+    # obligation.
+    ?subject a usf:ValidationObligation ; usf:satisfiedByValidationResult ?claimedResult .
+    FILTER(
+      NOT EXISTS { ?claimedResult usf:resultForValidationObligation ?subject } ||
+      NOT EXISTS { ?claimedResult usf:resultState <urn:usf:resultstate:passed> } ||
+      NOT EXISTS { ?claimedResult usf:usesAdmittedValidationEvidence ?claimedEvidence } ||
+      NOT EXISTS { ?claimedResult usf:validationEvaluatedAuthorityDigest ?claimedAuthority } ||
+      NOT EXISTS { ?claimedResult usf:validationEvaluatedSourceHead ?claimedHead } ||
+      EXISTS { ?claimedResult usf:hasValidationInvalidationCondition ?claimedInvalidation } ||
+      EXISTS { ?claimedResult usf:supersededByValidationResult ?claimedSuccessor }
+    )
+    BIND("validationsatisfactionwithoutcurrentidentitybinding" AS ?violation)
+  } UNION {
+    # a reserved or blocked obligation carrying a satisfaction claim. Reservation
+    # is not a weaker form of satisfied; it withholds the conclusion entirely.
+    ?subject a usf:ValidationObligation ; usf:hasValidationActivationState ?reservedState ;
+      usf:satisfiedByValidationResult ?reservedClaim .
+    FILTER(?reservedState IN (<urn:usf:validationactivationstate:reserved>,
+                              <urn:usf:validationactivationstate:blocked>))
+    BIND("reservedvalidationobligationsatisfied" AS ?violation)
+  } UNION {
+    # two freshness axes on one subject that do not agree. usf:hasFreshness
+    # governs readiness staleness and usf:hasFreshnessState governs evidence
+    # admission; a divergence lets evidence count as fresh in one projection
+    # while being stale in the other.
+    ?subject usf:hasFreshness ?legacyFreshness ; usf:hasFreshnessState ?lifecycleFreshness .
+    FILTER(
+      NOT EXISTS { ?legacyFreshness usf:canonicalName ?legacyFreshnessName } ||
+      NOT EXISTS { ?lifecycleFreshness usf:canonicalName ?lifecycleFreshnessName } ||
+      EXISTS {
+        ?legacyFreshness usf:canonicalName ?comparedLegacyName .
+        ?lifecycleFreshness usf:canonicalName ?comparedLifecycleName .
+        FILTER(?comparedLegacyName != ?comparedLifecycleName)
+      }
+    )
+    BIND("evidencefreshnessaxisdivergence" AS ?violation)
   }
 }

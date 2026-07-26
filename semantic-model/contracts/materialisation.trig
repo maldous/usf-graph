@@ -15,6 +15,7 @@
 @prefix actor: <urn:usf:materialisationactor:>.
 @prefix facet: <urn:usf:facetkind:>.
 @prefix cf: <urn:usf:contractfacet:>.
+@prefix vas: <urn:usf:validationapplicabilitystate:>.
 
 <urn:usf:graph:materialisation> {
 <urn:usf:capability:repositoryexternalartefactmaterialisation> a usf:Capability;
@@ -1536,5 +1537,15 @@ rule:validationschema a usf:MaterialisationRule;
     usf:canonicalName "semanticcontractdeterministicdevelopmentandtestsubstitutes";
     usf:ownedByRepository <urn:usf:repository:foundation>;
     usf:plansArtefact <urn:usf:artefact:semanticcontractdeterministicdevelopmentandtestsubstitutes>;
-    usf:plansSemanticResource <urn:usf:semanticcontract:deterministicdevelopmentandtestsubstitutes>
+    usf:plansSemanticResource <urn:usf:semanticcontract:deterministicdevelopmentandtestsubstitutes>.
+
+# --- Validation applicability (explicit; silence establishes nothing) -------
+# Every governed contract declares exactly one usf:ValidationApplicabilityState.
+# Before this, applicability was expressed only by the presence of
+# usf:requiredValidation, so its absence was silence that a consumer could read
+# as "validation is not required". "unresolved" is the deliberate migration
+# state for a contract whose applicability no current fact justifies: it fails
+# closed and must never be promoted without evidence.
+<urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> usf:hasValidationApplicability vas:required;
+    usf:validationApplicabilityReason "Validation is required: this contract binds an explicit ValidationObligation through usf:requiredValidation. Requiredness is the applicability decision only; the obligation's own usf:hasValidationActivationState governs whether validation is executable, and neither state ever implies the obligation is satisfied.".
 }
