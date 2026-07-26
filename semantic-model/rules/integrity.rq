@@ -932,7 +932,6 @@ SELECT DISTINCT ?violation ?subject WHERE {
       }
     )
     BIND("evidencefreshnessaxisdivergence" AS ?violation)
-  }
   } UNION {
     # an ArtefactPlan that does not resolve exactly one materialisation
     # destination. A plan naming a path and a generator but leaving the family,

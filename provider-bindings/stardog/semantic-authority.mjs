@@ -5,6 +5,8 @@ const TURTLE = 'text/turtle';
 const NQUADS = 'application/n-quads';
 const SPARQL_JSON = 'application/sparql-results+json';
 const GRAPH_IRI = /^[A-Za-z][A-Za-z0-9+.-]*:[^<>"{}\\\s]+$/;
+const ERROR_DETAIL_LIMIT = 4096;
+const SENSITIVE_FIELD = /(?:authorization|cookie|password|secret|token)/i;
 const stable = (value) => Array.isArray(value)
   ? value.map(stable)
   : value && typeof value === 'object'
@@ -14,16 +16,41 @@ const canonicalJson = (value) => JSON.stringify(stable(value));
 const sha256 = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
 
 export class StardogSemanticAuthorityError extends Error {
-  constructor(message, status) {
+  constructor(message, status, responseBody = null) {
     super(message);
     this.name = 'StardogSemanticAuthorityError';
     this.status = status;
+    this.responseBody = responseBody;
   }
+}
+
+function responseBodyDetail(body) {
+  if (body === undefined || body === null || body === '') return null;
+  let detail;
+  if (typeof body === 'string') {
+    detail = body;
+  } else {
+    try {
+      detail = JSON.stringify(body, (key, value) => SENSITIVE_FIELD.test(key) ? '[REDACTED]' : value);
+    } catch {
+      detail = '[unserializable response body]';
+    }
+  }
+  const redacted = detail
+    .replace(/((?:authorization|cookie|password|secret|token)\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;]+)/gi, '$1[REDACTED]')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!redacted) return null;
+  return redacted.length <= ERROR_DETAIL_LIMIT
+    ? redacted
+    : `${redacted.slice(0, ERROR_DETAIL_LIMIT)}…[truncated]`;
 }
 
 function successful(response, operation) {
   if (response?.ok) return response;
-  throw new StardogSemanticAuthorityError(`Stardog ${operation} failed (status ${response?.status})`, response?.status);
+  const detail = responseBodyDetail(response?.body);
+  const message = `Stardog ${operation} failed (status ${response?.status})${detail ? `: ${detail}` : ''}`;
+  throw new StardogSemanticAuthorityError(message, response?.status, detail);
 }
 
 function bindings(response) {
@@ -200,4 +227,4 @@ export function createStardogSemanticAuthorityClient({ sdk, configuration, resol
   });
 }
 
-export const stardogSemanticAuthorityInternals = Object.freeze({ bindings, reportConforms, successful });
+export const stardogSemanticAuthorityInternals = Object.freeze({ bindings, reportConforms, responseBodyDetail, successful });

@@ -4920,6 +4920,90 @@ usf:Feature a owl:Class;
     rdfs:comment "A contract-warranted capability of a candidate realisation; source code cannot establish it.".
 <urn:usf:termusagestate:usedbysemanticquery> a usf:TermUsageState;
     usf:canonicalName "usedbysemanticquery".
+# Proof-currentness vocabulary is consumed by the bounded resolver queries
+# before Stage 1 can publish ordinary instances. This disposition makes that
+# executable use explicit without claiming that the still-pending result and
+# authority-binding records already exist.
+usf:currentAlgorithmSourceDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:currentAlgorithmVersion usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:currentDependencyDigestAlgorithm usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:currentDependencySetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:currentImplementationSourceSetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:currentPackageLockDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:currentToolchainDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:dependencyDigestAlgorithm usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:dependencySetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:hasPostPublicationReevaluationState usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:implementationSourceSetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:packageLockDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:proofProducerCommit usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:proofProducerTree usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:reevaluationDependencySetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:reevaluationSettledAuthorityDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:requiresGraphSourceBinding usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:toolchainDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:reevaluationEvidenceDigest usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "post-publication-reevaluation";
+    usf:termUsageRationale "Reserved for the Stage 2 post-publication reevaluation record; no reevaluation evidence is claimed before that stage executes.".
+usf:reevaluatedAt usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "post-publication-reevaluation";
+    usf:termUsageRationale "Reserved for the Stage 2 post-publication reevaluation record; no completed reevaluation is claimed before that stage executes.".
 usf:applicableToObligation usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
     usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
     usf:termUsageLifecycleStage "evidence-proof-contract-enforcement";
