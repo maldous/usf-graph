@@ -379,6 +379,10 @@ art:openapicontract a usf:Artefact;
     usf:canonicalName "openapicontract";
     usf:artefactKind <urn:usf:artefactkind:contract>;
     usf:canonicalPath ".work/generated/contracts/openapi/openapi.json";
+    # The generated-projection family authorises both openapijson and
+    # jsondata8259 for ".json", so this artefact's format is declared rather
+    # than guessed from the suffix.
+    usf:artefactRepresentationFormat <urn:usf:representationformat:openapijson>;
     usf:governedByPathRule path:generatedprojection;
     usf:generatedByComponent generator:contractprojection.
 art:graphqlcontract a usf:Artefact;

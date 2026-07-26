@@ -3145,6 +3145,14 @@ usf:usesStorageClass a owl:ObjectProperty, owl:FunctionalProperty;
 usf:usesRepresentationFormat a owl:ObjectProperty;
     rdfs:domain usf:MaterialisationRule;
     rdfs:range usf:RepresentationFormat.
+# An artefact's exact representation, declared only where its family authorises
+# more than one format for the artefact's canonical extension. Resolution is
+# otherwise the intersection of the family's authorised formats and their own
+# declared canonicalExtension; a filename suffix alone never selects a format,
+# and an unresolved intersection fails closed.
+usf:artefactRepresentationFormat a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:Artefact;
+    rdfs:range usf:RepresentationFormat.
 usf:usesPathRole a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:MaterialisationRule;
     rdfs:range usf:PathRole.
