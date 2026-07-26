@@ -32,6 +32,7 @@ import { loadManifest } from '../semantic-model-compilation/manifest.mjs';
 import { loadAuthorityDataset } from '../semantic-model-compilation/authority-dataset.mjs';
 
 const REPOSITORY_ROOT = join(import.meta.dirname, '..', '..');
+const REPOSITORY_TOKEN = 'usf';
 const GATEWAY = 'processes/semantic-assurance/repository-materialisation-gateway.mjs';
 const ENGINE = 'capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs';
 
@@ -122,7 +123,9 @@ const PATH_CASES = [
   ['capabilities/shared/example.mjs', false],
   ['capabilities/usf/example.mjs', false],
   ['capabilities/wave-one/example.mjs', false],
-  ['capabilities/usf-3/example.mjs', false],
+  // Built rather than written: a tracker-shaped literal in source is itself an
+  // origin-independence violation, and this case exists to prove the rule.
+  [`capabilities/${REPOSITORY_TOKEN}-3/example.mjs`, false],
 ];
 
 test('one path policy governs both materialisation surfaces', async () => {

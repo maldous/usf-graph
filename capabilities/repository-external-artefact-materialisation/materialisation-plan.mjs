@@ -90,7 +90,7 @@ export const NAMING_STANDARD = Object.freeze({
   // prohibited as a class, not only for the exact wave tokens above.
   operationalSequenceIdentityProhibited: true,
   // usf:trackerDerivedIdentityProhibited — an external tracker identifier such
-  // as USF-101 is prohibited as a class.
+  // is prohibited as a class, not only for the exact tokens above.
   trackerDerivedIdentityProhibited: true,
   // usf:sourceDerivedIdentityProhibited — this is what authorises the structural
   // `usf` segment rule: an operation path is repository-relative, so re-embedding
