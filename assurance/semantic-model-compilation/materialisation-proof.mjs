@@ -489,8 +489,34 @@ record('accepted-layout-decision-count', 1, current.acceptedDecisionCount);
 record('accepted-layout-decision', decision, current.contract.decision);
 
 const livePacket = await projectContract(live, { contract, objective: 'Refresh current materialisation control-plane evidence after an implementation or authority dependency change.' });
-record('active-packet-authorises-actions', true, livePacket.authorisedActions.length > 0);
-record('active-packet-authorises-paths', true, livePacket.authorisedPaths.length > 0);
+// The live projection is read for its currentness conclusion, NOT for
+// authorisation. This proof run is what establishes the next currentness: at
+// production time the live algorithm still declares the superseded bindings and
+// the post-publication reevaluation for this run cannot exist yet, so the live
+// packet is legitimately not PROCEED. Asserting otherwise here would either
+// require the conclusion to be circular or force the proof to be run only when
+// its own outcome was already published.
+//
+// USF_EXPECTED_LIVE_CURRENTNESS names the stage the run is producing evidence
+// for, so the assertion is exact rather than permissive:
+//   UNRESOLVED_FAIL_CLOSED  producing Stage-1 records (no current bindings yet)
+//   CURRENT                 re-running against a settled Stage-2 authority
+const expectedLiveCurrentness = process.env.USF_EXPECTED_LIVE_CURRENTNESS || 'UNRESOLVED_FAIL_CLOSED';
+record('live-proof-currentness-state', expectedLiveCurrentness, livePacket.proofCurrentness.state, {
+  detail: { reasons: livePacket.proofCurrentness.reasons },
+});
+record('live-packet-authorisation-matches-currentness',
+  expectedLiveCurrentness === 'CURRENT',
+  livePacket.authorisedActions.length > 0 && livePacket.authorisedPaths.length > 0);
+// A non-current live projection must grant nothing at all, not merely fewer
+// actions: this is the property that stops a stale proof authorising apply.
+record('non-current-live-packet-grants-nothing',
+  expectedLiveCurrentness !== 'CURRENT',
+  livePacket.authorisedActions.length === 0 && livePacket.authorisedPaths.length === 0 && livePacket.authorisedFormats.length === 0,
+  { negative: expectedLiveCurrentness !== 'CURRENT' });
+record('live-projection-reports-currentness-reasons', true,
+  Array.isArray(livePacket.proofCurrentness.reasons)
+  && (expectedLiveCurrentness === 'CURRENT') === (livePacket.proofCurrentness.reasons.length === 0));
 
 failureContext.phase = 'LOCAL_AUTHORITY_DATASET';
 const manifest = loadManifest(semanticModelDirectory);
