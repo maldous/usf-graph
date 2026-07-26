@@ -238,12 +238,42 @@ function write(root, relativePath, content, reuseRoot = null) {
   return { path: relativePath, bytes: Buffer.byteLength(content), sha256: digest, reused: false };
 }
 
-export function generateAuthority({ store, outputDir, mode = 'full', signingKeyPath }) {
+// The witness a generated projection is bound to. Historically the generator
+// stamped its own sorted-quad digest of the loaded store, which is a different
+// algorithm from the published authority witness
+// (sha256-rdfc10-graph-inventory-v2). A projection carrying a digest that no
+// published authority state ever had cannot be traced back to the authority it
+// claims to project, so a caller that has read the live witness passes it here and
+// every artefact binds to that exact value instead.
+//
+// The override must be an exact `sha256:<64 hex>` or bare 64-hex witness, and the
+// caller is responsible for having verified source/live parity first: binding a
+// live digest to a source tree that has drifted would assert a projection of a
+// state that was never generated. Absent an override the local sorted-quad digest
+// is retained so the generator stays runnable with no live authority at all.
+const SHA256_WITNESS = /^(?:sha256:)?([0-9a-f]{64})$/;
+
+export function resolveProvenanceDigest(store, authorityWitnessDigest) {
+  if (authorityWitnessDigest === undefined || authorityWitnessDigest === null) {
+    return { digest: authorityDigest(store), algorithm: 'sha256-sorted-quads-local', bound: false };
+  }
+  const match = SHA256_WITNESS.exec(String(authorityWitnessDigest));
+  if (!match) {
+    throw new CompilerError('authority witness digest must be sha256:<64 lowercase hex>', {
+      phase: 'generate:authority-witness',
+      observed: String(authorityWitnessDigest),
+    });
+  }
+  return { digest: match[1], algorithm: 'sha256-rdfc10-graph-inventory-v2', bound: true };
+}
+
+export function generateAuthority({ store, outputDir, mode = 'full', signingKeyPath, authorityWitnessDigest }) {
   if (!['full', 'incremental'].includes(mode)) throw new CompilerError(`unsupported generation mode: ${mode}`, { phase: 'generate:configuration' });
   const target = resolve(outputDir);
   if (mode === 'full' && existsSync(target)) throw new CompilerError('full generation requires an absent output directory', { phase: 'generate:clean-room', outputDir: target });
   const plan = requireCompleteGenerationPlan(store);
-  const sourceDigest = authorityDigest(store);
+  const provenance = resolveProvenanceDigest(store, authorityWitnessDigest);
+  const sourceDigest = provenance.digest;
   mkdirSync(dirname(target), { recursive: true });
   const old = mode === 'incremental' && existsSync(target) ? verifyOutput(target, false) : null;
   // Reuse is per-file byte identity, so a prior tree is reusable even when it
@@ -294,6 +324,8 @@ export function generateAuthority({ store, outputDir, mode = 'full', signingKeyP
       return {
         ok: true,
         mode,
+        authorityDigestAlgorithm: provenance.algorithm,
+        authorityWitnessBound: provenance.bound,
         outputDir: target,
         authorityDigest: sourceDigest,
         releaseIntegrity: 'absent-no-authorised-signing-key',

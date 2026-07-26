@@ -64,11 +64,17 @@ export function runArtefactGenerationCommand(command) {
   if (command === 'generate') {
     const outputDir = optional('output');
     if (!outputDir) throw new Error('generate requires --output <directory>');
+    // --authority-witness-digest binds every projection to the published
+    // inventory-v2 witness instead of the generator's local sorted-quad digest.
+    // The caller must have verified source/live parity first (npm run
+    // authority:drift): binding a live witness to a drifted source tree would
+    // assert a projection of a state that was never generated.
     const result = generateAuthority({
       store: dataset.store,
       outputDir,
       mode: optional('mode') ?? 'full',
       signingKeyPath: optional('signing-key'),
+      authorityWitnessDigest: optional('authority-witness-digest') ?? undefined,
     });
     return { command, ...result, files: undefined, fileCount: result.files?.length ?? result.outputCount };
   }

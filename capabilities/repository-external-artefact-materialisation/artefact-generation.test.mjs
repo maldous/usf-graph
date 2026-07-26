@@ -9,7 +9,7 @@ import { DataFactory, Parser } from 'n3';
 import { loadManifest } from '../semantic-model-compilation/manifest.mjs';
 import { loadAuthorityDataset } from './authority-dataset.mjs';
 import { buildGenerationPlan } from './artefact-generation-plan.mjs';
-import { generateAuthority } from './artefact-generation.mjs';
+import { generateAuthority, resolveProvenanceDigest } from './artefact-generation.mjs';
 import { GENERATED_OUTPUT_ROOT } from './generated-output-validation/index.mjs';
 
 const REPOSITORY_ROOT = join(import.meta.dirname, '..', '..');
@@ -142,6 +142,55 @@ test('a changed semantic input invalidates only the authority-bound artefacts', 
     assert.ok(second.changed > 0, 'authority-bound artefacts must regenerate');
     assert.ok(second.reused > 0, 'authority-independent artefacts must still be reused');
     assert.equal(second.reused + second.changed, second.outputCount);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test('generated provenance binds the live inventory-v2 witness when one is supplied', () => {
+  // A projection stamped with the generator's own sorted-quad digest cannot be
+  // traced back to any published authority state. When the caller has read the
+  // live witness, every artefact must carry that exact value instead.
+  const witness = 'sha256:0c7e17a9bbec19a321d5718887de3e4bbac109360ee944c596b84dfd82a359a2';
+  const bare = witness.slice('sha256:'.length);
+  const local = resolveProvenanceDigest(shared.store, undefined);
+  assert.equal(local.bound, false);
+  assert.equal(local.algorithm, 'sha256-sorted-quads-local');
+  assert.match(local.digest, /^[0-9a-f]{64}$/);
+
+  for (const supplied of [witness, bare]) {
+    const bound = resolveProvenanceDigest(shared.store, supplied);
+    assert.equal(bound.bound, true);
+    assert.equal(bound.algorithm, 'sha256-rdfc10-graph-inventory-v2');
+    assert.equal(bound.digest, bare, 'the bare 64-hex witness is what projections carry');
+  }
+  assert.notEqual(local.digest, bare, 'the local algorithm must not coincide with the live witness');
+
+  for (const invalid of ['', 'sha256:zz', 'not-a-digest', `sha256:${'a'.repeat(63)}`, 'SHA256:' + bare.toUpperCase()]) {
+    assert.throws(
+      () => resolveProvenanceDigest(shared.store, invalid),
+      /authority witness digest must be sha256/,
+      `accepted an invalid witness: ${invalid}`,
+    );
+  }
+
+  const workspace = mkdtempSync(join(tmpdir(), 'usf-artefact-generation-witness-'));
+  try {
+    const result = generateAuthority({
+      store: shared.store,
+      outputDir: join(workspace, 'bound'),
+      mode: 'full',
+      signingKeyPath: null,
+      authorityWitnessDigest: witness,
+    });
+    assert.equal(result.authorityWitnessBound, true);
+    assert.equal(result.authorityDigestAlgorithm, 'sha256-rdfc10-graph-inventory-v2');
+    assert.equal(result.authorityDigest, bare);
+    // Every JSON projection embeds the bound witness, not the local digest.
+    const projection = JSON.parse(
+      readFileSync(join(workspace, 'bound', `${GENERATED_OUTPUT_ROOT}/semantic-authority/authority.json`), 'utf8'),
+    );
+    assert.equal(projection.authorityDigest, bare);
   } finally {
     rmSync(workspace, { recursive: true, force: true });
   }
