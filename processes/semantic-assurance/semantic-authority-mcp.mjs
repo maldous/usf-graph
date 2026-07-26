@@ -69,7 +69,7 @@ export function makeRedactor(config) {
 export const TOOLS = [
   {
     name: 'usf_health',
-    description: 'Stardog connectivity and authority size: endpoint, database, auth mode, total triple count. No arguments.',
+    description: 'Stardog liveness: endpoint, database, auth mode, and serverStatementStatistic. That statistic is an eventually consistent server statement count for liveness only; it is NOT the authoritative triple total and must never be used as a content witness or compared against an authority digest. Take the authoritative, inventory-derived total and digest from usf_bootstrap authority (totalSource=canonical-graph-inventory) or usf_layout_context. No arguments.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
@@ -145,7 +145,10 @@ export const TOOLS = [
 export async function callTool(name, args, ctx) {
   const { client, config } = ctx;
   if (name === 'usf_health') {
-    return { ...describeConfig(config), triples: await client.size(), ok: true };
+    // Liveness only. db.size is an eventually consistent server statistic, so it
+    // is named as one and the ambiguous `triples` field is gone: the content
+    // witness total comes from usf_bootstrap's inventory-derived authority block.
+    return { ...describeConfig(config), serverStatementStatistic: await client.size(), ok: true };
   }
   if (name === 'usf_query') {
     const sparql = args && args.sparql;

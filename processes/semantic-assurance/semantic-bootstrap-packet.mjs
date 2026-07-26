@@ -59,11 +59,14 @@ export function decodeContinuation(token) {
   }
 }
 
+// Total comes from the canonical inventory, not client.size(). db.size is
+// eventually consistent after a commit transaction, and the total is folded into
+// the digest body, so a transient count yielded a different digest over
+// byte-identical content. See WITNESS_TOTAL_SOURCE in the authority gateway.
+export const WITNESS_TOTAL_SOURCE = 'canonical-graph-inventory';
+
 export async function authorityWitness(client) {
-  const [triples, rows] = await Promise.all([
-    client.size(),
-    client.select('SELECT DISTINCT ?g WHERE { GRAPH ?g { ?s ?p ?o } } ORDER BY ?g'),
-  ]);
+  const rows = await client.select('SELECT DISTINCT ?g WHERE { GRAPH ?g { ?s ?p ?o } } ORDER BY ?g');
   const inventory = [];
   for (const row of rows) {
     const graph = val(row, 'g');
@@ -71,7 +74,9 @@ export async function authorityWitness(client) {
     const record = await canonicalGraphDigest(content);
     if (record.triples > 0) inventory.push({ graph, ...record });
   }
-  return { triples, inventory, digest: authorityDigest(inventory, triples) };
+  const triples = inventory.reduce((total, record) => total + record.triples, 0);
+  if (!Number.isSafeInteger(triples) || triples < 0) throw new Error('authority witness inventory total is invalid');
+  return { triples, inventory, digest: authorityDigest(inventory, triples), totalSource: WITNESS_TOTAL_SOURCE };
 }
 
 function measured(packet) {
@@ -150,6 +155,9 @@ export async function bootstrapPacket(ctx, { contract, task, continuation } = {}
     digestAlgorithm: DIGEST_ALGORITHM,
     coveredGraphCount: before.inventory.length,
     triples: before.triples,
+    // Names where the total came from, so a consumer can tell a content witness
+    // from a server statistic. Only the inventory-derived total is a witness.
+    totalSource: before.totalSource,
     verificationState: 'verified-stable-content-sensitive-rdfc10-witness',
   };
   if (!contract) {
