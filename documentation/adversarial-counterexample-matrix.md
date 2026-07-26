@@ -68,11 +68,45 @@ Positive counterparts, each asserted separately:
 | M10 | a lifecycle requirement misfiring on a descriptive `SemanticContract` subclass | governance-mark discriminator in both the shape and the rule | live: 0 of 128 descriptive instances demanded an answer; first attempt without it produced 256 violations |
 | M11 | readiness reaching `ready` past validation | three readiness terms inserted before the ready/degraded tail | live: 0 contracts `ready` or `degraded`; derived readiness byte-identical to the pre-change snapshot |
 
+## Publication witness and receipt (R5)
+
+| # | Adversarial state | Required outcome |
+|---|---|---|
+| W1 | server count reports 2, 110,537, 0, 999,999 and −1 across reads while graph content is byte-identical | one digest for all five; total is the inventory sum; the statistic is **never read** (asserted by call count) |
+| W2 | one graph's content changes | digest moves — the witness still tracks content |
+| W3 | any total other than the inventory sum folded into the digest | different digest — the exact mechanism that produced the superseded receipt value |
+| W4 | receipt carrying `postAuthorityDigest`, `postTriples` or top-level `evaluatedAuthorityDigest` | rejected as superseded fields that are not witnesses |
+| W5 | the full historical receipt shape | rejected on schema version before any field is read |
+| W6 | `receiptSchemaVersion` absent, `null`, `0`, `1`, `3`, `"2"` or `{}` | rejected — older and newer both fail closed |
+| W7 | receipt that is `undefined`, `null`, a string, a number or an array | rejected |
+| W8 | `totalSource` absent, `db.size`, `server-statement-statistic` or `connectivity` | rejected |
+| W9 | `authorityWitness` absent | rejected |
+| W10 | any phase absent, non-`sha256:` digest, negative graph count, fractional triple count, or a missing field | rejected per phase |
+| W11 | `settled.stable` absent, `false`, `"true"` or `null` | rejected |
+| W12 | settled digest differs from the post-publication digest | rejected as unstable rather than presenting either reading as authority |
+| W13 | `settledAuthorityDigest` called on a receipt with a superseded field or bad version | throws — the guard cannot be bypassed |
+
+## Reserved applicability axis (R6)
+
+Applicability-level `reserved` (is validation in scope?) and activation-level
+`reserved` (is the obligation executable?) are different axes with distinct gap
+codes on distinct subjects. Every RESERVED_NO_ACTION observed live comes from
+activation-level `reserved` on the three bound obligations; the applicability axis
+has zero live instances and is covered below **without authoring one**.
+
+| # | Case | Required outcome |
+|---|---|---|
+| V1 | applicability-level `reserved` with an activated obligation | `validationActionState=RESERVED_NO_ACTION`; gap `validation-applicability-reserved`, disposition RESERVED_NO_ACTION, subject is the **contract**; not satisfied; not PROCEED |
+| V2 | applicability-level vs activation-level `reserved`, obligation held constant | distinct codes on distinct subjects; the applicability axis adds exactly one conclusion and changes nothing else; neither reports satisfaction; neither withdraws realisation authority |
+| V3 | applicability-level `reserved` binding no obligation | still non-PROCEED; the conclusion is withheld rather than downgraded |
+| V4 | census of the authored model (the drift-verified source of live authority) | **zero** applicability-level reserved instances, the state still declared vocabulary, activation-level reserved ≥3 |
+
 ## Totals
 
-- Adversarial cases: **43** (20 projection + 12 bootstrap + 11 model/rule)
-- Unsafe states rejected or resolved to a non-PROCEED state: **43**
+- Adversarial cases: **60** (20 projection + 12 bootstrap + 11 model/rule + 13
+  publication witness/receipt + 4 reserved applicability)
+- Unsafe states rejected or resolved to a non-PROCEED state: **60**
 - Unsafe states accepted: **0**
-- Remaining false-closure paths: **0** in this scope; R1–R5 in
-  `operational-completeness-findings.md` are read-only or receipt-level and
-  cannot select PROCEED.
+- Remaining false-closure paths: **0** in this scope. The single residual boundary
+  (R5, `usf_health`'s liveness statistic) is named so it cannot be read as a
+  witness and cannot select PROCEED.

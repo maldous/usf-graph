@@ -145,7 +145,10 @@ export const TOOLS = [
 export async function callTool(name, args, ctx) {
   const { client, config } = ctx;
   if (name === 'usf_health') {
-    return { ...describeConfig(config), triples: await client.size(), ok: true };
+    // Liveness only. db.size is an eventually consistent server statistic, so it
+    // is named as one and the ambiguous `triples` field is gone: the content
+    // witness total comes from usf_bootstrap's inventory-derived authority block.
+    return { ...describeConfig(config), serverStatementStatistic: await client.size(), ok: true };
   }
   if (name === 'usf_query') {
     const sparql = args && args.sparql;
