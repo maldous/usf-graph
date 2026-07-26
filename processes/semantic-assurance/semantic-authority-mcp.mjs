@@ -191,6 +191,16 @@ export async function callTool(name, args, ctx) {
   throw err;
 }
 
+// Materialisation operation paths are repository-relative — `documentation/x.md`,
+// never `usf/documentation/x.md`, because safeRelativePath rejects a `usf`
+// segment outright. So ctx.repositoryRoot must be the repository root itself:
+// this module lives at <root>/processes/semantic-assurance/, exactly two levels
+// down. Resolving three levels up named the repository's PARENT, so a
+// coordinator apply of an authorised plan would have written outside the
+// checkout (with /usf as the root, `documentation/x.md` landed at
+// /documentation/x.md). Verified by the repository root carrying package.json.
+export const MCP_REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
 export async function runMcpServer({ input = process.stdin, output = process.stdout } = {}) {
   const config = loadConfig();
   const redact = makeRedactor(config);
@@ -199,7 +209,7 @@ export async function runMcpServer({ input = process.stdin, output = process.std
     config,
     casRoot: process.env.USF_CAS_ROOT || null,
     coordinator: process.env.USF_COORDINATOR_MODE === 'apply',
-    repositoryRoot: resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..'),
+    repositoryRoot: MCP_REPOSITORY_ROOT,
   };
   const send = (msg) => output.write(redact(JSON.stringify(msg)) + '\n');
 
