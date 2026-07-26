@@ -12,12 +12,21 @@ export const MAX_BOOTSTRAP_BINDINGS = 50;
 export const MAX_BOOTSTRAP_DEPTH = 3;
 const DIGEST_ALGORITHM = 'sha256-rdfc10-graph-inventory-v2';
 const QUERY_IDENTITY = 'usf_bootstrap:contract:evidence-first:v1';
+// openGaps leads deliberately. boundPacket fills the byte budget in this order
+// and drops from the tail, so a key placed last is the first casualty of
+// truncation. Gaps are the packet's negative and unresolved states: dropping
+// them turns a bounded packet into a silently clean one.
 const ITEM_KEYS = [
-  'modelResources', 'claims', 'nonClaims', 'evidenceRequirements', 'evidenceResults',
+  'openGaps', 'modelResources', 'claims', 'nonClaims', 'evidenceRequirements', 'evidenceResults',
   'proofObligations', 'proofEvaluations', 'proofResults', 'contracts', 'realisations',
   'realisationDecisions', 'validationObligations', 'validationExecutions',
-  'validationResults', 'supportingFacets', 'openGaps',
+  'validationResults', 'supportingFacets',
 ];
+const GAP_EVALUATED = 'evaluated';
+const GAP_NOT_EVALUATED = 'not-evaluated-contract-scope-required';
+const UNRESOLVED_FAIL_CLOSED = 'UNRESOLVED_FAIL_CLOSED';
+const APPLICABILITY_UNRESOLVED = 'urn:usf:validationapplicabilitystate:unresolved';
+const APPLICABILITY_REQUIRED = 'urn:usf:validationapplicabilitystate:required';
 
 export function validContractRef(ref) {
   return typeof ref === 'string' && (/^[a-z0-9]+$/.test(ref) || /^urn:usf:[a-z0-9:_-]+$/i.test(ref));
@@ -102,6 +111,11 @@ function boundPacket(source, { digest, parametersDigest, offset = 0 }) {
     packet.bindingCount -= 1;
   }
   if (finish() > MAX_BOOTSTRAP_BYTES) throw new Error('bootstrap metadata exceeds the 8 KiB bound');
+  // A first page that cannot carry the complete gap set would present fewer
+  // blocking states than the authority holds. Fail closed rather than emit it.
+  if (offset === 0 && packet.openGaps.length !== (source.openGaps || []).length) {
+    throw new Error('bootstrap packet cannot bound the complete open-gap set');
+  }
   return packet;
 }
 
@@ -142,8 +156,17 @@ export async function bootstrapPacket(ctx, { contract, task, continuation } = {}
     const rows = await client.select(`SELECT ?id ?canonicalName WHERE { ?id a <${ONT}SemanticContract> ; <${ONT}canonicalName> ?canonicalName } ORDER BY ?canonicalName LIMIT 50`);
     const after = await authorityWitness(client);
     if (before.digest !== after.digest) throw new Error('live authority changed while building bootstrap packet');
+    // Orientation mode. Nothing per-contract was interrogated, so every
+    // obligation and gap array is empty because it was not evaluated — not
+    // because live authority holds nothing outstanding. gapEvaluation and
+    // actionState say so explicitly; without them an empty openGaps array in
+    // this mode reads exactly like a clean contract-scoped one.
     const source = {
       found: true, traceability: BOOTSTRAP_TRACE, authority,
+      evaluationScope: 'contract-inventory',
+      gapEvaluation: GAP_NOT_EVALUATED,
+      actionState: UNRESOLVED_FAIL_CLOSED,
+      completionClaim: false,
       modelResources: rows.map((row) => item(row, [['id', 'id'], ['canonicalName', 'canonicalName']])),
       claims: [], nonClaims: [], evidenceRequirements: [], evidenceResults: [], proofObligations: [], proofEvaluations: [], proofResults: [], contracts: [], realisations: [], realisationDecisions: [], validationObligations: [], validationExecutions: [], validationResults: [], supportingFacets: [], openGaps: [],
       task: clip(task || null),
@@ -151,13 +174,23 @@ export async function bootstrapPacket(ctx, { contract, task, continuation } = {}
     return boundPacket(source, { digest: before.digest, parametersDigest: sha256(JSON.stringify({ contract: null, task: task || null })), offset: 0 });
   }
   const bind = contract.startsWith('urn:usf:') ? `FILTER(STR(?c) = "${contract}")` : `FILTER(?cn = "${contract}")`;
-  const core = await client.select(`SELECT ?c ?cn ?state ?reason ?superseded WHERE {
+  const core = await client.select(`SELECT ?c ?cn ?state ?reason ?superseded ?applicability WHERE {
     ?c a <${ONT}SemanticContract> ; <${ONT}canonicalName> ?cn . ${bind}
     OPTIONAL { ?c <${ONT}hasActivationState> ?state }
     OPTIONAL { ?c <${ONT}activationReason> ?reason }
     OPTIONAL { ?c <${ONT}supersededBy> ?superseded }
-  } LIMIT 1`);
+    OPTIONAL { ?c <${ONT}hasValidationApplicability> ?applicability }
+  } LIMIT 8`);
   if (core.length === 0) return { found: false, contract, task: clip(task || null), authority };
+  // An ambiguous reference used to be resolved by taking the first row. The
+  // packet would then describe one of several contracts without saying which
+  // was discarded, so identity has to be exact or the request has to fail.
+  const distinctContracts = new Set(core.map((row) => val(row, 'c')));
+  if (distinctContracts.size !== 1) {
+    const error = new Error('contract reference must resolve to exactly one semantic contract');
+    error.userFacing = true;
+    throw error;
+  }
   const iri = val(core[0], 'c');
   const [assertions, requirements, evidence, obligations, evaluations, results, realisations, decisions, validationObligations, validationExecutions, validationResults, facets] = await Promise.all([
     client.select(`SELECT ?id ?relation ?canonicalName WHERE { <${iri}> ?relation ?id . FILTER(?relation IN (<${ONT}asserts>, <${ONT}disclaims>)) OPTIONAL { ?id <${ONT}canonicalName> ?canonicalName } } ORDER BY ?relation ?id LIMIT 50`),
@@ -168,25 +201,39 @@ export async function bootstrapPacket(ctx, { contract, task, continuation } = {}
     client.select(`SELECT DISTINCT ?id ?obligation ?state ?evidenceSetDigest ?confidence ?confidenceBasis ?uncertainty WHERE { ?id a <${ONT}ProofResult> ; <${ONT}proofResultForObligation> ?obligation . ?obligation <${ONT}obligationFor> <${iri}> . OPTIONAL { ?id <${ONT}hasProofResultState> ?state } OPTIONAL { ?id <${ONT}evidenceSetDigest> ?evidenceSetDigest } OPTIONAL { ?id <${ONT}hasConfidenceState> ?confidence } OPTIONAL { ?id <${ONT}confidenceBasis> ?confidenceBasis } OPTIONAL { ?id <${ONT}uncertaintyStatement> ?uncertainty } } ORDER BY ?id LIMIT 50`),
     client.select(`SELECT DISTINCT ?id ?state ?implementation ?decision ?path WHERE { ?id a <${ONT}Realisation> ; <${ONT}realisesContract> <${iri}> . OPTIONAL { ?id <${ONT}realisationState> ?state } OPTIONAL { ?id <${ONT}realisingImplementation> ?implementation } OPTIONAL { ?id <${ONT}authorisedByDecision> ?decision } OPTIONAL { ?id <${ONT}authorisedSourcePath> ?path } } ORDER BY ?id LIMIT 50`),
     client.select(`SELECT DISTINCT ?id ?state ?path ?type ?repository WHERE { ?realisation <${ONT}realisesContract> <${iri}> ; <${ONT}authorisedByDecision> ?id . OPTIONAL { ?id <${ONT}decisionState> ?state } OPTIONAL { ?id <${ONT}authorisesSourcePath> ?path } OPTIONAL { ?id <${ONT}authorisesRealisationType> ?type } OPTIONAL { ?id <${ONT}authorisesRepository> ?repository } } ORDER BY ?id LIMIT 50`),
-    client.select(`SELECT DISTINCT ?id ?canonicalName WHERE { ?id a <${ONT}ValidationObligation> ; <${ONT}validationForContract> <${iri}> . OPTIONAL { ?id <${ONT}canonicalName> ?canonicalName } } ORDER BY ?id LIMIT 50`),
+    client.select(`SELECT DISTINCT ?id ?canonicalName ?activation WHERE { ?id a <${ONT}ValidationObligation> ; <${ONT}validationForContract> <${iri}> . OPTIONAL { ?id <${ONT}canonicalName> ?canonicalName } OPTIONAL { ?id <${ONT}hasValidationActivationState> ?activation } } ORDER BY ?id LIMIT 50`),
     client.select(`SELECT DISTINCT ?id ?obligation ?environment WHERE { ?id a <${ONT}ValidationExecution> ; <${ONT}executesValidation> ?obligation . ?obligation <${ONT}validationForContract> <${iri}> . OPTIONAL { ?id <${ONT}validationEnvironment> ?environment } } ORDER BY ?id LIMIT 50`),
-    client.select(`SELECT DISTINCT ?id ?execution ?obligation ?state ?evidence ?evidenceType ?admission ?freshness ?integrity ?within ?applicable WHERE { ?id a <${ONT}ValidationResult> . ?execution <${ONT}producesValidationResult> ?id ; <${ONT}executesValidation> ?obligation . ?obligation <${ONT}validationForContract> <${iri}> . OPTIONAL { ?id <${ONT}resultState> ?state } OPTIONAL { ?id <${ONT}entersEvidenceLifecycleAs> ?evidence . OPTIONAL { ?evidence a ?evidenceType } OPTIONAL { ?evidence <${ONT}hasAdmissionState> ?admission } OPTIONAL { ?evidence <${ONT}hasFreshnessState> ?freshness } OPTIONAL { ?evidence <${ONT}hasIntegrityState> ?integrity } OPTIONAL { ?evidence <${ONT}withinValidityScope> ?within } OPTIONAL { ?evidence <${ONT}applicableToObligation> ?applicable } } } ORDER BY ?id LIMIT 50`),
+    client.select(`SELECT DISTINCT ?id ?execution ?obligation ?state ?evidence ?evidenceType ?admission ?freshness ?integrity ?within ?applicable ?boundObligation ?boundAuthority ?boundHead ?invalidation ?superseded WHERE { ?id a <${ONT}ValidationResult> . ?execution <${ONT}producesValidationResult> ?id ; <${ONT}executesValidation> ?obligation . ?obligation <${ONT}validationForContract> <${iri}> . OPTIONAL { ?id <${ONT}resultState> ?state } OPTIONAL { ?id <${ONT}resultForValidationObligation> ?boundObligation } OPTIONAL { ?id <${ONT}validationEvaluatedAuthorityDigest> ?boundAuthority } OPTIONAL { ?id <${ONT}validationEvaluatedSourceHead> ?boundHead } OPTIONAL { ?id <${ONT}hasValidationInvalidationCondition> ?invalidation } OPTIONAL { ?id <${ONT}supersededByValidationResult> ?superseded } OPTIONAL { ?id <${ONT}entersEvidenceLifecycleAs> ?evidence . OPTIONAL { ?evidence a ?evidenceType } OPTIONAL { ?evidence <${ONT}hasAdmissionState> ?admission } OPTIONAL { ?evidence <${ONT}hasFreshnessState> ?freshness } OPTIONAL { ?evidence <${ONT}hasIntegrityState> ?integrity } OPTIONAL { ?evidence <${ONT}withinValidityScope> ?within } OPTIONAL { ?evidence <${ONT}applicableToObligation> ?applicable } } } ORDER BY ?id LIMIT 50`),
     client.select(`SELECT DISTINCT ?id ?kind ?status ?statement WHERE { <${iri}> <${ONT}declaresFacet> ?id . OPTIONAL { ?id <${ONT}facetKind> ?kind } OPTIONAL { ?id <${ONT}facetStatus> ?status } OPTIONAL { ?id <${ONT}facetStatement> ?statement } } ORDER BY ?id LIMIT 50`),
   ]);
   const mappedRealisations = realisations.map((row) => item(row, [['id', 'id'], ['state', 'state', short], ['implementation', 'implementation'], ['decision', 'decision'], ['authorisedSourcePath', 'path']]));
   const mappedEvidence = evidence.map((row) => item(row, [['id', 'id'], ['canonicalName', 'canonicalName'], ['admissionState', 'admission', short], ['freshnessState', 'freshness', short], ['integrityState', 'integrity', short], ['applicableToObligation', 'obligation'], ['contentDigest', 'digest'], ['provenance', 'provenance']]));
   const mappedResults = results.map((row) => item(row, [['id', 'id'], ['obligation', 'obligation'], ['state', 'state', short], ['evidenceSetDigest', 'evidenceSetDigest'], ['confidenceState', 'confidence', short], ['confidenceBasis', 'confidenceBasis'], ['uncertainty', 'uncertainty', clip]]));
+  // "current" is the satisfaction question, and it is answered by the
+  // ValidationObligation satisfaction contract: the result must name this exact
+  // obligation, pass, cite the authority and source head it was evaluated
+  // against, and be neither invalidated nor superseded. The evidence-admission
+  // chain alone was weaker than the contract the model enforces, so a passing
+  // result under a reserved obligation used to read as current.
   const mappedValidationResults = validationResults.map((row) => ({
-    ...item(row, [['id', 'id'], ['execution', 'execution'], ['state', 'state', short], ['evidence', 'evidence'], ['evidenceType', 'evidenceType'], ['admissionState', 'admission', short], ['freshnessState', 'freshness', short], ['integrityState', 'integrity', short], ['withinValidityScope', 'within'], ['applicableToObligation', 'applicable']]),
-    current: val(row, 'state') === 'urn:usf:resultstate:passed'
+    ...item(row, [['id', 'id'], ['execution', 'execution'], ['state', 'state', short], ['evidence', 'evidence'], ['evidenceType', 'evidenceType'], ['admissionState', 'admission', short], ['freshnessState', 'freshness', short], ['integrityState', 'integrity', short], ['withinValidityScope', 'within'], ['applicableToObligation', 'applicable'], ['resultForValidationObligation', 'boundObligation']]),
+    evidenceAdmitted: val(row, 'state') === 'urn:usf:resultstate:passed'
       && val(row, 'evidenceType') === `${ONT}ValidationEvidence`
       && val(row, 'admission') === 'urn:usf:evidenceadmissionstate:admitted'
       && val(row, 'freshness') === 'urn:usf:evidencefreshnessstate:fresh'
       && val(row, 'integrity') === 'urn:usf:evidenceintegritystate:valid'
       && val(row, 'within') === 'true'
       && val(row, 'applicable') === val(row, 'obligation'),
+    current: val(row, 'state') === 'urn:usf:resultstate:passed'
+      && val(row, 'boundObligation') === val(row, 'obligation')
+      && typeof val(row, 'boundAuthority') === 'string'
+      && typeof val(row, 'boundHead') === 'string'
+      && val(row, 'invalidation') === null
+      && val(row, 'superseded') === null,
   }));
   const contractState = short(val(core[0], 'state'));
+  const applicability = val(core[0], 'applicability');
+  const mappedValidationObligations = validationObligations.map((row) => item(row, [['id', 'id'], ['canonicalName', 'canonicalName'], ['activationState', 'activation', short]]));
   const source = {
     found: true, traceability: BOOTSTRAP_TRACE, authority,
     modelResources: [{ id: iri, type: `${ONT}SemanticContract` }],
@@ -200,15 +247,29 @@ export async function bootstrapPacket(ctx, { contract, task, continuation } = {}
     contracts: [{ id: iri, canonicalName: val(core[0], 'cn'), activationState: contractState, activationReason: clip(val(core[0], 'reason')), supersededBy: val(core[0], 'superseded'), actionable: mappedRealisations.some((value) => value.state === 'implementable') }],
     realisations: mappedRealisations,
     realisationDecisions: decisions.map((row) => item(row, [['id', 'id'], ['state', 'state', short], ['authorisedSourcePath', 'path'], ['authorisedRealisationType', 'type'], ['authorisedRepository', 'repository']])),
-    validationObligations: validationObligations.map((row) => item(row, [['id', 'id'], ['canonicalName', 'canonicalName']])),
+    validationApplicability: applicability,
+    validationObligations: mappedValidationObligations,
     validationExecutions: validationExecutions.map((row) => item(row, [['id', 'id'], ['obligation', 'obligation'], ['environment', 'environment']])),
     validationResults: mappedValidationResults,
     supportingFacets: facets.map((row) => item(row, [['id', 'id'], ['kind', 'kind', short], ['status', 'status', short], ['statement', 'statement', clip]])),
+    // Facet status is descriptive model coverage. It is deliberately absent
+    // from this gap set: a facet marked complete says the model describes the
+    // concern, never that the concern is operationally satisfied.
+    evaluationScope: 'contract',
+    gapEvaluation: GAP_EVALUATED,
+    completionClaim: false,
     openGaps: [
       ...(contractState === 'proofblocked' ? [{ id: iri, code: 'contract-proof-blocked' }] : []),
       ...(mappedEvidence.length === 0 ? [{ id: iri, code: 'evidence-unavailable' }] : []),
       ...(mappedResults.length === 0 ? [{ id: iri, code: 'proof-result-unavailable' }] : []),
       ...(!mappedRealisations.some((value) => value.state === 'implementable') ? [{ id: iri, code: 'realisation-not-implementable' }] : []),
+      ...(applicability === null || applicability === APPLICABILITY_UNRESOLVED
+        ? [{ id: iri, code: 'validation-applicability-unresolved' }] : []),
+      ...(applicability === APPLICABILITY_REQUIRED && mappedValidationObligations.length === 0
+        ? [{ id: iri, code: 'validation-obligation-unavailable' }] : []),
+      ...mappedValidationObligations
+        .filter((obligation) => obligation.activationState !== 'activated')
+        .map((obligation) => ({ id: obligation.id, code: `validation-obligation-${obligation.activationState || 'activation-unresolved'}` })),
       ...(!mappedValidationResults.some((result) => result.current) ? [{ id: iri, code: 'current-validation-result-unavailable' }] : []),
     ],
     task: clip(task || null),

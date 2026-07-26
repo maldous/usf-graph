@@ -153,12 +153,35 @@ WHERE {
     ?obligation a ?obligationClass .
     FILTER NOT EXISTS { ?obligation ?satisfaction ?result }
   } AS ?missingAdvisory)
+  # ValidationObligation is a separate obligation family: it binds its contract
+  # through usf:validationForContract rather than usf:obligationFor, and it is
+  # not an AssuranceObligation, so the blocking-obligation projection above
+  # cannot see it. Without these three terms a contract could reach ready while
+  # an activated validation obligation was unsatisfied, a bound obligation was
+  # blocked, or the applicability of validation was never determined at all.
+  BIND(EXISTS {
+    ?subject usf:hasValidationApplicability <urn:usf:validationapplicabilitystate:required> ;
+      usf:requiredValidation ?readinessValidationObligation .
+    ?readinessValidationObligation usf:hasValidationActivationState <urn:usf:validationactivationstate:activated> .
+    FILTER NOT EXISTS { ?readinessValidationObligation usf:satisfiedByValidationResult ?readinessValidationResult }
+  } AS ?validationUnsatisfied)
+  BIND(EXISTS {
+    ?subject usf:requiredValidation ?blockedValidationObligation .
+    ?blockedValidationObligation usf:hasValidationActivationState <urn:usf:validationactivationstate:blocked> .
+  } AS ?validationBlocked)
+  BIND(EXISTS {
+    ?subject a usf:SemanticContract .
+    FILTER(NOT EXISTS { ?subject usf:hasValidationApplicability ?declaredApplicability }
+           || EXISTS { ?subject usf:hasValidationApplicability <urn:usf:validationapplicabilitystate:unresolved> })
+  } AS ?validationApplicabilityUnresolved)
   BIND(IF(?evaluationClosureBlocked, rds:notready,
        IF(!?evaluated, rds:unknown,
        IF(?providerMismatch || ?environmentMismatch, rds:incompatible,
        IF(?stale, rds:stale,
        IF(?missingBlocking, rds:notready,
-       IF(?missingAdvisory, rds:degraded, rds:ready)))))) AS ?state)
+       IF(?validationBlocked || ?validationUnsatisfied, rds:notready,
+       IF(?validationApplicabilityUnresolved, rds:unknown,
+       IF(?missingAdvisory, rds:degraded, rds:ready)))))))) AS ?state)
   BIND(IF(?evaluationClosureBlocked, rr:optionevaluationincomplete,
        IF(!?evaluated, rr:unknownevaluation,
        IF(?providerMismatch, rr:incompatibleprovidermode,
@@ -168,7 +191,10 @@ WHERE {
        IF(?unsignedEvidence, rr:unsignedevidence,
        IF(?integrityUnverified, rr:integrityunverified,
        IF(?missingBlocking, rr:missingblockingobligation,
-       IF(?missingAdvisory, rr:degradedadvisory, rr:satisfied)))))))))) AS ?reason)
+       IF(?validationBlocked, rr:validationblocked,
+       IF(?validationUnsatisfied, rr:validationunsatisfied,
+       IF(?validationApplicabilityUnresolved, rr:validationapplicabilityunresolved,
+       IF(?missingAdvisory, rr:degradedadvisory, rr:satisfied))))))))))))) AS ?reason)
   BIND(IF(?state IN (rds:ready, rds:degraded), <urn:usf:proofrung:behaviour>, <urn:usf:proofrung:discovery>) AS ?rung)
 }
 #---NEXT---#

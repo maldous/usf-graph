@@ -11,6 +11,63 @@ const CONTRACT = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisa
 const ACTIVE = 'urn:usf:contractactivationstate:active';
 const SUCCESSFUL = 'urn:usf:proofresultstate:successful';
 const ACCEPTED = 'urn:usf:decisionstate:accepted';
+const RESOLVED_DECISION = new Set(['explicit', 'unique-accepted']);
+
+// Factory action states. Every factory-consumed conclusion in this module
+// resolves to exactly one of these, and absence never selects PROCEED.
+export const ACTION_STATES = Object.freeze({
+  proceed: 'PROCEED',
+  reserved: 'RESERVED_NO_ACTION',
+  block: 'BLOCK',
+  unresolved: 'UNRESOLVED_FAIL_CLOSED',
+});
+// Precedence when several dispositions hold at once. An explicit negative
+// outranks an unproven one because it is more actionable and equally closed;
+// PROCEED is only ever reached when nothing else applies.
+const ACTION_STATE_PRECEDENCE = [ACTION_STATES.block, ACTION_STATES.unresolved, ACTION_STATES.reserved, ACTION_STATES.proceed];
+
+const APPLICABILITY = Object.freeze({
+  required: 'urn:usf:validationapplicabilitystate:required',
+  notRequired: 'urn:usf:validationapplicabilitystate:notrequired',
+  conditional: 'urn:usf:validationapplicabilitystate:conditional',
+  reserved: 'urn:usf:validationapplicabilitystate:reserved',
+  unresolved: 'urn:usf:validationapplicabilitystate:unresolved',
+});
+const ACTIVATION = Object.freeze({
+  reserved: 'urn:usf:validationactivationstate:reserved',
+  activated: 'urn:usf:validationactivationstate:activated',
+  blocked: 'urn:usf:validationactivationstate:blocked',
+});
+
+// One gap code -> one factory disposition. A code with no entry here is a
+// programming error, not a silent PROCEED: resolveDisposition throws.
+export const GAP_DISPOSITIONS = Object.freeze({
+  'missing-successful-proof': ACTION_STATES.block,
+  'missing-current-passing-validation': ACTION_STATES.block,
+  'validation-obligation-blocked': ACTION_STATES.block,
+  'validation-satisfaction-not-current': ACTION_STATES.block,
+  'validation-exemption-unwarranted': ACTION_STATES.block,
+  'validation-obligation-reserved': ACTION_STATES.reserved,
+  'validation-applicability-reserved': ACTION_STATES.reserved,
+  'validation-applicability-unresolved': ACTION_STATES.unresolved,
+  'validation-applicability-conditional-unevaluated': ACTION_STATES.unresolved,
+  'validation-obligation-activation-unresolved': ACTION_STATES.unresolved,
+});
+// Gaps that withhold only the validated claim. A reserved validation obligation
+// does not withdraw realisation authority that an accepted decision and a
+// successful proof already granted; it withholds any claim of being validated.
+const VALIDATION_SCOPED_GAPS = new Set(['validation-obligation-reserved', 'validation-applicability-reserved']);
+
+function resolveDisposition(code) {
+  const disposition = GAP_DISPOSITIONS[code];
+  if (!disposition) throw new Error(`work-plan gap code has no declared factory disposition: ${code}`);
+  return disposition;
+}
+
+function strongestState(states) {
+  for (const candidate of ACTION_STATE_PRECEDENCE) if (states.includes(candidate)) return candidate;
+  return ACTION_STATES.unresolved;
+}
 const MAX_PLAN_BYTES = 65_536;
 const MAX_OPERATIONS = 256;
 const MAX_PACKET_BYTES = 65_536;
@@ -422,27 +479,198 @@ export async function verifyArtifact(ctx, args = {}) {
   return { verified, descriptor, observed: { byteSize: stat.size, digest: observedDigest } };
 }
 
+// Applicability and obligation state for one contract. Every field is either an
+// explicit IRI from live authority or null, and null is never read as a
+// permission: callers map null onto UNRESOLVED_FAIL_CLOSED.
+async function validationScope(client, contract) {
+  const [applicabilityRows, obligationRows] = await Promise.all([
+    client.select(`SELECT ?state ?reason ?authority ?authorityState ?condition WHERE {
+      OPTIONAL { <${contract}> <urn:usf:ontology:hasValidationApplicability> ?state }
+      OPTIONAL { <${contract}> <urn:usf:ontology:validationApplicabilityReason> ?reason }
+      OPTIONAL { <${contract}> <urn:usf:ontology:validationApplicabilityAuthority> ?authority .
+        OPTIONAL { ?authority <urn:usf:ontology:hasProofResultState> ?authorityState } }
+      OPTIONAL { <${contract}> <urn:usf:ontology:validationApplicabilityCondition> ?condition }
+    } LIMIT 64`),
+    client.select(`SELECT ?id ?activation ?satisfaction ?boundObligation ?resultState ?boundAuthority ?boundHead ?invalidation ?superseded WHERE {
+      ?id a <urn:usf:ontology:ValidationObligation> ; <urn:usf:ontology:validationForContract> <${contract}> .
+      OPTIONAL { ?id <urn:usf:ontology:hasValidationActivationState> ?activation }
+      OPTIONAL { ?id <urn:usf:ontology:satisfiedByValidationResult> ?satisfaction .
+        OPTIONAL { ?satisfaction <urn:usf:ontology:resultForValidationObligation> ?boundObligation }
+        OPTIONAL { ?satisfaction <urn:usf:ontology:resultState> ?resultState }
+        OPTIONAL { ?satisfaction <urn:usf:ontology:validationEvaluatedAuthorityDigest> ?boundAuthority }
+        OPTIONAL { ?satisfaction <urn:usf:ontology:validationEvaluatedSourceHead> ?boundHead }
+        OPTIONAL { ?satisfaction <urn:usf:ontology:hasValidationInvalidationCondition> ?invalidation }
+        OPTIONAL { ?satisfaction <urn:usf:ontology:supersededByValidationResult> ?superseded } }
+    } ORDER BY ?id LIMIT 256`),
+  ]);
+  const head = applicabilityRows[0] || {};
+  const states = new Set(applicabilityRows.map((row) => value(row, 'state')).filter(Boolean));
+  if (states.size > 1) throw new Error('contract declares more than one validation applicability state');
+  const obligations = new Map();
+  for (const row of obligationRows) {
+    const id = value(row, 'id');
+    const existing = obligations.get(id) || { id, activation: value(row, 'activation'), satisfactions: [] };
+    if (existing.activation !== value(row, 'activation')) throw new Error('validation obligation declares inconsistent activation state');
+    const satisfaction = value(row, 'satisfaction');
+    if (satisfaction) {
+      existing.satisfactions.push({
+        result: satisfaction,
+        boundObligation: value(row, 'boundObligation'),
+        resultState: value(row, 'resultState'),
+        boundAuthorityDigest: value(row, 'boundAuthority'),
+        boundSourceHead: value(row, 'boundHead'),
+        invalidated: value(row, 'invalidation') !== null,
+        superseded: value(row, 'superseded') !== null,
+      });
+    }
+    obligations.set(id, existing);
+  }
+  return {
+    applicability: [...states][0] ?? null,
+    applicabilityReason: value(head, 'reason'),
+    exemptionAuthorityProven: applicabilityRows.some((row) => value(row, 'authority') && value(row, 'authorityState') === SUCCESSFUL),
+    conditionCount: new Set(applicabilityRows.map((row) => value(row, 'condition')).filter(Boolean)).size,
+    obligations: [...obligations.values()],
+  };
+}
+
+// A satisfaction survives only while it stays identity-bound to this obligation
+// and bound to the exact authority the factory is acting on. Anything less is a
+// historical record, not a current conclusion.
+function satisfactionCurrent(obligation, authorityDigest) {
+  return obligation.satisfactions.some((item) => item.boundObligation === obligation.id
+    && item.resultState === 'urn:usf:resultstate:passed'
+    && item.boundAuthorityDigest === authorityDigest
+    && typeof item.boundSourceHead === 'string' && item.boundSourceHead.length > 0
+    && !item.invalidated
+    && !item.superseded);
+}
+
+// The complete gap set for one contract, as {code, subject} pairs. This is the
+// single definition of "outstanding" that both the paged projection and the
+// unpaged disposition census use, so a page boundary can never hide a state.
+function validationGaps(contract, scope, authorityDigest) {
+  const gaps = [];
+  const { applicability } = scope;
+  if (applicability === null || applicability === APPLICABILITY.unresolved) {
+    gaps.push({ code: 'validation-applicability-unresolved', subject: contract });
+  }
+  if (applicability === APPLICABILITY.conditional) {
+    gaps.push({ code: 'validation-applicability-conditional-unevaluated', subject: contract });
+  }
+  if (applicability === APPLICABILITY.reserved) {
+    gaps.push({ code: 'validation-applicability-reserved', subject: contract });
+  }
+  if (applicability === APPLICABILITY.notRequired && !scope.exemptionAuthorityProven) {
+    gaps.push({ code: 'validation-exemption-unwarranted', subject: contract });
+  }
+  for (const obligation of scope.obligations) {
+    if (obligation.activation === null) {
+      gaps.push({ code: 'validation-obligation-activation-unresolved', subject: obligation.id });
+      continue;
+    }
+    if (obligation.activation === ACTIVATION.blocked) {
+      gaps.push({ code: 'validation-obligation-blocked', subject: obligation.id });
+      continue;
+    }
+    if (obligation.activation === ACTIVATION.reserved) {
+      gaps.push({ code: 'validation-obligation-reserved', subject: obligation.id });
+      continue;
+    }
+    if (obligation.activation !== ACTIVATION.activated) {
+      gaps.push({ code: 'validation-obligation-activation-unresolved', subject: obligation.id });
+      continue;
+    }
+    if (!satisfactionCurrent(obligation, authorityDigest)) {
+      gaps.push({
+        code: obligation.satisfactions.length > 0 ? 'validation-satisfaction-not-current' : 'missing-current-passing-validation',
+        subject: obligation.id,
+      });
+    }
+  }
+  return gaps;
+}
+
+// May the factory execute validation for this contract right now? A separate
+// question from whether validation is satisfied, and from whether realisation
+// is authorised. One property answering all three is what let a reserved
+// obligation read as a satisfied one.
+function validationActionStateFor(scope) {
+  const { applicability, obligations } = scope;
+  if (applicability === null
+    || applicability === APPLICABILITY.unresolved
+    || applicability === APPLICABILITY.conditional) return ACTION_STATES.unresolved;
+  // An unproven exemption is an unproven conclusion, not a licence.
+  if (applicability === APPLICABILITY.notRequired) {
+    return scope.exemptionAuthorityProven ? ACTION_STATES.reserved : ACTION_STATES.unresolved;
+  }
+  if (applicability === APPLICABILITY.reserved) return ACTION_STATES.reserved;
+  if (applicability !== APPLICABILITY.required) return ACTION_STATES.unresolved;
+  // required with nothing bound cannot say what to validate.
+  if (obligations.length === 0) return ACTION_STATES.unresolved;
+  if (obligations.some((item) => !Object.values(ACTIVATION).includes(item.activation))) return ACTION_STATES.unresolved;
+  if (obligations.some((item) => item.activation === ACTIVATION.blocked)) return ACTION_STATES.block;
+  if (obligations.some((item) => item.activation === ACTIVATION.activated)) return ACTION_STATES.proceed;
+  return ACTION_STATES.reserved;
+}
+
+function validationVerdict(contract, scope, authorityDigest) {
+  const gaps = validationGaps(contract, scope, authorityDigest);
+  const dispositions = gaps.map((gap) => resolveDisposition(gap.code));
+  const realisationBlocking = gaps.filter((gap) => !VALIDATION_SCOPED_GAPS.has(gap.code));
+  const validationActionState = validationActionStateFor(scope);
+  return {
+    gaps,
+    dispositions,
+    realisationBlocking,
+    // Satisfaction is a positive conclusion: it needs every obligation
+    // activated and currently satisfied, never merely "no gap recorded".
+    validationSatisfied: scope.applicability === APPLICABILITY.required
+      && scope.obligations.length > 0
+      && scope.obligations.every((item) => item.activation === ACTIVATION.activated && satisfactionCurrent(item, authorityDigest)),
+    validationActionState,
+  };
+}
+
 export async function projectContract(ctx, args = {}) {
   const contract = args.contract || CONTRACT;
   const context = await layoutContext(ctx, { contract });
-  const [assertions, requirements, obligations, validations] = await Promise.all([
+  const [assertions, requirements, obligations, scope] = await Promise.all([
     ctx.client.select(`SELECT ?relation ?id WHERE { <${context.contract.id}> ?relation ?id . FILTER(?relation IN (<urn:usf:ontology:asserts>, <urn:usf:ontology:disclaims>)) } ORDER BY ?relation ?id LIMIT 256`),
     ctx.client.select(`SELECT DISTINCT ?id WHERE { { ?id a <urn:usf:ontology:EvidenceRequirement> ; <urn:usf:ontology:obligationFor> <${context.contract.id}> } UNION { ?obligation <urn:usf:ontology:obligationFor> <${context.contract.id}> ; <urn:usf:ontology:requiresEvidence> ?id . ?id a <urn:usf:ontology:EvidenceRequirement> } } ORDER BY ?id LIMIT 256`),
     ctx.client.select(`SELECT DISTINCT ?id WHERE { ?id a <urn:usf:ontology:ProofObligation> ; <urn:usf:ontology:obligationFor> <${context.contract.id}> } ORDER BY ?id LIMIT 256`),
-    ctx.client.select(`SELECT DISTINCT ?id WHERE { ?id a <urn:usf:ontology:ValidationObligation> ; <urn:usf:ontology:validationForContract> <${context.contract.id}> } ORDER BY ?id LIMIT 256`),
+    validationScope(ctx.client, context.contract.id),
   ]);
   const after = await authorityWitness(ctx.client);
   if (context.authorityDigest !== `sha256:${after.digest}`) throw new Error('live authority changed while building agent task packet');
   const ids = (rows) => [...new Set(rows.map((row) => value(row, 'id')).filter(Boolean))].sort();
-  const validationIds = ids(validations);
-  const authorised = context.contract.activationState === ACTIVE
-    && context.contract.proofResultState === SUCCESSFUL
-    && context.contract.decisionState === ACCEPTED;
+  const verdict = validationVerdict(context.contract.id, scope, context.authorityDigest);
+  const validationIds = scope.obligations.map((item) => item.id).sort();
+
+  // Realisation authority. Every conjunct must be explicitly present: a null
+  // lifecycle, activation, proof or decision state resolves to unresolved, not
+  // to permission. Reserved validation withholds the validated claim only.
+  const stateReasons = [];
+  if (context.contract.activationState === null) stateReasons.push({ code: 'contract-activation-unresolved', state: ACTION_STATES.unresolved });
+  else if (context.contract.activationState !== ACTIVE) stateReasons.push({ code: 'contract-not-active', state: ACTION_STATES.block });
+  if (context.contract.proofResultState === null) stateReasons.push({ code: 'contract-proof-result-unresolved', state: ACTION_STATES.unresolved });
+  else if (context.contract.proofResultState !== SUCCESSFUL) stateReasons.push({ code: 'contract-proof-not-successful', state: ACTION_STATES.block });
+  if (!RESOLVED_DECISION.has(context.decisionResolution)) {
+    stateReasons.push({ code: `decision-${context.decisionResolution}`, state: context.decisionResolution === 'unresolved' || context.decisionResolution === 'no-accepted-decision' ? ACTION_STATES.unresolved : ACTION_STATES.block });
+  } else if (context.contract.decisionState !== ACCEPTED) {
+    stateReasons.push({ code: 'decision-not-accepted', state: ACTION_STATES.block });
+  }
+  for (const gap of verdict.realisationBlocking) stateReasons.push({ code: gap.code, state: resolveDisposition(gap.code) });
+  const actionState = stateReasons.length === 0 ? ACTION_STATES.proceed : strongestState(stateReasons.map((item) => item.state));
+  const authorised = actionState === ACTION_STATES.proceed;
+
   const packet = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     semanticIdentifiers: [context.contract.id, context.contract.proofResult, context.contract.decision, ...validationIds].filter(Boolean),
     authorityDigest: context.authorityDigest,
-    contractState: { lifecycle: context.contract.lifecycleState, activation: context.contract.activationState, decision: context.contract.decisionState, proof: context.contract.proofResultState },
+    contractState: { lifecycle: context.contract.lifecycleState, activation: context.contract.activationState, decision: context.contract.decisionState, proof: context.contract.proofResultState, decisionResolution: context.decisionResolution },
+    actionState,
+    actionStateReasons: stateReasons.map((item) => item.code).sort(),
     objective: args.objective || `Realise and validate ${context.contract.canonicalName} from current semantic authority.`,
     claims: ids(assertions.filter((row) => value(row, 'relation') === 'urn:usf:ontology:asserts')),
     nonclaims: ids(assertions.filter((row) => value(row, 'relation') === 'urn:usf:ontology:disclaims')),
@@ -451,9 +679,32 @@ export async function projectContract(ctx, args = {}) {
     authorisedPaths: authorised ? context.authorisedPaths : [],
     authorisedFormats: authorised ? [...new Set(context.rules.map((item) => item.representationFormat))].sort() : [],
     acceptanceObligations: [...new Set([...ids(requirements), ...ids(obligations)])].sort(),
-    validationObligations: validationIds,
+    validationApplicability: {
+      state: scope.applicability,
+      declared: scope.applicability !== null,
+      reasonDeclared: typeof scope.applicabilityReason === 'string' && scope.applicabilityReason.length > 0,
+      exemptionAuthorityProven: scope.exemptionAuthorityProven,
+      conditionCount: scope.conditionCount,
+    },
+    validationObligations: scope.obligations.map((item) => ({
+      id: item.id,
+      activation: item.activation,
+      satisfactionCurrent: satisfactionCurrent(item, context.authorityDigest),
+      recordedSatisfactionCount: item.satisfactions.length,
+    })),
+    validationActionState: verdict.validationActionState,
+    validationSatisfied: verdict.validationSatisfied,
+    validationGaps: verdict.gaps.map((gap) => ({ code: gap.code, subject: gap.subject, disposition: resolveDisposition(gap.code) })),
     resultRequirements: ['return changed paths and their digests', 'return every validation result and stable result code', 'return explicit nonclaims and residual risk'],
-    stopConditions: ['authority digest changed', 'contract or decision is not active', 'path, format, action, or storage class is not authorised', 'required evidence is missing, stale, invalid, or unknown', 'payload digest or signature verification fails'],
+    stopConditions: [
+      'authority digest changed',
+      'contract or decision is not active',
+      'actionState is not PROCEED',
+      'path, format, action, or storage class is not authorised',
+      'required evidence is missing, stale, invalid, or unknown',
+      'payload digest or signature verification fails',
+      'validationSatisfied is false and the task would claim validation',
+    ],
     bounds: { maximumSerializedBytes: MAX_PACKET_BYTES, maximumItems: MAX_PACKET_ITEMS },
   };
   const itemCount = Object.values(packet).reduce((count, item) => count + (Array.isArray(item) ? item.length : 1), 0);
@@ -474,35 +725,55 @@ export async function planWork(ctx, args = {}) {
   const offset = Number.isInteger(args.offset) && args.offset >= 0 ? args.offset : 0;
   if (offset > 10_000) throw new Error('work-plan offset exceeds bounded maximum');
   const pageSize = 50;
-  const rows = await ctx.client.select(`SELECT ?gap ?subject WHERE {
-    { <${contract}> <urn:usf:ontology:mandatoryProofObligation> ?subject . FILTER NOT EXISTS { <${contract}> <urn:usf:ontology:reliesOnProofResult> ?result . ?result <urn:usf:ontology:proofResultForObligation> ?subject ; <urn:usf:ontology:hasProofResultState> <urn:usf:proofresultstate:successful> } BIND("missing-successful-proof" AS ?gap) }
-    UNION { <${contract}> <urn:usf:ontology:requiredValidation> ?subject .
+  const before = await authorityWitness(ctx.client);
+  const authorityDigest = `sha256:${before.digest}`;
+  const [proofRows, scope] = await Promise.all([
+    ctx.client.select(`SELECT ?subject WHERE {
+      <${contract}> <urn:usf:ontology:mandatoryProofObligation> ?subject .
       FILTER NOT EXISTS {
-        ?subject <urn:usf:ontology:semanticLifecycleState> ?validationLifecycle .
-        FILTER (?validationLifecycle != <urn:usf:semanticlifecyclestate:active>)
+        <${contract}> <urn:usf:ontology:reliesOnProofResult> ?result .
+        ?result <urn:usf:ontology:proofResultForObligation> ?subject ;
+          <urn:usf:ontology:hasProofResultState> <urn:usf:proofresultstate:successful> .
       }
-      FILTER NOT EXISTS {
-      ?execution <urn:usf:ontology:executesValidation> ?subject ; <urn:usf:ontology:producesValidationResult> ?result .
-      ?result <urn:usf:ontology:resultState> <urn:usf:resultstate:passed> ; <urn:usf:ontology:entersEvidenceLifecycleAs> ?evidence .
-      ?evidence a <urn:usf:ontology:ValidationEvidence> ;
-        <urn:usf:ontology:hasAdmissionState> <urn:usf:evidenceadmissionstate:admitted> ;
-        <urn:usf:ontology:hasFreshnessState> <urn:usf:evidencefreshnessstate:fresh> ;
-        <urn:usf:ontology:hasIntegrityState> <urn:usf:evidenceintegritystate:valid> ;
-        <urn:usf:ontology:withinValidityScope> true ;
-        <urn:usf:ontology:applicableToObligation> ?subject .
-      } BIND("missing-current-passing-validation" AS ?gap) }
-  } ORDER BY ?gap ?subject LIMIT ${pageSize + 1} OFFSET ${offset}`);
-  const witness = await authorityWitness(ctx.client);
-  const truncated = rows.length > pageSize;
+    } ORDER BY ?subject LIMIT 1024`),
+    validationScope(ctx.client, contract),
+  ]);
+  const after = await authorityWitness(ctx.client);
+  if (before.digest !== after.digest) throw new Error('live authority changed while building the work plan');
+
+  const verdict = validationVerdict(contract, scope, authorityDigest);
+  const all = [
+    ...proofRows.map((row) => ({ code: 'missing-successful-proof', subject: value(row, 'subject') })),
+    ...verdict.gaps,
+  ]
+    .map((gap) => ({ type: gap.code, subject: gap.subject, disposition: resolveDisposition(gap.code) }))
+    .sort((left, right) => (left.type === right.type ? left.subject.localeCompare(right.subject) : left.type.localeCompare(right.type)));
+
+  // The census is computed over the whole gap set, never over the page, so
+  // paginating the projection cannot drop a blocked or unresolved state.
+  const dispositionCounts = Object.fromEntries(ACTION_STATE_PRECEDENCE.map((state) => [state, all.filter((gap) => gap.disposition === state).length]));
+  const present = ACTION_STATE_PRECEDENCE.filter((state) => dispositionCounts[state] > 0);
+  const actionState = all.length === 0 ? ACTION_STATES.proceed : strongestState(present);
+  const page = all.slice(offset, offset + pageSize);
   return {
-    schemaVersion: 1,
-    authorityDigest: `sha256:${witness.digest}`,
+    schemaVersion: 2,
+    authorityDigest,
     contract,
     offset,
     pageSize,
-    truncated,
-    nextOffset: truncated ? offset + pageSize : null,
-    gaps: rows.slice(0, pageSize).map((row) => ({ type: value(row, 'gap'), subject: value(row, 'subject') })),
+    gapCount: all.length,
+    truncated: offset + page.length < all.length,
+    nextOffset: offset + page.length < all.length ? offset + page.length : null,
+    gaps: page,
+    dispositionCounts,
+    actionState,
+    validationApplicability: scope.applicability,
+    validationSatisfied: verdict.validationSatisfied,
+    evaluatedFamilies: ['mandatory-proof-obligation', 'validation-applicability', 'validation-obligation'],
+    // An empty gap set is a statement about the families listed above at this
+    // authority digest. It is never a completion claim, and this projection
+    // grants no authority to create, close or schedule anything.
+    completionClaim: false,
     issueProjectionAuthority: false,
   };
 }

@@ -7321,3 +7321,67 @@ usf:satisfiedByValidationResult usf:termUsageState <urn:usf:termusagestate:reser
     usf:termUsageRationale "Satisfaction relation for ValidationObligation. Unused until an obligation is activated and an applicable passing ValidationResult exists; a consumer must never infer satisfaction from its absence.".
 usf:validationActivationPrerequisite usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
     usf:termUsageRationale "Structured activation prerequisite for ValidationObligation. Unused until an obligation declares machine-readable prerequisites; absence means the obligation stays reserved.".
+
+# --- Validation applicability ------------------------------------------------
+# Contract-level validation applicability used to be expressed only positively,
+# by the presence of usf:requiredValidation. Absence therefore carried no
+# meaning at all, yet a consumer reading the contract could take it as "no
+# validation is required" and treat the contract as complete. Applicability is
+# now an explicit closed state that every governed contract declares exactly
+# once, so silence selects nothing and unresolved is a state a consumer must
+# handle rather than a hole it may fill.
+usf:ValidationApplicabilityState a owl:Class;
+    rdfs:label "validation applicability state".
+usf:ValidationApplicabilityCondition a owl:Class;
+    rdfs:label "validation applicability condition".
+
+usf:hasValidationApplicability a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticContract;
+    rdfs:range usf:ValidationApplicabilityState;
+    rdfs:label "has validation applicability".
+usf:validationApplicabilityReason a owl:DatatypeProperty;
+    rdfs:domain usf:SemanticContract;
+    rdfs:range xsd:string;
+    rdfs:label "validation applicability reason".
+
+# An exemption is a positive claim and needs positive authority: notRequired
+# must cite the successful proof that warrants it, never a bare assertion.
+usf:validationApplicabilityAuthority a owl:ObjectProperty;
+    rdfs:domain usf:SemanticContract;
+    rdfs:range usf:ProofResult;
+    rdfs:label "validation applicability authority".
+
+# A conditional applicability must be machine-evaluable. Prose would leave the
+# consumer to decide when the condition holds, which is the inference this
+# model exists to prevent.
+usf:validationApplicabilityCondition a owl:ObjectProperty;
+    rdfs:domain usf:SemanticContract;
+    rdfs:range usf:ValidationApplicabilityCondition;
+    rdfs:label "validation applicability condition".
+usf:conditionSubject a owl:ObjectProperty;
+    rdfs:domain usf:ValidationApplicabilityCondition;
+    rdfs:range rdfs:Resource;
+    rdfs:label "condition subject".
+usf:conditionPredicate a owl:ObjectProperty;
+    rdfs:domain usf:ValidationApplicabilityCondition;
+    rdfs:range rdf:Property;
+    rdfs:label "condition predicate".
+usf:conditionRequiredValue a owl:ObjectProperty;
+    rdfs:domain usf:ValidationApplicabilityCondition;
+    rdfs:range rdfs:Resource;
+    rdfs:label "condition required value".
+
+# Declared ahead of first use. No contract is exempt from validation and none
+# carries a conditional applicability yet, so these terms have no instances.
+# They are part of the contract a consumer implements against: a consumer that
+# meets notRequired or conditional must already know what proves them.
+usf:validationApplicabilityAuthority usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
+    usf:termUsageRationale "Exemption authority for notRequired validation applicability. Unused until a contract is exempted by a successful proof result; absence of the term can never itself establish an exemption.".
+usf:validationApplicabilityCondition usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
+    usf:termUsageRationale "Structured condition binding for conditional validation applicability. Unused until a contract declares machine-evaluable conditions; an unevaluated condition leaves applicability unresolved.".
+usf:conditionSubject usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
+    usf:termUsageRationale "Subject term of a structured validation applicability condition. Unused until the first conditional applicability is authored.".
+usf:conditionPredicate usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
+    usf:termUsageRationale "Predicate term of a structured validation applicability condition. Unused until the first conditional applicability is authored.".
+usf:conditionRequiredValue usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
+    usf:termUsageRationale "Required-value term of a structured validation applicability condition. Unused until the first conditional applicability is authored.".

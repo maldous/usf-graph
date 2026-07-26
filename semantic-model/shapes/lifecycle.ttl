@@ -163,3 +163,92 @@ _:b38_b38_n3-574 sh:message "ADR, external-work-record, report and test authorit
             ?r <urn:usf:ontology:resultForValidationObligation> ?bound .
             FILTER(?bound != $this)
         }""" ].
+
+# --- Contract validation applicability enforcement --------------------------
+# usf:requiredValidation is a positive-only statement. On its own, its absence
+# is silence, and silence was readable as "not required". These shapes make the
+# applicability of validation an explicit, exactly-once, closed decision for
+# every governed contract, and make each state carry the evidence that state
+# asserts.
+
+# usf:SemanticContract is overloaded: AccessibilityProfile, ArtefactPlan,
+# AutomationWorkflowContract, CompatibilityContract, LocalisationProfile,
+# RendererContract, UISemanticModel and ViewModel are all rdfs:subClassOf it, so
+# under the reasoning schema 128 descriptive nodes are SemanticContract
+# instances. None of them carries an activation state, a mandatory proof
+# obligation, a required validation or a declared facet. Those four marks are
+# what make a contract governed, and only a governed contract can answer the
+# applicability question, so they are the target discriminator here. A blanket
+# targetClass would demand a lifecycle answer from a view model.
+<urn:usf:shape:contractvalidationapplicability> a sh:NodeShape;
+    sh:targetClass usf:SemanticContract;
+    sh:property [ sh:path usf:hasValidationApplicability; sh:maxCount 1;
+        sh:class usf:ValidationApplicabilityState;
+        sh:message "validation applicability must be at most one state from the closed vocabulary" ];
+    sh:sparql [ sh:message "a governed SemanticContract must declare exactly one validation applicability state and state its basis";
+        sh:select """SELECT $this WHERE {
+            { $this <urn:usf:ontology:hasActivationState> ?governedMark }
+            UNION { $this <urn:usf:ontology:mandatoryProofObligation> ?governedMark }
+            UNION { $this <urn:usf:ontology:requiredValidation> ?governedMark }
+            UNION { $this <urn:usf:ontology:declaresFacet> ?governedMark }
+            FILTER(NOT EXISTS { $this <urn:usf:ontology:hasValidationApplicability> ?declaredState }
+                   || NOT EXISTS { $this <urn:usf:ontology:validationApplicabilityReason> ?declaredReason })
+        }""" ].
+
+<urn:usf:shape:validationapplicabilityclosure> a sh:NodeShape;
+    sh:targetClass usf:SemanticContract;
+    # required and reserved both assert that validation is in scope, so both
+    # must name the exact obligations they are in scope for.
+    sh:sparql [ sh:message "required or reserved validation applicability must bind at least one ValidationObligation that binds back to this contract";
+        sh:select """SELECT $this WHERE {
+            $this <urn:usf:ontology:hasValidationApplicability> ?state .
+            FILTER(?state IN (<urn:usf:validationapplicabilitystate:required>,
+                              <urn:usf:validationapplicabilitystate:reserved>))
+            FILTER NOT EXISTS {
+              $this <urn:usf:ontology:requiredValidation> ?obligation .
+              ?obligation a <urn:usf:ontology:ValidationObligation> ;
+                <urn:usf:ontology:validationForContract> $this .
+            }
+        }""" ];
+    # An exemption is a positive claim. It needs positive proof authority and
+    # must not simultaneously carry obligations it claims not to have.
+    sh:sparql [ sh:message "notRequired validation applicability requires successful-proof authority and no bound ValidationObligation";
+        sh:select """SELECT $this WHERE {
+            $this <urn:usf:ontology:hasValidationApplicability> <urn:usf:validationapplicabilitystate:notrequired> .
+            FILTER(EXISTS { $this <urn:usf:ontology:requiredValidation> ?bound }
+                   || NOT EXISTS {
+                        $this <urn:usf:ontology:validationApplicabilityAuthority> ?authority .
+                        ?authority a <urn:usf:ontology:ProofResult> ;
+                          <urn:usf:ontology:hasProofResultState> <urn:usf:proofresultstate:successful> .
+                      })
+        }""" ];
+    sh:sparql [ sh:message "conditional validation applicability requires at least one fully structured condition";
+        sh:select """SELECT $this WHERE {
+            $this <urn:usf:ontology:hasValidationApplicability> <urn:usf:validationapplicabilitystate:conditional> .
+            FILTER NOT EXISTS {
+              $this <urn:usf:ontology:validationApplicabilityCondition> ?condition .
+              ?condition <urn:usf:ontology:conditionSubject> ?conditionSubject ;
+                <urn:usf:ontology:conditionPredicate> ?conditionPredicate ;
+                <urn:usf:ontology:conditionRequiredValue> ?conditionValue .
+            }
+        }""" ];
+    # unresolved means "not yet classifiable". It must not smuggle in either an
+    # obligation set or an exemption, both of which are resolved conclusions.
+    sh:sparql [ sh:message "unresolved validation applicability must not bind a ValidationObligation or cite exemption authority";
+        sh:select """SELECT $this WHERE {
+            $this <urn:usf:ontology:hasValidationApplicability> <urn:usf:validationapplicabilitystate:unresolved> .
+            FILTER(EXISTS { $this <urn:usf:ontology:requiredValidation> ?bound }
+                   || EXISTS { $this <urn:usf:ontology:validationApplicabilityAuthority> ?authority })
+        }""" ];
+    # The converse leak: obligations present while applicability denies or
+    # defers them.
+    sh:sparql [ sh:message "a contract binding a ValidationObligation must declare required, reserved or conditional applicability";
+        sh:select """SELECT $this WHERE {
+            $this <urn:usf:ontology:requiredValidation> ?obligation .
+            FILTER NOT EXISTS {
+              $this <urn:usf:ontology:hasValidationApplicability> ?state .
+              FILTER(?state IN (<urn:usf:validationapplicabilitystate:required>,
+                                <urn:usf:validationapplicabilitystate:reserved>,
+                                <urn:usf:validationapplicabilitystate:conditional>))
+            }
+        }""" ].
