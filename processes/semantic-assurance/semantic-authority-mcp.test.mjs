@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { classifySparql } from './sparql-guard.mjs';
-import { makeRedactor, callTool, cappedSelect, TOOLS } from './semantic-authority-mcp.mjs';
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { MCP_REPOSITORY_ROOT, makeRedactor, callTool, cappedSelect, TOOLS } from './semantic-authority-mcp.mjs';
 import { BOOTSTRAP_TRACE, MAX_BOOTSTRAP_BINDINGS, MAX_BOOTSTRAP_BYTES, MAX_BOOTSTRAP_DEPTH, validContractRef, authorityDigest, authorityWitness, bootstrapPacket } from './semantic-bootstrap-packet.mjs';
 
 test('read-only query forms are accepted', () => {
@@ -368,4 +371,18 @@ test('standard discovery probes get empty results, not method-not-found', async 
   assert.deepEqual(byId[3].result, { resourceTemplates: [] });
   assert.deepEqual(byId[4].result, { prompts: [] });
   assert.equal(byId[5].error.code, -32601);
+});
+
+test('the materialisation repository root is the repository, not its parent', () => {
+  // A coordinator apply resolves every operation path against ctx.repositoryRoot,
+  // and those paths are repository-relative because safeRelativePath rejects a
+  // `usf` segment. Naming the parent silently redirected authorised writes
+  // outside the checkout, so the root is pinned to the directory that actually
+  // carries this repository's package.json and authorised path roles.
+  assert.equal(MCP_REPOSITORY_ROOT, resolve(dirname(fileURLToPath(import.meta.url)), '..', '..'));
+  assert.ok(existsSync(join(MCP_REPOSITORY_ROOT, 'package.json')));
+  for (const authorisedRoot of ['processes', 'capabilities', 'semantic-model', 'documentation']) {
+    assert.ok(existsSync(join(MCP_REPOSITORY_ROOT, authorisedRoot)), authorisedRoot);
+  }
+  assert.notEqual(MCP_REPOSITORY_ROOT, resolve(MCP_REPOSITORY_ROOT, '..'));
 });
