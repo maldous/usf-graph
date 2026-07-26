@@ -881,7 +881,7 @@ rule:generatedprojection a usf:MaterialisationRule;
     usf:canonicalName "generatedprojection";
     usf:governedArtefactFamily fam:generatedprojection;
     usf:usesStorageClass storage:generateduntrackedoutput;
-    usf:usesRepresentationFormat format:rdfdatasettrig11, format:rdfgraphturtle11, format:sparqlquery11current, format:ecmascriptmodule2024, format:javascriptmodule2024, format:jsondata8259, format:yamlconfiguration12, format:markdowncommonmark, format:shellscriptposix, format:sqltext, format:graphqlschema, format:openapijson;
+    usf:usesRepresentationFormat format:rdfdatasettrig11, format:rdfgraphturtle11, format:sparqlquery11current, format:ecmascriptmodule2024, format:javascriptmodule2024, format:jsondata8259, format:yamlconfiguration12, format:markdowncommonmark, format:shellscriptposix, format:sqltext, format:graphqlschema, format:openapijson, format:intotostatementjson;
     usf:usesPathRole path:generatedoutput;
     usf:usesNamingRule naming:repositorysemanticpurpose;
     usf:usesNumberingScope numbering:languagenative;

@@ -59,82 +59,99 @@ function currentSubjectsOfType(store, classIri) {
 
 const sha256 = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
 
-// Every field a materialisation operation needs, resolved from authority.
+// Every field a materialisation operation needs, read from stored authority.
 //
-// A generation plan that names only a path and a generator cannot produce an
-// operation: the gateway's operation validator requires the exact artefact
+// A generation plan that named only a path and a generator could not produce a
+// materialisation operation: the gateway's validator requires the exact artefact
 // family, representation format and path role, and matches the filename against
-// the family's declared naming pattern. Deriving those downstream from the
-// filename would put a second, weaker copy of the materialisation contract in
-// the factory. They are resolved here, once, from the graph.
+// the family's declared naming pattern.
 //
-// Representation format is NOT taken from the filename suffix. The candidate set
-// is the artefact family's authorised formats; the format's own declared
-// canonicalExtension narrows within that set; and where a family authorises more
-// than one format for the same extension the artefact must declare
-// artefactRepresentationFormat explicitly. An unresolved or ambiguous
-// intersection is an obligation, never a guess.
-function resolveMaterialisation(store, artefact, path, obligations) {
+// Neither the family nor the format is inferred here. Both are STORED on the
+// artefact (usf:artefactMaterialisationFamily, usf:artefactRepresentationFormat)
+// under the authorised owner decision that every generated-projection output
+// materialises as urn:usf:artefactfamily:generatedprojection. Everything else —
+// target repository, storage class, path role, naming rule, generation mode,
+// authority class, content addressing and the permitted format set — is derived
+// from that family's unique materialisation rule and validated against the
+// stored format. A missing, ambiguous or unauthorised value is an obligation,
+// never a guess.
+function resolveMaterialisation(store, artefact, path, targetRepository, obligations) {
   const record = (item) => { obligations.push(item); return null; };
-  const extension = path.includes('.') ? path.slice(path.lastIndexOf('.')) : '';
-  const families = currentSubjectsOfType(store, `${USF}ArtefactFamily`);
-  const candidates = [];
-  for (const family of families) {
-    for (const rule of objects(store, family, p('usesMaterialisationRule'))) {
-      const pathRole = objects(store, rule, p('usesPathRole'))[0] ?? null;
-      if (!pathRole) continue;
-      const parents = objects(store, pathRole, p('authorisedParentPath')).map(literalValue).filter(Boolean);
-      if (!parents.some((parent) => parent === '.' ? !path.includes('/') : path === parent || path.startsWith(`${parent}/`))) continue;
-      for (const format of objects(store, rule, p('usesRepresentationFormat'))) {
-        candidates.push({
-          artefactFamily: family.value,
-          materialisationRule: rule.value,
-          pathRole: pathRole.value,
-          representationFormat: format.value,
-          canonicalExtension: literalValue(oneObject(store, format, p('canonicalExtension'))),
-          mediaType: literalValue(oneObject(store, format, p('canonicalMediaType'))),
-          storageClass: objects(store, rule, p('usesStorageClass'))[0]?.value ?? null,
-          namingRule: objects(store, rule, p('usesNamingRule'))[0]?.value ?? null,
-        });
-      }
-    }
+  const family = objects(store, artefact, p('artefactMaterialisationFamily'));
+  if (family.length !== 1) {
+    return record({ subject: artefact.value, predicate: `${USF}artefactMaterialisationFamily`, expected: 'exactly-one', observed: family.length, kind: 'unresolved-materialisation-family' });
   }
-  if (!candidates.length) {
-    return record({ subject: artefact.value, predicate: `${USF}usesMaterialisationRule`, expected: 'one-authorised-materialisation-rule-for-path', observed: path, kind: 'unresolved-materialisation-rule' });
+  const declaredFormat = objects(store, artefact, p('artefactRepresentationFormat'));
+  if (declaredFormat.length !== 1) {
+    return record({ subject: artefact.value, predicate: `${USF}artefactRepresentationFormat`, expected: 'exactly-one', observed: declaredFormat.length, kind: 'unresolved-representation-format' });
+  }
+  if (!isSemanticallyCurrent(store, family[0])) {
+    return record({ subject: artefact.value, predicate: `${USF}artefactMaterialisationFamily`, expected: 'independently-warranted-retained-family', observed: family[0].value, kind: 'superseded-materialisation-family' });
   }
 
-  const declared = objects(store, artefact, p('artefactRepresentationFormat'))[0]?.value ?? null;
-  // Distinct authorised tuples only: several families may reach the same path
-  // role through separate rules, which is repetition rather than ambiguity.
-  const distinct = new Map();
-  for (const candidate of candidates) {
-    distinct.set([candidate.artefactFamily, candidate.representationFormat, candidate.pathRole, candidate.storageClass, candidate.namingRule].join('\u0000'), candidate);
+  const rules = objects(store, family[0], p('usesMaterialisationRule')).filter((rule) => isSemanticallyCurrent(store, rule));
+  if (rules.length !== 1) {
+    return record({ subject: family[0].value, predicate: `${USF}usesMaterialisationRule`, expected: 'exactly-one-current-rule', observed: rules.length, kind: 'ambiguous-materialisation-rule' });
   }
-  const matching = [...distinct.values()].filter((candidate) => declared
-    ? candidate.representationFormat === declared
-    : candidate.canonicalExtension === extension);
-  if (matching.length !== 1) {
-    return record({
-      subject: artefact.value,
-      predicate: `${USF}artefactRepresentationFormat`,
-      expected: 'exactly-one-authorised-representation',
-      observed: [...new Set(matching.map((candidate) => candidate.representationFormat))].sort(),
-      observedFamilies: [...new Set(matching.map((candidate) => candidate.artefactFamily))].sort(),
-      extension,
-      declared,
-      kind: matching.length === 0 ? 'unresolved-representation-format' : 'ambiguous-representation-format',
-    });
+  const rule = rules[0];
+  const format = declaredFormat[0];
+  const permitted = objects(store, rule, p('usesRepresentationFormat')).map((item) => item.value);
+  if (!permitted.includes(format.value)) {
+    return record({ subject: artefact.value, predicate: `${USF}artefactRepresentationFormat`, expected: 'format-permitted-by-materialisation-rule', observed: format.value, rule: rule.value, kind: 'unauthorised-representation-format' });
   }
-  const resolved = matching[0];
-  const namingPattern = resolved.namingRule
-    ? literalValue(oneObject(store, namedNode(resolved.namingRule), p('filenamePattern')))
-    : null;
-  for (const [field, observed] of [['storageClass', resolved.storageClass], ['mediaType', resolved.mediaType], ['namingPattern', namingPattern]]) {
-    if (!observed) {
-      return record({ subject: artefact.value, predicate: `${USF}${field}`, expected: 'exactly-one', observed: null, kind: `missing-${field.toLowerCase()}` });
-    }
+
+  const single = (subject, local, kind) => {
+    const values = objects(store, subject, p(local));
+    if (values.length === 1) return values[0];
+    obligations.push({ subject: subject.value, predicate: `${USF}${local}`, expected: 'exactly-one', observed: values.length, kind });
+    return null;
+  };
+  const pathRole = single(rule, 'usesPathRole', 'missing-path-role');
+  const storageClass = single(rule, 'usesStorageClass', 'missing-storage-class');
+  const namingRule = single(rule, 'usesNamingRule', 'missing-naming-rule');
+  const generationMode = single(rule, 'usesGenerationMode', 'missing-generation-mode');
+  const authorityClass = single(rule, 'usesAuthorityClass', 'missing-authority-class');
+  const contentAddressing = literalValue(oneObject(store, rule, p('contentAddressingRequired')));
+  const mediaType = literalValue(oneObject(store, format, p('canonicalMediaType')));
+  const canonicalExtension = literalValue(oneObject(store, format, p('canonicalExtension')));
+  if (!pathRole || !storageClass || !namingRule || !generationMode || !authorityClass) return null;
+  if (contentAddressing === null) {
+    return record({ subject: rule.value, predicate: `${USF}contentAddressingRequired`, expected: 'exactly-one', observed: null, kind: 'missing-content-addressing' });
   }
-  return { ...resolved, namingPattern, representationFormatDeclared: declared !== null };
+  if (!mediaType) {
+    return record({ subject: format.value, predicate: `${USF}canonicalMediaType`, expected: 'exactly-one', observed: null, kind: 'missing-mediatype' });
+  }
+  const namingPattern = literalValue(oneObject(store, namingRule, p('filenamePattern')));
+  if (!namingPattern) {
+    return record({ subject: namingRule.value, predicate: `${USF}filenamePattern`, expected: 'exactly-one', observed: null, kind: 'missing-namingpattern' });
+  }
+
+  // The stored destination must actually accept this path and filename.
+  const parents = objects(store, pathRole, p('authorisedParentPath')).map(literalValue).filter(Boolean);
+  if (!parents.some((parent) => parent === '.' ? !path.includes('/') : path === parent || path.startsWith(`${parent}/`))) {
+    return record({ subject: artefact.value, predicate: `${USF}authorisedParentPath`, expected: parents.sort(), observed: path, kind: 'path-outside-authorised-parent' });
+  }
+  if (!new RegExp(namingPattern).test(path.split('/').pop())) {
+    return record({ subject: artefact.value, predicate: `${USF}filenamePattern`, expected: namingPattern, observed: path, kind: 'filename-violates-naming-rule' });
+  }
+  if (!targetRepository) {
+    return record({ subject: artefact.value, predicate: `${USF}ownedByRepository`, expected: 'exactly-one', observed: null, kind: 'missing-target-repository' });
+  }
+
+  return {
+    artefactFamily: family[0].value,
+    materialisationRule: rule.value,
+    representationFormat: format.value,
+    canonicalExtension,
+    mediaType,
+    pathRole: pathRole.value,
+    storageClass: storageClass.value,
+    namingRule: namingRule.value,
+    namingPattern,
+    generationMode: generationMode.value,
+    authorityClass: authorityClass.value,
+    contentAddressingRequired: contentAddressing === 'true',
+  };
 }
 
 function resolveGenerator(store, component) {
@@ -201,7 +218,7 @@ export function buildGenerationPlan(store) {
         }
       }
       if (path && kindTerm && component) {
-        const materialisation = resolveMaterialisation(store, artefact, path, materialisationObligations);
+        const materialisation = resolveMaterialisation(store, artefact, path, owners.length === 1 ? iriValue(owners[0]) : null, materialisationObligations);
         outputs.push({
           plan: plan.value,
           artefact: artefact.value,

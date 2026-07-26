@@ -2818,6 +2818,21 @@ usf:signingPolicy a owl:ObjectProperty, owl:FunctionalProperty;
 usf:signedBy a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:Signature;
     rdfs:range usf:SigningIdentity.
+# A signing identity's assurance class. A key that is derivable from a public
+# label provides deterministic reproducibility and tamper evidence; it cannot
+# establish production signer authenticity, and must not be represented as a
+# secret operator credential.
+usf:SigningIdentityClass a owl:Class;
+    rdfs:subClassOf usf:SemanticResource.
+usf:signingIdentityClass a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SigningIdentity;
+    rdfs:range usf:SigningIdentityClass.
+usf:establishesProductionAuthenticity a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SigningIdentity;
+    rdfs:range xsd:boolean.
+usf:keyDerivationLabel a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SigningIdentity;
+    rdfs:range xsd:string.
 usf:signingKeyFingerprint a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:SigningIdentity;
     rdfs:range xsd:string;
@@ -3153,6 +3168,22 @@ usf:usesRepresentationFormat a owl:ObjectProperty;
 usf:artefactRepresentationFormat a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:Artefact;
     rdfs:range usf:RepresentationFormat.
+# The artefact's exact materialisation family. Stored explicitly for every
+# planned artefact so a production plan resolves a destination from authority
+# rather than inferring one from a path or a filename suffix. It is a
+# materialisation classification and does not replace usf:artefactKind, which
+# remains the semantic classification of the output.
+usf:artefactMaterialisationFamily a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:Artefact;
+    rdfs:range usf:ArtefactFamily.
+# The artefact's exact materialisation family. Stored explicitly for every
+# planned artefact so a production plan resolves a destination from authority
+# rather than inferring one from a path or a filename suffix. It is a
+# materialisation classification and does not replace usf:artefactKind, which
+# remains the semantic classification of the output.
+usf:artefactMaterialisationFamily a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:Artefact;
+    rdfs:range usf:ArtefactFamily.
 usf:usesPathRole a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:MaterialisationRule;
     rdfs:range usf:PathRole.

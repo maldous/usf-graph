@@ -457,3 +457,43 @@ _:b37_b37_n3-555 sh:path usf:deterministicOutputChecksum;
     sh:maxCount 1;
     sh:class usf:Checksum.
 shp:CleanRoomGenerationShape sh:property _:b37_b37_n3-555.
+
+# Every planned artefact resolves exactly one materialisation destination.
+# Without these, a plan could name a path and a generator and still leave the
+# family, format and destination undetermined at operation time.
+_:b37_usfmat_1 sh:path usf:artefactMaterialisationFamily;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:ArtefactFamily.
+shp:ArtefactShape sh:property _:b37_usfmat_1.
+_:b37_usfmat_2 sh:path usf:artefactRepresentationFormat;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:RepresentationFormat.
+shp:ArtefactShape sh:property _:b37_usfmat_2.
+_:b37_usfmat_3 sh:path usf:generatedByComponent;
+    sh:minCount 1;
+    sh:maxCount 1.
+shp:ArtefactShape sh:property _:b37_usfmat_3.
+
+shp:ArtefactPlanResolutionShape a sh:NodeShape;
+    usf:canonicalName "artefactplanresolutionshape";
+    sh:targetClass usf:ArtefactPlan.
+_:b37_usfplan_1 sh:path usf:plansArtefact;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:Artefact.
+shp:ArtefactPlanResolutionShape sh:property _:b37_usfplan_1.
+_:b37_usfplan_2 sh:path usf:ownedByRepository;
+    sh:minCount 1;
+    sh:maxCount 1.
+shp:ArtefactPlanResolutionShape sh:property _:b37_usfplan_2.
+_:b37_usfplan_3 sh:path ( usf:plansArtefact usf:canonicalPath );
+    sh:minCount 1;
+    sh:maxCount 1.
+shp:ArtefactPlanResolutionShape sh:property _:b37_usfplan_3.
+_:b37_usfplan_4 sh:path ( usf:plansArtefact usf:artefactMaterialisationFamily usf:usesMaterialisationRule );
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:MaterialisationRule.
+shp:ArtefactPlanResolutionShape sh:property _:b37_usfplan_4.

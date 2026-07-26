@@ -933,4 +933,40 @@ SELECT DISTINCT ?violation ?subject WHERE {
     )
     BIND("evidencefreshnessaxisdivergence" AS ?violation)
   }
+  } UNION {
+    # an ArtefactPlan that does not resolve exactly one materialisation
+    # destination. A plan naming a path and a generator but leaving the family,
+    # format, repository or rule undetermined cannot produce an operation, and
+    # inferring the missing part downstream would put a second, weaker copy of
+    # the materialisation contract outside authority.
+    ?subject a usf:ArtefactPlan .
+    FILTER(
+      NOT EXISTS { ?subject usf:plansArtefact ?resolvedArtefact }
+      || EXISTS {
+        ?subject usf:plansArtefact ?firstArtefact, ?secondArtefact .
+        FILTER(?firstArtefact != ?secondArtefact)
+      }
+      || NOT EXISTS { ?subject usf:ownedByRepository ?resolvedRepository }
+      || EXISTS {
+        ?subject usf:ownedByRepository ?firstRepository, ?secondRepository .
+        FILTER(?firstRepository != ?secondRepository)
+      }
+      || EXISTS {
+        ?subject usf:plansArtefact ?checkedArtefact .
+        FILTER(
+          NOT EXISTS { ?checkedArtefact usf:canonicalPath ?checkedPath }
+          || NOT EXISTS { ?checkedArtefact usf:generatedByComponent ?checkedGenerator }
+          || NOT EXISTS { ?checkedArtefact usf:artefactMaterialisationFamily ?checkedFamily }
+          || NOT EXISTS { ?checkedArtefact usf:artefactRepresentationFormat ?checkedFormat }
+          || NOT EXISTS {
+            ?checkedArtefact usf:artefactMaterialisationFamily ?ruleFamily .
+            ?ruleFamily usf:usesMaterialisationRule ?compatibleRule .
+            ?checkedArtefact usf:artefactRepresentationFormat ?ruleFormat .
+            ?compatibleRule usf:usesRepresentationFormat ?ruleFormat .
+          }
+        )
+      }
+    )
+    BIND("artefactplanmaterialisationunresolved" AS ?violation)
+  }
 }

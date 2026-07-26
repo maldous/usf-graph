@@ -25,7 +25,10 @@ import { loadManifest } from '../../capabilities/semantic-model-compilation/mani
 import { loadAuthorityDataset } from '../../capabilities/semantic-model-compilation/authority-dataset.mjs';
 import { buildGenerationPlan } from '../../capabilities/repository-external-artefact-materialisation/artefact-generation-plan.mjs';
 import { generateAuthority, verifyOutput } from '../../capabilities/repository-external-artefact-materialisation/artefact-generation.mjs';
-import { observeGitSource } from '../../capabilities/repository-external-artefact-materialisation/generation-authority-binding.mjs';
+import {
+  buildGenerationAuthorityBinding,
+  observeGitSource,
+} from '../../capabilities/repository-external-artefact-materialisation/generation-authority-binding.mjs';
 
 export function repositoryRoot() {
   return resolve(fileURLToPath(import.meta.url), '../../..');
@@ -42,6 +45,52 @@ function optional(name) {
   if (inline.length === 1) return inline[0].slice(prefix.length);
   const at = process.argv.indexOf(`--${name}`);
   return at >= 0 ? process.argv[at + 1] ?? null : null;
+}
+
+// Produce the structured binding receipt from live observations. This is the
+// ONLY producer: it reads the live witness, the source/live drift result and the
+// derived-snapshot determinism result, and binds them to the exact commit, tree
+// and generation input the generator will read.
+export async function buildAuthorityBinding({ root = repositoryRoot(), client, observedAt } = {}) {
+  const { authorityWitness } = await import('./semantic-bootstrap-packet.mjs');
+  const { checkDrift } = await import('./semantic-authority-drift.mjs');
+  const manifest = loadManifest(join(root, 'semantic-model'));
+  const dataset = loadAuthorityDataset(manifest);
+  const witness = await authorityWitness(client);
+  const drift = await checkDrift({ manifest, live: client });
+  // Derived determinism: the registered derived snapshots already on disk must
+  // be exactly what live rule output produces. checkDrift compares them graph by
+  // graph, so a derived mismatch is a drift mismatch and cannot pass silently.
+  const derivedGraphs = new Set(manifest.derived.map((entry) => entry.graph));
+  const derivedMismatched = drift.mismatched.filter((graph) => derivedGraphs.has(graph));
+  const closingWitness = await authorityWitness(client);
+  if (closingWitness.digest !== witness.digest || closingWitness.triples !== witness.triples) {
+    throw new Error('live authority changed while building the generation authority binding');
+  }
+  return buildGenerationAuthorityBinding({
+    authorityDigest: `sha256:${witness.digest}`,
+    graphCount: witness.inventory.length,
+    tripleTotal: witness.triples,
+    graphInventory: witness.inventory.map((record) => ({
+      graph: record.graph,
+      sha256: `sha256:${record.sha256}`,
+      triples: record.triples,
+    })),
+    dataset,
+    ...observeGitSource(root),
+    sourceLiveDrift: {
+      checked: true,
+      mismatchedGraphs: [...drift.mismatched],
+      graphCount: witness.inventory.length,
+    },
+    derivedSnapshot: {
+      checked: true,
+      deterministic: derivedMismatched.length === 0,
+      graphs: [...derivedGraphs].sort(),
+      mismatchedGraphs: derivedMismatched,
+    },
+    observedAt: observedAt ?? new Date().toISOString().replace(/\.\d+Z$/, 'Z'),
+  });
 }
 
 export function runArtefactGenerationCommand(command) {
