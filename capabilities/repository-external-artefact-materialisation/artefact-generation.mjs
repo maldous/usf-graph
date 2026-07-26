@@ -12,7 +12,7 @@ import {
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { DataFactory } from 'n3';
-import { canonicalResource, literalValue, oneObject, subjectsOfType, USF } from './authority-dataset.mjs';
+import { canonicalResource, literalValue, oneObject, subjectsOfType, USF } from '../semantic-model-compilation/authority-dataset.mjs';
 import { requireCompleteGenerationPlan } from './artefact-generation-plan.mjs';
 import { CompilerError } from '../semantic-model-compilation/compiler.mjs';
 import { GENERATED_RELEASE_ROOT, validateGeneratedOutput } from './generated-output-validation/index.mjs';
@@ -50,12 +50,22 @@ function componentQuery(store, component) {
   return { query, classIri: type.object, constraints };
 }
 
-function projection(store, output, sourceDigest) {
-  const selected = componentQuery(store, output.component);
-  const selectedSubjects = subjectsOfType(store, selected.classIri)
+// The exact set of resources a generator's declared semanticInputQuery selects
+// from a loaded dataset. Exported so the source/live projection-parity check
+// compares the SAME selection the generator performs, rather than a second
+// interpretation of the same query.
+export function generatorSelection(store, component) {
+  const selected = componentQuery(store, component);
+  const subjects = subjectsOfType(store, selected.classIri)
     .filter((subject) => selected.constraints.every((constraint) =>
       store.countQuads(subject, namedNode(constraint.predicate), namedNode(constraint.object), null) > 0
     ));
+  return { ...selected, subjects };
+}
+
+function projection(store, output, sourceDigest) {
+  const selected = generatorSelection(store, output.component);
+  const selectedSubjects = selected.subjects;
   const requested = new Set(output.semanticResources ?? []);
   const subjects = requested.size ? selectedSubjects.filter((subject) => requested.has(subject.value)) : selectedSubjects;
   if (requested.size && subjects.length !== requested.size) throw new CompilerError('artifact plan selects a semantic resource outside its generator query', {

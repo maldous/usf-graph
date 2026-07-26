@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { DataFactory, Parser } from 'n3';
 
 import { loadManifest } from '../semantic-model-compilation/manifest.mjs';
-import { loadAuthorityDataset } from './authority-dataset.mjs';
+import { loadAuthorityDataset } from '../semantic-model-compilation/authority-dataset.mjs';
 import { buildGenerationPlan } from './artefact-generation-plan.mjs';
 import { generateAuthority, resolveProvenanceDigest } from './artefact-generation.mjs';
 import { GENERATED_OUTPUT_ROOT } from './generated-output-validation/index.mjs';

@@ -403,7 +403,7 @@ const { validateSemanticAuthorityConfiguration } = await import(
   canonicalModule('configuration/semantic-assurance/semantic-authority.mjs')
 );
 const { compile, checkLocal } = await import(canonicalModule('capabilities/semantic-model-compilation/compiler.mjs'));
-const { loadAuthorityDataset } = await import(canonicalModule('processes/semantic-assurance/authority-dataset.mjs'));
+const { loadAuthorityDataset } = await import(canonicalModule('capabilities/semantic-model-compilation/authority-dataset.mjs'));
 const { loadManifest } = await import(canonicalModule('capabilities/semantic-model-compilation/manifest.mjs'));
 const { createClient } = await import(canonicalModule('provider-bindings/stardog/stardog-read-gateway.mjs'));
 const { createStardogSemanticAuthorityClient } = await import(
@@ -673,7 +673,7 @@ const implementationSources = sourceSetDigest([
   'processes/semantic-assurance/repository-materialisation-command.test.mjs',
   'processes/semantic-assurance/semantic-authority-gateway.mjs',
   'processes/semantic-assurance/semantic-authority-gateway.test.mjs',
-  'processes/semantic-assurance/authority-dataset.mjs',
+  'capabilities/semantic-model-compilation/authority-dataset.mjs',
   'processes/semantic-assurance/semantic-bootstrap-packet.mjs',
   'processes/semantic-assurance/repository-materialisation-gateway.mjs',
   'processes/semantic-assurance/semantic-authority-mcp.mjs',

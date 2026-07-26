@@ -21,7 +21,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { loadManifest } from '../../capabilities/semantic-model-compilation/manifest.mjs';
-import { loadAuthorityDataset } from '../../capabilities/repository-external-artefact-materialisation/authority-dataset.mjs';
+import { loadAuthorityDataset } from '../../capabilities/semantic-model-compilation/authority-dataset.mjs';
 import { buildGenerationPlan } from '../../capabilities/repository-external-artefact-materialisation/artefact-generation-plan.mjs';
 import { generateAuthority, verifyOutput } from '../../capabilities/repository-external-artefact-materialisation/artefact-generation.mjs';
 

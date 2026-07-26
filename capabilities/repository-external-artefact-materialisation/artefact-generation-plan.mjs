@@ -5,7 +5,7 @@ import {
   literalValue,
   objects,
   subjectsOfType,
-} from './authority-dataset.mjs';
+} from '../semantic-model-compilation/authority-dataset.mjs';
 import { CompilerError } from '../semantic-model-compilation/compiler.mjs';
 
 const { namedNode } = DataFactory;
