@@ -149,40 +149,21 @@ function bounded(valueToMeasure, maximum, label) {
   return bytes;
 }
 
-function safeRelativePath(path, label = 'path') {
-  if (typeof path !== 'string' || path.length === 0 || path.length > 512 || path.startsWith('/') || path.includes('\\') || /[\x00-\x1f<>:"|?*]/.test(path)) {
-    throw new Error(`${label} is not a portable repository-relative path`);
-  }
-  const segments = path.split('/');
-  if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) throw new Error(`${label} contains a prohibited segment`);
-  if (segments.some((segment) => /[ .]$/.test(segment) || /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(segment))) throw new Error(`${label} is not portable across supported filesystems`);
-  const skillException = path.startsWith('.claude/skills/usf/') || path.startsWith('.codex/skills/usf/');
-  if (!skillException && segments.some((segment) => ['v2', 'legacy', 'old', 'new', 'temp', 'transitional', 'usf'].includes(segment.toLowerCase()))) throw new Error(`${label} contains a forbidden canonical segment`);
-  return path;
-}
+import {
+  assertNoSymlinkSegments,
+  containedBy,
+  decisionAuthorisesPath,
+  inside,
+  safeRelativePath,
+  treeEntries,
+} from '../../capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs';
 
-function inside(root, relativePath) {
-  const target = resolve(root, safeRelativePath(relativePath));
-  const rel = relative(root, target);
-  if (!rel || rel.startsWith('..') || rel.split(sep).includes('..')) throw new Error('path escapes repository root');
-  return target;
-}
-
-function containedBy(root, target) {
-  const rel = relative(root, target);
-  return rel !== '' && rel !== '..' && !rel.startsWith(`..${sep}`);
-}
-
-function assertNoSymlinkSegments(root, target, label) {
-  if (!containedBy(root, target)) throw new Error(`${label} escapes configured root`);
-  let cursor = root;
-  for (const segment of relative(root, target).split(sep)) {
-    cursor = resolve(cursor, segment);
-    if (existsSync(cursor) && lstatSync(cursor).isSymbolicLink()) {
-      throw new Error(`${label} traverses a symbolic link`);
-    }
-  }
-}
+// Path, containment, symlink and tree mechanics are NOT reimplemented here. They
+// live once in the lower capability module and are imported below, so the
+// canonical gateway and the control-plane proof engine cannot disagree about
+// which paths are portable or which segments are forbidden. This gateway keeps
+// exclusive ownership of the live authority read, the realisation verdict and the
+// witness bracketing around every decision and apply.
 
 function rethrowWithRollback(primaryError, rollback) {
   const rollbackErrors = [];
@@ -203,17 +184,6 @@ async function hashFile(path) {
   const hash = createHash('sha256');
   for await (const chunk of createReadStream(path)) hash.update(chunk);
   return `sha256:${hash.digest('hex')}`;
-}
-
-function treeEntries(root, base = root) {
-  const stat = lstatSync(root);
-  if (!stat.isDirectory()) return [{ path: relative(base, root).split(sep).join('/'), type: 'file', digest: digest(readFileSync(root)) }];
-  return readdirSync(root, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name)).flatMap((entry) => {
-    const path = resolve(root, entry.name);
-    if (entry.isSymbolicLink()) return [{ path: relative(base, path).split(sep).join('/'), type: 'symlink', target: readlinkSync(path) }];
-    if (entry.isDirectory()) return [{ path: `${relative(base, path).split(sep).join('/')}/`, type: 'directory' }, ...treeEntries(path, base)];
-    return [{ path: relative(base, path).split(sep).join('/'), type: 'file', digest: digest(readFileSync(path)) }];
-  });
 }
 
 export function sourceDigest(path) {
@@ -368,10 +338,6 @@ function withAuthority(semantics, witness, ctx) {
     authorityDigestAlgorithm: 'sha256-rdfc10-graph-inventory-v2',
     authorityWitness: witness,
   };
-}
-
-function decisionAuthorisesPath(path, authorisedPaths) {
-  return authorisedPaths.some((authorised) => authorised === '.' ? !path.includes('/') : path === authorised || path.startsWith(`${authorised}/`));
 }
 
 function validateOperation(operation, index, context) {

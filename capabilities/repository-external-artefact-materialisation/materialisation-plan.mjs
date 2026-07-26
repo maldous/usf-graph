@@ -26,7 +26,35 @@ const MAX_PLAN_BYTES = 65_536;
 const MAX_TRACKED_WRITE_BYTES = 16 * 1024 * 1024;
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const ACTIONS = new Set(['create-directory', 'write-file', 'move-path', 'delete-path']);
-const FORBIDDEN_SEGMENTS = new Set(['v2', 'legacy', 'migration', 'replacement', 'temporary', 'bootstrap', 'initial-suite', 'reference-kernel', 'executable-suite']);
+
+// One path policy for every materialisation surface. This module and the canonical
+// gateway previously each declared their own forbidden-segment vocabulary, so a
+// path one rejected the other could accept. Neither matched authority on its own:
+// this set is `urn:usf:repositorynamingstandard:semanticpurpose`'s
+// prohibitedCanonicalToken list, and `usf` is added structurally because operation
+// paths are repository-relative and must never re-embed the repository name.
+// The agent-skill directories are the one authorised exception, exactly as the
+// naming standard records them as uppercase/product compatibility exceptions.
+export const FORBIDDEN_SEGMENTS = new Set([
+  'bootstrap',
+  'common',
+  'core',
+  'executable-suite',
+  'helpers',
+  'initial-suite',
+  'legacy',
+  'migration',
+  'misc',
+  'reference-kernel',
+  'replacement',
+  'shared',
+  'temporary',
+  'transitional',
+  'usf',
+  'utils',
+  'v2',
+]);
+const SKILL_EXCEPTION_PREFIXES = Object.freeze(['.claude/skills/usf/', '.codex/skills/usf/']);
 
 export const stable = (input) => Array.isArray(input)
   ? input.map(stable)
@@ -43,7 +71,7 @@ function bounded(input, maximum, label) {
   return bytes;
 }
 
-function safeRelativePath(path, label = 'path') {
+export function safeRelativePath(path, label = 'path') {
   if (typeof path !== 'string' || path.length === 0 || path.length > 512 || path.startsWith('/') || path.includes('\\') || /[\x00-\x1f<>:"|?*]/.test(path)) {
     throw new Error(`${label} is not a portable repository-relative path`);
   }
@@ -52,18 +80,21 @@ function safeRelativePath(path, label = 'path') {
   if (segments.some((segment) => /[ .]$/.test(segment) || /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(segment))) {
     throw new Error(`${label} is not portable across supported filesystems`);
   }
-  if (segments.some((segment) => FORBIDDEN_SEGMENTS.has(segment.toLowerCase()) || /^wave(?:-|_)?(?:zero|one|two|three|four|five|six|[0-9]+)$/i.test(segment) || /^usf-[0-9]+$/i.test(segment))) {
+  const skillException = SKILL_EXCEPTION_PREFIXES.some((prefix) => path.startsWith(prefix));
+  if (segments.some((segment) => (FORBIDDEN_SEGMENTS.has(segment.toLowerCase()) && !(skillException && segment.toLowerCase() === 'usf'))
+    || /^wave(?:-|_)?(?:zero|one|two|three|four|five|six|[0-9]+)$/i.test(segment)
+    || /^usf-[0-9]+$/i.test(segment))) {
     throw new Error(`${label} contains a forbidden durable identity`);
   }
   return path;
 }
 
-function containedBy(root, target) {
+export function containedBy(root, target) {
   const rel = relative(root, target);
   return rel !== '' && rel !== '..' && !rel.startsWith(`..${sep}`);
 }
 
-function inside(root, relativePath) {
+export function inside(root, relativePath) {
   const target = resolve(root, safeRelativePath(relativePath));
   if (!containedBy(root, target)) throw new Error('path escapes repository root');
   return target;
@@ -84,7 +115,7 @@ function orderedNames(left, right) {
   return 0;
 }
 
-function treeEntries(root, base = root) {
+export function treeEntries(root, base = root) {
   const stat = lstatSync(root);
   if (!stat.isDirectory()) return [{ path: relative(base, root).split(sep).join('/'), type: 'file', digest: sha256(readFileSync(root)) }];
   return readdirSync(root, { withFileTypes: true }).sort(orderedNames).flatMap((entry) => {
@@ -100,7 +131,7 @@ export function sourceDigest(path) {
   return lstatSync(path).isDirectory() ? sha256(canonicalJson(treeEntries(path))) : sha256(readFileSync(path));
 }
 
-function decisionAuthorisesPath(path, authorisedPaths) {
+export function decisionAuthorisesPath(path, authorisedPaths) {
   return authorisedPaths.some((authorised) => authorised === '.' ? !path.includes('/') : path === authorised || path.startsWith(`${authorised}/`));
 }
 
@@ -118,7 +149,7 @@ function authorityFailures(authority, contract) {
   return failures;
 }
 
-function operationFailures(operation, index, authority) {
+export function validatePlanOperation(operation, index, authority) {
   const failures = [];
   if (!operation || operation.index !== index) failures.push({ index, code: 'operation-index' });
   if (!ACTIONS.has(operation?.action)) failures.push({ index, code: 'operation-action' });
@@ -161,7 +192,7 @@ export function validateMaterialisationPlan(authority, plan) {
   if (plan?.schemaVersion !== 1) failures.push({ code: 'plan-schema-version' });
   if (plan?.authorityDigest !== authority?.authorityDigest) failures.push({ code: 'plan-authority-digest' });
   if (!Array.isArray(plan?.operations) || plan.operations.length < 1 || plan.operations.length > MAX_OPERATIONS) failures.push({ code: 'plan-operation-bound' });
-  else plan.operations.forEach((operation, index) => failures.push(...operationFailures(operation, index, authority)));
+  else plan.operations.forEach((operation, index) => failures.push(...validatePlanOperation(operation, index, authority)));
   const unsigned = { ...plan };
   delete unsigned.planDigest;
   const expectedPlanDigest = sha256(canonicalJson(unsigned));
