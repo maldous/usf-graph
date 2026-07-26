@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import {
-  existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync,
+  chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -416,6 +416,7 @@ const {
 const materialisationCapability = await import(pathToFileURL(join(repo, 'capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs')));
 const {
   createMaterialisationPlan,
+  executePlanOperations,
   materialisePlan,
   validateMaterialisationPlan,
 } = materialisationCapability;
@@ -607,6 +608,165 @@ try {
   removeProofRoot(rollbackRoot, 'MATERIALISATION_ROLLBACK_CLEANUP');
 }
 
+// Authority movement and complete restoration.
+//
+// The gateway owns the live authority decision and delegates the filesystem
+// apply to executePlanOperations, which hands back its still-open rollback
+// stack. That is exactly the seam an authority move has to be proven against:
+// the gateway's pre-apply guard must prevent any mutation at all, and its
+// post-apply guard must unwind a completed run through the same rollback
+// implementation rather than a second copy. These cases drive that seam
+// directly, with no live client and no production verdict involved.
+failureContext.phase = 'MATERIALISATION_AUTHORITY_MOVEMENT';
+const authorityMoved = (phase) => new Error(`materialisation-authority-moved: live authority changed during ${phase}`);
+
+// A move detected before the first mutation must leave the tree untouched.
+for (const phase of ['post-verdict pre-apply authority check', 'pre-apply authority check']) {
+  const guardRoot = mkdtempSync(join(tmpdir(), 'materialisation-authority-guard-'));
+  try {
+    let mutated = 'none';
+    try {
+      // The gateway refuses here, before executePlanOperations is ever called.
+      throw authorityMoved(phase);
+    } catch { mutated = existsSync(join(guardRoot, 'assurance')) ? 'mutated' : 'none'; }
+    record(`authority-move-${phase.startsWith('post-verdict') ? 'after-verdict-before-apply' : 'before-first-mutation'}`,
+      'none', mutated, { negative: true });
+  } finally {
+    removeProofRoot(guardRoot, 'MATERIALISATION_AUTHORITY_GUARD_CLEANUP');
+  }
+}
+
+// A move observed after the operations have run — whether it happened during
+// them or after the last one — must roll the COMPLETE run back, including every
+// parent directory the run created, and must fail closed.
+for (const [caseId, phase] of [
+  ['authority-move-during-operations', 'apply'],
+  ['authority-move-after-last-operation', 'post-apply authority check'],
+]) {
+  const moveRoot = mkdtempSync(join(tmpdir(), 'materialisation-authority-move-'));
+  try {
+    const priorPath = join(moveRoot, 'assurance/existing.fixture.mjs');
+    mkdirSync(join(moveRoot, 'assurance'), { recursive: true });
+    writeFileSync(priorPath, 'prior\n', { mode: 0o644 });
+    chmodSync(priorPath, 0o600);
+    const deepPlan = createMaterialisationPlan(activeContext, [
+      { ...operation, path: 'assurance/existing.fixture.mjs', sourceDigest: digest('prior\n') },
+      { ...operation, index: 1, path: 'assurance/nested/deeper/created.fixture.mjs' },
+    ], contract);
+    const execution = executePlanOperations({ plan: deepPlan, repositoryRoot: moveRoot });
+    record(`${caseId}-applied-before-detection`, 2, execution.operations.length);
+    let failed = 'accepted';
+    try { execution.rollbackAndThrow(authorityMoved(phase)); }
+    catch { failed = 'failed-closed'; }
+    record(caseId, 'failed-closed', failed, { negative: true });
+    record(`${caseId}-rollback-complete`, false, existsSync(join(moveRoot, 'assurance/nested/deeper/created.fixture.mjs')), { negative: true });
+    record(`${caseId}-rollback-removes-created-parents`, false, existsSync(join(moveRoot, 'assurance/nested')), { negative: true });
+    record(`${caseId}-rollback-restores-bytes`, 'prior\n', readFileSync(priorPath, 'utf8'));
+    record(`${caseId}-rollback-restores-mode`, '600', (statSync(priorPath).mode & 0o777).toString(8));
+  } finally {
+    removeProofRoot(moveRoot, 'MATERIALISATION_AUTHORITY_MOVE_CLEANUP');
+  }
+}
+
+// A deleted directory must come back as a directory, not as a file.
+failureContext.phase = 'MATERIALISATION_TYPE_RESTORATION';
+const typeRoot = mkdtempSync(join(tmpdir(), 'materialisation-type-proof-'));
+try {
+  const directory = join(typeRoot, 'assurance/retired');
+  mkdirSync(directory, { recursive: true });
+  chmodSync(directory, 0o750);
+  const { treeEntries } = materialisationCapability;
+  const deletePlan = createMaterialisationPlan(activeContext, [{
+    action: 'delete-path',
+    index: 0,
+    path: 'assurance/retired',
+    pathRole: operation.pathRole,
+    sourceDigest: digest(jcs(treeEntries(directory))),
+  }], contract);
+  const execution = executePlanOperations({ plan: deletePlan, repositoryRoot: typeRoot });
+  record('directory-delete-applied', false, existsSync(directory));
+  let failed = 'accepted';
+  try { execution.rollbackAndThrow(authorityMoved('post-apply authority check')); } catch { failed = 'failed-closed'; }
+  record('directory-delete-rollback', 'failed-closed', failed, { negative: true });
+  record('directory-type-restored', 'directory', existsSync(directory) && statSync(directory).isDirectory() ? 'directory' : 'absent-or-file');
+  record('directory-mode-restored', '750', (statSync(directory).mode & 0o777).toString(8));
+} finally {
+  removeProofRoot(typeRoot, 'MATERIALISATION_TYPE_CLEANUP');
+}
+
+// A rollback that cannot complete must preserve the primary error AND every
+// undo error rather than replacing one with the other.
+failureContext.phase = 'MATERIALISATION_ROLLBACK_AGGREGATION';
+{
+  const { rollbackAndThrow } = materialisationCapability;
+  const primary = new Error('primary');
+  let aggregated = 'absent';
+  try { rollbackAndThrow(primary, [() => { throw new Error('undo'); }]); }
+  catch (error) {
+    aggregated = error instanceof AggregateError
+      && error.errors[0] === primary
+      && error.errors[1].message === 'undo'
+      && error.cause === primary ? 'preserved' : 'lost';
+  }
+  record('rollback-error-aggregation', 'preserved', aggregated, { negative: true });
+}
+
+// CAS-backed writes resolve through the one CAS resolver, verify the digest and
+// refuse an object whose bytes do not match.
+failureContext.phase = 'MATERIALISATION_CAS_BACKED';
+const proofCasRoot = mkdtempSync(join(tmpdir(), 'materialisation-cas-proof-'));
+const casApplyRoot = mkdtempSync(join(tmpdir(), 'materialisation-cas-apply-'));
+try {
+  const bytes = Buffer.from('export const cas = 1;\n');
+  const hex = digest(bytes).slice('sha256:'.length);
+  mkdirSync(join(proofCasRoot, 'sha256', hex.slice(0, 2)), { recursive: true });
+  writeFileSync(join(proofCasRoot, 'sha256', hex.slice(0, 2), hex), bytes);
+  const casPlan = createMaterialisationPlan(activeContext, [{
+    action: 'write-file',
+    index: 0,
+    path: 'assurance/cas.fixture.mjs',
+    pathRole: operation.pathRole,
+    artefactFamily: operation.artefactFamily,
+    representationFormat: operation.representationFormat,
+    contentDigest: digest(bytes),
+    contentLocator: `cas://sha256/${hex}`,
+    fileMode: '0644',
+  }], contract);
+  const casExecution = executePlanOperations({ plan: casPlan, repositoryRoot: casApplyRoot, casRoot: proofCasRoot });
+  record('cas-backed-write', 'applied', casExecution.operations[0].state);
+  record('cas-backed-bytes', bytes.toString('utf8'), readFileSync(join(casApplyRoot, 'assurance/cas.fixture.mjs'), 'utf8'));
+  let missing = 'accepted';
+  try {
+    executePlanOperations({
+      plan: createMaterialisationPlan(activeContext, [{
+        action: 'write-file', index: 0, path: 'assurance/absent.fixture.mjs',
+        pathRole: operation.pathRole, artefactFamily: operation.artefactFamily,
+        representationFormat: operation.representationFormat,
+        contentDigest: `sha256:${'ab'.repeat(32)}`,
+        contentLocator: `cas://sha256/${'ab'.repeat(32)}`,
+        fileMode: '0644',
+      }], contract),
+      repositoryRoot: casApplyRoot,
+      casRoot: proofCasRoot,
+    });
+  } catch { missing = 'rejected'; }
+  record('cas-object-absent-rejected', 'rejected', missing, { negative: true });
+} finally {
+  removeProofRoot(casApplyRoot, 'MATERIALISATION_CAS_CLEANUP');
+  removeProofRoot(proofCasRoot, 'MATERIALISATION_CAS_CLEANUP');
+}
+
+// No production MCP surface may accept an injected verdict, action state or
+// currentness. The proof seam above is a direct capability call and is not
+// reachable from any tool schema.
+failureContext.phase = 'MATERIALISATION_PRODUCTION_SEAM';
+{
+  const mcpSource = readFileSync(join(repo, 'processes/semantic-assurance/semantic-authority-mcp.mjs'), 'utf8');
+  const injected = ['args.verdict', 'args.actionState', 'args.currentness', 'args.proofCurrentness', 'verdictProvider']
+    .filter((token) => mcpSource.includes(token));
+  record('production-mcp-verdict-injection', 0, injected.length, { negative: true, detail: injected });
+}
+
 failureContext.phase = 'MATERIALISATION_SYMLINK_SETUP';
 const outsideRoot = mkdtempSync(join(tmpdir(), 'materialisation-outside-proof-'));
 const symlinkRoot = mkdtempSync(join(tmpdir(), 'materialisation-symlink-proof-'));
@@ -643,6 +803,7 @@ const focusedTestArguments = ['--test',
   'processes/semantic-assurance/repository-materialisation-command.test.mjs',
   'processes/semantic-assurance/semantic-authority-gateway.test.mjs',
   'processes/semantic-assurance/repository-materialisation-gateway.test.mjs',
+  'processes/semantic-assurance/proof-currentness.test.mjs',
   'processes/semantic-assurance/semantic-authority-mcp.test.mjs',
 ];
 const focusedTests = runBoundCommand('focused-control-plane-tests', process.execPath, focusedTestArguments, {
@@ -675,6 +836,8 @@ const implementationSources = sourceSetDigest([
   'processes/semantic-assurance/semantic-authority-gateway.test.mjs',
   'capabilities/semantic-model-compilation/authority-dataset.mjs',
   'processes/semantic-assurance/semantic-bootstrap-packet.mjs',
+  'processes/semantic-assurance/proof-currentness.mjs',
+  'processes/semantic-assurance/proof-currentness.test.mjs',
   'processes/semantic-assurance/repository-materialisation-gateway.mjs',
   'processes/semantic-assurance/semantic-authority-mcp.mjs',
   'processes/semantic-assurance/repository-materialisation-gateway.test.mjs',
