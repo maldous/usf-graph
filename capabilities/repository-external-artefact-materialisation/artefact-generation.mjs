@@ -16,6 +16,7 @@ import { canonicalResource, literalValue, oneObject, subjectsOfType, USF } from 
 import { requireCompleteGenerationPlan } from './artefact-generation-plan.mjs';
 import { CompilerError } from '../semantic-model-compilation/compiler.mjs';
 import { GENERATED_RELEASE_ROOT, validateGeneratedOutput } from './generated-output-validation/index.mjs';
+import { assertGenerationAuthorityBinding } from './generation-authority-binding.mjs';
 
 const { namedNode } = DataFactory;
 const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
@@ -253,41 +254,72 @@ function write(root, relativePath, content, reuseRoot = null) {
   return { path: relativePath, bytes: Buffer.byteLength(content), sha256: digest, reused: false };
 }
 
-// The witness a generated projection is bound to. Historically the generator
-// stamped its own sorted-quad digest of the loaded store, which is a different
-// algorithm from the published authority witness
-// (sha256-rdfc10-graph-inventory-v2). A projection carrying a digest that no
-// published authority state ever had cannot be traced back to the authority it
-// claims to project, so a caller that has read the live witness passes it here and
-// every artefact binds to that exact value instead.
+// The witness a generated projection is bound to.
 //
-// The override must be an exact `sha256:<64 hex>` or bare 64-hex witness, and the
-// caller is responsible for having verified source/live parity first: binding a
-// live digest to a source tree that has drifted would assert a projection of a
-// state that was never generated. Absent an override the local sorted-quad digest
-// is retained so the generator stays runnable with no live authority at all.
-const SHA256_WITNESS = /^(?:sha256:)?([0-9a-f]{64})$/;
-
-export function resolveProvenanceDigest(store, authorityWitnessDigest) {
-  if (authorityWitnessDigest === undefined || authorityWitnessDigest === null) {
-    return { digest: authorityDigest(store), algorithm: 'sha256-sorted-quads-local', bound: false };
+// Historically the generator stamped its own sorted-quad digest of the loaded
+// store, which is a different algorithm from the published authority witness
+// (sha256-rdfc10-graph-inventory-v2), so a projection carried a digest that no
+// published authority state ever had. That was then replaced by a bare
+// `authorityWitnessDigest` string, which was worse in a different way: any
+// syntactically valid 64 hex characters bound every artefact to a state nobody
+// had checked was live, current, or the one this source tree projects.
+//
+// A production binding is now a structured receipt validated against what the
+// generator itself observes — the dataset it loaded, the commit and tree it
+// read, and the drift and derived-snapshot results actually taken. Only a
+// receipt that survives `assertGenerationAuthorityBinding` produces
+// `authorityWitnessBound=true`.
+//
+// Offline local generation remains available with no receipt. It reports
+// `authorityWitnessBound=false` and carries the generator's local input digest,
+// which is exactly what lets a consumer refuse it for production
+// materialisation.
+export function resolveProvenanceDigest(store, authorityBinding, { dataset, observedSource } = {}) {
+  if (authorityBinding === undefined || authorityBinding === null) {
+    return {
+      digest: authorityDigest(store),
+      algorithm: 'sha256-sorted-quads-local',
+      bound: false,
+      binding: null,
+    };
   }
-  const match = SHA256_WITNESS.exec(String(authorityWitnessDigest));
-  if (!match) {
-    throw new CompilerError('authority witness digest must be sha256:<64 lowercase hex>', {
+  if (!dataset || !observedSource) {
+    throw new CompilerError('authority-bound generation requires the loaded dataset and observed source identity', {
       phase: 'generate:authority-witness',
-      observed: String(authorityWitnessDigest),
     });
   }
-  return { digest: match[1], algorithm: 'sha256-rdfc10-graph-inventory-v2', bound: true };
+  let validated;
+  try {
+    validated = assertGenerationAuthorityBinding(authorityBinding, { dataset, observedSource });
+  } catch (error) {
+    throw new CompilerError(error.message, {
+      phase: 'generate:authority-witness',
+      bindingFailureCode: error.code ?? 'invalid',
+      detail: error.detail ?? null,
+    });
+  }
+  return {
+    digest: validated.authorityDigest.slice('sha256:'.length),
+    algorithm: validated.authorityDigestAlgorithm,
+    bound: true,
+    binding: validated,
+  };
 }
 
-export function generateAuthority({ store, outputDir, mode = 'full', signingKeyPath, authorityWitnessDigest }) {
+export function generateAuthority({
+  store,
+  outputDir,
+  mode = 'full',
+  signingKeyPath,
+  authorityBinding,
+  dataset,
+  observedSource,
+}) {
   if (!['full', 'incremental'].includes(mode)) throw new CompilerError(`unsupported generation mode: ${mode}`, { phase: 'generate:configuration' });
   const target = resolve(outputDir);
   if (mode === 'full' && existsSync(target)) throw new CompilerError('full generation requires an absent output directory', { phase: 'generate:clean-room', outputDir: target });
   const plan = requireCompleteGenerationPlan(store);
-  const provenance = resolveProvenanceDigest(store, authorityWitnessDigest);
+  const provenance = resolveProvenanceDigest(store, authorityBinding, { dataset, observedSource });
   const sourceDigest = provenance.digest;
   mkdirSync(dirname(target), { recursive: true });
   const old = mode === 'incremental' && existsSync(target) ? verifyOutput(target, false) : null;
@@ -341,6 +373,11 @@ export function generateAuthority({ store, outputDir, mode = 'full', signingKeyP
         mode,
         authorityDigestAlgorithm: provenance.algorithm,
         authorityWitnessBound: provenance.bound,
+        authorityBindingReceiptDigest: provenance.binding?.receiptDigest ?? null,
+        generationInputDigest: provenance.binding?.generationInputDigest ?? dataset?.inputDigest ?? null,
+        generationInputScope: provenance.binding?.generationInputScope?.name ?? dataset?.scope?.name ?? null,
+        sourceCommit: provenance.binding?.sourceCommit ?? null,
+        sourceTree: provenance.binding?.sourceTree ?? null,
         outputDir: target,
         authorityDigest: sourceDigest,
         releaseIntegrity: 'absent-no-authorised-signing-key',
@@ -392,7 +429,16 @@ export function generateAuthority({ store, outputDir, mode = 'full', signingKeyP
       throw error;
     }
     const prior = new Map((old?.manifest?.files ?? []).map((f) => [f.path, f.sha256]));
-    return { ok: true, mode, outputDir: target, authorityDigest: sourceDigest, outputCount: verified.manifest.files.length + 3,
+    return { ok: true, mode, outputDir: target,
+      authorityDigestAlgorithm: provenance.algorithm,
+      authorityWitnessBound: provenance.bound,
+      authorityBindingReceiptDigest: provenance.binding?.receiptDigest ?? null,
+      generationInputDigest: provenance.binding?.generationInputDigest ?? dataset?.inputDigest ?? null,
+      generationInputScope: provenance.binding?.generationInputScope?.name ?? dataset?.scope?.name ?? null,
+      sourceCommit: provenance.binding?.sourceCommit ?? null,
+      sourceTree: provenance.binding?.sourceTree ?? null,
+      releaseIntegrity: 'present',
+      authorityDigest: sourceDigest, outputCount: verified.manifest.files.length + 3,
       reused: files.filter((f) => f.reused).length, changed: verified.manifest.files.filter((f) => prior.get(f.path) !== f.sha256).length,
       aggregateDigest: sha256(verified.manifest.files.map((f) => `${f.path}\u0000${f.sha256}`).join('\n')) };
   } catch (error) {

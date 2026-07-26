@@ -10,6 +10,10 @@ import { loadManifest } from '../semantic-model-compilation/manifest.mjs';
 import { loadAuthorityDataset } from '../semantic-model-compilation/authority-dataset.mjs';
 import { buildGenerationPlan } from './artefact-generation-plan.mjs';
 import { generateAuthority, resolveProvenanceDigest } from './artefact-generation.mjs';
+import {
+  buildGenerationAuthorityBinding,
+  generationAuthorityBindingDigest,
+} from './generation-authority-binding.mjs';
 import { GENERATED_OUTPUT_ROOT } from './generated-output-validation/index.mjs';
 
 const REPOSITORY_ROOT = join(import.meta.dirname, '..', '..');
@@ -18,7 +22,7 @@ const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 
 // One dataset load serves every read-only assertion: parsing the authored set is
 // the expensive part and none of these tests mutate it.
-const shared = dataset();
+const shared = { ...dataset(), get dataset() { return shared; } };
 
 test('the registered authored set yields a complete generation plan', () => {
   const plan = buildGenerationPlan(shared.store);
@@ -147,50 +151,129 @@ test('a changed semantic input invalidates only the authority-bound artefacts', 
   }
 });
 
-test('generated provenance binds the live inventory-v2 witness when one is supplied', () => {
-  // A projection stamped with the generator's own sorted-quad digest cannot be
-  // traced back to any published authority state. When the caller has read the
-  // live witness, every artefact must carry that exact value instead.
-  const witness = 'sha256:0c7e17a9bbec19a321d5718887de3e4bbac109360ee944c596b84dfd82a359a2';
-  const bare = witness.slice('sha256:'.length);
+test('generated provenance requires a validated binding receipt, not a syntactically valid digest', () => {
+  // A bare digest argument proved nothing: any 64 hex characters bound every
+  // artefact to a state nobody had checked was live, current, or the one this
+  // source tree projects. A binding is now a receipt validated against what the
+  // generator itself observes.
   const local = resolveProvenanceDigest(shared.store, undefined);
   assert.equal(local.bound, false);
   assert.equal(local.algorithm, 'sha256-sorted-quads-local');
+  assert.equal(local.binding, null);
   assert.match(local.digest, /^[0-9a-f]{64}$/);
 
-  for (const supplied of [witness, bare]) {
-    const bound = resolveProvenanceDigest(shared.store, supplied);
-    assert.equal(bound.bound, true);
-    assert.equal(bound.algorithm, 'sha256-rdfc10-graph-inventory-v2');
-    assert.equal(bound.digest, bare, 'the bare 64-hex witness is what projections carry');
-  }
-  assert.notEqual(local.digest, bare, 'the local algorithm must not coincide with the live witness');
+  const dataset = shared.dataset;
+  const observedSource = {
+    sourceCommit: 'a'.repeat(40),
+    sourceTree: 'b'.repeat(40),
+  };
+  const inventory = [
+    { graph: 'urn:usf:graph:one', sha256: `sha256:${'1'.repeat(64)}`, triples: 7 },
+    { graph: 'urn:usf:graph:two', sha256: `sha256:${'2'.repeat(64)}`, triples: 5 },
+  ];
+  const receipt = buildGenerationAuthorityBinding({
+    authorityDigest: `sha256:${'0c'.repeat(32)}`,
+    graphCount: 2,
+    tripleTotal: 12,
+    graphInventory: inventory,
+    dataset,
+    ...observedSource,
+    sourceLiveDrift: { checked: true, mismatchedGraphs: [], graphCount: 2 },
+    derivedSnapshot: { checked: true, deterministic: true, written: [] },
+    observedAt: '2026-07-26T00:00:00Z',
+  });
 
-  for (const invalid of ['', 'sha256:zz', 'not-a-digest', `sha256:${'a'.repeat(63)}`, 'SHA256:' + bare.toUpperCase()]) {
+  const bound = resolveProvenanceDigest(shared.store, receipt, { dataset, observedSource });
+  assert.equal(bound.bound, true);
+  assert.equal(bound.algorithm, 'sha256-rdfc10-graph-inventory-v2');
+  assert.equal(bound.digest, '0c'.repeat(32));
+  assert.equal(bound.binding.receiptDigest, receipt.receiptDigest);
+
+  // A bare digest string is no longer a binding at all.
+  for (const naked of [`sha256:${'0c'.repeat(32)}`, '0c'.repeat(32), '', 'not-a-digest']) {
     assert.throws(
-      () => resolveProvenanceDigest(shared.store, invalid),
-      /authority witness digest must be sha256/,
-      `accepted an invalid witness: ${invalid}`,
+      () => resolveProvenanceDigest(shared.store, naked, { dataset, observedSource }),
+      /generation authority binding/,
+      `accepted a naked witness: ${naked}`,
     );
   }
 
+  // Each rejection the receipt contract owes, exercised by its exact code.
+  const reject = (mutate, code) => {
+    const mutated = mutate({ ...receipt });
+    assert.throws(
+      () => resolveProvenanceDigest(shared.store, mutated, { dataset, observedSource }),
+      (error) => error.detail?.bindingFailureCode === code || new RegExp(code).test(error.message),
+      `expected ${code}`,
+    );
+  };
+  const resign = (draft) => ({ ...draft, receiptDigest: generationAuthorityBindingDigest(draft) });
+  reject((draft) => resign({ ...draft, schemaVersion: 99 }), 'unsupported-schema-version');
+  reject((draft) => resign({ ...draft, authorityDigestAlgorithm: 'sha256-sorted-quads-local' }), 'unsupported-authority-algorithm');
+  reject((draft) => resign({ ...draft, authorityDigest: 'sha256:zz' }), 'malformed-digest');
+  reject((draft) => resign({ ...draft, tripleTotal: -1 }), 'malformed-count');
+  reject((draft) => resign({ ...draft, tripleTotal: 999 }), 'inconsistent-inventory-total');
+  reject((draft) => resign({ ...draft, graphCount: 3 }), 'inconsistent-inventory-total');
+  reject((draft) => resign({ ...draft, generationInputDigest: `sha256:${'f'.repeat(64)}` }), 'generation-input-mismatch');
+  reject((draft) => resign({ ...draft, generationInputGraphs: ['urn:usf:graph:absent'] }), 'generation-input-mismatch');
+  reject((draft) => resign({ ...draft, sourceCommit: 'c'.repeat(40) }), 'source-identity-mismatch');
+  reject((draft) => resign({ ...draft, sourceTree: 'd'.repeat(40) }), 'source-identity-mismatch');
+  reject((draft) => resign({ ...draft, sourceLiveDrift: { checked: true, mismatchedGraphs: ['urn:usf:graph:one'], graphCount: 2 } }), 'source-live-drift');
+  reject((draft) => resign({ ...draft, sourceLiveDrift: { checked: false, mismatchedGraphs: [], graphCount: 2 } }), 'drift-unchecked');
+  reject((draft) => resign({ ...draft, derivedSnapshot: { checked: true, deterministic: false } }), 'derived-snapshot-unproven');
+  // A forged field with the original digest left in place must not pass.
+  reject((draft) => ({ ...draft, tripleTotal: 12, observedAt: '2020-01-01T00:00:00Z' }), 'receipt-digest-mismatch');
+});
+
+test('a bound generation reports the receipt it was bound by, and an offline one reports that it is unbound', () => {
+  const dataset = shared.dataset;
+  const observedSource = { sourceCommit: 'a'.repeat(40), sourceTree: 'b'.repeat(40) };
+  const receipt = buildGenerationAuthorityBinding({
+    authorityDigest: `sha256:${'0c'.repeat(32)}`,
+    graphCount: 1,
+    tripleTotal: 3,
+    graphInventory: [{ graph: 'urn:usf:graph:one', sha256: `sha256:${'1'.repeat(64)}`, triples: 3 }],
+    dataset,
+    ...observedSource,
+    sourceLiveDrift: { checked: true, mismatchedGraphs: [], graphCount: 1 },
+    derivedSnapshot: { checked: true, deterministic: true, written: [] },
+    observedAt: '2026-07-26T00:00:00Z',
+  });
   const workspace = mkdtempSync(join(tmpdir(), 'usf-artefact-generation-witness-'));
   try {
     const result = generateAuthority({
       store: shared.store,
+      dataset,
+      observedSource,
       outputDir: join(workspace, 'bound'),
       mode: 'full',
       signingKeyPath: null,
-      authorityWitnessDigest: witness,
+      authorityBinding: receipt,
     });
     assert.equal(result.authorityWitnessBound, true);
     assert.equal(result.authorityDigestAlgorithm, 'sha256-rdfc10-graph-inventory-v2');
-    assert.equal(result.authorityDigest, bare);
+    assert.equal(result.authorityDigest, '0c'.repeat(32));
+    assert.equal(result.authorityBindingReceiptDigest, receipt.receiptDigest);
+    assert.equal(result.generationInputDigest, dataset.inputDigest);
+    assert.equal(result.sourceCommit, observedSource.sourceCommit);
     // Every JSON projection embeds the bound witness, not the local digest.
     const projection = JSON.parse(
       readFileSync(join(workspace, 'bound', `${GENERATED_OUTPUT_ROOT}/semantic-authority/authority.json`), 'utf8'),
     );
-    assert.equal(projection.authorityDigest, bare);
+    assert.equal(projection.authorityDigest, '0c'.repeat(32));
+
+    // Offline generation stays available and says plainly that it is unbound.
+    const offline = generateAuthority({
+      store: shared.store,
+      dataset,
+      outputDir: join(workspace, 'offline'),
+      mode: 'full',
+      signingKeyPath: null,
+    });
+    assert.equal(offline.authorityWitnessBound, false);
+    assert.equal(offline.authorityDigestAlgorithm, 'sha256-sorted-quads-local');
+    assert.equal(offline.authorityBindingReceiptDigest, null);
+    assert.notEqual(offline.authorityDigest, '0c'.repeat(32));
   } finally {
     rmSync(workspace, { recursive: true, force: true });
   }
