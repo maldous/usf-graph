@@ -3,6 +3,11 @@ import { createReadStream, existsSync, lstatSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { authorityWitness, validContractRef } from './semantic-bootstrap-packet.mjs';
+import {
+  PROOF_CURRENTNESS,
+  PROOF_CURRENTNESS_CODES,
+  proofCurrentnessVerdict,
+} from './proof-currentness.mjs';
 
 const CONTRACT = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation';
 const ACTIVE = 'urn:usf:contractactivationstate:active';
@@ -41,6 +46,17 @@ const ACTIVATION = Object.freeze({
 // programming error, not a silent PROCEED: resolveDisposition throws.
 export const GAP_DISPOSITIONS = Object.freeze({
   'missing-successful-proof': ACTION_STATES.block,
+  // Proof currentness. A successful historical result is not a current one, so
+  // every way the currentness conclusion can fall short has its own disposition
+  // and none of them reaches PROCEED.
+  [PROOF_CURRENTNESS_CODES.currentnessUnresolved]: ACTION_STATES.unresolved,
+  [PROOF_CURRENTNESS_CODES.currentnessAmbiguous]: ACTION_STATES.unresolved,
+  [PROOF_CURRENTNESS_CODES.evidenceStale]: ACTION_STATES.block,
+  [PROOF_CURRENTNESS_CODES.evidenceInvalid]: ACTION_STATES.block,
+  [PROOF_CURRENTNESS_CODES.authorityBindingStale]: ACTION_STATES.block,
+  [PROOF_CURRENTNESS_CODES.implementationDigestStale]: ACTION_STATES.block,
+  [PROOF_CURRENTNESS_CODES.dependencyDigestStale]: ACTION_STATES.block,
+  [PROOF_CURRENTNESS_CODES.algorithmDigestStale]: ACTION_STATES.block,
   'missing-current-passing-validation': ACTION_STATES.block,
   'validation-obligation-blocked': ACTION_STATES.block,
   'validation-satisfaction-not-current': ACTION_STATES.block,
@@ -625,12 +641,25 @@ export async function realisationVerdict(ctx, args = {}) {
     'realisation verdict read',
     async () => {
       const semantics = await readLayoutSemantics(ctx, { contract: args.contract || CONTRACT });
-      const validationScopeValue = await validationScope(ctx.client, semantics.contract.id);
-      return { semantics, scope: validationScopeValue };
+      const [validationScopeValue, mandatoryRows] = await Promise.all([
+        validationScope(ctx.client, semantics.contract.id),
+        ctx.client.select(`SELECT ?obligation WHERE { <${semantics.contract.id}> <urn:usf:ontology:mandatoryProofObligation> ?obligation } ORDER BY ?obligation LIMIT 64`),
+      ]);
+      // Currentness is read inside the SAME bracket as the contract and
+      // validation state, so the verdict is one conclusion about one authority.
+      const currentness = await proofCurrentnessVerdict(ctx.client, semantics.contract.id, {
+        // `value` is in the temporal dead zone here: the enclosing
+        // stableAuthorityRead destructures a binding of that name. Read the term
+        // directly rather than shadowing the accessor.
+        mandatoryObligations: mandatoryRows.map((row) => row.obligation?.value).filter(Boolean),
+        observedAt: ctx.observedAt ?? null,
+      });
+      return { semantics, scope: validationScopeValue, currentness };
     },
   );
   const context = withAuthority(value.semantics, witness, ctx);
   const scope = value.scope;
+  const currentness = value.currentness;
   const validation = validationVerdict(context.contract.id, scope, context.authorityDigest);
 
   // Each conjunct is explicit. A null state is unproven, not permission; a wrong
@@ -645,6 +674,15 @@ export async function realisationVerdict(ctx, args = {}) {
   require(context.contract.activationState, ACTIVE, 'contract-activation-unresolved', 'contract-not-active');
   require(context.contract.proofResultState, SUCCESSFUL, 'contract-proof-result-unresolved', 'contract-proof-not-successful');
   if (context.contract.proofResult === null) reasons.push({ code: 'contract-proof-result-absent', state: ACTION_STATES.unresolved });
+  // A successful result is necessary and NOT sufficient. PROCEED additionally
+  // requires the positive currentness conclusion; anything less contributes its
+  // own reasons at their own dispositions.
+  if (currentness.state !== PROOF_CURRENTNESS.current) {
+    for (const code of currentness.reasons) reasons.push({ code, state: resolveDisposition(code) });
+    if (currentness.reasons.length === 0) {
+      reasons.push({ code: PROOF_CURRENTNESS_CODES.currentnessUnresolved, state: ACTION_STATES.unresolved });
+    }
+  }
   if (!RESOLVED_DECISION.has(context.decisionResolution)) {
     const unresolved = context.decisionResolution === 'unresolved' || context.decisionResolution === 'no-accepted-decision';
     reasons.push({ code: `decision-${context.decisionResolution}`, state: unresolved ? ACTION_STATES.unresolved : ACTION_STATES.block });
@@ -661,6 +699,7 @@ export async function realisationVerdict(ctx, args = {}) {
     context,
     scope,
     validation,
+    currentness,
     actionState,
     actionStateReasons: reasons.map((item) => item.code).sort(),
     stateFailureCode: REALISATION_STATE_FAILURE_CODES[actionState] ?? null,
@@ -691,7 +730,7 @@ export async function projectContract(ctx, args = {}) {
   const validationIds = scope.obligations.map((item) => item.id).sort();
   // Realisation authority comes from the one shared verdict, so this packet and
   // the plan tools can never disagree about the same contract.
-  const { actionState, actionStateReasons, validation } = verdict;
+  const { actionState, actionStateReasons, validation, currentness } = verdict;
   const authorised = actionState === ACTION_STATES.proceed;
 
   const packet = {
@@ -699,6 +738,25 @@ export async function projectContract(ctx, args = {}) {
     semanticIdentifiers: [context.contract.id, context.contract.proofResult, context.contract.decision, ...validationIds].filter(Boolean),
     authorityDigest: context.authorityDigest,
     contractState: { lifecycle: context.contract.lifecycleState, activation: context.contract.activationState, decision: context.contract.decisionState, proof: context.contract.proofResultState, decisionResolution: context.decisionResolution },
+    // Proof currentness is projected explicitly. Neither the graph nor the
+    // factory has to infer it from prose or from a successful result state.
+    proofCurrentness: {
+      proofResult: currentness.facts.proofResult ?? null,
+      proofResultState: currentness.facts.proofResultState ?? null,
+      state: currentness.state,
+      stateIri: currentness.stateIri,
+      reasons: currentness.reasons,
+      evidence: currentness.facts.evidence ?? [],
+      evidenceSetDigest: currentness.facts.evidenceSetDigest ?? null,
+      proofAlgorithm: currentness.facts.algorithm ?? null,
+      proofAlgorithmSourceDigest: currentness.facts.algorithmSourceDigest ?? null,
+      proofAlgorithmVersion: currentness.facts.algorithmVersion ?? null,
+      implementationSourceSetDigest: currentness.facts.implementationSourceSetDigest ?? null,
+      dependencySetDigest: currentness.facts.dependencySetDigest ?? null,
+      authorityBinding: currentness.facts.authorityBinding ?? null,
+      authorityBindingRule: currentness.facts.authorityBindingRule ?? null,
+      postPublicationReevaluationState: currentness.facts.reevaluationState ?? null,
+    },
     actionState,
     actionStateReasons,
     objective: args.objective || `Realise and validate ${context.contract.canonicalName} from current semantic authority.`,
@@ -757,7 +815,7 @@ export async function planWork(ctx, args = {}) {
   const pageSize = 50;
   const before = await authorityWitness(ctx.client);
   const authorityDigest = `sha256:${before.digest}`;
-  const [proofRows, scope] = await Promise.all([
+  const [proofRows, scope, mandatoryRows] = await Promise.all([
     ctx.client.select(`SELECT ?subject WHERE {
       <${contract}> <urn:usf:ontology:mandatoryProofObligation> ?subject .
       FILTER NOT EXISTS {
@@ -767,13 +825,24 @@ export async function planWork(ctx, args = {}) {
       }
     } ORDER BY ?subject LIMIT 1024`),
     validationScope(ctx.client, contract),
+    ctx.client.select(`SELECT ?obligation WHERE { <${contract}> <urn:usf:ontology:mandatoryProofObligation> ?obligation } ORDER BY ?obligation LIMIT 64`),
   ]);
+  // The gap census consumes the same currentness conclusion the realisation
+  // verdict does. Checking only hasProofResultState here is what let a stale
+  // proof read as no gap at all.
+  const currentness = await proofCurrentnessVerdict(ctx.client, contract, {
+    mandatoryObligations: mandatoryRows.map((row) => value(row, 'obligation')).filter(Boolean),
+    observedAt: ctx.observedAt ?? null,
+  });
   const after = await authorityWitness(ctx.client);
   if (before.digest !== after.digest) throw new Error('live authority changed while building the work plan');
 
   const verdict = validationVerdict(contract, scope, authorityDigest);
   const all = [
     ...proofRows.map((row) => ({ code: 'missing-successful-proof', subject: value(row, 'subject') })),
+    ...(currentness.state === PROOF_CURRENTNESS.current
+      ? []
+      : currentness.reasons.map((code) => ({ code, subject: currentness.facts.proofResult ?? contract }))),
     ...verdict.gaps,
   ]
     .map((gap) => ({ type: gap.code, subject: gap.subject, disposition: resolveDisposition(gap.code) }))
@@ -799,7 +868,8 @@ export async function planWork(ctx, args = {}) {
     actionState,
     validationApplicability: scope.applicability,
     validationSatisfied: verdict.validationSatisfied,
-    evaluatedFamilies: ['mandatory-proof-obligation', 'validation-applicability', 'validation-obligation'],
+    proofCurrentness: { state: currentness.state, stateIri: currentness.stateIri, reasons: currentness.reasons },
+    evaluatedFamilies: ['mandatory-proof-obligation', 'proof-currentness', 'validation-applicability', 'validation-obligation'],
     // An empty gap set is a statement about the families listed above at this
     // authority digest. It is never a completion claim, and this projection
     // grants no authority to create, close or schedule anything.

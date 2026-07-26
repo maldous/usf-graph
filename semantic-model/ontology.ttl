@@ -2833,6 +2833,82 @@ usf:establishesProductionAuthenticity a owl:DatatypeProperty, owl:FunctionalProp
 usf:keyDerivationLabel a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:SigningIdentity;
     rdfs:range xsd:string.
+# Proof currentness.
+#
+# A successful ProofResult is a historical fact. Whether that result still
+# describes the running system is a separate, closed conclusion with exactly
+# three outcomes, and it is DERIVED from the complete evidence chain: the
+# algorithm declares what "current" is, the result records what it actually
+# evaluated, and agreement between the two is the conclusion. There is no
+# manually asserted proofCurrent boolean anywhere in the model.
+usf:ProofCurrentnessState a owl:Class;
+    rdfs:subClassOf usf:SemanticResource.
+usf:ProofReevaluationState a owl:Class;
+    rdfs:subClassOf usf:SemanticResource.
+# What the algorithm declares current.
+usf:currentAlgorithmVersion a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range usf:ProofAlgorithmVersion.
+usf:currentAlgorithmSourceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:string.
+usf:currentImplementationSourceSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:string.
+usf:currentDependencySetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:string.
+usf:currentDependencyDigestAlgorithm a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:string.
+usf:currentToolchainDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:string.
+usf:currentPackageLockDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:string.
+usf:requiresGraphSourceBinding a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:boolean.
+# What the result actually evaluated.
+usf:implementationSourceSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofResult;
+    rdfs:range xsd:string.
+usf:dependencySetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofResult;
+    rdfs:range xsd:string.
+usf:dependencyDigestAlgorithm a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofResult;
+    rdfs:range xsd:string.
+usf:toolchainDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofResult;
+    rdfs:range xsd:string.
+usf:packageLockDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofResult;
+    rdfs:range xsd:string.
+usf:proofProducerCommit a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofResult;
+    rdfs:range xsd:string.
+usf:proofProducerTree a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofResult;
+    rdfs:range xsd:string.
+# Self-publication closure: the producer stage and the later reevaluation stage
+# are distinct, and the second is a recorded fact rather than an assumption.
+usf:hasPostPublicationReevaluationState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAuthorityBinding;
+    rdfs:range usf:ProofReevaluationState.
+usf:reevaluationSettledAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAuthorityBinding;
+    rdfs:range xsd:string.
+usf:reevaluationDependencySetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAuthorityBinding;
+    rdfs:range xsd:string.
+usf:reevaluationEvidenceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAuthorityBinding;
+    rdfs:range xsd:string.
+usf:reevaluatedAt a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAuthorityBinding;
+    rdfs:range xsd:dateTime.
 usf:signingKeyFingerprint a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:SigningIdentity;
     rdfs:range xsd:string;

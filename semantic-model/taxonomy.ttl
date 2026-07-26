@@ -177,3 +177,18 @@ usf:TestResult usf:classifiedAs tax:assurance.
 usf:IntegrityVerification usf:classifiedAs tax:assurance.
 usf:ObservedEntity usf:classifiedAs tax:derivation.
 usf:AutomationWorkflowContract usf:classifiedAs tax:contract.
+
+# Closed proof-currentness vocabulary. Exactly three outcomes: a positive
+# conclusion, an explicit negative, and fail-closed absence.
+<urn:usf:proofcurrentnessstate:current> a usf:ProofCurrentnessState;
+    usf:canonicalName "current".
+<urn:usf:proofcurrentnessstate:staleblock> a usf:ProofCurrentnessState;
+    usf:canonicalName "staleblock".
+<urn:usf:proofcurrentnessstate:unresolvedfailclosed> a usf:ProofCurrentnessState;
+    usf:canonicalName "unresolvedfailclosed".
+<urn:usf:proofreevaluationstate:pending> a usf:ProofReevaluationState;
+    usf:canonicalName "pending".
+<urn:usf:proofreevaluationstate:successful> a usf:ProofReevaluationState;
+    usf:canonicalName "successful".
+<urn:usf:proofreevaluationstate:failed> a usf:ProofReevaluationState;
+    usf:canonicalName "failed".
