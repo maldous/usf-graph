@@ -193,9 +193,9 @@ evr:semanticadequacyindependentreview a usf:EvidenceResult;
     usf:descriptorArtefactFamily <urn:usf:artefactfamily:evidencepayload>;
     usf:descriptorRepresentationFormat format:jsondata8259;
     usf:descriptorMediaType "application/json";
-    usf:descriptorDigest "sha256:8d823c9a87a042521f3abcae14d386d9560d19535d81215a1d5c61005f7391cd";
+    usf:descriptorDigest "sha256:d9041f1a3fc058d7b4f5d29f93826968dfe941fc5a3c17a191a1c63c0d6e1b4a";
     usf:descriptorByteSize 19317;
-    usf:descriptorLocator "cas://sha256/8d823c9a87a042521f3abcae14d386d9560d19535d81215a1d5c61005f7391cd"^^<http://www.w3.org/2001/XMLSchema#anyURI>;
+    usf:descriptorLocator "cas://sha256/d9041f1a3fc058d7b4f5d29f93826968dfe941fc5a3c17a191a1c63c0d6e1b4a"^^<http://www.w3.org/2001/XMLSchema#anyURI>;
     usf:descriptorArtefactType "urn:usf:artefacttype:repositorymaterialisationcontrolplaneevidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>;
     usf:descriptorStorageClass <urn:usf:storageclass:contentaddressedobjectstorage>.
 <urn:usf:externalpayloaddescriptor:repositorymaterialisationcontrolplaneattestation> a usf:ExternalPayloadDescriptor;
@@ -203,9 +203,9 @@ evr:semanticadequacyindependentreview a usf:EvidenceResult;
     usf:descriptorArtefactFamily <urn:usf:artefactfamily:proofexecutionattestation>;
     usf:descriptorRepresentationFormat format:intotostatementjson;
     usf:descriptorMediaType "application/vnd.in-toto+json";
-    usf:descriptorDigest "sha256:b7dc105229a5d2608a559108e0bb098d7d9709a818b0de5eff1b51302a9449a5";
+    usf:descriptorDigest "sha256:dadb2ac7ec8e2022c57c9068b6daed0955a8cce62dbadd34ec0e8d771303813c";
     usf:descriptorByteSize 1332;
-    usf:descriptorLocator "cas://sha256/b7dc105229a5d2608a559108e0bb098d7d9709a818b0de5eff1b51302a9449a5"^^<http://www.w3.org/2001/XMLSchema#anyURI>;
+    usf:descriptorLocator "cas://sha256/dadb2ac7ec8e2022c57c9068b6daed0955a8cce62dbadd34ec0e8d771303813c"^^<http://www.w3.org/2001/XMLSchema#anyURI>;
     usf:descriptorArtefactType "urn:usf:artefacttype:repositorymaterialisationcontrolplaneattestation"^^<http://www.w3.org/2001/XMLSchema#anyURI>;
     usf:descriptorStorageClass <urn:usf:storageclass:contentaddressedobjectstorage>.
 <urn:usf:signingidentity:repositorymaterialisationcontrolplaneintegrity> a usf:SigningIdentity;
@@ -214,16 +214,16 @@ evr:semanticadequacyindependentreview a usf:EvidenceResult;
 <urn:usf:signature:repositorymaterialisationcontrolplaneattestation> a usf:Signature;
     usf:canonicalName "repositorymaterialisationcontrolplaneattestation";
     usf:artefactKind <urn:usf:artefactkind:signature>;
-    usf:canonicalPath "cas://sha256/b7dc105229a5d2608a559108e0bb098d7d9709a818b0de5eff1b51302a9449a5#signature";
+    usf:canonicalPath "cas://sha256/dadb2ac7ec8e2022c57c9068b6daed0955a8cce62dbadd34ec0e8d771303813c#signature";
     usf:governedByPathRule <urn:usf:pathrule:contentaddressedsignature>;
     usf:signatureMethod <urn:usf:signaturemethod:enveloped>;
     usf:signingPolicy <urn:usf:policy:hermeticevidenceattestation>;
     usf:signedBy <urn:usf:signingidentity:repositorymaterialisationcontrolplaneintegrity>;
-    usf:signatureValue "OP6OUJiZdohd0kn2yyHXabK/J82LHGvG+WMe9e+TezooNN3BJLNnu/zr3vW7t40quOlge30rIdPQBXF4K0obAg==".
+    usf:signatureValue "Px7bCmWqxvI6c6UCaFwPM/R/aVTULAAoi3YgTVufroUHYFWrFqcxWXAy+t0i47yK2fGSSAogVseSiU6tJSXOAw==".
 <urn:usf:checksum:repositorymaterialisationcontrolplaneevidence> a usf:Checksum;
     usf:canonicalName "repositorymaterialisationcontrolplaneevidence";
     usf:checksumAlgorithm <urn:usf:checksumalgorithm:sha256>;
-    usf:checksumValue "8d823c9a87a042521f3abcae14d386d9560d19535d81215a1d5c61005f7391cd".
+    usf:checksumValue "d9041f1a3fc058d7b4f5d29f93826968dfe941fc5a3c17a191a1c63c0d6e1b4a".
 <urn:usf:validationexecution:repositorymaterialisationcontrolplane> a usf:ValidationExecution;
     usf:canonicalName "repositorymaterialisationcontrolplane";
     usf:executesValidation <urn:usf:validationobligation:repositoryexternalartefactmaterialisation>;
@@ -240,15 +240,15 @@ evr:repositorymaterialisationcontrolplane a usf:EvidenceResult, usf:ValidationEv
     usf:evidenceForContract sc:repositoryexternalartefactmaterialisation;
     usf:evidenceFor sc:repositoryexternalartefactmaterialisation;
     usf:supportsClaim <urn:usf:claim:authorityboundmaterialisation>, <urn:usf:claim:deterministicmaterialisation>;
-    usf:contentDigest "sha256:8d823c9a87a042521f3abcae14d386d9560d19535d81215a1d5c61005f7391cd";
+    usf:contentDigest "sha256:d9041f1a3fc058d7b4f5d29f93826968dfe941fc5a3c17a191a1c63c0d6e1b4a";
     usf:evaluatedAuthorityDigest "sha256:0c7e17a9bbec19a321d5718887de3e4bbac109360ee944c596b84dfd82a359a2";
     usf:evidenceProducerDigest "sha256:f0d293d514af05501725c36bba4d7486b57770b821613cb1f4f9521e12af20cb";
     usf:mediaType "application/json";
     usf:byteSize 19317;
-    usf:storageLocator "cas://sha256/8d823c9a87a042521f3abcae14d386d9560d19535d81215a1d5c61005f7391cd"^^<http://www.w3.org/2001/XMLSchema#anyURI>;
+    usf:storageLocator "cas://sha256/d9041f1a3fc058d7b4f5d29f93826968dfe941fc5a3c17a191a1c63c0d6e1b4a"^^<http://www.w3.org/2001/XMLSchema#anyURI>;
     usf:wasProducedBy <urn:usf:validatorrule:validatematerialisationcontrolplane>;
-    usf:collectedAt "2026-07-27T00:07:47Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
-    usf:validUntil "2026-08-26T00:07:47Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+    usf:collectedAt "2026-07-27T01:16:48Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+    usf:validUntil "2026-08-26T01:16:48Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
     usf:hasFreshnessPolicy <urn:usf:evidencefreshnesspolicy:materialisationthirtydays>;
     usf:hasAdmissionState admission:admitted;
     usf:hasFreshnessState freshnessstate:fresh;
@@ -273,8 +273,8 @@ evr:repositorymaterialisationcontrolplane a usf:EvidenceResult, usf:ValidationEv
     usf:collectionForRequirement <urn:usf:evidencerequirement:repositoryexternalartefactmaterialisation>;
     usf:collectedEvidence evr:repositorymaterialisationcontrolplane;
     usf:collectsEvidence evr:repositorymaterialisationcontrolplane;
-    usf:collectedOn "2026-07-27T00:07:47Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
-    usf:sourceDigest "sha256:ee5fec966610e51711d51996fad0a2c7bf9428266c6e40b7df7c512dc734a36c".
+    usf:collectedOn "2026-07-27T01:16:48Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+    usf:sourceDigest "sha256:359fd77e45eb679876190c480c76c2a82d5047fff34b8755a418c4ad32ed66cb".
 <urn:usf:evidencenormalisation:repositorymaterialisationcontrolplane> a usf:EvidenceNormalisation;
     usf:canonicalName "repositorymaterialisationcontrolplane";
     usf:normalisesEvidence evr:repositorymaterialisationcontrolplane.
