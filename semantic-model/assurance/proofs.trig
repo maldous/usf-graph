@@ -483,6 +483,10 @@
   usf:requiresPostPublicationReevaluation true;
   usf:authorityBindingEvidenceDigest "sha256:4a6c37c6a0392b44cf0d00f65adb1822c95a34d73598ff1b985691a18dca09aa";
   usf:hasPostPublicationReevaluationState <urn:usf:proofreevaluationstate:successful>;
+  usf:reevaluationSettledAuthorityDigest "sha256:f211491a6f2141dda4ed60f39f7f8e972a07891e38d026bb2873c25b0e0aa9cf";
+  usf:reevaluationDependencySetDigest "sha256:8960758a7debe6fc3f20eef635ef4b54eb8a052c7fcb905923833380c36aff60";
+  usf:reevaluationEvidenceDigest "sha256:4a6c37c6a0392b44cf0d00f65adb1822c95a34d73598ff1b985691a18dca09aa";
+  usf:reevaluatedAt "2026-07-27T08:03:46Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:coverage"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:obligations"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:readiness"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:surfaces"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:proofs"^^<http://www.w3.org/2001/XMLSchema#anyURI>.
 
 <urn:usf:proofexecution:providerworkforceauthorityproviderenvironmentclassification> a usf:ProofExecution;
@@ -531,6 +535,10 @@
   usf:requiresPostPublicationReevaluation true;
   usf:authorityBindingEvidenceDigest "sha256:4a6c37c6a0392b44cf0d00f65adb1822c95a34d73598ff1b985691a18dca09aa";
   usf:hasPostPublicationReevaluationState <urn:usf:proofreevaluationstate:successful>;
+  usf:reevaluationSettledAuthorityDigest "sha256:f211491a6f2141dda4ed60f39f7f8e972a07891e38d026bb2873c25b0e0aa9cf";
+  usf:reevaluationDependencySetDigest "sha256:8960758a7debe6fc3f20eef635ef4b54eb8a052c7fcb905923833380c36aff60";
+  usf:reevaluationEvidenceDigest "sha256:4a6c37c6a0392b44cf0d00f65adb1822c95a34d73598ff1b985691a18dca09aa";
+  usf:reevaluatedAt "2026-07-27T08:03:46Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:coverage"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:obligations"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:readiness"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:surfaces"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:proofs"^^<http://www.w3.org/2001/XMLSchema#anyURI>.
 
 <urn:usf:proofexecution:providerworkforceauthorityservicecatalogandproviderintegrationmodel> a usf:ProofExecution;
@@ -579,6 +587,10 @@
   usf:requiresPostPublicationReevaluation true;
   usf:authorityBindingEvidenceDigest "sha256:4a6c37c6a0392b44cf0d00f65adb1822c95a34d73598ff1b985691a18dca09aa";
   usf:hasPostPublicationReevaluationState <urn:usf:proofreevaluationstate:successful>;
+  usf:reevaluationSettledAuthorityDigest "sha256:f211491a6f2141dda4ed60f39f7f8e972a07891e38d026bb2873c25b0e0aa9cf";
+  usf:reevaluationDependencySetDigest "sha256:8960758a7debe6fc3f20eef635ef4b54eb8a052c7fcb905923833380c36aff60";
+  usf:reevaluationEvidenceDigest "sha256:4a6c37c6a0392b44cf0d00f65adb1822c95a34d73598ff1b985691a18dca09aa";
+  usf:reevaluatedAt "2026-07-27T08:03:46Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:coverage"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:obligations"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:readiness"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:surfaces"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:proofs"^^<http://www.w3.org/2001/XMLSchema#anyURI>.
 
 }
