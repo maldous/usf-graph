@@ -11,7 +11,7 @@ import test from 'node:test';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
 import { loadManifest } from '../semantic-model-compilation/manifest.mjs';
@@ -41,9 +41,11 @@ function generateInto() {
 
 // The generated tree's own `node --test` run must report as it would in the
 // workflow that ships with it. This process is itself a Node test runner, and
-// NODE_TEST_CONTEXT / NODE_OPTIONS leak into descendants and switch their
-// reporter off TAP onto an IPC channel that does not exist here, so a working
-// generated command would look silent and broken.
+// NODE_TEST_CONTEXT leaks into descendants and switches their reporter off TAP
+// onto an IPC channel that does not exist here, so a working generated command
+// would look silent and broken. Node deliberately propagates active permission
+// flags to Node children even when NODE_OPTIONS is removed; callers add only
+// the exact runtime reads their child command needs.
 function childEnvironment() {
   const environment = { ...process.env };
   delete environment.NODE_TEST_CONTEXT;
@@ -86,7 +88,15 @@ test('generated package scripts, test command and evidence pipeline execute', ()
     assert.ok(manifest.scripts?.test, 'generated package declares no test script');
 
     // The generated test command actually runs, in the generated tree.
-    const testOutput = execFileSync('npm', ['test', '--prefix', 'source'], {
+    const npmRoot = join(dirname(process.execPath), '..', 'lib/node_modules/npm');
+    const npmCli = join(npmRoot, 'bin/npm-cli.js');
+    const testOutput = execFileSync(process.execPath, [
+      `--allow-fs-read=${npmRoot}`,
+      npmCli,
+      'test',
+      '--prefix',
+      'source',
+    ], {
       cwd: generated,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],

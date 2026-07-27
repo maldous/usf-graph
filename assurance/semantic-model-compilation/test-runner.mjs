@@ -71,6 +71,11 @@ export const TEST_PROFILES = Object.freeze({
   ]),
 });
 
+export const TEST_PROFILE_INVOCATION_MODES = Object.freeze({
+  all: 'NODE_TEST_PROGRAMMATIC_CHILD_PERMITTED',
+  'semantic-assurance': 'NODE_TEST_PROGRAMMATIC_EXACT_FILES',
+});
+
 const stable = (value) => Array.isArray(value)
   ? value.map(stable)
   : value && typeof value === 'object'
@@ -614,10 +619,15 @@ export function executeTestInventory(inventory, {
   const invocationModes = {
     NODE_TEST_CLI_DEFAULT_ISOLATION: ['--frozen-intrinsics', '--permission', '--allow-fs-read=<SNAPSHOT_ROOT>', '--allow-fs-read=<RUNTIME_ROOT>', '--allow-fs-write=<RUNTIME_ROOT>', '--no-addons', '--test'],
     NODE_TEST_CLI_CHILD_PERMITTED: ['--frozen-intrinsics', '--permission', '--allow-fs-read=<SNAPSHOT_ROOT>', '--allow-fs-read=<RUNTIME_ROOT>', '--allow-fs-write=<RUNTIME_ROOT>', '--allow-child-process', '--no-addons', '--test'],
+    NODE_TEST_PROGRAMMATIC_CHILD_PERMITTED: ['--frozen-intrinsics', '--permission', '--allow-fs-read=<SNAPSHOT_ROOT>', '--allow-fs-read=<RUNTIME_ROOT>', '--allow-fs-write=<RUNTIME_ROOT>', '--allow-child-process', '--no-addons', '<REPOSITORY_LOCAL_TEST_LAUNCHER>'],
     NODE_TEST_PROGRAMMATIC_EXACT_FILES: ['--frozen-intrinsics', '--permission', '--allow-fs-read=<SNAPSHOT_ROOT>', '--allow-fs-read=<RUNTIME_ROOT>', '--allow-fs-write=<RUNTIME_ROOT>', '--no-addons', '<REPOSITORY_LOCAL_TEST_LAUNCHER>'],
   };
   const canonicalFlags = invocationModes[testInvocationMode];
   if (!canonicalFlags) reject('INVALID_INVOCATION_MODE', `unsupported test invocation mode: ${testInvocationMode}`);
+  const programmaticInvocation = testInvocationMode === 'NODE_TEST_PROGRAMMATIC_EXACT_FILES'
+    || testInvocationMode === 'NODE_TEST_PROGRAMMATIC_CHILD_PERMITTED';
+  const childProcessPermitted = testInvocationMode === 'NODE_TEST_CLI_CHILD_PERMITTED'
+    || testInvocationMode === 'NODE_TEST_PROGRAMMATIC_CHILD_PERMITTED';
   let snapshot;
   let runtimeRoot;
   let canonicalEnvironment;
@@ -640,6 +650,7 @@ export function executeTestInventory(inventory, {
       TMP: '<RUNTIME_ROOT>',
       TMPDIR: '<RUNTIME_ROOT>',
       TZ: 'UTC',
+      USF_EXPECTED_CHILD_PROCESS_PERMISSION: childProcessPermitted ? 'allowed' : 'denied',
       USF_HERMETIC_TEST_MODE: '1',
       USF_TEST_INVENTORY_DIGEST: inventory.testInventoryDigest,
     };
@@ -689,12 +700,19 @@ export function executeTestInventory(inventory, {
       `--allow-fs-read=${nodeExecutable}`,
       ...preRuntime.nativeFiles.map(({ path }) => `--allow-fs-read=${path}`),
     ];
-    const nodeArgs = testInvocationMode === 'NODE_TEST_PROGRAMMATIC_EXACT_FILES'
-      ? ['--frozen-intrinsics', ...permissionArgs, '--no-addons', launcherPath, ...exactPaths]
+    const nodeArgs = programmaticInvocation
+      ? [
+          '--frozen-intrinsics',
+          ...permissionArgs,
+          ...(childProcessPermitted ? ['--allow-child-process'] : []),
+          '--no-addons',
+          launcherPath,
+          ...exactPaths,
+        ]
       : [
           '--frozen-intrinsics',
           ...permissionArgs,
-          ...(testInvocationMode === 'NODE_TEST_CLI_CHILD_PERMITTED' ? ['--allow-child-process'] : []),
+          ...(childProcessPermitted ? ['--allow-child-process'] : []),
           '--no-addons',
           '--test',
           ...exactPaths,
@@ -720,6 +738,7 @@ export function executeTestInventory(inventory, {
         TMPDIR: runtimeRoot,
         TMP: runtimeRoot,
         TEMP: runtimeRoot,
+        USF_EXPECTED_CHILD_PROCESS_PERMISSION: childProcessPermitted ? 'allowed' : 'denied',
         USF_HERMETIC_TEST_MODE: '1',
         USF_TEST_INVENTORY_DIGEST: inventory.testInventoryDigest,
       },
@@ -803,9 +822,9 @@ export function executeTestInventory(inventory, {
     nodeExecutableDigest: preRuntime.node.digest,
     nodeVersion,
     invocationMode: testInvocationMode,
-    isolationMode: testInvocationMode === 'NODE_TEST_PROGRAMMATIC_EXACT_FILES' ? 'none' : 'process',
+    isolationMode: testInvocationMode.startsWith('NODE_TEST_PROGRAMMATIC_') ? 'none' : 'process',
     expectedDenialCodes: Object.freeze({
-      childProcess: 'ERR_ACCESS_DENIED',
+      childProcess: childProcessPermitted ? 'PERMITTED_FOR_OPERATIONAL_TEST_PROFILE' : 'ERR_ACCESS_DENIED',
       filesystemRead: 'ERR_ACCESS_DENIED',
       filesystemWrite: 'ERR_ACCESS_DENIED',
       network: Object.freeze(['EACCES', 'ENETDOWN', 'ENETUNREACH']),
@@ -840,6 +859,7 @@ export function runTestProfile(profile, options = {}) {
     // the very gate that must enforce it.
     snapshotPaths: ['.github', 'assurance', 'capabilities', 'configuration', 'node_modules', 'operations', 'package-lock.json', 'package.json', 'processes', 'provider-bindings', 'semantic-model'],
     snapshotExclusions: ['node_modules/.bin'],
+    testInvocationMode: TEST_PROFILE_INVOCATION_MODES[profile],
     ...options,
     repositoryRoot,
   });

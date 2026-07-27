@@ -77,6 +77,12 @@ operator secret store (`/var/lib/usf-programme/programme/`) to
 `.work/programme/realisation-option-evaluation-signing-key.pk8` with mode 600
 when a collector needs `--signing-key=`; it never enters Git or command output.
 
+For long or noisy commands, redirect complete stdout and stderr to a
+session-transient file under `.work/`, then search or slice the saved output in
+a separate command. Do not pipe the live command into a search or truncation
+filter: preserve the full diagnostic record and the command's actual exit
+status so later inspection never requires rerunning it.
+
 ## Task ledger
 
 Keep one compact ledger: objective, semantic identifiers, read scope, write
