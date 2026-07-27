@@ -4996,14 +4996,6 @@ usf:toolchainDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticque
     usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
     usf:termUsageLifecycleStage "proof-currentness-resolution";
     usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
-usf:reevaluationEvidenceDigest usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
-    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
-    usf:termUsageLifecycleStage "post-publication-reevaluation";
-    usf:termUsageRationale "Reserved for the Stage 2 post-publication reevaluation record; no reevaluation evidence is claimed before that stage executes.".
-usf:reevaluatedAt usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
-    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
-    usf:termUsageLifecycleStage "post-publication-reevaluation";
-    usf:termUsageRationale "Reserved for the Stage 2 post-publication reevaluation record; no completed reevaluation is claimed before that stage executes.".
 usf:applicableToObligation usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
     usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
     usf:termUsageLifecycleStage "evidence-proof-contract-enforcement";
