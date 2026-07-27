@@ -414,9 +414,9 @@
 <urn:usf:proofalgorithm:providerworkforceauthority> a usf:ProofAlgorithm;
   usf:canonicalName "providerworkforceauthority";
   usf:proofAlgorithmSourcePath "assurance/provider-workforce-closure/provider-workforce-authority-proof.mjs";
-  usf:proofAlgorithmSourceDigest "sha256:4da1dfb314fb9ab3810e03eca8d64a96904d577fde5ce865f40c38755803dbb8";
-  usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority4da1dfb314fb9ab3810e03eca8d64a96904d577fde5ce865f40c38755803dbb8>;
-  usf:currentAlgorithmSourceDigest "sha256:4da1dfb314fb9ab3810e03eca8d64a96904d577fde5ce865f40c38755803dbb8";
+  usf:proofAlgorithmSourceDigest "sha256:257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf";
+  usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf>;
+  usf:currentAlgorithmSourceDigest "sha256:257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf";
   usf:currentImplementationSourceSetDigest "sha256:a9cc301223acf928259193f05f8bc928957b5aa0c8f9bb1a15e095b66b071994";
   usf:currentDependencySetDigest "sha256:2aa1b3398a0ef8203e5f7e30070250c5f2a29b2497f7ee7f5433b763792c4778";
   usf:currentDependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
@@ -425,6 +425,10 @@
   usf:canonicalName "providerworkforceauthority4da1dfb314fb9ab3810e03eca8d64a96904d577fde5ce865f40c38755803dbb8";
   usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:providerworkforceauthority>;
   usf:proofAlgorithmVersionIdentifier "1.0.0".
+<urn:usf:proofalgorithmversion:providerworkforceauthority257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf> a usf:ProofAlgorithmVersion;
+  usf:canonicalName "providerworkforceauthority257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf";
+  usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:providerworkforceauthority>;
+  usf:proofAlgorithmVersionIdentifier "1.1.0".
 <urn:usf:proof:providerworkforceauthority> a usf:Proof;
   usf:canonicalName "providerworkforceauthority";
   usf:atRung rung:behaviour;

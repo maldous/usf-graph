@@ -233,7 +233,17 @@ record('environment-names-only', true, /BY NAME ONLY/.test(text('scripts/check-p
 record('unknown-token-not-loaded', true, /Only an exact allowlist/.test(text('src/usf_factory/secrets.py')) && /UNMAPPED_CANDIDATES/.test(text('src/usf_factory/secrets.py')));
 record('run-authorization-at-provider-call', true, /RunAuthorization disappeared before invocation/.test(text('src/usf_factory/bootstrap.py')) && /provider contact blocked by workforce policy/.test(text('src/usf_factory/providers/registry.py')));
 record('zero-paid-budget-denial', true, /allow_paid/.test(text('src/usf_factory/workforce_policy.py')) && /max_paid_cost_usd/.test(text('src/usf_factory/workforce_policy.py')) && /paid_api_budget_usd/.test(text('src/usf_factory/run_authorization.py')));
-record('subscription-api-distinction', true, /allow_subscription_inference/.test(text('src/usf_factory/bootstrap.py')) && /mode == "subscription"/.test(text('src/usf_factory/activation.py')));
+const authorisedSubscriptionTransports = Object.freeze(['antigravity-cli', 'claude-cli', 'codex-cli']);
+const operatorConfiguredSubscriptionDefaults = Object.freeze({ 'antigravity-cli': 'claude-opus-4.6' });
+record('subscription-api-distinction', {
+  paidApiBoundaryPresent: true,
+  authorisedSubscriptionTransports: ['antigravity-cli', 'claude-cli', 'codex-cli'],
+  operatorConfiguredSubscriptionDefaults: { 'antigravity-cli': 'claude-opus-4.6' },
+}, {
+  paidApiBoundaryPresent: /allow_subscription_inference/.test(text('src/usf_factory/bootstrap.py')) && /mode == "subscription"/.test(text('src/usf_factory/activation.py')),
+  authorisedSubscriptionTransports,
+  operatorConfiguredSubscriptionDefaults,
+});
 const openRouterCases = [
   { requestedModel: 'vendor/model:free', catalogueFree: true, quotedRequestPrice: 0, observedChargedCost: 0, actualProvider: 'provider-a', actualModel: 'vendor/model:free', paidFallback: false },
   { requestedModel: 'openrouter/auto', catalogueFree: true, quotedRequestPrice: 0, observedChargedCost: 0, actualProvider: 'provider-a', actualModel: 'vendor/model:free', paidFallback: false },
@@ -253,8 +263,8 @@ record('disabled-providers-inventoried', true, /enabled/.test(text('config/provi
 record('research-command-unbound', true, !/requests\.(?:get|post)|urllib\.request|httpx\./.test(text('scripts/check-provider-env.py')));
 
 const layers = [
-  { free_only: false, allow_free_inference: true, allow_subscription_inference: true, allow_paid_inference: false, allow_local_inference: false, max_paid_cost_usd: 0, max_models_assessed: 100, providers: ['claude-cli', 'codex-cli', 'groq'], exclusions: ['ollama'] },
-  { free_only: false, allow_free_inference: true, allow_subscription_inference: true, allow_paid_inference: false, allow_local_inference: false, max_paid_cost_usd: 0, max_models_assessed: 40, providers: ['claude-cli', 'codex-cli'], exclusions: [] },
+  { free_only: false, allow_free_inference: true, allow_subscription_inference: true, allow_paid_inference: false, allow_local_inference: false, max_paid_cost_usd: 0, max_models_assessed: 100, providers: ['antigravity-cli', 'claude-cli', 'codex-cli', 'groq'], exclusions: ['ollama'] },
+  { free_only: false, allow_free_inference: true, allow_subscription_inference: true, allow_paid_inference: false, allow_local_inference: false, max_paid_cost_usd: 0, max_models_assessed: 40, providers: ['antigravity-cli', 'claude-cli', 'codex-cli'], exclusions: [] },
   { free_only: false, allow_free_inference: true, allow_subscription_inference: false, allow_paid_inference: false, allow_local_inference: false, max_paid_cost_usd: 0, max_models_assessed: 25, providers: ['codex-cli'], exclusions: [] },
   { free_only: false, allow_free_inference: true, allow_subscription_inference: false, allow_paid_inference: false, allow_local_inference: false, max_paid_cost_usd: 0, max_models_assessed: 10, providers: ['codex-cli'], exclusions: ['ollama'] },
 ];
@@ -335,7 +345,7 @@ const authorityClaims = [
   'unknown-token-variables-are-not-loaded',
   'provider-calls-require-current-run-authorization',
   'zero-paid-budget-denies-paid-api-inference',
-  'subscription-transports-remain-distinct-from-paid-api-access',
+  'claude-codex-antigravity-subscription-transports-remain-distinct-from-paid-api-access',
   'openrouter-requires-explicit-free-zero-cost-identity-verified-routes',
   'ollama-is-operator-excluded-not-unavailable',
   'requested-and-actual-provider-and-model-identities-are-distinct-facts',
