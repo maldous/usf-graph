@@ -1,7 +1,10 @@
 GRAPH <urn:usf:graph:derived:readiness> {
+  <urn:usf:decisionevaluation:providerconfigurationplanefactoryworkforce> <urn:usf:ontology:evaluationClosureState> <urn:usf:evaluationclosurestate:complete> .
+  <urn:usf:decisionevaluation:providerenvironmentclassificationfactoryworkforce> <urn:usf:ontology:evaluationClosureState> <urn:usf:evaluationclosurestate:complete> .
   <urn:usf:decisionevaluation:repositoryarchitectureandnaming> <urn:usf:ontology:evaluationClosureState> <urn:usf:evaluationclosurestate:complete> .
   <urn:usf:decisionevaluation:semanticauthoritycontrolselection> <urn:usf:ontology:evaluationClosureState> <urn:usf:evaluationclosurestate:complete> .
   <urn:usf:decisionevaluation:semanticmodelcompilationrealisation> <urn:usf:ontology:evaluationClosureState> <urn:usf:evaluationclosurestate:complete> .
+  <urn:usf:decisionevaluation:servicecatalogandproviderintegrationmodelfactoryworkforce> <urn:usf:ontology:evaluationClosureState> <urn:usf:evaluationclosurestate:complete> .
   <urn:usf:readiness:r0313f2063509645bc844bd67e2ddc99f46809c3daf0384a037753faf826829d6> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:Readiness> .
   <urn:usf:readiness:r0313f2063509645bc844bd67e2ddc99f46809c3daf0384a037753faf826829d6> <urn:usf:ontology:canonicalName> "r0313f2063509645bc844bd67e2ddc99f46809c3daf0384a037753faf826829d6" .
   <urn:usf:readiness:r0313f2063509645bc844bd67e2ddc99f46809c3daf0384a037753faf826829d6> <urn:usf:ontology:derivedFrom> <urn:usf:capability:datagovernancecataloglineageclassificationpiidsrgdpr> .
