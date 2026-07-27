@@ -5833,14 +5833,14 @@ adp:factoryprovidercataloguecache a usf:Adapter;
   usf:credibilityForOption <urn:usf:realisationoption:boundedfactoryproviderworkforceplane>;
   usf:credibilityState <urn:usf:candidatecredibilitystate:credible>;
   usf:credibilityEvidence <urn:usf:evidenceresult:providerworkforcedecisionevaluation>;
-  usf:credibilityRationale "The exact factory tree already contains the bounded responsibility surfaces and the hermetic proof establishes the required fail-closed policy algorithms.".
+  usf:credibilityBasis "The exact factory tree already contains the bounded responsibility surfaces and the hermetic proof establishes the required fail-closed policy algorithms.".
 <urn:usf:candidatecredibilityassessment:providerconfigurationplanefactoryworkforceseparateprovidercontrolrepositories> a usf:CandidateCredibilityAssessment;
   usf:canonicalName "providerconfigurationplanefactoryworkforceseparateprovidercontrolrepositories";
   usf:credibilityForEvaluation <urn:usf:decisionevaluation:providerconfigurationplanefactoryworkforce>;
   usf:credibilityForOption <urn:usf:realisationoption:separateprovidercontrolrepositories>;
   usf:credibilityState <urn:usf:candidatecredibilitystate:credible>;
   usf:credibilityEvidence <urn:usf:evidenceresult:providerworkforcedecisionevaluation>;
-  usf:credibilityRationale "Separate repositories are technically feasible but introduce additional coordination, ownership and authorization boundaries.".
+  usf:credibilityBasis "Separate repositories are technically feasible but introduce additional coordination, ownership and authorization boundaries.".
 <urn:usf:optionrejection:providerconfigurationplanefactoryworkforceseparateprovidercontrolrepositories> a usf:OptionRejection;
   usf:canonicalName "providerconfigurationplanefactoryworkforceseparateprovidercontrolrepositories";
   usf:rejectionForEvaluation <urn:usf:decisionevaluation:providerconfigurationplanefactoryworkforce>;
@@ -7402,14 +7402,14 @@ adp:factoryprovidercataloguecache a usf:Adapter;
   usf:credibilityForOption <urn:usf:realisationoption:boundedfactoryproviderworkforceplane>;
   usf:credibilityState <urn:usf:candidatecredibilitystate:credible>;
   usf:credibilityEvidence <urn:usf:evidenceresult:providerworkforcedecisionevaluation>;
-  usf:credibilityRationale "The exact factory tree already contains the bounded responsibility surfaces and the hermetic proof establishes the required fail-closed policy algorithms.".
+  usf:credibilityBasis "The exact factory tree already contains the bounded responsibility surfaces and the hermetic proof establishes the required fail-closed policy algorithms.".
 <urn:usf:candidatecredibilityassessment:providerenvironmentclassificationfactoryworkforceseparateprovidercontrolrepositories> a usf:CandidateCredibilityAssessment;
   usf:canonicalName "providerenvironmentclassificationfactoryworkforceseparateprovidercontrolrepositories";
   usf:credibilityForEvaluation <urn:usf:decisionevaluation:providerenvironmentclassificationfactoryworkforce>;
   usf:credibilityForOption <urn:usf:realisationoption:separateprovidercontrolrepositories>;
   usf:credibilityState <urn:usf:candidatecredibilitystate:credible>;
   usf:credibilityEvidence <urn:usf:evidenceresult:providerworkforcedecisionevaluation>;
-  usf:credibilityRationale "Separate repositories are technically feasible but introduce additional coordination, ownership and authorization boundaries.".
+  usf:credibilityBasis "Separate repositories are technically feasible but introduce additional coordination, ownership and authorization boundaries.".
 <urn:usf:optionrejection:providerenvironmentclassificationfactoryworkforceseparateprovidercontrolrepositories> a usf:OptionRejection;
   usf:canonicalName "providerenvironmentclassificationfactoryworkforceseparateprovidercontrolrepositories";
   usf:rejectionForEvaluation <urn:usf:decisionevaluation:providerenvironmentclassificationfactoryworkforce>;
@@ -8971,14 +8971,14 @@ adp:factoryprovidercataloguecache a usf:Adapter;
   usf:credibilityForOption <urn:usf:realisationoption:boundedfactoryproviderworkforceplane>;
   usf:credibilityState <urn:usf:candidatecredibilitystate:credible>;
   usf:credibilityEvidence <urn:usf:evidenceresult:providerworkforcedecisionevaluation>;
-  usf:credibilityRationale "The exact factory tree already contains the bounded responsibility surfaces and the hermetic proof establishes the required fail-closed policy algorithms.".
+  usf:credibilityBasis "The exact factory tree already contains the bounded responsibility surfaces and the hermetic proof establishes the required fail-closed policy algorithms.".
 <urn:usf:candidatecredibilityassessment:servicecatalogandproviderintegrationmodelfactoryworkforceseparateprovidercontrolrepositories> a usf:CandidateCredibilityAssessment;
   usf:canonicalName "servicecatalogandproviderintegrationmodelfactoryworkforceseparateprovidercontrolrepositories";
   usf:credibilityForEvaluation <urn:usf:decisionevaluation:servicecatalogandproviderintegrationmodelfactoryworkforce>;
   usf:credibilityForOption <urn:usf:realisationoption:separateprovidercontrolrepositories>;
   usf:credibilityState <urn:usf:candidatecredibilitystate:credible>;
   usf:credibilityEvidence <urn:usf:evidenceresult:providerworkforcedecisionevaluation>;
-  usf:credibilityRationale "Separate repositories are technically feasible but introduce additional coordination, ownership and authorization boundaries.".
+  usf:credibilityBasis "Separate repositories are technically feasible but introduce additional coordination, ownership and authorization boundaries.".
 <urn:usf:optionrejection:servicecatalogandproviderintegrationmodelfactoryworkforceseparateprovidercontrolrepositories> a usf:OptionRejection;
   usf:canonicalName "servicecatalogandproviderintegrationmodelfactoryworkforceseparateprovidercontrolrepositories";
   usf:rejectionForEvaluation <urn:usf:decisionevaluation:servicecatalogandproviderintegrationmodelfactoryworkforce>;
