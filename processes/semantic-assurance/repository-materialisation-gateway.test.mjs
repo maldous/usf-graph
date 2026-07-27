@@ -349,8 +349,8 @@ test('the applicability migration promoted no contract to an exemption or an une
       `${contract} declares required applicability so it must bind an obligation`,
     );
   }
-  assert.equal((byState.get(`${VAS}required`) || []).length, 3);
-  assert.equal((byState.get(`${VAS}unresolved`) || []).length, contracts.length - 3);
+  assert.equal((byState.get(`${VAS}required`) || []).length, 6);
+  assert.equal((byState.get(`${VAS}unresolved`) || []).length, contracts.length - 6);
 });
 
 // usf:SemanticContract is a superclass of several descriptive classes, so under
