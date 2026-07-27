@@ -2407,10 +2407,17 @@ sc:productcatalogplansprices usf:hasActivationState contractstate:proofblocked;
     usf:activationReason "The prior local hermetic-mock reference implementation and its source-unbound evidence, proof and validation do not warrant repository-local development, deterministic test or production-shaped staging delivery; the contract is proof-blocked pending independently derived semantics and implementation.";
     usf:mandatoryProofObligation <urn:usf:proofobligation:p05b92ae33829a9230639327d1b80ca10d7d83cc662cb29834828646760aed7b6>;
     usf:permittedRealisationType usf:Implementation.
-sc:providerenvironmentclassification usf:hasActivationState contractstate:proofblocked;
-    usf:activationReason "The prior local hermetic-mock reference implementation and its source-unbound evidence, proof and validation do not warrant repository-local development, deterministic test or production-shaped staging delivery; the contract is proof-blocked pending independently derived semantics and implementation.";
+sc:providerenvironmentclassification usf:hasActivationState contractstate:active;
+    usf:activationReason "Current admitted hermetic evidence and a successful behaviour-rung proof warrant only the bounded provider-workforce implementation surface in maldous/usf-factory. Provider availability, authentication, qualification, admission and production readiness remain unclaimed until separately authorized runtime evidence exists.";
+    usf:requiresRealisationOptionEvaluation true;
     usf:mandatoryProofObligation <urn:usf:proofobligation:p6fdcab8c78bc4d0a1ae49ebd9f1fae6d3ea03eb61c4226889f14d8e05a32ef03>;
-    usf:permittedRealisationType usf:Implementation.
+    usf:reliesOnProofResult <urn:usf:proofresult:providerworkforceauthorityproviderenvironmentclassification>;
+    usf:effectiveRealisationDecision <urn:usf:realisationdecision:providerenvironmentclassificationfactoryworkforce>;
+    usf:requiredValidation <urn:usf:validationobligation:providerenvironmentclassification>;
+    usf:permittedRealisationType usf:Implementation, usf:Adapter, usf:Binding;
+    usf:asserts <urn:usf:claim:providerworkforceboundedimplementationauthority>;
+    usf:disclaims <urn:usf:nonclaim:providercredentialsauthority>, <urn:usf:nonclaim:providerresearchprovesavailability>, <urn:usf:nonclaim:providerworkforceproofisfactoryvalidation>, <urn:usf:nonclaim:providerworkforceproofisproductionreadiness>;
+    usf:contractConstraint "Provider credentials are operator-owned external secrets. Only canonical variable names and presence booleans may be represented; values, hashes, copied credential files, account sessions and billing information are prohibited from Git, semantic authority, CAS, logs and receipts.", "Provider catalogue discovery, authentication classification, bounded health checks, free or subscription probes, qualification and admission require a current RunAuthorization and the one immutable effective policy formed by intersecting committed defaults, operator policy, RunAuthorization and activation options.", "Paid API inference is denied at zero authorized budget outside Claude, Codex and Google Antigravity subscription transports. Antigravity is the installed agy subscription transport and is operator-configured to request Opus 4.6 by default; requested and actual model identities remain distinct evidence, and it may not fall back to paid Anthropic or Google API access. OpenRouter requires point-of-use explicit-free metadata, zero quoted and observed charge, actual model and actual provider identity, and no paid or unknown fallback. Ollama is inventoried but operator-excluded as operationally impractical.", "Tracked actions are limited to create-directory and create-or-update-file operations at the decision's exact source paths, in Python 3.11 source, YAML 1.2 configuration, CommonMark Markdown or dotenv-example text. Git push, PR, merge, publication and writes outside those paths require separate authority.", "Mutable live quota state, provider responses, runtime logs and assessment transcripts are untracked unless a later exact evidence contract admits a bounded sanitized representation.".
 sc:relationalstorageandmigrationsandrls usf:hasActivationState contractstate:proofblocked;
     usf:activationReason "The prior local hermetic-mock reference implementation and its source-unbound evidence, proof and validation do not warrant repository-local development, deterministic test or production-shaped staging delivery; the contract is proof-blocked pending independently derived semantics and implementation.";
     usf:mandatoryProofObligation <urn:usf:proofobligation:p849808679bbf1483464f425561fb1357acba310719c7e1b1ae3034a262e46d7a>;
@@ -2483,10 +2490,17 @@ sc:notificationdeliveryandpreferencesandchannels usf:hasActivationState contract
     usf:activationReason "The prior local hermetic-mock reference implementation and its source-unbound evidence, proof and validation do not warrant repository-local development, deterministic test or production-shaped staging delivery; the contract is proof-blocked pending independently derived semantics and implementation.";
     usf:mandatoryProofObligation <urn:usf:proofobligation:p1874b31e72692fcb908b9d1c13a86f9ca955777ba0b338339d6b5f0adb5c65af>;
     usf:permittedRealisationType usf:Implementation.
-sc:providerconfigurationplane usf:hasActivationState contractstate:proofblocked;
-    usf:activationReason "The prior local hermetic-mock reference implementation and its source-unbound evidence, proof and validation do not warrant repository-local development, deterministic test or production-shaped staging delivery; the contract is proof-blocked pending independently derived semantics and implementation.";
+sc:providerconfigurationplane usf:hasActivationState contractstate:active;
+    usf:activationReason "Current admitted hermetic evidence and a successful behaviour-rung proof warrant only the bounded provider-workforce implementation surface in maldous/usf-factory. Provider availability, authentication, qualification, admission and production readiness remain unclaimed until separately authorized runtime evidence exists.";
+    usf:requiresRealisationOptionEvaluation true;
     usf:mandatoryProofObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>;
-    usf:permittedRealisationType usf:Implementation.
+    usf:reliesOnProofResult <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane>;
+    usf:effectiveRealisationDecision <urn:usf:realisationdecision:providerconfigurationplanefactoryworkforce>;
+    usf:requiredValidation <urn:usf:validationobligation:providerconfigurationplane>;
+    usf:permittedRealisationType usf:Implementation, usf:Adapter, usf:Binding;
+    usf:asserts <urn:usf:claim:providerworkforceboundedimplementationauthority>;
+    usf:disclaims <urn:usf:nonclaim:providercredentialsauthority>, <urn:usf:nonclaim:providerresearchprovesavailability>, <urn:usf:nonclaim:providerworkforceproofisfactoryvalidation>, <urn:usf:nonclaim:providerworkforceproofisproductionreadiness>;
+    usf:contractConstraint "Provider credentials are operator-owned external secrets. Only canonical variable names and presence booleans may be represented; values, hashes, copied credential files, account sessions and billing information are prohibited from Git, semantic authority, CAS, logs and receipts.", "Provider catalogue discovery, authentication classification, bounded health checks, free or subscription probes, qualification and admission require a current RunAuthorization and the one immutable effective policy formed by intersecting committed defaults, operator policy, RunAuthorization and activation options.", "Paid API inference is denied at zero authorized budget outside Claude, Codex and Google Antigravity subscription transports. Antigravity is the installed agy subscription transport and is operator-configured to request Opus 4.6 by default; requested and actual model identities remain distinct evidence, and it may not fall back to paid Anthropic or Google API access. OpenRouter requires point-of-use explicit-free metadata, zero quoted and observed charge, actual model and actual provider identity, and no paid or unknown fallback. Ollama is inventoried but operator-excluded as operationally impractical.", "Tracked actions are limited to create-directory and create-or-update-file operations at the decision's exact source paths, in Python 3.11 source, YAML 1.2 configuration, CommonMark Markdown or dotenv-example text. Git push, PR, merge, publication and writes outside those paths require separate authority.", "Mutable live quota state, provider responses, runtime logs and assessment transcripts are untracked unless a later exact evidence contract admits a bounded sanitized representation.".
 sc:scheduledjobsbuiltinontheeventsubstrate usf:hasActivationState contractstate:proofblocked;
     usf:activationReason "The prior local hermetic-mock reference implementation and its source-unbound evidence, proof and validation do not warrant repository-local development, deterministic test or production-shaped staging delivery; the contract is proof-blocked pending independently derived semantics and implementation.";
     usf:mandatoryProofObligation <urn:usf:proofobligation:p776ac087b89c50df01f7b20de54fde6d0c79003aed150a0acb88de2f8cf31415>;
@@ -2595,10 +2609,17 @@ sc:compliancereportsaccessreviewsevidencepacks usf:hasActivationState contractst
     usf:activationReason "The prior local hermetic-mock reference implementation and its source-unbound evidence, proof and validation do not warrant repository-local development, deterministic test or production-shaped staging delivery; the contract is proof-blocked pending independently derived semantics and implementation.";
     usf:mandatoryProofObligation <urn:usf:proofobligation:p611b8d4728c5f96cfc7a142c45b8ba8a30b77ad1dca83e367dd1fb44213c583d>;
     usf:permittedRealisationType usf:Implementation.
-sc:servicecatalogandproviderintegrationmodel usf:hasActivationState contractstate:proofblocked;
-    usf:activationReason "The prior local hermetic-mock reference implementation and its source-unbound evidence, proof and validation do not warrant repository-local development, deterministic test or production-shaped staging delivery; the contract is proof-blocked pending independently derived semantics and implementation.";
+sc:servicecatalogandproviderintegrationmodel usf:hasActivationState contractstate:active;
+    usf:activationReason "Current admitted hermetic evidence and a successful behaviour-rung proof warrant only the bounded provider-workforce implementation surface in maldous/usf-factory. Provider availability, authentication, qualification, admission and production readiness remain unclaimed until separately authorized runtime evidence exists.";
+    usf:requiresRealisationOptionEvaluation true;
     usf:mandatoryProofObligation <urn:usf:proofobligation:p3d210ec339c9c829e5b031b079ff8a95257db4b539185d8dc88ff58d726a5ecf>;
-    usf:permittedRealisationType usf:Implementation.
+    usf:reliesOnProofResult <urn:usf:proofresult:providerworkforceauthorityservicecatalogandproviderintegrationmodel>;
+    usf:effectiveRealisationDecision <urn:usf:realisationdecision:servicecatalogandproviderintegrationmodelfactoryworkforce>;
+    usf:requiredValidation <urn:usf:validationobligation:servicecatalogandproviderintegrationmodel>;
+    usf:permittedRealisationType usf:Implementation, usf:Adapter, usf:Binding;
+    usf:asserts <urn:usf:claim:providerworkforceboundedimplementationauthority>;
+    usf:disclaims <urn:usf:nonclaim:providercredentialsauthority>, <urn:usf:nonclaim:providerresearchprovesavailability>, <urn:usf:nonclaim:providerworkforceproofisfactoryvalidation>, <urn:usf:nonclaim:providerworkforceproofisproductionreadiness>;
+    usf:contractConstraint "Provider credentials are operator-owned external secrets. Only canonical variable names and presence booleans may be represented; values, hashes, copied credential files, account sessions and billing information are prohibited from Git, semantic authority, CAS, logs and receipts.", "Provider catalogue discovery, authentication classification, bounded health checks, free or subscription probes, qualification and admission require a current RunAuthorization and the one immutable effective policy formed by intersecting committed defaults, operator policy, RunAuthorization and activation options.", "Paid API inference is denied at zero authorized budget outside Claude, Codex and Google Antigravity subscription transports. Antigravity is the installed agy subscription transport and is operator-configured to request Opus 4.6 by default; requested and actual model identities remain distinct evidence, and it may not fall back to paid Anthropic or Google API access. OpenRouter requires point-of-use explicit-free metadata, zero quoted and observed charge, actual model and actual provider identity, and no paid or unknown fallback. Ollama is inventoried but operator-excluded as operationally impractical.", "Tracked actions are limited to create-directory and create-or-update-file operations at the decision's exact source paths, in Python 3.11 source, YAML 1.2 configuration, CommonMark Markdown or dotenv-example text. Git push, PR, merge, publication and writes outside those paths require separate authority.", "Mutable live quota state, provider responses, runtime logs and assessment transcripts are untracked unless a later exact evidence contract admits a bounded sanitized representation.".
 sc:tenantisolationproof usf:hasActivationState contractstate:proofblocked;
     usf:activationReason "The prior local hermetic-mock reference implementation and its source-unbound evidence, proof and validation do not warrant repository-local development, deterministic test or production-shaped staging delivery; the contract is proof-blocked pending independently derived semantics and implementation.";
     usf:mandatoryProofObligation <urn:usf:proofobligation:p860cd149d0b0b27e1b5f3bd1346cc1b05baf94629acb5cf79f3d40167746221f>;
@@ -4862,10 +4883,10 @@ sc:pitrretentionlegalholddataresidency usf:hasValidationApplicability vas:unreso
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
 sc:productcatalogplansprices usf:hasValidationApplicability vas:unresolved;
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
-sc:providerconfigurationplane usf:hasValidationApplicability vas:unresolved;
-    usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
-sc:providerenvironmentclassification usf:hasValidationApplicability vas:unresolved;
-    usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
+sc:providerconfigurationplane usf:hasValidationApplicability vas:required;
+    usf:validationApplicabilityReason "Validation is required because this contract binds an explicit ValidationObligation. Its reserved activation state is fail-closed and neither requiredness nor reservation implies execution or satisfaction.".
+sc:providerenvironmentclassification usf:hasValidationApplicability vas:required;
+    usf:validationApplicabilityReason "Validation is required because this contract binds an explicit ValidationObligation. Its reserved activation state is fail-closed and neither requiredness nor reservation implies execution or satisfaction.".
 sc:quotaenforcement usf:hasValidationApplicability vas:unresolved;
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
 sc:ratelimitingapi usf:hasValidationApplicability vas:unresolved;
@@ -4880,8 +4901,8 @@ sc:scheduledjobsbuiltinontheeventsubstrate usf:hasValidationApplicability vas:un
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
 sc:searchandindexingproductsearch usf:hasValidationApplicability vas:unresolved;
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
-sc:servicecatalogandproviderintegrationmodel usf:hasValidationApplicability vas:unresolved;
-    usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
+sc:servicecatalogandproviderintegrationmodel usf:hasValidationApplicability vas:required;
+    usf:validationApplicabilityReason "Validation is required because this contract binds an explicit ValidationObligation. Its reserved activation state is fail-closed and neither requiredness nor reservation implies execution or satisfaction.".
 sc:suborganisations usf:hasValidationApplicability vas:unresolved;
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
 sc:subscriptionsinvoicespaymentmethodsdunning usf:hasValidationApplicability vas:unresolved;
@@ -4920,4 +4941,27 @@ sc:workflowenginescheduledjobsapprovals usf:hasValidationApplicability vas:unres
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
 sc:writeonlysecretsettings usf:hasValidationApplicability vas:unresolved;
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
+
+<urn:usf:claim:providerworkforceboundedimplementationauthority> a usf:Claim;
+  usf:canonicalName "providerworkforceboundedimplementationauthority".
+<urn:usf:nonclaim:providercredentialsauthority> a usf:NonClaim;
+  usf:canonicalName "providercredentialsauthority".
+<urn:usf:nonclaim:providerresearchprovesavailability> a usf:NonClaim;
+  usf:canonicalName "providerresearchprovesavailability".
+<urn:usf:validationobligation:providerconfigurationplane> a usf:ValidationObligation;
+  usf:canonicalName "providerconfigurationplane";
+  usf:hasValidationActivationState <urn:usf:validationactivationstate:reserved>;
+  usf:validationActivationReason "No exact implementation-validation producer or admission path exists yet. Reserved is fail-closed and does not imply satisfaction, execution authority or production readiness.";
+  usf:validationForContract sc:providerconfigurationplane.
+<urn:usf:validationobligation:providerenvironmentclassification> a usf:ValidationObligation;
+  usf:canonicalName "providerenvironmentclassification";
+  usf:hasValidationActivationState <urn:usf:validationactivationstate:reserved>;
+  usf:validationActivationReason "No exact implementation-validation producer or admission path exists yet. Reserved is fail-closed and does not imply satisfaction, execution authority or production readiness.";
+  usf:validationForContract sc:providerenvironmentclassification.
+<urn:usf:validationobligation:servicecatalogandproviderintegrationmodel> a usf:ValidationObligation;
+  usf:canonicalName "servicecatalogandproviderintegrationmodel";
+  usf:hasValidationActivationState <urn:usf:validationactivationstate:reserved>;
+  usf:validationActivationReason "No exact implementation-validation producer or admission path exists yet. Reserved is fail-closed and does not imply satisfaction, execution authority or production readiness.";
+  usf:validationForContract sc:servicecatalogandproviderintegrationmodel.
+
 }

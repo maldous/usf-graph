@@ -867,6 +867,7 @@ GRAPH <urn:usf:graph:derived:evidence> {
   <urn:usf:evidencerequirement:e6bc2d48a0f6eae6eb793d4d7e026ad38589542c1d9973bd21823196da9d38371> <urn:usf:ontology:requiresEvidenceStage> <urn:usf:evidencestage:signed> .
   <urn:usf:evidencerequirement:e6bc2d48a0f6eae6eb793d4d7e026ad38589542c1d9973bd21823196da9d38371> <urn:usf:ontology:requiresFreshness> <urn:usf:freshness:fresh> .
   <urn:usf:evidencerequirement:e6bc2d48a0f6eae6eb793d4d7e026ad38589542c1d9973bd21823196da9d38371> <urn:usf:ontology:requiresProviderMode> <urn:usf:providermode:deterministictestsubstitute> .
+  <urn:usf:evidencerequirement:e6bc2d48a0f6eae6eb793d4d7e026ad38589542c1d9973bd21823196da9d38371> <urn:usf:ontology:satisfiedByEvidence> <urn:usf:evidenceresult:providerworkforceauthority> .
   <urn:usf:evidencerequirement:e6bc2d48a0f6eae6eb793d4d7e026ad38589542c1d9973bd21823196da9d38371> <urn:usf:ontology:usesAssuranceCell> <urn:usf:assurancecell:behaviourhermetichermetic> .
   <urn:usf:evidencerequirement:e708ce26477f6088990609674c8b390c61bbb3c94e6ffee4de0959b5f477cc849> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:AssuranceObligation> .
   <urn:usf:evidencerequirement:e708ce26477f6088990609674c8b390c61bbb3c94e6ffee4de0959b5f477cc849> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:EvidenceRequirement> .
@@ -1023,6 +1024,7 @@ GRAPH <urn:usf:graph:derived:evidence> {
   <urn:usf:evidencerequirement:e81267ee8b57d047d9f92772d4899a060dde3e01480d51c3f26c5ba2f86a7e11d> <urn:usf:ontology:requiresEvidenceStage> <urn:usf:evidencestage:signed> .
   <urn:usf:evidencerequirement:e81267ee8b57d047d9f92772d4899a060dde3e01480d51c3f26c5ba2f86a7e11d> <urn:usf:ontology:requiresFreshness> <urn:usf:freshness:fresh> .
   <urn:usf:evidencerequirement:e81267ee8b57d047d9f92772d4899a060dde3e01480d51c3f26c5ba2f86a7e11d> <urn:usf:ontology:requiresProviderMode> <urn:usf:providermode:deterministictestsubstitute> .
+  <urn:usf:evidencerequirement:e81267ee8b57d047d9f92772d4899a060dde3e01480d51c3f26c5ba2f86a7e11d> <urn:usf:ontology:satisfiedByEvidence> <urn:usf:evidenceresult:providerworkforceauthority> .
   <urn:usf:evidencerequirement:e81267ee8b57d047d9f92772d4899a060dde3e01480d51c3f26c5ba2f86a7e11d> <urn:usf:ontology:usesAssuranceCell> <urn:usf:assurancecell:behaviourhermetichermetic> .
   <urn:usf:evidencerequirement:e8127e8c12c9490e6623113bd88b6a85183cdae5b16e0d785988280c462e20860> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:AssuranceObligation> .
   <urn:usf:evidencerequirement:e8127e8c12c9490e6623113bd88b6a85183cdae5b16e0d785988280c462e20860> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:EvidenceRequirement> .
@@ -1162,6 +1164,7 @@ GRAPH <urn:usf:graph:derived:evidence> {
   <urn:usf:evidencerequirement:e8c6928a56f67bd7f0f379b43c026dc28acb991e045faceaae1160d13b2513050> <urn:usf:ontology:requiresEvidenceStage> <urn:usf:evidencestage:signed> .
   <urn:usf:evidencerequirement:e8c6928a56f67bd7f0f379b43c026dc28acb991e045faceaae1160d13b2513050> <urn:usf:ontology:requiresFreshness> <urn:usf:freshness:fresh> .
   <urn:usf:evidencerequirement:e8c6928a56f67bd7f0f379b43c026dc28acb991e045faceaae1160d13b2513050> <urn:usf:ontology:requiresProviderMode> <urn:usf:providermode:deterministictestsubstitute> .
+  <urn:usf:evidencerequirement:e8c6928a56f67bd7f0f379b43c026dc28acb991e045faceaae1160d13b2513050> <urn:usf:ontology:satisfiedByEvidence> <urn:usf:evidenceresult:providerworkforceauthority> .
   <urn:usf:evidencerequirement:e8c6928a56f67bd7f0f379b43c026dc28acb991e045faceaae1160d13b2513050> <urn:usf:ontology:usesAssuranceCell> <urn:usf:assurancecell:behaviourhermetichermetic> .
   <urn:usf:evidencerequirement:e8dc34852abd8fcee0823e67c29bd6c4fb5c2c0b0eac3561645356e9fe50819e2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:AssuranceObligation> .
   <urn:usf:evidencerequirement:e8dc34852abd8fcee0823e67c29bd6c4fb5c2c0b0eac3561645356e9fe50819e2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:EvidenceRequirement> .
@@ -2362,6 +2365,9 @@ GRAPH <urn:usf:graph:derived:evidence> {
   <urn:usf:evidenceresult:compilerhermeticsubstitutevalidation> <urn:usf:ontology:satisfies> <urn:usf:evidencerequirement:compilersemanticvalidation> .
   <urn:usf:evidenceresult:compilerliveauthorityruntime> <urn:usf:ontology:satisfies> <urn:usf:evidencerequirement:ec150fb9648d328778717376c43326a7dcbe1fd9bb4d4103327040b244cd96d80> .
   <urn:usf:evidenceresult:compilerliveauthoritytransactionvalidation> <urn:usf:ontology:satisfies> <urn:usf:evidencerequirement:compilerliveauthoritytransactionvalidation> .
+  <urn:usf:evidenceresult:providerworkforceauthority> <urn:usf:ontology:satisfies> <urn:usf:evidencerequirement:e6bc2d48a0f6eae6eb793d4d7e026ad38589542c1d9973bd21823196da9d38371> .
+  <urn:usf:evidenceresult:providerworkforceauthority> <urn:usf:ontology:satisfies> <urn:usf:evidencerequirement:e81267ee8b57d047d9f92772d4899a060dde3e01480d51c3f26c5ba2f86a7e11d> .
+  <urn:usf:evidenceresult:providerworkforceauthority> <urn:usf:ontology:satisfies> <urn:usf:evidencerequirement:e8c6928a56f67bd7f0f379b43c026dc28acb991e045faceaae1160d13b2513050> .
   <urn:usf:evidenceresult:repositorymaterialisationcontrolplane> <urn:usf:ontology:satisfies> <urn:usf:evidencerequirement:repositoryexternalartefactmaterialisation> .
   <urn:usf:evidenceresult:semanticadequacyindependentreview> <urn:usf:ontology:satisfies> <urn:usf:evidencerequirement:importedauthoritycounterfactualadequacy> .
   <urn:usf:evidenceresult:semanticadequacyinventory> <urn:usf:ontology:satisfies> <urn:usf:evidencerequirement:importedauthoritycounterfactualadequacy> .
@@ -2407,6 +2413,9 @@ GRAPH <urn:usf:graph:derived:evidence> {
   <urn:usf:proofobligation:p3b2be474271736f092956b01e243294647aece6a528fa872fec4dc132868a20e> <urn:usf:ontology:requiresEvidence> <urn:usf:evidencerequirement:e0b1f8db9b4579024265721c5faa7333a9430f0a62aa97762065234b623fe36c4> .
   <urn:usf:proofobligation:p3c3691a56cdfc69c0b34d7fe67b15894c8fdcdedf098afa8b8d9e9b26b0072fb> <urn:usf:ontology:requiresEvidence> <urn:usf:evidencerequirement:e73e6a6ed5383abd1f6eda076fdf16ba9792baa2fb3984c08abf17ab75d0d7445> .
   <urn:usf:proofobligation:p3d210ec339c9c829e5b031b079ff8a95257db4b539185d8dc88ff58d726a5ecf> <urn:usf:ontology:requiresEvidence> <urn:usf:evidencerequirement:e81267ee8b57d047d9f92772d4899a060dde3e01480d51c3f26c5ba2f86a7e11d> .
+  <urn:usf:proofobligation:p3d210ec339c9c829e5b031b079ff8a95257db4b539185d8dc88ff58d726a5ecf> <urn:usf:ontology:satisfiedByProofResult> <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane> .
+  <urn:usf:proofobligation:p3d210ec339c9c829e5b031b079ff8a95257db4b539185d8dc88ff58d726a5ecf> <urn:usf:ontology:satisfiedByProofResult> <urn:usf:proofresult:providerworkforceauthorityproviderenvironmentclassification> .
+  <urn:usf:proofobligation:p3d210ec339c9c829e5b031b079ff8a95257db4b539185d8dc88ff58d726a5ecf> <urn:usf:ontology:satisfiedByProofResult> <urn:usf:proofresult:providerworkforceauthorityservicecatalogandproviderintegrationmodel> .
   <urn:usf:proofobligation:p3d947f0c469e94b2609108a66613dee4e5636ff641058fbd5d64226875e237be> <urn:usf:ontology:requiresEvidence> <urn:usf:evidencerequirement:e0bbf96c40972ed8999ea9975a4b92e9b2ba9f7aeacb8de2f3e57e617238e364e> .
   <urn:usf:proofobligation:p40d19670cb7b936c5d39958c1606f2aa82e3258d50919dcf54ac0e83f3096461> <urn:usf:ontology:requiresEvidence> <urn:usf:evidencerequirement:e31955f9582a10f55c648825645efde333031e6459ef3e89dfb8b4a89190d18df> .
   <urn:usf:proofobligation:p42ad4c3c7aa84e0fba4c7a731208261d46bcc9da50d120059e9e645c575a3faa> <urn:usf:ontology:requiresEvidence> <urn:usf:evidencerequirement:ee47cabd61212831eecc236b4a4352643cbab0488e6095789c1288803d82d9ead> .
@@ -2433,10 +2442,16 @@ GRAPH <urn:usf:graph:derived:evidence> {
   <urn:usf:proofobligation:p6ea3bb03a9bbd75a3b3ac170deff93104846e8f5cb5f893a9b95c115f0e31eaf> <urn:usf:ontology:requiresEvidence> <urn:usf:evidencerequirement:e2b786d44f200ec67b8c3b34d1827379c5e73da67ae0aca9087fba576a5b29903> .
   <urn:usf:proofobligation:p6f6d3752d2e2c5d35dc9d389af4a06c16d9c20a58f3d815b81e37ef6093ca6b8> <urn:usf:ontology:requiresEvidence> <urn:usf:evidencerequirement:e089304f975fcaeef1ee3cca91edb3efd50e841e90101ef493724ecb0a320d336> .
   <urn:usf:proofobligation:p6fdcab8c78bc4d0a1ae49ebd9f1fae6d3ea03eb61c4226889f14d8e05a32ef03> <urn:usf:ontology:requiresEvidence> <urn:usf:evidencerequirement:e6bc2d48a0f6eae6eb793d4d7e026ad38589542c1d9973bd21823196da9d38371> .
+  <urn:usf:proofobligation:p6fdcab8c78bc4d0a1ae49ebd9f1fae6d3ea03eb61c4226889f14d8e05a32ef03> <urn:usf:ontology:satisfiedByProofResult> <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane> .
+  <urn:usf:proofobligation:p6fdcab8c78bc4d0a1ae49ebd9f1fae6d3ea03eb61c4226889f14d8e05a32ef03> <urn:usf:ontology:satisfiedByProofResult> <urn:usf:proofresult:providerworkforceauthorityproviderenvironmentclassification> .
+  <urn:usf:proofobligation:p6fdcab8c78bc4d0a1ae49ebd9f1fae6d3ea03eb61c4226889f14d8e05a32ef03> <urn:usf:ontology:satisfiedByProofResult> <urn:usf:proofresult:providerworkforceauthorityservicecatalogandproviderintegrationmodel> .
   <urn:usf:proofobligation:p722bdd08db9123720263998d5d2f223a4f4e49ca0dfb58acf0606439d3ba2001> <urn:usf:ontology:requiresEvidence> <urn:usf:evidencerequirement:e25b8b80af39c6b604be2959bce50d4710ff3c4828eefc0793455c9c45f66d87f> .
   <urn:usf:proofobligation:p731114268d5b18c7bafe223e72d580ea039ac856064f54de5e1d3a774f9a2fb4> <urn:usf:ontology:requiresEvidence> <urn:usf:evidencerequirement:e2a6dcf5d970877ea274631f0d4eb73be8166768fb3dcccc9ce33a3618199952e> .
   <urn:usf:proofobligation:p74f543251cdc7da3009beb6685c813e3b71a958f6e4f4d39996261877dc70510> <urn:usf:ontology:requiresEvidence> <urn:usf:evidencerequirement:e7188c110d679b4b3ae550da026f72304d63e9d65013e6f0ebf8b35d696a09ed4> .
   <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f> <urn:usf:ontology:requiresEvidence> <urn:usf:evidencerequirement:e8c6928a56f67bd7f0f379b43c026dc28acb991e045faceaae1160d13b2513050> .
+  <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f> <urn:usf:ontology:satisfiedByProofResult> <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane> .
+  <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f> <urn:usf:ontology:satisfiedByProofResult> <urn:usf:proofresult:providerworkforceauthorityproviderenvironmentclassification> .
+  <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f> <urn:usf:ontology:satisfiedByProofResult> <urn:usf:proofresult:providerworkforceauthorityservicecatalogandproviderintegrationmodel> .
   <urn:usf:proofobligation:p762e7c1bd05de54b8ed694b72e8975ba8c153fdad56abd367d53806e1e5bae99> <urn:usf:ontology:requiresEvidence> <urn:usf:evidencerequirement:e28f23c88930cd1f89b3902f113dcff816e5617658bb7b3733e56a0ef2257e247> .
   <urn:usf:proofobligation:p776ac087b89c50df01f7b20de54fde6d0c79003aed150a0acb88de2f8cf31415> <urn:usf:ontology:requiresEvidence> <urn:usf:evidencerequirement:ef08ee726f57dfcc01736ee929a82b5d564ef1d1c4376a8cf1070cc069eb5fa8c> .
   <urn:usf:proofobligation:p79b592e5db89bd40386287c90a8b54bf101edf943c58bc2d3f76795a4ff28feb> <urn:usf:ontology:requiresEvidence> <urn:usf:evidencerequirement:e09861ae5e3e4ac738152ddf138423c6758fb70b4ff3af9584062064c7b5786d9> .

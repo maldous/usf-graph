@@ -96,6 +96,27 @@ const decisions = [
     credible: ['livestardogwithverifiedreadonlyexport'],
     notApplicable: new Set(),
   },
+  {
+    name: 'providerconfigurationplanefactoryworkforce', contract: 'providerconfigurationplane',
+    selected: 'boundedfactoryproviderconfigurationplane',
+    options: ['boundedfactoryproviderconfigurationplane', 'separateproviderconfigurationrepositories'],
+    credible: ['boundedfactoryproviderconfigurationplane', 'separateproviderconfigurationrepositories'],
+    notApplicable: architectureNotApplicable,
+  },
+  {
+    name: 'providerenvironmentclassificationfactoryworkforce', contract: 'providerenvironmentclassification',
+    selected: 'boundedfactoryproviderenvironmentclassification',
+    options: ['boundedfactoryproviderenvironmentclassification', 'separateproviderenvironmentrepositories'],
+    credible: ['boundedfactoryproviderenvironmentclassification', 'separateproviderenvironmentrepositories'],
+    notApplicable: architectureNotApplicable,
+  },
+  {
+    name: 'servicecatalogandproviderintegrationmodelfactoryworkforce', contract: 'servicecatalogandproviderintegrationmodel',
+    selected: 'boundedfactoryproviderintegrationmodel',
+    options: ['boundedfactoryproviderintegrationmodel', 'separateproviderintegrationrepositories'],
+    credible: ['boundedfactoryproviderintegrationmodel', 'separateproviderintegrationrepositories'],
+    notApplicable: architectureNotApplicable,
+  },
 ];
 const selectedComponentDefinitions = {
   repositoryarchitectureandnaming: [
@@ -119,6 +140,9 @@ const selectedComponentDefinitions = {
     ['livestardogauthority', 'externalprovidercomponent', 'provider', 'Provide the sole live authority and controlled mutation boundary', ['authoritycontrol', 'productionshaped']],
     ['verifiedauthorityexport', 'repositorylocalcomponent', 'authorityexport', 'Provide digest-bound read-only isolated validation input', ['localdev', 'hermetic']],
   ],
+  providerconfigurationplanefactoryworkforce: [],
+  providerenvironmentclassificationfactoryworkforce: [],
+  servicecatalogandproviderintegrationmodelfactoryworkforce: [],
 };
 
 const sourcePaths = [
@@ -628,6 +652,7 @@ const decisionRuleSet = {
   semanticmodelcompilationrealisation: 'semanticassurance',
   semanticauthoritycontrolselection: 'semanticassurance',
 };
+const composedDecisions = decisions.filter(({ name }) => selectedComponentDefinitions[name].length > 0);
 
 function compositionInterfaceDefinition(option, entries, targetIndex) {
   const [sourceName, , , sourceResponsibility] = entries[0];
@@ -653,7 +678,7 @@ function permutationEvidence(name) {
   return { ruleSet: ruleSetName, ruleSetDigest: ruleSet.ruleSetDigest, dimensions: ruleSet.dimensions, rows, counts, dimensionSetDigest: sha256(canonicalJson(ruleSet.dimensions)), caseCount: rows.length, unclassified: 0 };
 }
 
-const permutations = Object.fromEntries(decisions.map(({ name }) => [name, permutationEvidence(name)]));
+const permutations = Object.fromEntries(composedDecisions.map(({ name }) => [name, permutationEvidence(name)]));
 function compositionProjection(decision) {
   const option = decision.selected;
   const entries = selectedComponentDefinitions[decision.name];
@@ -716,7 +741,7 @@ function compositionProjection(decision) {
     components: componentRows, responsibilities, interfaces,
   };
 }
-const compositionProofs = Object.fromEntries(decisions.map(({ name, contract, selected }) => [name, {
+const compositionProofs = Object.fromEntries(composedDecisions.map(({ name, contract, selected }) => [name, {
   option: selected, contract, requiredFacetCount: 10, coveredFacetCount: 10,
   requiredPortCount: name === 'repositoryarchitectureandnaming' ? 0 : 1,
   implementedPortCount: name === 'repositoryarchitectureandnaming' ? 0 : 1,
@@ -869,7 +894,9 @@ for (const manifest of supportingEvidenceManifests) {
     ? `; usf:scopeDerivationInputDigest ${q(manifest.derivationInputDigest)}; usf:scopeDerivationResultDigest ${q(manifest.derivationResultDigest)}` : '';
   evidenceGraph.push(`<${manifest.identity}> a usf:EvidenceScopeManifest; usf:canonicalName ${q(canonicalName)}; usf:evidenceScopeClassification <${scopeClassifications[manifest.scope]}>; usf:scopeProviderIdentity <${manifest.providerIdentity}>; usf:scopeManifestDigest ${q(manifest.manifestDigest)}; usf:scopeDescriptorDigest ${q(manifest.descriptorDigest)}; usf:scopeCollectorDigest ${q(manifest.collectorDigest)}; usf:scopeClaimBoundary ${manifest.claimBoundary.map(q).join(', ')}; usf:scopeProhibitedClaim ${manifest.prohibitedClaims.map(q).join(', ')}; usf:scopeSupportsCriterion ${manifest.supportedCriteria.map((criterion) => `<${iri('evaluationcriterion', criterion)}>`).join(', ')}${manifest.prohibitedCriteria.length ? `; usf:scopeProhibitsCriterion ${manifest.prohibitedCriteria.map((criterion) => `<${iri('evaluationcriterion', criterion)}>`).join(', ')}` : ''}${derivation} .`);
 }
-evidenceGraph.push(`<${evidenceIri}> a usf:EvidenceResult, usf:CompositeEvidenceResult; usf:canonicalName "realisationoptionevaluation"; usf:evidenceKind <urn:usf:evidencekind:validationevidence>; usf:hasFreshness <urn:usf:freshness:fresh>; usf:evidenceForContract <urn:usf:semanticcontract:compilersemanticenforcement>, <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation>; usf:evidenceFor <urn:usf:realisationdecision:semanticmodelcompilationrealisation>, <urn:usf:realisationdecision:semanticauthoritycontrolselection>, <urn:usf:realisationdecision:repositoryarchitectureandnaming>; usf:supportsClaim <urn:usf:claim:semanticfirstlifecycle>; usf:hasSupportingEvidenceManifest ${supportingEvidenceManifests.map(({ identity }) => `<${identity}>`).join(', ')}; usf:contentDigest ${q(evidenceDigest)}; usf:evaluatedAuthorityDigest ${q(authorityDigest)}; usf:evidenceProducerDigest ${q(evidenceProducerDigest)}; usf:mediaType "application/json"; usf:byteSize ${storedEvidence.byteSize}; usf:storageLocator ${q(`cas://sha256/${digestHex}`)}^^xsd:anyURI; usf:wasProducedBy <urn:usf:validatorrule:validaterealisationoptionevaluation>; usf:collectedAt ${q(collectedAt)}^^xsd:dateTime; usf:validUntil ${q(validUntil)}^^xsd:dateTime; usf:hasFreshnessPolicy <${freshnessPolicyIri}>; usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted>; usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh>; usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid>; usf:evidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:signed>, <urn:usf:evidencestage:integrityverified>; usf:collectedBy <urn:usf:evidencecollection:realisationoptionevaluation>; usf:normalisedBy <urn:usf:evidencenormalisation:realisationoptionevaluation>; usf:ingestedBy <urn:usf:evidenceingestion:realisationoptionevaluation>; usf:evidenceSignature <${signatureIri}>; usf:evidenceChecksum <${checksumIri}>; usf:integrityVerification <urn:usf:integrityverification:realisationoptionevaluation>; usf:withinValidityScope true .`);
+const evidenceContracts = [...new Set(decisions.map(({ contract }) => contract))].sort(utf8Compare);
+const evidenceDecisions = decisions.map(({ name }) => name).sort(utf8Compare);
+evidenceGraph.push(`<${evidenceIri}> a usf:EvidenceResult, usf:CompositeEvidenceResult; usf:canonicalName "realisationoptionevaluation"; usf:evidenceKind <urn:usf:evidencekind:validationevidence>; usf:hasFreshness <urn:usf:freshness:fresh>; usf:evidenceForContract ${evidenceContracts.map((contract) => `<${iri('semanticcontract', contract)}>`).join(', ')}; usf:evidenceFor ${evidenceDecisions.map((decision) => `<${iri('realisationdecision', decision)}>`).join(', ')}; usf:supportsClaim <urn:usf:claim:semanticfirstlifecycle>; usf:hasSupportingEvidenceManifest ${supportingEvidenceManifests.map(({ identity }) => `<${identity}>`).join(', ')}; usf:contentDigest ${q(evidenceDigest)}; usf:evaluatedAuthorityDigest ${q(authorityDigest)}; usf:evidenceProducerDigest ${q(evidenceProducerDigest)}; usf:mediaType "application/json"; usf:byteSize ${storedEvidence.byteSize}; usf:storageLocator ${q(`cas://sha256/${digestHex}`)}^^xsd:anyURI; usf:wasProducedBy <urn:usf:validatorrule:validaterealisationoptionevaluation>; usf:collectedAt ${q(collectedAt)}^^xsd:dateTime; usf:validUntil ${q(validUntil)}^^xsd:dateTime; usf:hasFreshnessPolicy <${freshnessPolicyIri}>; usf:hasAdmissionState <urn:usf:evidenceadmissionstate:admitted>; usf:hasFreshnessState <urn:usf:evidencefreshnessstate:fresh>; usf:hasIntegrityState <urn:usf:evidenceintegritystate:valid>; usf:evidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:signed>, <urn:usf:evidencestage:integrityverified>; usf:collectedBy <urn:usf:evidencecollection:realisationoptionevaluation>; usf:normalisedBy <urn:usf:evidencenormalisation:realisationoptionevaluation>; usf:ingestedBy <urn:usf:evidenceingestion:realisationoptionevaluation>; usf:evidenceSignature <${signatureIri}>; usf:evidenceChecksum <${checksumIri}>; usf:integrityVerification <urn:usf:integrityverification:realisationoptionevaluation>; usf:withinValidityScope true .`);
 evidenceGraph.push(`<urn:usf:evidenceadmission:realisationoptionevaluation> a usf:EvidenceAdmission; usf:canonicalName "realisationoptionevaluation"; usf:admissionForEvidence <${evidenceIri}>; usf:admissionDecidedByValidator <urn:usf:validatorrule:validaterealisationoptionevaluation> .`);
 evidenceGraph.push(`<urn:usf:evidencecollection:realisationoptionevaluation> a usf:EvidenceCollection; usf:canonicalName "realisationoptionevaluation"; usf:collectedEvidence <${evidenceIri}>; usf:collectsEvidence <${evidenceIri}>; usf:collectedOn ${q(collectedAt)}^^xsd:dateTime; usf:sourceDigest ${q(evaluationDependencySetDigest)} .`);
 evidenceGraph.push(`<urn:usf:evidencenormalisation:realisationoptionevaluation> a usf:EvidenceNormalisation; usf:canonicalName "realisationoptionevaluation"; usf:normalisesEvidence <${evidenceIri}> .`);
@@ -983,6 +1010,10 @@ const componentDependencies = [];
 for (const decision of decisions) {
   const option = decision.selected;
   const entries = components[decision.name];
+  if (entries.length === 0) {
+    selectedOptionComponents.set(option, []);
+    continue;
+  }
   const componentIris = entries.map((entry, index) => addComponent(option, entry, index));
   selectedOptionComponents.set(option, componentIris);
   graph.push(`<${iri('realisationoption', option)}> usf:hasOptionComponent ${componentIris.map((value) => `<${value}>`).join(', ')} .`);
@@ -1013,7 +1044,7 @@ const providerBindingSpecifications = Object.freeze({
     mode: 'externalsandbox', provider: 'stardogsandboxsemanticauthority', state: 'external',
   }),
 });
-for (const decision of decisions) {
+for (const decision of composedDecisions) {
   const option = decision.selected;
   for (const [name, , role, , environments] of selectedComponentDefinitions[decision.name]) {
     if (role !== 'provider') continue;
@@ -1113,7 +1144,7 @@ for (const [ruleSetName, ruleSet] of Object.entries(permutationRuleSets)) {
   }
 }
 
-for (const decision of decisions) {
+for (const decision of composedDecisions) {
   const option = decision.selected;
   const componentIris = selectedOptionComponents.get(option);
   const facetBase = decision.contract;
@@ -1141,6 +1172,9 @@ const concreteRealisations = {
   repositoryarchitectureandnaming: iri('realisation', 'repositoryarchitectureandnaming'),
   semanticmodelcompilationrealisation: iri('realisation', 'semanticcontractcompilersemanticenforcement'),
   semanticauthoritycontrolselection: iri('realisation', 'semanticauthoritycontrol'),
+  providerconfigurationplanefactoryworkforce: iri('realisation', 'providerconfigurationplanefactoryworkforce'),
+  providerenvironmentclassificationfactoryworkforce: iri('realisation', 'providerenvironmentclassificationfactoryworkforce'),
+  servicecatalogandproviderintegrationmodelfactoryworkforce: iri('realisation', 'servicecatalogandproviderintegrationmodelfactoryworkforce'),
 };
 graph.push(`<${iri('implementation', 'capabilitycontainment')}> a usf:Implementation; usf:canonicalName "capabilitycontainment"; usf:implementsContract <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> .`);
 graph.push(`<${iri('implementation', 'processassembly')}> a usf:Implementation; usf:canonicalName "processassembly"; usf:implementsContract <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> .`);
