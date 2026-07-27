@@ -205,7 +205,11 @@
     usf:usesAuthorityBindingRule <urn:usf:authoritybindingrule:selfpublicationclosure>;
     usf:requiresPostPublicationReevaluation true;
     usf:authorityBindingEvidenceDigest "sha256:dadb2ac7ec8e2022c57c9068b6daed0955a8cce62dbadd34ec0e8d771303813c";
-    usf:hasPostPublicationReevaluationState <urn:usf:proofreevaluationstate:pending>;
+    usf:hasPostPublicationReevaluationState <urn:usf:proofreevaluationstate:successful>;
+    usf:reevaluationSettledAuthorityDigest "sha256:19c1bba167051442bd0922e232d035e999c45db79ab563793c420e9fad58370a";
+    usf:reevaluationDependencySetDigest "sha256:359fd77e45eb679876190c480c76c2a82d5047fff34b8755a418c4ad32ed66cb";
+    usf:reevaluationEvidenceDigest "sha256:65bd7b2f30839b778f11167a558c902dfeb5b307bcda6bdd586a8b6911e94f0f";
+    usf:reevaluatedAt "2026-07-27T01:52:53Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
     usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:coverage"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:obligations"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:readiness"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:surfaces"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:proofs"^^<http://www.w3.org/2001/XMLSchema#anyURI>.
 <urn:usf:proofobligation:compilerliveauthoritycontrol> a usf:ProofObligation;
     usf:canonicalName "compilerliveauthoritycontrol";
