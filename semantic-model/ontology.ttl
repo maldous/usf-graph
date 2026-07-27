@@ -2823,7 +2823,7 @@ usf:signedBy a owl:ObjectProperty, owl:FunctionalProperty;
 # establish production signer authenticity, and must not be represented as a
 # secret operator credential.
 usf:SigningIdentityClass a owl:Class;
-    rdfs:subClassOf usf:SemanticResource.
+    rdfs:subClassOf usf:ControlledValue.
 usf:signingIdentityClass a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:SigningIdentity;
     rdfs:range usf:SigningIdentityClass.
@@ -2842,9 +2842,9 @@ usf:keyDerivationLabel a owl:DatatypeProperty, owl:FunctionalProperty;
 # evaluated, and agreement between the two is the conclusion. There is no
 # manually asserted proofCurrent boolean anywhere in the model.
 usf:ProofCurrentnessState a owl:Class;
-    rdfs:subClassOf usf:SemanticResource.
+    rdfs:subClassOf usf:ControlledValue.
 usf:ProofReevaluationState a owl:Class;
-    rdfs:subClassOf usf:SemanticResource.
+    rdfs:subClassOf usf:ControlledValue.
 # What the algorithm declares current.
 usf:currentAlgorithmVersion a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:ProofAlgorithm;
