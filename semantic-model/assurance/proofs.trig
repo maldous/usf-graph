@@ -418,7 +418,7 @@
   usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf>;
   usf:currentAlgorithmSourceDigest "sha256:257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf";
   usf:currentImplementationSourceSetDigest "sha256:a9cc301223acf928259193f05f8bc928957b5aa0c8f9bb1a15e095b66b071994";
-  usf:currentDependencySetDigest "sha256:2aa1b3398a0ef8203e5f7e30070250c5f2a29b2497f7ee7f5433b763792c4778";
+  usf:currentDependencySetDigest "sha256:fd968605c544f66773ddca30a5599b97c8fde112a4295c7ea3ccb40aad40f7ea";
   usf:currentDependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
   usf:requiresGraphSourceBinding true.
 <urn:usf:proofalgorithmversion:providerworkforceauthority4da1dfb314fb9ab3810e03eca8d64a96904d577fde5ce865f40c38755803dbb8> a usf:ProofAlgorithmVersion;
@@ -457,31 +457,31 @@
   usf:hasProofResultState <urn:usf:proofresultstate:successful>;
   usf:proofResultForObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>;
   usf:usesAdmittedEvidence <urn:usf:evidenceresult:providerworkforceauthority>;
-  usf:evidenceSetDigest "sha256:f243917ae7e156610f4fe429a25458c8da8dd4055b28c6a307f383b5a67f9fc1";
+  usf:evidenceSetDigest "sha256:9b5a8d88fec79c22f7706954924bd5097dde4612caaa1609da7b3eabae6b8a96";
   usf:usesProofAlgorithm <urn:usf:proofalgorithm:providerworkforceauthority>;
-  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority4da1dfb314fb9ab3810e03eca8d64a96904d577fde5ce865f40c38755803dbb8>;
+  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf>;
   usf:implementationSourceSetDigest "sha256:a9cc301223acf928259193f05f8bc928957b5aa0c8f9bb1a15e095b66b071994";
-  usf:dependencySetDigest "sha256:2aa1b3398a0ef8203e5f7e30070250c5f2a29b2497f7ee7f5433b763792c4778";
+  usf:dependencySetDigest "sha256:fd968605c544f66773ddca30a5599b97c8fde112a4295c7ea3ccb40aad40f7ea";
   usf:dependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
-  usf:proofProducerCommit "c6031cf9353a28f966716a390acbbe1fb3b88d89";
-  usf:proofProducerTree "99d8c972620c04a8f6f1539151c9b556b21d2aa3";
+  usf:proofProducerCommit "29594d6e6270eaf7e6b7cfeb1d7798eabcf8d8e1";
+  usf:proofProducerTree "37a337f680c2cb0c3e05161795e85576bc893c35";
   usf:evaluatedByValidator <urn:usf:validatorrule:validateproviderworkforceauthority>;
   usf:proofExecutionEnvironment env:hermetic;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:providerworkforceauthority>;
   usf:uncertaintyStatement "This result proves the bounded authority decision, deterministic policy and assessment closure algorithms, secret-output denial and exact clean factory source observations at 0322a319f8992393f9b1f2c8f7c91dbbfe01b357. It does not validate the future provider expansion implementation or establish provider or production availability.";
   usf:proofNonclaim <urn:usf:nonclaim:providerworkforceproofisfactoryvalidation>, <urn:usf:nonclaim:providerworkforceproofisproductionreadiness>;
-  usf:evaluatedAt "2026-07-27T06:43:05Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:evaluatedAt "2026-07-27T07:31:28Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasAuthorityBinding <urn:usf:proofauthoritybinding:providerworkforceauthorityproviderconfigurationplane>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 <urn:usf:proofauthoritybinding:providerworkforceauthorityproviderconfigurationplane> a usf:ProofAuthorityBinding;
   usf:canonicalName "providerworkforceauthorityproviderconfigurationplane";
-  usf:bindingEvaluatedAuthorityDigest "sha256:5c1edf1d3843a5f8daab2e057a289a2dcc5a0b72c9c49c67e6ffecd2a4f5464c";
-  usf:bindingDependencySetDigest "sha256:2aa1b3398a0ef8203e5f7e30070250c5f2a29b2497f7ee7f5433b763792c4778";
+  usf:bindingEvaluatedAuthorityDigest "sha256:c2746fcf8190bacd4ce2eca28d5816e0e0ec9c1e64be1498cbcd14fcd72ec4ff";
+  usf:bindingDependencySetDigest "sha256:fd968605c544f66773ddca30a5599b97c8fde112a4295c7ea3ccb40aad40f7ea";
   usf:bindingDependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
   usf:usesAuthorityBindingRule <urn:usf:authoritybindingrule:selfpublicationclosure>;
   usf:requiresPostPublicationReevaluation true;
-  usf:authorityBindingEvidenceDigest "sha256:4f177d07dd2bb29706b5fd3e6453de4f76f3e27ffd1ac2b1a012a9057cc13f64";
+  usf:authorityBindingEvidenceDigest "sha256:57684418ab202181651f9bf818f8357f8cf791e3b400b7590f6e63d1a824f618";
   usf:hasPostPublicationReevaluationState <urn:usf:proofreevaluationstate:successful>;
   usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:coverage"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:obligations"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:readiness"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:surfaces"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:proofs"^^<http://www.w3.org/2001/XMLSchema#anyURI>.
 
@@ -505,31 +505,31 @@
   usf:hasProofResultState <urn:usf:proofresultstate:successful>;
   usf:proofResultForObligation <urn:usf:proofobligation:p6fdcab8c78bc4d0a1ae49ebd9f1fae6d3ea03eb61c4226889f14d8e05a32ef03>;
   usf:usesAdmittedEvidence <urn:usf:evidenceresult:providerworkforceauthority>;
-  usf:evidenceSetDigest "sha256:f243917ae7e156610f4fe429a25458c8da8dd4055b28c6a307f383b5a67f9fc1";
+  usf:evidenceSetDigest "sha256:9b5a8d88fec79c22f7706954924bd5097dde4612caaa1609da7b3eabae6b8a96";
   usf:usesProofAlgorithm <urn:usf:proofalgorithm:providerworkforceauthority>;
-  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority4da1dfb314fb9ab3810e03eca8d64a96904d577fde5ce865f40c38755803dbb8>;
+  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf>;
   usf:implementationSourceSetDigest "sha256:a9cc301223acf928259193f05f8bc928957b5aa0c8f9bb1a15e095b66b071994";
-  usf:dependencySetDigest "sha256:2aa1b3398a0ef8203e5f7e30070250c5f2a29b2497f7ee7f5433b763792c4778";
+  usf:dependencySetDigest "sha256:fd968605c544f66773ddca30a5599b97c8fde112a4295c7ea3ccb40aad40f7ea";
   usf:dependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
-  usf:proofProducerCommit "c6031cf9353a28f966716a390acbbe1fb3b88d89";
-  usf:proofProducerTree "99d8c972620c04a8f6f1539151c9b556b21d2aa3";
+  usf:proofProducerCommit "29594d6e6270eaf7e6b7cfeb1d7798eabcf8d8e1";
+  usf:proofProducerTree "37a337f680c2cb0c3e05161795e85576bc893c35";
   usf:evaluatedByValidator <urn:usf:validatorrule:validateproviderworkforceauthority>;
   usf:proofExecutionEnvironment env:hermetic;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:providerworkforceauthority>;
   usf:uncertaintyStatement "This result proves the bounded authority decision, deterministic policy and assessment closure algorithms, secret-output denial and exact clean factory source observations at 0322a319f8992393f9b1f2c8f7c91dbbfe01b357. It does not validate the future provider expansion implementation or establish provider or production availability.";
   usf:proofNonclaim <urn:usf:nonclaim:providerworkforceproofisfactoryvalidation>, <urn:usf:nonclaim:providerworkforceproofisproductionreadiness>;
-  usf:evaluatedAt "2026-07-27T06:43:05Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:evaluatedAt "2026-07-27T07:31:28Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasAuthorityBinding <urn:usf:proofauthoritybinding:providerworkforceauthorityproviderenvironmentclassification>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 <urn:usf:proofauthoritybinding:providerworkforceauthorityproviderenvironmentclassification> a usf:ProofAuthorityBinding;
   usf:canonicalName "providerworkforceauthorityproviderenvironmentclassification";
-  usf:bindingEvaluatedAuthorityDigest "sha256:5c1edf1d3843a5f8daab2e057a289a2dcc5a0b72c9c49c67e6ffecd2a4f5464c";
-  usf:bindingDependencySetDigest "sha256:2aa1b3398a0ef8203e5f7e30070250c5f2a29b2497f7ee7f5433b763792c4778";
+  usf:bindingEvaluatedAuthorityDigest "sha256:c2746fcf8190bacd4ce2eca28d5816e0e0ec9c1e64be1498cbcd14fcd72ec4ff";
+  usf:bindingDependencySetDigest "sha256:fd968605c544f66773ddca30a5599b97c8fde112a4295c7ea3ccb40aad40f7ea";
   usf:bindingDependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
   usf:usesAuthorityBindingRule <urn:usf:authoritybindingrule:selfpublicationclosure>;
   usf:requiresPostPublicationReevaluation true;
-  usf:authorityBindingEvidenceDigest "sha256:4f177d07dd2bb29706b5fd3e6453de4f76f3e27ffd1ac2b1a012a9057cc13f64";
+  usf:authorityBindingEvidenceDigest "sha256:57684418ab202181651f9bf818f8357f8cf791e3b400b7590f6e63d1a824f618";
   usf:hasPostPublicationReevaluationState <urn:usf:proofreevaluationstate:successful>;
   usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:coverage"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:obligations"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:readiness"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:surfaces"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:proofs"^^<http://www.w3.org/2001/XMLSchema#anyURI>.
 
@@ -553,31 +553,31 @@
   usf:hasProofResultState <urn:usf:proofresultstate:successful>;
   usf:proofResultForObligation <urn:usf:proofobligation:p3d210ec339c9c829e5b031b079ff8a95257db4b539185d8dc88ff58d726a5ecf>;
   usf:usesAdmittedEvidence <urn:usf:evidenceresult:providerworkforceauthority>;
-  usf:evidenceSetDigest "sha256:f243917ae7e156610f4fe429a25458c8da8dd4055b28c6a307f383b5a67f9fc1";
+  usf:evidenceSetDigest "sha256:9b5a8d88fec79c22f7706954924bd5097dde4612caaa1609da7b3eabae6b8a96";
   usf:usesProofAlgorithm <urn:usf:proofalgorithm:providerworkforceauthority>;
-  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority4da1dfb314fb9ab3810e03eca8d64a96904d577fde5ce865f40c38755803dbb8>;
+  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf>;
   usf:implementationSourceSetDigest "sha256:a9cc301223acf928259193f05f8bc928957b5aa0c8f9bb1a15e095b66b071994";
-  usf:dependencySetDigest "sha256:2aa1b3398a0ef8203e5f7e30070250c5f2a29b2497f7ee7f5433b763792c4778";
+  usf:dependencySetDigest "sha256:fd968605c544f66773ddca30a5599b97c8fde112a4295c7ea3ccb40aad40f7ea";
   usf:dependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
-  usf:proofProducerCommit "c6031cf9353a28f966716a390acbbe1fb3b88d89";
-  usf:proofProducerTree "99d8c972620c04a8f6f1539151c9b556b21d2aa3";
+  usf:proofProducerCommit "29594d6e6270eaf7e6b7cfeb1d7798eabcf8d8e1";
+  usf:proofProducerTree "37a337f680c2cb0c3e05161795e85576bc893c35";
   usf:evaluatedByValidator <urn:usf:validatorrule:validateproviderworkforceauthority>;
   usf:proofExecutionEnvironment env:hermetic;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:providerworkforceauthority>;
   usf:uncertaintyStatement "This result proves the bounded authority decision, deterministic policy and assessment closure algorithms, secret-output denial and exact clean factory source observations at 0322a319f8992393f9b1f2c8f7c91dbbfe01b357. It does not validate the future provider expansion implementation or establish provider or production availability.";
   usf:proofNonclaim <urn:usf:nonclaim:providerworkforceproofisfactoryvalidation>, <urn:usf:nonclaim:providerworkforceproofisproductionreadiness>;
-  usf:evaluatedAt "2026-07-27T06:43:05Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:evaluatedAt "2026-07-27T07:31:28Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasAuthorityBinding <urn:usf:proofauthoritybinding:providerworkforceauthorityservicecatalogandproviderintegrationmodel>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 <urn:usf:proofauthoritybinding:providerworkforceauthorityservicecatalogandproviderintegrationmodel> a usf:ProofAuthorityBinding;
   usf:canonicalName "providerworkforceauthorityservicecatalogandproviderintegrationmodel";
-  usf:bindingEvaluatedAuthorityDigest "sha256:5c1edf1d3843a5f8daab2e057a289a2dcc5a0b72c9c49c67e6ffecd2a4f5464c";
-  usf:bindingDependencySetDigest "sha256:2aa1b3398a0ef8203e5f7e30070250c5f2a29b2497f7ee7f5433b763792c4778";
+  usf:bindingEvaluatedAuthorityDigest "sha256:c2746fcf8190bacd4ce2eca28d5816e0e0ec9c1e64be1498cbcd14fcd72ec4ff";
+  usf:bindingDependencySetDigest "sha256:fd968605c544f66773ddca30a5599b97c8fde112a4295c7ea3ccb40aad40f7ea";
   usf:bindingDependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
   usf:usesAuthorityBindingRule <urn:usf:authoritybindingrule:selfpublicationclosure>;
   usf:requiresPostPublicationReevaluation true;
-  usf:authorityBindingEvidenceDigest "sha256:4f177d07dd2bb29706b5fd3e6453de4f76f3e27ffd1ac2b1a012a9057cc13f64";
+  usf:authorityBindingEvidenceDigest "sha256:57684418ab202181651f9bf818f8357f8cf791e3b400b7590f6e63d1a824f618";
   usf:hasPostPublicationReevaluationState <urn:usf:proofreevaluationstate:successful>;
   usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:coverage"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:obligations"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:readiness"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:surfaces"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:proofs"^^<http://www.w3.org/2001/XMLSchema#anyURI>.
 
