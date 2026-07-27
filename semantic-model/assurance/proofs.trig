@@ -405,5 +405,176 @@
     usf:requiresFreshness fresh:fresh;
     usf:requiresProviderMode pmode:deterministictestsubstitute;
     usf:requiresEnvironmentClass <urn:usf:environmentclass:hermetic>;
-    usf:requiresEvidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:signed>, <urn:usf:evidencestage:integrityverified>
+    usf:requiresEvidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:signed>, <urn:usf:evidencestage:integrityverified>.
+
+<urn:usf:nonclaim:providerworkforceproofisfactoryvalidation> a usf:NonClaim;
+  usf:canonicalName "providerworkforceproofisfactoryvalidation".
+<urn:usf:nonclaim:providerworkforceproofisproductionreadiness> a usf:NonClaim;
+  usf:canonicalName "providerworkforceproofisproductionreadiness".
+<urn:usf:proofalgorithm:providerworkforceauthority> a usf:ProofAlgorithm;
+  usf:canonicalName "providerworkforceauthority";
+  usf:proofAlgorithmSourcePath "assurance/provider-workforce-closure/provider-workforce-authority-proof.mjs";
+  usf:proofAlgorithmSourceDigest "sha256:4da1dfb314fb9ab3810e03eca8d64a96904d577fde5ce865f40c38755803dbb8";
+  usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority4da1dfb314fb9ab3810e03eca8d64a96904d577fde5ce865f40c38755803dbb8>;
+  usf:currentAlgorithmSourceDigest "sha256:4da1dfb314fb9ab3810e03eca8d64a96904d577fde5ce865f40c38755803dbb8";
+  usf:currentImplementationSourceSetDigest "sha256:a9cc301223acf928259193f05f8bc928957b5aa0c8f9bb1a15e095b66b071994";
+  usf:currentDependencySetDigest "sha256:699d1aaea4c86fc390eaa3ee22b8aa5974a69bfd7eba1b1b43906ad05465da63";
+  usf:currentDependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
+  usf:requiresGraphSourceBinding true.
+<urn:usf:proofalgorithmversion:providerworkforceauthority4da1dfb314fb9ab3810e03eca8d64a96904d577fde5ce865f40c38755803dbb8> a usf:ProofAlgorithmVersion;
+  usf:canonicalName "providerworkforceauthority4da1dfb314fb9ab3810e03eca8d64a96904d577fde5ce865f40c38755803dbb8";
+  usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:providerworkforceauthority>;
+  usf:proofAlgorithmVersionIdentifier "1.0.0".
+<urn:usf:proof:providerworkforceauthority> a usf:Proof;
+  usf:canonicalName "providerworkforceauthority";
+  usf:atRung rung:behaviour;
+  usf:usesProviderMode pmode:deterministictestsubstitute;
+  usf:inEnvironment env:hermetic;
+  usf:exercises <urn:usf:semanticcontract:providerconfigurationplane>, <urn:usf:semanticcontract:providerenvironmentclassification>, <urn:usf:semanticcontract:servicecatalogandproviderintegrationmodel>;
+  usf:provesSubject <urn:usf:semanticcontract:providerconfigurationplane>, <urn:usf:semanticcontract:providerenvironmentclassification>, <urn:usf:semanticcontract:servicecatalogandproviderintegrationmodel>.
+
+<urn:usf:proofexecution:providerworkforceauthorityproviderconfigurationplane> a usf:ProofExecution;
+  usf:canonicalName "providerworkforceauthorityproviderconfigurationplane";
+  usf:executesProof <urn:usf:proof:providerworkforceauthority>;
+  usf:producesResult <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane>.
+<urn:usf:proofevaluation:providerworkforceauthorityproviderconfigurationplane> a usf:ProofEvaluation;
+  usf:canonicalName "providerworkforceauthorityproviderconfigurationplane";
+  usf:evaluatesObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>;
+  usf:producesProofResult <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane>.
+<urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane> a usf:ProofResult;
+  usf:canonicalName "providerworkforceauthorityproviderconfigurationplane";
+  usf:resultState rs:passed;
+  usf:resultForProof <urn:usf:proof:providerworkforceauthority>;
+  usf:claimedRung rung:behaviour;
+  usf:observedRung rung:behaviour;
+  usf:hasFreshness fresh:fresh;
+  usf:usesProviderMode pmode:deterministictestsubstitute;
+  usf:inEnvironment env:hermetic;
+  usf:hasProofResultState <urn:usf:proofresultstate:successful>;
+  usf:proofResultForObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>;
+  usf:usesAdmittedEvidence <urn:usf:evidenceresult:providerworkforceauthority>;
+  usf:evidenceSetDigest "sha256:bf754aca2a680cb242d5ee2a683641c79d4cb0685aeba26a3fa71e2e9f1e1c39";
+  usf:usesProofAlgorithm <urn:usf:proofalgorithm:providerworkforceauthority>;
+  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority4da1dfb314fb9ab3810e03eca8d64a96904d577fde5ce865f40c38755803dbb8>;
+  usf:implementationSourceSetDigest "sha256:a9cc301223acf928259193f05f8bc928957b5aa0c8f9bb1a15e095b66b071994";
+  usf:dependencySetDigest "sha256:699d1aaea4c86fc390eaa3ee22b8aa5974a69bfd7eba1b1b43906ad05465da63";
+  usf:dependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
+  usf:proofProducerCommit "c6031cf9353a28f966716a390acbbe1fb3b88d89";
+  usf:proofProducerTree "99d8c972620c04a8f6f1539151c9b556b21d2aa3";
+  usf:evaluatedByValidator <urn:usf:validatorrule:validateproviderworkforceauthority>;
+  usf:proofExecutionEnvironment env:hermetic;
+  usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
+  usf:confidenceBasis <urn:usf:evidenceresult:providerworkforceauthority>;
+  usf:uncertaintyStatement "This result proves the bounded authority decision, deterministic policy and assessment closure algorithms, secret-output denial and exact clean factory source observations at 0322a319f8992393f9b1f2c8f7c91dbbfe01b357. It does not validate the future provider expansion implementation or establish provider or production availability.";
+  usf:proofNonclaim <urn:usf:nonclaim:providerworkforceproofisfactoryvalidation>, <urn:usf:nonclaim:providerworkforceproofisproductionreadiness>;
+  usf:evaluatedAt "2026-07-27T04:55:09Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:hasAuthorityBinding <urn:usf:proofauthoritybinding:providerworkforceauthorityproviderconfigurationplane>;
+  usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
+<urn:usf:proofauthoritybinding:providerworkforceauthorityproviderconfigurationplane> a usf:ProofAuthorityBinding;
+  usf:canonicalName "providerworkforceauthorityproviderconfigurationplane";
+  usf:bindingEvaluatedAuthorityDigest "sha256:e6c8fb0fbada7ff55f6e75c59768c8f01a757e840d5326cb2790301aac5e7c4e";
+  usf:bindingDependencySetDigest "sha256:699d1aaea4c86fc390eaa3ee22b8aa5974a69bfd7eba1b1b43906ad05465da63";
+  usf:bindingDependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
+  usf:usesAuthorityBindingRule <urn:usf:authoritybindingrule:selfpublicationclosure>;
+  usf:requiresPostPublicationReevaluation true;
+  usf:authorityBindingEvidenceDigest "sha256:3b1ad8de166179b1ff4d393dd99c0305b78fb013d2823bf7c220b337473493d8";
+  usf:hasPostPublicationReevaluationState <urn:usf:proofreevaluationstate:pending>;
+  usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:coverage"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:obligations"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:readiness"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:surfaces"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:proofs"^^<http://www.w3.org/2001/XMLSchema#anyURI>.
+
+<urn:usf:proofexecution:providerworkforceauthorityproviderenvironmentclassification> a usf:ProofExecution;
+  usf:canonicalName "providerworkforceauthorityproviderenvironmentclassification";
+  usf:executesProof <urn:usf:proof:providerworkforceauthority>;
+  usf:producesResult <urn:usf:proofresult:providerworkforceauthorityproviderenvironmentclassification>.
+<urn:usf:proofevaluation:providerworkforceauthorityproviderenvironmentclassification> a usf:ProofEvaluation;
+  usf:canonicalName "providerworkforceauthorityproviderenvironmentclassification";
+  usf:evaluatesObligation <urn:usf:proofobligation:p6fdcab8c78bc4d0a1ae49ebd9f1fae6d3ea03eb61c4226889f14d8e05a32ef03>;
+  usf:producesProofResult <urn:usf:proofresult:providerworkforceauthorityproviderenvironmentclassification>.
+<urn:usf:proofresult:providerworkforceauthorityproviderenvironmentclassification> a usf:ProofResult;
+  usf:canonicalName "providerworkforceauthorityproviderenvironmentclassification";
+  usf:resultState rs:passed;
+  usf:resultForProof <urn:usf:proof:providerworkforceauthority>;
+  usf:claimedRung rung:behaviour;
+  usf:observedRung rung:behaviour;
+  usf:hasFreshness fresh:fresh;
+  usf:usesProviderMode pmode:deterministictestsubstitute;
+  usf:inEnvironment env:hermetic;
+  usf:hasProofResultState <urn:usf:proofresultstate:successful>;
+  usf:proofResultForObligation <urn:usf:proofobligation:p6fdcab8c78bc4d0a1ae49ebd9f1fae6d3ea03eb61c4226889f14d8e05a32ef03>;
+  usf:usesAdmittedEvidence <urn:usf:evidenceresult:providerworkforceauthority>;
+  usf:evidenceSetDigest "sha256:bf754aca2a680cb242d5ee2a683641c79d4cb0685aeba26a3fa71e2e9f1e1c39";
+  usf:usesProofAlgorithm <urn:usf:proofalgorithm:providerworkforceauthority>;
+  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority4da1dfb314fb9ab3810e03eca8d64a96904d577fde5ce865f40c38755803dbb8>;
+  usf:implementationSourceSetDigest "sha256:a9cc301223acf928259193f05f8bc928957b5aa0c8f9bb1a15e095b66b071994";
+  usf:dependencySetDigest "sha256:699d1aaea4c86fc390eaa3ee22b8aa5974a69bfd7eba1b1b43906ad05465da63";
+  usf:dependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
+  usf:proofProducerCommit "c6031cf9353a28f966716a390acbbe1fb3b88d89";
+  usf:proofProducerTree "99d8c972620c04a8f6f1539151c9b556b21d2aa3";
+  usf:evaluatedByValidator <urn:usf:validatorrule:validateproviderworkforceauthority>;
+  usf:proofExecutionEnvironment env:hermetic;
+  usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
+  usf:confidenceBasis <urn:usf:evidenceresult:providerworkforceauthority>;
+  usf:uncertaintyStatement "This result proves the bounded authority decision, deterministic policy and assessment closure algorithms, secret-output denial and exact clean factory source observations at 0322a319f8992393f9b1f2c8f7c91dbbfe01b357. It does not validate the future provider expansion implementation or establish provider or production availability.";
+  usf:proofNonclaim <urn:usf:nonclaim:providerworkforceproofisfactoryvalidation>, <urn:usf:nonclaim:providerworkforceproofisproductionreadiness>;
+  usf:evaluatedAt "2026-07-27T04:55:09Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:hasAuthorityBinding <urn:usf:proofauthoritybinding:providerworkforceauthorityproviderenvironmentclassification>;
+  usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
+<urn:usf:proofauthoritybinding:providerworkforceauthorityproviderenvironmentclassification> a usf:ProofAuthorityBinding;
+  usf:canonicalName "providerworkforceauthorityproviderenvironmentclassification";
+  usf:bindingEvaluatedAuthorityDigest "sha256:e6c8fb0fbada7ff55f6e75c59768c8f01a757e840d5326cb2790301aac5e7c4e";
+  usf:bindingDependencySetDigest "sha256:699d1aaea4c86fc390eaa3ee22b8aa5974a69bfd7eba1b1b43906ad05465da63";
+  usf:bindingDependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
+  usf:usesAuthorityBindingRule <urn:usf:authoritybindingrule:selfpublicationclosure>;
+  usf:requiresPostPublicationReevaluation true;
+  usf:authorityBindingEvidenceDigest "sha256:3b1ad8de166179b1ff4d393dd99c0305b78fb013d2823bf7c220b337473493d8";
+  usf:hasPostPublicationReevaluationState <urn:usf:proofreevaluationstate:pending>;
+  usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:coverage"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:obligations"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:readiness"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:surfaces"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:proofs"^^<http://www.w3.org/2001/XMLSchema#anyURI>.
+
+<urn:usf:proofexecution:providerworkforceauthorityservicecatalogandproviderintegrationmodel> a usf:ProofExecution;
+  usf:canonicalName "providerworkforceauthorityservicecatalogandproviderintegrationmodel";
+  usf:executesProof <urn:usf:proof:providerworkforceauthority>;
+  usf:producesResult <urn:usf:proofresult:providerworkforceauthorityservicecatalogandproviderintegrationmodel>.
+<urn:usf:proofevaluation:providerworkforceauthorityservicecatalogandproviderintegrationmodel> a usf:ProofEvaluation;
+  usf:canonicalName "providerworkforceauthorityservicecatalogandproviderintegrationmodel";
+  usf:evaluatesObligation <urn:usf:proofobligation:p3d210ec339c9c829e5b031b079ff8a95257db4b539185d8dc88ff58d726a5ecf>;
+  usf:producesProofResult <urn:usf:proofresult:providerworkforceauthorityservicecatalogandproviderintegrationmodel>.
+<urn:usf:proofresult:providerworkforceauthorityservicecatalogandproviderintegrationmodel> a usf:ProofResult;
+  usf:canonicalName "providerworkforceauthorityservicecatalogandproviderintegrationmodel";
+  usf:resultState rs:passed;
+  usf:resultForProof <urn:usf:proof:providerworkforceauthority>;
+  usf:claimedRung rung:behaviour;
+  usf:observedRung rung:behaviour;
+  usf:hasFreshness fresh:fresh;
+  usf:usesProviderMode pmode:deterministictestsubstitute;
+  usf:inEnvironment env:hermetic;
+  usf:hasProofResultState <urn:usf:proofresultstate:successful>;
+  usf:proofResultForObligation <urn:usf:proofobligation:p3d210ec339c9c829e5b031b079ff8a95257db4b539185d8dc88ff58d726a5ecf>;
+  usf:usesAdmittedEvidence <urn:usf:evidenceresult:providerworkforceauthority>;
+  usf:evidenceSetDigest "sha256:bf754aca2a680cb242d5ee2a683641c79d4cb0685aeba26a3fa71e2e9f1e1c39";
+  usf:usesProofAlgorithm <urn:usf:proofalgorithm:providerworkforceauthority>;
+  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority4da1dfb314fb9ab3810e03eca8d64a96904d577fde5ce865f40c38755803dbb8>;
+  usf:implementationSourceSetDigest "sha256:a9cc301223acf928259193f05f8bc928957b5aa0c8f9bb1a15e095b66b071994";
+  usf:dependencySetDigest "sha256:699d1aaea4c86fc390eaa3ee22b8aa5974a69bfd7eba1b1b43906ad05465da63";
+  usf:dependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
+  usf:proofProducerCommit "c6031cf9353a28f966716a390acbbe1fb3b88d89";
+  usf:proofProducerTree "99d8c972620c04a8f6f1539151c9b556b21d2aa3";
+  usf:evaluatedByValidator <urn:usf:validatorrule:validateproviderworkforceauthority>;
+  usf:proofExecutionEnvironment env:hermetic;
+  usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
+  usf:confidenceBasis <urn:usf:evidenceresult:providerworkforceauthority>;
+  usf:uncertaintyStatement "This result proves the bounded authority decision, deterministic policy and assessment closure algorithms, secret-output denial and exact clean factory source observations at 0322a319f8992393f9b1f2c8f7c91dbbfe01b357. It does not validate the future provider expansion implementation or establish provider or production availability.";
+  usf:proofNonclaim <urn:usf:nonclaim:providerworkforceproofisfactoryvalidation>, <urn:usf:nonclaim:providerworkforceproofisproductionreadiness>;
+  usf:evaluatedAt "2026-07-27T04:55:09Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:hasAuthorityBinding <urn:usf:proofauthoritybinding:providerworkforceauthorityservicecatalogandproviderintegrationmodel>;
+  usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
+<urn:usf:proofauthoritybinding:providerworkforceauthorityservicecatalogandproviderintegrationmodel> a usf:ProofAuthorityBinding;
+  usf:canonicalName "providerworkforceauthorityservicecatalogandproviderintegrationmodel";
+  usf:bindingEvaluatedAuthorityDigest "sha256:e6c8fb0fbada7ff55f6e75c59768c8f01a757e840d5326cb2790301aac5e7c4e";
+  usf:bindingDependencySetDigest "sha256:699d1aaea4c86fc390eaa3ee22b8aa5974a69bfd7eba1b1b43906ad05465da63";
+  usf:bindingDependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
+  usf:usesAuthorityBindingRule <urn:usf:authoritybindingrule:selfpublicationclosure>;
+  usf:requiresPostPublicationReevaluation true;
+  usf:authorityBindingEvidenceDigest "sha256:3b1ad8de166179b1ff4d393dd99c0305b78fb013d2823bf7c220b337473493d8";
+  usf:hasPostPublicationReevaluationState <urn:usf:proofreevaluationstate:pending>;
+  usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:coverage"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:obligations"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:readiness"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:surfaces"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:proofs"^^<http://www.w3.org/2001/XMLSchema#anyURI>.
+
 }
