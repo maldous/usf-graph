@@ -457,3 +457,46 @@ _:b37_b37_n3-555 sh:path usf:deterministicOutputChecksum;
     sh:maxCount 1;
     sh:class usf:Checksum.
 shp:CleanRoomGenerationShape sh:property _:b37_b37_n3-555.
+
+# Every ArtefactPlan resolves exactly one materialisation destination.
+#
+# Expressed as sequence paths FROM THE PLAN rather than as constraints on
+# usf:Artefact. The live reasoner widens Artefact membership beyond the planned
+# set — a Signature is inferred to be one — so targeting the class would demand
+# a materialisation family from resources that are never planned or generated.
+# What must hold is that every plan resolves, and that is what this states.
+shp:ArtefactPlanResolutionShape a sh:NodeShape;
+    usf:canonicalName "artefactplanresolutionshape";
+    sh:targetClass usf:ArtefactPlan.
+_:b37_usfplan_1 sh:path usf:plansArtefact;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:Artefact.
+shp:ArtefactPlanResolutionShape sh:property _:b37_usfplan_1.
+_:b37_usfplan_2 sh:path usf:ownedByRepository;
+    sh:minCount 1;
+    sh:maxCount 1.
+shp:ArtefactPlanResolutionShape sh:property _:b37_usfplan_2.
+_:b37_usfplan_3 sh:path ( usf:plansArtefact usf:canonicalPath );
+    sh:minCount 1;
+    sh:maxCount 1.
+shp:ArtefactPlanResolutionShape sh:property _:b37_usfplan_3.
+_:b37_usfplan_4 sh:path ( usf:plansArtefact usf:generatedByComponent );
+    sh:minCount 1;
+    sh:maxCount 1.
+shp:ArtefactPlanResolutionShape sh:property _:b37_usfplan_4.
+_:b37_usfplan_5 sh:path ( usf:plansArtefact usf:artefactMaterialisationFamily );
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:ArtefactFamily.
+shp:ArtefactPlanResolutionShape sh:property _:b37_usfplan_5.
+_:b37_usfplan_6 sh:path ( usf:plansArtefact usf:artefactRepresentationFormat );
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:RepresentationFormat.
+shp:ArtefactPlanResolutionShape sh:property _:b37_usfplan_6.
+_:b37_usfplan_7 sh:path ( usf:plansArtefact usf:artefactMaterialisationFamily usf:usesMaterialisationRule );
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:class usf:MaterialisationRule.
+shp:ArtefactPlanResolutionShape sh:property _:b37_usfplan_7.

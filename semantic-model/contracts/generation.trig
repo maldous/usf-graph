@@ -350,8 +350,18 @@ generator:release a usf:Generator;
     usf:missingSemanticsConstraint constraint:failonmissingsemantics;
     usf:requiresEquivalenceKind <urn:usf:equivalencekind:fullincremental>, <urn:usf:equivalencekind:evidential>;
     usf:authorisedSigningIdentity identity:foundationrelease.
+<urn:usf:signingidentityclass:hermeticreproducibilityintegrity> a usf:SigningIdentityClass;
+    usf:canonicalName "hermeticreproducibilityintegrity".
 identity:foundationrelease a usf:SigningIdentity;
     usf:canonicalName "foundationrelease";
+    # This key is deterministically derivable from a PUBLIC label. It provides
+    # reproducibility and tamper evidence for the generated release chain and
+    # nothing more. It is not a secret operator credential and does not
+    # establish production signer authenticity; the release contract does not
+    # claim that it does.
+    usf:signingIdentityClass <urn:usf:signingidentityclass:hermeticreproducibilityintegrity>;
+    usf:establishesProductionAuthenticity false;
+    usf:keyDerivationLabel "usf-foundation-release-hermetic-evaluation-key-v1";
     usf:signingKeyFingerprint "d3e5e55b71044aecc0143ef490b67f399dc49fc6e73c1307a6b515ed8964b2f6".
 version:semanticmodelreleaseonezerozero a usf:Version;
     usf:canonicalName "semanticmodelreleaseonezerozero";
@@ -987,5 +997,221 @@ template:specvalidationworkflowtemplate usf:generatedByComponent generator:contr
 plan:specvalidationworkflowtemplategeneration a usf:ArtefactPlan;
     usf:canonicalName "specvalidationworkflowtemplategeneration";
     usf:ownedByRepository repo:foundation;
-    usf:plansArtefact template:specvalidationworkflowtemplate
+    usf:plansArtefact template:specvalidationworkflowtemplate.
+
+# Explicit materialisation identity for every planned generated artefact.
+#
+# Authorised owner decision: every ArtefactPlan output beneath .work/generated,
+# governed by urn:usf:pathrule:generatedprojection and produced by a current
+# graph-declared generator materialises as
+# urn:usf:artefactfamily:generatedprojection. The other materialisation
+# families remain unselected unless a future artefact declares one.
+#
+# Representation format is STORED here, never inferred from a suffix at plan
+# time. These values were derived once from the canonical path and the
+# renderer, and the derivation is not part of the production plan.
+#
+# usf:artefactKind remains the semantic classification of the output and is
+# not replaced by the materialisation family.
+
+<urn:usf:artefact:accessibilityprofile> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:architectureguide> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:markdowncommonmark>.
+<urn:usf:artefact:authorityprojection> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:compileroutputschema> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:componentmodel> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:e2ejourneymanifest> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:errorcatalogue> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:evidencepipeline> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:ecmascriptmodule2024>.
+<urn:usf:artefact:formmodel> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:generatedtests> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:ecmascriptmodule2024>.
+<urn:usf:artefact:graphqlcontract> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:graphqlschema>.
+<urn:usf:artefact:implementationscaffold> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:ecmascriptmodule2024>.
+<urn:usf:artefact:localisationbundle> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:localisationprofile> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:mobilerendererinput> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:openapicontract> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:openapijson>.
+<urn:usf:artefact:previewmodel> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:proofanchorworkflow> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:yamlconfiguration12>.
+<urn:usf:artefact:proofmanifest> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:provenancerecord> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:releaseattestation> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:intotostatementjson>.
+<urn:usf:artefact:releasechecksums> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:releasemanifest> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:releasesignature> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:rendererinputschema> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:routemanifest> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractabacpolicydecisionpoint> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractaccessibilitya11ygate> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractapidocsdeveloperportalsdksratelimits> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractapikeyspersonalaccesstokens> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractauditofprivilegedaccess> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractauthenticationplatform> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractbackgroundworkersjobrunner> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractbackupandrestore> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractbrandingandtheming> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractcodequalityandsecretanddependencyscanning> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractcompliancereportsaccessreviewsevidencepacks> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractconfigurationregistryandhistory> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractcustomdomainsdnsownershiptlscanonical> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractdatagovernancecataloglineageclassificationpiidsrgdpr> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractdelegatedadministrationroles> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractdeterministicdevelopmentandtestsubstitutes> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontracte2econfidenceladderstageaware> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractenduserprofileandpreferencesselfservice> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractentitlementengine> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractenvironmentregistryandbootstrap> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractenvironmentspecificvssharedservicemodel> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontracteventbusdurablequeuesdlqredrive> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontracthistoryreadmodelreadonlyprojection> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontracti18nruntimeandvalidation> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractinternalservicecatalogandreadiness> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractlogsaggregationandtenantscopedsearch> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractmetricsandtraces> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractnotificationdeliveryandpreferencesandchannels> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractobjectstorageandtenantprefixesandsignedurls> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractobservabilitybuiltinalertingandincidents> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractopenapidrifthardgate> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractpitrretentionlegalholddataresidency> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractproductcatalogplansprices> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractproviderconfigurationplane> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractproviderenvironmentclassification> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractquotaenforcement> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractratelimitingapi> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractrbacrolesandpermissions> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractrelationalstorageandmigrationsandrls> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractruntimesecretsmanagement> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractscheduledjobsbuiltinontheeventsubstrate> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractschema> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractsearchandindexingproductsearch> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractservicecatalogandproviderintegrationmodel> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractsuborganisations> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractsubscriptionsinvoicespaymentmethodsdunning> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractsupportmodebreakglassaccess> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractsupportticketscustomerhealthannouncements> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontracttenantcanonicaldomainsetunset> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontracttenantdataimportexport> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontracttenantdomainactivationauthclient> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontracttenantgroups> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontracttenanthostidentityresolution> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontracttenantidentityrecordandfqdn> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontracttenantisolationproof> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontracttenantlifecycleprovisionsuspenddeleteexport> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontracttenantserviceclickthroughpolicy> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractuniversalservicefoundationscopeandprinciples> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractusagemeteringandmetereventingestion> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractuseridentityandtenantmembership> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractwebhooksdeveloperfacing> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractworkflowenginescheduledjobsapprovals> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:semanticcontractwriteonlysecretsettings> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:softwarebillofmaterials> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:specvalidationworkflow> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:yamlconfiguration12>.
+<urn:usf:artefact:statementofapplicability> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:uidocumentationmodel> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:uisemanticmodel> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:validatormanifest> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:viewmodel> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:webrendererinput> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:artefact:workspacemanifest> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:jsondata8259>.
+<urn:usf:template:proofanchorworkflowtemplate> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:yamlconfiguration12>.
+<urn:usf:template:specvalidationworkflowtemplate> usf:artefactMaterialisationFamily <urn:usf:artefactfamily:generatedprojection>;
+    usf:artefactRepresentationFormat <urn:usf:representationformat:yamlconfiguration12>.
 }

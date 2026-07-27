@@ -72,6 +72,29 @@ test('fails closed with redacted operational errors', async () => {
   await assert.rejects(() => client.connectivity(), (error) => error instanceof StardogSemanticAuthorityError && error.status === 401 && !error.message.includes('sensitive-token'));
 });
 
+test('surfaces a bounded redacted Stardog response body on operational failure', async () => {
+  const sdk = fakeSdk({ query: {
+    executeInTransaction: async () => ({
+      ok: false,
+      status: 400,
+      body: {
+        message: 'Encountered malformed transaction query',
+        token: 'sensitive-token',
+      },
+    }),
+  } });
+  const client = createStardogSemanticAuthorityClient({ sdk, configuration: configuration(), resolveSecret: () => 'token-value' });
+  await assert.rejects(
+    () => client.selectInTransaction('transaction', 'SELECT * WHERE {}'),
+    (error) => error instanceof StardogSemanticAuthorityError
+      && error.status === 400
+      && error.responseBody.includes('Encountered malformed transaction query')
+      && error.message.includes('Encountered malformed transaction query')
+      && !error.responseBody.includes('sensitive-token')
+      && !error.message.includes('sensitive-token'),
+  );
+});
+
 const shaclReport = (conforms) => ({
   '@graph': [{
     '@type': 'sh:ValidationReport',

@@ -15,46 +15,120 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { basename, dirname, relative, resolve, sep } from 'node:path';
+import { DataFactory } from 'n3';
+
+const { namedNode } = DataFactory;
 
 export const MATERIALISATION_CONTRACT = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation';
 export const ACTIVE = 'urn:usf:contractactivationstate:active';
 export const SUCCESSFUL = 'urn:usf:proofresultstate:successful';
 export const ACCEPTED = 'urn:usf:decisionstate:accepted';
 
-const MAX_OPERATIONS = 256;
-const MAX_PLAN_BYTES = 65_536;
-const MAX_TRACKED_WRITE_BYTES = 16 * 1024 * 1024;
-const SHA256 = /^sha256:[0-9a-f]{64}$/;
-const ACTIONS = new Set(['create-directory', 'write-file', 'move-path', 'delete-path']);
+// One declaration of every materialisation bound and of the closed action set.
+// The canonical gateway imports these rather than restating them, so a bound can
+// never be tighter on one surface than the other.
+export const MATERIALISATION_BOUNDS = Object.freeze({
+  MAX_OPERATIONS: 256,
+  MAX_PLAN_BYTES: 65_536,
+  MAX_TRACKED_WRITE_BYTES: 16 * 1024 * 1024,
+});
+export const MATERIALISATION_ACTIONS = Object.freeze(['create-directory', 'write-file', 'move-path', 'delete-path']);
 
-// One path policy for every materialisation surface. This module and the canonical
-// gateway previously each declared their own forbidden-segment vocabulary, so a
-// path one rejected the other could accept. Neither matched authority on its own:
-// this set is `urn:usf:repositorynamingstandard:semanticpurpose`'s
-// prohibitedCanonicalToken list, and `usf` is added structurally because operation
-// paths are repository-relative and must never re-embed the repository name.
-// The agent-skill directories are the one authorised exception, exactly as the
-// naming standard records them as uppercase/product compatibility exceptions.
-export const FORBIDDEN_SEGMENTS = new Set([
-  'bootstrap',
-  'common',
-  'core',
-  'executable-suite',
-  'helpers',
-  'initial-suite',
-  'legacy',
-  'migration',
-  'misc',
-  'reference-kernel',
-  'replacement',
-  'shared',
-  'temporary',
-  'transitional',
-  'usf',
-  'utils',
-  'v2',
+const { MAX_OPERATIONS, MAX_PLAN_BYTES, MAX_TRACKED_WRITE_BYTES } = MATERIALISATION_BOUNDS;
+const SHA256 = /^sha256:[0-9a-f]{64}$/;
+const ACTIONS = new Set(MATERIALISATION_ACTIONS);
+
+// One path policy for every materialisation surface, COMPILED FROM SEMANTIC
+// AUTHORITY rather than asserted to match it.
+//
+// This module and the canonical gateway previously each declared their own
+// forbidden-segment vocabulary, so a path one rejected the other could accept.
+// The surviving list then claimed to be
+// `urn:usf:repositorynamingstandard:semanticpurpose`'s prohibitedCanonicalToken
+// values, and was not: it carried a token authority does not declare and omitted
+// nine that it does. A list that merely claims to match the graph is exactly the
+// defect this replaces.
+//
+// `NAMING_STANDARD` is the compiled projection of that standard. Every field is
+// traceable to a declared property, and `comparePathPolicyToAuthority` re-derives
+// it from a loaded dataset so a graph/code difference fails the gate instead of
+// silently permitting an unauthorised path.
+export const NAMING_STANDARD_IRI = 'urn:usf:repositorynamingstandard:semanticpurpose';
+export const REPOSITORY_CANONICAL_NAME = 'usf';
+
+export const NAMING_STANDARD = Object.freeze({
+  standard: NAMING_STANDARD_IRI,
+  // usf:prohibitedCanonicalToken, verbatim and complete.
+  prohibitedCanonicalTokens: Object.freeze([
+    'bootstrap',
+    'common',
+    'core',
+    'executable-suite',
+    'external-tracker-identifier',
+    'external-work-record-ordinal',
+    'helpers',
+    'initial-suite',
+    'legacy',
+    'migration',
+    'misc',
+    'reference-kernel',
+    'replacement',
+    'shared',
+    'temporary',
+    'transitional',
+    'utils',
+    'v2',
+    'wave-five',
+    'wave-four',
+    'wave-one',
+    'wave-six',
+    'wave-three',
+    'wave-two',
+    'wave-zero',
+  ]),
+  // usf:operationalSequenceIdentityProhibited — a delivery-sequence identity is
+  // prohibited as a class, not only for the exact wave tokens above.
+  operationalSequenceIdentityProhibited: true,
+  // usf:trackerDerivedIdentityProhibited — an external tracker identifier such
+  // is prohibited as a class, not only for the exact tokens above.
+  trackerDerivedIdentityProhibited: true,
+  // usf:sourceDerivedIdentityProhibited — this is what authorises the structural
+  // `usf` segment rule: an operation path is repository-relative, so re-embedding
+  // the repository's own name is inherited-source identity.
+  sourceDerivedIdentityProhibited: true,
+});
+
+// The one authorised exception, and it is authority-declared rather than
+// invented here: the agent-integration path roles
+// `urn:usf:pathrole:claudeagentintegration` and
+// `urn:usf:pathrole:codexagentintegration` declare authorisedParentPath values
+// that legitimately contain the repository name, matching the standard's
+// "aliases or product integrations are explicit compatibility projections" and
+// "product-required shim or skill filenames" rules.
+export const AGENT_INTEGRATION_PATH_ROLES = Object.freeze([
+  'urn:usf:pathrole:claudeagentintegration',
+  'urn:usf:pathrole:codexagentintegration',
 ]);
 const SKILL_EXCEPTION_PREFIXES = Object.freeze(['.claude/skills/usf/', '.codex/skills/usf/']);
+
+const OPERATIONAL_SEQUENCE_IDENTITY = /^wave(?:-|_)?(?:zero|one|two|three|four|five|six|[0-9]+)$/i;
+const TRACKER_DERIVED_IDENTITY = /^usf-[0-9]+$/i;
+
+// Compile the runtime segment policy from the standard. The structural
+// repository-name token is added only because sourceDerivedIdentityProhibited is
+// declared; if authority ever withdrew that, the token would go with it.
+export function compilePathPolicy(standard = NAMING_STANDARD) {
+  const segments = new Set(standard.prohibitedCanonicalTokens.map((token) => token.toLowerCase()));
+  if (standard.sourceDerivedIdentityProhibited) segments.add(REPOSITORY_CANONICAL_NAME);
+  return Object.freeze({
+    forbiddenSegments: segments,
+    operationalSequenceIdentityProhibited: standard.operationalSequenceIdentityProhibited === true,
+    trackerDerivedIdentityProhibited: standard.trackerDerivedIdentityProhibited === true,
+  });
+}
+
+const PATH_POLICY = compilePathPolicy();
+export const FORBIDDEN_SEGMENTS = PATH_POLICY.forbiddenSegments;
 
 export const stable = (input) => Array.isArray(input)
   ? input.map(stable)
@@ -81,12 +155,101 @@ export function safeRelativePath(path, label = 'path') {
     throw new Error(`${label} is not portable across supported filesystems`);
   }
   const skillException = SKILL_EXCEPTION_PREFIXES.some((prefix) => path.startsWith(prefix));
-  if (segments.some((segment) => (FORBIDDEN_SEGMENTS.has(segment.toLowerCase()) && !(skillException && segment.toLowerCase() === 'usf'))
-    || /^wave(?:-|_)?(?:zero|one|two|three|four|five|six|[0-9]+)$/i.test(segment)
-    || /^usf-[0-9]+$/i.test(segment))) {
+  const prohibited = (segment) => {
+    const lowered = segment.toLowerCase();
+    if (PATH_POLICY.forbiddenSegments.has(lowered)
+      && !(skillException && lowered === REPOSITORY_CANONICAL_NAME)) return true;
+    if (PATH_POLICY.operationalSequenceIdentityProhibited && OPERATIONAL_SEQUENCE_IDENTITY.test(segment)) return true;
+    return PATH_POLICY.trackerDerivedIdentityProhibited && TRACKER_DERIVED_IDENTITY.test(segment);
+  };
+  if (segments.some(prohibited)) {
     throw new Error(`${label} contains a forbidden durable identity`);
   }
   return path;
+}
+
+// Re-derive the standard from a loaded dataset and report every difference from
+// the compiled runtime policy. A non-empty result must fail the gate: it means
+// the runtime is enforcing a policy authority does not declare, or is failing to
+// enforce one it does.
+export function readNamingStandard(store, {
+  standardIri = NAMING_STANDARD_IRI,
+  agentIntegrationPathRoles = AGENT_INTEGRATION_PATH_ROLES,
+} = {}) {
+  const ontology = 'urn:usf:ontology:';
+  const values = (subject, predicate) => store
+    .getObjects(namedNode(subject), namedNode(`${ontology}${predicate}`), null)
+    .map((term) => term.value);
+  const one = (predicate) => {
+    const observed = values(standardIri, predicate);
+    return observed.length === 1 ? observed[0] : null;
+  };
+  return Object.freeze({
+    standard: standardIri,
+    prohibitedCanonicalTokens: Object.freeze([...new Set(values(standardIri, 'prohibitedCanonicalToken'))].sort()),
+    operationalSequenceIdentityProhibited: one('operationalSequenceIdentityProhibited'),
+    trackerDerivedIdentityProhibited: one('trackerDerivedIdentityProhibited'),
+    sourceDerivedIdentityProhibited: one('sourceDerivedIdentityProhibited'),
+    agentIntegrationParentPaths: Object.freeze([...new Set(agentIntegrationPathRoles
+      .flatMap((role) => values(role, 'authorisedParentPath')))].sort()),
+  });
+}
+
+export function comparePathPolicyToAuthority(observed) {
+  const standardIri = observed?.standard ?? NAMING_STANDARD_IRI;
+  const one = (predicate) => observed?.[predicate] ?? null;
+
+  const observedTokens = [...new Set(observed?.prohibitedCanonicalTokens ?? [])].sort();
+  const declaredTokens = [...NAMING_STANDARD.prohibitedCanonicalTokens].sort();
+  const differences = [];
+  if (observedTokens.length === 0) {
+    differences.push({ code: 'naming-standard-absent', standard: standardIri });
+  }
+  for (const token of observedTokens) {
+    if (!declaredTokens.includes(token)) differences.push({ code: 'authority-token-not-enforced', token });
+  }
+  for (const token of declaredTokens) {
+    if (!observedTokens.includes(token)) differences.push({ code: 'enforced-token-not-authority-declared', token });
+  }
+  for (const [predicate, expected] of [
+    ['operationalSequenceIdentityProhibited', NAMING_STANDARD.operationalSequenceIdentityProhibited],
+    ['trackerDerivedIdentityProhibited', NAMING_STANDARD.trackerDerivedIdentityProhibited],
+    ['sourceDerivedIdentityProhibited', NAMING_STANDARD.sourceDerivedIdentityProhibited],
+  ]) {
+    const observed = one(predicate);
+    if (observed === null) differences.push({ code: 'identity-prohibition-unresolved', predicate });
+    else if ((observed === 'true') !== expected) {
+      differences.push({ code: 'identity-prohibition-differs', predicate, observed, expected });
+    }
+  }
+
+  // The `usf` exception must stay grounded in a declared authorisedParentPath.
+  const authorisedParents = (observed?.agentIntegrationParentPaths ?? []).map((parent) => `${parent}/`);
+  for (const prefix of SKILL_EXCEPTION_PREFIXES) {
+    if (!authorisedParents.includes(prefix)) {
+      differences.push({ code: 'skill-exception-not-authority-declared', prefix });
+    }
+  }
+
+  return Object.freeze({
+    ok: differences.length === 0,
+    standard: standardIri,
+    observedTokenCount: observedTokens.length,
+    enforcedSegmentCount: PATH_POLICY.forbiddenSegments.size,
+    differences: Object.freeze(differences
+      .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))
+      .map((item) => Object.freeze(item))),
+  });
+}
+
+export function assertPathPolicyMatchesAuthority(store, options) {
+  const report = comparePathPolicyToAuthority(readNamingStandard(store, options));
+  if (!report.ok) {
+    const error = new Error(`runtime path policy differs from ${report.standard}: ${report.differences.map((item) => `${item.code}${item.token ? `:${item.token}` : ''}`).join(', ')}`);
+    error.report = report;
+    throw error;
+  }
+  return report;
 }
 
 export function containedBy(root, target) {
@@ -223,7 +386,9 @@ function ensureDirectories(root, target, rollback) {
   }
 }
 
-function rollbackAndThrow(error, rollback) {
+// The ONE rollback error aggregator. Exported so the canonical gateway re-exports
+// it rather than keeping a second copy that could aggregate differently.
+export function rollbackAndThrow(error, rollback) {
   const rollbackErrors = [];
   for (const undo of rollback.reverse()) {
     try { undo(); } catch (rollbackError) { rollbackErrors.push(rollbackError); }
@@ -232,25 +397,59 @@ function rollbackAndThrow(error, rollback) {
   throw error;
 }
 
-function operationBytes(operation, casRoot) {
-  if (!operation.contentLocator) return Buffer.from(operation.content, operation.contentEncoding === 'base64' ? 'base64' : 'utf8');
+// The ONE operator-local CAS object resolver. Both the plan apply path and the
+// gateway's artifact verification reach content through this, so the locator
+// layout and the containment, regular-file, symlink and digest checks exist once.
+export function resolveCasObject(casRoot, contentDigest, { label = 'CAS object' } = {}) {
   if (!casRoot) throw new Error('operator-local CAS root is required for located content');
+  if (!SHA256.test(contentDigest || '')) throw new Error(`${label} digest must be sha256:<64 lowercase hex>`);
   const canonicalCasRoot = realpathSync(casRoot);
-  const hex = operation.contentDigest.slice(7);
-  const located = resolve(canonicalCasRoot, 'sha256', hex.slice(0, 2), hex);
-  if (!containedBy(canonicalCasRoot, located) || !existsSync(located)) throw new Error(`plan content not found: ${operation.path}`);
-  const stat = lstatSync(located);
-  if (stat.isSymbolicLink() || !stat.isFile() || !containedBy(canonicalCasRoot, realpathSync(located))) throw new Error(`plan content is not a regular CAS object: ${operation.path}`);
-  if (stat.size > MAX_TRACKED_WRITE_BYTES) throw new Error(`tracked write exceeds ${MAX_TRACKED_WRITE_BYTES} bytes: ${operation.path}`);
-  const bytes = readFileSync(located);
-  if (sha256(bytes) !== operation.contentDigest) throw new Error(`plan content digest mismatch: ${operation.path}`);
+  const hex = contentDigest.slice(7);
+  const path = resolve(canonicalCasRoot, 'sha256', hex.slice(0, 2), hex);
+  if (!containedBy(canonicalCasRoot, path)) return { found: false, code: 'cas-path-escaped-root', path };
+  if (!existsSync(path)) return { found: false, code: 'cas-object-not-found', path };
+  const stat = lstatSync(path);
+  if (stat.isSymbolicLink() || !stat.isFile() || !containedBy(canonicalCasRoot, realpathSync(path))) {
+    return { found: false, code: 'cas-object-not-regular-file', path };
+  }
+  return { found: true, path, byteSize: stat.size };
+}
+
+export function readCasObject(casRoot, contentDigest, {
+  label = 'plan content',
+  subject = contentDigest,
+  maximumBytes = MAX_TRACKED_WRITE_BYTES,
+} = {}) {
+  const located = resolveCasObject(casRoot, contentDigest, { label });
+  if (!located.found) {
+    throw new Error(located.code === 'cas-object-not-found'
+      ? `${label} not found: ${subject}`
+      : `${label} is not a regular CAS object: ${subject}`);
+  }
+  if (located.byteSize > maximumBytes) throw new Error(`tracked write exceeds ${maximumBytes} bytes: ${subject}`);
+  const bytes = readFileSync(located.path);
+  if (sha256(bytes) !== contentDigest) throw new Error(`${label} digest mismatch: ${subject}`);
   return bytes;
 }
 
-export function materialisePlan({ authority, plan, repositoryRoot, casRoot, apply = false }) {
-  const validation = validateMaterialisationPlan(authority, plan);
-  if (!validation.ok) return { applied: false, validation };
-  if (!apply) return { applied: false, dryRun: true, validation };
+function operationBytes(operation, casRoot) {
+  if (!operation.contentLocator) return Buffer.from(operation.content, operation.contentEncoding === 'base64' ? 'base64' : 'utf8');
+  return readCasObject(casRoot, operation.contentDigest, { label: 'plan content', subject: operation.path });
+}
+
+/**
+ * The ONE filesystem apply and rollback implementation.
+ *
+ * It performs no authority decision and takes no verdict: a caller that owns the
+ * live-authority conclusion (the canonical gateway) reaches this with a plan it
+ * has already judged. The returned handle exposes the still-open rollback stack
+ * so that caller can run a post-apply authority check and, if authority moved
+ * while the filesystem was changing, undo the complete run through this same
+ * implementation rather than a second copy of it.
+ *
+ * @returns {{operations: object[], rollbackAndThrow: (error: Error) => never}}
+ */
+export function executePlanOperations({ plan, repositoryRoot, casRoot }) {
   if (!repositoryRoot) throw new Error('repository root is required');
   const root = realpathSync(repositoryRoot);
   const rollback = [];
@@ -323,5 +522,16 @@ export function materialisePlan({ authority, plan, repositoryRoot, casRoot, appl
   } catch (error) {
     rollbackAndThrow(error, rollback);
   }
-  return { applied: true, validation, operations };
+  return Object.freeze({
+    operations,
+    rollbackAndThrow: (error) => rollbackAndThrow(error, rollback),
+  });
+}
+
+export function materialisePlan({ authority, plan, repositoryRoot, casRoot, apply = false }) {
+  const validation = validateMaterialisationPlan(authority, plan);
+  if (!validation.ok) return { applied: false, validation };
+  if (!apply) return { applied: false, dryRun: true, validation };
+  const execution = executePlanOperations({ plan, repositoryRoot, casRoot });
+  return { applied: true, validation, operations: execution.operations };
 }

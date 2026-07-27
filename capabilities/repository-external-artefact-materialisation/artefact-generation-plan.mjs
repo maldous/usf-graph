@@ -1,11 +1,13 @@
+import { createHash } from 'node:crypto';
 import { DataFactory } from 'n3';
 import {
   USF,
   iriValue,
   literalValue,
   objects,
+  oneObject,
   subjectsOfType,
-} from './authority-dataset.mjs';
+} from '../semantic-model-compilation/authority-dataset.mjs';
 import { CompilerError } from '../semantic-model-compilation/compiler.mjs';
 
 const { namedNode } = DataFactory;
@@ -55,8 +57,125 @@ function currentSubjectsOfType(store, classIri) {
   return subjectsOfType(store, classIri).filter((subject) => isSemanticallyCurrent(store, subject));
 }
 
+const sha256 = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
+
+// Every field a materialisation operation needs, read from stored authority.
+//
+// A generation plan that named only a path and a generator could not produce a
+// materialisation operation: the gateway's validator requires the exact artefact
+// family, representation format and path role, and matches the filename against
+// the family's declared naming pattern.
+//
+// Neither the family nor the format is inferred here. Both are STORED on the
+// artefact (usf:artefactMaterialisationFamily, usf:artefactRepresentationFormat)
+// under the authorised owner decision that every generated-projection output
+// materialises as urn:usf:artefactfamily:generatedprojection. Everything else —
+// target repository, storage class, path role, naming rule, generation mode,
+// authority class, content addressing and the permitted format set — is derived
+// from that family's unique materialisation rule and validated against the
+// stored format. A missing, ambiguous or unauthorised value is an obligation,
+// never a guess.
+function resolveMaterialisation(store, artefact, path, targetRepository, obligations) {
+  const record = (item) => { obligations.push(item); return null; };
+  const family = objects(store, artefact, p('artefactMaterialisationFamily'));
+  if (family.length !== 1) {
+    return record({ subject: artefact.value, predicate: `${USF}artefactMaterialisationFamily`, expected: 'exactly-one', observed: family.length, kind: 'unresolved-materialisation-family' });
+  }
+  const declaredFormat = objects(store, artefact, p('artefactRepresentationFormat'));
+  if (declaredFormat.length !== 1) {
+    return record({ subject: artefact.value, predicate: `${USF}artefactRepresentationFormat`, expected: 'exactly-one', observed: declaredFormat.length, kind: 'unresolved-representation-format' });
+  }
+  if (!isSemanticallyCurrent(store, family[0])) {
+    return record({ subject: artefact.value, predicate: `${USF}artefactMaterialisationFamily`, expected: 'independently-warranted-retained-family', observed: family[0].value, kind: 'superseded-materialisation-family' });
+  }
+
+  const rules = objects(store, family[0], p('usesMaterialisationRule')).filter((rule) => isSemanticallyCurrent(store, rule));
+  if (rules.length !== 1) {
+    return record({ subject: family[0].value, predicate: `${USF}usesMaterialisationRule`, expected: 'exactly-one-current-rule', observed: rules.length, kind: 'ambiguous-materialisation-rule' });
+  }
+  const rule = rules[0];
+  const format = declaredFormat[0];
+  const permitted = objects(store, rule, p('usesRepresentationFormat')).map((item) => item.value);
+  if (!permitted.includes(format.value)) {
+    return record({ subject: artefact.value, predicate: `${USF}artefactRepresentationFormat`, expected: 'format-permitted-by-materialisation-rule', observed: format.value, rule: rule.value, kind: 'unauthorised-representation-format' });
+  }
+
+  const single = (subject, local, kind) => {
+    const values = objects(store, subject, p(local));
+    if (values.length === 1) return values[0];
+    obligations.push({ subject: subject.value, predicate: `${USF}${local}`, expected: 'exactly-one', observed: values.length, kind });
+    return null;
+  };
+  const pathRole = single(rule, 'usesPathRole', 'missing-path-role');
+  const storageClass = single(rule, 'usesStorageClass', 'missing-storage-class');
+  const namingRule = single(rule, 'usesNamingRule', 'missing-naming-rule');
+  const generationMode = single(rule, 'usesGenerationMode', 'missing-generation-mode');
+  const authorityClass = single(rule, 'usesAuthorityClass', 'missing-authority-class');
+  const contentAddressing = literalValue(oneObject(store, rule, p('contentAddressingRequired')));
+  const mediaType = literalValue(oneObject(store, format, p('canonicalMediaType')));
+  const canonicalExtension = literalValue(oneObject(store, format, p('canonicalExtension')));
+  if (!pathRole || !storageClass || !namingRule || !generationMode || !authorityClass) return null;
+  if (contentAddressing === null) {
+    return record({ subject: rule.value, predicate: `${USF}contentAddressingRequired`, expected: 'exactly-one', observed: null, kind: 'missing-content-addressing' });
+  }
+  if (!mediaType) {
+    return record({ subject: format.value, predicate: `${USF}canonicalMediaType`, expected: 'exactly-one', observed: null, kind: 'missing-mediatype' });
+  }
+  const namingPattern = literalValue(oneObject(store, namingRule, p('filenamePattern')));
+  if (!namingPattern) {
+    return record({ subject: namingRule.value, predicate: `${USF}filenamePattern`, expected: 'exactly-one', observed: null, kind: 'missing-namingpattern' });
+  }
+
+  // The stored destination must actually accept this path and filename.
+  const parents = objects(store, pathRole, p('authorisedParentPath')).map(literalValue).filter(Boolean);
+  if (!parents.some((parent) => parent === '.' ? !path.includes('/') : path === parent || path.startsWith(`${parent}/`))) {
+    return record({ subject: artefact.value, predicate: `${USF}authorisedParentPath`, expected: parents.sort(), observed: path, kind: 'path-outside-authorised-parent' });
+  }
+  if (!new RegExp(namingPattern).test(path.split('/').pop())) {
+    return record({ subject: artefact.value, predicate: `${USF}filenamePattern`, expected: namingPattern, observed: path, kind: 'filename-violates-naming-rule' });
+  }
+  if (!targetRepository) {
+    return record({ subject: artefact.value, predicate: `${USF}ownedByRepository`, expected: 'exactly-one', observed: null, kind: 'missing-target-repository' });
+  }
+
+  return {
+    artefactFamily: family[0].value,
+    materialisationRule: rule.value,
+    representationFormat: format.value,
+    canonicalExtension,
+    mediaType,
+    pathRole: pathRole.value,
+    storageClass: storageClass.value,
+    namingRule: namingRule.value,
+    namingPattern,
+    generationMode: generationMode.value,
+    authorityClass: authorityClass.value,
+    contentAddressingRequired: contentAddressing === 'true',
+  };
+}
+
+function resolveGenerator(store, component) {
+  const query = literalValue(oneObject(store, component, p('semanticInputQuery')));
+  return {
+    generator: component.value,
+    semanticInputQuery: query,
+    semanticInputQueryDigest: query ? sha256(query) : null,
+    outputSchema: objects(store, component, p('outputSchema'))[0]?.value ?? null,
+    outputPathRule: objects(store, component, p('outputPathRule'))[0]?.value ?? null,
+    generationPolicy: objects(store, component, p('integrityPolicy'))[0]?.value ?? null,
+    normalisationPolicy: objects(store, component, p('normalisationPolicy'))[0]?.value ?? null,
+    requiresEquivalenceKind: objects(store, component, p('requiresEquivalenceKind')).map(iriValue).filter(Boolean).sort(),
+    missingSemanticsConstraint: objects(store, component, p('missingSemanticsConstraint')).map(iriValue).filter(Boolean).sort(),
+  };
+}
+
 export function buildGenerationPlan(store) {
   const obligations = [];
+  // Destination-resolution gaps are reported separately from generation
+  // completeness: a generator can produce correct bytes for an output whose
+  // materialisation destination authority has not yet decided. The factory
+  // refuses to materialise those; it does not stop the deliverable being built.
+  const materialisationObligations = [];
   const outputs = [];
   const validatedComponents = new Set();
   const plans = currentSubjectsOfType(store, `${USF}ArtefactPlan`).sort((a, b) => a.value.localeCompare(b.value));
@@ -98,7 +217,27 @@ export function buildGenerationPlan(store) {
           validatedComponents.add(component.value);
         }
       }
-      if (path && kindTerm && component) outputs.push({ plan: plan.value, artefact: artefact.value, path, artefactKind: iriValue(kindTerm), component: component.value, semanticResources: semanticResources.map(iriValue).filter(Boolean) });
+      if (path && kindTerm && component) {
+        const materialisation = resolveMaterialisation(store, artefact, path, owners.length === 1 ? iriValue(owners[0]) : null, materialisationObligations);
+        outputs.push({
+          plan: plan.value,
+          artefact: artefact.value,
+          path,
+          artefactKind: iriValue(kindTerm),
+          component: component.value,
+          semanticResources: semanticResources.map(iriValue).filter(Boolean),
+          // Authority-derived materialisation identity. `component` is retained
+          // under its historical name; `generator` is the same IRI named as the
+          // enriched contract names it.
+          targetRepository: owners.length === 1 ? iriValue(owners[0]) : null,
+          pathRule: pathRule ? iriValue(pathRule) : null,
+          outputMode: 'materialise-generated-untracked',
+          dependencies: [plan.value, artefact.value, component.value, ...semanticResources.map(iriValue).filter(Boolean)].sort(),
+          ...resolveGenerator(store, component),
+          ...(materialisation ?? {}),
+          materialisationResolved: materialisation !== null,
+        });
+      }
     }
   }
   const byPath = new Map();
@@ -107,8 +246,33 @@ export function buildGenerationPlan(store) {
     if (prior) obligations.push({ subject: output.artefact, predicate: `${USF}canonicalPath`, expected: 'unique-output-path', observed: output.path, conflictsWith: prior.artefact, kind: 'path-collision' });
     else byPath.set(output.path, output);
   }
+  // One deterministic canonical final ordering, kept as the plan's own order.
   const ordered = outputs.sort((a, b) => a.path.localeCompare(b.path) || a.artefact.localeCompare(b.artefact));
-  return Object.freeze({ plans: plans.length, outputs: ordered, obligations: obligations.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))), complete: obligations.length === 0 });
+  // Execution and accounting group by generator; the grouping references the
+  // canonical ordering rather than reordering it, so there is exactly one final
+  // sequence no matter which view a consumer reads.
+  const byGenerator = new Map();
+  ordered.forEach((output, index) => {
+    const group = byGenerator.get(output.component) ?? { generator: output.component, outputIndexes: [], outputCount: 0 };
+    group.outputIndexes.push(index);
+    group.outputCount += 1;
+    byGenerator.set(output.component, group);
+  });
+  const generatorGroups = [...byGenerator.values()]
+    .sort((left, right) => left.generator.localeCompare(right.generator))
+    .map((group) => Object.freeze({ ...group, outputIndexes: Object.freeze(group.outputIndexes) }));
+  return Object.freeze({
+    plans: plans.length,
+    outputs: ordered,
+    generatorGroups: Object.freeze(generatorGroups),
+    generatorCount: generatorGroups.length,
+    unresolvedOutputs: Object.freeze(ordered.filter((output) => output.materialisationResolved !== true).map((output) => output.path)),
+    materialisationObligations: Object.freeze(materialisationObligations
+      .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))),
+    materialisationComplete: materialisationObligations.length === 0,
+    obligations: obligations.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+    complete: obligations.length === 0,
+  });
 }
 
 export function requireCompleteGenerationPlan(store) {

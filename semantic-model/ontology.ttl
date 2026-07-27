@@ -2818,6 +2818,97 @@ usf:signingPolicy a owl:ObjectProperty, owl:FunctionalProperty;
 usf:signedBy a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:Signature;
     rdfs:range usf:SigningIdentity.
+# A signing identity's assurance class. A key that is derivable from a public
+# label provides deterministic reproducibility and tamper evidence; it cannot
+# establish production signer authenticity, and must not be represented as a
+# secret operator credential.
+usf:SigningIdentityClass a owl:Class;
+    rdfs:subClassOf usf:ControlledValue.
+usf:signingIdentityClass a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SigningIdentity;
+    rdfs:range usf:SigningIdentityClass.
+usf:establishesProductionAuthenticity a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SigningIdentity;
+    rdfs:range xsd:boolean.
+usf:keyDerivationLabel a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SigningIdentity;
+    rdfs:range xsd:string.
+# Proof currentness.
+#
+# A successful ProofResult is a historical fact. Whether that result still
+# describes the running system is a separate, closed conclusion with exactly
+# three outcomes, and it is DERIVED from the complete evidence chain: the
+# algorithm declares what "current" is, the result records what it actually
+# evaluated, and agreement between the two is the conclusion. There is no
+# manually asserted proofCurrent boolean anywhere in the model.
+usf:ProofCurrentnessState a owl:Class;
+    rdfs:subClassOf usf:ControlledValue.
+usf:ProofReevaluationState a owl:Class;
+    rdfs:subClassOf usf:ControlledValue.
+# What the algorithm declares current.
+usf:currentAlgorithmVersion a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range usf:ProofAlgorithmVersion.
+usf:currentAlgorithmSourceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:string.
+usf:currentImplementationSourceSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:string.
+usf:currentDependencySetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:string.
+usf:currentDependencyDigestAlgorithm a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:string.
+usf:currentToolchainDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:string.
+usf:currentPackageLockDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:string.
+usf:requiresGraphSourceBinding a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:boolean.
+# What the result actually evaluated.
+usf:implementationSourceSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofResult;
+    rdfs:range xsd:string.
+usf:dependencySetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofResult;
+    rdfs:range xsd:string.
+usf:dependencyDigestAlgorithm a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofResult;
+    rdfs:range xsd:string.
+usf:toolchainDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofResult;
+    rdfs:range xsd:string.
+usf:packageLockDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofResult;
+    rdfs:range xsd:string.
+usf:proofProducerCommit a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofResult;
+    rdfs:range xsd:string.
+usf:proofProducerTree a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofResult;
+    rdfs:range xsd:string.
+# Self-publication closure: the producer stage and the later reevaluation stage
+# are distinct, and the second is a recorded fact rather than an assumption.
+usf:hasPostPublicationReevaluationState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAuthorityBinding;
+    rdfs:range usf:ProofReevaluationState.
+usf:reevaluationSettledAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAuthorityBinding;
+    rdfs:range xsd:string.
+usf:reevaluationDependencySetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAuthorityBinding;
+    rdfs:range xsd:string.
+usf:reevaluationEvidenceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAuthorityBinding;
+    rdfs:range xsd:string.
+usf:reevaluatedAt a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAuthorityBinding;
+    rdfs:range xsd:dateTime.
 usf:signingKeyFingerprint a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:SigningIdentity;
     rdfs:range xsd:string;
@@ -3145,6 +3236,30 @@ usf:usesStorageClass a owl:ObjectProperty, owl:FunctionalProperty;
 usf:usesRepresentationFormat a owl:ObjectProperty;
     rdfs:domain usf:MaterialisationRule;
     rdfs:range usf:RepresentationFormat.
+# An artefact's exact representation, declared only where its family authorises
+# more than one format for the artefact's canonical extension. Resolution is
+# otherwise the intersection of the family's authorised formats and their own
+# declared canonicalExtension; a filename suffix alone never selects a format,
+# and an unresolved intersection fails closed.
+usf:artefactRepresentationFormat a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:Artefact;
+    rdfs:range usf:RepresentationFormat.
+# The artefact's exact materialisation family. Stored explicitly for every
+# planned artefact so a production plan resolves a destination from authority
+# rather than inferring one from a path or a filename suffix. It is a
+# materialisation classification and does not replace usf:artefactKind, which
+# remains the semantic classification of the output.
+usf:artefactMaterialisationFamily a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:Artefact;
+    rdfs:range usf:ArtefactFamily.
+# The artefact's exact materialisation family. Stored explicitly for every
+# planned artefact so a production plan resolves a destination from authority
+# rather than inferring one from a path or a filename suffix. It is a
+# materialisation classification and does not replace usf:artefactKind, which
+# remains the semantic classification of the output.
+usf:artefactMaterialisationFamily a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:Artefact;
+    rdfs:range usf:ArtefactFamily.
 usf:usesPathRole a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:MaterialisationRule;
     rdfs:range usf:PathRole.
@@ -4805,6 +4920,90 @@ usf:Feature a owl:Class;
     rdfs:comment "A contract-warranted capability of a candidate realisation; source code cannot establish it.".
 <urn:usf:termusagestate:usedbysemanticquery> a usf:TermUsageState;
     usf:canonicalName "usedbysemanticquery".
+# Proof-currentness vocabulary is consumed by the bounded resolver queries
+# before Stage 1 can publish ordinary instances. This disposition makes that
+# executable use explicit without claiming that the still-pending result and
+# authority-binding records already exist.
+usf:currentAlgorithmSourceDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:currentAlgorithmVersion usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:currentDependencyDigestAlgorithm usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:currentDependencySetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:currentImplementationSourceSetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:currentPackageLockDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:currentToolchainDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:dependencyDigestAlgorithm usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:dependencySetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:hasPostPublicationReevaluationState usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:implementationSourceSetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:packageLockDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:proofProducerCommit usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:proofProducerTree usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:reevaluationDependencySetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:reevaluationSettledAuthorityDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:requiresGraphSourceBinding usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:toolchainDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:reevaluationEvidenceDigest usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "post-publication-reevaluation";
+    usf:termUsageRationale "Reserved for the Stage 2 post-publication reevaluation record; no reevaluation evidence is claimed before that stage executes.".
+usf:reevaluatedAt usf:termUsageState <urn:usf:termusagestate:reservedfuturescope>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "post-publication-reevaluation";
+    usf:termUsageRationale "Reserved for the Stage 2 post-publication reevaluation record; no completed reevaluation is claimed before that stage executes.".
 usf:applicableToObligation usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
     usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
     usf:termUsageLifecycleStage "evidence-proof-contract-enforcement";

@@ -13,10 +13,18 @@ import {
   executeTestInventory,
   snapshotLoadedModuleRecord,
   snapshotModuleRecord,
+  TEST_PROFILE_INVOCATION_MODES,
   testRunnerInternals,
 } from './test-runner.mjs';
 
 const roots = [];
+
+test('test profiles select the least authority needed by their exact inventory', () => {
+  assert.deepEqual(TEST_PROFILE_INVOCATION_MODES, {
+    all: 'NODE_TEST_PROGRAMMATIC_CHILD_PERMITTED',
+    'semantic-assurance': 'NODE_TEST_PROGRAMMATIC_EXACT_FILES',
+  });
+});
 
 function fixture({ withTests = true } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'usf-test-inventory-'));
@@ -506,13 +514,20 @@ test('module resolution permits only regular immutable snapshot files', () => {
   expectCode(() => snapshotModuleRecord('data:text/javascript,export{}', root), 'MODULE_RESOLUTION_PROHIBITED');
 });
 
-test('hermetic launcher denies ambient reads, writes, child processes, workers and network', {
+test('hermetic launcher enforces the declared child permission and denies other ambient effects', {
   skip: process.env.USF_HERMETIC_TEST_MODE !== '1',
 }, async () => {
   const denied = (operation) => assert.throws(operation, (error) => error?.code === 'ERR_ACCESS_DENIED');
   denied(() => readFileSync('/etc/hosts'));
   denied(() => writeFileSync('/tmp/usf-hermetic-denial-control', 'forbidden'));
-  denied(() => execFileSync(process.execPath, ['-e', 'process.exit(0)']));
+  const expectedChildPermission = process.env.USF_EXPECTED_CHILD_PROCESS_PERMISSION;
+  assert.ok(['allowed', 'denied'].includes(expectedChildPermission), expectedChildPermission);
+  assert.equal(process.permission.has('child'), expectedChildPermission === 'allowed');
+  if (expectedChildPermission === 'allowed') {
+    assert.doesNotThrow(() => execFileSync(process.execPath, ['-e', 'process.exit(0)']));
+  } else {
+    denied(() => execFileSync(process.execPath, ['-e', 'process.exit(0)']));
+  }
   denied(() => new Worker('export {};', { eval: true }));
   const networkCode = await new Promise((resolveCode, reject) => {
     const socket = net.connect({ host: '198.51.100.1', port: 9 });
@@ -581,4 +596,13 @@ test('late module hooks and forged TAP cannot bypass the launcher', () => {
   assert.ok(!selected.loadedModuleRecords.some(({ path }) => path === 'authorised/resolved-only.mjs'));
   assert.equal(selected.executedByteSetDigest, selected.loadedModuleSetDigest);
   assert.notEqual(selected.executedByteSetDigest, selected.resolvedModuleSetDigest);
+
+  const childPermitted = executeTestInventory(inventory, {
+    ...common,
+    testInvocationMode: 'NODE_TEST_PROGRAMMATIC_CHILD_PERMITTED',
+  });
+  assert.equal(childPermitted.passed, true);
+  assert.equal(childPermitted.invocationMode, 'NODE_TEST_PROGRAMMATIC_CHILD_PERMITTED');
+  assert.equal(childPermitted.isolationMode, 'none');
+  assert.equal(childPermitted.nodeFlags.includes('--allow-child-process'), true);
 });

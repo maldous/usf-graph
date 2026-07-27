@@ -95,12 +95,72 @@ function satisfyingResultRow({
   };
 }
 
+// A complete, agreeing currentness chain. Every gateway test that is not about
+// currentness needs one, because PROCEED now requires the positive conclusion
+// and not merely a successful historical result.
+const CURRENT_ALGORITHM = 'urn:usf:proofalgorithm:repositorymaterialisationcontrolplane';
+const CURRENT_VERSION = 'urn:usf:proofalgorithmversion:current';
+const CURRENT_SOURCE_DIGEST = `sha256:${'11'.repeat(32)}`;
+const CURRENT_IMPLEMENTATION = `sha256:${'22'.repeat(32)}`;
+const CURRENT_DEPENDENCY = `sha256:${'33'.repeat(32)}`;
+const DEPENDENCY_ALGORITHM = 'sha256-rdfc10-nonpublication-graph-inventory-v1';
+
+function defaultCurrentness(overrides = {}) {
+  const base = {
+    mandatory: [{ obligation: binding('urn:usf:proofobligation:repositoryexternalartefactmaterialisation') }],
+    result: [{
+      result: binding('urn:usf:proofresult:repositorymaterialisationcontrolplane'),
+      state: binding('urn:usf:proofresultstate:successful'),
+      obligation: binding('urn:usf:proofobligation:repositoryexternalartefactmaterialisation'),
+      proof: binding('urn:usf:proof:repositorymaterialisationcontrolplane'),
+      algorithm: binding(CURRENT_ALGORITHM),
+      algorithmVersion: binding(CURRENT_VERSION),
+      evidenceSetDigest: binding(`sha256:${'44'.repeat(32)}`),
+      implementationDigest: binding(CURRENT_IMPLEMENTATION),
+      dependencyDigest: binding(CURRENT_DEPENDENCY),
+      dependencyAlgorithm: binding(DEPENDENCY_ALGORITHM),
+      binding: binding('urn:usf:proofauthoritybinding:repositorymaterialisationcontrolplane'),
+      evidence: binding('urn:usf:evidenceresult:repositorymaterialisationcontrolplane'),
+    }],
+    evidence: [{
+      evidence: binding('urn:usf:evidenceresult:repositorymaterialisationcontrolplane'),
+      admission: binding('urn:usf:evidenceadmissionstate:admitted'),
+      freshness: binding('urn:usf:evidencefreshnessstate:fresh'),
+      integrity: binding('urn:usf:evidenceintegritystate:valid'),
+      withinScope: binding('true'),
+      validUntil: binding('2099-01-01T00:00:00Z'),
+      contentDigest: binding(`sha256:${'55'.repeat(32)}`),
+    }],
+    algorithm: [{
+      algorithm: binding(CURRENT_ALGORITHM),
+      sourceDigest: binding(CURRENT_SOURCE_DIGEST),
+      currentSourceDigest: binding(CURRENT_SOURCE_DIGEST),
+      currentVersion: binding(CURRENT_VERSION),
+      currentImplementation: binding(CURRENT_IMPLEMENTATION),
+      currentDependency: binding(CURRENT_DEPENDENCY),
+      currentDependencyAlgorithm: binding(DEPENDENCY_ALGORITHM),
+    }],
+    binding: [{
+      binding: binding('urn:usf:proofauthoritybinding:repositorymaterialisationcontrolplane'),
+      rule: binding('urn:usf:authoritybindingrule:selfpublicationclosure'),
+      requiresReevaluation: binding('true'),
+      reevaluationState: binding('urn:usf:proofreevaluationstate:successful'),
+      settledDigest: binding(`sha256:${'66'.repeat(32)}`),
+      reevaluationDependency: binding(CURRENT_DEPENDENCY),
+      bindingDependency: binding(CURRENT_DEPENDENCY),
+      bindingDependencyAlgorithm: binding(DEPENDENCY_ALGORITHM),
+    }],
+  };
+  return { ...base, ...overrides };
+}
+
 function fakeClient({
   descriptor,
   contractRows = defaultContractRows(),
   applicabilityRows = defaultApplicabilityRows(),
   validationObligationRows = defaultValidationObligationRows(),
   proofGapRows = [],
+  currentness = defaultCurrentness(),
 } = {}) {
   return {
     size: async () => 10,
@@ -112,6 +172,11 @@ function fakeClient({
       if (query.includes('<urn:usf:ontology:hasValidationApplicability> ?state')) return applicabilityRows;
       if (query.includes('a <urn:usf:ontology:ValidationObligation>')) return validationObligationRows;
       if (query.includes('<urn:usf:ontology:mandatoryProofObligation> ?subject')) return proofGapRows;
+      if (query.includes('<urn:usf:ontology:mandatoryProofObligation> ?obligation')) return currentness.mandatory;
+      if (query.includes('?implementationDigest ?dependencyDigest')) return currentness.result;
+      if (query.includes('?evidence ?admission ?freshness')) return currentness.evidence;
+      if (query.includes('?currentSourceDigest ?currentVersion')) return currentness.algorithm;
+      if (query.includes('?requiresReevaluation ?reevaluationState')) return currentness.binding;
       if (query.includes('a <urn:usf:ontology:PathRole>')) return [{ role: binding(role), canonicalName: binding('compilersource'), parent: binding('capabilities/semantic-model-compilation'), onDemand: binding('true') }];
       if (query.includes('a <urn:usf:ontology:ArtefactFamily>')) return [{ family: binding(family), familyName: binding('compiler'), storage: binding('urn:usf:storageclass:gittrackedsource'), pathRole: binding(role), format: binding(format), namingPattern: binding('^[A-Za-z0-9._-]+$') }];
       if (query.includes('ExternalPayloadDescriptor')) return descriptor ? [Object.fromEntries(Object.entries(descriptor).map(([key, item]) => [key, binding(item)]))] : [];
