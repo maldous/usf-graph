@@ -21,6 +21,7 @@ import {
   collectNodeRuntimeClosure,
   collectProcessRuntimeClosure,
   compareWorktreeToSnapshot,
+  readCompleteTrackedTreeSnapshot,
   readTrackedTreeSnapshot,
   runCommittedNodeClosure,
   runtimeDescriptorFromEvidence,
@@ -143,6 +144,180 @@ async function snapshotFor(fixture, paths = closurePaths) {
     expectedGitRuntime: await expectedGitRuntime(),
   });
 }
+
+async function completeSnapshotFor(fixture, options = {}) {
+  return readCompleteTrackedTreeSnapshot({
+    repository: fixture.repository,
+    commit: fixture.commit,
+    expectedGitRuntime: await expectedGitRuntime(),
+    ...options,
+  });
+}
+
+test('complete committed-tree snapshot returns canonical metadata without source content', async () => {
+  const fixture = makeRepository();
+  try {
+    const snapshot = await completeSnapshotFor(fixture);
+    assert.equal(snapshot.evidence.selection, 'ALL_TRACKED_PATHS');
+    assert.equal(snapshot.evidence.recordCount, 5);
+    assert.deepEqual(
+      snapshot.records.map(({ path }) => path),
+      ['dependency.mjs', 'hidden.txt', 'nested/file.txt', 'package.json', 'script.mjs'],
+    );
+    assert.ok(snapshot.records.every((record) => (
+      record.type === 'file'
+      && /^(?:100644|100755)$/.test(record.mode)
+      && Number.isSafeInteger(record.byteLength)
+      && /^sha256:[0-9a-f]{64}$/.test(record.digest)
+      && /^[0-9a-f]{40}$/.test(record.objectId)
+      && !Object.hasOwn(record, 'bytes')
+    )));
+    assert.match(snapshot.evidence.sourceSetDigest, /^sha256:[0-9a-f]{64}$/);
+    assert.equal(snapshot.sourceSetDigest, snapshot.evidence.sourceSetDigest);
+    assert.deepEqual(snapshot.records, snapshot.evidence.records);
+  } finally {
+    rmSync(fixture.repository, { recursive: true, force: true });
+  }
+});
+
+test('complete committed-tree enumeration does not consult mutable HEAD, index, status, or worktree', async () => {
+  const fixture = makeRepository();
+  try {
+    const before = await completeSnapshotFor(fixture);
+    writeFileSync(join(fixture.repository, 'hidden.txt'), 'MUTABLE WORKTREE\n');
+    writeFileSync(join(fixture.repository, 'untracked-secret.env'), 'not-read\n');
+    git(fixture.repository, ['update-index', '--assume-unchanged', 'hidden.txt']);
+    writeFileSync(join(fixture.repository, 'new-commit.txt'), 'NEW HEAD\n');
+    git(fixture.repository, ['add', 'new-commit.txt']);
+    git(fixture.repository, ['commit', '--quiet', '-m', 'move mutable head']);
+    const after = await completeSnapshotFor(fixture);
+    assert.equal(after.commit, fixture.commit);
+    assert.equal(after.tree, before.tree);
+    assert.equal(after.evidence.sourceSetDigest, before.evidence.sourceSetDigest);
+    assert.deepEqual(after.records, before.records);
+  } finally {
+    rmSync(fixture.repository, { recursive: true, force: true });
+  }
+});
+
+test('exact worktree mirror excludes only exact .git and .work roots and rejects extras', async () => {
+  const fixture = makeRepository();
+  try {
+    mkdirSync(join(fixture.repository, '.work'));
+    writeFileSync(join(fixture.repository, '.work', 'session.log'), 'TRANSIENT\n');
+    const snapshot = await completeSnapshotFor(fixture, { verifyWorktreeMirror: true });
+    assert.equal(snapshot.evidence.worktreeMirror.exactPathSetVerified, true);
+    assert.equal(snapshot.evidence.worktreeMirror.sourceMovementChecked, true);
+    assert.deepEqual(snapshot.evidence.worktreeMirror.excludedRootEntries, ['.git', '.work']);
+    assert.deepEqual(snapshot.evidence.worktreeMirror.records, snapshot.records.map(({
+      objectId: ignored,
+      ...record
+    }) => record));
+    writeFileSync(join(fixture.repository, 'unlisted.env'), 'never exposed\n');
+    await assert.rejects(
+      completeSnapshotFor(fixture, { verifyWorktreeMirror: true }),
+      /WORKTREE_UNLISTED_FILE_unlisted\.env/,
+    );
+    rmSync(join(fixture.repository, 'unlisted.env'));
+    mkdirSync(join(fixture.repository, 'empty-extra'));
+    await assert.rejects(
+      completeSnapshotFor(fixture, { verifyWorktreeMirror: true }),
+      /WORKTREE_UNLISTED_DIRECTORY_empty-extra/,
+    );
+  } finally {
+    rmSync(fixture.repository, { recursive: true, force: true });
+  }
+});
+
+test('exact worktree mirror refuses untracked symlinks and hard-linked tracked sources', async () => {
+  const fixture = makeRepository();
+  const external = mkdtempSync(join(tmpdir(), 'usf-hermeticity-full-tree-external-'));
+  try {
+    writeFileSync(join(external, 'target'), 'EXTERNAL\n');
+    symlinkSync(join(external, 'target'), join(fixture.repository, 'unlisted-link'));
+    await assert.rejects(
+      completeSnapshotFor(fixture, { verifyWorktreeMirror: true }),
+      /WORKTREE_SYMLINK_REFUSED_unlisted-link/,
+    );
+    rmSync(join(fixture.repository, 'unlisted-link'));
+    linkSync(join(fixture.repository, 'hidden.txt'), join(external, 'hard-link'));
+    await assert.rejects(
+      completeSnapshotFor(fixture, { verifyWorktreeMirror: true }),
+      /WORKTREE_COMPLETE_SOURCE_LINK_COUNT_NOT_ONE/,
+    );
+  } finally {
+    rmSync(external, { recursive: true, force: true });
+    rmSync(fixture.repository, { recursive: true, force: true });
+  }
+});
+
+test('complete committed-tree snapshot refuses tracked symlinks and submodules', async () => {
+  const symlinkFixture = makeRepository();
+  const submoduleFixture = makeRepository();
+  try {
+    symlinkSync('hidden.txt', join(symlinkFixture.repository, 'tracked-link'));
+    git(symlinkFixture.repository, ['add', 'tracked-link']);
+    git(symlinkFixture.repository, ['commit', '--quiet', '-m', 'tracked symlink']);
+    symlinkFixture.commit = git(symlinkFixture.repository, ['rev-parse', 'HEAD'])
+      .stdout.toString('utf8').trim();
+    await assert.rejects(
+      completeSnapshotFor(symlinkFixture),
+      /TRACKED_PATH_NOT_REGULAR_BLOB_tracked-link/,
+    );
+
+    git(submoduleFixture.repository, [
+      'update-index',
+      '--add',
+      '--cacheinfo',
+      `160000,${submoduleFixture.commit},vendor`,
+    ]);
+    git(submoduleFixture.repository, ['commit', '--quiet', '-m', 'gitlink']);
+    submoduleFixture.commit = git(submoduleFixture.repository, ['rev-parse', 'HEAD'])
+      .stdout.toString('utf8').trim();
+    await assert.rejects(
+      completeSnapshotFor(submoduleFixture),
+      /TRACKED_PATH_NOT_REGULAR_BLOB_vendor/,
+    );
+  } finally {
+    rmSync(symlinkFixture.repository, { recursive: true, force: true });
+    rmSync(submoduleFixture.repository, { recursive: true, force: true });
+  }
+});
+
+test('complete-tree selection and resource bounds fail closed', async () => {
+  const fixture = makeRepository();
+  try {
+    await assert.rejects(readTrackedTreeSnapshot({
+      repository: fixture.repository,
+      commit: fixture.commit,
+      paths: ['hidden.txt'],
+      allTrackedPaths: true,
+      expectedGitRuntime: await expectedGitRuntime(),
+    }), /TRACKED_PATH_SELECTION_AMBIGUOUS/);
+    await assert.rejects(
+      completeSnapshotFor(fixture, { bounds: { maxTrackedPaths: 2 } }),
+      /TRACKED_TREE_ENTRY_BOUND_EXCEEDED/,
+    );
+    await assert.rejects(
+      completeSnapshotFor(fixture, { bounds: { maxTotalBytes: 1 } }),
+      /TRACKED_TREE_TOTAL_BYTE_BOUND_EXCEEDED/,
+    );
+    await assert.rejects(
+      completeSnapshotFor(fixture, { bounds: { maxDepth: 1 } }),
+      /TRACKED_PATH_DEPTH_BOUND_EXCEEDED|TRACKED_TREE_DEPTH_BOUND_EXCEEDED/,
+    );
+    await assert.rejects(
+      completeSnapshotFor(fixture, { bounds: { maxPathBytes: 4 } }),
+      /TRACKED_PATH_BYTE_BOUND_EXCEEDED/,
+    );
+    await assert.rejects(
+      completeSnapshotFor(fixture, { bounds: { maxTotalBytes: 1024 * 1024 * 1024 } }),
+      /COMPLETE_TREE_BOUND_INVALID_maxTotalBytes/,
+    );
+  } finally {
+    rmSync(fixture.repository, { recursive: true, force: true });
+  }
+});
 
 test('commit snapshot ignores repo-local config, hooks, filters, and fsmonitor', async () => {
   const fixture = makeRepository();
