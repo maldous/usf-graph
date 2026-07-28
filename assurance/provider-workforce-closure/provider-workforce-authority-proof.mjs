@@ -9,36 +9,42 @@ import {
   statSync, writeFileSync,
 } from 'node:fs';
 import {
-  dirname, join, relative, resolve, sep,
-} from 'node:path';
-
+  createRequire, isBuiltin, registerHooks,
+} from 'node:module';
 import {
-  PROVIDER_FACTORY_PATH_SCOPES,
-  PROVIDER_FACTORY_RULES,
-  createMaterialisationPlan,
-  decisionAuthorisesPath,
-  scopedPermissionSetDigest,
-  validateMaterialisationPlan,
-  validatePlanOperation,
-} from '../../capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs';
+  dirname, isAbsolute, join, relative, resolve, sep,
+} from 'node:path';
+import { pathToFileURL } from 'node:url';
+
 import {
   PROVIDER_WORKFORCE_IMPLEMENTATION_SOURCE_PATHS,
   PROVIDER_WORKFORCE_PROOF_INPUT_PATHS,
   inspectProviderProofNodeDependencies,
   normaliseDeterministicPytestOutput,
   prepareExactSessionOutputRoot,
+  PROVIDER_MATERIALISATION_MUTATION_SOURCE_PATHS,
   runProviderMaterialisationAuthorityMutations,
+  verifyProviderProofNodeDependencyEvidence,
 } from './provider-materialisation-authority-mutations.mjs';
 import {
   inspectPinnedPythonRuntime,
   spawnPinnedLocalShaclRuntime,
 } from '../semantic-model-compilation/local-shacl-validation.mjs';
+import {
+  collectNodeRuntimeClosure,
+  readTrackedTreeSnapshot,
+  runtimeDescriptorFromEvidence,
+} from './authority-execution-hermeticity.mjs';
+import {
+  PROVIDER_PROOF_ALGORITHM_SOURCE_PATHS,
+  verifyProviderProofSourceManifest,
+} from './provider-proof-source-manifest.mjs';
 
 const semanticRoot = resolve(dirname(import.meta.filename), '..', '..');
-const nodeDependencyEvidence = inspectProviderProofNodeDependencies({ repositoryRoot: semanticRoot });
-const { DataFactory, Parser, Store } = await import('n3');
-inspectProviderProofNodeDependencies({ repositoryRoot: semanticRoot });
-const { namedNode } = DataFactory;
+const PROVIDER_PROOF_PATH =
+  'assurance/provider-workforce-closure/provider-workforce-authority-proof.mjs';
+export const PROVIDER_PROOF_EVIDENCE_SCHEMA_VERSION = 3;
+export const PROVIDER_PROOF_RECEIPT_SCHEMA_VERSION = 3;
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const COMMIT = /^[0-9a-f]{40}$/;
@@ -95,6 +101,44 @@ const gitRuntimeDependencyEvidence = Object.freeze({
   nativeObjectCount: gitNativeObjectRecords.length,
   nativeObjectSetDigest: sha256(canonicalJson(gitNativeObjectRecords)),
 });
+
+function runtimeObjectRecord(path) {
+  const canonicalPath = realpathSync(path);
+  const stat = lstatSync(canonicalPath, { bigint: true });
+  if (!stat.isFile() || stat.isSymbolicLink()) {
+    throw new Error('ADMITTED_RUNTIME_OBJECT_NOT_EXACT_FILE');
+  }
+  return Object.freeze({
+    path: canonicalPath,
+    digest: sha256(readFileSync(canonicalPath)),
+    device: stat.dev.toString(),
+    inode: stat.ino.toString(),
+    mode: Number(stat.mode & 0o7777n),
+    linkCount: stat.nlink.toString(),
+    byteLength: stat.size.toString(),
+    ctimeNanoseconds: stat.ctimeNs.toString(),
+  });
+}
+
+function admittedGitRuntimeDescriptor() {
+  const mappedNativeObjects = [
+    GIT_EXECUTABLE_PATH,
+    ...GIT_NATIVE_OBJECTS.map(([path]) => path),
+  ].map(runtimeObjectRecord).sort((left, right) => utf8Compare(left.path, right.path));
+  const executable = mappedNativeObjects.find(
+    ({ path }) => path === gitRuntime.resolvedExecutablePath,
+  );
+  if (!executable || executable.digest !== gitRuntime.executableDigest) {
+    throw new Error('ADMITTED_GIT_EXECUTABLE_MISMATCH');
+  }
+  return Object.freeze({
+    schemaVersion: 1,
+    executable,
+    mappedNativeObjectCount: mappedNativeObjects.length,
+    mappedNativeObjectSetDigest: sha256(canonicalJson(mappedNativeObjects)),
+    mappedNativeObjects: Object.freeze(mappedNativeObjects),
+  });
+}
 export const FOCUSED_PYTEST_BOOTSTRAP = String.raw`
 import sys
 
@@ -279,6 +323,289 @@ function exactFileBytes(path, label) {
   } finally {
     closeSync(descriptor);
   }
+}
+
+function assertPathWithin(root, path, code) {
+  const containment = relative(root, path);
+  if (containment === '..' || containment.startsWith(`..${sep}`) || isAbsolute(containment)) {
+    throw new Error(code);
+  }
+  return path;
+}
+
+function makeExactDirectory(path, directories) {
+  mkdirSync(path, { recursive: false, mode: 0o700 });
+  const stat = lstatSync(path);
+  if (!stat.isDirectory() || stat.isSymbolicLink() || realpathSync(path) !== path) {
+    throw new Error('PRIVATE_SNAPSHOT_DIRECTORY_INVALID');
+  }
+  directories.push(path);
+}
+
+function materialiseTrackedSnapshot({
+  snapshot,
+  destination,
+  createRoot = true,
+  seal = true,
+}) {
+  if (!snapshot || snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.records)) {
+    throw new Error('TRACKED_SOURCE_SNAPSHOT_REQUIRED');
+  }
+  const directories = [];
+  if (createRoot) {
+    makeExactDirectory(destination, directories);
+  } else {
+    const stat = lstatSync(destination);
+    if (!stat.isDirectory() || stat.isSymbolicLink() || realpathSync(destination) !== destination) {
+      throw new Error('TRACKED_SOURCE_SNAPSHOT_DESTINATION_INVALID');
+    }
+  }
+  for (const record of snapshot.records) {
+    if (!Buffer.isBuffer(record.bytes)
+      || sha256(record.bytes) !== record.digest
+      || record.bytes.length !== record.byteLength
+      || !/^(?:100644|100755)$/.test(record.mode)) {
+      throw new Error(`TRACKED_SOURCE_SNAPSHOT_RECORD_INVALID:${record.path}`);
+    }
+    let directory = destination;
+    for (const component of record.path.split('/').slice(0, -1)) {
+      directory = join(directory, component);
+      assertPathWithin(destination, directory, 'TRACKED_SOURCE_SNAPSHOT_PATH_ESCAPE');
+      if (!existsSync(directory)) makeExactDirectory(directory, directories);
+    }
+    const path = join(destination, ...record.path.split('/'));
+    assertPathWithin(destination, path, 'TRACKED_SOURCE_SNAPSHOT_PATH_ESCAPE');
+    writeFileSync(path, record.bytes, {
+      flag: 'wx',
+      mode: record.mode === '100755' ? 0o500 : 0o400,
+    });
+    const copied = exactFileBytes(path, 'TRACKED_SOURCE_SNAPSHOT_FILE');
+    if (copied.bytes.length !== record.byteLength || sha256(copied.bytes) !== record.digest) {
+      throw new Error(`TRACKED_SOURCE_SNAPSHOT_COPY_MISMATCH:${record.path}`);
+    }
+  }
+  if (seal) {
+    for (const directory of directories.reverse()) chmodSync(directory, 0o500);
+  }
+  return Object.freeze({
+    root: destination,
+    commit: snapshot.commit,
+    tree: snapshot.tree,
+    recordCount: snapshot.records.length,
+    sourceSetDigest: snapshot.evidence.sourceSetDigest,
+    directories: Object.freeze([...directories]),
+  });
+}
+
+function copyExactTree(sourceRoot, destinationRoot, directories) {
+  makeExactDirectory(destinationRoot, directories);
+  const visit = (sourceDirectory, destinationDirectory) => {
+    const beforeDirectory = identityOf(lstatSync(sourceDirectory, { bigint: true }));
+    for (const name of readdirSync(sourceDirectory).sort(utf8Compare)) {
+      const source = join(sourceDirectory, name);
+      const destination = join(destinationDirectory, name);
+      const stat = lstatSync(source, { bigint: true });
+      if (stat.isDirectory() && !stat.isSymbolicLink()) {
+        makeExactDirectory(destination, directories);
+        visit(source, destination);
+      } else if (stat.isFile() && !stat.isSymbolicLink() && stat.nlink === 1n) {
+        const exact = exactFileBytes(source, 'NODE_DEPENDENCY_SOURCE');
+        writeFileSync(destination, exact.bytes, {
+          flag: 'wx',
+          mode: Number(stat.mode & 0o111n) === 0 ? 0o400 : 0o500,
+        });
+        if (sha256(exactFileBytes(destination, 'NODE_DEPENDENCY_SNAPSHOT').bytes)
+          !== sha256(exact.bytes)) {
+          throw new Error('NODE_DEPENDENCY_SNAPSHOT_COPY_MISMATCH');
+        }
+      } else {
+        throw new Error('NODE_DEPENDENCY_SNAPSHOT_ENTRY_INVALID');
+      }
+    }
+    if (canonicalJson(identityOf(lstatSync(sourceDirectory, { bigint: true })))
+      !== canonicalJson(beforeDirectory)) {
+      throw new Error('NODE_DEPENDENCY_SOURCE_DIRECTORY_MOVED');
+    }
+  };
+  visit(sourceRoot, destinationRoot);
+}
+
+function createPrivateNodeDependencySnapshot({
+  repositoryRoot,
+  destination,
+  admittedEvidence,
+  seal = true,
+}) {
+  verifyProviderProofNodeDependencyEvidence(admittedEvidence, { repositoryRoot });
+  const directories = [];
+  makeExactDirectory(destination, directories);
+  for (const name of ['package.json', 'package-lock.json']) {
+    const source = exactFileBytes(join(repositoryRoot, name), 'NODE_PACKAGE_CONTEXT');
+    writeFileSync(join(destination, name), source.bytes, { flag: 'wx', mode: 0o400 });
+  }
+  const nodeModules = join(destination, 'node_modules');
+  makeExactDirectory(nodeModules, directories);
+  for (const { name } of admittedEvidence.packages) {
+    const source = join(repositoryRoot, 'node_modules', ...name.split('/'));
+    let destinationPackage = nodeModules;
+    const components = name.split('/');
+    if (components.length === 2) {
+      destinationPackage = join(nodeModules, components[0]);
+      if (!existsSync(destinationPackage)) makeExactDirectory(destinationPackage, directories);
+      destinationPackage = join(destinationPackage, components[1]);
+    } else {
+      [destinationPackage] = [join(nodeModules, components[0])];
+    }
+    copyExactTree(source, destinationPackage, directories);
+  }
+  const copiedEvidence = inspectProviderProofNodeDependencies({ repositoryRoot: destination });
+  if (canonicalJson(copiedEvidence) !== canonicalJson(admittedEvidence)) {
+    throw new Error('NODE_DEPENDENCY_PRIVATE_SNAPSHOT_EVIDENCE_MISMATCH');
+  }
+  verifyProviderProofNodeDependencyEvidence(admittedEvidence, { repositoryRoot });
+  if (seal) {
+    for (const directory of directories.reverse()) chmodSync(directory, 0o500);
+  }
+  return Object.freeze({
+    root: destination,
+    evidence: copiedEvidence,
+    sourceSetDigest: copiedEvidence.packageByteSetDigest,
+    directories: Object.freeze([...directories]),
+  });
+}
+
+function sealPrivateSnapshotTree(root) {
+  const directories = [];
+  const visit = (directory) => {
+    directories.push(directory);
+    for (const name of readdirSync(directory).sort(utf8Compare)) {
+      const path = join(directory, name);
+      const stat = lstatSync(path);
+      if (stat.isDirectory() && !stat.isSymbolicLink()) {
+        visit(path);
+      } else if (!stat.isFile() || stat.isSymbolicLink()) {
+        throw new Error('PRIVATE_SNAPSHOT_ENTRY_INVALID');
+      }
+    }
+  };
+  visit(root);
+  for (const directory of directories.reverse()) chmodSync(directory, 0o500);
+}
+
+export function resolveVerifiedRootPackageEntrypoint({ repositoryRoot, packageName }) {
+  if (typeof repositoryRoot !== 'string' || typeof packageName !== 'string'
+    || !/^(?:@[A-Za-z0-9._-]+\/)?[A-Za-z0-9._-]+$/.test(packageName)) {
+    throw new Error('VERIFIED_ROOT_PACKAGE_ARGUMENT_INVALID');
+  }
+  const root = realpathSync(repositoryRoot);
+  if (root !== resolve(repositoryRoot) || lstatSync(repositoryRoot).isSymbolicLink()) {
+    throw new Error('VERIFIED_ROOT_PACKAGE_REPOSITORY_INVALID');
+  }
+  const rootRequire = createRequire(join(root, 'package.json'));
+  const packageRoot = join(root, 'node_modules', ...packageName.split('/'));
+  const packageJsonPath = rootRequire.resolve(`${packageName}/package.json`);
+  if (packageJsonPath !== join(packageRoot, 'package.json')) {
+    throw new Error('VERIFIED_ROOT_PACKAGE_MANIFEST_RESOLUTION_MISMATCH');
+  }
+  const entrypoint = rootRequire.resolve(packageName);
+  assertPathWithin(packageRoot, entrypoint, 'VERIFIED_ROOT_PACKAGE_ENTRYPOINT_OUTSIDE_ROOT');
+  if (lstatSync(entrypoint).isSymbolicLink() || !lstatSync(entrypoint).isFile()
+    || realpathSync(entrypoint) !== entrypoint) {
+    throw new Error('VERIFIED_ROOT_PACKAGE_ENTRYPOINT_INVALID');
+  }
+  return Object.freeze({ entrypoint, packageJsonPath, packageRoot, repositoryRoot: root });
+}
+
+export function loadVerifiedRootPackage({ repositoryRoot, packageName }) {
+  const binding = resolveVerifiedRootPackageEntrypoint({ repositoryRoot, packageName });
+  const rootRequire = createRequire(join(binding.repositoryRoot, 'package.json'));
+  const hooks = registerHooks({
+    resolve(specifier, context, nextResolve) {
+      if (isBuiltin(specifier)) return nextResolve(specifier, context);
+      const resolved = nextResolve(specifier, context);
+      if (!resolved?.url?.startsWith('file:')) {
+        throw new Error('VERIFIED_ROOT_PACKAGE_NON_FILE_RESOLUTION_REFUSED');
+      }
+      const path = realpathSync(new URL(resolved.url));
+      assertPathWithin(
+        join(binding.repositoryRoot, 'node_modules'),
+        path,
+        'VERIFIED_ROOT_PACKAGE_RESOLUTION_OUTSIDE_PRIVATE_SNAPSHOT',
+      );
+      return resolved;
+    },
+  });
+  try {
+    const loaded = rootRequire(packageName);
+    if (rootRequire.resolve(packageName) !== binding.entrypoint) {
+      throw new Error('VERIFIED_ROOT_PACKAGE_ENTRYPOINT_MOVED');
+    }
+    return loaded;
+  } finally {
+    hooks.deregister();
+  }
+}
+
+export async function loadVerifiedPrivateModule({ repositoryRoot, modulePath }) {
+  if (modulePath
+    !== 'capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs') {
+    throw new Error('VERIFIED_PRIVATE_MODULE_PATH_UNSUPPORTED');
+  }
+  const root = realpathSync(repositoryRoot);
+  const entrypoint = resolve(root, modulePath);
+  assertPathWithin(root, entrypoint, 'VERIFIED_PRIVATE_MODULE_ENTRYPOINT_OUTSIDE_ROOT');
+  const exact = exactFileBytes(entrypoint, 'VERIFIED_PRIVATE_MODULE_ENTRYPOINT');
+  const hooks = registerHooks({
+    resolve(specifier, context, nextResolve) {
+      if (isBuiltin(specifier)) return nextResolve(specifier, context);
+      if (specifier
+        === '../../capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs') {
+        return { shortCircuit: true, url: pathToFileURL(entrypoint).href };
+      }
+      const resolved = nextResolve(specifier, context);
+      if (!resolved?.url?.startsWith('file:')) {
+        throw new Error('VERIFIED_PRIVATE_MODULE_NON_FILE_RESOLUTION_REFUSED');
+      }
+      const path = realpathSync(new URL(resolved.url));
+      assertPathWithin(root, path, 'VERIFIED_PRIVATE_MODULE_RESOLUTION_OUTSIDE_ROOT');
+      return resolved;
+    },
+  });
+  try {
+    const loaded = await import(
+      '../../capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs'
+    );
+    const after = exactFileBytes(entrypoint, 'VERIFIED_PRIVATE_MODULE_ENTRYPOINT');
+    if (sha256(after.bytes) !== sha256(exact.bytes)
+      || canonicalJson(after.identity) !== canonicalJson(exact.identity)) {
+      throw new Error('VERIFIED_PRIVATE_MODULE_ENTRYPOINT_CHANGED');
+    }
+    return loaded;
+  } finally {
+    hooks.deregister();
+  }
+}
+
+export function providerProofSourceBinding({ repositoryRoot, trackedSourcePaths }) {
+  const verified = verifyProviderProofSourceManifest({
+    repositoryRoot,
+    trackedSourcePaths,
+  });
+  const proofAlgorithmSources = verified.sourceRecords.map((record) => Object.freeze({
+    byteSize: record.byteSize,
+    digest: record.digest,
+    path: record.path,
+  }));
+  const primary = proofAlgorithmSources.find(({ path }) => path === PROVIDER_PROOF_PATH);
+  if (!primary) throw new Error('PROVIDER_PROOF_PRIMARY_SOURCE_MISSING');
+  return Object.freeze({
+    canonicalPublicationSourceSetDigest: verified.publicationSourceSetDigest,
+    proofAlgorithmImportClosureDigest: verified.importClosureDigest,
+    proofAlgorithmSourceDigest: primary.digest,
+    proofAlgorithmSourceManifestDigest: verified.manifestDigest,
+    proofAlgorithmSourceSetDigest: verified.sourceSetDigest,
+    proofAlgorithmSources: Object.freeze(proofAlgorithmSources),
+  });
 }
 
 export function snapshotRepositoryTree(root) {
@@ -740,6 +1067,9 @@ const authorityDigest = requiredEnvironment('USF_AUTHORITY_DIGEST', SHA256);
 const evaluatedAt = requiredEnvironment('USF_EVALUATED_AT', DATE_TIME);
 if (!Number.isFinite(Date.parse(evaluatedAt))) throw new Error('USF_EVALUATED_AT_INVALID');
 const casRoot = exactDirectory(requiredEnvironment('USF_CAS_ROOT'), 'CAS_ROOT');
+const graphRepo = exactDirectory(requiredEnvironment('USF_REPO'), 'GRAPH_REPO');
+const graphCommit = requiredEnvironment('USF_GRAPH_COMMIT', COMMIT);
+const expectedGraphTree = requiredEnvironment('USF_EXPECTED_GRAPH_TREE', COMMIT);
 const factoryRepo = exactDirectory(requiredEnvironment('USF_FACTORY_REPO'), 'FACTORY_REPO');
 const factoryCommit = requiredEnvironment('USF_FACTORY_COMMIT', COMMIT);
 const expectedFactoryTree = requiredEnvironment('USF_EXPECTED_FACTORY_TREE', COMMIT);
@@ -752,6 +1082,11 @@ const outputRelativeToFactory = relative(factoryRepo, outputRoot);
 if (outputRelativeToFactory === '' || (!outputRelativeToFactory.startsWith(`..${sep}`) && outputRelativeToFactory !== '..')) {
   throw new Error('SESSION_OUTPUT_ROOT_MUST_BE_OUTSIDE_FACTORY_REPOSITORY');
 }
+const outputRelativeToGraph = relative(graphRepo, outputRoot);
+if (outputRelativeToGraph === '' || (!outputRelativeToGraph.startsWith(`..${sep}`)
+  && outputRelativeToGraph !== '..' && !outputRelativeToGraph.startsWith(`.work${sep}`))) {
+  throw new Error('SESSION_OUTPUT_ROOT_GRAPH_LOCATION_INVALID');
+}
 const python = requiredEnvironment('USF_PYTHON');
 const pythonRuntime = Object.freeze({
   executablePath: python,
@@ -759,23 +1094,104 @@ const pythonRuntime = Object.freeze({
   executableDigest: sha256(readFileSync(realpathSync(python))),
 });
 const pythonRuntimeDependencyEvidence = inspectPinnedPythonRuntime(pythonRuntime);
-
-const head = run('factory-head', '/usr/bin/git', ['rev-parse', 'HEAD'], { cwd: factoryRepo }).toString().trim();
-const tree = run('factory-tree', '/usr/bin/git', ['rev-parse', `${factoryCommit}^{tree}`], { cwd: factoryRepo }).toString().trim();
-const status = run('factory-status', '/usr/bin/git', ['status', '--porcelain=v1', '--untracked-files=all'], { cwd: factoryRepo }).toString();
-record('factory-commit-exact', factoryCommit, head);
-record('factory-tree-exact', expectedFactoryTree, tree);
-record('factory-worktree-clean', '', status);
-
 const sourcePaths = PROVIDER_WORKFORCE_IMPLEMENTATION_SOURCE_PATHS;
 const proofInputPaths = PROVIDER_WORKFORCE_PROOF_INPUT_PATHS;
 const subscriptionBoundarySourcePaths = Object.freeze(['tests/test_provider_coverage.py']);
-const sourceReadPaths = [...sourcePaths, ...proofInputPaths, ...subscriptionBoundarySourcePaths];
-const sources = Object.fromEntries(sourceReadPaths.map((path) => [
+const sourceReadPaths = [...new Set([
+  ...sourcePaths,
+  ...proofInputPaths,
+  ...subscriptionBoundarySourcePaths,
+])].sort(utf8Compare);
+const graphSourcePaths = [...new Set([
+  ...PROVIDER_PROOF_ALGORITHM_SOURCE_PATHS,
+  ...PROVIDER_MATERIALISATION_MUTATION_SOURCE_PATHS,
+])].sort(utf8Compare);
+const admittedGitRuntime = admittedGitRuntimeDescriptor();
+const admittedNodeRuntime = runtimeDescriptorFromEvidence(collectNodeRuntimeClosure());
+const [graphSnapshot, factorySnapshot] = await Promise.all([
+  readTrackedTreeSnapshot({
+    repository: graphRepo,
+    commit: graphCommit,
+    paths: graphSourcePaths,
+    expectedGitRuntime: admittedGitRuntime,
+  }),
+  readTrackedTreeSnapshot({
+    repository: factoryRepo,
+    commit: factoryCommit,
+    paths: sourceReadPaths,
+    expectedGitRuntime: admittedGitRuntime,
+  }),
+]);
+if (graphSnapshot.tree !== expectedGraphTree) throw new Error('GRAPH_TREE_MISMATCH');
+if (factorySnapshot.tree !== expectedFactoryTree) throw new Error('FACTORY_TREE_MISMATCH');
+const factorySourceSnapshot = materialiseTrackedSnapshot({
+  snapshot: factorySnapshot,
+  destination: join(outputRoot, 'factory-source-snapshot'),
+});
+const factorySourceRoot = factorySourceSnapshot.root;
+const nodeDependencyRepository = exactDirectory(
+  process.env.USF_NODE_DEPENDENCY_REPO || graphRepo,
+  'NODE_DEPENDENCY_REPO',
+);
+const admittedNodeDependencyEvidence = inspectProviderProofNodeDependencies({
+  repositoryRoot: nodeDependencyRepository,
+});
+const nodeDependencySnapshot = createPrivateNodeDependencySnapshot({
+  repositoryRoot: nodeDependencyRepository,
+  destination: join(outputRoot, 'graph-execution-snapshot'),
+  admittedEvidence: admittedNodeDependencyEvidence,
+  seal: false,
+});
+const graphSourceSnapshot = materialiseTrackedSnapshot({
+  snapshot: graphSnapshot,
+  destination: nodeDependencySnapshot.root,
+  createRoot: false,
+  seal: false,
+});
+sealPrivateSnapshotTree(nodeDependencySnapshot.root);
+const graphSourceRoot = graphSourceSnapshot.root;
+const proofSourceBinding = providerProofSourceBinding({
+  repositoryRoot: graphSourceRoot,
+  trackedSourcePaths: graphSnapshot.records.map(({ path }) => path),
+});
+const nodeDependencyEvidence = nodeDependencySnapshot.evidence;
+const {
+  DataFactory,
+  Parser,
+  Store,
+} = loadVerifiedRootPackage({
+  repositoryRoot: graphSourceRoot,
+  packageName: 'n3',
+});
+if (canonicalJson(runtimeDescriptorFromEvidence(collectNodeRuntimeClosure()))
+  !== canonicalJson(admittedNodeRuntime)) {
+  throw new Error('ADMITTED_NODE_RUNTIME_CHANGED_DURING_DEPENDENCY_LOAD');
+}
+const { namedNode } = DataFactory;
+const {
+  PROVIDER_FACTORY_PATH_SCOPES,
+  PROVIDER_FACTORY_RULES,
+  createMaterialisationPlan,
+  decisionAuthorisesPath,
+  scopedPermissionSetDigest,
+  validateMaterialisationPlan,
+  validatePlanOperation,
+} = await loadVerifiedPrivateModule({
+  repositoryRoot: graphSourceRoot,
+  modulePath:
+    'capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs',
+});
+const factorySourceByPath = new Map(factorySnapshot.records.map((record) => [record.path, record]));
+const sources = Object.fromEntries(sourceReadPaths.map((path) => {
+  const record = factorySourceByPath.get(path);
+  if (!record) throw new Error(`FACTORY_SOURCE_SNAPSHOT_RECORD_MISSING:${path}`);
+  return [path, record.bytes];
+}));
+const sourceRecords = sourcePaths.map((path) => ({
   path,
-  run(`source-${sha256(path).slice(7, 15)}`, '/usr/bin/git', ['show', `${factoryCommit}:${path}`], { cwd: factoryRepo }),
-]));
-const sourceRecords = sourcePaths.map((path) => ({ path, digest: sha256(sources[path]), byteSize: sources[path].length }));
+  digest: sha256(sources[path]),
+  byteSize: sources[path].length,
+}));
 const implementationSourceDigest = sha256(canonicalJson(sourceRecords));
 const proofInputSourceRecords = proofInputPaths.map((path) => ({
   path,
@@ -785,9 +1201,24 @@ const proofInputSourceRecords = proofInputPaths.map((path) => ({
 const proofInputSourceDigest = sha256(canonicalJson(proofInputSourceRecords));
 const text = (path) => sources[path].toString('utf8');
 
-const trackedPaths = run('tracked-paths', '/usr/bin/git', ['ls-tree', '-r', '--name-only', factoryCommit], { cwd: factoryRepo })
-  .toString('utf8').trim().split('\n').filter(Boolean);
-record('secrets-outside-git', [], trackedPaths.filter((path) => /(^|\/)(\.env|.*\.(?:pem|pk8|key)|credentials\.json|session\.json)$/i.test(path)));
+record('factory-commit-exact', factoryCommit, factorySnapshot.commit, {
+  graphCommit: graphSnapshot.commit,
+  graphTree: graphSnapshot.tree,
+  sourceIsolation: 'PRIVATE_COMMITTED_TREE_SNAPSHOTS',
+});
+record('factory-tree-exact', expectedFactoryTree, factorySnapshot.tree);
+record('factory-worktree-clean', {
+  mutableRepositoryContextConsulted: false,
+  sourceExecutionRoot: 'PRIVATE_COMMITTED_TREE_SNAPSHOT',
+}, {
+  mutableRepositoryContextConsulted: false,
+  sourceExecutionRoot: 'PRIVATE_COMMITTED_TREE_SNAPSHOT',
+});
+const admittedTrackedPaths = factorySnapshot.records.map(({ path }) => path);
+record('secrets-outside-git', [], admittedTrackedPaths.filter((path) => /(^|\/)(\.env|.*\.(?:pem|pk8|key)|credentials\.json|session\.json)$/i.test(path)), {
+  scope: 'EXACT_ADMITTED_FACTORY_PROOF_SOURCE_SET',
+  sourceSetDigest: factorySnapshot.evidence.sourceSetDigest,
+});
 record('environment-file-ignored', true, /(?:^|\n)\.env(?:\n|$)/.test(text('.gitignore')));
 record('environment-names-only', true, /BY NAME ONLY/.test(text('scripts/check-provider-env.py')) && /NEVER emits a credential value/.test(text('src/usf_factory/secrets.py')));
 record('unknown-token-not-loaded', true, /Only an exact allowlist/.test(text('src/usf_factory/secrets.py')) && /UNMAPPED_CANDIDATES/.test(text('src/usf_factory/secrets.py')));
@@ -894,7 +1325,7 @@ record('provider-failure-isolated', true, closure.attempts.includes('b/one') && 
 
 const exactPaths = [...new Set(
   new Parser({ format: 'application/trig' })
-    .parse(readFileSync(join(semanticRoot, 'semantic-model/realisation/bindings.trig'), 'utf8'))
+    .parse(readFileSync(join(graphSourceRoot, 'semantic-model/realisation/bindings.trig'), 'utf8'))
     .filter((quad) => quad.subject.value === 'urn:usf:realisationdecision:providerconfigurationplanefactoryworkforce'
       && quad.predicate.value === 'urn:usf:ontology:authorisesSourcePath')
     .map((quad) => quad.object.value),
@@ -991,7 +1422,7 @@ for (const [path, format] of [
   ['semantic-model/contracts/capabilities.trig', 'application/trig'],
   ['semantic-model/realisation/bindings.trig', 'application/trig'],
 ]) {
-  semanticModel.addQuads(new Parser({ format }).parse(readFileSync(join(semanticRoot, path), 'utf8')));
+  semanticModel.addQuads(new Parser({ format }).parse(readFileSync(join(graphSourceRoot, path), 'utf8')));
 }
 const iri = (local) => namedNode(`urn:usf:${local}`);
 const modelObjects = (subject, predicate) => semanticModel.getObjects(subject, predicate, null)
@@ -1098,7 +1529,7 @@ record('legacy-materialisation-contracts-remain-unscoped', [
 ], legacyScopedPermissions);
 
 const materialisationMutationEvidence = runProviderMaterialisationAuthorityMutations({
-  repositoryRoot: semanticRoot,
+  repositoryRoot: graphSourceRoot,
   runtime: pythonRuntime,
 });
 record('provider-materialisation-hostile-mutations', {
@@ -1115,7 +1546,7 @@ const pytestArgs = [
   '-I', '-S', '-',
   join(outputRoot, 'python-runtime-source-snapshot', 'stdlib'),
   join(pythonRuntimeDependencyEvidence.venvPrefix, 'lib', 'python3.11', 'site-packages'),
-  factoryRepo,
+  factorySourceRoot,
   join(outputRoot, 'python-bytecode'),
   join(outputRoot, 'python-runtime-source-manifest.json'),
   join(outputRoot, 'poison-pytest-plugin'),
@@ -1129,7 +1560,7 @@ const pytestArgs = [
   'tests/test_secrets.py',
   'tests/test_free_tier_classification.py',
 ];
-const factoryTreeBeforePytest = snapshotRepositoryTree(factoryRepo);
+const factoryTreeBeforePytest = snapshotRepositoryTree(factorySourceRoot);
 const cacheResidueBeforePytest = cacheResiduePaths(factoryTreeBeforePytest);
 const pythonSourceSnapshot = createReadOnlyPythonSourceSnapshot({
   runtimeEvidence: pythonRuntimeDependencyEvidence,
@@ -1156,7 +1587,7 @@ if (poisonPlugin.poisonRoot !== join(outputRoot, 'poison-pytest-plugin')
 }
 const pythonRuntimeBeforePytest = inspectPinnedPythonRuntime(pythonRuntime);
 const pytest = run('focused-factory-tests', python, pytestArgs, {
-  cwd: factoryRepo,
+  cwd: factorySourceRoot,
   env: {
     ...HERMETIC_COMMAND_ENV,
     PYTHONDONTWRITEBYTECODE: '1',
@@ -1196,19 +1627,11 @@ if (isolationEvidenceBytes.toString('utf8') !== canonicalJson(isolationEvidence)
   throw new Error('PYTEST_ISOLATION_EVIDENCE_INVALID');
 }
 if (existsSync(poisonPlugin.marker)) throw new Error('PYTEST_POISON_PLUGIN_AUTOLOADED');
-const factoryTreeAfterPytest = snapshotRepositoryTree(factoryRepo);
+const factoryTreeAfterPytest = snapshotRepositoryTree(factorySourceRoot);
 const cacheResidueAfterPytest = cacheResiduePaths(factoryTreeAfterPytest);
 const newCacheResidue = cacheResidueAfterPytest
   .filter((path) => !cacheResidueBeforePytest.includes(path))
   .sort(utf8Compare);
-const postPytestTree = run('factory-tree-post-pytest', '/usr/bin/git', ['rev-parse', `${factoryCommit}^{tree}`], { cwd: factoryRepo })
-  .toString().trim();
-const postPytestStatus = run(
-  'factory-status-post-pytest',
-  '/usr/bin/git',
-  ['status', '--porcelain=v1', '--untracked-files=all'],
-  { cwd: factoryRepo },
-).toString();
 record('focused-pytest-runtime-closure-stable', pythonRuntimeBeforePytest, pythonRuntimeAfterPytest);
 record('focused-pytest-python-source-snapshot', {
   pyvenvConfigurationDigest: pythonSourceSnapshot.evidence.pyvenvConfigurationDigest,
@@ -1236,8 +1659,14 @@ record('focused-pytest-factory-tree-invariant', {
   identityInvariant: factoryTreeBeforePytest.identityDigest === factoryTreeAfterPytest.identityDigest,
 });
 record('focused-pytest-no-new-cache-residue-outside-session-output', [], newCacheResidue);
-record('focused-pytest-git-tree-invariant', tree, postPytestTree);
-record('focused-pytest-worktree-remains-clean', '', postPytestStatus);
+record('focused-pytest-git-tree-invariant', expectedFactoryTree, factorySnapshot.tree);
+record('focused-pytest-worktree-remains-clean', {
+  mutableRepositoryContextConsulted: false,
+  sourceExecutionRoot: 'PRIVATE_COMMITTED_TREE_SNAPSHOT',
+}, {
+  mutableRepositoryContextConsulted: false,
+  sourceExecutionRoot: 'PRIVATE_COMMITTED_TREE_SNAPSHOT',
+});
 record('focused-deterministic-tests', '100', pytestProgress.progressLines.at(-1)?.match(/\[\s*(\d+)%\]$/)?.[1] ?? null);
 record('focused-deterministic-test-count', 74, pytestProgress.completedCaseCount);
 record('focused-pytest-workload-runtime', {
@@ -1269,15 +1698,14 @@ record('credential-values-absent-from-proof-output', {
 });
 
 cases.sort((left, right) => utf8Compare(left.id, right.id));
-const proofAlgorithmSources = [
-  'assurance/provider-workforce-closure/provider-workforce-authority-proof.mjs',
-  'assurance/provider-workforce-closure/provider-materialisation-authority-mutations.mjs',
-  'assurance/provider-workforce-closure/provider-workforce-authority-projection.mjs',
-  'assurance/semantic-model-compilation/local-shacl-validation.mjs',
-  'capabilities/semantic-model-compilation/authority-binding.mjs',
-  'capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs',
-].map((path) => ({ path, digest: sha256(readFileSync(join(semanticRoot, path))) }));
-const proofAlgorithmSourceDigest = sha256(canonicalJson(proofAlgorithmSources));
+const {
+  canonicalPublicationSourceSetDigest,
+  proofAlgorithmImportClosureDigest,
+  proofAlgorithmSourceDigest,
+  proofAlgorithmSourceManifestDigest,
+  proofAlgorithmSourceSetDigest,
+  proofAlgorithmSources,
+} = proofSourceBinding;
 const runtimeDependencyEvidence = Object.freeze({
   git: gitRuntimeDependencyEvidence,
   node: nodeDependencyEvidence,
@@ -1316,7 +1744,7 @@ const authorityClaims = [
   'legacy-materialisation-contracts-retain-unscoped-behaviour',
 ];
 const evidenceCore = {
-  schemaVersion: 2,
+  schemaVersion: PROVIDER_PROOF_EVIDENCE_SCHEMA_VERSION,
   recordKind: 'USF_PROVIDER_WORKFORCE_AUTHORITY_EVIDENCE_CANDIDATE',
   passed: cases.every(({ passed }) => passed),
   eligibleForAdmission: true,
@@ -1331,6 +1759,10 @@ const evidenceCore = {
   proofInputSourceDigest,
   proofInputSources: proofInputSourceRecords,
   proofAlgorithmSourceDigest,
+  proofAlgorithmSourceManifestDigest,
+  proofAlgorithmSourceSetDigest,
+  canonicalPublicationSourceSetDigest,
+  proofAlgorithmImportClosureDigest,
   proofAlgorithmSources,
   runtimeDependencyEvidence,
   runtimeDependencyEvidenceDigest,
@@ -1371,6 +1803,10 @@ const statement = {
     implementationSourceDigest,
     proofInputSourceDigest,
     proofAlgorithmSourceDigest,
+    proofAlgorithmSourceManifestDigest,
+    proofAlgorithmSourceSetDigest,
+    canonicalPublicationSourceSetDigest,
+    proofAlgorithmImportClosureDigest,
     runtimeDependencyEvidenceDigest,
     result: 'passed',
   },
@@ -1394,7 +1830,7 @@ const attestationDescriptor = putCas(casRoot, attestationBytes, 'application/vnd
 writeFileSync(join(outputRoot, 'evidence-manifest.json'), evidenceBytes, { mode: 0o600 });
 writeFileSync(join(outputRoot, 'proof-attestation.dsse.json'), attestationBytes, { mode: 0o600 });
 process.stdout.write(`${JSON.stringify({
-  schemaVersion: 2,
+  schemaVersion: PROVIDER_PROOF_RECEIPT_SCHEMA_VERSION,
   recordKind: 'USF_PROVIDER_WORKFORCE_AUTHORITY_EVIDENCE_RECEIPT',
   ok: true,
   passed: true,
@@ -1408,6 +1844,10 @@ process.stdout.write(`${JSON.stringify({
   implementationSourceDigest,
   proofInputSourceDigest,
   proofAlgorithmSourceDigest,
+  proofAlgorithmSourceManifestDigest,
+  proofAlgorithmSourceSetDigest,
+  canonicalPublicationSourceSetDigest,
+  proofAlgorithmImportClosureDigest,
   runtimeDependencyEvidenceDigest,
   exactEvidenceSetDigest,
   policyDigest: evidenceCore.policyDigest,

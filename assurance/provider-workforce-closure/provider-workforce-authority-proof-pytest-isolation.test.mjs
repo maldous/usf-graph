@@ -3,25 +3,37 @@ import { createHash } from 'node:crypto';
 import {
   existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync,
 } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import {
+  dirname, join, resolve,
+} from 'node:path';
 import { test } from 'node:test';
 
 import {
   FOCUSED_PYTEST_BOOTSTRAP,
+  PROVIDER_PROOF_EVIDENCE_SCHEMA_VERSION,
+  PROVIDER_PROOF_RECEIPT_SCHEMA_VERSION,
   cacheResiduePaths,
   createPoisonPytestPlugin,
   createReadOnlyPythonSourceSnapshot,
+  loadVerifiedRootPackage,
+  providerProofSourceBinding,
+  resolveVerifiedRootPackageEntrypoint,
   snapshotRepositoryTree,
   subscriptionPaidBoundarySourceEvidence,
   verifyPythonSourceSnapshot,
 } from './provider-workforce-authority-proof.mjs';
+import {
+  PROVIDER_PROOF_ALGORITHM_SOURCE_PATHS,
+} from './provider-proof-source-manifest.mjs';
 import {
   inspectPinnedPythonRuntime,
   spawnPinnedLocalShaclRuntime,
 } from '../semantic-model-compilation/local-shacl-validation.mjs';
 
 const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+const repositoryRoot = resolve(dirname(import.meta.filename), '..', '..');
 const pinnedPythonPath = process.env.USF_PYTHON || '/root/usf-factory/.venv/bin/python';
 const boundaryFixture = Object.freeze({
   activationSource: `def _mode_for(auth_mode, model_row):
@@ -77,6 +89,101 @@ function exactRuntime() {
     executableDigest: sha256(readFileSync(resolvedExecutablePath)),
   });
 }
+
+test('producer v3 binds the verified manifest, primary source, aggregate set and publication closure', () => {
+  assert.equal(PROVIDER_PROOF_EVIDENCE_SCHEMA_VERSION, 3);
+  assert.equal(PROVIDER_PROOF_RECEIPT_SCHEMA_VERSION, 3);
+  const binding = providerProofSourceBinding({
+    repositoryRoot,
+    trackedSourcePaths: PROVIDER_PROOF_ALGORITHM_SOURCE_PATHS,
+  });
+  assert.deepEqual(
+    binding.proofAlgorithmSources.map(({ path }) => path),
+    PROVIDER_PROOF_ALGORITHM_SOURCE_PATHS,
+  );
+  assert.equal(binding.proofAlgorithmSources.length, 20);
+  assert.match(binding.proofAlgorithmSourceManifestDigest, /^sha256:[0-9a-f]{64}$/);
+  assert.match(binding.proofAlgorithmSourceSetDigest, /^sha256:[0-9a-f]{64}$/);
+  assert.match(binding.canonicalPublicationSourceSetDigest, /^sha256:[0-9a-f]{64}$/);
+  assert.match(binding.proofAlgorithmImportClosureDigest, /^sha256:[0-9a-f]{64}$/);
+  const primary = binding.proofAlgorithmSources.find(
+    ({ path }) => path
+      === 'assurance/provider-workforce-closure/provider-workforce-authority-proof.mjs',
+  );
+  assert.equal(binding.proofAlgorithmSourceDigest, primary.digest);
+  assert.equal(
+    primary.digest,
+    sha256(readFileSync(join(
+      repositoryRoot,
+      'assurance/provider-workforce-closure/provider-workforce-authority-proof.mjs',
+    ))),
+  );
+  assert.throws(() => providerProofSourceBinding({
+    repositoryRoot,
+    trackedSourcePaths: PROVIDER_PROOF_ALGORITHM_SOURCE_PATHS.slice(1),
+  }), /PROVIDER_PROOF_SOURCE_UNTRACKED/);
+});
+
+test('verified root package loading ignores a hostile nested node_modules and rejects ancestor fallback', () => {
+  const root = mkdtempSync(join(tmpdir(), 'usf-root-package-resolution-'));
+  try {
+    const snapshot = join(root, 'snapshot');
+    const snapshotModules = join(snapshot, 'node_modules');
+    const rootN3 = join(snapshotModules, 'n3');
+    const nestedConsumer = join(
+      snapshot,
+      'assurance',
+      'provider-workforce-closure',
+      'consumer.cjs',
+    );
+    const nestedN3 = join(
+      dirname(nestedConsumer),
+      'node_modules',
+      'n3',
+    );
+    mkdirSync(rootN3, { recursive: true, mode: 0o700 });
+    mkdirSync(nestedN3, { recursive: true, mode: 0o700 });
+    writeFileSync(join(snapshot, 'package.json'), '{"name":"private-snapshot"}\n');
+    writeFileSync(join(rootN3, 'package.json'), '{"name":"n3","version":"1.0.0","main":"index.cjs"}\n');
+    writeFileSync(join(rootN3, 'index.cjs'), 'module.exports = { origin: "verified-root" };\n');
+    writeFileSync(nestedConsumer, 'module.exports = require("n3");\n');
+    writeFileSync(join(nestedN3, 'package.json'), '{"name":"n3","version":"0.0.0","main":"index.cjs"}\n');
+    writeFileSync(join(nestedN3, 'index.cjs'), 'module.exports = { origin: "hostile-nested" };\n');
+    assert.equal(
+      createRequire(nestedConsumer).resolve('n3'),
+      join(nestedN3, 'index.cjs'),
+      'the hostile control must win under importer-relative ambient resolution',
+    );
+    assert.equal(
+      resolveVerifiedRootPackageEntrypoint({
+        repositoryRoot: snapshot,
+        packageName: 'n3',
+      }).entrypoint,
+      join(rootN3, 'index.cjs'),
+    );
+    assert.deepEqual(
+      loadVerifiedRootPackage({ repositoryRoot: snapshot, packageName: 'n3' }),
+      { origin: 'verified-root' },
+    );
+
+    const victim = join(snapshotModules, 'victim');
+    const ancestorOnly = join(root, 'node_modules', 'ancestor-only');
+    mkdirSync(victim, { recursive: true, mode: 0o700 });
+    mkdirSync(ancestorOnly, { recursive: true, mode: 0o700 });
+    writeFileSync(join(victim, 'package.json'), '{"name":"victim","version":"1.0.0","main":"index.cjs"}\n');
+    writeFileSync(join(victim, 'index.cjs'), 'module.exports = require("ancestor-only");\n');
+    writeFileSync(join(ancestorOnly, 'package.json'), '{"name":"ancestor-only","version":"1.0.0","main":"index.cjs"}\n');
+    writeFileSync(join(ancestorOnly, 'index.cjs'), 'module.exports = "ambient";\n');
+    assert.equal(createRequire(join(snapshot, 'package.json')).resolve('ancestor-only'),
+      join(ancestorOnly, 'index.cjs'));
+    assert.throws(
+      () => loadVerifiedRootPackage({ repositoryRoot: snapshot, packageName: 'victim' }),
+      /VERIFIED_ROOT_PACKAGE_RESOLUTION_OUTSIDE_PRIVATE_SNAPSHOT/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('focused pytest disables a discoverable poison plugin and leaves no cache in the factory tree', () => {
   const root = mkdtempSync(join(tmpdir(), 'usf-pytest-isolation-'));
@@ -165,7 +272,7 @@ test('focused pytest disables a discoverable poison plugin and leaves no cache i
   }
 });
 
-test('factory tree evidence detects cache residue and create-remove history', () => {
+test('factory tree evidence detects present cache residue without inventing removed history', () => {
   const root = mkdtempSync(join(tmpdir(), 'usf-pytest-cache-tree-'));
   try {
     writeFileSync(join(root, 'source.py'), 'value = 1\n', { mode: 0o600 });
@@ -188,7 +295,7 @@ test('factory tree evidence detects cache residue and create-remove history', ()
     rmSync(dirname(pytestCache), { recursive: true, force: false });
     const restored = snapshotRepositoryTree(root);
     assert.equal(restored.structuralDigest, before.structuralDigest);
-    assert.notEqual(restored.identityDigest, before.identityDigest);
+    assert.deepEqual(cacheResiduePaths(restored), []);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
