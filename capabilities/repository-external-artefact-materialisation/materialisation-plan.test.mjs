@@ -8,13 +8,24 @@ import {
   ACCEPTED,
   ACTIVE,
   MATERIALISATION_CONTRACT,
+  MATERIALISATION_PERMISSION_INVARIANT,
+  MATERIALISATION_SOURCE_COLLECTION_CLASSIFICATION,
+  PROVIDER_FACTORY_ACTIONS,
+  PROVIDER_FACTORY_DIRECTORIES,
+  PROVIDER_FACTORY_FAMILIES,
+  PROVIDER_FACTORY_PATH_SCOPES,
+  PROVIDER_FACTORY_REPOSITORY,
+  PROVIDER_FACTORY_RULES,
   SUCCESSFUL,
   assertNoSymlinkSegments,
   canonicalJson,
   createMaterialisationPlan,
   materialisePlan,
+  scopedPermissionSet,
+  scopedPermissionSetDigest,
   sha256,
   validateMaterialisationPlan,
+  validatePlanOperation,
 } from './materialisation-plan.mjs';
 
 const role = 'urn:usf:pathrole:capabilitysource';
@@ -58,6 +69,96 @@ test('rejects stale authority, tampered bytes and forbidden durable identities',
   tampered.operations[0].content = 'tampered\n';
   assert.equal(validateMaterialisationPlan(authority(), tampered).ok, false);
   assert.throws(() => createMaterialisationPlan(authority(), [writeOperation('x\n', 0, 'capabilities/legacy/example.mjs')]), /operation-path/);
+});
+
+test('proof and implementation source observations cannot grant semantic mutation authority', () => {
+  const scopedAuthority = {
+    authorisedRepositories: [PROVIDER_FACTORY_REPOSITORY],
+    authorisedPaths: ['config/providers.yaml'],
+    authorisedDirectoryPrefixes: [...PROVIDER_FACTORY_DIRECTORIES],
+    authorisedActions: [...PROVIDER_FACTORY_ACTIONS],
+    authorisedFamilies: [...PROVIDER_FACTORY_FAMILIES],
+    rules: PROVIDER_FACTORY_RULES.map((rule) => ({ ...rule })),
+    pathRoles: [{
+      id: 'urn:usf:pathrole:factorypythonpackagesource',
+      parent: 'src/usf_factory',
+    }],
+    decisionScopedMaterialisationRequired: true,
+  };
+  const baselineScope = scopedPermissionSet(scopedAuthority);
+  const baselineDigest = scopedPermissionSetDigest(scopedAuthority);
+  const implementationSources = Array.from({ length: 60 }, (_, index) => ({
+    path: `src/untrusted-implementation-evidence-${index}.py`,
+    digest: `sha256:${index.toString(16).padStart(64, '0')}`,
+  }));
+  const proofInputSources = Array.from({ length: 26 }, (_, index) => ({
+    path: `src/untrusted-proof-input-${index}.py`,
+    digest: `sha256:${(index + 60).toString(16).padStart(64, '0')}`,
+  }));
+  const observedAuthority = {
+    ...scopedAuthority,
+    implementationSources,
+    proofInputSources,
+  };
+
+  assert.deepEqual(MATERIALISATION_SOURCE_COLLECTION_CLASSIFICATION, {
+    implementationSources: 'IMPLEMENTATION_EVIDENCE_ONLY',
+    proofInputSources: 'READ_ONLY_PROOF_INPUT_ONLY',
+  });
+  assert.equal(MATERIALISATION_PERMISSION_INVARIANT.permissionSource, 'ACCEPTED_SEMANTIC_REALISATION_DECISION_ONLY');
+  assert.ok(!MATERIALISATION_PERMISSION_INVARIANT.permissionFields.includes('implementationSources'));
+  assert.ok(!MATERIALISATION_PERMISSION_INVARIANT.permissionFields.includes('proofInputSources'));
+  assert.equal(implementationSources.length, 60);
+  assert.equal(proofInputSources.length, 26);
+  assert.deepEqual(scopedPermissionSet(observedAuthority), baselineScope);
+  assert.equal(scopedPermissionSetDigest(observedAuthority), baselineDigest);
+  assert.deepEqual(observedAuthority.authorisedPaths, scopedAuthority.authorisedPaths);
+  assert.deepEqual(observedAuthority.authorisedDirectoryPrefixes, scopedAuthority.authorisedDirectoryPrefixes);
+  assert.deepEqual(observedAuthority.authorisedActions, scopedAuthority.authorisedActions);
+  assert.deepEqual(observedAuthority.authorisedFamilies, scopedAuthority.authorisedFamilies);
+
+  const rule = PROVIDER_FACTORY_RULES.find(({ family: candidate }) => (
+    candidate === 'urn:usf:artefactfamily:factorypythonpackagerealisation'
+  ));
+  const bytes = 'pass\n';
+  for (const untrustedPath of [implementationSources[0].path, proofInputSources[0].path]) {
+    const failures = validatePlanOperation({
+      action: 'write-file',
+      artefactFamily: rule.family,
+      content: bytes,
+      contentDigest: sha256(bytes),
+      contentEncoding: 'utf8',
+      fileMode: '0644',
+      index: 0,
+      path: untrustedPath,
+      pathRole: rule.pathRole,
+      representationFormat: rule.representationFormat,
+    }, 0, observedAuthority);
+    assert.ok(failures.some(({ code }) => code === 'operation-decision-path'));
+  }
+});
+
+test('provider decision path counts and narrow semantic mutation scope remain exact', () => {
+  assert.deepEqual(PROVIDER_FACTORY_PATH_SCOPES, {
+    'urn:usf:semanticcontract:providerconfigurationplane': {
+      count: 102,
+      digest: 'sha256:cfb3cc646ac93a523c5b108174114dd943ec46485dbc5fc4a955f3c51e8c11f9',
+    },
+    'urn:usf:semanticcontract:providerenvironmentclassification': {
+      count: 63,
+      digest: 'sha256:13624cf373024e620d1b91a31a8d7539669c7853a72fc9815f3235a768a20d42',
+    },
+    'urn:usf:semanticcontract:servicecatalogandproviderintegrationmodel': {
+      count: 63,
+      digest: 'sha256:13624cf373024e620d1b91a31a8d7539669c7853a72fc9815f3235a768a20d42',
+    },
+  });
+  assert.deepEqual(PROVIDER_FACTORY_DIRECTORIES, [
+    'src/usf_factory/providers',
+    'tests/provider_workforce',
+  ]);
+  assert.deepEqual(PROVIDER_FACTORY_ACTIONS, ['write-file']);
+  assert.deepEqual(PROVIDER_FACTORY_FAMILIES, PROVIDER_FACTORY_RULES.map(({ family: authorisedFamily }) => authorisedFamily));
 });
 
 test('applies a plan idempotently and reports exact operation states', () => {
