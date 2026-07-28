@@ -38,6 +38,7 @@ const canonicalJson = (value) => JSON.stringify(stable(value));
 const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 const exactKeys = (value, expected) => value && typeof value === 'object' && !Array.isArray(value)
   && canonicalJson(Object.keys(value).sort()) === canonicalJson([...expected].sort());
+const utf8Compare = (left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right));
 
 const EXPECTED_NODE_SYSTEM_OBJECTS = Object.freeze([
   Object.freeze({ path: '/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2', digest: 'sha256:02bcda52c1a5dfc236f94d9e5255b4a0e26347d8a372a5223b650e31f291ce3c', byteSize: 215000 }),
@@ -49,29 +50,66 @@ const EXPECTED_NODE_SYSTEM_OBJECTS = Object.freeze([
   Object.freeze({ path: '/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30', digest: 'sha256:e7848e32af4932840ba775169041759a2a8dd5a008af360e5c55bce506eebcf4', byteSize: 2190440 }),
 ]);
 
-const EXPECTED_NODE_DEPENDENCY_EVIDENCE = Object.freeze({
-  schemaVersion: 2,
-  rootPackage: 'n3',
+const EXPECTED_NODE_ROOT_PACKAGES = Object.freeze(['n3', 'stardog']);
+const EXPECTED_NODE_PACKAGE_RECORDS = Object.freeze([
+  Object.freeze({ byteSetDigest: 'sha256:e2175a0928f0f9e65b04f6f96c88c28a0eb2b9fd0c5feb176c0b9403c27258d5', fileCount: 14, name: 'abort-controller', version: '3.0.0' }),
+  Object.freeze({ byteSetDigest: 'sha256:457cd55fa8403d3eb7af65dbacc44fd27fc8cd0eab4f9214541811f9c6e2f46d', fileCount: 6, name: 'base64-js', version: '1.5.1' }),
+  Object.freeze({ byteSetDigest: 'sha256:cec6bc16225337081aaff04f39924b78b44a6d4271d4beb2af86abd6cfb4a1a0', fileCount: 6, name: 'buffer', version: '6.0.3' }),
+  Object.freeze({ byteSetDigest: 'sha256:a90a0678a6d7d2aee7c3a5a6c229ad1d7482a89b7f13632ab0a7d85559543b31', fileCount: 10, name: 'event-target-shim', version: '5.0.1' }),
+  Object.freeze({ byteSetDigest: 'sha256:06e000873e10b7861b2201e64fab727b3ee91e448fac4385e3ab94f288ccffbb', fileCount: 32, name: 'events', version: '3.3.0' }),
+  Object.freeze({ byteSetDigest: 'sha256:86edfe548d9eff23900dd520112b0a67dc3d10fc94c82356bd3d2810b7586957', fileCount: 7, name: 'flat', version: '5.0.2' }),
+  Object.freeze({ byteSetDigest: 'sha256:8d7e733b4a7b80bbede3103b1c7304ee4d781f70ec05f01a5c9b8dcc61fad9e0', fileCount: 5, name: 'ieee754', version: '1.2.1' }),
+  Object.freeze({ byteSetDigest: 'sha256:54fc1048442c9d660de8531849f6f146322e1a6d6699d86cbcb2bd02f6c1b49a', fileCount: 8, name: 'isomorphic-base64', version: '1.0.2' }),
+  Object.freeze({ byteSetDigest: 'sha256:3060150a21559eb63e443a17b636c4028b6b668b3e93229e4ba33792a464809a', fileCount: 1051, name: 'lodash', version: '4.18.1' }),
+  Object.freeze({ byteSetDigest: 'sha256:0bec16a473e76bbb673da9170ce360ee49136fa472add6c5b09935973e2c1c86', fileCount: 34, name: 'n3', version: '2.1.1' }),
+  Object.freeze({ byteSetDigest: 'sha256:e1bb70a734fe9480d1ec56efd8f889144cef15cd707ca6a1e996362168ce2c90', fileCount: 7, name: 'process', version: '0.11.10' }),
+  Object.freeze({ byteSetDigest: 'sha256:6f1104921f45877fc4339be142062e0796548d87c38f2161f1ef4960fa8759a1', fileCount: 35, name: 'readable-stream', version: '4.7.0' }),
+  Object.freeze({ byteSetDigest: 'sha256:256550e9afa169219e122c186930a14882a2b2fbfe28557eb5ae668dc2ae3751', fileCount: 5, name: 'safe-buffer', version: '5.2.1' }),
+  Object.freeze({ byteSetDigest: 'sha256:aa224e996f2abb890353aad2a921cd988d3f41e8f84017d924a158009cc1833b', fileCount: 34, name: 'stardog', version: '10.0.1' }),
+  Object.freeze({ byteSetDigest: 'sha256:3b72575555c05c83b6612ece259cf1fa99efd11de3f6d065384ad4015db35f44', fileCount: 4, name: 'string_decoder', version: '1.3.0' }),
+]);
+const EXPECTED_NODE_ROOT_CLOSURES = Object.freeze([
+  Object.freeze({
+    rootPackage: 'n3',
+    packageNames: Object.freeze([
+      'abort-controller',
+      'base64-js',
+      'buffer',
+      'event-target-shim',
+      'events',
+      'ieee754',
+      'n3',
+      'process',
+      'readable-stream',
+      'safe-buffer',
+      'string_decoder',
+    ]),
+    packageNameSetDigest: 'sha256:5d3bfe4c86de2720800ad584101e0a22be44908e4c391ffdd2248455be1f6e7e',
+    packageByteSetDigest: 'sha256:b6186e1029889dec349f186b024836b63cc4e67a39db9abb5c74698341d1f0b8',
+  }),
+  Object.freeze({
+    rootPackage: 'stardog',
+    packageNames: Object.freeze(['flat', 'isomorphic-base64', 'lodash', 'stardog']),
+    packageNameSetDigest: 'sha256:740eaf245897ff7aa0a8328b4d37210d44cb973c340c0a7a6a7a725077419a0e',
+    packageByteSetDigest: 'sha256:b74baa6caf56e84eb8d19a60345da4fd67cb0aa6ef63e8a5282c5e5614706fe1',
+  }),
+]);
+const EXPECTED_NODE_DEPENDENCY_EVIDENCE_CORE = Object.freeze({
+  schemaVersion: 3,
+  rootPackages: EXPECTED_NODE_ROOT_PACKAGES,
+  rootClosures: EXPECTED_NODE_ROOT_CLOSURES,
+  packages: EXPECTED_NODE_PACKAGE_RECORDS,
+  packageByteSetDigest: sha256(canonicalJson(EXPECTED_NODE_PACKAGE_RECORDS)),
+  packageLockDigest: 'sha256:e0f320742ed96b54765a39ccac219c05d72b61c4b8805b42e57b7e9e14cecde5',
   nodeVersion: '22.23.1',
   executableDigest: 'sha256:93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068',
-  systemObjectCount: 7,
-  systemObjectSetDigest: 'sha256:8ccc776eccd2957c5e52e5e35ae7e311716e20de0b251424e600305b7fce335e',
-  systemObjects: EXPECTED_NODE_SYSTEM_OBJECTS,
-  packageLockDigest: 'sha256:e0f320742ed96b54765a39ccac219c05d72b61c4b8805b42e57b7e9e14cecde5',
-  packages: Object.freeze([
-    Object.freeze({ byteSetDigest: 'sha256:e2175a0928f0f9e65b04f6f96c88c28a0eb2b9fd0c5feb176c0b9403c27258d5', fileCount: 14, name: 'abort-controller', version: '3.0.0' }),
-    Object.freeze({ byteSetDigest: 'sha256:457cd55fa8403d3eb7af65dbacc44fd27fc8cd0eab4f9214541811f9c6e2f46d', fileCount: 6, name: 'base64-js', version: '1.5.1' }),
-    Object.freeze({ byteSetDigest: 'sha256:cec6bc16225337081aaff04f39924b78b44a6d4271d4beb2af86abd6cfb4a1a0', fileCount: 6, name: 'buffer', version: '6.0.3' }),
-    Object.freeze({ byteSetDigest: 'sha256:a90a0678a6d7d2aee7c3a5a6c229ad1d7482a89b7f13632ab0a7d85559543b31', fileCount: 10, name: 'event-target-shim', version: '5.0.1' }),
-    Object.freeze({ byteSetDigest: 'sha256:06e000873e10b7861b2201e64fab727b3ee91e448fac4385e3ab94f288ccffbb', fileCount: 32, name: 'events', version: '3.3.0' }),
-    Object.freeze({ byteSetDigest: 'sha256:8d7e733b4a7b80bbede3103b1c7304ee4d781f70ec05f01a5c9b8dcc61fad9e0', fileCount: 5, name: 'ieee754', version: '1.2.1' }),
-    Object.freeze({ byteSetDigest: 'sha256:0bec16a473e76bbb673da9170ce360ee49136fa472add6c5b09935973e2c1c86', fileCount: 34, name: 'n3', version: '2.1.1' }),
-    Object.freeze({ byteSetDigest: 'sha256:e1bb70a734fe9480d1ec56efd8f889144cef15cd707ca6a1e996362168ce2c90', fileCount: 7, name: 'process', version: '0.11.10' }),
-    Object.freeze({ byteSetDigest: 'sha256:6f1104921f45877fc4339be142062e0796548d87c38f2161f1ef4960fa8759a1', fileCount: 35, name: 'readable-stream', version: '4.7.0' }),
-    Object.freeze({ byteSetDigest: 'sha256:256550e9afa169219e122c186930a14882a2b2fbfe28557eb5ae668dc2ae3751', fileCount: 5, name: 'safe-buffer', version: '5.2.1' }),
-    Object.freeze({ byteSetDigest: 'sha256:3b72575555c05c83b6612ece259cf1fa99efd11de3f6d065384ad4015db35f44', fileCount: 4, name: 'string_decoder', version: '1.3.0' }),
-  ]),
-  byteSetDigest: 'sha256:b6186e1029889dec349f186b024836b63cc4e67a39db9abb5c74698341d1f0b8',
+  mappedSystemObjectCount: 7,
+  mappedSystemObjectSetDigest: 'sha256:8ccc776eccd2957c5e52e5e35ae7e311716e20de0b251424e600305b7fce335e',
+  mappedSystemObjects: EXPECTED_NODE_SYSTEM_OBJECTS,
+});
+const EXPECTED_NODE_DEPENDENCY_EVIDENCE = Object.freeze({
+  ...EXPECTED_NODE_DEPENDENCY_EVIDENCE_CORE,
+  evidenceDigest: sha256(canonicalJson(EXPECTED_NODE_DEPENDENCY_EVIDENCE_CORE)),
 });
 
 const EXPECTED_PYTHON_DEPENDENCY_BYTE_SETS = Object.freeze([
@@ -90,24 +128,134 @@ const EXPECTED_PYTHON_DEPENDENCY_BYTE_SET_DIGEST = 'sha256:86d9f76eadf8feafaf839
 
 function packageFiles(root, current = root, records = []) {
   const entries = readdirSync(current, { withFileTypes: true })
-    .sort((left, right) => Buffer.compare(Buffer.from(left.name), Buffer.from(right.name)));
+    .sort((left, right) => utf8Compare(left.name, right.name));
   for (const entry of entries) {
     const path = join(current, entry.name);
-    const status = lstatSync(path);
-    if (status.isSymbolicLink()) throw new Error('NODE_DEPENDENCY_SYMLINK_PROHIBITED');
-    if (status.isDirectory()) {
+    const before = lstatSync(path, { bigint: true });
+    if (before.isSymbolicLink()) throw new Error('NODE_DEPENDENCY_SYMLINK_PROHIBITED');
+    if (before.isDirectory()) {
       packageFiles(root, path, records);
-    } else if (status.isFile()) {
+    } else if (before.isFile()) {
+      if (before.nlink !== 1n) throw new Error('NODE_DEPENDENCY_HARDLINK_PROHIBITED');
+      const bytes = readFileSync(path);
+      const after = lstatSync(path, { bigint: true });
+      const identity = (status) => canonicalJson({
+        device: status.dev.toString(),
+        inode: status.ino.toString(),
+        mode: status.mode.toString(),
+        linkCount: status.nlink.toString(),
+        size: status.size.toString(),
+        ctimeNs: status.ctimeNs.toString(),
+      });
+      if (identity(before) !== identity(after) || BigInt(bytes.length) !== before.size) {
+        throw new Error('NODE_DEPENDENCY_FILE_MOVED_DURING_READ');
+      }
       records.push({
         path: relative(root, path).replaceAll('\\', '/'),
-        digest: sha256(readFileSync(path)),
-        byteSize: status.size,
+        digest: sha256(bytes),
+        byteSize: Number(before.size),
       });
     } else {
       throw new Error('NODE_DEPENDENCY_SPECIAL_FILE_PROHIBITED');
     }
   }
   return records;
+}
+
+function exactPackageDirectory(root, packageName) {
+  if (!/^(?:@[A-Za-z0-9._-]+\/)?[A-Za-z0-9._-]+$/.test(packageName || '')
+    || packageName === '.' || packageName === '..') {
+    throw new Error(`NODE_DEPENDENCY_PACKAGE_NAME_INVALID_${packageName}`);
+  }
+  return join(root, 'node_modules', ...packageName.split('/'));
+}
+
+function validateRootPackages(rootPackages) {
+  if (!Array.isArray(rootPackages) || rootPackages.length === 0
+    || rootPackages.some((name) => typeof name !== 'string')) {
+    throw new Error('NODE_ROOT_PACKAGE_SET_INVALID');
+  }
+  const sorted = [...rootPackages].sort(utf8Compare);
+  if (new Set(rootPackages).size !== rootPackages.length
+    || canonicalJson(rootPackages) !== canonicalJson(sorted)) {
+    throw new Error('NODE_ROOT_PACKAGE_SET_INVALID');
+  }
+  rootPackages.forEach((name) => exactPackageDirectory('/', name));
+  return Object.freeze([...rootPackages]);
+}
+
+function readExactFile(path, errorCode) {
+  const before = lstatSync(path, { bigint: true });
+  if (before.isSymbolicLink() || !before.isFile() || before.nlink !== 1n) {
+    throw new Error(errorCode);
+  }
+  const bytes = readFileSync(path);
+  const after = lstatSync(path, { bigint: true });
+  const identity = (status) => canonicalJson({
+    device: status.dev.toString(),
+    inode: status.ino.toString(),
+    mode: status.mode.toString(),
+    linkCount: status.nlink.toString(),
+    size: status.size.toString(),
+    ctimeNs: status.ctimeNs.toString(),
+  });
+  if (identity(before) !== identity(after) || BigInt(bytes.length) !== before.size) {
+    throw new Error(errorCode);
+  }
+  return bytes;
+}
+
+function readExactJsonFile(path, errorCode) {
+  const bytes = readExactFile(path, errorCode);
+  try {
+    return Object.freeze({
+      bytes,
+      value: JSON.parse(bytes.toString('utf8')),
+    });
+  } catch {
+    throw new Error(errorCode);
+  }
+}
+
+function assertDependencySection(section, code) {
+  if (section === undefined) return Object.freeze({});
+  if (!section || typeof section !== 'object' || Array.isArray(section)
+    || Object.entries(section).some(([name, range]) => typeof name !== 'string'
+      || typeof range !== 'string')) {
+    throw new Error(code);
+  }
+  return section;
+}
+
+function assertNoFallbackDependencies(manifest, packageName) {
+  const optionalDependencies = assertDependencySection(
+    manifest.optionalDependencies,
+    `NODE_DEPENDENCY_OPTIONAL_SET_INVALID_${packageName}`,
+  );
+  const peerDependencies = assertDependencySection(
+    manifest.peerDependencies,
+    `NODE_DEPENDENCY_PEER_SET_INVALID_${packageName}`,
+  );
+  if (Object.keys(optionalDependencies).length !== 0) {
+    throw new Error(`NODE_DEPENDENCY_OPTIONAL_FALLBACK_PROHIBITED_${packageName}`);
+  }
+  if (Object.keys(peerDependencies).length !== 0) {
+    throw new Error(`NODE_DEPENDENCY_PEER_FALLBACK_PROHIBITED_${packageName}`);
+  }
+  const dependencies = assertDependencySection(
+    manifest.dependencies,
+    `NODE_DEPENDENCY_SET_INVALID_${packageName}`,
+  );
+  for (const [dependency, range] of Object.entries(dependencies)) {
+    exactPackageDirectory('/', dependency);
+    if (/^(?:file|link|workspace):/i.test(range)
+      || range.startsWith('/')
+      || range.startsWith('./')
+      || range.startsWith('../')) {
+      throw new Error(`NODE_DEPENDENCY_PATH_FALLBACK_PROHIBITED_${packageName}_${dependency}`);
+    }
+  }
+  return dependencies;
 }
 
 function inspectMappedNativeObjectRecords({
@@ -178,57 +326,200 @@ function inspectMappedNativeObjectRecords({
 
 function inspectNodeDependencyEvidence({
   repositoryRoot,
-  rootPackage = 'n3',
+  rootPackages = EXPECTED_NODE_ROOT_PACKAGES,
+  rootPackage = null,
   resolvePackageJson = null,
   procMapsText = null,
 }) {
-  const root = realpathSync(repositoryRoot);
-  const require = createRequire(import.meta.url);
-  const resolver = resolvePackageJson ?? ((name) => require.resolve(`${name}/package.json`));
-  const packages = new Map();
-  const inspect = (name) => {
-    if (packages.has(name)) return;
-    const packageJsonPath = realpathSync(resolver(name));
-    const packageRoot = dirname(packageJsonPath);
-    const repositoryRelativeRoot = relative(root, packageRoot).replaceAll('\\', '/');
-    if (repositoryRelativeRoot.startsWith('../') || !repositoryRelativeRoot.startsWith('node_modules/')) {
-      throw new Error(`NODE_DEPENDENCY_OUTSIDE_REPOSITORY_${name}`);
+  if (rootPackage !== null && rootPackages !== EXPECTED_NODE_ROOT_PACKAGES) {
+    throw new Error('NODE_ROOT_PACKAGE_ARGUMENTS_AMBIGUOUS');
+  }
+  const selectedRootPackages = validateRootPackages(
+    rootPackage === null ? rootPackages : [rootPackage],
+  );
+  if (!isAbsolute(repositoryRoot || '')) throw new TypeError('NODE_REPOSITORY_ROOT_INVALID');
+  const requestedRoot = resolve(repositoryRoot);
+  const root = realpathSync(requestedRoot);
+  const rootStatus = lstatSync(requestedRoot);
+  if (root !== requestedRoot || rootStatus.isSymbolicLink() || !rootStatus.isDirectory()) {
+    throw new Error('NODE_REPOSITORY_ROOT_NOT_EXACT_DIRECTORY');
+  }
+  const repositoryPackageJson = join(root, 'package.json');
+  const packageLockPath = join(root, 'package-lock.json');
+  const repositoryManifest = readExactJsonFile(
+    repositoryPackageJson,
+    'NODE_REPOSITORY_PACKAGE_JSON_INVALID',
+  );
+  const lockEvidence = readExactJsonFile(packageLockPath, 'NODE_PACKAGE_LOCK_INVALID');
+  const lock = lockEvidence.value;
+  if (lock.lockfileVersion !== 3 || !lock.packages || typeof lock.packages !== 'object'
+    || Array.isArray(lock.packages)) {
+    throw new Error('NODE_PACKAGE_LOCK_SCHEMA_INVALID');
+  }
+  const repositoryRequire = createRequire(repositoryPackageJson);
+  const resolver = resolvePackageJson
+    ?? ((name) => repositoryRequire.resolve(`${name}/package.json`));
+  const packageState = new Map();
+
+  const loadPackage = (name) => {
+    const expectedPackageRoot = exactPackageDirectory(root, name);
+    let unresolvedPackageJsonPath;
+    try {
+      unresolvedPackageJsonPath = resolve(resolver(name, repositoryPackageJson));
+    } catch (error) {
+      throw new Error(
+        `NODE_DEPENDENCY_RESOLUTION_FAILED_${name}_${error?.code ?? error?.name ?? 'UNKNOWN'}`,
+      );
     }
-    const manifest = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-    const files = packageFiles(packageRoot);
-    packages.set(name, {
-      byteSetDigest: sha256(canonicalJson(files)),
-      fileCount: files.length,
-      name,
-      version: manifest.version,
+    if (unresolvedPackageJsonPath !== join(expectedPackageRoot, 'package.json')) {
+      const repositoryNodeModules = `${join(root, 'node_modules')}/`;
+      throw new Error(
+        unresolvedPackageJsonPath.startsWith(repositoryNodeModules)
+          ? `NODE_DEPENDENCY_DUPLICATE_VERSION_${name}`
+          : `NODE_DEPENDENCY_OUTSIDE_REPOSITORY_${name}`,
+      );
+    }
+    let packageRootStatus;
+    let packageJsonStatus;
+    try {
+      packageRootStatus = lstatSync(expectedPackageRoot);
+      packageJsonStatus = lstatSync(unresolvedPackageJsonPath);
+    } catch (error) {
+      throw new Error(
+        `NODE_DEPENDENCY_RESOLUTION_FAILED_${name}_${error?.code ?? error?.name ?? 'UNKNOWN'}`,
+      );
+    }
+    if (packageRootStatus.isSymbolicLink() || !packageRootStatus.isDirectory()
+      || packageJsonStatus.isSymbolicLink() || !packageJsonStatus.isFile()
+      || realpathSync(expectedPackageRoot) !== expectedPackageRoot
+      || realpathSync(unresolvedPackageJsonPath) !== unresolvedPackageJsonPath) {
+      throw new Error(`NODE_DEPENDENCY_SYMLINK_OR_SPECIAL_ROOT_${name}`);
+    }
+    const existing = packageState.get(name);
+    if (existing) {
+      if (existing.packageRoot !== expectedPackageRoot) {
+        throw new Error(`NODE_DEPENDENCY_DUPLICATE_VERSION_${name}`);
+      }
+      return existing;
+    }
+    const manifestEvidence = readExactJsonFile(
+      unresolvedPackageJsonPath,
+      `NODE_DEPENDENCY_MANIFEST_INVALID_${name}`,
+    );
+    const manifest = manifestEvidence.value;
+    if (manifest.name !== name || typeof manifest.version !== 'string' || manifest.version === '') {
+      throw new Error(`NODE_DEPENDENCY_IDENTITY_INVALID_${name}`);
+    }
+    const dependencies = assertNoFallbackDependencies(manifest, name);
+    const lockPath = `node_modules/${name}`;
+    const lockRecord = lock.packages[lockPath];
+    if (!lockRecord || typeof lockRecord !== 'object' || Array.isArray(lockRecord)
+      || lockRecord.version !== manifest.version
+      || canonicalJson(lockRecord.dependencies ?? {}) !== canonicalJson(dependencies)) {
+      throw new Error(`NODE_DEPENDENCY_LOCK_RUNTIME_MISMATCH_${name}`);
+    }
+    const files = packageFiles(expectedPackageRoot);
+    const manifestAfter = readExactJsonFile(
+      unresolvedPackageJsonPath,
+      `NODE_DEPENDENCY_MANIFEST_MOVED_${name}`,
+    );
+    if (sha256(manifestAfter.bytes) !== sha256(manifestEvidence.bytes)
+      || sha256(manifestEvidence.bytes)
+        !== files.find(({ path }) => path === 'package.json')?.digest) {
+      throw new Error(`NODE_DEPENDENCY_MANIFEST_MOVED_${name}`);
+    }
+    const state = Object.freeze({
+      packageRoot: expectedPackageRoot,
+      dependencies: Object.freeze(Object.keys(dependencies).sort(utf8Compare)),
+      record: Object.freeze({
+        byteSetDigest: sha256(canonicalJson(files)),
+        fileCount: files.length,
+        name,
+        version: manifest.version,
+      }),
     });
-    for (const dependency of Object.keys(manifest.dependencies ?? {}).sort()) inspect(dependency);
+    packageState.set(name, state);
+    return state;
   };
-  inspect(rootPackage);
-  const records = [...packages.values()]
-    .sort((left, right) => Buffer.compare(Buffer.from(left.name), Buffer.from(right.name)));
+
+  const inspectClosure = (rootName) => {
+    const names = new Set();
+    const visiting = new Set();
+    const visit = (name) => {
+      if (names.has(name)) return;
+      if (visiting.has(name)) throw new Error(`NODE_DEPENDENCY_CYCLE_${name}`);
+      visiting.add(name);
+      const state = loadPackage(name);
+      for (const dependency of state.dependencies) visit(dependency);
+      names.add(name);
+      visiting.delete(name);
+    };
+    visit(rootName);
+    const packageNames = [...names].sort(utf8Compare);
+    const packageRecords = packageNames.map((name) => packageState.get(name).record);
+    return Object.freeze({
+      rootPackage: rootName,
+      packageNames: Object.freeze(packageNames),
+      packageNameSetDigest: sha256(canonicalJson(packageNames)),
+      packageByteSetDigest: sha256(canonicalJson(packageRecords)),
+    });
+  };
+  const rootClosures = selectedRootPackages.map(inspectClosure);
+  const records = [...packageState.values()].map(({ record }) => record)
+    .sort((left, right) => utf8Compare(left.name, right.name));
   const executablePath = realpathSync(process.execPath);
-  const systemObjects = inspectMappedNativeObjectRecords({
+  const mappedSystemObjects = inspectMappedNativeObjectRecords({
     procMapsText: procMapsText ?? readFileSync('/proc/self/maps', 'utf8'),
     executablePath,
   });
-  return Object.freeze({
-    schemaVersion: 2,
-    rootPackage,
+  if (sha256(readExactFile(
+    repositoryPackageJson,
+    'NODE_REPOSITORY_PACKAGE_JSON_MOVED',
+  )) !== sha256(repositoryManifest.bytes)
+    || sha256(readExactFile(packageLockPath, 'NODE_PACKAGE_LOCK_MOVED'))
+      !== sha256(lockEvidence.bytes)) {
+    throw new Error('NODE_REPOSITORY_PACKAGE_CONTEXT_MOVED');
+  }
+  const core = Object.freeze({
+    schemaVersion: 3,
+    rootPackages: selectedRootPackages,
+    rootClosures: Object.freeze(rootClosures),
+    packages: Object.freeze(records),
+    packageByteSetDigest: sha256(canonicalJson(records)),
+    packageLockDigest: sha256(lockEvidence.bytes),
     nodeVersion: process.versions.node,
     executableDigest: sha256(readFileSync(executablePath)),
-    systemObjectCount: systemObjects.length,
-    systemObjectSetDigest: sha256(canonicalJson(systemObjects)),
-    systemObjects,
-    packageLockDigest: sha256(readFileSync(join(root, 'package-lock.json'))),
-    packages: records,
-    byteSetDigest: sha256(canonicalJson(records)),
+    mappedSystemObjectCount: mappedSystemObjects.length,
+    mappedSystemObjectSetDigest: sha256(canonicalJson(mappedSystemObjects)),
+    mappedSystemObjects: Object.freeze(mappedSystemObjects),
+  });
+  return Object.freeze({
+    ...core,
+    evidenceDigest: sha256(canonicalJson(core)),
   });
 }
 
 export function verifyProviderProofNodeDependencyEvidence(evidence, { repositoryRoot = null } = {}) {
+  if (!exactKeys(evidence, [
+    'schemaVersion',
+    'rootPackages',
+    'rootClosures',
+    'packages',
+    'packageByteSetDigest',
+    'packageLockDigest',
+    'nodeVersion',
+    'executableDigest',
+    'mappedSystemObjectCount',
+    'mappedSystemObjectSetDigest',
+    'mappedSystemObjects',
+    'evidenceDigest',
+  ])) throw new Error('NODE_DEPENDENCY_EVIDENCE_FIELDS_INVALID');
   if (canonicalJson(evidence) !== canonicalJson(EXPECTED_NODE_DEPENDENCY_EVIDENCE)) {
     throw new Error('NODE_DEPENDENCY_EVIDENCE_MISMATCH');
+  }
+  const { evidenceDigest, ...core } = evidence;
+  if (evidenceDigest !== sha256(canonicalJson(core))) {
+    throw new Error('NODE_DEPENDENCY_EVIDENCE_DIGEST_MISMATCH');
   }
   if (repositoryRoot !== null
     && canonicalJson(inspectNodeDependencyEvidence({ repositoryRoot }))
@@ -1178,6 +1469,9 @@ export const providerMaterialisationAuthorityMutationInternals = Object.freeze({
   pythonArgumentPrefix: PYTHON_ARGUMENT_PREFIX,
   pythonWorkingDirectory: PYTHON_WORKING_DIRECTORY,
   expectedNodeDependencyEvidence: EXPECTED_NODE_DEPENDENCY_EVIDENCE,
+  expectedNodeRootPackages: EXPECTED_NODE_ROOT_PACKAGES,
+  expectedNodeRootClosures: EXPECTED_NODE_ROOT_CLOSURES,
+  expectedNodePackageRecords: EXPECTED_NODE_PACKAGE_RECORDS,
   expectedPythonDependencyByteSets: EXPECTED_PYTHON_DEPENDENCY_BYTE_SETS,
   expectedPythonDependencyByteSetDigest: EXPECTED_PYTHON_DEPENDENCY_BYTE_SET_DIGEST,
   expectedNodeSystemObjects: EXPECTED_NODE_SYSTEM_OBJECTS,
