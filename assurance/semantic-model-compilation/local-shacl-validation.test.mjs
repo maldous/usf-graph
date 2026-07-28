@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import {
   mkdtempSync,
   readFileSync,
@@ -15,14 +16,38 @@ import test from 'node:test';
 
 import {
   effectiveLocalShaclPythonSource,
+  localShaclRuntimeInternals,
   localShaclPythonSource,
   runLocalShaclValidation,
   spawnPinnedLocalShaclRuntime,
   validateLocalShaclRuntime,
+  verifyPythonNativeMappingEvidence,
 } from './local-shacl-validation.mjs';
 
 const roots = [];
 const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
+const stable = (value) => Array.isArray(value)
+  ? value.map(stable)
+  : value && typeof value === 'object'
+    ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])]))
+    : value;
+const canonicalJson = (value) => JSON.stringify(stable(value));
+const sha256 = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
+
+function nativeMappingEvidence(checkpoints, records = localShaclRuntimeInternals.expectedPythonMappedSystemObjects) {
+  const snapshots = checkpoints.map((checkpoint) => ({
+    schemaVersion: 1,
+    checkpoint,
+    records,
+    recordCount: records.length,
+    recordSetDigest: sha256(canonicalJson(records)),
+  }));
+  return {
+    schemaVersion: 1,
+    checkpoints: snapshots,
+    checkpointSetDigest: sha256(canonicalJson(snapshots)),
+  };
+}
 
 function runtimeFixture() {
   const root = mkdtempSync(join(tmpdir(), 'local-shacl-runtime-'));
@@ -74,6 +99,72 @@ test('fd-pinned execution detects a launcher retarget performed by the child', (
       env: { LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', PATH: '/usr/bin:/bin', TZ: 'UTC' },
     },
   ), /LOCAL_SHACL_PINNED_RUNTIME_MOVED/);
+});
+
+test('native mapping evidence requires the exact approved records at every ordered checkpoint', () => {
+  const checkpoints = ['PRE_WORKLOAD', 'POST_SOURCE_LOAD', 'POST_VALIDATION'];
+  const valid = nativeMappingEvidence(checkpoints);
+  assert.equal(verifyPythonNativeMappingEvidence(valid, checkpoints), valid);
+
+  const injectedRecords = [
+    ...localShaclRuntimeInternals.expectedPythonMappedSystemObjects,
+    {
+      path: '/tmp/injected-native-object.so',
+      digest: `sha256:${'1'.repeat(64)}`,
+      byteSize: 1,
+    },
+  ];
+  assert.throws(
+    () => verifyPythonNativeMappingEvidence(
+      nativeMappingEvidence(checkpoints, injectedRecords),
+      checkpoints,
+    ),
+    /PYTHON_NATIVE_MAPPING_CHECKPOINT_INVALID_PRE_WORKLOAD/,
+  );
+
+  const transient = nativeMappingEvidence(checkpoints);
+  transient.checkpoints[1] = nativeMappingEvidence(
+    ['POST_SOURCE_LOAD'],
+    injectedRecords,
+  ).checkpoints[0];
+  transient.checkpointSetDigest = sha256(canonicalJson(transient.checkpoints));
+  assert.throws(
+    () => verifyPythonNativeMappingEvidence(transient, checkpoints),
+    /PYTHON_NATIVE_MAPPING_CHECKPOINT_INVALID_POST_SOURCE_LOAD/,
+  );
+});
+
+test('mapped native object collector fails closed on an mmap whose backing file is unlinked', () => {
+  const start = effectiveLocalShaclPythonSource.indexOf('def mapped_system_object_snapshot(');
+  const end = effectiveLocalShaclPythonSource.indexOf('\ndef main():\n', start);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  const collector = effectiveLocalShaclPythonSource.slice(start, end);
+  const result = spawnSync('/usr/bin/python3.11', ['-I', '-S', '-'], {
+    cwd: '/',
+    encoding: 'utf8',
+    env: { LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', PATH: '/usr/bin:/bin', TZ: 'UTC' },
+    input: `
+import mmap
+import os
+import pathlib
+import tempfile
+def sha256(value):
+    return "unused"
+def canonical_json(value):
+    return "unused"
+${collector}
+fd, path = tempfile.mkstemp()
+os.write(fd, b"native-mapping-fixture")
+mapping = mmap.mmap(fd, 0, access=mmap.ACCESS_READ)
+os.unlink(path)
+mapped_system_object_snapshot("MMAP_UNLINK")
+`,
+    maxBuffer: 1024 * 1024,
+    timeout: 30_000,
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /MAPPED_RUNTIME_OBJECT_DELETED:/);
 });
 
 function pythonTuple(source, name) {

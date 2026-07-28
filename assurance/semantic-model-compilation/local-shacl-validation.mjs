@@ -571,45 +571,75 @@ function injectRuntimeClosureEvidence(source) {
     '\ndef main():\n',
     String.raw`
 
-def mapped_system_object_evidence():
+def mapped_system_object_snapshot(checkpoint):
     paths = set()
     for line in pathlib.Path("/proc/self/maps").read_text(encoding="utf-8").splitlines():
-        fields = line.split()
-        mapped_path = " ".join(fields[5:]) if len(fields) >= 6 else ""
+        fields = line.split(maxsplit=5)
+        mapped_path = fields[5] if len(fields) == 6 else ""
         if mapped_path.startswith("/") and mapped_path.endswith(" (deleted)"):
             raise RuntimeError("MAPPED_RUNTIME_OBJECT_DELETED:" + mapped_path)
         if mapped_path.startswith("/"):
-            path = pathlib.Path(mapped_path).resolve(strict=True)
-            if not path.is_file():
-                raise RuntimeError("MAPPED_RUNTIME_OBJECT_NOT_FILE:" + mapped_path)
-            paths.add(path)
+            try:
+                path = pathlib.Path(mapped_path).resolve(strict=True)
+                status = path.stat()
+                if not path.is_file():
+                    raise RuntimeError("MAPPED_RUNTIME_OBJECT_NOT_FILE:" + mapped_path)
+                digest = sha256(path.read_bytes())
+                if path.stat() != status:
+                    raise RuntimeError("MAPPED_RUNTIME_OBJECT_MOVED_DURING_READ:" + mapped_path)
+            except (FileNotFoundError, OSError) as error:
+                raise RuntimeError(
+                    "MAPPED_RUNTIME_OBJECT_UNRESOLVED:" + mapped_path + ":" + error.__class__.__name__
+                ) from error
+            paths.add((path, digest, status.st_size))
     records = [
         {
             "path": path.as_posix(),
-            "digest": sha256(path.read_bytes()),
-            "byteSize": path.stat().st_size,
+            "digest": digest,
+            "byteSize": byte_size,
         }
-        for path in sorted(paths, key=lambda item: item.as_posix().encode("utf-8"))
+        for path, digest, byte_size in sorted(paths, key=lambda item: item[0].as_posix().encode("utf-8"))
     ]
-    return {"count": len(records), "digest": sha256(canonical_json(records))}
+    return {
+        "schemaVersion": 1,
+        "checkpoint": checkpoint,
+        "records": records,
+        "recordCount": len(records),
+        "recordSetDigest": sha256(canonical_json(records)),
+    }
 
 
 def main():
+    runtime_mapping_snapshots = [mapped_system_object_snapshot("PRE_WORKLOAD")]
 `,
     'workload mapped runtime evidence function',
   );
   result = replacePythonMarkerExactly(
     result,
+    '    shapes, shape_sources = load_shapes(model_root, manifest)\n',
+    '    shapes, shape_sources = load_shapes(model_root, manifest)\n'
+      + '    runtime_mapping_snapshots.append(mapped_system_object_snapshot("POST_SOURCE_LOAD"))\n',
+    'workload mapped runtime source-load checkpoint',
+  );
+  result = replacePythonMarkerExactly(
+    result,
     '    result = {\n',
-    '    mapped_objects = mapped_system_object_evidence()\n    result = {\n',
+    '    runtime_mapping_snapshots.append(mapped_system_object_snapshot("POST_VALIDATION"))\n'
+      + '    native_mapping_evidence = {\n'
+      + '        "schemaVersion": 1,\n'
+      + '        "checkpoints": runtime_mapping_snapshots,\n'
+      + '        "checkpointSetDigest": sha256(canonical_json(runtime_mapping_snapshots)),\n'
+      + '    }\n'
+      + '    result = {\n',
     'workload mapped runtime evidence binding',
   );
   result = replacePythonMarkerExactly(
     result,
     '        "pythonExecutableDigest": sha256(pathlib.Path(os.path.realpath(sys.executable)).read_bytes()),\n',
     '        "pythonExecutableDigest": sha256(pathlib.Path(os.path.realpath(sys.executable)).read_bytes()),\n'
-      + '        "mappedSystemObjectCount": mapped_objects["count"],\n'
-      + '        "mappedSystemObjectSetDigest": mapped_objects["digest"],\n'
+      + '        "mappedSystemObjectCount": runtime_mapping_snapshots[-1]["recordCount"],\n'
+      + '        "mappedSystemObjectSetDigest": runtime_mapping_snapshots[-1]["recordSetDigest"],\n'
+      + '        "nativeMappingEvidence": native_mapping_evidence,\n'
       + '        "siteCustomizationLoaded": "sitecustomize" in sys.modules or "usercustomize" in sys.modules,\n',
     'workload mapped runtime evidence fields',
   );
@@ -693,27 +723,42 @@ def stdlib_evidence():
     return {"fileCount": len(files), "byteSetDigest": sha256(canonical_json(files))}
 
 
-def mapped_object_evidence():
+def mapped_object_snapshot(checkpoint):
     paths = set()
     for line in pathlib.Path("/proc/self/maps").read_text(encoding="utf-8").splitlines():
-        fields = line.split()
-        mapped_path = " ".join(fields[5:]) if len(fields) >= 6 else ""
+        fields = line.split(maxsplit=5)
+        mapped_path = fields[5] if len(fields) == 6 else ""
         if mapped_path.startswith("/") and mapped_path.endswith(" (deleted)"):
             raise RuntimeError("MAPPED_RUNTIME_OBJECT_DELETED:" + mapped_path)
         if mapped_path.startswith("/"):
-            path = pathlib.Path(mapped_path).resolve(strict=True)
-            if not path.is_file():
-                raise RuntimeError("MAPPED_RUNTIME_OBJECT_NOT_FILE:" + mapped_path)
-            paths.add(path)
+            try:
+                path = pathlib.Path(mapped_path).resolve(strict=True)
+                status = path.stat()
+                if not path.is_file():
+                    raise RuntimeError("MAPPED_RUNTIME_OBJECT_NOT_FILE:" + mapped_path)
+                digest = sha256(path.read_bytes())
+                if path.stat() != status:
+                    raise RuntimeError("MAPPED_RUNTIME_OBJECT_MOVED_DURING_READ:" + mapped_path)
+            except (FileNotFoundError, OSError) as error:
+                raise RuntimeError(
+                    "MAPPED_RUNTIME_OBJECT_UNRESOLVED:" + mapped_path + ":" + error.__class__.__name__
+                ) from error
+            paths.add((path, digest, status.st_size))
     records = [
         {
             "path": path.as_posix(),
-            "digest": sha256(path.read_bytes()),
-            "byteSize": path.stat().st_size,
+            "digest": digest,
+            "byteSize": byte_size,
         }
-        for path in sorted(paths, key=lambda item: item.as_posix().encode("utf-8"))
+        for path, digest, byte_size in sorted(paths, key=lambda item: item[0].as_posix().encode("utf-8"))
     ]
-    return {"count": len(records), "digest": sha256(canonical_json(records))}
+    return {
+        "schemaVersion": 1,
+        "checkpoint": checkpoint,
+        "records": records,
+        "recordCount": len(records),
+        "recordSetDigest": sha256(canonical_json(records)),
+    }
 
 
 prefix = pathlib.Path(sys.argv.pop(1)).resolve()
@@ -731,9 +776,9 @@ if settings.get("version") != ".".join(str(item) for item in sys.version_info[:3
     raise RuntimeError("PYVENV_VERSION_MISMATCH")
 distributions = distribution_evidence()
 stdlib = stdlib_evidence()
-mapped_objects = mapped_object_evidence()
+mapped_objects = mapped_object_snapshot("RUNTIME_INSPECTOR_STEADY_STATE")
 core = {
-    "schemaVersion": 2,
+    "schemaVersion": 3,
     "executionMode": "FD_PINNED_PROC_SELF_FD_WITH_LOGICAL_VENV_ARGV0_ISOLATED_NO_SITE",
     "pythonVersion": ".".join(str(item) for item in sys.version_info[:3]),
     "resolvedExecutableDigest": sha256(pathlib.Path("/proc/self/exe").read_bytes()),
@@ -744,12 +789,42 @@ core = {
     "distributionSetDigest": sha256(canonical_json(distributions)),
     "stdlibFileCount": stdlib["fileCount"],
     "stdlibByteSetDigest": stdlib["byteSetDigest"],
-    "mappedSystemObjectCount": mapped_objects["count"],
-    "mappedSystemObjectSetDigest": mapped_objects["digest"],
+    "mappedSystemObjectCount": mapped_objects["recordCount"],
+    "mappedSystemObjectSetDigest": mapped_objects["recordSetDigest"],
+    "nativeMappingEvidence": {
+        "schemaVersion": 1,
+        "checkpoints": [mapped_objects],
+        "checkpointSetDigest": sha256(canonical_json([mapped_objects])),
+    },
     "siteCustomizationLoaded": "sitecustomize" in sys.modules or "usercustomize" in sys.modules,
 }
 print(canonical_json({**core, "evidenceDigest": sha256(canonical_json(core))}))
 `;
+const EXPECTED_PYTHON_MAPPED_SYSTEM_OBJECTS = Object.freeze([
+  Object.freeze({ byteSize: 2650176, digest: 'sha256:aa9bb0d7b261b8266ababd9e19f5bf2f505d9a84ba360ce16502297e8a033765', path: '/root/usf-factory/.venv/lib/python3.11/site-packages/yaml/_yaml.cpython-311-x86_64-linux-gnu.so' }),
+  Object.freeze({ byteSize: 6834424, digest: 'sha256:c6e1f1ef67ab331cbb83bfbd5bbb9b766fbb2228ce848b038141cb7d2cad3158', path: '/usr/bin/python3.11' }),
+  Object.freeze({ byteSize: 353616, digest: 'sha256:e4b5576b19e40be5923b0eb864750d35944404bb0a92aa68d1a9b96110c52120', path: '/usr/lib/locale/C.utf8/LC_CTYPE' }),
+  Object.freeze({ byteSize: 27832, digest: 'sha256:cf30fc5db13a82fd7495d607bc65f6e7d52a5b76cbe8cec9e8b729e6c4e1870b', path: '/usr/lib/python3.11/lib-dynload/_bz2.cpython-311-x86_64-linux-gnu.so' }),
+  Object.freeze({ byteSize: 310920, digest: 'sha256:90cb638ed905e80f20ae5910185a89b7977bfddd9fba767c81a04a382702b8e7', path: '/usr/lib/python3.11/lib-dynload/_decimal.cpython-311-x86_64-linux-gnu.so' }),
+  Object.freeze({ byteSize: 63536, digest: 'sha256:a2fcd89a65df1cd9732bbc2c2ce8f9f63046ae379d3c6aac8e13186e74f994f0', path: '/usr/lib/python3.11/lib-dynload/_hashlib.cpython-311-x86_64-linux-gnu.so' }),
+  Object.freeze({ byteSize: 48968, digest: 'sha256:609311b966710cebf8b731c47574dcca957b3bc70ae31d3bd59bac67c5b0a1d3', path: '/usr/lib/python3.11/lib-dynload/_json.cpython-311-x86_64-linux-gnu.so' }),
+  Object.freeze({ byteSize: 44920, digest: 'sha256:4b8339bcad00c6339791b8d8d3884c521914de9aadbc5db6a800fce9a2b37f82', path: '/usr/lib/python3.11/lib-dynload/_lzma.cpython-311-x86_64-linux-gnu.so' }),
+  Object.freeze({ byteSize: 212272, digest: 'sha256:b3f2b4efa2a7c9d9a510145c76190d37d36f6e2405fff7db4b50784f91414394', path: '/usr/lib/python3.11/lib-dynload/_ssl.cpython-311-x86_64-linux-gnu.so' }),
+  Object.freeze({ byteSize: 14312, digest: 'sha256:a76075b368f196420326f0a82e403956553317b8259c8b68ddb87668422ed18f', path: '/usr/lib/python3.11/lib-dynload/_typing.cpython-311-x86_64-linux-gnu.so' }),
+  Object.freeze({ byteSize: 14536, digest: 'sha256:94eccc8a75bd3287a940be6bebc61bcc9bad5b95dfbe8310d8a2a2dc75fc452c', path: '/usr/lib/python3.11/lib-dynload/_uuid.cpython-311-x86_64-linux-gnu.so' }),
+  Object.freeze({ byteSize: 27028, digest: 'sha256:52c227df9d53248238602c1ddaccd2c8ddc4cc6a61aa45d7c425af590b8806a5', path: '/usr/lib/x86_64-linux-gnu/gconv/gconv-modules.cache' }),
+  Object.freeze({ byteSize: 215000, digest: 'sha256:02bcda52c1a5dfc236f94d9e5255b4a0e26347d8a372a5223b650e31f291ce3c', path: '/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2' }),
+  Object.freeze({ byteSize: 74688, digest: 'sha256:e4f501c8bd22390e42422691093d8af4e744a3e854809b809948055e8b08bda5', path: '/usr/lib/x86_64-linux-gnu/libbz2.so.1.0.4' }),
+  Object.freeze({ byteSize: 1926232, digest: 'sha256:6b4a45352fd0c540a9c7c718f35ce8c8e46a4e482f9d3885a910c32d1a0e1421', path: '/usr/lib/x86_64-linux-gnu/libc.so.6' }),
+  Object.freeze({ byteSize: 4734232, digest: 'sha256:72db1b3de8b7dfbaba4c056135f408da555f9d5e137c82129478e07e769f8070', path: '/usr/lib/x86_64-linux-gnu/libcrypto.so.3' }),
+  Object.freeze({ byteSize: 174184, digest: 'sha256:a9a60cb5308ca1054427e2973b021ea63c2c801c71d8c0dc9d33218fee1d976a', path: '/usr/lib/x86_64-linux-gnu/libexpat.so.1.8.10' }),
+  Object.freeze({ byteSize: 190456, digest: 'sha256:983464a4e0e840f85b519cb7b6153b60c75d6473f4d4c32a5a37b3f9894c52c3', path: '/usr/lib/x86_64-linux-gnu/liblzma.so.5.4.1' }),
+  Object.freeze({ byteSize: 911904, digest: 'sha256:7f2ca87f652f56b094462474b076749e90e689d0ecb9cb63c7679820b271b4e7', path: '/usr/lib/x86_64-linux-gnu/libm.so.6' }),
+  Object.freeze({ byteSize: 14480, digest: 'sha256:b93a680da8a05b939b235c1533572e7a2f6d3d8808bf70209997edc64ea5fedc', path: '/usr/lib/x86_64-linux-gnu/libpthread.so.0' }),
+  Object.freeze({ byteSize: 688160, digest: 'sha256:9aec161fdbc82d3e4280f5084843118939f1f4acc53c98ec963de03cfe812fad', path: '/usr/lib/x86_64-linux-gnu/libssl.so.3' }),
+  Object.freeze({ byteSize: 34872, digest: 'sha256:94176513740e4b8d24a68e6c37a43986b488f2910c9eaa34f69bd7ba8c49307d', path: '/usr/lib/x86_64-linux-gnu/libuuid.so.1.3.0' }),
+  Object.freeze({ byteSize: 121280, digest: 'sha256:7e2a72b4c4b38c61e6962de6e3f4a5e9ae692e732c68deead10a7ce2135a7f68', path: '/usr/lib/x86_64-linux-gnu/libz.so.1.2.13' }),
+]);
 const EXPECTED_PYTHON_RUNTIME = Object.freeze({
   pythonVersion: '3.11.2',
   resolvedExecutableDigest: 'sha256:c6e1f1ef67ab331cbb83bfbd5bbb9b766fbb2228ce848b038141cb7d2cad3158',
@@ -761,9 +836,47 @@ const EXPECTED_PYTHON_RUNTIME = Object.freeze({
   mappedSystemObjectSetDigest: 'sha256:2aa149da8aefbaaa71c1f887620b75d2f47b9dea26f57663fa92eda8da92755f',
   siteCustomizationLoaded: false,
 });
-const canonicalJson = (value) => JSON.stringify(
-  Object.fromEntries(Object.keys(value).sort().map((key) => [key, value[key]])),
-);
+const stable = (value) => Array.isArray(value)
+  ? value.map(stable)
+  : value && typeof value === 'object'
+    ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])]))
+    : value;
+const canonicalJson = (value) => JSON.stringify(stable(value));
+const exactKeys = (value, expected) => value && typeof value === 'object' && !Array.isArray(value)
+  && canonicalJson(Object.keys(value).sort()) === canonicalJson([...expected].sort());
+
+export function verifyPythonNativeMappingEvidence(evidence, expectedCheckpoints) {
+  if (!exactKeys(evidence, ['schemaVersion', 'checkpoints', 'checkpointSetDigest'])
+    || evidence.schemaVersion !== 1
+    || !Array.isArray(expectedCheckpoints)
+    || expectedCheckpoints.length < 1
+    || !Array.isArray(evidence.checkpoints)
+    || evidence.checkpoints.length !== expectedCheckpoints.length) {
+    throw new Error('PYTHON_NATIVE_MAPPING_EVIDENCE_SCHEMA_INVALID');
+  }
+  evidence.checkpoints.forEach((snapshot, index) => {
+    if (!exactKeys(snapshot, [
+      'schemaVersion',
+      'checkpoint',
+      'records',
+      'recordCount',
+      'recordSetDigest',
+    ])
+      || snapshot.schemaVersion !== 1
+      || snapshot.checkpoint !== expectedCheckpoints[index]
+      || !Array.isArray(snapshot.records)
+      || snapshot.records.length !== EXPECTED_PYTHON_MAPPED_SYSTEM_OBJECTS.length
+      || snapshot.recordCount !== snapshot.records.length
+      || snapshot.recordSetDigest !== sha256(canonicalJson(snapshot.records))
+      || canonicalJson(snapshot.records) !== canonicalJson(EXPECTED_PYTHON_MAPPED_SYSTEM_OBJECTS)) {
+      throw new Error(`PYTHON_NATIVE_MAPPING_CHECKPOINT_INVALID_${expectedCheckpoints[index]}`);
+    }
+  });
+  if (evidence.checkpointSetDigest !== sha256(canonicalJson(evidence.checkpoints))) {
+    throw new Error('PYTHON_NATIVE_MAPPING_CHECKPOINT_SET_DIGEST_MISMATCH');
+  }
+  return Object.freeze(evidence);
+}
 
 export function validateLocalShaclRuntime(runtime) {
   if (!runtime || typeof runtime !== 'object' || !isAbsolute(runtime.executablePath || '')
@@ -837,6 +950,7 @@ export function verifyPinnedPythonRuntimeEvidence(evidence) {
       'includeSystemSitePackages',
       'mappedSystemObjectCount',
       'mappedSystemObjectSetDigest',
+      'nativeMappingEvidence',
       'pyvenvConfigurationDigest',
       'pythonVersion',
       'resolvedExecutableDigest',
@@ -849,7 +963,7 @@ export function verifyPinnedPythonRuntimeEvidence(evidence) {
     throw new Error('PINNED_PYTHON_RUNTIME_EVIDENCE_FIELDS_INVALID');
   }
   const { evidenceDigest, ...core } = evidence;
-  if (evidence.schemaVersion !== 2
+  if (evidence.schemaVersion !== 3
     || evidence.executionMode !== 'FD_PINNED_PROC_SELF_FD_WITH_LOGICAL_VENV_ARGV0_ISOLATED_NO_SITE'
     || evidence.includeSystemSitePackages !== false
     || !isAbsolute(evidence.venvPrefix || '')
@@ -857,6 +971,15 @@ export function verifyPinnedPythonRuntimeEvidence(evidence) {
     || evidence.evidenceDigest !== sha256(canonicalJson(core))
     || Object.entries(EXPECTED_PYTHON_RUNTIME).some(([key, value]) => evidence[key] !== value)) {
     throw new Error('PINNED_PYTHON_RUNTIME_EVIDENCE_INVALID');
+  }
+  verifyPythonNativeMappingEvidence(
+    evidence.nativeMappingEvidence,
+    ['RUNTIME_INSPECTOR_STEADY_STATE'],
+  );
+  const [snapshot] = evidence.nativeMappingEvidence.checkpoints;
+  if (evidence.mappedSystemObjectCount !== snapshot.recordCount
+    || evidence.mappedSystemObjectSetDigest !== snapshot.recordSetDigest) {
+    throw new Error('PINNED_PYTHON_RUNTIME_NATIVE_MAPPING_SUMMARY_MISMATCH');
   }
   return Object.freeze(evidence);
 }
@@ -921,12 +1044,26 @@ export function runLocalShaclValidation({ repositoryRoot, runtime, arguments: va
     || workloadEvidence.siteCustomizationLoaded !== false) {
     throw new Error('LOCAL_SHACL_WORKLOAD_RUNTIME_EVIDENCE_INVALID');
   }
+  verifyPythonNativeMappingEvidence(
+    workloadEvidence.nativeMappingEvidence,
+    ['PRE_WORKLOAD', 'POST_SOURCE_LOAD', 'POST_VALIDATION'],
+  );
+  const finalWorkloadMappingSnapshot = workloadEvidence.nativeMappingEvidence.checkpoints.at(-1);
+  if (workloadEvidence.mappedSystemObjectCount !== finalWorkloadMappingSnapshot.recordCount
+    || workloadEvidence.mappedSystemObjectSetDigest !== finalWorkloadMappingSnapshot.recordSetDigest) {
+    throw new Error('LOCAL_SHACL_WORKLOAD_NATIVE_MAPPING_SUMMARY_MISMATCH');
+  }
   const runtimeEvidenceAfter = inspectPinnedPythonRuntime(runtime);
   if (canonicalJson(runtimeEvidenceAfter) !== canonicalJson(runtimeEvidenceBefore)) {
     throw new Error('LOCAL_SHACL_RUNTIME_DEPENDENCY_CLOSURE_MOVED');
   }
   return result.stdout;
 }
+
+export const localShaclRuntimeInternals = Object.freeze({
+  expectedPythonMappedSystemObjects: EXPECTED_PYTHON_MAPPED_SYSTEM_OBJECTS,
+  pythonRuntimeInspectionSource: PYTHON_RUNTIME_INSPECTION_SOURCE,
+});
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
