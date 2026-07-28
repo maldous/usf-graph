@@ -92,6 +92,21 @@ function runProducer({ executable = runner, environment = {}, mode = '--test-pre
   return { result, receipt: JSON.parse(lines.at(-1)) };
 }
 
+function livePacketFixture({
+  state,
+  reasons,
+  actions = [],
+  paths = [],
+  formats = [],
+}) {
+  return JSON.stringify({
+    proofCurrentness: { state, reasons },
+    authorisedActions: actions,
+    authorisedPaths: paths,
+    authorisedFormats: formats,
+  });
+}
+
 before(() => {
   root = mkdtempSync(join(tmpdir(), 'usf-materialisation-proof-test-'));
   repository = join(root, 'repository');
@@ -220,6 +235,88 @@ test('successful cleanup does not overwrite the primary failure phase', () => {
     'VALIDATION_EVIDENCE_TEST_PRIMARY_PHASE_FAILED',
   ]);
   assert.equal(receipt.phase, 'TEST_PRIMARY_PHASE');
+  assert.equal(receipt.eligibleForAdmission, false);
+  assert.deepEqual(receipt.authorityClaims, []);
+});
+
+test('CURRENT live packets require non-empty decision-scoped representation formats', () => {
+  const { result, receipt } = runProducer({
+    mode: '--test-live-packet-stage-only',
+    environment: {
+      USF_EXPECTED_LIVE_CURRENTNESS: 'CURRENT',
+      USF_TEST_LIVE_PACKET: livePacketFixture({
+        state: 'CURRENT',
+        reasons: [],
+        actions: ['write-file'],
+        paths: ['assurance'],
+      }),
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.deepEqual(receipt.failureCodes, [
+    'ASSERTION_FAILED_LIVE_PACKET_AUTHORISATION_MATCHES_CURRENTNESS',
+  ]);
+  assert.equal(receipt.eligibleForAdmission, false);
+  assert.deepEqual(receipt.authorityClaims, []);
+});
+
+test('CURRENT live packet fixtures pass only with actions, paths and decision formats', () => {
+  const { result, receipt } = runProducer({
+    mode: '--test-live-packet-stage-only',
+    environment: {
+      USF_EXPECTED_LIVE_CURRENTNESS: 'CURRENT',
+      USF_TEST_LIVE_PACKET: livePacketFixture({
+        state: 'CURRENT',
+        reasons: [],
+        actions: ['write-file'],
+        paths: ['assurance'],
+        formats: ['urn:usf:representationformat:ecmascriptmodule2024'],
+      }),
+    },
+  });
+  assert.equal(result.status, 0);
+  assert.equal(receipt.recordKind, 'USF_TEST_ONLY_LIVE_PACKET_STAGE');
+  assert.equal(receipt.stageAssertionPassed, true);
+  assert.equal(receipt.realisationValidationPassed, false);
+  assert.equal(receipt.eligibleForAdmission, false);
+  assert.deepEqual(receipt.authorityClaims, []);
+});
+
+test('UNRESOLVED live packets still grant nothing, including representation formats', () => {
+  const { result, receipt } = runProducer({
+    mode: '--test-live-packet-stage-only',
+    environment: {
+      USF_EXPECTED_LIVE_CURRENTNESS: 'UNRESOLVED_FAIL_CLOSED',
+      USF_TEST_LIVE_PACKET: livePacketFixture({
+        state: 'UNRESOLVED_FAIL_CLOSED',
+        reasons: ['proof-currentness-unresolved'],
+        formats: ['urn:usf:representationformat:ecmascriptmodule2024'],
+      }),
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.deepEqual(receipt.failureCodes, [
+    'ASSERTION_FAILED_NON_CURRENT_LIVE_PACKET_GRANTS_NOTHING',
+  ]);
+  assert.equal(receipt.eligibleForAdmission, false);
+  assert.deepEqual(receipt.authorityClaims, []);
+});
+
+test('UNRESOLVED empty live packet fixtures remain non-authorising candidate checks', () => {
+  const { result, receipt } = runProducer({
+    mode: '--test-live-packet-stage-only',
+    environment: {
+      USF_EXPECTED_LIVE_CURRENTNESS: 'UNRESOLVED_FAIL_CLOSED',
+      USF_TEST_LIVE_PACKET: livePacketFixture({
+        state: 'UNRESOLVED_FAIL_CLOSED',
+        reasons: ['proof-currentness-unresolved'],
+      }),
+    },
+  });
+  assert.equal(result.status, 0);
+  assert.equal(receipt.recordKind, 'USF_TEST_ONLY_LIVE_PACKET_STAGE');
+  assert.equal(receipt.stageAssertionPassed, true);
+  assert.equal(receipt.realisationValidationPassed, false);
   assert.equal(receipt.eligibleForAdmission, false);
   assert.deepEqual(receipt.authorityClaims, []);
 });
