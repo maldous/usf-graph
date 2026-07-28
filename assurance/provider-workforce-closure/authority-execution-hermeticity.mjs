@@ -10,6 +10,7 @@ import {
   mkdirSync,
   mkdtempSync,
   openSync,
+  readdirSync,
   readFileSync,
   readSync,
   realpathSync,
@@ -30,6 +31,13 @@ const GIT_OBJECT_ID = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const reservedEnvironmentNames = /^(?:BASH_ENV|ENV|GIT_|HOME$|LANG$|LANGUAGE$|LC_|LD_|LOCPATH$|NLSPATH$|NODE_|DYLD_|OPENSSL_|PATH$|PYTHON|SSL_CERT_DIR$|SSL_CERT_FILE$|SSLKEYLOGFILE$|TEMP$|TMP$|TMPDIR$|TZ$|TZDIR$|UV_THREADPOOL_SIZE$|XDG_)/;
 const utf8Compare = (left, right) => Buffer.compare(Buffer.from(String(left)), Buffer.from(String(right)));
+const completeTreeBoundCeilings = Object.freeze({
+  maxTrackedPaths: 100_000,
+  maxTotalBytes: 512 * 1024 * 1024,
+  maxPathBytes: 4096,
+  maxDepth: 128,
+  maxGitObjectBytes: 256 * 1024 * 1024,
+});
 
 export function sha256(bytes) {
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
@@ -254,12 +262,38 @@ function validateObjectId(value, code) {
   return value;
 }
 
-function collectChildStream(stream) {
+function collectChildStream(stream, {
+  maximumBytes = Number.POSITIVE_INFINITY,
+  boundCode = 'CHILD_STREAM_BOUND_EXCEEDED',
+} = {}) {
   const chunks = [];
-  stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
   return new Promise((resolveStream, rejectStream) => {
-    stream.once('end', () => resolveStream(Buffer.concat(chunks)));
-    stream.once('error', rejectStream);
+    let byteLength = 0;
+    let settled = false;
+    stream.on('data', (chunk) => {
+      if (settled) return;
+      const bytes = Buffer.from(chunk);
+      byteLength += bytes.length;
+      if (byteLength > maximumBytes) {
+        settled = true;
+        stream.destroy();
+        rejectStream(new Error(boundCode));
+        return;
+      }
+      chunks.push(bytes);
+    });
+    stream.once('end', () => {
+      if (!settled) {
+        settled = true;
+        resolveStream(Buffer.concat(chunks));
+      }
+    });
+    stream.once('error', (error) => {
+      if (!settled) {
+        settled = true;
+        rejectStream(error);
+      }
+    });
   });
 }
 
@@ -296,8 +330,14 @@ async function runIsolatedGitObject(context, objectId) {
       env: context.environment,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-    const stdoutPromise = collectChildStream(child.stdout);
-    const stderrPromise = collectChildStream(child.stderr);
+    const stdoutPromise = collectChildStream(child.stdout, {
+      maximumBytes: context.bounds.maxGitObjectBytes + 1024,
+      boundCode: 'GIT_OBJECT_BOUND_EXCEEDED',
+    });
+    const stderrPromise = collectChildStream(child.stderr, {
+      maximumBytes: 1024 * 1024,
+      boundCode: 'GIT_STDERR_BOUND_EXCEEDED',
+    });
     const closePromise = childClosed(child);
     await childSpawned(child);
     const runtimeEvidence = await waitForExpectedChildRuntime(
@@ -328,7 +368,11 @@ async function runIsolatedGitObject(context, objectId) {
     if (!match || match[1] !== objectId) throw new Error('GIT_BATCH_HEADER_INVALID');
     const byteLength = Number(match[3]);
     const bytes = stdout.subarray(newline + 1, -1);
-    if (!Number.isSafeInteger(byteLength) || bytes.length !== byteLength) {
+    if (
+      !Number.isSafeInteger(byteLength)
+      || byteLength > context.bounds.maxGitObjectBytes
+      || bytes.length !== byteLength
+    ) {
       throw new Error('GIT_BATCH_LENGTH_INVALID');
     }
     context.gitExecutableEvidence = runtimeEvidence.executable;
@@ -383,14 +427,49 @@ function parseTreeEntries(bytes, hexadecimalLength) {
   return entries;
 }
 
-async function walkTree(context, treeId, prefix, records) {
+function normalizeCompleteTreeBounds(bounds = {}) {
+  if (!bounds || typeof bounds !== 'object' || Array.isArray(bounds)) {
+    throw new Error('COMPLETE_TREE_BOUNDS_INVALID');
+  }
+  const unknown = Object.keys(bounds)
+    .filter((name) => !(name in completeTreeBoundCeilings))
+    .sort(utf8Compare);
+  if (unknown.length > 0) throw new Error(`COMPLETE_TREE_BOUND_UNKNOWN_${unknown[0]}`);
+  return Object.freeze(Object.fromEntries(Object.entries(completeTreeBoundCeilings).map(
+    ([name, ceiling]) => {
+      const value = bounds[name] ?? ceiling;
+      if (!Number.isSafeInteger(value) || value < 1 || value > ceiling) {
+        throw new Error(`COMPLETE_TREE_BOUND_INVALID_${name}`);
+      }
+      return [name, value];
+    },
+  )));
+}
+
+function assertPathWithinBounds(path, bounds) {
+  if (Buffer.byteLength(path, 'utf8') > bounds.maxPathBytes) {
+    throw new Error('TRACKED_PATH_BYTE_BOUND_EXCEEDED');
+  }
+  if (path.split('/').length > bounds.maxDepth) {
+    throw new Error('TRACKED_PATH_DEPTH_BOUND_EXCEEDED');
+  }
+}
+
+async function walkTree(context, treeId, prefix, records, state, depth = 0) {
+  if (depth > context.bounds.maxDepth) throw new Error('TRACKED_TREE_DEPTH_BOUND_EXCEEDED');
   const tree = await readVerifiedGitObject(context, 'tree', treeId);
   for (const entry of parseTreeEntries(tree, treeId.length)) {
     const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+    assertPathWithinBounds(path, context.bounds);
+    state.entryCount += 1;
+    if (state.entryCount > context.bounds.maxTrackedPaths) {
+      throw new Error('TRACKED_TREE_ENTRY_BOUND_EXCEEDED');
+    }
     if (entry.mode === '40000' || entry.mode === '040000') {
-      await walkTree(context, entry.objectId, path, records);
+      await walkTree(context, entry.objectId, path, records, state, depth + 1);
     } else {
       const type = entry.mode === '160000' ? 'commit' : 'blob';
+      if (records.has(path)) throw new Error('TRACKED_TREE_DUPLICATE_PATH');
       records.set(path, { path, mode: entry.mode, objectId: entry.objectId, type });
     }
   }
@@ -410,17 +489,209 @@ function validateTrackedPath(path) {
   return path;
 }
 
+function readStrictDirectoryNames(directory) {
+  const names = readdirSync(directory, { encoding: 'buffer' }).map((bytes) => {
+    const name = bytes.toString('utf8');
+    if (
+      !name
+      || name === '.'
+      || name === '..'
+      || name.includes('/')
+      || name.includes('\0')
+      || !Buffer.from(name, 'utf8').equals(bytes)
+    ) {
+      throw new Error('WORKTREE_ENTRY_NAME_NOT_STRICT_UTF8');
+    }
+    return name;
+  }).sort(utf8Compare);
+  if (new Set(names).size !== names.length) throw new Error('WORKTREE_ENTRY_NAMES_NOT_UNIQUE');
+  return names;
+}
+
+function expectedDirectoryPaths(records) {
+  const directories = new Set();
+  for (const record of records) {
+    const components = record.path.split('/');
+    for (let index = 1; index < components.length; index += 1) {
+      directories.add(components.slice(0, index).join('/'));
+    }
+  }
+  return directories;
+}
+
+function captureWorktreeMirror({ repository, bounds }) {
+  const files = [];
+  const directories = [];
+  let entryCount = 0;
+  let totalBytes = 0;
+
+  function walk(directory, prefix, depth) {
+    if (depth > bounds.maxDepth) throw new Error('WORKTREE_DEPTH_BOUND_EXCEEDED');
+    const beforeStat = lstatSync(directory, { bigint: true });
+    if (!beforeStat.isDirectory() || beforeStat.isSymbolicLink()) {
+      throw new Error('WORKTREE_DIRECTORY_IDENTITY_INVALID');
+    }
+    const beforeIdentity = identity(beforeStat);
+    directories.push({ path: prefix, identity: beforeIdentity });
+    const names = readStrictDirectoryNames(directory);
+    for (const name of names) {
+      const path = prefix ? `${prefix}/${name}` : name;
+      const absolutePath = join(directory, name);
+      const entryStat = lstatSync(absolutePath, { bigint: true });
+      if (entryStat.isSymbolicLink()) throw new Error(`WORKTREE_SYMLINK_REFUSED_${path}`);
+      if (!prefix && (name === '.git' || name === '.work')) {
+        if (name === '.work' && !entryStat.isDirectory()) {
+          throw new Error('WORKTREE_SESSION_AREA_NOT_DIRECTORY');
+        }
+        if (name === '.git' && !entryStat.isDirectory() && !entryStat.isFile()) {
+          throw new Error('WORKTREE_GIT_AREA_NOT_EXACT');
+        }
+        continue;
+      }
+      assertPathWithinBounds(path, bounds);
+      entryCount += 1;
+      if (entryCount > bounds.maxTrackedPaths) {
+        throw new Error('WORKTREE_ENTRY_BOUND_EXCEEDED');
+      }
+      if (entryStat.isDirectory()) {
+        walk(absolutePath, path, depth + 1);
+        continue;
+      }
+      if (!entryStat.isFile()) throw new Error(`WORKTREE_NON_REGULAR_ENTRY_${path}`);
+      let pinned;
+      try {
+        pinned = openPinnedRegularFile(absolutePath, 'WORKTREE_COMPLETE_SOURCE');
+        if (!identitiesEqual(identity(entryStat), pinned.identity)) {
+          throw new Error(`WORKTREE_SOURCE_MOVED_BEFORE_READ_${path}`);
+        }
+        totalBytes += pinned.bytes.length;
+        if (totalBytes > bounds.maxTotalBytes) {
+          throw new Error('WORKTREE_TOTAL_BYTE_BOUND_EXCEEDED');
+        }
+        files.push({
+          path,
+          type: 'file',
+          mode: Number(entryStat.mode & 0o111n) ? '100755' : '100644',
+          byteLength: pinned.bytes.length,
+          digest: pinned.digest,
+          identity: pinned.identity,
+        });
+      } finally {
+        closePinned(pinned);
+      }
+    }
+    const afterNames = readStrictDirectoryNames(directory);
+    const afterStat = lstatSync(directory, { bigint: true });
+    if (
+      canonicalJson(names) !== canonicalJson(afterNames)
+      || !identitiesEqual(beforeIdentity, identity(afterStat))
+    ) {
+      throw new Error(`WORKTREE_DIRECTORY_MOVED_DURING_READ_${prefix || 'ROOT'}`);
+    }
+  }
+
+  walk(repository, '', 0);
+  return {
+    files: files.sort((left, right) => utf8Compare(left.path, right.path)),
+    directories: directories.sort((left, right) => utf8Compare(left.path, right.path)),
+    totalBytes,
+  };
+}
+
+function validateWorktreeCapture({ capture, records }) {
+  const expectedFiles = new Map(records.map((record) => [record.path, record]));
+  const observedFiles = new Map(capture.files.map((record) => [record.path, record]));
+  const expectedDirectories = expectedDirectoryPaths(records);
+  const observedDirectories = new Set(
+    capture.directories.map(({ path }) => path).filter(Boolean),
+  );
+  const extraFile = [...observedFiles.keys()]
+    .filter((path) => !expectedFiles.has(path))
+    .sort(utf8Compare)[0];
+  if (extraFile) throw new Error(`WORKTREE_UNLISTED_FILE_${extraFile}`);
+  const missingFile = [...expectedFiles.keys()]
+    .filter((path) => !observedFiles.has(path))
+    .sort(utf8Compare)[0];
+  if (missingFile) throw new Error(`WORKTREE_TRACKED_FILE_MISSING_${missingFile}`);
+  const extraDirectory = [...observedDirectories]
+    .filter((path) => !expectedDirectories.has(path))
+    .sort(utf8Compare)[0];
+  if (extraDirectory) throw new Error(`WORKTREE_UNLISTED_DIRECTORY_${extraDirectory}`);
+  const missingDirectory = [...expectedDirectories]
+    .filter((path) => !observedDirectories.has(path))
+    .sort(utf8Compare)[0];
+  if (missingDirectory) throw new Error(`WORKTREE_TRACKED_DIRECTORY_MISSING_${missingDirectory}`);
+  for (const [path, expected] of expectedFiles) {
+    const observed = observedFiles.get(path);
+    if (
+      observed.type !== 'file'
+      || observed.mode !== expected.mode
+      || observed.byteLength !== expected.byteLength
+      || observed.digest !== expected.digest
+    ) {
+      throw new Error(`WORKTREE_TRACKED_FILE_MISMATCH_${path}`);
+    }
+  }
+}
+
+function readExactWorktreeMirror({ repository, records, bounds }) {
+  const first = captureWorktreeMirror({ repository, bounds });
+  validateWorktreeCapture({ capture: first, records });
+  const second = captureWorktreeMirror({ repository, bounds });
+  validateWorktreeCapture({ capture: second, records });
+  if (
+    canonicalJson(first.files) !== canonicalJson(second.files)
+    || canonicalJson(first.directories) !== canonicalJson(second.directories)
+  ) {
+    throw new Error('WORKTREE_SOURCE_MOVED_DURING_COMPLETE_SNAPSHOT');
+  }
+  const publicRecords = first.files.map(({ identity: ignored, ...record }) => record);
+  return {
+    schemaVersion: 1,
+    excludedRootEntries: ['.git', '.work'],
+    exactPathSetVerified: true,
+    sourceMovementChecked: true,
+    recordCount: publicRecords.length,
+    totalBytes: first.totalBytes,
+    sourceSetDigest: sha256(canonicalJson(publicRecords)),
+    sourceIdentitySetDigest: sha256(canonicalJson({
+      directories: first.directories,
+      files: first.files.map(({ path, identity }) => ({ path, identity })),
+    })),
+    records: publicRecords,
+  };
+}
+
 export async function readTrackedTreeSnapshot({
   repository,
   commit,
   paths,
+  allTrackedPaths = false,
+  verifyWorktreeMirror = false,
+  bounds: requestedBounds,
   gitExecutable = '/usr/bin/git',
   expectedGitRuntime,
 }) {
   validateObjectId(commit, 'COMMIT_ID_INVALID');
-  if (!Array.isArray(paths) || paths.length === 0) throw new Error('TRACKED_PATHS_REQUIRED');
-  const requestedPaths = [...new Set(paths.map(validateTrackedPath))].sort(utf8Compare);
-  if (requestedPaths.length !== paths.length) throw new Error('TRACKED_PATHS_NOT_UNIQUE');
+  if (typeof allTrackedPaths !== 'boolean') throw new Error('ALL_TRACKED_PATHS_INVALID');
+  if (typeof verifyWorktreeMirror !== 'boolean') throw new Error('VERIFY_WORKTREE_MIRROR_INVALID');
+  if (verifyWorktreeMirror && !allTrackedPaths) {
+    throw new Error('WORKTREE_MIRROR_REQUIRES_COMPLETE_TREE');
+  }
+  if (allTrackedPaths && paths !== undefined) {
+    throw new Error('TRACKED_PATH_SELECTION_AMBIGUOUS');
+  }
+  if (!allTrackedPaths && (!Array.isArray(paths) || paths.length === 0)) {
+    throw new Error('TRACKED_PATHS_REQUIRED');
+  }
+  const requestedPaths = allTrackedPaths
+    ? null
+    : [...new Set(paths.map(validateTrackedPath))].sort(utf8Compare);
+  if (!allTrackedPaths && requestedPaths.length !== paths.length) {
+    throw new Error('TRACKED_PATHS_NOT_UNIQUE');
+  }
+  const bounds = normalizeCompleteTreeBounds(requestedBounds);
+  if (requestedPaths) requestedPaths.forEach((path) => assertPathWithinBounds(path, bounds));
   verifyExpectedRuntimeBeforeExecution(expectedGitRuntime, gitExecutable, 'GIT_RUNTIME');
   const source = resolveRepositoryObjectStore(repository);
   const isolated = createIsolatedObjectRepository(source.objectStore);
@@ -430,6 +701,7 @@ export async function readTrackedTreeSnapshot({
     isolatedGitDirectory: isolated.gitDirectory,
     expectedGitRuntime,
     gitRuntimeEvidence: [],
+    bounds,
     environment: buildSanitizedExecutionEnvironment({
       homeDirectory: temporaryHome,
       includeGitControls: true,
@@ -443,38 +715,63 @@ export async function readTrackedTreeSnapshot({
     const commitBytes = await readVerifiedGitObject(context, 'commit', commit);
     const treeId = parseCommitTree(commitBytes, commit.length);
     const treeRecords = new Map();
-    await walkTree(context, treeId, '', treeRecords);
+    await walkTree(context, treeId, '', treeRecords, { entryCount: 0 });
+    const selectedPaths = allTrackedPaths
+      ? [...treeRecords.keys()].sort(utf8Compare)
+      : requestedPaths;
     const records = [];
-    for (const path of requestedPaths) {
+    let totalBytes = 0;
+    for (const path of selectedPaths) {
       const entry = treeRecords.get(path);
       if (!entry) throw new Error(`TRACKED_PATH_ABSENT_${path}`);
       if (entry.type !== 'blob' || !/^(?:100644|100755)$/.test(entry.mode)) {
         throw new Error(`TRACKED_PATH_NOT_REGULAR_BLOB_${path}`);
       }
+      if (
+        allTrackedPaths
+        && (path === '.work' || path.startsWith('.work/') || path === '.git' || path.startsWith('.git/'))
+      ) {
+        throw new Error(`TRACKED_PATH_IN_RESERVED_AREA_${path}`);
+      }
       const bytes = await readVerifiedGitObject(context, 'blob', entry.objectId);
-      records.push({
+      totalBytes += bytes.length;
+      if (totalBytes > bounds.maxTotalBytes) throw new Error('TRACKED_TREE_TOTAL_BYTE_BOUND_EXCEEDED');
+      const record = {
         ...entry,
-        bytes,
         byteLength: bytes.length,
         digest: sha256(bytes),
-      });
+      };
+      records.push(allTrackedPaths ? { ...record, type: 'file' } : { ...record, bytes });
     }
+    const worktreeMirror = verifyWorktreeMirror
+      ? readExactWorktreeMirror({
+        repository: source.worktree,
+        records,
+        bounds,
+      })
+      : null;
     const objectStoreAfter = identity(statSync(source.objectStore, { bigint: true }));
     if (!identitiesEqual(objectStoreBefore, objectStoreAfter)) {
       throw new Error('OBJECT_STORE_CHANGED_DURING_READ');
     }
     const recordEvidence = records.map(({ bytes, ...record }) => record);
+    const sourceSetDigest = sha256(canonicalJson(recordEvidence));
     return {
       schemaVersion: 1,
       commit,
       tree: treeId,
+      sourceSetDigest,
       records,
       evidence: {
         commit,
         tree: treeId,
-        sourceSetDigest: sha256(canonicalJson(recordEvidence)),
+        selection: allTrackedPaths ? 'ALL_TRACKED_PATHS' : 'EXACT_REQUESTED_PATHS',
+        sourceSetDigest,
         recordCount: recordEvidence.length,
+        totalBytes,
+        bounds,
         records: recordEvidence,
+        ...(worktreeMirror ? { worktreeMirror } : {}),
         repositoryObjectStore: {
           path: source.objectStore,
           ...objectStoreAfter,
@@ -497,6 +794,19 @@ export async function readTrackedTreeSnapshot({
     rmSync(isolated.root, { recursive: true, force: true });
     rmSync(temporaryHome, { recursive: true, force: true });
   }
+}
+
+export function readCompleteTrackedTreeSnapshot(options) {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) {
+    throw new Error('COMPLETE_TREE_OPTIONS_REQUIRED');
+  }
+  if ('paths' in options || 'allTrackedPaths' in options) {
+    throw new Error('COMPLETE_TREE_SELECTION_IS_FIXED');
+  }
+  return readTrackedTreeSnapshot({
+    ...options,
+    allTrackedPaths: true,
+  });
 }
 
 export function compareWorktreeToSnapshot({ repository, snapshot }) {
