@@ -84,28 +84,46 @@ test('frozen manifest is UTF-8 sorted, disjoint, complete, and test-free', () =>
   assert.equal(PROVIDER_PROOF_ALGORITHM_SOURCE_PATHS.some((path) => path.includes('.test.')), false);
 });
 
-test('candidate source set has the exact recursive first-party import closure', () => {
+test('candidate source set is exactly covered by its declared entrypoint closures', () => {
   const tracked = execFileSync(
     '/usr/bin/git',
     ['-C', repositoryRoot, 'ls-tree', '-rz', '--name-only', 'HEAD'],
   ).toString('utf8').split('\0').filter(Boolean);
   const manifestPath =
     'assurance/provider-workforce-closure/provider-proof-source-manifest.mjs';
-  if (!tracked.includes(manifestPath)) tracked.push(manifestPath);
+  assert.equal(tracked.includes(manifestPath), true, 'manifest must be present in HEAD');
   tracked.sort(utf8Compare);
   const result = verifyProviderProofSourceManifest({
     repositoryRoot,
     trackedSourcePaths: tracked,
   });
-  assert.equal(result.sourceCount, 20);
+  assert.equal(result.declaredSourceCount, 20);
+  assert.equal(result.reachableSourceCount, 20);
+  assert.equal(result.entrypointClosureCount, 8);
+  assert.equal(result.entrypointClosures.length, 8);
+  assert.equal(
+    Math.max(...result.entrypointClosures.map(({ sourceCount }) => sourceCount)) < 20,
+    true,
+  );
+  assert.deepEqual(result.declaredEntrypoints, PROVIDER_PROOF_ALGORITHM_ENTRYPOINT_PATHS);
+  assert.deepEqual(result.reachableSourcePaths, PROVIDER_PROOF_ALGORITHM_SOURCE_PATHS);
   assert.equal(result.publicationSourceCount, 9);
   assert.deepEqual(
     result.publicationSourceRecords.map(({ path }) => path),
     CANONICAL_PUBLICATION_SOURCE_PATHS,
   );
-  assert.match(result.sourceSetDigest, /^sha256:[0-9a-f]{64}$/u);
+  assert.match(result.declaredSourceSetDigest, /^sha256:[0-9a-f]{64}$/u);
   assert.match(result.publicationSourceSetDigest, /^sha256:[0-9a-f]{64}$/u);
-  assert.match(result.importClosureDigest, /^sha256:[0-9a-f]{64}$/u);
+  assert.match(result.firstPartyImportEdgeSetDigest, /^sha256:[0-9a-f]{64}$/u);
+  assert.match(result.entrypointClosureSetDigest, /^sha256:[0-9a-f]{64}$/u);
+  assert.equal(
+    result.firstPartyImportEdges.some(({ kind }) => kind === 'dynamic-import'),
+    true,
+  );
+  assert.equal(
+    result.firstPartyImportEdges.some(({ kind }) => kind === 'static-export'),
+    true,
+  );
 });
 
 test('every direct source omission is rejected', async (context) => {
@@ -163,6 +181,92 @@ test('a new relative import in every direct source requires a manifest update', 
       }
     });
   }
+});
+
+test('template expressions are recursively scanned for literal and nonliteral imports', async (context) => {
+  await context.test('literal import in interpolation', () => {
+    expectMutatedSourceCode(
+      "const hidden = `prefix ${import('./unlisted-hidden.mjs')} suffix`;\n",
+      'PROVIDER_PROOF_RELATIVE_IMPORT_NOT_DECLARED',
+    );
+  });
+  await context.test('literal import in nested template interpolation', () => {
+    expectMutatedSourceCode(
+      "const hidden = `outer ${`inner ${import('./unlisted-nested.mjs')}`}`;\n",
+      'PROVIDER_PROOF_RELATIVE_IMPORT_NOT_DECLARED',
+    );
+  });
+  await context.test('commented literal import in interpolation', () => {
+    expectMutatedSourceCode(
+      "const hidden = `prefix ${import(/* exact */ './unlisted-commented.mjs')} suffix`;\n",
+      'PROVIDER_PROOF_RELATIVE_IMPORT_NOT_DECLARED',
+    );
+  });
+  await context.test('nonliteral import in interpolation', () => {
+    expectMutatedSourceCode(
+      "const path = './unlisted.mjs'; const hidden = `prefix ${import(path)} suffix`;\n",
+      'PROVIDER_PROOF_DYNAMIC_IMPORT_NOT_LITERAL',
+    );
+  });
+});
+
+test('all unclassified nonliteral and escaped dynamic imports fail closed', async (context) => {
+  await context.test('identifier expression', () => {
+    expectMutatedSourceCode(
+      "const path = './unlisted.mjs'; void import(path);\n",
+      'PROVIDER_PROOF_DYNAMIC_IMPORT_NOT_LITERAL',
+    );
+  });
+  await context.test('concatenated expression', () => {
+    expectMutatedSourceCode(
+      "const suffix = 'unlisted.mjs'; void import('./' + suffix);\n",
+      'PROVIDER_PROOF_DYNAMIC_IMPORT_NOT_LITERAL',
+    );
+  });
+  await context.test('template expression argument', () => {
+    expectMutatedSourceCode(
+      "const suffix = 'unlisted.mjs'; void import(`./${suffix}`);\n",
+      'PROVIDER_PROOF_DYNAMIC_IMPORT_NOT_LITERAL',
+    );
+  });
+  await context.test('escaped literal specifier', () => {
+    expectMutatedSourceCode(
+      "void import('./unlisted\\\\x2emjs');\n",
+      'PROVIDER_PROOF_IMPORT_ESCAPE_UNSUPPORTED',
+    );
+  });
+});
+
+test('static export-from and side-effect import declarations are both closed', async (context) => {
+  await context.test('static export-from', () => {
+    expectMutatedSourceCode(
+      "export * from './unlisted-export.mjs';\n",
+      'PROVIDER_PROOF_RELATIVE_IMPORT_NOT_DECLARED',
+    );
+  });
+  await context.test('side-effect import', () => {
+    expectMutatedSourceCode(
+      "import /* exact */ './unlisted-side-effect.mjs';\n",
+      'PROVIDER_PROOF_RELATIVE_IMPORT_NOT_DECLARED',
+    );
+  });
+});
+
+test('comments, strings, regexes, escaped templates, and properties do not create imports', () => {
+  verifyMutatedSource([
+    "// import('./comment-line.mjs');",
+    "/* export * from './comment-block.mjs'; */",
+    'const quoted = "import(\\\'./quoted.mjs\\\')";',
+    "const regex = /\\$\\{import\\(['\"]\\.\\/regex\\.mjs['\"]\\)\\}/u;",
+    "function regexAfterReturn() { return /import\\('\\.\\/return-regex\\.mjs'\\)/u; }",
+    "if (true) /import('\\.\\/control-regex\\.mjs')/u.test('not an import');",
+    "const rawTemplate = `import('./raw-template.mjs')`;",
+    "const escapedInterpolation = `raw \\${import('./escaped-template.mjs')}`;",
+    'const provider = {};',
+    "provider.import('./property.mjs');",
+    'const ratio = 10 / 2;',
+    '',
+  ].join('\n'));
 });
 
 test('every duplicate direct source is rejected before file access', async (context) => {
@@ -288,4 +392,25 @@ test('extra source and altered publication subset are rejected', () => {
 
 function readSource(path) {
   return readFileSync(path, 'utf8');
+}
+
+function verifyMutatedSource(fragment) {
+  const state = fixture();
+  try {
+    const target = join(
+      state.root,
+      'assurance/provider-workforce-closure/authority-execution-hermeticity.mjs',
+    );
+    writeFileSync(target, `${readSource(target)}\n${fragment}`, 'utf8');
+    return verifyProviderProofSourceManifest({
+      repositoryRoot: state.root,
+      trackedSourcePaths: state.trackedSourcePaths,
+    });
+  } finally {
+    state.cleanup();
+  }
+}
+
+function expectMutatedSourceCode(fragment, code) {
+  expectCode(() => verifyMutatedSource(fragment), code);
 }
