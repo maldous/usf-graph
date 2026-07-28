@@ -51,6 +51,32 @@ function record(id, expected, observed, { negative = false, detail = null } = {}
   }
 }
 
+function assertLivePacketStage(livePacket, expectedLiveCurrentness) {
+  const authorisationArraysPresent = ['authorisedActions', 'authorisedPaths', 'authorisedFormats']
+    .every((key) => Array.isArray(livePacket?.[key]));
+  record('live-proof-currentness-state', expectedLiveCurrentness, livePacket?.proofCurrentness?.state, {
+    detail: { reasons: livePacket?.proofCurrentness?.reasons },
+  });
+  record('live-packet-authorisation-matches-currentness',
+    expectedLiveCurrentness === 'CURRENT',
+    authorisationArraysPresent
+      && livePacket.authorisedActions.length > 0
+      && livePacket.authorisedPaths.length > 0
+      && livePacket.authorisedFormats.length > 0);
+  // A non-current live projection must grant nothing at all, not merely fewer
+  // actions: this is the property that stops a stale proof authorising apply.
+  record('non-current-live-packet-grants-nothing',
+    expectedLiveCurrentness !== 'CURRENT',
+    authorisationArraysPresent
+      && livePacket.authorisedActions.length === 0
+      && livePacket.authorisedPaths.length === 0
+      && livePacket.authorisedFormats.length === 0,
+    { negative: expectedLiveCurrentness !== 'CURRENT' });
+  record('live-projection-reports-currentness-reasons', true,
+    Array.isArray(livePacket?.proofCurrentness?.reasons)
+    && (expectedLiveCurrentness === 'CURRENT') === (livePacket.proofCurrentness.reasons.length === 0));
+}
+
 process.on('uncaughtException', (error) => {
   const failureCode = error?.code
     || `VALIDATION_EVIDENCE_${failureContext.phase}_FAILED`;
@@ -333,6 +359,26 @@ if (process.argv.includes('--test-cleanup-phase-preservation-only')) {
     removeProofRoot(testRoot, 'TEST_CLEANUP_PHASE');
   }
 }
+if (process.argv.includes('--test-live-packet-stage-only')) {
+  failureContext.phase = 'TEST_LIVE_PACKET_STAGE';
+  let testLivePacket;
+  try { testLivePacket = JSON.parse(process.env.USF_TEST_LIVE_PACKET || ''); }
+  catch { fail('TEST_LIVE_PACKET_REQUIRED'); }
+  const testExpectedLiveCurrentness = process.env.USF_EXPECTED_LIVE_CURRENTNESS || 'UNRESOLVED_FAIL_CLOSED';
+  assertLivePacketStage(testLivePacket, testExpectedLiveCurrentness);
+  process.stdout.write(`${canonicalJson({
+    schemaVersion: 1,
+    recordKind: 'USF_TEST_ONLY_LIVE_PACKET_STAGE',
+    stageAssertionPassed: true,
+    realisationValidationPassed: false,
+    eligibleForAdmission: false,
+    authorityClaims: [],
+    cases,
+    ...producerPreflight,
+    commands: failureContext.commands,
+  })}\n`);
+  process.exit(0);
+}
 
 const require = createRequire(join(repo, 'package.json'));
 const canonicalModule = (path) => pathToFileURL(join(repo, path));
@@ -502,21 +548,7 @@ const livePacket = await projectContract(live, { contract, objective: 'Refresh c
 //   UNRESOLVED_FAIL_CLOSED  producing Stage-1 records (no current bindings yet)
 //   CURRENT                 re-running against a settled Stage-2 authority
 const expectedLiveCurrentness = process.env.USF_EXPECTED_LIVE_CURRENTNESS || 'UNRESOLVED_FAIL_CLOSED';
-record('live-proof-currentness-state', expectedLiveCurrentness, livePacket.proofCurrentness.state, {
-  detail: { reasons: livePacket.proofCurrentness.reasons },
-});
-record('live-packet-authorisation-matches-currentness',
-  expectedLiveCurrentness === 'CURRENT',
-  livePacket.authorisedActions.length > 0 && livePacket.authorisedPaths.length > 0);
-// A non-current live projection must grant nothing at all, not merely fewer
-// actions: this is the property that stops a stale proof authorising apply.
-record('non-current-live-packet-grants-nothing',
-  expectedLiveCurrentness !== 'CURRENT',
-  livePacket.authorisedActions.length === 0 && livePacket.authorisedPaths.length === 0 && livePacket.authorisedFormats.length === 0,
-  { negative: expectedLiveCurrentness !== 'CURRENT' });
-record('live-projection-reports-currentness-reasons', true,
-  Array.isArray(livePacket.proofCurrentness.reasons)
-  && (expectedLiveCurrentness === 'CURRENT') === (livePacket.proofCurrentness.reasons.length === 0));
+assertLivePacketStage(livePacket, expectedLiveCurrentness);
 
 failureContext.phase = 'LOCAL_AUTHORITY_DATASET';
 const manifest = loadManifest(semanticModelDirectory);
@@ -594,6 +626,28 @@ const unsignedLivePlan = { schemaVersion: 1, authorityDigest: current.authorityD
 const livePlan = { ...unsignedLivePlan, planDigest: digest(jcs(unsignedLivePlan)) };
 const blockedValidation = validateMaterialisationPlan(blockedContext, livePlan);
 record('pre-activation-plan-fails-closed', true, blockedValidation.failures.some((item) => item.code === 'contract-not-active'), { negative: true });
+
+record('current-decision-authorised-formats-nonempty', true,
+  Array.isArray(activeContext.authorisedFormats) && activeContext.authorisedFormats.length > 0);
+record('selected-rule-format-decision-authorised', true,
+  activeContext.authorisedFormats.includes(operation.representationFormat));
+const decisionOmittedFormatContext = {
+  ...activeContext,
+  authorisedFormats: activeContext.authorisedFormats.filter((format) => format !== operation.representationFormat),
+};
+record('decision-omitted-format-fixture-remains-nonempty', true,
+  decisionOmittedFormatContext.authorisedFormats.length > 0);
+record('decision-omitted-format-remains-globally-allowed', true,
+  decisionOmittedFormatContext.rules.some((rule) => rule.family === operation.artefactFamily
+    && rule.pathRole === operation.pathRole
+    && rule.representationFormat === operation.representationFormat));
+const decisionOmittedFormatValidation = validateMaterialisationPlan(decisionOmittedFormatContext, livePlan);
+record('decision-omitted-write-format-plan-rejected', false, decisionOmittedFormatValidation.ok, { negative: true });
+record('decision-omitted-write-format-stable-code',
+  'operation-decision-representation-format',
+  decisionOmittedFormatValidation.failures
+    .find((item) => item.index === 0 && item.code === 'operation-decision-representation-format')?.code ?? null,
+  { negative: true });
 
 const firstPlan = createMaterialisationPlan(activeContext, [operation], contract);
 const secondPlan = createMaterialisationPlan(activeContext, [operation], contract);
