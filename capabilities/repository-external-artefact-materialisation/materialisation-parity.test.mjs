@@ -57,6 +57,11 @@ const DIGEST = `sha256:${'a1'.repeat(32)}`;
 
 const context = () => ({
   authorityDigest: DIGEST,
+  // This fixture exercises the historical, unscoped repository
+  // materialisation contract. It is still a gateway contract, but it must not
+  // inherit the provider contracts' decision-scoped permission set.
+  materialisationGatewayContract: true,
+  decisionScopedMaterialisationRequired: false,
   contract: {
     id: 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation',
     lifecycleState: 'urn:usf:semanticlifecyclestate:active',
@@ -73,12 +78,12 @@ const context = () => ({
 
 // A verdict the gateway will accept, so the only thing under test is the operation
 // and path mechanics rather than the live-authority decision the gateway owns.
-const verdict = () => ({
+const verdict = (authority = context()) => ({
   actionState: 'PROCEED',
   actionStateReasons: [],
   stateFailureCode: 'plan-realisation-not-proceed',
   validation: { validationSatisfied: false },
-  context: context(),
+  context: authority,
   witness: { digest: DIGEST, graphCount: 1, triples: 1 },
 });
 
@@ -97,11 +102,11 @@ function operation(path, content = 'export default 1;\n') {
   };
 }
 
-function plan(operations) {
+function plan(operations, contract = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation') {
   const body = {
     schemaVersion: 1,
     authorityDigest: DIGEST,
-    contract: 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation',
+    contract,
     operations,
   };
   return { ...body, planDigest: sha256(canonicalJson(body)) };
@@ -222,6 +227,73 @@ test('a well-formed plan is accepted identically by both surfaces', async () => 
   assert.deepEqual(gatewayResult.failures, []);
   assert.equal(engineResult.expectedPlanDigest, gatewayResult.expectedPlanDigest);
   assert.equal(engineResult.operationCount, gatewayResult.operationCount);
+});
+
+test('gateway eligibility and provider decision scope cannot be inferred from legacy mechanics', async () => {
+  const candidate = plan([operation('capabilities/example/assembled.mjs')]);
+
+  // The pure engine owns shared mechanics, not the closed list of contracts
+  // exposed through the live gateway. A context that is not a declared gateway
+  // remains mechanically valid but is refused by the gateway.
+  const notGateway = { ...context(), materialisationGatewayContract: false };
+  assert.equal(validateMaterialisationPlan(notGateway, candidate).ok, true);
+  const gatewayRefusal = await validateLayoutPlan({}, candidate, verdict(notGateway));
+  assert.equal(gatewayRefusal.ok, false);
+  assert.deepEqual(codesOf(gatewayRefusal), ['plan-contract-not-materialisable']);
+
+  // Conversely, setting the provider-scoped mode cannot make the legacy
+  // fixture inherit broad defaults. Without the exact accepted-decision
+  // repository, paths, directories, actions, families, rules and permission
+  // digest, both surfaces fail closed.
+  const providerContract = 'urn:usf:semanticcontract:providerconfigurationplane';
+  const incompleteProviderScope = {
+    ...context(),
+    contract: {
+      ...context().contract,
+      id: providerContract,
+      authorisedRepository: null,
+    },
+    decisionScopedMaterialisationRequired: true,
+    authorisedRepositories: [],
+    authorisedPaths: [],
+    authorisedDirectoryPrefixes: [],
+    authorisedActions: [],
+    authorisedFamilies: [],
+    rules: [],
+    permissionSetDigest: DIGEST,
+  };
+  const providerCandidate = plan(
+    [operation('capabilities/example/assembled.mjs')],
+    providerContract,
+  );
+  const engineRefusal = validateMaterialisationPlan(incompleteProviderScope, providerCandidate);
+  const scopedGatewayRefusal = await validateLayoutPlan(
+    {},
+    providerCandidate,
+    verdict(incompleteProviderScope),
+  );
+  assert.equal(engineRefusal.ok, false);
+  assert.equal(scopedGatewayRefusal.ok, false);
+  for (const code of [
+    'authorised-repositories',
+    'authorised-directory-prefixes',
+    'authorised-path-set',
+    'authorised-actions',
+    'authorised-families',
+    'permission-set-digest-mismatch',
+    'plan-permission-set-digest',
+    'plan-repository-identity',
+    'operation-decision-action',
+    'operation-decision-family',
+    'operation-decision-path',
+  ]) {
+    assert.ok(codesOf(engineRefusal).includes(code), `engine did not fail closed with ${code}`);
+  }
+  assert.ok(codesOf(scopedGatewayRefusal).includes('plan-permission-set-digest'));
+  assert.ok(codesOf(scopedGatewayRefusal).includes('plan-repository-identity'));
+  assert.ok(codesOf(scopedGatewayRefusal).includes('operation-decision-action'));
+  assert.ok(codesOf(scopedGatewayRefusal).includes('operation-decision-family'));
+  assert.ok(codesOf(scopedGatewayRefusal).includes('operation-decision-path'));
 });
 
 test('the gateway declares no private copy of the shared mechanics', () => {
