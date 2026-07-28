@@ -95,6 +95,15 @@ function record(id, expected, observed, { negative = false, detail = null } = {}
   }
 }
 
+function requireExactIdentifierSet(actual, expected, failureCode) {
+  const sortedActual = actual.slice().sort();
+  const sortedExpected = expected.slice().sort();
+  if (new Set(sortedActual).size !== sortedActual.length
+    || canonicalJson(sortedActual) !== canonicalJson(sortedExpected)) {
+    fail(failureCode);
+  }
+}
+
 process.on('uncaughtException', (error) => {
   const failureCode = error?.code
     || `VALIDATION_EVIDENCE_${failureContext.phase}_FAILED`;
@@ -458,10 +467,15 @@ if (process.argv.includes('--test-client-assembly-only')) {
   process.exit(0);
 }
 const {
+  MATERIALISATION_FOCUSED_TEST_ARGUMENTS,
+  MATERIALISATION_NEGATIVE_CASE_IDS,
+  MATERIALISATION_REQUIRED_CASE_IDS,
+  MATERIALISATION_REQUIRED_COMMAND_IDS,
   MATERIALISATION_IMPLEMENTATION_SOURCE_PATHS,
 } = await import(canonicalModule(
   'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.mjs',
 ));
+if (!expectedDependencySetDigest) fail('EXPECTED_DEPENDENCY_SET_DIGEST_REQUIRED');
 const { DataFactory } = require('n3');
 const { authorityWitness } = await import(canonicalModule('processes/semantic-assurance/semantic-bootstrap-packet.mjs'));
 const { loadConfig } = await import(canonicalModule('configuration/semantic-assurance/stardog-connection.mjs'));
@@ -579,7 +593,7 @@ record('live-packet-authorisation-matches-currentness',
 record('non-current-live-packet-grants-nothing',
   expectedLiveCurrentness !== 'CURRENT',
   livePacket.authorisedActions.length === 0 && livePacket.authorisedPaths.length === 0 && livePacket.authorisedFormats.length === 0,
-  { negative: expectedLiveCurrentness !== 'CURRENT' });
+  { negative: true });
 record('live-projection-reports-currentness-reasons', true,
   Array.isArray(livePacket.proofCurrentness.reasons)
   && (expectedLiveCurrentness === 'CURRENT') === (livePacket.proofCurrentness.reasons.length === 0));
@@ -637,7 +651,11 @@ record(
   candidateAuthorityDigest,
 );
 const candidateDependencySetDigest = authorityDependencySetDigest(candidateGraphInventory);
-if (expectedDependencySetDigest) record('candidate-dependency-set-digest', expectedDependencySetDigest, candidateDependencySetDigest);
+record(
+  'candidate-dependency-set-digest',
+  expectedDependencySetDigest,
+  candidateDependencySetDigest,
+);
 
 failureContext.phase = 'MATERIALISATION_AUTHORITY_LAYOUT';
 const activeContext = current;
@@ -896,17 +914,7 @@ tamperedPlan.planDigest = digest(jcs(tamperedPlan));
 record('tampered-content-plan', true, validateMaterialisationPlan(activeContext, tamperedPlan).failures.some((item) => item.code === 'operation-content-mismatch'), { negative: true });
 
 failureContext.phase = 'FOCUSED_CONTROL_PLANE_TESTS';
-const focusedTestArguments = ['--test',
-  'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.test.mjs',
-  'capabilities/repository-external-artefact-materialisation/materialisation-plan.test.mjs',
-  'configuration/semantic-assurance/semantic-authority.test.mjs',
-  'provider-bindings/stardog/semantic-authority.test.mjs',
-  'processes/semantic-assurance/repository-materialisation-command.test.mjs',
-  'processes/semantic-assurance/semantic-authority-gateway.test.mjs',
-  'processes/semantic-assurance/repository-materialisation-gateway.test.mjs',
-  'processes/semantic-assurance/proof-currentness.test.mjs',
-  'processes/semantic-assurance/semantic-authority-mcp.test.mjs',
-];
+const focusedTestArguments = [...MATERIALISATION_FOCUSED_TEST_ARGUMENTS];
 const focusedTests = runBoundCommand('focused-control-plane-tests', process.execPath, focusedTestArguments, {
   cwd: repo,
   env: {
@@ -927,6 +935,21 @@ const implementationSources = sourceSetDigest(
 );
 const proofAlgorithmSourceDigest = sha256(readFileSync(import.meta.filename));
 cases.sort((left, right) => left.id.localeCompare(right.id));
+requireExactIdentifierSet(
+  cases.map(({ id }) => id),
+  MATERIALISATION_REQUIRED_CASE_IDS,
+  'MATERIALISATION_CASE_ID_SET_INVALID',
+);
+requireExactIdentifierSet(
+  cases.filter(({ negative }) => negative).map(({ id }) => id),
+  MATERIALISATION_NEGATIVE_CASE_IDS,
+  'MATERIALISATION_NEGATIVE_CASE_ID_SET_INVALID',
+);
+requireExactIdentifierSet(
+  failureContext.commands.map(({ id }) => id),
+  MATERIALISATION_REQUIRED_COMMAND_IDS,
+  'MATERIALISATION_COMMAND_ID_SET_INVALID',
+);
 const evidenceCore = {
   schemaVersion: EVIDENCE_SCHEMA_VERSION,
   recordKind: 'USF_VALIDATION_EVIDENCE_CANDIDATE',
