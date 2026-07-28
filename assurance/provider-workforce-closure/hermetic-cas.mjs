@@ -1,10 +1,15 @@
 import { spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import {
+  chmod,
   constants as fsConstants,
   mkdir,
+  mkdtemp,
   open,
+  rmdir,
+  unlink,
 } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import {
   basename,
   dirname,
@@ -33,6 +38,7 @@ const FILE_READ_FLAGS = O_RDONLY | O_NOFOLLOW | O_NONBLOCK;
 const STAGING_CREATE_FLAGS = O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW;
 const PROC_FD_ROOT = '/proc/self/fd';
 const SYSTEM_PUBLISH_PROTOCOL = 'usf-hermetic-cas-gnu-mv-noreplace-v1';
+const SYSTEM_PUBLISH_DESCRIPTOR_SCHEMA_VERSION = 1;
 const SYSTEM_PUBLISH_EXECUTABLE = '/usr/bin/mv';
 const SYSTEM_PUBLISH_LOADER = '/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2';
 const SYSTEM_PUBLISH_LIBRARIES = Object.freeze([
@@ -42,6 +48,10 @@ const SYSTEM_PUBLISH_LIBRARIES = Object.freeze([
   '/usr/lib/x86_64-linux-gnu/libacl.so.1.1.2301',
   '/usr/lib/x86_64-linux-gnu/libselinux.so.1',
 ]);
+
+export const HERMETIC_CAS_SYSTEM_PUBLISHER_PROTOCOL = SYSTEM_PUBLISH_PROTOCOL;
+export const HERMETIC_CAS_SYSTEM_PUBLISHER_DESCRIPTOR_SCHEMA_VERSION =
+  SYSTEM_PUBLISH_DESCRIPTOR_SCHEMA_VERSION;
 
 /*
  * This symbol exists only so the adversarial tests can stop execution at exact
@@ -96,6 +106,20 @@ const stable = (value) => Array.isArray(value)
     ? Object.fromEntries(Object.keys(value).sort(utf8Compare).map((key) => [key, stable(value[key])]))
     : value;
 const canonicalJson = (value) => JSON.stringify(stable(value));
+const EXPECTED_SYSTEM_PUBLISH_BEHAVIOR = Object.freeze({
+  noClobberPreservedExistingBytes: true,
+  noClobberPreservedSourceBytes: true,
+  publishedBytesMatchedSource: true,
+  publishedLinkCount: 1,
+  publishedSourceNameAbsent: true,
+  schemaVersion: 1,
+});
+const EXPECTED_SYSTEM_PUBLISH_BEHAVIOR_DIGEST = sha256(
+  Buffer.from(canonicalJson(EXPECTED_SYSTEM_PUBLISH_BEHAVIOR)),
+);
+
+export const HERMETIC_CAS_SYSTEM_PUBLISHER_BEHAVIOR_DIGEST =
+  EXPECTED_SYSTEM_PUBLISH_BEHAVIOR_DIGEST;
 
 function checkedRoot(root) {
   if (typeof root !== 'string' || !isAbsolute(root) || root === parse(root).root) {
@@ -437,15 +461,21 @@ function checkedSystemPublisher(publisher) {
   const keys = Object.keys(publisher).sort();
   if (
     keys.join(',')
-    !== 'closureDigest,executable,libraries,loader,protocol,version,versionStdoutDigest'
+    !== 'behaviorProbeDigest,closureDigest,executable,libraries,loader,protocol,schemaVersion,version,versionStdoutDigest'
   ) {
     fail('CAS_SYSTEM_PUBLISHER_INVALID', 'system publisher descriptor fields are not exact');
+  }
+  if (publisher.schemaVersion !== SYSTEM_PUBLISH_DESCRIPTOR_SCHEMA_VERSION) {
+    fail('CAS_SYSTEM_PUBLISHER_SCHEMA_INVALID', 'system publisher schema is not supported');
   }
   if (publisher.protocol !== SYSTEM_PUBLISH_PROTOCOL) {
     fail('CAS_SYSTEM_PUBLISHER_PROTOCOL_INVALID', 'system publisher protocol is not supported');
   }
   if (publisher.version !== 'mv (GNU coreutils) 9.1') {
     fail('CAS_SYSTEM_PUBLISHER_VERSION_INVALID', 'system publisher version is not approved');
+  }
+  if (publisher.behaviorProbeDigest !== EXPECTED_SYSTEM_PUBLISH_BEHAVIOR_DIGEST) {
+    fail('CAS_SYSTEM_PUBLISHER_BEHAVIOR_INVALID', 'system publisher behavior is not approved');
   }
   if (!Array.isArray(publisher.libraries) || publisher.libraries.length === 0) {
     fail('CAS_SYSTEM_PUBLISHER_CLOSURE_INVALID', 'system publisher libraries are missing');
@@ -487,10 +517,12 @@ function checkedSystemPublisher(publisher) {
   }
   return Object.freeze({
     closureDigest: publisher.closureDigest,
+    behaviorProbeDigest: publisher.behaviorProbeDigest,
     executable,
     libraries: Object.freeze(libraries),
     loader,
     protocol: publisher.protocol,
+    schemaVersion: publisher.schemaVersion,
     version: publisher.version,
     versionStdoutDigest: checkedDigest(publisher.versionStdoutDigest),
   });
@@ -671,10 +703,293 @@ function runPinnedSystemPublisher({
   if (result.error || result.signal || stderr.length || result.status !== 0) {
     fail('CAS_SYSTEM_PUBLISHER_EXECUTION_FAILED', 'system publisher execution was not clean', result.error);
   }
-  if (expectedOutput === null ? stdout.length !== 0 : sha256(stdout) !== expectedOutput) {
+  if (
+    (expectedOutput === null && stdout.length !== 0)
+    || (typeof expectedOutput === 'string' && sha256(stdout) !== expectedOutput)
+  ) {
     fail('CAS_SYSTEM_PUBLISHER_OUTPUT_INVALID', 'system publisher output is not approved');
   }
-  return { stagingDirectoryChildFd, shardChildFd };
+  return { shardChildFd, stagingDirectoryChildFd, stdout: Buffer.from(stdout) };
+}
+
+async function inspectSystemFileRecord(path, expectedMode, label) {
+  const directoryHandles = await openAbsoluteDirectoryChain(dirname(path), { secureLeaf: false });
+  let handle;
+  try {
+    handle = await open(procEntry(directoryHandles.at(-1), basename(path)), FILE_READ_FLAGS);
+    const beforeStat = await handle.stat({ bigint: true });
+    if (
+      !beforeStat.isFile()
+      || beforeStat.nlink !== 1n
+      || Number(beforeStat.uid) !== 0
+      || Number(beforeStat.gid) !== 0
+      || (Number(beforeStat.mode) & 0o7777) !== expectedMode
+      || beforeStat.size > BigInt(Number.MAX_SAFE_INTEGER)
+    ) {
+      fail('CAS_SYSTEM_PUBLISHER_INSPECTION_FAILED', `${label} metadata is not approved`);
+    }
+    const before = fileIdentity(beforeStat);
+    const bytes = await readHandleExact(handle, beforeStat, 64 * 1024 * 1024, label);
+    const after = fileIdentity(await handle.stat({ bigint: true }));
+    if (!sameFileIdentity(before, after)) {
+      fail('CAS_SYSTEM_PUBLISHER_INSPECTION_FAILED', `${label} changed during inspection`);
+    }
+    const directoryIdentities = [];
+    for (const directoryHandle of directoryHandles) {
+      directoryIdentities.push(directoryIdentity(await directoryHandle.stat({ bigint: true })));
+    }
+    await assertAbsoluteDirectoryChainStable(
+      dirname(path),
+      directoryIdentities,
+      { secureLeaf: false },
+    );
+    return Object.freeze({
+      path,
+      digest: sha256(bytes),
+      uid: Number(beforeStat.uid),
+      gid: Number(beforeStat.gid),
+      mode: Number(beforeStat.mode) & 0o7777,
+      size: Number(beforeStat.size),
+    });
+  } finally {
+    await handle?.close().catch(() => {});
+    await closeHandles(directoryHandles);
+  }
+}
+
+async function createProbeFile(directory, name, bytes) {
+  let handle;
+  try {
+    handle = await open(procEntry(directory, name), STAGING_CREATE_FLAGS, 0o600);
+    await handle.writeFile(bytes);
+    await handle.sync();
+    const stat = await handle.stat({ bigint: true });
+    assertFileStat(stat, 'system publisher probe file', { links: 1n, mode: 0o600 });
+    const verified = await readAndVerifyOpenObject(
+      handle,
+      stat,
+      sha256(bytes),
+      bytes.length,
+      'system publisher probe file',
+      { links: 1n, mode: 0o600 },
+    );
+    return { handle, identity: verified.identity };
+  } catch (error) {
+    await handle?.close().catch(() => {});
+    throw error;
+  }
+}
+
+async function removeOwnedProbeEntry(directory, name, expectedInode) {
+  const candidate = await openObjectOrAbsent(directory, name, 'system publisher probe cleanup file');
+  if (!candidate) return;
+  try {
+    const identity = fileIdentity(candidate.stat);
+    if (!expectedInode || !sameInode(identity, expectedInode)) {
+      fail('CAS_SYSTEM_PUBLISHER_PROBE_CLEANUP_FAILED', 'probe cleanup identity is ambiguous');
+    }
+  } finally {
+    await candidate.handle.close();
+  }
+  await unlink(procEntry(directory, name));
+  await directory.sync();
+}
+
+async function probeSystemPublisherBehavior(publisher, pinned) {
+  const probeRoot = await mkdtemp(join(tmpdir(), 'usf-hermetic-cas-publisher-probe-'));
+  let directoryHandles;
+  const handles = [];
+  const identities = new Map();
+  const sourceBytes = Buffer.from('usf-hermetic-cas-publish-probe-source-v1\n');
+  const secondBytes = Buffer.from('usf-hermetic-cas-publish-probe-second-v1\n');
+  const sourceName = 'source';
+  const secondName = 'second-source';
+  const targetName = 'target';
+  let result;
+  let primaryError;
+  try {
+    await chmod(probeRoot, 0o700);
+    directoryHandles = await openAbsoluteDirectoryChain(probeRoot);
+    const directory = directoryHandles.at(-1);
+    const source = await createProbeFile(directory, sourceName, sourceBytes);
+    handles.push(source.handle);
+    identities.set(sourceName, source.identity);
+    runPinnedSystemPublisher({
+      publisher,
+      pinned,
+      stagingDirectory: directory,
+      shardHandle: directory,
+      arguments: ({ stagingDirectoryChildFd, shardChildFd }) => [
+        '--no-clobber',
+        '--no-target-directory',
+        '--',
+        `/proc/self/fd/${stagingDirectoryChildFd}/${sourceName}`,
+        `/proc/self/fd/${shardChildFd}/${targetName}`,
+      ],
+      expectedOutput: null,
+    });
+    const sourceAfter = await openObjectOrAbsent(directory, sourceName, 'probe source after publish');
+    if (sourceAfter) {
+      await sourceAfter.handle.close();
+      fail('CAS_SYSTEM_PUBLISHER_BEHAVIOR_INVALID', 'publisher did not rename probe source');
+    }
+    const target = await openObject(directory, targetName, 'probe target');
+    try {
+      const targetVerified = await readAndVerifyOpenObject(
+        target.handle,
+        target.stat,
+        sha256(sourceBytes),
+        sourceBytes.length,
+        'probe target',
+      );
+      identities.set(targetName, targetVerified.identity);
+      if (!sameInode(targetVerified.identity, source.identity)) {
+        fail('CAS_SYSTEM_PUBLISHER_BEHAVIOR_INVALID', 'publisher copied instead of renaming');
+      }
+    } finally {
+      await target.handle.close();
+    }
+
+    const second = await createProbeFile(directory, secondName, secondBytes);
+    handles.push(second.handle);
+    identities.set(secondName, second.identity);
+    runPinnedSystemPublisher({
+      publisher,
+      pinned,
+      stagingDirectory: directory,
+      shardHandle: directory,
+      arguments: ({ stagingDirectoryChildFd, shardChildFd }) => [
+        '--no-clobber',
+        '--no-target-directory',
+        '--',
+        `/proc/self/fd/${stagingDirectoryChildFd}/${secondName}`,
+        `/proc/self/fd/${shardChildFd}/${targetName}`,
+      ],
+      expectedOutput: null,
+    });
+    const secondAfter = await openObject(directory, secondName, 'probe source after no-clobber');
+    try {
+      const verified = await readAndVerifyOpenObject(
+        secondAfter.handle,
+        secondAfter.stat,
+        sha256(secondBytes),
+        secondBytes.length,
+        'probe source after no-clobber',
+      );
+      if (!sameInode(verified.identity, second.identity)) {
+        fail('CAS_SYSTEM_PUBLISHER_BEHAVIOR_INVALID', 'no-clobber source identity changed');
+      }
+    } finally {
+      await secondAfter.handle.close();
+    }
+    const targetAfter = await openObject(directory, targetName, 'probe target after no-clobber');
+    try {
+      const verified = await readAndVerifyOpenObject(
+        targetAfter.handle,
+        targetAfter.stat,
+        sha256(sourceBytes),
+        sourceBytes.length,
+        'probe target after no-clobber',
+      );
+      if (!sameInode(verified.identity, identities.get(targetName))) {
+        fail('CAS_SYSTEM_PUBLISHER_BEHAVIOR_INVALID', 'no-clobber target identity changed');
+      }
+    } finally {
+      await targetAfter.handle.close();
+    }
+    result = EXPECTED_SYSTEM_PUBLISH_BEHAVIOR;
+  } catch (error) {
+    primaryError = error;
+  } finally {
+    for (const handle of handles.reverse()) await handle.close().catch(() => {});
+    const directory = directoryHandles?.at(-1);
+    let cleanupError;
+    if (directory) {
+      for (const name of [sourceName, secondName, targetName]) {
+        try {
+          await removeOwnedProbeEntry(directory, name, identities.get(name));
+        } catch (error) {
+          cleanupError ||= error;
+        }
+      }
+    }
+    await closeHandles(directoryHandles || []);
+    try {
+      await rmdir(probeRoot);
+    } catch (error) {
+      cleanupError ||= new HermeticCasError(
+        'CAS_SYSTEM_PUBLISHER_PROBE_CLEANUP_FAILED',
+        'probe directory could not be removed exactly',
+        { cause: error },
+      );
+    }
+    if (cleanupError) throw cleanupError;
+  }
+  if (primaryError) throw primaryError;
+  return result;
+}
+
+export async function inspectHermeticCasSystemPublisher(options) {
+  if (options !== undefined) {
+    fail('CAS_SYSTEM_PUBLISHER_INSPECT_OPTIONS_FORBIDDEN', 'publisher inspection accepts no input');
+  }
+  const executable = await inspectSystemFileRecord(
+    SYSTEM_PUBLISH_EXECUTABLE,
+    0o755,
+    'publisher executable',
+  );
+  const loader = await inspectSystemFileRecord(
+    SYSTEM_PUBLISH_LOADER,
+    0o755,
+    'publisher loader',
+  );
+  const libraries = [];
+  for (let index = 0; index < SYSTEM_PUBLISH_LIBRARIES.length; index += 1) {
+    libraries.push(await inspectSystemFileRecord(
+      SYSTEM_PUBLISH_LIBRARIES[index],
+      index === 0 ? 0o755 : 0o644,
+      `publisher library ${index}`,
+    ));
+  }
+  const closure = { executable, libraries, loader };
+  const preliminary = {
+    behaviorProbeDigest: EXPECTED_SYSTEM_PUBLISH_BEHAVIOR_DIGEST,
+    closureDigest: sha256(Buffer.from(canonicalJson(closure))),
+    executable,
+    libraries,
+    loader,
+    protocol: SYSTEM_PUBLISH_PROTOCOL,
+    schemaVersion: SYSTEM_PUBLISH_DESCRIPTOR_SCHEMA_VERSION,
+    version: 'mv (GNU coreutils) 9.1',
+    versionStdoutDigest: `sha256:${'0'.repeat(64)}`,
+  };
+  const pinned = await openPinnedSystemRuntime(preliminary);
+  try {
+    const version = runPinnedSystemPublisher({
+      publisher: preliminary,
+      pinned,
+      stagingDirectory: { fd: pinned.at(-1).handle.fd },
+      shardHandle: { fd: pinned.at(-1).handle.fd },
+      arguments: () => ['--version'],
+      expectedOutput: undefined,
+    }).stdout;
+    const firstLine = version.toString('utf8').split('\n', 1)[0];
+    if (firstLine !== preliminary.version || !version.equals(Buffer.from(version.toString('utf8')))) {
+      fail('CAS_SYSTEM_PUBLISHER_VERSION_INVALID', 'publisher version output is not approved UTF-8');
+    }
+    await verifyPinnedSystemRuntime(pinned);
+    const behavior = await probeSystemPublisherBehavior(preliminary, pinned);
+    if (sha256(Buffer.from(canonicalJson(behavior))) !== EXPECTED_SYSTEM_PUBLISH_BEHAVIOR_DIGEST) {
+      fail('CAS_SYSTEM_PUBLISHER_BEHAVIOR_INVALID', 'publisher behavior probe is not approved');
+    }
+    await verifyPinnedSystemRuntime(pinned);
+    return checkedSystemPublisher(Object.freeze({
+      ...preliminary,
+      versionStdoutDigest: sha256(version),
+    }));
+  } finally {
+    await closePinnedSystemRuntime(pinned);
+  }
 }
 
 async function verifyFinalName({
