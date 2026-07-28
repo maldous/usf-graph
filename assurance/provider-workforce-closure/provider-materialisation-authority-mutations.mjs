@@ -22,6 +22,7 @@ import {
   inspectPinnedPythonRuntime,
   spawnPinnedLocalShaclRuntime,
   validateLocalShaclRuntime,
+  verifyPythonNativeMappingEvidence,
 } from '../semantic-model-compilation/local-shacl-validation.mjs';
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
@@ -38,13 +39,24 @@ const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('h
 const exactKeys = (value, expected) => value && typeof value === 'object' && !Array.isArray(value)
   && canonicalJson(Object.keys(value).sort()) === canonicalJson([...expected].sort());
 
+const EXPECTED_NODE_SYSTEM_OBJECTS = Object.freeze([
+  Object.freeze({ path: '/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2', digest: 'sha256:02bcda52c1a5dfc236f94d9e5255b4a0e26347d8a372a5223b650e31f291ce3c', byteSize: 215000 }),
+  Object.freeze({ path: '/usr/lib/x86_64-linux-gnu/libc.so.6', digest: 'sha256:6b4a45352fd0c540a9c7c718f35ce8c8e46a4e482f9d3885a910c32d1a0e1421', byteSize: 1926232 }),
+  Object.freeze({ path: '/usr/lib/x86_64-linux-gnu/libdl.so.2', digest: 'sha256:95d521b2c39fd0333271b6fdcdddff878ae82001a304313a837b8e728ebe3cb1', byteSize: 14480 }),
+  Object.freeze({ path: '/usr/lib/x86_64-linux-gnu/libgcc_s.so.1', digest: 'sha256:2bd1552c47799ef67e701e81d4383061fd76059868e446e63560f0dd0d5ec14e', byteSize: 125312 }),
+  Object.freeze({ path: '/usr/lib/x86_64-linux-gnu/libm.so.6', digest: 'sha256:7f2ca87f652f56b094462474b076749e90e689d0ecb9cb63c7679820b271b4e7', byteSize: 911904 }),
+  Object.freeze({ path: '/usr/lib/x86_64-linux-gnu/libpthread.so.0', digest: 'sha256:b93a680da8a05b939b235c1533572e7a2f6d3d8808bf70209997edc64ea5fedc', byteSize: 14480 }),
+  Object.freeze({ path: '/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30', digest: 'sha256:e7848e32af4932840ba775169041759a2a8dd5a008af360e5c55bce506eebcf4', byteSize: 2190440 }),
+]);
+
 const EXPECTED_NODE_DEPENDENCY_EVIDENCE = Object.freeze({
-  schemaVersion: 1,
+  schemaVersion: 2,
   rootPackage: 'n3',
   nodeVersion: '22.23.1',
   executableDigest: 'sha256:93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068',
   systemObjectCount: 7,
   systemObjectSetDigest: 'sha256:8ccc776eccd2957c5e52e5e35ae7e311716e20de0b251424e600305b7fce335e',
+  systemObjects: EXPECTED_NODE_SYSTEM_OBJECTS,
   packageLockDigest: 'sha256:e0f320742ed96b54765a39ccac219c05d72b61c4b8805b42e57b7e9e14cecde5',
   packages: Object.freeze([
     Object.freeze({ byteSetDigest: 'sha256:e2175a0928f0f9e65b04f6f96c88c28a0eb2b9fd0c5feb176c0b9403c27258d5', fileCount: 14, name: 'abort-controller', version: '3.0.0' }),
@@ -98,10 +110,77 @@ function packageFiles(root, current = root, records = []) {
   return records;
 }
 
+function inspectMappedNativeObjectRecords({
+  procMapsText = readFileSync('/proc/self/maps', 'utf8'),
+  executablePath = realpathSync(process.execPath),
+  resolvePath = realpathSync,
+  readPath = readFileSync,
+  statPath = lstatSync,
+} = {}) {
+  if (typeof procMapsText !== 'string' || !isAbsolute(executablePath || '')) {
+    throw new TypeError('NODE_NATIVE_MAPPING_INPUT_INVALID');
+  }
+  const systemPaths = new Set();
+  for (const line of procMapsText.split('\n')) {
+    if (!line) continue;
+    const match = line.match(/^\S+\s+\S+\s+\S+\s+\S+\s+\S+(?:\s+(.*))?$/);
+    if (!match) throw new Error('NODE_MAPPED_RUNTIME_ENTRY_INVALID');
+    const mappedPath = match[1] ?? '';
+    if (!mappedPath.startsWith('/')) continue;
+    if (mappedPath.endsWith(' (deleted)')) {
+      throw new Error(`NODE_MAPPED_RUNTIME_OBJECT_DELETED_${mappedPath}`);
+    }
+    let resolvedPath;
+    try {
+      resolvedPath = resolvePath(mappedPath);
+    } catch (error) {
+      throw new Error(
+        `NODE_MAPPED_RUNTIME_OBJECT_UNRESOLVED_${mappedPath}_${error?.code ?? error?.name ?? 'UNKNOWN'}`,
+      );
+    }
+    if (resolvedPath !== executablePath) systemPaths.add(resolvedPath);
+  }
+  return [...systemPaths]
+    .sort((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)))
+    .map((path) => {
+      let before;
+      let bytes;
+      let after;
+      try {
+        before = statPath(path, { bigint: true });
+        if (before.isSymbolicLink() || !before.isFile()) {
+          throw new Error('NODE_MAPPED_RUNTIME_OBJECT_NOT_REGULAR_FILE');
+        }
+        bytes = readPath(path);
+        after = statPath(path, { bigint: true });
+      } catch (error) {
+        throw new Error(
+          `NODE_MAPPED_RUNTIME_OBJECT_UNREADABLE_${path}_${error?.code ?? error?.name ?? 'UNKNOWN'}`,
+        );
+      }
+      const identity = (status) => canonicalJson({
+        device: status.dev.toString(),
+        inode: status.ino.toString(),
+        mode: status.mode.toString(),
+        size: status.size.toString(),
+        ctimeNs: status.ctimeNs.toString(),
+      });
+      if (identity(before) !== identity(after) || BigInt(bytes.length) !== before.size) {
+        throw new Error(`NODE_MAPPED_RUNTIME_OBJECT_MOVED_DURING_READ_${path}`);
+      }
+      return {
+        path,
+        digest: sha256(bytes),
+        byteSize: Number(before.size),
+      };
+    });
+}
+
 function inspectNodeDependencyEvidence({
   repositoryRoot,
   rootPackage = 'n3',
   resolvePackageJson = null,
+  procMapsText = null,
 }) {
   const root = realpathSync(repositoryRoot);
   const require = createRequire(import.meta.url);
@@ -129,31 +208,18 @@ function inspectNodeDependencyEvidence({
   const records = [...packages.values()]
     .sort((left, right) => Buffer.compare(Buffer.from(left.name), Buffer.from(right.name)));
   const executablePath = realpathSync(process.execPath);
-  const systemPaths = new Set();
-  for (const line of readFileSync('/proc/self/maps', 'utf8').split('\n')) {
-    const path = line.trim().split(/\s+/).at(-1);
-    if (!path?.startsWith('/')) continue;
-    try {
-      const resolvedPath = realpathSync(path);
-      if (resolvedPath !== executablePath) systemPaths.add(resolvedPath);
-    } catch {
-      // Anonymous, deleted, or concurrently unmapped entries are not file-backed runtime dependencies.
-    }
-  }
-  const systemObjects = [...systemPaths]
-    .sort((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)))
-    .map((path) => ({
-      path,
-      digest: sha256(readFileSync(path)),
-      byteSize: lstatSync(path).size,
-    }));
+  const systemObjects = inspectMappedNativeObjectRecords({
+    procMapsText: procMapsText ?? readFileSync('/proc/self/maps', 'utf8'),
+    executablePath,
+  });
   return Object.freeze({
-    schemaVersion: 1,
+    schemaVersion: 2,
     rootPackage,
     nodeVersion: process.versions.node,
     executableDigest: sha256(readFileSync(executablePath)),
     systemObjectCount: systemObjects.length,
     systemObjectSetDigest: sha256(canonicalJson(systemObjects)),
+    systemObjects,
     packageLockDigest: sha256(readFileSync(join(root, 'package-lock.json'))),
     packages: records,
     byteSetDigest: sha256(canonicalJson(records)),
@@ -445,14 +511,17 @@ export function verifyProviderMaterialisationAuthorityMutationEvidence(evidence,
     'pythonDependencyByteSetDigest',
     'mappedSystemObjectCount',
     'mappedSystemObjectSetDigest',
+    'nativeMappingEvidence',
     'siteCustomizationLoaded',
     'cases',
     'caseSetDigest',
+    'evidenceDigestScope',
     'evidenceDigest',
     'runtime',
   ])) throw new Error('MATERIALISATION_MUTATION_EVIDENCE_FIELDS_INVALID');
-  if (evidence.schemaVersion !== 2
+  if (evidence.schemaVersion !== 3
     || evidence.evidenceScope !== 'HERMETIC_UNPUBLISHED_MUTATION_FIXTURE'
+    || evidence.evidenceDigestScope !== 'MATERIALISATION_MUTATION_EVIDENCE_WITH_RUNTIME_V1'
     || evidence.caseCount !== PROVIDER_MATERIALISATION_MUTATION_CASES.length
     || evidence.passedCaseCount !== PROVIDER_MATERIALISATION_MUTATION_CASES.length
     || evidence.baselineIntegrityRowCount !== 0
@@ -515,10 +584,16 @@ export function verifyProviderMaterialisationAuthorityMutationEvidence(evidence,
     || evidence.pythonDependencyByteSetDigest !== sha256(canonicalJson(evidence.pythonDependencyByteSets))) {
     throw new Error('MATERIALISATION_MUTATION_PYTHON_DEPENDENCY_SET_MISMATCH');
   }
-  const { evidenceDigest, runtime, ...core } = evidence;
-  if (!SHA256.test(evidenceDigest || '') || evidenceDigest !== sha256(canonicalJson(core))) {
-    throw new Error('MATERIALISATION_MUTATION_EVIDENCE_DIGEST_MISMATCH');
+  verifyPythonNativeMappingEvidence(
+    evidence.nativeMappingEvidence,
+    ['PRE_WORKLOAD', 'POST_BASELINE_LOAD', 'POST_WORKLOAD'],
+  );
+  const finalMappingSnapshot = evidence.nativeMappingEvidence.checkpoints.at(-1);
+  if (evidence.mappedSystemObjectCount !== finalMappingSnapshot.recordCount
+    || evidence.mappedSystemObjectSetDigest !== finalMappingSnapshot.recordSetDigest) {
+    throw new Error('MATERIALISATION_MUTATION_NATIVE_MAPPING_SUMMARY_MISMATCH');
   }
+  const { runtime } = evidence;
   if (!exactKeys(runtime, ['executablePath', 'resolvedExecutablePath', 'executableDigest'])
     || typeof runtime.executablePath !== 'string'
     || !isAbsolute(runtime.executablePath)
@@ -526,6 +601,10 @@ export function verifyProviderMaterialisationAuthorityMutationEvidence(evidence,
     || !isAbsolute(runtime.resolvedExecutablePath)
     || !SHA256.test(runtime.executableDigest || '')) {
     throw new Error('MATERIALISATION_MUTATION_RUNTIME_INVALID');
+  }
+  const { evidenceDigest, ...core } = evidence;
+  if (!SHA256.test(evidenceDigest || '') || evidenceDigest !== sha256(canonicalJson(core))) {
+    throw new Error('MATERIALISATION_MUTATION_EVIDENCE_DIGEST_MISMATCH');
   }
   return evidence;
 }
@@ -892,7 +971,46 @@ CASES = (
 )
 
 
+def mapped_system_object_snapshot(checkpoint):
+    paths = set()
+    for line in pathlib.Path("/proc/self/maps").read_text(encoding="utf-8").splitlines():
+        fields = line.split(maxsplit=5)
+        mapped_path = fields[5] if len(fields) == 6 else ""
+        if mapped_path.startswith("/") and mapped_path.endswith(" (deleted)"):
+            raise RuntimeError("MAPPED_RUNTIME_OBJECT_DELETED:" + mapped_path)
+        if mapped_path.startswith("/"):
+            try:
+                path = pathlib.Path(mapped_path).resolve(strict=True)
+                status = path.stat()
+                if not path.is_file():
+                    raise RuntimeError("MAPPED_RUNTIME_OBJECT_NOT_FILE:" + mapped_path)
+                digest = sha256(path.read_bytes())
+                if path.stat() != status:
+                    raise RuntimeError("MAPPED_RUNTIME_OBJECT_MOVED_DURING_READ:" + mapped_path)
+            except (FileNotFoundError, OSError) as error:
+                raise RuntimeError(
+                    "MAPPED_RUNTIME_OBJECT_UNRESOLVED:" + mapped_path + ":" + error.__class__.__name__
+                ) from error
+            paths.add((path, digest, status.st_size))
+    records = [
+        {
+            "path": path.as_posix(),
+            "digest": digest,
+            "byteSize": byte_size,
+        }
+        for path, digest, byte_size in sorted(paths, key=lambda item: item[0].as_posix().encode("utf-8"))
+    ]
+    return {
+        "schemaVersion": 1,
+        "checkpoint": checkpoint,
+        "records": records,
+        "recordCount": len(records),
+        "recordSetDigest": sha256(canonical_json(records)),
+    }
+
+
 def main():
+    runtime_mapping_snapshots = [mapped_system_object_snapshot("PRE_WORKLOAD")]
     baseline = load_dataset()
     shapes = load_shapes()
     integrity_sources = [
@@ -902,6 +1020,7 @@ def main():
     baseline_integrity = integrity_rows(baseline, integrity_sources)
     if baseline_integrity:
         raise RuntimeError("MATERIALISATION_MUTATION_BASELINE_INTEGRITY_INVALID:" + canonical_json(baseline_integrity))
+    runtime_mapping_snapshots.append(mapped_system_object_snapshot("POST_BASELINE_LOAD"))
     records = []
     for identifier, focus, mutate, shacl_code, integrity_code in CASES:
         candidate = clone_dataset(baseline)
@@ -945,27 +1064,15 @@ def main():
         }
         for path in sorted(source_paths, key=lambda item: item.as_posix().encode("utf-8"))
     ]
-    mapped_paths = set()
-    for line in pathlib.Path("/proc/self/maps").read_text(encoding="utf-8").splitlines():
-        fields = line.split()
-        mapped_path = " ".join(fields[5:]) if len(fields) >= 6 else ""
-        if mapped_path.startswith("/") and mapped_path.endswith(" (deleted)"):
-            raise RuntimeError("MAPPED_RUNTIME_OBJECT_DELETED:" + mapped_path)
-        if mapped_path.startswith("/"):
-            path = pathlib.Path(mapped_path).resolve(strict=True)
-            if not path.is_file():
-                raise RuntimeError("MAPPED_RUNTIME_OBJECT_NOT_FILE:" + mapped_path)
-            mapped_paths.add(path)
-    mapped_records = [
-        {
-            "path": path.as_posix(),
-            "digest": sha256(path.read_bytes()),
-            "byteSize": path.stat().st_size,
-        }
-        for path in sorted(mapped_paths, key=lambda item: item.as_posix().encode("utf-8"))
-    ]
+    runtime_mapping_snapshots.append(mapped_system_object_snapshot("POST_WORKLOAD"))
+    native_mapping_evidence = {
+        "schemaVersion": 1,
+        "checkpoints": runtime_mapping_snapshots,
+        "checkpointSetDigest": sha256(canonical_json(runtime_mapping_snapshots)),
+    }
+    final_mapping_snapshot = runtime_mapping_snapshots[-1]
     core = {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "evidenceScope": "HERMETIC_UNPUBLISHED_MUTATION_FIXTURE",
         "caseCount": len(records),
         "passedCaseCount": sum(1 for item in records if item["shaclMatched"] and item["integrityMatched"]),
@@ -975,14 +1082,14 @@ def main():
         "sourceSetDigest": sha256(canonical_json(source_records)),
         "pythonDependencyByteSets": DEPENDENCY_BYTE_SETS,
         "pythonDependencyByteSetDigest": sha256(canonical_json(DEPENDENCY_BYTE_SETS)),
-        "mappedSystemObjectCount": len(mapped_records),
-        "mappedSystemObjectSetDigest": sha256(canonical_json(mapped_records)),
+        "mappedSystemObjectCount": final_mapping_snapshot["recordCount"],
+        "mappedSystemObjectSetDigest": final_mapping_snapshot["recordSetDigest"],
+        "nativeMappingEvidence": native_mapping_evidence,
         "siteCustomizationLoaded": "sitecustomize" in sys.modules or "usercustomize" in sys.modules,
         "cases": records,
         "caseSetDigest": sha256(canonical_json(records)),
     }
-    result = {**core, "evidenceDigest": sha256(canonical_json(core))}
-    print(canonical_json(result))
+    print(canonical_json(core))
 
 
 try:
@@ -991,6 +1098,30 @@ except Exception as error:
     print(error.__class__.__name__ + ":" + str(error), file=sys.stderr)
     sys.exit(1)
 `;
+
+export function bindProviderMaterialisationAuthorityMutationRuntime(parsed, runtime) {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)
+    || Object.hasOwn(parsed, 'evidenceDigest')
+    || Object.hasOwn(parsed, 'evidenceDigestScope')
+    || Object.hasOwn(parsed, 'runtime')) {
+    throw new Error('MATERIALISATION_MUTATION_UNBOUND_CORE_INVALID');
+  }
+  if (!exactKeys(runtime, ['executablePath', 'resolvedExecutablePath', 'executableDigest'])
+    || !isAbsolute(runtime.executablePath || '')
+    || !isAbsolute(runtime.resolvedExecutablePath || '')
+    || !SHA256.test(runtime.executableDigest || '')) {
+    throw new Error('MATERIALISATION_MUTATION_RUNTIME_INVALID');
+  }
+  const core = {
+    ...parsed,
+    evidenceDigestScope: 'MATERIALISATION_MUTATION_EVIDENCE_WITH_RUNTIME_V1',
+    runtime: Object.freeze({ ...runtime }),
+  };
+  return Object.freeze({
+    ...core,
+    evidenceDigest: sha256(canonicalJson(core)),
+  });
+}
 
 export function runProviderMaterialisationAuthorityMutations({
   repositoryRoot,
@@ -1017,20 +1148,29 @@ export function runProviderMaterialisationAuthorityMutations({
   if (canonicalJson(runtimeEvidenceAfter) !== canonicalJson(runtimeEvidenceBefore)) {
     throw new Error('PROVIDER_MATERIALISATION_MUTATION_RUNTIME_DEPENDENCY_CLOSURE_MOVED');
   }
-  const parsed = JSON.parse(result.stdout);
+  let parsed;
+  try {
+    parsed = JSON.parse(result.stdout);
+  } catch {
+    throw new Error('PROVIDER_MATERIALISATION_MUTATION_WORKLOAD_EVIDENCE_JSON_INVALID');
+  }
   if (!Number.isSafeInteger(parsed.mappedSystemObjectCount)
     || !SHA256.test(parsed.mappedSystemObjectSetDigest || '')
     || parsed.siteCustomizationLoaded !== false) {
     throw new Error('PROVIDER_MATERIALISATION_MUTATION_WORKLOAD_RUNTIME_EVIDENCE_INVALID');
   }
-  return Object.freeze(verifyProviderMaterialisationAuthorityMutationEvidence({
-    ...parsed,
-    runtime: Object.freeze({
+  verifyPythonNativeMappingEvidence(
+    parsed.nativeMappingEvidence,
+    ['PRE_WORKLOAD', 'POST_BASELINE_LOAD', 'POST_WORKLOAD'],
+  );
+  return Object.freeze(verifyProviderMaterialisationAuthorityMutationEvidence(
+    bindProviderMaterialisationAuthorityMutationRuntime(parsed, {
       executablePath: runtime.executablePath,
       resolvedExecutablePath: binding.resolvedExecutablePath,
       executableDigest: binding.executableDigest,
     }),
-  }, { repositoryRoot }));
+    { repositoryRoot },
+  ));
 }
 
 export const providerMaterialisationAuthorityMutationInternals = Object.freeze({
@@ -1040,5 +1180,7 @@ export const providerMaterialisationAuthorityMutationInternals = Object.freeze({
   expectedNodeDependencyEvidence: EXPECTED_NODE_DEPENDENCY_EVIDENCE,
   expectedPythonDependencyByteSets: EXPECTED_PYTHON_DEPENDENCY_BYTE_SETS,
   expectedPythonDependencyByteSetDigest: EXPECTED_PYTHON_DEPENDENCY_BYTE_SET_DIGEST,
+  expectedNodeSystemObjects: EXPECTED_NODE_SYSTEM_OBJECTS,
+  inspectMappedNativeObjectRecords,
   inspectNodeDependencyEvidence,
 });
