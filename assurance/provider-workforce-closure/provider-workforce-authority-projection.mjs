@@ -7,8 +7,10 @@ import {
   verify,
 } from 'node:crypto';
 import {
+  existsSync,
   lstatSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   renameSync,
@@ -58,6 +60,7 @@ const PROOF_END = '# END GENERATED PROVIDER-WORKFORCE AUTHORITY PROOF';
 const EVIDENCE_RESOURCE = '<urn:usf:externalpayloaddescriptor:providerworkforceauthorityevidence>';
 const PROOF_RESOURCE = '<urn:usf:proofalgorithm:providerworkforceauthority>';
 const APPLICATION_BINDINGS = new WeakMap();
+const APPLICATION_ROLLBACKS = new WeakMap();
 export const PROVIDER_WORKFORCE_REQUIRED_CLAIMS = Object.freeze([
   'provider-secrets-remain-outside-git-and-semantic-authority',
   'environment-inspection-exposes-names-and-presence-only',
@@ -265,6 +268,10 @@ const exactObjectKeys = (value, expected, code) => {
     && canonicalJson(Object.keys(value).sort(utf8Compare))
       === canonicalJson([...expected].sort(utf8Compare)), code);
 };
+const exactSafeCount = (value, code) => {
+  assert(Number.isSafeInteger(value) && value >= 0, code);
+  return value;
+};
 const allowedObjectKeys = (value, required, optional, code) => {
   const keys = value && typeof value === 'object' && !Array.isArray(value) ? Object.keys(value) : [];
   assert(required.every((key) => keys.includes(key))
@@ -292,6 +299,56 @@ export function verifyCandidatePublicationReceipt({
   assert(Buffer.isBuffer(receiptBytes), 'CANDIDATE_PUBLICATION_RECEIPT_BYTES_REQUIRED');
   assert(receiptBytes.equals(Buffer.from(`${JSON.stringify(receipt)}\n`)),
     'CANDIDATE_PUBLICATION_RECEIPT_BYTES_NONCANONICAL');
+  exactObjectKeys(receipt, [
+    'receiptSchemaVersion',
+    'mode',
+    'ok',
+    'commitOutcome',
+    'contaminationCount',
+    'graphsCleared',
+    'authoredLoaded',
+    'shapesLoaded',
+    'authorityWitness',
+  ], 'CANDIDATE_PUBLICATION_RECEIPT_FIELDS_INVALID');
+  assert(receipt.receiptSchemaVersion === 2,
+    'CANDIDATE_PUBLICATION_RECEIPT_SCHEMA_INVALID');
+  assert(receipt.contaminationCount === 0,
+    'CANDIDATE_PUBLICATION_CONTAMINATION_INVALID');
+  exactSafeCount(receipt.graphsCleared, 'CANDIDATE_PUBLICATION_GRAPHS_CLEARED_INVALID');
+  exactSafeCount(receipt.authoredLoaded, 'CANDIDATE_PUBLICATION_AUTHORED_LOADED_INVALID');
+  exactSafeCount(receipt.shapesLoaded, 'CANDIDATE_PUBLICATION_SHAPES_LOADED_INVALID');
+  exactObjectKeys(receipt.authorityWitness, [
+    'algorithm',
+    'totalSource',
+    'expected',
+    'evaluated',
+    'beforePublication',
+    'afterPublication',
+    'settled',
+  ], 'CANDIDATE_PUBLICATION_AUTHORITY_WITNESS_FIELDS_INVALID');
+  for (const phase of ['beforePublication', 'afterPublication']) {
+    exactObjectKeys(receipt.authorityWitness[phase], [
+      'digest',
+      'graphCount',
+      'triples',
+    ], `CANDIDATE_PUBLICATION_${phase.toUpperCase()}_FIELDS_INVALID`);
+    exactSafeCount(receipt.authorityWitness[phase].graphCount,
+      `CANDIDATE_PUBLICATION_${phase.toUpperCase()}_GRAPH_COUNT_INVALID`);
+    exactSafeCount(receipt.authorityWitness[phase].triples,
+      `CANDIDATE_PUBLICATION_${phase.toUpperCase()}_TRIPLES_INVALID`);
+  }
+  exactObjectKeys(receipt.authorityWitness.settled, [
+    'digest',
+    'graphCount',
+    'triples',
+    'stable',
+  ], 'CANDIDATE_PUBLICATION_SETTLED_FIELDS_INVALID');
+  exactSafeCount(receipt.authorityWitness.settled.graphCount,
+    'CANDIDATE_PUBLICATION_SETTLED_GRAPH_COUNT_INVALID');
+  exactSafeCount(receipt.authorityWitness.settled.triples,
+    'CANDIDATE_PUBLICATION_SETTLED_TRIPLES_INVALID');
+  assert(receipt.authorityWitness.settled.stable === true,
+    'CANDIDATE_PUBLICATION_SETTLED_STABILITY_INVALID');
   assertSupportedPublicationReceipt(receipt);
   assert(receipt.mode === 'validate' && receipt.ok === true,
     'CANDIDATE_PUBLICATION_RECEIPT_NOT_SUCCESSFUL_VALIDATE');
@@ -393,6 +450,15 @@ export function verifyCandidatePublicationReceipt({
     && budget.projectedStatementUpperBound <= budget.maximumProjectedStatementCount
     && budget.result === 'PASS',
   'CANDIDATE_PUBLICATION_BUDGET_INVALID');
+  const policyCore = {
+    hardStatementLimit: budget.hardStatementLimit,
+    maximumProjectedStatementCount: budget.maximumProjectedStatementCount,
+    policyIri: budget.policyIri,
+    provider: budget.provider,
+    reserveStatementCount: budget.reserveStatementCount,
+  };
+  assert(budget.policyDigest === sha256(canonicalJson(policyCore)),
+    'CANDIDATE_PUBLICATION_BUDGET_POLICY_DIGEST_MISMATCH');
   const { budgetDigest, result, ...budgetCore } = budget;
   assert(budgetDigest === sha256(canonicalJson(budgetCore)),
     'CANDIDATE_PUBLICATION_BUDGET_DIGEST_MISMATCH');
@@ -953,6 +1019,8 @@ export function projectProviderWorkforceAuthorityReceipt({
   assert(receipt.schemaVersion === 2, 'RECEIPT_SCHEMA_UNSUPPORTED');
   assert(receipt.recordKind === 'USF_PROVIDER_WORKFORCE_AUTHORITY_EVIDENCE_RECEIPT', 'RECEIPT_KIND_INVALID');
   assert(receipt.ok === true && receipt.passed === true && receipt.eligibleForAdmission === true, 'RECEIPT_NOT_ELIGIBLE');
+  assert(receipt.outputRoot === 'SESSION_TRANSIENT_OUTPUT_ROOT',
+    'RECEIPT_OUTPUT_ROOT_SENTINEL_INVALID');
   exactCommit(proofProducerCommit, 'PROOF_PRODUCER_COMMIT_INVALID');
   exactCommit(proofProducerTree, 'PROOF_PRODUCER_TREE_INVALID');
   assert(typeof algorithmVersion === 'string' && /^\d+\.\d+\.\d+$/.test(algorithmVersion), 'ALGORITHM_VERSION_INVALID');
@@ -1150,12 +1218,129 @@ export function replaceProviderWorkforceAuthorityProjection(
       }
     }
   }
-  return Object.freeze({
+  const result = Object.freeze({
     evidencePath,
     proofsPath,
     evidenceSourceDigest: sha256(nextEvidence),
     proofSourceDigest: sha256(nextProofs),
   });
+  APPLICATION_ROLLBACKS.set(result, Object.freeze({
+    evidencePath,
+    proofsPath,
+    evidenceSource,
+    proofsSource,
+    evidenceAppliedDigest: result.evidenceSourceDigest,
+    proofAppliedDigest: result.proofSourceDigest,
+    evidenceMode: stats[0].mode & 0o777,
+    proofMode: stats[1].mode & 0o777,
+  }));
+  return result;
+}
+
+export function rollbackProviderWorkforceAuthorityProjection(
+  applied,
+  operations = DEFAULT_FILE_OPERATIONS,
+) {
+  const rollback = applied && typeof applied === 'object'
+    ? APPLICATION_ROLLBACKS.get(applied)
+    : null;
+  assert(rollback, 'PROJECTION_ROLLBACK_BINDING_INVALID');
+  for (const [path, expectedDigest, label] of [
+    [rollback.evidencePath, rollback.evidenceAppliedDigest, 'EVIDENCE'],
+    [rollback.proofsPath, rollback.proofAppliedDigest, 'PROOF'],
+  ]) {
+    const stat = lstatSync(path);
+    assert(!stat.isSymbolicLink() && stat.isFile() && stat.nlink === 1,
+      `${label}_ROLLBACK_TARGET_NOT_EXACT_FILE`);
+    assert(sha256(readFileSync(path)) === expectedDigest,
+      `${label}_ROLLBACK_TARGET_MOVED`);
+  }
+  const stages = [];
+  const errors = [];
+  try {
+    stages.push(stageFile(
+      rollback.evidencePath,
+      rollback.evidenceSource,
+      rollback.evidenceMode,
+      'evidence-post-closure-rollback',
+      operations,
+    ));
+    stages.push(stageFile(
+      rollback.proofsPath,
+      rollback.proofsSource,
+      rollback.proofMode,
+      'proof-post-closure-rollback',
+      operations,
+    ));
+    for (const [index, [path, source, label]] of [
+      [rollback.evidencePath, rollback.evidenceSource, 'EVIDENCE'],
+      [rollback.proofsPath, rollback.proofsSource, 'PROOF'],
+    ].entries()) {
+      try {
+        operations.renameSync(stages[index], path);
+        assert(sha256(readFileSync(path)) === sha256(source),
+          `${label}_POST_CLOSURE_ROLLBACK_VERIFICATION_FAILED`);
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+  } finally {
+    for (const path of stages) {
+      try {
+        operations.rmSync(path, { force: true });
+      } catch {
+        // Preserve the authoritative rollback outcome.
+      }
+    }
+  }
+  if (errors.length) {
+    throw new AggregateError(errors, 'PROJECTION_POST_CLOSURE_ROLLBACK_FAILED');
+  }
+  APPLICATION_ROLLBACKS.delete(applied);
+  return Object.freeze({
+    evidencePath: rollback.evidencePath,
+    proofsPath: rollback.proofsPath,
+    evidenceSourceDigest: sha256(rollback.evidenceSource),
+    proofSourceDigest: sha256(rollback.proofsSource),
+  });
+}
+
+function finalizeProviderWorkforceAuthorityProjection(applied) {
+  assert(applied && APPLICATION_ROLLBACKS.has(applied),
+    'PROJECTION_FINALIZATION_BINDING_INVALID');
+  APPLICATION_ROLLBACKS.delete(applied);
+}
+
+export function applyProviderWorkforceProjectionWithClosure({
+  applyProjection,
+  verifyPostApplyClosure,
+  rollbackProjection,
+  finalizeProjection = () => {},
+}) {
+  assert(typeof applyProjection === 'function'
+    && typeof verifyPostApplyClosure === 'function'
+    && typeof rollbackProjection === 'function'
+    && typeof finalizeProjection === 'function',
+  'PROJECTION_CLOSURE_OPERATION_INVALID');
+  let applied = null;
+  try {
+    applied = applyProjection();
+    const postProjectionClosure = verifyPostApplyClosure(applied);
+    finalizeProjection(applied);
+    return Object.freeze({ applied, postProjectionClosure });
+  } catch (error) {
+    if (applied !== null) {
+      try {
+        rollbackProjection(applied);
+      } catch (rollbackError) {
+        throw new AggregateError(
+          [error, rollbackError],
+          'PROJECTION_POST_CLOSURE_AND_ROLLBACK_FAILED',
+        );
+      }
+    }
+    throw error;
+  }
 }
 
 function parseArguments(argv) {
@@ -1181,11 +1366,37 @@ function exactInputFile(path, label) {
 }
 
 export function prepareProjectionOutputRoot(repositoryRoot, requestedOutputRoot) {
-  return prepareExactSessionOutputRoot({
+  const outputRoot = prepareExactSessionOutputRoot({
     repositoryRoot: realpathSync(repositoryRoot),
     requestedOutputRoot: resolve(requestedOutputRoot),
     clear: false,
   });
+  for (const child of readdirSync(outputRoot)) {
+    const path = join(outputRoot, child);
+    const stat = lstatSync(path);
+    assert(!stat.isSymbolicLink() && stat.isFile() && stat.nlink === 1,
+      'PROJECTION_OUTPUT_CHILD_NOT_EXACT_FILE');
+  }
+  return outputRoot;
+}
+
+function writeProjectionOutputFile(outputRoot, name, bytes) {
+  const path = join(outputRoot, name);
+  if (existsSync(path)) {
+    const stat = lstatSync(path);
+    assert(!stat.isSymbolicLink() && stat.isFile() && stat.nlink === 1,
+      'PROJECTION_OUTPUT_LEAF_NOT_EXACT_FILE');
+  }
+  const staged = stageFile(path, bytes, 0o600, 'output', DEFAULT_FILE_OPERATIONS);
+  try {
+    renameSync(staged, path);
+  } finally {
+    try {
+      rmSync(staged, { force: true });
+    } catch {
+      // A retained stage cannot become authoritative without a later rename.
+    }
+  }
 }
 
 function gitValue(repositoryRoot, args, label) {
@@ -1492,8 +1703,10 @@ function canonicalValidateCandidate({
   });
 }
 
-function assertSameCanonicalCandidate(supplied, reproduced) {
-  assert(canonicalJson(supplied.receipt) === canonicalJson(reproduced.receipt),
+export function assertSameCanonicalCandidate(supplied, reproduced) {
+  assert(Buffer.isBuffer(supplied?.bytes) && Buffer.isBuffer(reproduced?.bytes),
+    'CANDIDATE_PUBLICATION_RECEIPT_PROVENANCE_BYTES_REQUIRED');
+  assert(supplied.bytes.equals(reproduced.bytes),
     'CANDIDATE_PUBLICATION_RECEIPT_PROVENANCE_MISMATCH');
   assert(supplied.verified.candidateInventoryDigest === reproduced.verified.candidateInventoryDigest
     && canonicalJson(supplied.verified.candidateGraphs)
@@ -1501,7 +1714,7 @@ function assertSameCanonicalCandidate(supplied, reproduced) {
   'CANDIDATE_PUBLICATION_INVENTORY_PROVENANCE_MISMATCH');
 }
 
-function assertPostProjectionCandidateClosure(before, after) {
+export function assertPostProjectionCandidateClosure(before, after) {
   const beforeByGraph = new Map(before.verified.candidateGraphs.map((record) => [record.graph, record]));
   const afterByGraph = new Map(after.verified.candidateGraphs.map((record) => [record.graph, record]));
   exactStringSet([...afterByGraph.keys()], [...beforeByGraph.keys()],
@@ -1605,6 +1818,7 @@ function runCli() {
   });
   const root = applicationBinding.repositoryRoot;
   const suppliedCandidate = Object.freeze({
+    bytes: candidatePublicationReceiptBytes,
     receipt: candidatePublicationReceipt,
     verified: verifyCandidatePublicationReceipt({
       receipt: candidatePublicationReceipt,
@@ -1625,22 +1839,53 @@ function runCli() {
     evidence,
   });
   const exactOutputRoot = prepareProjectionOutputRoot(root, values['output-root']);
-  writeFileSync(join(exactOutputRoot, 'provider-workforce-authority-evidence-projection.ttl'), projection.evidenceTurtle, { mode: 0o600 });
-  writeFileSync(join(exactOutputRoot, 'provider-workforce-authority-proof-projection.ttl'), projection.proofsTurtle, { mode: 0o600 });
-  writeFileSync(join(exactOutputRoot, 'provider-workforce-authority-projection.json'),
-    `${canonicalJson(projection.metadata)}\n`, { mode: 0o600 });
-  const applied = flags.has('apply')
-    ? replaceProviderWorkforceAuthorityProjection(root, projection, applicationBinding)
-    : null;
+  writeProjectionOutputFile(
+    exactOutputRoot,
+    'provider-workforce-authority-evidence-projection.ttl',
+    projection.evidenceTurtle,
+  );
+  writeProjectionOutputFile(
+    exactOutputRoot,
+    'provider-workforce-authority-proof-projection.ttl',
+    projection.proofsTurtle,
+  );
+  writeProjectionOutputFile(
+    exactOutputRoot,
+    'provider-workforce-authority-projection.json',
+    `${canonicalJson(projection.metadata)}\n`,
+  );
+  let applied = null;
   let postProjectionClosure = null;
-  if (applied) {
-    const postProjectionCandidate = canonicalValidateCandidate({
-      repositoryRoot: root,
-      expectedAuthorityDigest: evidence.evaluatedAuthorityDigest,
-    });
-    postProjectionClosure = assertPostProjectionCandidateClosure(reproducedCandidate, postProjectionCandidate);
-    writeFileSync(join(exactOutputRoot, 'post-projection-candidate-publication-receipt.json'),
-      postProjectionCandidate.bytes, { mode: 0o600 });
+  if (flags.has('apply')) {
+    ({ applied, postProjectionClosure } = applyProviderWorkforceProjectionWithClosure({
+      applyProjection: () => replaceProviderWorkforceAuthorityProjection(
+        root,
+        projection,
+        applicationBinding,
+      ),
+      verifyPostApplyClosure: () => {
+        const postProjectionCandidate = canonicalValidateCandidate({
+          repositoryRoot: root,
+          expectedAuthorityDigest: evidence.evaluatedAuthorityDigest,
+        });
+        const closure = assertPostProjectionCandidateClosure(
+          reproducedCandidate,
+          postProjectionCandidate,
+        );
+        writeProjectionOutputFile(
+          exactOutputRoot,
+          'post-projection-candidate-publication-receipt.json',
+          postProjectionCandidate.bytes,
+        );
+        return closure;
+      },
+      rollbackProjection: (appliedProjection) => {
+        rollbackProviderWorkforceAuthorityProjection(appliedProjection);
+      },
+      finalizeProjection: (appliedProjection) => {
+        finalizeProviderWorkforceAuthorityProjection(appliedProjection);
+      },
+    }));
   }
   process.stdout.write(`${canonicalJson({ ...projection.metadata, applied, postProjectionClosure })}\n`);
 }
