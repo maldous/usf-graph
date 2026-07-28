@@ -32,6 +32,7 @@ import {
 } from '../semantic-model-compilation/local-shacl-validation.mjs';
 import {
   collectNodeRuntimeClosure,
+  readCompleteTrackedTreeSnapshot,
   readTrackedTreeSnapshot,
   runtimeDescriptorFromEvidence,
 } from './authority-execution-hermeticity.mjs';
@@ -1107,7 +1108,7 @@ const graphSourcePaths = [...new Set([
 ])].sort(utf8Compare);
 const admittedGitRuntime = admittedGitRuntimeDescriptor();
 const admittedNodeRuntime = runtimeDescriptorFromEvidence(collectNodeRuntimeClosure());
-const [graphSnapshot, factorySnapshot] = await Promise.all([
+const [graphSnapshot, factorySnapshot, factoryCompleteSnapshot] = await Promise.all([
   readTrackedTreeSnapshot({
     repository: graphRepo,
     commit: graphCommit,
@@ -1120,9 +1121,18 @@ const [graphSnapshot, factorySnapshot] = await Promise.all([
     paths: sourceReadPaths,
     expectedGitRuntime: admittedGitRuntime,
   }),
+  readCompleteTrackedTreeSnapshot({
+    repository: factoryRepo,
+    commit: factoryCommit,
+    expectedGitRuntime: admittedGitRuntime,
+  }),
 ]);
 if (graphSnapshot.tree !== expectedGraphTree) throw new Error('GRAPH_TREE_MISMATCH');
 if (factorySnapshot.tree !== expectedFactoryTree) throw new Error('FACTORY_TREE_MISMATCH');
+if (factoryCompleteSnapshot.commit !== factorySnapshot.commit
+  || factoryCompleteSnapshot.tree !== factorySnapshot.tree) {
+  throw new Error('FACTORY_COMPLETE_TREE_BINDING_MISMATCH');
+}
 const factorySourceSnapshot = materialiseTrackedSnapshot({
   snapshot: factorySnapshot,
   destination: join(outputRoot, 'factory-source-snapshot'),
@@ -1203,6 +1213,8 @@ const text = (path) => sources[path].toString('utf8');
 record('factory-commit-exact', factoryCommit, factorySnapshot.commit, {
   graphCommit: graphSnapshot.commit,
   graphTree: graphSnapshot.tree,
+  factoryCompleteSourceCount: factoryCompleteSnapshot.records.length,
+  factoryCompleteSourceSetDigest: factoryCompleteSnapshot.sourceSetDigest,
   sourceIsolation: 'PRIVATE_COMMITTED_TREE_SNAPSHOTS',
 });
 record('factory-tree-exact', expectedFactoryTree, factorySnapshot.tree);
@@ -1213,10 +1225,10 @@ record('factory-worktree-clean', {
   mutableRepositoryContextConsulted: false,
   sourceExecutionRoot: 'PRIVATE_COMMITTED_TREE_SNAPSHOT',
 });
-const admittedTrackedPaths = factorySnapshot.records.map(({ path }) => path);
-record('secrets-outside-git', [], admittedTrackedPaths.filter((path) => /(^|\/)(\.env|.*\.(?:pem|pk8|key)|credentials\.json|session\.json)$/i.test(path)), {
-  scope: 'EXACT_ADMITTED_FACTORY_PROOF_SOURCE_SET',
-  sourceSetDigest: factorySnapshot.evidence.sourceSetDigest,
+const completeTrackedPaths = factoryCompleteSnapshot.records.map(({ path }) => path);
+record('secrets-outside-git', [], completeTrackedPaths.filter((path) => /(^|\/)(\.env|.*\.(?:pem|pk8|key)|credentials\.json|session\.json)$/i.test(path)), {
+  scope: 'EXACT_COMPLETE_COMMITTED_FACTORY_TREE',
+  sourceSetDigest: factoryCompleteSnapshot.sourceSetDigest,
 });
 record('environment-file-ignored', true, /(?:^|\n)\.env(?:\n|$)/.test(text('.gitignore')));
 record('environment-names-only', true, /BY NAME ONLY/.test(text('scripts/check-provider-env.py')) && /NEVER emits a credential value/.test(text('src/usf_factory/secrets.py')));
