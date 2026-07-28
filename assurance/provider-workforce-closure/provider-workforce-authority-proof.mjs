@@ -4,9 +4,13 @@ import {
   createHash, createPrivateKey, createPublicKey, sign, verify,
 } from 'node:crypto';
 import {
-  lstatSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync,
+  chmodSync, closeSync, constants as fsConstants, existsSync, fstatSync, lstatSync,
+  mkdirSync, openSync, readFileSync, readdirSync, readlinkSync, realpathSync,
+  statSync, writeFileSync,
 } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import {
+  dirname, join, relative, resolve, sep,
+} from 'node:path';
 
 import {
   PROVIDER_FACTORY_PATH_SCOPES,
@@ -42,6 +46,7 @@ const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const cases = [];
 const commands = [];
 let providerCredentialEnvironmentForwarded = false;
+let outputRoot;
 const utf8Compare = (left, right) => Buffer.compare(Buffer.from(String(left)), Buffer.from(String(right)));
 const stable = (value) => Array.isArray(value)
   ? value.map(stable)
@@ -90,19 +95,89 @@ const gitRuntimeDependencyEvidence = Object.freeze({
   nativeObjectCount: gitNativeObjectRecords.length,
   nativeObjectSetDigest: sha256(canonicalJson(gitNativeObjectRecords)),
 });
-const FOCUSED_PYTEST_BOOTSTRAP = String.raw`
-import hashlib
-import json
-import pathlib
+export const FOCUSED_PYTEST_BOOTSTRAP = String.raw`
 import sys
+
+snapshot_stdlib = sys.argv.pop(1)
+sys.path.insert(0, snapshot_stdlib)
+
+import hashlib
+import importlib.abc
+import importlib.machinery
+import importlib.metadata
+import json
+import os
+import pathlib
 
 site_packages = pathlib.Path(sys.argv.pop(1)).resolve()
 factory_root = pathlib.Path(sys.argv.pop(1)).resolve()
 pycache_root = pathlib.Path(sys.argv.pop(1)).resolve()
+source_manifest_path = pathlib.Path(sys.argv.pop(1)).resolve()
+poison_site = pathlib.Path(sys.argv.pop(1)).resolve()
+poison_marker = pathlib.Path(sys.argv.pop(1)).resolve()
+isolation_evidence_path = pathlib.Path(sys.argv.pop(1)).resolve()
 factory_source = (factory_root / "src").resolve()
-sys.path[:0] = [factory_source.as_posix(), site_packages.as_posix()]
+sys.path[:0] = [factory_source.as_posix(), poison_site.as_posix(), site_packages.as_posix()]
 sys.pycache_prefix = pycache_root.as_posix()
 sys.dont_write_bytecode = True
+
+
+def canonical_json(value):
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+
+
+def sha256(value):
+    return "sha256:" + hashlib.sha256(value).hexdigest()
+
+
+manifest = json.loads(source_manifest_path.read_text(encoding="utf-8"))
+if manifest.get("schemaVersion") != 1:
+    raise RuntimeError("PYTHON_SOURCE_SNAPSHOT_SCHEMA_INVALID")
+source_map = {}
+for entry in manifest.get("sources", []):
+    source = pathlib.Path(entry["sourcePath"]).resolve()
+    snapshot = pathlib.Path(entry["snapshotPath"]).resolve()
+    if not snapshot.is_file() or snapshot.is_symlink():
+        raise RuntimeError("PYTHON_SOURCE_SNAPSHOT_FILE_INVALID:" + snapshot.as_posix())
+    if sha256(snapshot.read_bytes()) != entry["digest"]:
+        raise RuntimeError("PYTHON_SOURCE_SNAPSHOT_DIGEST_MISMATCH:" + snapshot.as_posix())
+    source_map[source.as_posix()] = snapshot
+safe_manifest = {
+    "pyvenvConfigurationDigest": manifest["pyvenvConfigurationDigest"],
+    "sourceCount": len(manifest.get("sources", [])),
+    "sourceSetDigest": manifest["sourceSetDigest"],
+}
+if sha256(canonical_json(safe_manifest).encode("utf-8")) != manifest["evidenceDigest"]:
+    raise RuntimeError("PYTHON_SOURCE_SNAPSHOT_EVIDENCE_DIGEST_MISMATCH")
+
+
+class SnapshotSourceLoader(importlib.machinery.SourceFileLoader):
+    def __init__(self, fullname, original_path, snapshot_path):
+        super().__init__(fullname, original_path)
+        self._snapshot_path = snapshot_path
+
+    def get_code(self, fullname):
+        source_bytes = self._snapshot_path.read_bytes()
+        return self.source_to_code(source_bytes, self.path)
+
+
+class SnapshotSourceFinder(importlib.abc.MetaPathFinder):
+    @staticmethod
+    def find_spec(fullname, path=None, target=None):
+        spec = importlib.machinery.PathFinder.find_spec(fullname, path, target)
+        if spec is None or not isinstance(spec.loader, importlib.machinery.SourceFileLoader):
+            return spec
+        original_path = pathlib.Path(spec.origin).resolve().as_posix()
+        snapshot_path = source_map.get(original_path)
+        if snapshot_path is None:
+            if original_path.startswith(site_packages.as_posix() + "/"):
+                raise RuntimeError("UNSNAPSHOTTED_SITE_PACKAGE_SOURCE:" + original_path)
+            return spec
+        spec.loader = SnapshotSourceLoader(fullname, original_path, snapshot_path)
+        return spec
+
+
+sys.meta_path.insert(0, SnapshotSourceFinder())
 
 import pytest
 import usf_factory
@@ -112,8 +187,34 @@ if actual_origin != factory_source / "usf_factory" / "__init__.py":
     raise RuntimeError("FACTORY_IMPORT_ORIGIN_MISMATCH:" + actual_origin.as_posix())
 if "sitecustomize" in sys.modules or "usercustomize" in sys.modules:
     raise RuntimeError("PYTHON_SITE_CUSTOMIZATION_LOADED")
+if os.environ.get("PYTEST_DISABLE_PLUGIN_AUTOLOAD") != "1":
+    raise RuntimeError("PYTEST_PLUGIN_AUTOLOAD_NOT_DISABLED")
+poison_entries = [
+    item for item in importlib.metadata.entry_points(group="pytest11")
+    if item.name == "usf-poison-autoload"
+]
+if len(poison_entries) != 1:
+    raise RuntimeError("PYTEST_POISON_PLUGIN_NOT_DISCOVERABLE")
+if poison_marker.exists():
+    raise RuntimeError("PYTEST_POISON_PLUGIN_PRELOADED")
 
-status = pytest.main(["-p", "no:cacheprovider", *sys.argv[1:]])
+status = pytest.main(["-p", "no:cacheprovider", "-p", "pytest_asyncio.plugin", *sys.argv[1:]])
+if poison_marker.exists():
+    raise RuntimeError("PYTEST_PLUGIN_AUTOLOAD_OCCURRED")
+for entry in manifest.get("sources", []):
+    snapshot = pathlib.Path(entry["snapshotPath"]).resolve()
+    if not snapshot.is_file() or snapshot.is_symlink() or sha256(snapshot.read_bytes()) != entry["digest"]:
+        raise RuntimeError("PYTHON_SOURCE_SNAPSHOT_MOVED:" + snapshot.as_posix())
+isolation_evidence = {
+    "pluginAutoloadDisabled": True,
+    "poisonPluginDiscoverable": True,
+    "poisonPluginLoaded": False,
+    "pyvenvConfigurationDigest": manifest["pyvenvConfigurationDigest"],
+    "runtimeSourceIsolationMode": "READ_ONLY_EXACT_SOURCE_SNAPSHOT_LOADER_WITH_FD_PINNED_NATIVE_RUNTIME",
+    "runtimeSourceFileCount": len(manifest.get("sources", [])),
+    "runtimeSourceSetDigest": manifest["sourceSetDigest"],
+}
+isolation_evidence_path.write_text(canonical_json(isolation_evidence), encoding="utf-8")
 paths = set()
 for line in pathlib.Path("/proc/self/maps").read_text(encoding="utf-8").splitlines():
     fields = line.split()
@@ -143,6 +244,245 @@ runtime = {
 print("USF_PYTEST_RUNTIME_EVIDENCE=" + json.dumps(runtime, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
 raise SystemExit(status)
 `;
+
+function identityOf(stat) {
+  return {
+    device: stat.dev.toString(),
+    inode: stat.ino.toString(),
+    mode: stat.mode.toString(),
+    linkCount: stat.nlink.toString(),
+    size: stat.size.toString(),
+    modifiedTimeNs: stat.mtimeNs.toString(),
+    changedTimeNs: stat.ctimeNs.toString(),
+  };
+}
+
+function exactFileBytes(path, label) {
+  const beforePathStat = lstatSync(path, { bigint: true });
+  if (!beforePathStat.isFile() || beforePathStat.isSymbolicLink()) {
+    throw new Error(`${label}_NOT_EXACT_FILE`);
+  }
+  const descriptor = openSync(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+  try {
+    const beforeDescriptorIdentity = identityOf(fstatSync(descriptor, { bigint: true }));
+    if (canonicalJson(beforeDescriptorIdentity) !== canonicalJson(identityOf(beforePathStat))) {
+      throw new Error(`${label}_OPEN_IDENTITY_MISMATCH`);
+    }
+    const bytes = readFileSync(descriptor);
+    const afterDescriptorIdentity = identityOf(fstatSync(descriptor, { bigint: true }));
+    const afterPathStat = lstatSync(path, { bigint: true });
+    if (canonicalJson(afterDescriptorIdentity) !== canonicalJson(beforeDescriptorIdentity)
+      || canonicalJson(identityOf(afterPathStat)) !== canonicalJson(beforeDescriptorIdentity)) {
+      throw new Error(`${label}_MOVED_DURING_READ`);
+    }
+    return { bytes, identity: beforeDescriptorIdentity };
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
+export function snapshotRepositoryTree(root) {
+  const structuralRecords = [];
+  const identityRecords = [];
+  const visit = (directory, prefix = '') => {
+    const beforeDirectory = identityOf(lstatSync(directory, { bigint: true }));
+    if (!prefix) identityRecords.push({ path: '.', ...beforeDirectory });
+    const names = readdirSync(directory).sort(utf8Compare);
+    for (const name of names) {
+      if (!prefix && name === '.git') continue;
+      const path = join(directory, name);
+      const relativePath = prefix ? `${prefix}/${name}` : name;
+      const stat = lstatSync(path, { bigint: true });
+      if (stat.isDirectory() && !stat.isSymbolicLink()) {
+        structuralRecords.push({
+          path: relativePath,
+          type: 'DIRECTORY',
+          mode: Number(stat.mode & 0o7777n),
+        });
+        identityRecords.push({ path: relativePath, ...identityOf(stat) });
+        visit(path, relativePath);
+      } else if (stat.isFile() && !stat.isSymbolicLink()) {
+        const exact = exactFileBytes(path, 'FACTORY_TREE_FILE');
+        structuralRecords.push({
+          path: relativePath,
+          type: 'FILE',
+          mode: Number(stat.mode & 0o7777n),
+          byteSize: exact.bytes.length,
+          digest: sha256(exact.bytes),
+        });
+        identityRecords.push({ path: relativePath, ...exact.identity });
+      } else if (stat.isSymbolicLink()) {
+        structuralRecords.push({
+          path: relativePath,
+          type: 'SYMLINK',
+          target: readlinkSync(path),
+        });
+        identityRecords.push({ path: relativePath, ...identityOf(stat) });
+      } else {
+        throw new Error(`FACTORY_TREE_UNSUPPORTED_ENTRY:${relativePath}`);
+      }
+    }
+    if (canonicalJson(identityOf(lstatSync(directory, { bigint: true }))) !== canonicalJson(beforeDirectory)) {
+      throw new Error('FACTORY_TREE_DIRECTORY_MOVED_DURING_SNAPSHOT');
+    }
+  };
+  visit(root);
+  return Object.freeze({
+    structuralRecords,
+    structuralDigest: sha256(canonicalJson(structuralRecords)),
+    identityDigest: sha256(canonicalJson(identityRecords)),
+  });
+}
+
+export function cacheResiduePaths(snapshot) {
+  return snapshot.structuralRecords
+    .map(({ path }) => path)
+    .filter((path) => path.split('/').some((segment) => segment === '__pycache__' || segment === '.pytest_cache')
+      || path.endsWith('.pyc') || path.endsWith('.pyo'))
+    .sort(utf8Compare);
+}
+
+function parsePyvenvConfiguration(bytes) {
+  return Object.fromEntries(bytes.toString('utf8').split(/\r?\n/)
+    .filter((line) => line.includes(' = '))
+    .map((line) => line.split(' = ', 2)));
+}
+
+export function createReadOnlyPythonSourceSnapshot({ runtimeEvidence, destination }) {
+  const configurationPath = join(runtimeEvidence.venvPrefix, 'pyvenv.cfg');
+  const configuration = exactFileBytes(configurationPath, 'PYVENV_CONFIGURATION');
+  const settings = parsePyvenvConfiguration(configuration.bytes);
+  const versionParts = String(settings.version || '').split('.');
+  if (versionParts.length !== 3 || !settings.home) throw new Error('PYVENV_CONFIGURATION_INCOMPLETE');
+  const sitePackagesRoot = join(runtimeEvidence.venvPrefix, 'lib', `python${versionParts[0]}.${versionParts[1]}`, 'site-packages');
+  const stdlibRoot = resolve(dirname(settings.home), 'lib', `python${versionParts[0]}.${versionParts[1]}`);
+  const roots = [
+    { id: 'site-packages', source: sitePackagesRoot, destination: join(destination, 'site-packages') },
+    { id: 'stdlib', source: stdlibRoot, destination: join(destination, 'stdlib') },
+  ];
+  mkdirSync(destination, { recursive: false, mode: 0o700 });
+  const sources = [];
+  const directories = [destination];
+  for (const root of roots) {
+    mkdirSync(root.destination, { recursive: false, mode: 0o700 });
+    directories.push(root.destination);
+    const visit = (sourceDirectory, destinationDirectory, prefix = '') => {
+      const sourceDirectoryBefore = identityOf(lstatSync(sourceDirectory, { bigint: true }));
+      for (const name of readdirSync(sourceDirectory).sort(utf8Compare)) {
+        if (name === '__pycache__'
+          || (root.id === 'stdlib' && (name === 'site-packages' || name === 'dist-packages'))) continue;
+        const sourcePath = join(sourceDirectory, name);
+        const destinationPath = join(destinationDirectory, name);
+        const relativePath = prefix ? `${prefix}/${name}` : name;
+        const stat = lstatSync(sourcePath, { bigint: true });
+        if (stat.isDirectory() && !stat.isSymbolicLink()) {
+          mkdirSync(destinationPath, { recursive: false, mode: 0o700 });
+          directories.push(destinationPath);
+          visit(sourcePath, destinationPath, relativePath);
+        } else if ((stat.isFile() || stat.isSymbolicLink()) && name.endsWith('.py')) {
+          const linkPath = stat.isSymbolicLink() ? sourcePath : null;
+          const linkTarget = linkPath ? readlinkSync(linkPath) : null;
+          const canonicalSourcePath = linkPath ? realpathSync(linkPath) : sourcePath;
+          const exact = exactFileBytes(canonicalSourcePath, 'PYTHON_RUNTIME_SOURCE');
+          writeFileSync(destinationPath, exact.bytes, { flag: 'wx', mode: 0o400 });
+          sources.push({
+            root: root.id,
+            path: relativePath,
+            sourcePath: canonicalSourcePath,
+            linkPath,
+            linkTarget,
+            snapshotPath: destinationPath,
+            byteSize: exact.bytes.length,
+            digest: sha256(exact.bytes),
+          });
+        }
+      }
+      if (canonicalJson(identityOf(lstatSync(sourceDirectory, { bigint: true })))
+        !== canonicalJson(sourceDirectoryBefore)) {
+        throw new Error('PYTHON_RUNTIME_SOURCE_DIRECTORY_MOVED_DURING_SNAPSHOT');
+      }
+    };
+    visit(root.source, root.destination);
+  }
+  sources.sort((left, right) => utf8Compare(`${left.root}/${left.path}`, `${right.root}/${right.path}`));
+  const safeSources = sources.map(({
+    root, path, linkTarget, byteSize, digest,
+  }) => ({
+    root, path, linkTarget, byteSize, digest,
+  }));
+  const evidence = Object.freeze({
+    pyvenvConfigurationDigest: sha256(configuration.bytes),
+    sourceCount: sources.length,
+    sourceSetDigest: sha256(canonicalJson(safeSources)),
+  });
+  const evidenceDigest = sha256(canonicalJson(evidence));
+  for (const directory of directories.reverse()) chmodSync(directory, 0o500);
+  return Object.freeze({
+    configurationPath,
+    configurationDigest: evidence.pyvenvConfigurationDigest,
+    sitePackagesRoot,
+    stdlibSnapshotRoot: join(destination, 'stdlib'),
+    sources,
+    evidence: Object.freeze({ ...evidence, evidenceDigest }),
+  });
+}
+
+export function verifyPythonSourceSnapshot(snapshot) {
+  const configuration = exactFileBytes(snapshot.configurationPath, 'PYVENV_CONFIGURATION');
+  if (sha256(configuration.bytes) !== snapshot.configurationDigest) {
+    throw new Error('PYVENV_CONFIGURATION_MOVED');
+  }
+  const safeSources = snapshot.sources.map(({
+    root, path, sourcePath, linkPath, linkTarget, snapshotPath, byteSize, digest,
+  }) => {
+    if (linkPath && (readlinkSync(linkPath) !== linkTarget || realpathSync(linkPath) !== sourcePath)) {
+      throw new Error('PYTHON_RUNTIME_SOURCE_SYMLINK_MOVED');
+    }
+    const source = exactFileBytes(sourcePath, 'PYTHON_RUNTIME_SOURCE');
+    const copied = exactFileBytes(snapshotPath, 'PYTHON_RUNTIME_SOURCE_SNAPSHOT');
+    if (source.bytes.length !== byteSize || copied.bytes.length !== byteSize
+      || sha256(source.bytes) !== digest || sha256(copied.bytes) !== digest) {
+      throw new Error('PYTHON_RUNTIME_SOURCE_SNAPSHOT_MOVED');
+    }
+    return {
+      root, path, linkTarget, byteSize, digest,
+    };
+  });
+  const observed = {
+    pyvenvConfigurationDigest: sha256(configuration.bytes),
+    sourceCount: safeSources.length,
+    sourceSetDigest: sha256(canonicalJson(safeSources)),
+  };
+  if (sha256(canonicalJson(observed)) !== snapshot.evidence.evidenceDigest) {
+    throw new Error('PYTHON_RUNTIME_SOURCE_CLOSURE_MOVED');
+  }
+  return true;
+}
+
+export function createPoisonPytestPlugin(root) {
+  const poisonRoot = join(root, 'poison-pytest-plugin');
+  const distributionRoot = join(poisonRoot, 'usf_poison_pytest_autoload-1.0.dist-info');
+  const marker = join(root, 'poison-plugin-loaded');
+  mkdirSync(poisonRoot, { recursive: false, mode: 0o700 });
+  mkdirSync(distributionRoot, { recursive: false, mode: 0o700 });
+  writeFileSync(join(poisonRoot, 'usf_poison_pytest_autoload.py'), [
+    'from pathlib import Path',
+    `Path(${JSON.stringify(marker)}).write_text("loaded", encoding="utf-8")`,
+    '',
+  ].join('\n'), { flag: 'wx', mode: 0o400 });
+  writeFileSync(join(distributionRoot, 'entry_points.txt'), [
+    '[pytest11]',
+    'usf-poison-autoload = usf_poison_pytest_autoload',
+    '',
+  ].join('\n'), { flag: 'wx', mode: 0o400 });
+  writeFileSync(join(distributionRoot, 'METADATA'), [
+    'Metadata-Version: 2.1',
+    'Name: usf-poison-pytest-autoload',
+    'Version: 1.0',
+    '',
+  ].join('\n'), { flag: 'wx', mode: 0o400 });
+  return Object.freeze({ poisonRoot, marker });
+}
 
 function requiredEnvironment(name, pattern = /./) {
   const value = process.env[name] || '';
@@ -318,6 +658,7 @@ function drainPopulation(population, currentEvidence, outcomeFor, batchSize) {
   };
 }
 
+async function main() {
 const authorityDigest = requiredEnvironment('USF_AUTHORITY_DIGEST', SHA256);
 const evaluatedAt = requiredEnvironment('USF_EVALUATED_AT', DATE_TIME);
 if (!Number.isFinite(Date.parse(evaluatedAt))) throw new Error('USF_EVALUATED_AT_INVALID');
@@ -325,11 +666,15 @@ const casRoot = exactDirectory(requiredEnvironment('USF_CAS_ROOT'), 'CAS_ROOT');
 const factoryRepo = exactDirectory(requiredEnvironment('USF_FACTORY_REPO'), 'FACTORY_REPO');
 const factoryCommit = requiredEnvironment('USF_FACTORY_COMMIT', COMMIT);
 const expectedFactoryTree = requiredEnvironment('USF_EXPECTED_FACTORY_TREE', COMMIT);
-const outputRoot = prepareExactSessionOutputRoot({
+outputRoot = prepareExactSessionOutputRoot({
   repositoryRoot: process.cwd(),
   requestedOutputRoot: resolve(requiredEnvironment('USF_OUTPUT_ROOT')),
   clear: true,
 });
+const outputRelativeToFactory = relative(factoryRepo, outputRoot);
+if (outputRelativeToFactory === '' || (!outputRelativeToFactory.startsWith(`..${sep}`) && outputRelativeToFactory !== '..')) {
+  throw new Error('SESSION_OUTPUT_ROOT_MUST_BE_OUTSIDE_FACTORY_REPOSITORY');
+}
 const python = requiredEnvironment('USF_PYTHON');
 const pythonRuntime = Object.freeze({
   executablePath: python,
@@ -671,9 +1016,14 @@ record('provider-materialisation-hostile-mutations', {
 
 const pytestArgs = [
   '-I', '-S', '-',
+  join(outputRoot, 'python-runtime-source-snapshot', 'stdlib'),
   join(pythonRuntimeDependencyEvidence.venvPrefix, 'lib', 'python3.11', 'site-packages'),
   factoryRepo,
   join(outputRoot, 'python-bytecode'),
+  join(outputRoot, 'python-runtime-source-manifest.json'),
+  join(outputRoot, 'poison-pytest-plugin'),
+  join(outputRoot, 'poison-plugin-loaded'),
+  join(outputRoot, 'pytest-isolation-evidence.json'),
   '-q',
   'tests/test_workforce_policy.py',
   'tests/test_workforce_bootstrap.py',
@@ -682,11 +1032,39 @@ const pytestArgs = [
   'tests/test_secrets.py',
   'tests/test_free_tier_classification.py',
 ];
+const factoryTreeBeforePytest = snapshotRepositoryTree(factoryRepo);
+const cacheResidueBeforePytest = cacheResiduePaths(factoryTreeBeforePytest);
+const pythonSourceSnapshot = createReadOnlyPythonSourceSnapshot({
+  runtimeEvidence: pythonRuntimeDependencyEvidence,
+  destination: join(outputRoot, 'python-runtime-source-snapshot'),
+});
+const pythonSourceManifest = {
+  schemaVersion: 1,
+  ...pythonSourceSnapshot.evidence,
+  sources: pythonSourceSnapshot.sources.map(({
+    sourcePath, snapshotPath, digest,
+  }) => ({
+    sourcePath, snapshotPath, digest,
+  })),
+};
+writeFileSync(
+  join(outputRoot, 'python-runtime-source-manifest.json'),
+  canonicalJson(pythonSourceManifest),
+  { flag: 'wx', mode: 0o400 },
+);
+const poisonPlugin = createPoisonPytestPlugin(outputRoot);
+if (poisonPlugin.poisonRoot !== join(outputRoot, 'poison-pytest-plugin')
+  || poisonPlugin.marker !== join(outputRoot, 'poison-plugin-loaded')) {
+  throw new Error('PYTEST_POISON_PLUGIN_PATH_BINDING_INVALID');
+}
 const pythonRuntimeBeforePytest = inspectPinnedPythonRuntime(pythonRuntime);
 const pytest = run('focused-factory-tests', python, pytestArgs, {
   cwd: factoryRepo,
   env: {
     ...HERMETIC_COMMAND_ENV,
+    PYTHONDONTWRITEBYTECODE: '1',
+    PYTHONPYCACHEPREFIX: join(outputRoot, 'python-bytecode'),
+    PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1',
   },
   input: FOCUSED_PYTEST_BOOTSTRAP,
   timeout: 300_000,
@@ -696,7 +1074,73 @@ const pytest = run('focused-factory-tests', python, pytestArgs, {
 }).toString('utf8');
 const pytestProgress = JSON.parse(normaliseDeterministicPytestOutput(pytest).toString('utf8'));
 const pythonRuntimeAfterPytest = inspectPinnedPythonRuntime(pythonRuntime);
+verifyPythonSourceSnapshot(pythonSourceSnapshot);
+const isolationEvidenceBytes = exactFileBytes(
+  join(outputRoot, 'pytest-isolation-evidence.json'),
+  'PYTEST_ISOLATION_EVIDENCE',
+).bytes;
+let isolationEvidence;
+try {
+  isolationEvidence = JSON.parse(isolationEvidenceBytes);
+} catch {
+  throw new Error('PYTEST_ISOLATION_EVIDENCE_JSON_INVALID');
+}
+const expectedIsolationEvidence = {
+  pluginAutoloadDisabled: true,
+  poisonPluginDiscoverable: true,
+  poisonPluginLoaded: false,
+  pyvenvConfigurationDigest: pythonSourceSnapshot.evidence.pyvenvConfigurationDigest,
+  runtimeSourceIsolationMode: 'READ_ONLY_EXACT_SOURCE_SNAPSHOT_LOADER_WITH_FD_PINNED_NATIVE_RUNTIME',
+  runtimeSourceFileCount: pythonSourceSnapshot.evidence.sourceCount,
+  runtimeSourceSetDigest: pythonSourceSnapshot.evidence.sourceSetDigest,
+};
+if (isolationEvidenceBytes.toString('utf8') !== canonicalJson(isolationEvidence)
+  || canonicalJson(isolationEvidence) !== canonicalJson(expectedIsolationEvidence)) {
+  throw new Error('PYTEST_ISOLATION_EVIDENCE_INVALID');
+}
+if (existsSync(poisonPlugin.marker)) throw new Error('PYTEST_POISON_PLUGIN_AUTOLOADED');
+const factoryTreeAfterPytest = snapshotRepositoryTree(factoryRepo);
+const cacheResidueAfterPytest = cacheResiduePaths(factoryTreeAfterPytest);
+const newCacheResidue = cacheResidueAfterPytest
+  .filter((path) => !cacheResidueBeforePytest.includes(path))
+  .sort(utf8Compare);
+const postPytestTree = run('factory-tree-post-pytest', '/usr/bin/git', ['rev-parse', `${factoryCommit}^{tree}`], { cwd: factoryRepo })
+  .toString().trim();
+const postPytestStatus = run(
+  'factory-status-post-pytest',
+  '/usr/bin/git',
+  ['status', '--porcelain=v1', '--untracked-files=all'],
+  { cwd: factoryRepo },
+).toString();
 record('focused-pytest-runtime-closure-stable', pythonRuntimeBeforePytest, pythonRuntimeAfterPytest);
+record('focused-pytest-python-source-snapshot', {
+  pyvenvConfigurationDigest: pythonSourceSnapshot.evidence.pyvenvConfigurationDigest,
+  sourceCount: pythonSourceSnapshot.evidence.sourceCount,
+  sourceSetDigest: pythonSourceSnapshot.evidence.sourceSetDigest,
+}, {
+  pyvenvConfigurationDigest: isolationEvidence.pyvenvConfigurationDigest,
+  sourceCount: isolationEvidence.runtimeSourceFileCount,
+  sourceSetDigest: isolationEvidence.runtimeSourceSetDigest,
+});
+record('focused-pytest-plugin-autoload-disabled', {
+  pluginAutoloadDisabled: true,
+  poisonPluginDiscoverable: true,
+  poisonPluginLoaded: false,
+}, {
+  pluginAutoloadDisabled: isolationEvidence.pluginAutoloadDisabled,
+  poisonPluginDiscoverable: isolationEvidence.poisonPluginDiscoverable,
+  poisonPluginLoaded: isolationEvidence.poisonPluginLoaded,
+});
+record('focused-pytest-factory-tree-invariant', {
+  structuralDigest: factoryTreeBeforePytest.structuralDigest,
+  identityInvariant: true,
+}, {
+  structuralDigest: factoryTreeAfterPytest.structuralDigest,
+  identityInvariant: factoryTreeBeforePytest.identityDigest === factoryTreeAfterPytest.identityDigest,
+});
+record('focused-pytest-no-new-cache-residue-outside-session-output', [], newCacheResidue);
+record('focused-pytest-git-tree-invariant', tree, postPytestTree);
+record('focused-pytest-worktree-remains-clean', '', postPytestStatus);
 record('focused-deterministic-tests', '100', pytestProgress.progressLines.at(-1)?.match(/\[\s*(\d+)%\]$/)?.[1] ?? null);
 record('focused-deterministic-test-count', 74, pytestProgress.completedCaseCount);
 record('focused-pytest-workload-runtime', {
@@ -878,3 +1322,8 @@ process.stdout.write(`${JSON.stringify({
   signingKeyFingerprint: envelope.signatures[0].keyid,
   outputRoot: 'SESSION_TRANSIENT_OUTPUT_ROOT',
 }, null, 2)}\n`);
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename)) {
+  await main();
+}
