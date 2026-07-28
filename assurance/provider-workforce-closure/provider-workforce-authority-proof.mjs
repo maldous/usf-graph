@@ -39,6 +39,11 @@ import {
   PROVIDER_PROOF_ALGORITHM_SOURCE_PATHS,
   verifyProviderProofSourceManifest,
 } from './provider-proof-source-manifest.mjs';
+import {
+  inspectHermeticCasSystemPublisher,
+  putCasObject,
+  readCasObject,
+} from './hermetic-cas.mjs';
 
 const semanticRoot = resolve(dirname(import.meta.filename), '..', '..');
 const PROVIDER_PROOF_PATH =
@@ -591,7 +596,7 @@ export function providerProofSourceBinding({ repositoryRoot, trackedSourcePaths 
     repositoryRoot,
     trackedSourcePaths,
   });
-  const proofAlgorithmSources = verified.sourceRecords.map((record) => Object.freeze({
+  const proofAlgorithmSources = verified.declaredSourceRecords.map((record) => Object.freeze({
     byteSize: record.byteSize,
     digest: record.digest,
     path: record.path,
@@ -600,10 +605,10 @@ export function providerProofSourceBinding({ repositoryRoot, trackedSourcePaths 
   if (!primary) throw new Error('PROVIDER_PROOF_PRIMARY_SOURCE_MISSING');
   return Object.freeze({
     canonicalPublicationSourceSetDigest: verified.publicationSourceSetDigest,
-    proofAlgorithmImportClosureDigest: verified.importClosureDigest,
+    proofAlgorithmImportClosureDigest: verified.entrypointClosureSetDigest,
     proofAlgorithmSourceDigest: primary.digest,
     proofAlgorithmSourceManifestDigest: verified.manifestDigest,
-    proofAlgorithmSourceSetDigest: verified.sourceSetDigest,
+    proofAlgorithmSourceSetDigest: verified.declaredSourceSetDigest,
     proofAlgorithmSources: Object.freeze(proofAlgorithmSources),
   });
 }
@@ -948,40 +953,33 @@ function record(id, expected, observed, detail = null) {
   if (!passed) throw new Error(`ASSERTION_FAILED_${id.toUpperCase().replaceAll('-', '_')}`);
 }
 
-function putCas(root, bytes, mediaType) {
-  const digest = sha256(bytes);
-  const hexadecimal = digest.slice(7);
-  const algorithmDirectory = join(root, 'sha256');
-  const directory = join(algorithmDirectory, hexadecimal.slice(0, 2));
-  const path = join(directory, hexadecimal);
-  for (const candidate of [algorithmDirectory, directory]) {
-    try {
-      mkdirSync(candidate, { recursive: false, mode: 0o700 });
-    } catch (error) {
-      if (error.code !== 'EEXIST') throw error;
-    }
-    const stat = lstatSync(candidate);
-    if (stat.isSymbolicLink() || !stat.isDirectory() || realpathSync(candidate) !== candidate) {
-      throw new Error('CAS_DIRECTORY_NOT_EXACT');
-    }
+async function putAndReadVerifiedCasObject({
+  root,
+  bytes,
+  mediaType,
+  systemPublisher,
+}) {
+  const published = await putCasObject({
+    root,
+    bytes,
+    mediaType,
+    expectedDigest: sha256(bytes),
+    systemPublisher,
+  });
+  const observed = await readCasObject({
+    root,
+    digest: published.digest,
+    maxBytes: bytes.length,
+  });
+  if (observed.byteSize !== bytes.length || !observed.bytes.equals(bytes)) {
+    throw new Error('CAS_VERIFIED_READBACK_MISMATCH');
   }
-  try {
-    const existing = lstatSync(path);
-    if (existing.isSymbolicLink() || !existing.isFile() || existing.nlink !== 1) {
-      throw new Error('CAS_OBJECT_NOT_EXACT_FILE');
-    }
-  } catch (error) {
-    if (error.code !== 'ENOENT') throw error;
-  }
-  try {
-    writeFileSync(path, bytes, { flag: 'wx', mode: 0o600 });
-  } catch (error) {
-    if (error.code !== 'EEXIST' || sha256(readFileSync(path)) !== digest) throw error;
-  }
-  const finalStat = lstatSync(path);
-  if (finalStat.isSymbolicLink() || !finalStat.isFile() || finalStat.nlink !== 1
-    || sha256(readFileSync(path)) !== digest) throw new Error('CAS_ROUND_TRIP_FAILED');
-  return { digest, byteSize: bytes.length, mediaType, locator: `cas://sha256/${hexadecimal}` };
+  return Object.freeze({
+    digest: published.digest,
+    byteSize: published.byteSize,
+    mediaType: published.mediaType,
+    locator: published.locator,
+  });
 }
 
 function intersectSets(layers, key) {
@@ -1067,6 +1065,7 @@ const authorityDigest = requiredEnvironment('USF_AUTHORITY_DIGEST', SHA256);
 const evaluatedAt = requiredEnvironment('USF_EVALUATED_AT', DATE_TIME);
 if (!Number.isFinite(Date.parse(evaluatedAt))) throw new Error('USF_EVALUATED_AT_INVALID');
 const casRoot = exactDirectory(requiredEnvironment('USF_CAS_ROOT'), 'CAS_ROOT');
+const casSystemPublisher = await inspectHermeticCasSystemPublisher();
 const graphRepo = exactDirectory(requiredEnvironment('USF_REPO'), 'GRAPH_REPO');
 const graphCommit = requiredEnvironment('USF_GRAPH_COMMIT', COMMIT);
 const expectedGraphTree = requiredEnvironment('USF_EXPECTED_GRAPH_TREE', COMMIT);
@@ -1707,6 +1706,7 @@ const {
   proofAlgorithmSources,
 } = proofSourceBinding;
 const runtimeDependencyEvidence = Object.freeze({
+  cas: casSystemPublisher,
   git: gitRuntimeDependencyEvidence,
   node: nodeDependencyEvidence,
   python: pythonRuntimeDependencyEvidence,
@@ -1784,7 +1784,12 @@ const evidenceCore = {
 const exactEvidenceSetDigest = sha256(canonicalJson(evidenceCore));
 const evidence = { ...evidenceCore, exactEvidenceSetDigest };
 const evidenceBytes = Buffer.from(canonicalJson(evidence));
-const evidenceDescriptor = putCas(casRoot, evidenceBytes, 'application/json');
+const evidenceDescriptor = await putAndReadVerifiedCasObject({
+  root: casRoot,
+  bytes: evidenceBytes,
+  mediaType: 'application/json',
+  systemPublisher: casSystemPublisher,
+});
 
 const seed = createHash('sha256').update('provider-workforce-authority-integrity-key-v1').digest();
 const privateKey = createPrivateKey({
@@ -1825,7 +1830,12 @@ const envelope = {
   }],
 };
 const attestationBytes = Buffer.from(canonicalJson(envelope));
-const attestationDescriptor = putCas(casRoot, attestationBytes, 'application/vnd.in-toto+json');
+const attestationDescriptor = await putAndReadVerifiedCasObject({
+  root: casRoot,
+  bytes: attestationBytes,
+  mediaType: 'application/vnd.in-toto+json',
+  systemPublisher: casSystemPublisher,
+});
 
 writeFileSync(join(outputRoot, 'evidence-manifest.json'), evidenceBytes, { mode: 0o600 });
 writeFileSync(join(outputRoot, 'proof-attestation.dsse.json'), attestationBytes, { mode: 0o600 });
