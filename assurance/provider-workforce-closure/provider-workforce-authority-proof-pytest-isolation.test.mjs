@@ -13,6 +13,7 @@ import {
   createPoisonPytestPlugin,
   createReadOnlyPythonSourceSnapshot,
   snapshotRepositoryTree,
+  subscriptionPaidBoundarySourceEvidence,
   verifyPythonSourceSnapshot,
 } from './provider-workforce-authority-proof.mjs';
 import {
@@ -22,6 +23,50 @@ import {
 
 const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 const pinnedPythonPath = process.env.USF_PYTHON || '/root/usf-factory/.venv/bin/python';
+const boundaryFixture = Object.freeze({
+  activationSource: `def _mode_for(auth_mode, model_row):
+    if auth_mode == AuthMode.LOCAL:
+        return "free"
+    if auth_mode == AuthMode.OIDC_CLI:
+        return "subscription"
+    if model_row.get("free") is True:
+        return "free"
+    return "paid"
+`,
+  bootstrapSource: `def _auth_for(mode, policy, max_cost_usd):
+    return InferenceAuthorization(
+        allow_inference=True,
+        allow_subscription_inference=policy.allow_subscription
+        and mode == InferenceMode.SUBSCRIPTION.value,
+        allow_paid_inference=policy.allow_paid and mode == InferenceMode.PAID.value,
+        max_cost_usd=max_cost_usd,
+    )
+`,
+  providerEvaluationSource: `async def evaluate_provider(ctx, cfg, auth):
+    if rep.mode == "subscription" and not auth.allow_subscription_inference:
+        return blocked()
+    if rep.mode == "paid" and not auth.allow_paid_inference:
+        return paid_blocked()
+    if rep.mode == "paid" and auth.max_cost_usd <= 0:
+        return paid_blocked()
+    reported = usage.provider_reported_cost
+    paid = reported if rep.mode == "paid" else 0.0
+    sub = reported if rep.mode == "subscription" else 0.0
+    return paid, sub
+`,
+  paidBudgetTestSource: `def test_subscription_value_not_against_paid_budget(ctx):
+    ev = evaluate_provider(
+        ctx,
+        EvalAuth(
+            allow_inference=True,
+            allow_subscription_inference=True,
+            max_cost_usd=0.0,
+        ),
+    )
+    assert ev.paid_api_spend_usd == 0.0
+    assert ev.subscription_reported_value_usd == 0.06
+`,
+});
 
 function exactRuntime() {
   assert.equal(existsSync(pinnedPythonPath), true, `pinned Python is required at ${pinnedPythonPath}`);
@@ -147,4 +192,49 @@ test('factory tree evidence detects cache residue and create-remove history', ()
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('subscription and paid source evidence fails closed on removed or conflated boundaries', () => {
+  assert.equal(subscriptionPaidBoundarySourceEvidence(boundaryFixture).passed, true);
+  const adversarial = [
+    {
+      ...boundaryFixture,
+      activationSource: boundaryFixture.activationSource.replace(
+        '    if auth_mode == AuthMode.OIDC_CLI:\n        return "subscription"\n',
+        '',
+      ),
+    },
+    {
+      ...boundaryFixture,
+      bootstrapSource: boundaryFixture.bootstrapSource.replace(
+        'InferenceMode.SUBSCRIPTION.value',
+        'InferenceMode.PAID.value',
+      ),
+    },
+    {
+      ...boundaryFixture,
+      bootstrapSource: boundaryFixture.bootstrapSource.replace(
+        '        allow_paid_inference=policy.allow_paid and mode == InferenceMode.PAID.value,\n',
+        '',
+      ),
+    },
+    {
+      ...boundaryFixture,
+      providerEvaluationSource: boundaryFixture.providerEvaluationSource.replace(
+        'paid = reported if rep.mode == "paid" else 0.0',
+        'paid = reported if rep.mode in ("paid", "subscription") else 0.0',
+      ),
+    },
+    {
+      ...boundaryFixture,
+      paidBudgetTestSource: boundaryFixture.paidBudgetTestSource.replace(
+        '    assert ev.paid_api_spend_usd == 0.0\n',
+        '',
+      ),
+    },
+  ];
+  assert.deepEqual(
+    adversarial.map((fixture) => subscriptionPaidBoundarySourceEvidence(fixture).passed),
+    [false, false, false, false, false],
+  );
 });
