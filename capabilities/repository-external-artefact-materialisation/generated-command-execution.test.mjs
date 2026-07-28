@@ -91,7 +91,10 @@ test('generated package scripts, test command and evidence pipeline execute', ()
     const npmRoot = join(dirname(process.execPath), '..', 'lib/node_modules/npm');
     const npmCli = join(npmRoot, 'bin/npm-cli.js');
     const testOutput = execFileSync(process.execPath, [
+      '--permission',
+      '--allow-child-process',
       `--allow-fs-read=${npmRoot}`,
+      `--allow-fs-read=${generated}`,
       npmCli,
       'test',
       '--prefix',
