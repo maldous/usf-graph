@@ -11,10 +11,41 @@ import {
   SELF_PUBLICATION_RULE,
 } from '../../capabilities/semantic-model-compilation/authority-binding.mjs';
 
+const utf8Compare = (left, right) => Buffer.compare(
+  Buffer.from(String(left), 'utf8'),
+  Buffer.from(String(right), 'utf8'),
+);
+
 export const MATERIALISATION_EVIDENCE_SCHEMA_VERSION = 4;
 export const MATERIALISATION_RECEIPT_SCHEMA_VERSION = 2;
 export const MATERIALISATION_CANDIDATE_GRAPH_INVENTORY_ALGORITHM =
   'sha256-rdfc10-managed-graph-inventory-v1';
+export const MATERIALISATION_PROOF_RUNNER_PATH =
+  'assurance/semantic-model-compilation/materialisation-proof.mjs';
+export const MATERIALISATION_IMPLEMENTATION_SOURCE_PATHS = Object.freeze([
+  'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.mjs',
+  'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.test.mjs',
+  'assurance/semantic-model-compilation/materialisation-proof.hostile-test.mjs',
+  'capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs',
+  'capabilities/repository-external-artefact-materialisation/materialisation-plan.test.mjs',
+  'capabilities/semantic-model-compilation/authority-binding.mjs',
+  'capabilities/semantic-model-compilation/authority-dataset.mjs',
+  'configuration/semantic-assurance/semantic-authority.mjs',
+  'configuration/semantic-assurance/semantic-authority.test.mjs',
+  'processes/semantic-assurance/proof-currentness.mjs',
+  'processes/semantic-assurance/proof-currentness.test.mjs',
+  'processes/semantic-assurance/repository-materialisation-command.mjs',
+  'processes/semantic-assurance/repository-materialisation-command.test.mjs',
+  'processes/semantic-assurance/repository-materialisation-gateway.mjs',
+  'processes/semantic-assurance/repository-materialisation-gateway.test.mjs',
+  'processes/semantic-assurance/semantic-authority-gateway.mjs',
+  'processes/semantic-assurance/semantic-authority-gateway.test.mjs',
+  'processes/semantic-assurance/semantic-authority-mcp.mjs',
+  'processes/semantic-assurance/semantic-authority-mcp.test.mjs',
+  'processes/semantic-assurance/semantic-bootstrap-packet.mjs',
+  'provider-bindings/stardog/semantic-authority.mjs',
+  'provider-bindings/stardog/semantic-authority.test.mjs',
+].sort(utf8Compare));
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
 const RAW_SHA256 = /^[0-9a-f]{64}$/u;
@@ -28,10 +59,6 @@ const STATEMENT_TYPE = 'https://in-toto.io/Statement/v1';
 const PREDICATE_TYPE = 'https://in-toto.io/attestation/test-result/v0.1';
 const SUBJECT_NAME = 'repository-materialisation-control-plane-evidence';
 
-const utf8Compare = (left, right) => Buffer.compare(
-  Buffer.from(String(left), 'utf8'),
-  Buffer.from(String(right), 'utf8'),
-);
 const stable = (value) => Array.isArray(value)
   ? value.map(stable)
   : value && typeof value === 'object'
@@ -225,6 +252,41 @@ function verifyDescriptor(descriptor, bytes, mediaType, label) {
   });
 }
 
+function verifyImplementationSources(evidence) {
+  assert(
+    Array.isArray(evidence.implementationSources)
+      && evidence.implementationSources.length
+        === MATERIALISATION_IMPLEMENTATION_SOURCE_PATHS.length,
+    'MATERIALISATION_EVIDENCE_IMPLEMENTATION_SOURCE_PATH_SET_INVALID',
+  );
+  const seen = new Set();
+  evidence.implementationSources.forEach((record, index) => {
+    exactObjectKeys(
+      record,
+      ['path', 'digest'],
+      'MATERIALISATION_EVIDENCE_IMPLEMENTATION_SOURCE_FIELDS_INVALID',
+    );
+    assert(
+      record.path === MATERIALISATION_IMPLEMENTATION_SOURCE_PATHS[index],
+      'MATERIALISATION_EVIDENCE_IMPLEMENTATION_SOURCE_PATH_SET_INVALID',
+    );
+    assert(
+      !seen.has(record.path),
+      'MATERIALISATION_EVIDENCE_IMPLEMENTATION_SOURCE_PATH_DUPLICATE',
+    );
+    exactDigest(
+      record.digest,
+      'MATERIALISATION_EVIDENCE_IMPLEMENTATION_SOURCE_DIGEST_INVALID',
+    );
+    seen.add(record.path);
+  });
+  assert(
+    evidence.implementationSourceDigest
+      === sha256(canonicalMaterialisationJson(evidence.implementationSources)),
+    'MATERIALISATION_EVIDENCE_IMPLEMENTATION_SOURCE_SET_DIGEST_MISMATCH',
+  );
+}
+
 function verifyReceipt(receipt) {
   exactObjectKeys(receipt, [
     'schemaVersion',
@@ -346,6 +408,18 @@ function verifyEvidence(receipt, evidenceBytes) {
     'MATERIALISATION_EVIDENCE_IMPLEMENTATION_DIGEST_INVALID');
   exactDigest(evidence.proofAlgorithmSourceDigest,
     'MATERIALISATION_EVIDENCE_ALGORITHM_DIGEST_INVALID');
+  assert(evidence.runner && typeof evidence.runner === 'object'
+    && !Array.isArray(evidence.runner)
+    && evidence.runner.sourcePath === MATERIALISATION_PROOF_RUNNER_PATH,
+  'MATERIALISATION_EVIDENCE_RUNNER_PATH_INVALID');
+  exactDigest(
+    evidence.runner.sourceDigest,
+    'MATERIALISATION_EVIDENCE_RUNNER_DIGEST_INVALID',
+  );
+  assert(
+    evidence.runner.sourceDigest === evidence.proofAlgorithmSourceDigest,
+    'MATERIALISATION_EVIDENCE_RUNNER_ALGORITHM_DIGEST_MISMATCH',
+  );
   assert(evidence.candidateGraphInventoryAlgorithm
     === MATERIALISATION_CANDIDATE_GRAPH_INVENTORY_ALGORITHM,
   'MATERIALISATION_EVIDENCE_CANDIDATE_ALGORITHM_INVALID');
@@ -381,11 +455,10 @@ function verifyEvidence(receipt, evidenceBytes) {
   'MATERIALISATION_EVIDENCE_EXECUTION_CLASS_INVALID');
   assert(Array.isArray(evidence.validationCommands)
     && Array.isArray(evidence.commandResults)
-    && Array.isArray(evidence.implementationSources)
-    && evidence.implementationSources.length > 0
     && Array.isArray(evidence.nonclaims)
     && evidence.nonclaims.every((item) => typeof item === 'string'),
   'MATERIALISATION_EVIDENCE_COLLECTION_INVALID');
+  verifyImplementationSources(evidence);
 
   const inventory = candidateDependencyDigestFromGraphs(evidence.candidateGraphs);
   assert(evidence.measurements.candidateGraphCount === inventory.graphCount,

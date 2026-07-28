@@ -10,6 +10,8 @@ import test from 'node:test';
 import {
   MATERIALISATION_CANDIDATE_GRAPH_INVENTORY_ALGORITHM,
   MATERIALISATION_EVIDENCE_SCHEMA_VERSION,
+  MATERIALISATION_IMPLEMENTATION_SOURCE_PATHS,
+  MATERIALISATION_PROOF_RUNNER_PATH,
   MATERIALISATION_RECEIPT_SCHEMA_VERSION,
   candidateDependencyDigestFromGraphs,
   canonicalMaterialisationJson,
@@ -77,10 +79,17 @@ function fixture({
     signingKeyFingerprint: 'A'.repeat(40),
     primaryKeyFingerprint: 'B'.repeat(40),
   };
+  const proofAlgorithmSourceDigest = `sha256:${'8'.repeat(64)}`;
   const runner = {
-    sourcePath: 'assurance/semantic-model-compilation/materialisation-proof.mjs',
-    sourceDigest: `sha256:${'1'.repeat(64)}`,
+    sourcePath: MATERIALISATION_PROOF_RUNNER_PATH,
+    sourceDigest: proofAlgorithmSourceDigest,
   };
+  const implementationSources = MATERIALISATION_IMPLEMENTATION_SOURCE_PATHS.map(
+    (path, index) => ({
+      path,
+      digest: sha256(`implementation-source-${index}`),
+    }),
+  );
   const commandResults = [{
     id: 'fixture-command',
     executable: '/usr/bin/true',
@@ -130,12 +139,10 @@ function fixture({
     dependencyDigestAlgorithm: AUTHORITY_DEPENDENCY_DIGEST_ALGORITHM,
     authorityBindingRule: SELF_PUBLICATION_RULE,
     excludedAuthorityGraphs: [...SELF_PUBLICATION_EXCLUDED_GRAPHS],
-    implementationSourceDigest: `sha256:${'6'.repeat(64)}`,
-    implementationSources: [{
-      path: 'assurance/semantic-model-compilation/materialisation-proof.mjs',
-      digest: `sha256:${'7'.repeat(64)}`,
-    }],
-    proofAlgorithmSourceDigest: `sha256:${'8'.repeat(64)}`,
+    implementationSourceDigest:
+      sha256(canonicalMaterialisationJson(implementationSources)),
+    implementationSources,
+    proofAlgorithmSourceDigest,
     environmentClass: 'urn:usf:environmentclass:hermetic',
     providerMode: 'urn:usf:providermode:deterministictestsubstitute',
     cases,
@@ -382,6 +389,77 @@ test('rejects receipt-to-evidence authority and dependency binding drift', () =>
   assert.throws(
     () => verify(dependency),
     /MATERIALISATION_RECEIPT_EVIDENCE_CANDIDATEDEPENDENCYSETDIGEST_MISMATCH/u,
+  );
+});
+
+test('rejects fully rebound evidence and DSSE with missing, extra or reordered implementation paths', () => {
+  const missing = fixture({
+    mutateEvidenceCore: (evidence) => {
+      evidence.implementationSources.pop();
+    },
+  });
+  assert.throws(
+    () => verify(missing),
+    /MATERIALISATION_EVIDENCE_IMPLEMENTATION_SOURCE_PATH_SET_INVALID/u,
+  );
+
+  const extra = fixture({
+    mutateEvidenceCore: (evidence) => {
+      evidence.implementationSources.push({
+        path: 'assurance/unbound-implementation-source.mjs',
+        digest: `sha256:${'a'.repeat(64)}`,
+      });
+    },
+  });
+  assert.throws(
+    () => verify(extra),
+    /MATERIALISATION_EVIDENCE_IMPLEMENTATION_SOURCE_PATH_SET_INVALID/u,
+  );
+
+  const reordered = fixture({
+    mutateEvidenceCore: (evidence) => {
+      [evidence.implementationSources[0], evidence.implementationSources[1]]
+        = [evidence.implementationSources[1], evidence.implementationSources[0]];
+    },
+  });
+  assert.throws(
+    () => verify(reordered),
+    /MATERIALISATION_EVIDENCE_IMPLEMENTATION_SOURCE_PATH_SET_INVALID/u,
+  );
+});
+
+test('rejects a fully rebound DSSE after an implementation source digest substitution', () => {
+  const input = fixture({
+    mutateEvidenceCore: (evidence) => {
+      evidence.implementationSources[0].digest = `sha256:${'b'.repeat(64)}`;
+    },
+  });
+  assert.throws(
+    () => verify(input),
+    /MATERIALISATION_EVIDENCE_IMPLEMENTATION_SOURCE_SET_DIGEST_MISMATCH/u,
+  );
+});
+
+test('rejects fully rebound runner path and runner-to-algorithm digest mismatches', () => {
+  const pathMismatch = fixture({
+    mutateEvidenceCore: (evidence) => {
+      evidence.runner.sourcePath =
+        'assurance/semantic-model-compilation/alternate-proof.mjs';
+    },
+  });
+  assert.throws(
+    () => verify(pathMismatch),
+    /MATERIALISATION_EVIDENCE_RUNNER_PATH_INVALID/u,
+  );
+
+  const digestMismatch = fixture({
+    mutateEvidenceCore: (evidence) => {
+      evidence.runner.sourceDigest = `sha256:${'c'.repeat(64)}`;
+    },
+  });
+  assert.throws(
+    () => verify(digestMismatch),
+    /MATERIALISATION_EVIDENCE_RUNNER_ALGORITHM_DIGEST_MISMATCH/u,
   );
 });
 
