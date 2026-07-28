@@ -9,10 +9,16 @@ import test from 'node:test';
 
 import {
   MATERIALISATION_CANDIDATE_GRAPH_INVENTORY_ALGORITHM,
+  MATERIALISATION_COMMAND_RESULT_FIELDS,
   MATERIALISATION_EVIDENCE_SCHEMA_VERSION,
+  MATERIALISATION_FOCUSED_TEST_ARGUMENTS,
   MATERIALISATION_IMPLEMENTATION_SOURCE_PATHS,
+  MATERIALISATION_NEGATIVE_CASE_IDS,
   MATERIALISATION_PROOF_RUNNER_PATH,
   MATERIALISATION_RECEIPT_SCHEMA_VERSION,
+  MATERIALISATION_REQUIRED_CASE_IDS,
+  MATERIALISATION_REQUIRED_COMMAND_IDS,
+  MATERIALISATION_STATIC_CASE_EXPECTATIONS,
   candidateDependencyDigestFromGraphs,
   canonicalMaterialisationJson,
   canonicalMaterialisationReceiptBytes,
@@ -80,9 +86,16 @@ function fixture({
     primaryKeyFingerprint: 'B'.repeat(40),
   };
   const proofAlgorithmSourceDigest = `sha256:${'8'.repeat(64)}`;
+  const graphCommit = '3'.repeat(40);
   const runner = {
     sourcePath: MATERIALISATION_PROOF_RUNNER_PATH,
     sourceDigest: proofAlgorithmSourceDigest,
+    executable: {
+      path: '/opt/node-v22.23.1-linux-x64/bin/node',
+      version: 'v22.23.1',
+      digest:
+        'sha256:93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068',
+    },
   };
   const implementationSources = MATERIALISATION_IMPLEMENTATION_SOURCE_PATHS.map(
     (path, index) => ({
@@ -90,31 +103,86 @@ function fixture({
       digest: sha256(`implementation-source-${index}`),
     }),
   );
-  const commandResults = [{
-    id: 'fixture-command',
-    executable: '/usr/bin/true',
-    arguments: [],
+  const gitBase = [
+    '--no-replace-objects',
+    '-c',
+    'safe.directory=/tmp/usf-materialisation-control-plane-proof-fixture',
+    '-c',
+    'core.fsmonitor=false',
+    '-c',
+    'core.hooksPath=/dev/null',
+  ];
+  const commandArguments = {
+    'git-head': [...gitBase, 'rev-parse', 'HEAD'],
+    'git-tree': [...gitBase, 'rev-parse', 'HEAD^{tree}'],
+    'git-status': [
+      ...gitBase,
+      'status',
+      '--porcelain=v1',
+      '--untracked-files=all',
+    ],
+    'git-verify-commit': [
+      ...gitBase,
+      '-c',
+      'gpg.format=openpgp',
+      '-c',
+      'gpg.program=/usr/bin/gpg',
+      'verify-commit',
+      '--raw',
+      graphCommit,
+    ],
+    'git-runner-source': [
+      ...gitBase,
+      'show',
+      `${graphCommit}:${MATERIALISATION_PROOF_RUNNER_PATH}`,
+    ],
+    'git-version': ['--version'],
+    'gpg-version': ['--version'],
+    'semantic-compiler-validate-rollback': ['publicationMode=validate'],
+    'focused-control-plane-tests': [...MATERIALISATION_FOCUSED_TEST_ARGUMENTS],
+  };
+  const commandResults = MATERIALISATION_REQUIRED_COMMAND_IDS.map((id) => ({
+    id,
+    executable: id === 'gpg-version'
+      ? '/usr/bin/gpg'
+      : id === 'focused-control-plane-tests'
+        ? '/opt/node-v22.23.1-linux-x64/bin/node'
+        : id === 'semantic-compiler-validate-rollback'
+          ? 'repository-local:capabilities/semantic-model-compilation/compiler.mjs'
+          : '/usr/bin/git',
+    arguments: commandArguments[id],
     exitStatus: 0,
     signal: null,
     stdoutDigest: sha256(''),
     stderrDigest: sha256(''),
-  }];
-  const cases = [
-    {
-      id: 'positive-case',
-      expected: true,
-      observed: true,
+  }));
+  const negativeCaseIds = new Set(MATERIALISATION_NEGATIVE_CASE_IDS);
+  const caseBindings = {
+    'live-authority-digest': `sha256:${'2'.repeat(64)}`,
+    'candidate-authority-digest': inventory.candidateAuthorityDigest,
+    'candidate-dependency-set-digest': inventory.candidateDependencySetDigest,
+    'plan-determinism': `sha256:${'7'.repeat(64)}`,
+    'live-proof-currentness-state': 'CURRENT',
+    'live-packet-authorisation-matches-currentness': true,
+    'non-current-live-packet-grants-nothing': false,
+  };
+  const cases = MATERIALISATION_REQUIRED_CASE_IDS.map((id) => {
+    const expected = Object.hasOwn(MATERIALISATION_STATIC_CASE_EXPECTATIONS, id)
+      ? MATERIALISATION_STATIC_CASE_EXPECTATIONS[id]
+      : caseBindings[id];
+    return {
+      id,
+      expected,
+      observed: expected,
       passed: true,
-      negative: false,
-    },
-    {
-      id: 'negative-case',
-      expected: 'rejected',
-      observed: 'rejected',
-      passed: true,
-      negative: true,
-    },
-  ];
+      negative: negativeCaseIds.has(id),
+      ...(id === 'live-proof-currentness-state'
+        ? { detail: { reasons: [] } }
+        : id === 'production-mcp-verdict-injection'
+          ? { detail: [] }
+          : {}),
+    };
+  });
   const evidenceCore = {
     schemaVersion: MATERIALISATION_EVIDENCE_SCHEMA_VERSION,
     recordKind: 'USF_VALIDATION_EVIDENCE_CANDIDATE',
@@ -123,13 +191,23 @@ function fixture({
     authorityClaims: [],
     evaluatedAt: '2026-07-28T00:00:00Z',
     evaluatedAuthorityDigest: `sha256:${'2'.repeat(64)}`,
-    graphCommit: '3'.repeat(40),
+    graphCommit,
     graphTree: '4'.repeat(40),
     signatureVerification,
     runner,
     toolchain: { node: { version: 'v22.23.1' } },
     toolchainDigest: `sha256:${'5'.repeat(64)}`,
-    validationCommands: [{ executable: '/usr/bin/true', arguments: [] }],
+    validationCommands: [
+      'git-verify-commit',
+      'focused-control-plane-tests',
+      'semantic-compiler-validate-rollback',
+    ].map((id) => {
+      const command = commandResults.find((record) => record.id === id);
+      return {
+        executable: command.executable,
+        arguments: [...command.arguments],
+      };
+    }),
     commandResults,
     candidateGraphInventoryAlgorithm:
       MATERIALISATION_CANDIDATE_GRAPH_INVENTORY_ALGORITHM,
@@ -220,7 +298,7 @@ function fixture({
     signatureVerification,
     runner,
     toolchainDigest: evidence.toolchainDigest,
-    commandResults,
+    commandResults: evidence.commandResults,
     candidateGraphInventoryAlgorithm: evidence.candidateGraphInventoryAlgorithm,
     candidateAuthorityDigest: evidence.candidateAuthorityDigest,
     candidateDependencySetDigest: evidence.candidateDependencySetDigest,
@@ -264,6 +342,120 @@ test('verifies canonical materialisation receipt, evidence, DSSE signature and a
   );
   assert.equal(result.candidateGraphs.length, input.evidence.candidateGraphs.length);
   assert.equal(result.signingKeyFingerprint, input.receipt.signingKeyFingerprint);
+  assert.deepEqual(
+    Object.keys(input.evidence.commandResults[0]).sort(),
+    [...MATERIALISATION_COMMAND_RESULT_FIELDS],
+  );
+});
+
+test('rejects fully rebound DSSE forgeries with omitted or replaced mandatory cases', () => {
+  const omitted = fixture({
+    mutateEvidenceCore: (evidence) => {
+      evidence.cases = evidence.cases.slice(1);
+    },
+  });
+  assert.throws(
+    () => verify(omitted),
+    /MATERIALISATION_(?:RECEIPT_CASE_COUNTS|EVIDENCE_CASE_ID_SET)_INVALID/u,
+  );
+
+  const replaced = fixture({
+    mutateEvidenceCore: (evidence) => {
+      evidence.cases[0] = {
+        ...evidence.cases[0],
+        id: 'forged-replacement-case',
+      };
+    },
+  });
+  assert.throws(
+    () => verify(replaced),
+    /MATERIALISATION_EVIDENCE_CASE_ID_SET_INVALID/u,
+  );
+});
+
+test('rejects fully rebound DSSE forgeries with omitted or replaced command results', () => {
+  const omitted = fixture({
+    mutateEvidenceCore: (evidence) => {
+      evidence.commandResults = evidence.commandResults.slice(1);
+    },
+  });
+  assert.throws(
+    () => verify(omitted),
+    /MATERIALISATION_COMMAND_RESULT_ID_SET_INVALID/u,
+  );
+
+  const replaced = fixture({
+    mutateEvidenceCore: (evidence) => {
+      evidence.commandResults[0] = {
+        ...evidence.commandResults[0],
+        id: 'forged-replacement-command',
+      };
+    },
+  });
+  assert.throws(
+    () => verify(replaced),
+    /MATERIALISATION_COMMAND_RESULT_ID_SET_INVALID/u,
+  );
+});
+
+test('rejects forged case semantics, negative classification and command success', () => {
+  const expectation = fixture({
+    mutateEvidenceCore: (evidence) => {
+      const record = evidence.cases.find(({ id }) => id === 'materialisation-dry-run');
+      record.expected = 'forged';
+      record.observed = 'forged';
+    },
+  });
+  assert.throws(
+    () => verify(expectation),
+    /MATERIALISATION_EVIDENCE_CASE_EXPECTATION_INVALID/u,
+  );
+
+  const negative = fixture({
+    mutateEvidenceCore: (evidence) => {
+      const record = evidence.cases.find(({ id }) => id === 'materialisation-rollback');
+      record.negative = false;
+    },
+  });
+  assert.throws(
+    () => verify(negative),
+    /MATERIALISATION_(?:RECEIPT_CASE_COUNTS|EVIDENCE_CASE_SEMANTICS)_INVALID/u,
+  );
+
+  const failedCommand = fixture({
+    mutateEvidenceCore: (evidence) => {
+      evidence.commandResults[0].exitStatus = 1;
+    },
+  });
+  assert.throws(
+    () => verify(failedCommand),
+    /MATERIALISATION_COMMAND_RESULT_NOT_SUCCESSFUL/u,
+  );
+
+  const substitutedInvocation = fixture({
+    mutateEvidenceCore: (evidence) => {
+      const record = evidence.commandResults.find(({ id }) => id === 'git-head');
+      record.executable = '/usr/bin/true';
+      record.arguments = [];
+    },
+  });
+  assert.throws(
+    () => verify(substitutedInvocation),
+    /MATERIALISATION_COMMAND_(?:GIT_POLICY_INVALID|RESULT_INVOCATION_MISMATCH)/u,
+  );
+
+  const substitutedValidationCommand = fixture({
+    mutateEvidenceCore: (evidence) => {
+      evidence.validationCommands[0] = {
+        executable: '/usr/bin/true',
+        arguments: [],
+      };
+    },
+  });
+  assert.throws(
+    () => verify(substitutedValidationCommand),
+    /MATERIALISATION_VALIDATION_COMMAND_BINDING_INVALID/u,
+  );
 });
 
 test('rejects the pre-evolution evidence and receipt schemas', () => {
@@ -298,7 +490,7 @@ test('independently rejects a candidate dependency digest change', () => {
   });
   assert.throws(
     () => verify(input),
-    /MATERIALISATION_EVIDENCE_CANDIDATE_DEPENDENCY_DIGEST_MISMATCH/u,
+    /MATERIALISATION_EVIDENCE_(?:CASE_DIGEST_BINDING_INVALID|CANDIDATE_DEPENDENCY_DIGEST_MISMATCH)/u,
   );
 });
 
@@ -459,7 +651,7 @@ test('rejects fully rebound runner path and runner-to-algorithm digest mismatche
   });
   assert.throws(
     () => verify(digestMismatch),
-    /MATERIALISATION_EVIDENCE_RUNNER_ALGORITHM_DIGEST_MISMATCH/u,
+    /MATERIALISATION_(?:RECEIPT|EVIDENCE)_RUNNER_ALGORITHM_DIGEST_MISMATCH/u,
   );
 });
 
@@ -592,6 +784,6 @@ test('rejects exact-evidence-set and case-count tampering', () => {
   });
   assert.throws(
     () => verify(caseCount),
-    /MATERIALISATION_RECEIPT_EVIDENCE_CASE_COUNTS_MISMATCH/u,
+    /MATERIALISATION_RECEIPT_(?:CASE_COUNTS_INVALID|EVIDENCE_CASE_COUNTS_MISMATCH)/u,
   );
 });
