@@ -40,6 +40,7 @@ export const PROVIDER_FACTORY_DIRECTORIES = Object.freeze([
   'src/usf_factory/providers',
   'tests/provider_workforce',
 ]);
+export const PROVIDER_FACTORY_ACTIONS = Object.freeze(['write-file']);
 export const PROVIDER_FACTORY_FAMILIES = Object.freeze([
   'urn:usf:artefactfamily:factoryconfiguration',
   'urn:usf:artefactfamily:factoryenvironmentexample',
@@ -465,6 +466,39 @@ export function decisionAuthorisesPath(path, authorisedPaths, authorisedDirector
 
 const sortedStrings = (items) => Array.isArray(items) ? [...items].sort(utf8Compare) : [];
 
+// Evidence about a candidate realisation is not permission to mutate it.
+//
+// The current provider-workforce proof binds 60 implementation source records
+// and 26 additional proof-input records. The former are implementation
+// evidence; the latter are read-only proof dependencies. Neither collection is
+// a semantic authorised-path declaration, irrespective of its size or content.
+// Keeping the classification machine-readable prevents a caller from treating
+// either receipt field as an implicit path allow-list.
+export const MATERIALISATION_SOURCE_COLLECTION_CLASSIFICATION = Object.freeze({
+  implementationSources: 'IMPLEMENTATION_EVIDENCE_ONLY',
+  proofInputSources: 'READ_ONLY_PROOF_INPUT_ONLY',
+});
+
+// This is the complete projection whose digest binds decision-scoped mutation
+// permission. Only accepted semantic decision fields enter it. In particular,
+// implementationSources and proofInputSources are deliberately absent. Adding
+// observations to either collection therefore cannot expand paths,
+// directories, actions, families or rules and cannot change the permission-set
+// digest.
+export const MATERIALISATION_PERMISSION_INVARIANT = Object.freeze({
+  schemaVersion: 1,
+  permissionSource: 'ACCEPTED_SEMANTIC_REALISATION_DECISION_ONLY',
+  permissionFields: Object.freeze([
+    'authorisedRepositories',
+    'authorisedPaths',
+    'authorisedDirectoryPrefixes',
+    'authorisedActions',
+    'authorisedFamilies',
+    'rules',
+  ]),
+  nonAuthoritativeSourceCollections: MATERIALISATION_SOURCE_COLLECTION_CLASSIFICATION,
+});
+
 export function scopedPermissionSet(authority) {
   const rules = Array.isArray(authority?.rules) ? authority.rules.map((rule) => ({
     family: rule.family,
@@ -516,8 +550,9 @@ function authorityFailures(authority, contract) {
       failures.push({ code: 'authorised-path-set' });
     }
     if (!Array.isArray(authority?.authorisedActions)
-      || authority.authorisedActions.length !== 1
-      || authority.authorisedActions[0] !== 'write-file') failures.push({ code: 'authorised-actions' });
+      || canonicalJson(sortedStrings(authority.authorisedActions)) !== canonicalJson(PROVIDER_FACTORY_ACTIONS)) {
+      failures.push({ code: 'authorised-actions' });
+    }
     if (!Array.isArray(authority?.authorisedFamilies)
       || canonicalJson(sortedStrings(authority.authorisedFamilies)) !== canonicalJson(sortedStrings(PROVIDER_FACTORY_FAMILIES))) {
       failures.push({ code: 'authorised-families' });
