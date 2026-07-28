@@ -27,6 +27,9 @@ import {
   authorityDependencySetDigest,
 } from '../../capabilities/semantic-model-compilation/authority-binding.mjs';
 import {
+  localShaclRuntimeInternals,
+} from '../semantic-model-compilation/local-shacl-validation.mjs';
+import {
   PROVIDER_MATERIALISATION_MUTATION_CASES,
   PROVIDER_MATERIALISATION_MUTATION_SOURCE_PATHS,
   PROVIDER_WORKFORCE_IMPLEMENTATION_SOURCE_PATHS,
@@ -58,6 +61,21 @@ const stable = (value) => Array.isArray(value)
 const canonicalJson = (value) => JSON.stringify(stable(value));
 const sha256 = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
 const digestByte = (index) => (index % 256).toString(16).padStart(2, '0').repeat(32);
+const pythonNativeMappingEvidence = (checkpoints) => {
+  const records = localShaclRuntimeInternals.expectedPythonMappedSystemObjects;
+  const snapshots = checkpoints.map((checkpoint) => ({
+    schemaVersion: 1,
+    checkpoint,
+    records,
+    recordCount: records.length,
+    recordSetDigest: sha256(canonicalJson(records)),
+  }));
+  return {
+    schemaVersion: 1,
+    checkpoints: snapshots,
+    checkpointSetDigest: sha256(canonicalJson(snapshots)),
+  };
+};
 
 const AUTHORITY_GRAPH_INVENTORY = Object.freeze([
   'urn:usf:graph:capabilities',
@@ -214,8 +232,13 @@ function mutationEvidence({
     shaclMatched: true,
     integrityMatched: true,
   }));
+  const nativeMappingEvidence = pythonNativeMappingEvidence([
+    'PRE_WORKLOAD',
+    'POST_BASELINE_LOAD',
+    'POST_WORKLOAD',
+  ]);
   const core = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     evidenceScope: 'HERMETIC_UNPUBLISHED_MUTATION_FIXTURE',
     caseCount: 26,
     passedCaseCount,
@@ -228,18 +251,20 @@ function mutationEvidence({
       providerMaterialisationAuthorityMutationInternals.expectedPythonDependencyByteSetDigest,
     mappedSystemObjectCount: 23,
     mappedSystemObjectSetDigest: 'sha256:2aa149da8aefbaaa71c1f887620b75d2f47b9dea26f57663fa92eda8da92755f',
+    nativeMappingEvidence,
     siteCustomizationLoaded: false,
     cases,
     caseSetDigest: sha256(canonicalJson(cases)),
-  };
-  return {
-    ...core,
-    evidenceDigest: sha256(canonicalJson(core)),
+    evidenceDigestScope: 'MATERIALISATION_MUTATION_EVIDENCE_WITH_RUNTIME_V1',
     runtime: {
       executablePath: '/fixture/python',
       resolvedExecutablePath: '/fixture/python',
       executableDigest: `sha256:${'ee'.repeat(32)}`,
     },
+  };
+  return {
+    ...core,
+    evidenceDigest: sha256(canonicalJson(core)),
   };
 }
 
@@ -275,7 +300,7 @@ function fixture({
     byteSize: 101 + index,
   }));
   const pythonRuntimeCore = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     executionMode: 'FD_PINNED_PROC_SELF_FD_WITH_LOGICAL_VENV_ARGV0_ISOLATED_NO_SITE',
     pythonVersion: '3.11.2',
     resolvedExecutableDigest: 'sha256:c6e1f1ef67ab331cbb83bfbd5bbb9b766fbb2228ce848b038141cb7d2cad3158',
@@ -288,6 +313,7 @@ function fixture({
     stdlibByteSetDigest: 'sha256:a789ca9789eb7ed46ef7d6733bfafea0f079ebe17f20c8a4b32dbf9bc3943b36',
     mappedSystemObjectCount: 23,
     mappedSystemObjectSetDigest: 'sha256:2aa149da8aefbaaa71c1f887620b75d2f47b9dea26f57663fa92eda8da92755f',
+    nativeMappingEvidence: pythonNativeMappingEvidence(['RUNTIME_INSPECTOR_STEADY_STATE']),
     siteCustomizationLoaded: false,
   };
   const pythonRuntimeEvidence = {
