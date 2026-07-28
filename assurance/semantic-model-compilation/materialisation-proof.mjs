@@ -10,8 +10,12 @@ import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
+const RAW_SHA256 = /^[0-9a-f]{64}$/;
 const COMMIT = /^[0-9a-f]{40}$/;
 const FINGERPRINT = /^[0-9A-F]{40}$/;
+const CANDIDATE_GRAPH_INVENTORY_ALGORITHM = 'sha256-rdfc10-managed-graph-inventory-v1';
+const EVIDENCE_SCHEMA_VERSION = 4;
+const RECEIPT_SCHEMA_VERSION = 2;
 const REQUIRED_NODE_VERSION = 'v22.23.1';
 const REQUIRED_NODE_DIGEST = 'sha256:93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068';
 const REQUIRED_PACKAGE_LOCK_DIGEST = 'sha256:e0f320742ed96b54765a39ccac219c05d72b61c4b8805b42e57b7e9e14cecde5';
@@ -37,6 +41,46 @@ class EvidenceProducerError extends Error {
 }
 
 function fail(code) { throw new EvidenceProducerError(code); }
+
+function strictCandidateGraphInventory(inventory) {
+  if (!Array.isArray(inventory) || inventory.length === 0) {
+    fail('CANDIDATE_GRAPH_INVENTORY_REQUIRED');
+  }
+  const seen = new Set();
+  let previous = null;
+  return inventory.map((item) => {
+    const keys = Object.keys(item || {}).sort();
+    const expectedKeys = ['algorithm', 'digestAlgorithm', 'graph', 'sha256', 'triples'];
+    if (canonicalJson(keys) !== canonicalJson(expectedKeys)
+      || typeof item.graph !== 'string'
+      || !item.graph.startsWith('urn:usf:graph:')
+      || (previous !== null
+        && Buffer.compare(Buffer.from(previous), Buffer.from(item.graph)) >= 0)
+      || seen.has(item.graph)
+      || item.algorithm !== 'RDFC-1.0'
+      || item.digestAlgorithm !== 'sha256'
+      || !RAW_SHA256.test(item.sha256 || '')
+      || !Number.isSafeInteger(item.triples)
+      || item.triples < 0) {
+      fail('CANDIDATE_GRAPH_INVENTORY_INVALID');
+    }
+    previous = item.graph;
+    seen.add(item.graph);
+    return Object.freeze({
+      graph: item.graph,
+      algorithm: item.algorithm,
+      digestAlgorithm: item.digestAlgorithm,
+      sha256: item.sha256,
+      triples: item.triples,
+    });
+  });
+}
+
+function candidateGraphInventoryDigest(inventory) {
+  return sha256(inventory
+    .map(({ graph, sha256: graphDigest, triples }) => `${graph}=${graphDigest}:${triples}`)
+    .join('\n'));
+}
 
 function record(id, expected, observed, { negative = false, detail = null } = {}) {
   const passed = expected === observed;
@@ -314,6 +358,23 @@ if (process.argv.includes('--test-preflight-only')) {
   })}\n`);
   process.exit(0);
 }
+if (process.argv.includes('--test-attestation-schema-only')) {
+  process.stdout.write(`${canonicalJson({
+    schemaVersion: 1,
+    recordKind: 'USF_TEST_ONLY_MATERIALISATION_ATTESTATION_SCHEMA',
+    evidenceSchemaVersion: EVIDENCE_SCHEMA_VERSION,
+    receiptSchemaVersion: RECEIPT_SCHEMA_VERSION,
+    candidateGraphInventoryAlgorithm: CANDIDATE_GRAPH_INVENTORY_ALGORITHM,
+    preflightPassed: true,
+    realisationValidationPassed: false,
+    eligibleForAdmission: false,
+    authorityClaims: [],
+    evaluatedAuthorityDigest,
+    ...producerPreflight,
+    commands: failureContext.commands,
+  })}\n`);
+  process.exit(0);
+}
 if (process.argv.includes('--test-assertion-failure-only')) {
   record('test-explicit-failure', true, false, { negative: true });
 }
@@ -561,7 +622,15 @@ failureContext.commands.push({
 record('candidate-transaction-rolled-back', 'validated-rolled-back', candidate.commitOutcome.state);
 record('candidate-exact-state-verified', true, candidate.commitOutcome.exactCandidateStateVerified);
 failureContext.phase = 'CANDIDATE_DEPENDENCY_BINDING';
-const candidateGraphInventory = candidate.commitOutcome.candidateGraphs;
+const candidateGraphInventory = strictCandidateGraphInventory(
+  candidate.commitOutcome.candidateGraphs,
+);
+const candidateAuthorityDigest = candidateGraphInventoryDigest(candidateGraphInventory);
+record(
+  'candidate-authority-digest',
+  candidate.commitOutcome.candidateDigest,
+  candidateAuthorityDigest,
+);
 const candidateDependencySetDigest = authorityDependencySetDigest(candidateGraphInventory);
 if (expectedDependencySetDigest) record('candidate-dependency-set-digest', expectedDependencySetDigest, candidateDependencySetDigest);
 
@@ -823,6 +892,7 @@ record('tampered-content-plan', true, validateMaterialisationPlan(activeContext,
 
 failureContext.phase = 'FOCUSED_CONTROL_PLANE_TESTS';
 const focusedTestArguments = ['--test',
+  'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.test.mjs',
   'capabilities/repository-external-artefact-materialisation/materialisation-plan.test.mjs',
   'configuration/semantic-assurance/semantic-authority.test.mjs',
   'provider-bindings/stardog/semantic-authority.test.mjs',
@@ -848,6 +918,8 @@ record('focused-control-plane-tests', 'passed', focusedTestCount > 0 && /# fail 
 
 failureContext.phase = 'EVIDENCE_ASSEMBLY';
 const implementationSources = sourceSetDigest([
+  'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.mjs',
+  'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.test.mjs',
   'assurance/semantic-model-compilation/materialisation-proof.hostile-test.mjs',
   'capabilities/semantic-model-compilation/authority-binding.mjs',
   'capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs',
@@ -872,7 +944,7 @@ const implementationSources = sourceSetDigest([
 const proofAlgorithmSourceDigest = sha256(readFileSync(import.meta.filename));
 cases.sort((left, right) => left.id.localeCompare(right.id));
 const evidenceCore = {
-  schemaVersion: 3,
+  schemaVersion: EVIDENCE_SCHEMA_VERSION,
   recordKind: 'USF_VALIDATION_EVIDENCE_CANDIDATE',
   passed: cases.every((item) => item.passed),
   eligibleForAdmission: false,
@@ -901,7 +973,9 @@ const evidenceCore = {
     },
   ],
   commandResults: failureContext.commands,
-  candidateAuthorityDigest: candidate.commitOutcome.candidateDigest,
+  candidateGraphInventoryAlgorithm: CANDIDATE_GRAPH_INVENTORY_ALGORITHM,
+  candidateGraphs: candidateGraphInventory,
+  candidateAuthorityDigest,
   candidateDependencySetDigest,
   dependencyDigestAlgorithm: AUTHORITY_DEPENDENCY_DIGEST_ALGORITHM,
   authorityBindingRule: SELF_PUBLICATION_RULE,
@@ -940,8 +1014,10 @@ const statement = {
   subject: [{ name: 'repository-materialisation-control-plane-evidence', digest: { sha256: evidenceManifestDescriptor.digest.slice(7) } }],
   predicateType: 'https://in-toto.io/attestation/test-result/v0.1',
   predicate: {
+    evidenceSchemaVersion: EVIDENCE_SCHEMA_VERSION,
     evaluatedAuthorityDigest,
-    candidateAuthorityDigest: candidate.commitOutcome.candidateDigest,
+    candidateGraphInventoryAlgorithm: CANDIDATE_GRAPH_INVENTORY_ALGORITHM,
+    candidateAuthorityDigest,
     candidateDependencySetDigest,
     exactEvidenceSetDigest,
     implementationSourceDigest: implementationSources.digest, proofAlgorithmSourceDigest, result: 'passed',
@@ -965,8 +1041,8 @@ writeFileSync(join(outputRoot, 'evidence-manifest.json'), evidenceManifestBytes,
 writeFileSync(join(outputRoot, 'proof-attestation.dsse.json'), proofAttestationBytes, { mode: 0o600 });
 
 failureContext.phase = 'EVIDENCE_RECEIPT_OUTPUT';
-process.stdout.write(`${JSON.stringify({
-  schemaVersion: 1,
+const evidenceReceipt = {
+  schemaVersion: RECEIPT_SCHEMA_VERSION,
   recordKind: 'USF_VALIDATION_EVIDENCE_CANDIDATE_RECEIPT',
   ok: cases.every((item) => item.passed),
   passed: cases.every((item) => item.passed),
@@ -979,7 +1055,8 @@ process.stdout.write(`${JSON.stringify({
   runner: producerPreflight.runner,
   toolchainDigest: producerPreflight.toolchainDigest,
   commandResults: failureContext.commands,
-  candidateAuthorityDigest: candidate.commitOutcome.candidateDigest,
+  candidateGraphInventoryAlgorithm: CANDIDATE_GRAPH_INVENTORY_ALGORITHM,
+  candidateAuthorityDigest,
   candidateDependencySetDigest,
   exactEvidenceSetDigest,
   implementationSourceDigest: implementationSources.digest,
@@ -991,4 +1068,5 @@ process.stdout.write(`${JSON.stringify({
   negativeCaseCount: cases.filter((item) => item.negative).length,
   failureCount: cases.filter((item) => !item.passed).length,
   outputRoot,
-}, null, 2)}\n`);
+};
+process.stdout.write(`${JSON.stringify(stable(evidenceReceipt), null, 2)}\n`);

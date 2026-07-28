@@ -172,6 +172,27 @@ test('preflight receipt is deterministic for identical explicit inputs', () => {
   assert.deepEqual(first.receipt, second.receipt);
 });
 
+test('attestation schema evolution is explicit and keeps the candidate inventory algorithm bound', () => {
+  const { result, receipt } = runProducer({
+    mode: '--test-attestation-schema-only',
+  });
+  assert.equal(result.status, 0);
+  assert.equal(
+    receipt.recordKind,
+    'USF_TEST_ONLY_MATERIALISATION_ATTESTATION_SCHEMA',
+  );
+  assert.equal(receipt.evidenceSchemaVersion, 4);
+  assert.equal(receipt.receiptSchemaVersion, 2);
+  assert.equal(
+    receipt.candidateGraphInventoryAlgorithm,
+    'sha256-rdfc10-managed-graph-inventory-v1',
+  );
+  assert.equal(receipt.preflightPassed, true);
+  assert.equal(receipt.realisationValidationPassed, false);
+  assert.equal(receipt.eligibleForAdmission, false);
+  assert.deepEqual(receipt.authorityClaims, []);
+});
+
 test('assertion failures report a stable exact code without claiming evidence success', () => {
   const { result, receipt } = runProducer({ mode: '--test-assertion-failure-only' });
   assert.equal(result.status, 1);
