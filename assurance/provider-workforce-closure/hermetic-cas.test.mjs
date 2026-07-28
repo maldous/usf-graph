@@ -19,9 +19,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, test } from 'node:test';
 import {
+  HERMETIC_CAS_SYSTEM_PUBLISHER_BEHAVIOR_DIGEST,
+  HERMETIC_CAS_SYSTEM_PUBLISHER_DESCRIPTOR_SCHEMA_VERSION,
+  HERMETIC_CAS_SYSTEM_PUBLISHER_PROTOCOL,
   HERMITIC_CAS_RESIDUAL_RISKS,
   HERMITIC_CAS_TEST_HOOK,
   HermeticCasError,
+  inspectHermeticCasSystemPublisher,
   putCasObject,
   readCasObject,
   verifyCasObject,
@@ -31,7 +35,7 @@ const roots = [];
 const bytes = Buffer.from('hermetic-cas-test-payload\n');
 const digest = `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 const hexadecimal = digest.slice(7);
-const protocol = 'usf-hermetic-cas-gnu-mv-noreplace-v1';
+const protocol = HERMETIC_CAS_SYSTEM_PUBLISHER_PROTOCOL;
 const moduleUrl = new URL('./hermetic-cas.mjs', import.meta.url).href;
 
 const utf8Compare = (left, right) => Buffer.compare(Buffer.from(String(left)), Buffer.from(String(right)));
@@ -73,7 +77,9 @@ function buildSystemPublisher(executablePath = '/usr/bin/mv') {
   assert.equal(version.status, 0);
   assert.equal(version.stderr.length, 0);
   return Object.freeze({
+    schemaVersion: HERMETIC_CAS_SYSTEM_PUBLISHER_DESCRIPTOR_SCHEMA_VERSION,
     protocol,
+    behaviorProbeDigest: HERMETIC_CAS_SYSTEM_PUBLISHER_BEHAVIOR_DIGEST,
     executable,
     loader,
     libraries: Object.freeze(libraries),
@@ -83,7 +89,8 @@ function buildSystemPublisher(executablePath = '/usr/bin/mv') {
   });
 }
 
-const systemPublisher = buildSystemPublisher();
+const expectedSystemPublisher = buildSystemPublisher();
+const systemPublisher = await inspectHermeticCasSystemPublisher();
 
 function temporaryDirectory(prefix = 'usf-hermetic-cas-') {
   const path = mkdtempSync(join(tmpdir(), prefix));
@@ -160,13 +167,13 @@ async function waitFor(path, deadlineMs = 10_000) {
 }
 
 const writerScript = `
-import { putCasObject } from ${JSON.stringify(moduleUrl)};
-const [root, publisherBase64, payload] = process.argv.slice(1);
+import { inspectHermeticCasSystemPublisher, putCasObject } from ${JSON.stringify(moduleUrl)};
+const [root, payload] = process.argv.slice(1);
 const result = await putCasObject({
   root,
   bytes: Buffer.from(payload, 'base64'),
   mediaType: 'application/octet-stream',
-  systemPublisher: JSON.parse(Buffer.from(publisherBase64, 'base64').toString('utf8')),
+  systemPublisher: await inspectHermeticCasSystemPublisher(),
 });
 process.stdout.write(JSON.stringify(result));
 `;
@@ -174,13 +181,17 @@ process.stdout.write(JSON.stringify(result));
 function startBarrierWriter(root, ready, release, phase) {
   const script = `
 import { writeFileSync, existsSync } from 'node:fs';
-import { putCasObject, HERMITIC_CAS_TEST_HOOK } from ${JSON.stringify(moduleUrl)};
-const [root, publisherBase64, payload, ready, release, phase] = process.argv.slice(1);
+import {
+  inspectHermeticCasSystemPublisher,
+  putCasObject,
+  HERMITIC_CAS_TEST_HOOK,
+} from ${JSON.stringify(moduleUrl)};
+const [root, payload, ready, release, phase] = process.argv.slice(1);
 await putCasObject({
   root,
   bytes: Buffer.from(payload, 'base64'),
   mediaType: 'application/octet-stream',
-  systemPublisher: JSON.parse(Buffer.from(publisherBase64, 'base64').toString('utf8')),
+  systemPublisher: await inspectHermeticCasSystemPublisher(),
   [HERMITIC_CAS_TEST_HOOK]: async (event) => {
     if (event.phase !== phase) return;
     writeFileSync(ready, event.phase);
@@ -192,7 +203,6 @@ await putCasObject({
 `;
   return child(script, [
     root,
-    Buffer.from(JSON.stringify(systemPublisher)).toString('base64'),
     bytes.toString('base64'),
     ready,
     release,
@@ -208,6 +218,26 @@ test('fails closed without the exact GNU mv runtime descriptor', async () => {
     mediaType: 'application/octet-stream',
   }), 'CAS_SYSTEM_PUBLISHER_REQUIRED');
   assert.equal(existsSync(join(root, 'sha256')), false);
+});
+
+test('inspects the exact deterministic publisher descriptor without CAS mutation or residue', async () => {
+  const root = temporaryDirectory('usf-cas-inspector-non-target-');
+  const before = readdirSync(tmpdir())
+    .filter((name) => name.startsWith('usf-hermetic-cas-publisher-probe-'))
+    .sort();
+  const first = await inspectHermeticCasSystemPublisher();
+  const second = await inspectHermeticCasSystemPublisher();
+  const after = readdirSync(tmpdir())
+    .filter((name) => name.startsWith('usf-hermetic-cas-publisher-probe-'))
+    .sort();
+  assert.deepEqual(first, expectedSystemPublisher);
+  assert.deepEqual(second, first);
+  assert.deepEqual(after, before);
+  assert.deepEqual(readdirSync(root), []);
+  await rejectsCode(
+    inspectHermeticCasSystemPublisher({ descriptor: 'forbidden' }),
+    'CAS_SYSTEM_PUBLISHER_INSPECT_OPTIONS_FORBIDDEN',
+  );
 });
 
 test('pinned GNU mv 9.1 uses renameat2 RENAME_NOREPLACE without clobbering', () => {
@@ -276,10 +306,8 @@ test('creates, reads, verifies and idempotently reuses one addressed object', as
 
 test('publishes N cross-process writers once and quarantines losing staging files', async () => {
   const root = temporaryDirectory();
-  const publisherBase64 = Buffer.from(JSON.stringify(systemPublisher)).toString('base64');
   const writers = Array.from({ length: 12 }, () => child(writerScript, [
     root,
-    publisherBase64,
     bytes.toString('base64'),
   ]));
   const completed = await Promise.all(writers.map(({ completed: done }) => done));
