@@ -8,6 +8,7 @@ import {
 } from 'node:crypto';
 import {
   existsSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -38,6 +39,9 @@ import {
 import {
   PROVIDER_WORKFORCE_REQUIRED_CASES,
   PROVIDER_WORKFORCE_REQUIRED_CLAIMS,
+  applyProviderWorkforceProjectionWithClosure,
+  assertPostProjectionCandidateClosure,
+  assertSameCanonicalCandidate,
   projectProviderWorkforceAuthorityReceipt,
   prepareProjectionOutputRoot,
   replaceProviderWorkforceAuthorityProjection,
@@ -79,24 +83,35 @@ const CANDIDATE_AUTHORITY_DIGEST = sha256(AUTHORITY_GRAPH_INVENTORY
   .join('\n'));
 const CANDIDATE_STATEMENT_COUNT = AUTHORITY_GRAPH_INVENTORY
   .reduce((total, { triples }) => total + triples, 0);
+const PUBLICATION_BUDGET_POLICY = Object.freeze({
+  hardStatementLimit: 1_000_000,
+  maximumProjectedStatementCount: 900_000,
+  policyIri: 'urn:usf:permutationpublicationbudget:stardogcloudfree',
+  provider: 'stardogcloudfree',
+  reserveStatementCount: 100_000,
+});
 const PUBLICATION_BUDGET_CORE = Object.freeze({
   authorityDigest: EVALUATED_AUTHORITY_DIGEST,
   baselineStatementCount: 107_219,
   candidateGraphWitnessDigest: CANDIDATE_AUTHORITY_DIGEST,
   candidateStatementCount: CANDIDATE_STATEMENT_COUNT,
   conservativeNoReplacementCredit: true,
-  hardStatementLimit: 1_000_000,
-  maximumProjectedStatementCount: 900_000,
-  policyDigest: `sha256:${'ab'.repeat(32)}`,
-  policyIri: 'urn:usf:permutationpublicationbudget:stardogcloudfree',
+  hardStatementLimit: PUBLICATION_BUDGET_POLICY.hardStatementLimit,
+  maximumProjectedStatementCount: PUBLICATION_BUDGET_POLICY.maximumProjectedStatementCount,
+  policyDigest: sha256(canonicalJson(PUBLICATION_BUDGET_POLICY)),
+  policyIri: PUBLICATION_BUDGET_POLICY.policyIri,
   projectedStatementUpperBound: 107_219 + CANDIDATE_STATEMENT_COUNT,
-  provider: 'stardogcloudfree',
-  reserveStatementCount: 100_000,
+  provider: PUBLICATION_BUDGET_POLICY.provider,
+  reserveStatementCount: PUBLICATION_BUDGET_POLICY.reserveStatementCount,
 });
 const CANDIDATE_PUBLICATION_RECEIPT = Object.freeze({
   receiptSchemaVersion: 2,
   mode: 'validate',
   ok: true,
+  contaminationCount: 0,
+  graphsCleared: 40,
+  authoredLoaded: 20,
+  shapesLoaded: 8,
   commitOutcome: {
     state: 'validated-rolled-back',
     exactCandidateStateVerified: true,
@@ -146,6 +161,19 @@ function candidateReceiptOptions(receipt) {
     candidatePublicationReceipt: receipt,
     candidatePublicationReceiptBytes: Buffer.from(`${JSON.stringify(receipt)}\n`),
   };
+}
+
+function verifiedCandidate(receipt) {
+  const bytes = Buffer.from(`${JSON.stringify(receipt)}\n`);
+  return Object.freeze({
+    bytes,
+    receipt,
+    verified: verifyCandidatePublicationReceipt({
+      receipt,
+      receiptBytes: bytes,
+      expectedAuthorityDigest: EVALUATED_AUTHORITY_DIGEST,
+    }),
+  });
 }
 
 function rebindCandidateReceipt(receipt) {
@@ -419,7 +447,7 @@ test('accepts only a canonical successful validate-and-rollback candidate public
   assert.equal(accepted.candidateGraphs.length, AUTHORITY_GRAPH_INVENTORY.length);
 
   for (const [mutate, pattern] of [
-    [(receipt) => { receipt.receiptSchemaVersion = 1; }, /schema is unsupported/],
+    [(receipt) => { receipt.receiptSchemaVersion = 1; }, /SCHEMA_INVALID|schema is unsupported/],
     [(receipt) => { receipt.mode = 'commit'; }, /NOT_SUCCESSFUL_VALIDATE/],
     [(receipt) => { receipt.ok = false; }, /NOT_SUCCESSFUL_VALIDATE/],
     [(receipt) => { receipt.commitOutcome.state = 'confirmed-response'; }, /OUTCOME_INVALID/],
@@ -452,6 +480,70 @@ test('accepts only a canonical successful validate-and-rollback candidate public
     receiptBytes: OPTIONS.candidatePublicationReceiptBytes,
     expectedAuthorityDigest: `sha256:${'03'.repeat(32)}`,
   }), /AUTHORITY_BINDING_MISMATCH/);
+});
+
+test('candidate publication receipt binds the exact real schema, count types and policy core', () => {
+  for (const [mutate, pattern] of [
+    [(receipt) => { delete receipt.contaminationCount; }, /RECEIPT_FIELDS_INVALID/],
+    [(receipt) => { receipt.contaminationCount = '0'; }, /CONTAMINATION_INVALID/],
+    [(receipt) => { receipt.graphsCleared = 1.5; }, /GRAPHS_CLEARED_INVALID/],
+    [(receipt) => { receipt.authoredLoaded = '20'; }, /AUTHORED_LOADED_INVALID/],
+    [(receipt) => { receipt.shapesLoaded = -1; }, /SHAPES_LOADED_INVALID/],
+    [(receipt) => { receipt.authorityWitness.extra = true; }, /AUTHORITY_WITNESS_FIELDS_INVALID/],
+    [(receipt) => { delete receipt.authorityWitness.beforePublication.triples; },
+      /BEFOREPUBLICATION_FIELDS_INVALID/],
+    [(receipt) => { receipt.authorityWitness.settled.stable = 'true'; },
+      /SETTLED_STABILITY_INVALID/],
+  ]) {
+    const receipt = structuredClone(CANDIDATE_PUBLICATION_RECEIPT);
+    mutate(receipt);
+    assert.throws(() => verifyCandidatePublicationReceipt({
+      receipt,
+      receiptBytes: Buffer.from(`${JSON.stringify(receipt)}\n`),
+      expectedAuthorityDigest: EVALUATED_AUTHORITY_DIGEST,
+    }), pattern);
+  }
+
+  const forgedPolicy = structuredClone(CANDIDATE_PUBLICATION_RECEIPT);
+  forgedPolicy.commitOutcome.publicationBudget.policyDigest = `sha256:${'ab'.repeat(32)}`;
+  const { budgetDigest, result, ...budgetCore } = forgedPolicy.commitOutcome.publicationBudget;
+  forgedPolicy.commitOutcome.publicationBudget.budgetDigest = sha256(canonicalJson(budgetCore));
+  assert.throws(() => verifyCandidatePublicationReceipt({
+    receipt: forgedPolicy,
+    receiptBytes: Buffer.from(`${JSON.stringify(forgedPolicy)}\n`),
+    expectedAuthorityDigest: EVALUATED_AUTHORITY_DIGEST,
+  }), /BUDGET_POLICY_DIGEST_MISMATCH/);
+});
+
+test('candidate publication provenance requires exact canonical rerun bytes including key order', () => {
+  const canonical = verifiedCandidate(structuredClone(CANDIDATE_PUBLICATION_RECEIPT));
+  const source = structuredClone(CANDIDATE_PUBLICATION_RECEIPT);
+  const reordered = {
+    authorityWitness: source.authorityWitness,
+    shapesLoaded: source.shapesLoaded,
+    authoredLoaded: source.authoredLoaded,
+    graphsCleared: source.graphsCleared,
+    contaminationCount: source.contaminationCount,
+    commitOutcome: source.commitOutcome,
+    ok: source.ok,
+    mode: source.mode,
+    receiptSchemaVersion: source.receiptSchemaVersion,
+  };
+  const reorderedCandidate = verifiedCandidate(reordered);
+  assert.throws(
+    () => assertSameCanonicalCandidate(reorderedCandidate, canonical),
+    /RECEIPT_PROVENANCE_MISMATCH/,
+  );
+
+  const differentCandidateReceipt = structuredClone(CANDIDATE_PUBLICATION_RECEIPT);
+  differentCandidateReceipt.commitOutcome.candidateGraphs
+    .find(({ graph }) => graph === 'urn:usf:graph:evidence').sha256 = 'fe'.repeat(32);
+  rebindCandidateReceipt(differentCandidateReceipt);
+  const differentCandidate = verifiedCandidate(differentCandidateReceipt);
+  assert.throws(
+    () => assertSameCanonicalCandidate(differentCandidate, canonical),
+    /RECEIPT_PROVENANCE_MISMATCH/,
+  );
 });
 
 test('candidate publication inventory rejects duplicate, unsorted and missing excluded graphs', () => {
@@ -546,6 +638,9 @@ test('rejects receipt-to-evidence binding drift', () => {
   const other = fixture();
   other.receipt.policyDigest = `sha256:${'cc'.repeat(32)}`;
   assert.throws(() => project(other), /RECEIPT_POLICYDIGEST_MISMATCH/);
+  const wrongOutputRoot = fixture();
+  wrongOutputRoot.receipt.outputRoot = '/tmp/forged-output';
+  assert.throws(() => project(wrongOutputRoot), /RECEIPT_OUTPUT_ROOT_SENTINEL_INVALID/);
 });
 
 test('rejects unrecognised receipt, evidence and DSSE envelope fields', () => {
@@ -834,10 +929,120 @@ test('session output preparation rejects symlink escape before creation or delet
       clear: true,
     }), /OUTPUT_ROOT_NOT_EXACT_DIRECTORY/);
     assert.equal(readFileSync(join(outside, 'sentinel'), 'utf8'), 'keep\n');
+
+    const outputRoot = prepareProjectionOutputRoot(root, join(root, '.work', 'projection'));
+    symlinkSync(join(outside, 'sentinel'), join(outputRoot, 'symlink-leaf'));
+    assert.throws(
+      () => prepareProjectionOutputRoot(root, outputRoot),
+      /PROJECTION_OUTPUT_CHILD_NOT_EXACT_FILE/,
+    );
+    rmSync(join(outputRoot, 'symlink-leaf'));
+
+    linkSync(join(outside, 'sentinel'), join(outputRoot, 'hardlink-leaf'));
+    assert.throws(
+      () => prepareProjectionOutputRoot(root, outputRoot),
+      /PROJECTION_OUTPUT_CHILD_NOT_EXACT_FILE/,
+    );
+    rmSync(join(outputRoot, 'hardlink-leaf'));
+
+    mkdirSync(join(outputRoot, 'directory-leaf'));
+    assert.throws(
+      () => prepareProjectionOutputRoot(root, outputRoot),
+      /PROJECTION_OUTPUT_CHILD_NOT_EXACT_FILE/,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(outside, { recursive: true, force: true });
   }
+});
+
+test('post-projection closure rejects graph drift, additions and removals but permits exact excluded changes', () => {
+  const before = verifiedCandidate(structuredClone(CANDIDATE_PUBLICATION_RECEIPT));
+
+  const allowed = structuredClone(CANDIDATE_PUBLICATION_RECEIPT);
+  allowed.commitOutcome.candidateGraphs
+    .find(({ graph }) => graph === 'urn:usf:graph:evidence').sha256 = 'ed'.repeat(32);
+  rebindCandidateReceipt(allowed);
+  assert.doesNotThrow(() => assertPostProjectionCandidateClosure(
+    before,
+    verifiedCandidate(allowed),
+  ));
+
+  const drifted = structuredClone(CANDIDATE_PUBLICATION_RECEIPT);
+  drifted.commitOutcome.candidateGraphs
+    .find(({ graph }) => graph === 'urn:usf:graph:ontology').sha256 = 'dc'.repeat(32);
+  rebindCandidateReceipt(drifted);
+  assert.throws(() => assertPostProjectionCandidateClosure(
+    before,
+    verifiedCandidate(drifted),
+  ), /POST_PROJECTION_NONEXCLUDED_GRAPH_MOVED/);
+
+  const added = structuredClone(CANDIDATE_PUBLICATION_RECEIPT);
+  added.commitOutcome.candidateGraphs.push({
+    graph: 'urn:usf:graph:z-added',
+    algorithm: 'RDFC-1.0',
+    digestAlgorithm: 'sha256',
+    sha256: 'ad'.repeat(32),
+    triples: 1,
+  });
+  rebindCandidateReceipt(added);
+  assert.throws(() => assertPostProjectionCandidateClosure(
+    before,
+    verifiedCandidate(added),
+  ), /POST_PROJECTION_GRAPH_SET_MISMATCH/);
+
+  const removed = structuredClone(CANDIDATE_PUBLICATION_RECEIPT);
+  removed.commitOutcome.candidateGraphs = removed.commitOutcome.candidateGraphs
+    .filter(({ graph }) => graph !== 'urn:usf:graph:ontology');
+  rebindCandidateReceipt(removed);
+  assert.throws(() => assertPostProjectionCandidateClosure(
+    before,
+    verifiedCandidate(removed),
+  ), /POST_PROJECTION_GRAPH_SET_MISMATCH/);
+});
+
+test('post-apply closure failure invokes rollback for both projection sources', () => {
+  const root = mkdtempSync(join(tmpdir(), 'usf-post-closure-rollback-'));
+  const evidencePath = join(root, 'evidence.trig');
+  const proofsPath = join(root, 'proofs.trig');
+  const evidenceBefore = Buffer.from('before-evidence\n');
+  const proofsBefore = Buffer.from('before-proofs\n');
+  try {
+    writeFileSync(evidencePath, evidenceBefore);
+    writeFileSync(proofsPath, proofsBefore);
+    assert.throws(() => applyProviderWorkforceProjectionWithClosure({
+      applyProjection() {
+        writeFileSync(evidencePath, 'projected-evidence\n');
+        writeFileSync(proofsPath, 'projected-proofs\n');
+        return Object.freeze({ evidencePath, proofsPath });
+      },
+      verifyPostApplyClosure() {
+        assert.equal(readFileSync(evidencePath, 'utf8'), 'projected-evidence\n');
+        assert.equal(readFileSync(proofsPath, 'utf8'), 'projected-proofs\n');
+        throw new Error('POST_PROJECTION_NONEXCLUDED_GRAPH_MOVED');
+      },
+      rollbackProjection() {
+        writeFileSync(evidencePath, evidenceBefore);
+        writeFileSync(proofsPath, proofsBefore);
+      },
+    }), /POST_PROJECTION_NONEXCLUDED_GRAPH_MOVED/);
+    assert(readFileSync(evidencePath).equals(evidenceBefore));
+    assert(readFileSync(proofsPath).equals(proofsBefore));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+
+  assert.throws(() => applyProviderWorkforceProjectionWithClosure({
+    applyProjection: () => Object.freeze({ id: 'applied' }),
+    verifyPostApplyClosure() {
+      throw new Error('POST_PROJECTION_GRAPH_SET_MISMATCH');
+    },
+    rollbackProjection() {
+      throw new Error('PROOF_POST_CLOSURE_ROLLBACK_VERIFICATION_FAILED');
+    },
+  }), (error) => error instanceof AggregateError
+    && error.message === 'PROJECTION_POST_CLOSURE_AND_ROLLBACK_FAILED'
+    && error.errors.length === 2);
 });
 
 test('projection application is impossible without the private reproduced-evidence binding', () => {
