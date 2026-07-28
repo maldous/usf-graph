@@ -32,6 +32,7 @@ function authority() {
     },
     acceptedDecisionCount: 1,
     authorisedPaths: ['capabilities'],
+    authorisedFormats: [format],
     pathRoles: [{ id: role, canonicalName: 'capabilitysource', parent: 'capabilities', onDemand: true }],
     rules: [{ family, pathRole: role, representationFormat: format, namingPattern: '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\.[a-z0-9]+)+$' }],
   };
@@ -58,6 +59,47 @@ test('rejects stale authority, tampered bytes and forbidden durable identities',
   tampered.operations[0].content = 'tampered\n';
   assert.equal(validateMaterialisationPlan(authority(), tampered).ok, false);
   assert.throws(() => createMaterialisationPlan(authority(), [writeOperation('x\n', 0, 'capabilities/legacy/example.mjs')]), /operation-path/);
+});
+
+test('fails closed when mutable decision format authority is absent or empty', () => {
+  const plan = createMaterialisationPlan(authority(), [
+    { action: 'create-directory', index: 0, path: 'capabilities/example', pathRole: role },
+    { action: 'create-directory', index: 1, path: 'capabilities/second', pathRole: role },
+  ]);
+  const absent = authority();
+  delete absent.authorisedFormats;
+  for (const candidate of [absent, { ...authority(), authorisedFormats: [] }]) {
+    const result = validateMaterialisationPlan(candidate, plan);
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.failures.filter((item) => item.code === 'authorised-formats'), [
+      { code: 'authorised-formats' },
+    ]);
+    assert.equal(result.failures.some((item) => item.code === 'operation-decision-representation-format'), false);
+  }
+});
+
+test('rejects a globally permitted representation format excluded by the selected decision', () => {
+  const sqlFormat = 'urn:usf:representationformat:sqltext';
+  const sqlRule = {
+    family,
+    pathRole: role,
+    representationFormat: sqlFormat,
+    namingPattern: '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\.[a-z0-9]+)+$',
+  };
+  const broaderAuthority = authority();
+  broaderAuthority.authorisedFormats.push(sqlFormat);
+  broaderAuthority.rules.push(sqlRule);
+  const operation = {
+    ...writeOperation('select 1;\n', 0, 'capabilities/example/query.sql'),
+    representationFormat: sqlFormat,
+  };
+  const plan = createMaterialisationPlan(broaderAuthority, [operation]);
+  const selectedDecision = authority();
+  selectedDecision.rules.push(sqlRule);
+  const result = validateMaterialisationPlan(selectedDecision, plan);
+  assert.equal(result.ok, false);
+  assert.equal(result.failures.some((item) => item.code === 'operation-decision-representation-format'), true);
+  assert.equal(result.failures.some((item) => item.code === 'operation-write-representation'), false);
 });
 
 test('applies a plan idempotently and reports exact operation states', () => {
