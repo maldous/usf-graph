@@ -457,6 +457,11 @@ if (process.argv.includes('--test-client-assembly-only')) {
   })}\n`);
   process.exit(0);
 }
+const {
+  MATERIALISATION_IMPLEMENTATION_SOURCE_PATHS,
+} = await import(canonicalModule(
+  'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.mjs',
+));
 const { DataFactory } = require('n3');
 const { authorityWitness } = await import(canonicalModule('processes/semantic-assurance/semantic-bootstrap-packet.mjs'));
 const { loadConfig } = await import(canonicalModule('configuration/semantic-assurance/stardog-connection.mjs'));
@@ -917,30 +922,9 @@ const focusedTestCount = Number(focusedTests.match(/# tests ([0-9]+)/)?.[1] || 0
 record('focused-control-plane-tests', 'passed', focusedTestCount > 0 && /# fail 0/.test(focusedTests) ? 'passed' : 'failed');
 
 failureContext.phase = 'EVIDENCE_ASSEMBLY';
-const implementationSources = sourceSetDigest([
-  'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.mjs',
-  'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.test.mjs',
-  'assurance/semantic-model-compilation/materialisation-proof.hostile-test.mjs',
-  'capabilities/semantic-model-compilation/authority-binding.mjs',
-  'capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs',
-  'capabilities/repository-external-artefact-materialisation/materialisation-plan.test.mjs',
-  'configuration/semantic-assurance/semantic-authority.mjs',
-  'configuration/semantic-assurance/semantic-authority.test.mjs',
-  'provider-bindings/stardog/semantic-authority.mjs',
-  'provider-bindings/stardog/semantic-authority.test.mjs',
-  'processes/semantic-assurance/repository-materialisation-command.mjs',
-  'processes/semantic-assurance/repository-materialisation-command.test.mjs',
-  'processes/semantic-assurance/semantic-authority-gateway.mjs',
-  'processes/semantic-assurance/semantic-authority-gateway.test.mjs',
-  'capabilities/semantic-model-compilation/authority-dataset.mjs',
-  'processes/semantic-assurance/semantic-bootstrap-packet.mjs',
-  'processes/semantic-assurance/proof-currentness.mjs',
-  'processes/semantic-assurance/proof-currentness.test.mjs',
-  'processes/semantic-assurance/repository-materialisation-gateway.mjs',
-  'processes/semantic-assurance/semantic-authority-mcp.mjs',
-  'processes/semantic-assurance/repository-materialisation-gateway.test.mjs',
-  'processes/semantic-assurance/semantic-authority-mcp.test.mjs',
-]);
+const implementationSources = sourceSetDigest(
+  MATERIALISATION_IMPLEMENTATION_SOURCE_PATHS,
+);
 const proofAlgorithmSourceDigest = sha256(readFileSync(import.meta.filename));
 cases.sort((left, right) => left.id.localeCompare(right.id));
 const evidenceCore = {
