@@ -674,6 +674,7 @@ decisionstate:rejected a usf:DecisionState.
     usf:canonicalName "wholesuiteevaluationthirtydays"
 .
 
+# BEGIN GENERATED PROVIDER-WORKFORCE AUTHORITY EVIDENCE
 <urn:usf:externalpayloaddescriptor:providerworkforceauthorityevidence> a usf:ExternalPayloadDescriptor;
   usf:canonicalName "providerworkforceauthorityevidence";
   usf:descriptorArtefactFamily <urn:usf:artefactfamily:evidencepayload>;
@@ -844,6 +845,7 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
   usf:canonicalName "providerworkforcedecisionevaluation";
   usf:verifiesEvidence evr:providerworkforcedecisionevaluation;
   usf:verificationState <urn:usf:resultstate:passed>.
+# END GENERATED PROVIDER-WORKFORCE AUTHORITY EVIDENCE
 <urn:usf:evidencefreshnesspolicy:realisationoptionevaluationthirtydays> a usf:EvidenceRetentionPolicy; usf:canonicalName "realisationoptionevaluationthirtydays" .
 <urn:usf:policy:compositeevidenceattestation> a usf:Policy; usf:canonicalName "compositeevidenceattestation"; usf:appliesToCapability <urn:usf:capability:semanticmodelcompilation> .
 <urn:usf:externalpayloaddescriptor:realisationoptionevaluation> a usf:ExternalPayloadDescriptor; usf:canonicalName "realisationoptionevaluation"; usf:descriptorArtefactFamily <urn:usf:artefactfamily:evidencepayload>; usf:descriptorRepresentationFormat <urn:usf:representationformat:jsondata8259>; usf:descriptorMediaType "application/json"; usf:descriptorDigest "sha256:b688fea8acf404d6ccd756c7322b3d680db35564e447a7e197fb293ad7466882"; usf:descriptorByteSize 5503052; usf:descriptorLocator "cas://sha256/b688fea8acf404d6ccd756c7322b3d680db35564e447a7e197fb293ad7466882"^^xsd:anyURI; usf:descriptorArtefactType "urn:usf:artefacttype:realisationoptionevaluation"^^xsd:anyURI; usf:descriptorStorageClass <urn:usf:storageclass:contentaddressedobjectstorage> .
