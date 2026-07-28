@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { DataFactory, Parser, Store } from 'n3';
 
 import {
   effectiveLocalShaclPythonSource,
@@ -15,6 +16,70 @@ import {
 
 const roots = [];
 const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
+const { namedNode } = DataFactory;
+const USF = 'urn:usf:ontology:';
+const usf = (local) => namedNode(`${USF}${local}`);
+const ACCEPTED = namedNode('urn:usf:decisionstate:accepted');
+const PROVIDER_FORMATS = Object.freeze([
+  'environmentvariableexample',
+  'markdowncommonmark',
+  'pythonsource311',
+  'yamlconfiguration12',
+]);
+const GRAPH_FORMATS = Object.freeze([
+  'ecmascriptmodule2024',
+  'graphqlschema',
+  'javascriptmodule2024',
+  'jsondata8259',
+  'markdowncommonmark',
+  'openapijson',
+  'rdfdatasettrig11',
+  'rdfgraphturtle11',
+  'shellscriptposix',
+  'sparqlquery11current',
+  'sqltext',
+  'yamlconfiguration12',
+]);
+
+function representationAuthorityStore() {
+  const store = new Store();
+  for (const [path, format] of [
+    ['semantic-model/contracts/materialisation.trig', 'application/trig'],
+    ['semantic-model/realisation/bindings.trig', 'application/trig'],
+    ['semantic-model/shapes/materialisation.ttl', 'text/turtle'],
+  ]) {
+    store.addQuads(new Parser({ format }).parse(readFileSync(join(repositoryRoot, path), 'utf8')));
+  }
+  return store;
+}
+
+function decisionRepresentationRecord(store, decision) {
+  const paths = store.getObjects(decision, usf('authorisesSourcePath'), null)
+    .map(({ value }) => value).sort();
+  const formats = store.getObjects(decision, usf('authorisesRepresentationFormat'), null)
+    .map((format) => {
+      const extensions = store.getObjects(format, usf('canonicalExtension'), null);
+      return {
+        extension: extensions.length === 1 ? extensions[0].value : null,
+        id: format.value.replace('urn:usf:representationformat:', ''),
+        valid: store.has(format, namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), usf('RepresentationFormat'), null)
+          && extensions.length === 1,
+      };
+    })
+    .sort((left, right) => left.id.localeCompare(right.id));
+  return {
+    paths,
+    formats,
+    invalidFormats: formats.filter(({ valid }) => !valid).map(({ id }) => id),
+  };
+}
+
+function uncoveredExactFiles(record) {
+  return record.paths.filter(
+    (path) => /\.[a-z0-9]+$/u.test(path)
+      && !record.formats.some(({ extension }) => path.endsWith(extension)),
+  );
+}
 
 function runtimeFixture() {
   const root = mkdtempSync(join(tmpdir(), 'local-shacl-runtime-'));
@@ -221,4 +286,120 @@ test('review and candidate authorisation guards use SHACL-SPARQL-compatible pred
   const shapes = readFileSync(new URL('../../semantic-model/shapes/permutation.ttl', import.meta.url), 'utf8');
   assert.equal(shapes.includes('VALUES ?predicate { usf:establishesSemanticTruth'), false);
   assert.equal((shapes.match(/FILTER \(\?predicate IN \(usf:establishesSemanticTruth,/gu) ?? []).length, 5);
+});
+
+test('every accepted mutable-source decision carries applicable representation authority', () => {
+  const store = representationAuthorityStore();
+  const decisions = [...new Set(
+    store.getSubjects(usf('authorisesSourcePath'), null, null)
+      .filter((decision) => store.has(decision, usf('decisionState'), ACCEPTED, null))
+      .map(({ value }) => value),
+  )].sort();
+  assert.equal(decisions.length, 6);
+  for (const value of decisions) {
+    const record = decisionRepresentationRecord(store, namedNode(value));
+    assert.ok(record.paths.length > 0, value);
+    assert.ok(record.formats.length > 0, value);
+    assert.deepEqual(record.invalidFormats, [], value);
+    assert.deepEqual(uncoveredExactFiles(record), [], value);
+  }
+});
+
+test('provider and graph decisions retain their exact bounded format sets', () => {
+  const store = representationAuthorityStore();
+  const decision = (name) => decisionRepresentationRecord(
+    store,
+    namedNode(`urn:usf:realisationdecision:${name}`),
+  );
+  for (const name of [
+    'providerconfigurationplanefactoryworkforce',
+    'providerenvironmentclassificationfactoryworkforce',
+    'servicecatalogandproviderintegrationmodelfactoryworkforce',
+  ]) {
+    const record = decision(name);
+    assert.deepEqual(record.formats.map(({ id }) => id), PROVIDER_FORMATS, name);
+    assert.ok(record.paths.includes('src/usf_factory/providers'), name);
+    assert.ok(record.paths.includes('.env.example'), name);
+    for (const removed of PROVIDER_FORMATS) {
+      assert.notDeepEqual(
+        record.formats.filter(({ id }) => id !== removed).map(({ id }) => id),
+        PROVIDER_FORMATS,
+        `${name}:${removed}`,
+      );
+    }
+  }
+  for (const name of [
+    'repositoryarchitectureandnaming',
+    'semanticauthoritycontrolselection',
+    'semanticmodelcompilationrealisation',
+  ]) {
+    const record = decision(name);
+    assert.deepEqual(record.formats.map(({ id }) => id), GRAPH_FORMATS, name);
+    for (const removed of GRAPH_FORMATS) {
+      assert.notDeepEqual(
+        record.formats.filter(({ id }) => id !== removed).map(({ id }) => id),
+        GRAPH_FORMATS,
+        `${name}:${removed}`,
+      );
+    }
+  }
+});
+
+test('exact suffix omissions and invalid format identities fail the applicability rule', () => {
+  const store = representationAuthorityStore();
+  const providerDecision = namedNode(
+    'urn:usf:realisationdecision:providerconfigurationplanefactoryworkforce',
+  );
+  const provider = decisionRepresentationRecord(store, providerDecision);
+  for (const [format, path] of [
+    ['pythonsource311', 'src/usf_factory/engine.py'],
+    ['environmentvariableexample', '.env.example'],
+    ['markdowncommonmark', 'docs/security.md'],
+    ['yamlconfiguration12', 'config/providers.yaml'],
+  ]) {
+    const reduced = {
+      ...provider,
+      formats: provider.formats.filter(({ id }) => id !== format),
+    };
+    assert.ok(uncoveredExactFiles(reduced).includes(path), `${format}:${path}`);
+  }
+  assert.deepEqual(uncoveredExactFiles({ ...provider, formats: [] }), provider.paths.filter(
+    (path) => /\.[a-z0-9]+$/u.test(path),
+  ));
+
+  const invalidStore = new Store(store.getQuads(null, null, null, null));
+  invalidStore.addQuad(
+    providerDecision,
+    usf('authorisesRepresentationFormat'),
+    namedNode('urn:usf:representationformat:undeclaredbogus'),
+  );
+  const ambiguous = namedNode('urn:usf:representationformat:ambiguousformat');
+  invalidStore.addQuad(providerDecision, usf('authorisesRepresentationFormat'), ambiguous);
+  invalidStore.addQuad(
+    ambiguous,
+    namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
+    usf('RepresentationFormat'),
+  );
+  invalidStore.addQuad(ambiguous, usf('canonicalExtension'), DataFactory.literal('.one'));
+  invalidStore.addQuad(ambiguous, usf('canonicalExtension'), DataFactory.literal('.two'));
+  assert.deepEqual(
+    decisionRepresentationRecord(invalidStore, providerDecision).invalidFormats,
+    ['ambiguousformat', 'undeclaredbogus'],
+  );
+});
+
+test('repository architecture decision covers every globally tracked representation edition', () => {
+  const store = representationAuthorityStore();
+  const architecture = decisionRepresentationRecord(
+    store,
+    namedNode('urn:usf:realisationdecision:repositoryarchitectureandnaming'),
+  );
+  const tracked = new Set();
+  for (const { subject: rule } of store.getQuads(null, usf('trackedRepresentation'), DataFactory.literal(true), null)) {
+    for (const { object: format } of store.getQuads(rule, usf('usesRepresentationFormat'), null, null)) {
+      tracked.add(format.value.replace('urn:usf:representationformat:', ''));
+    }
+  }
+  assert.deepEqual([...tracked].sort(), GRAPH_FORMATS);
+  assert.deepEqual(architecture.formats.map(({ id }) => id), [...tracked].sort());
 });

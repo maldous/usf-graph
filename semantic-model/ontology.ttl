@@ -503,6 +503,10 @@ usf:authorisedSourcePath a owl:DatatypeProperty;
 usf:authorisesSourcePath a owl:DatatypeProperty;
     rdfs:domain usf:RealisationDecision;
     rdfs:range xsd:string.
+usf:authorisesRepresentationFormat a owl:ObjectProperty;
+    rdfs:domain usf:RealisationDecision;
+    rdfs:range usf:RepresentationFormat;
+    rdfs:comment "Declares the closed set of representation formats applicable to mutable source paths authorised by the same decision; an exact file path is applicable only when its suffix matches the format canonical extension.".
 usf:authorisesRepository a owl:DatatypeProperty;
     rdfs:domain usf:RealisationDecision;
     rdfs:range xsd:string.
