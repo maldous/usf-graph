@@ -1,25 +1,29 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   renameSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
 
 import {
   assertWorktreeMatchesSnapshot,
   buildSanitizedExecutionEnvironment,
   collectNodeRuntimeClosure,
+  collectProcessRuntimeClosure,
   compareWorktreeToSnapshot,
   readTrackedTreeSnapshot,
-  runPinnedNodeScript,
+  runCommittedNodeClosure,
+  runtimeDescriptorFromEvidence,
   sha256,
 } from './authority-execution-hermeticity.mjs';
 
@@ -28,6 +32,7 @@ function git(repository, args, { allowFailure = false, replaceObjects = true } =
     HOME: repository,
     LANG: 'C',
     LC_ALL: 'C',
+    PATH: '/usr/bin:/bin',
     TZ: 'UTC',
     GIT_AUTHOR_EMAIL: 'hermeticity@example.invalid',
     GIT_AUTHOR_NAME: 'Hermeticity Test',
@@ -55,15 +60,91 @@ function git(repository, args, { allowFailure = false, replaceObjects = true } =
 function makeRepository() {
   const repository = mkdtempSync(join(tmpdir(), 'usf-hermeticity-repository-'));
   git(repository, ['init', '--quiet']);
-  writeFileSync(join(repository, 'script.mjs'), 'process.stdout.write("ORIGINAL\\n");\n', { mode: 0o755 });
+  writeFileSync(
+    join(repository, 'script.mjs'),
+    'import { value } from "./dependency.mjs";\nprocess.stdout.write(`${value}\\n`);\n',
+    { mode: 0o755 },
+  );
+  writeFileSync(join(repository, 'dependency.mjs'), 'export const value = "ORIGINAL";\n');
   writeFileSync(join(repository, 'hidden.txt'), 'COMMITTED\n');
-  git(repository, ['add', 'script.mjs', 'hidden.txt']);
+  writeFileSync(join(repository, 'package.json'), '{"private":true,"type":"module"}\n');
+  mkdirSync(join(repository, 'nested'));
+  writeFileSync(join(repository, 'nested', 'file.txt'), 'NESTED\n');
+  git(repository, ['add', '.']);
   git(repository, ['commit', '--quiet', '-m', 'original']);
   const commit = git(repository, ['rev-parse', 'HEAD']).stdout.toString('utf8').trim();
   return { repository, commit };
 }
 
-test('commit snapshot is independent of repo-local config, hooks, filters, and fsmonitor', () => {
+function spawned(child) {
+  return new Promise((resolveSpawn, rejectSpawn) => {
+    child.once('spawn', resolveSpawn);
+    child.once('error', rejectSpawn);
+  });
+}
+
+function closed(child) {
+  return new Promise((resolveClose) => {
+    child.once('close', (status, signal) => resolveClose({ status, signal }));
+  });
+}
+
+let expectedGitRuntimePromise;
+async function expectedGitRuntime() {
+  if (!expectedGitRuntimePromise) {
+    expectedGitRuntimePromise = (async () => {
+      const repository = mkdtempSync(join(tmpdir(), 'usf-hermeticity-git-runtime-'));
+      git(repository, ['init', '--bare', '--quiet']);
+      const child = spawn('/usr/bin/git', [`--git-dir=${repository}`, 'cat-file', '--batch'], {
+        cwd: repository,
+        env: {
+          HOME: '/tmp',
+          LANG: 'C',
+          LC_ALL: 'C',
+          PATH: '/usr/bin:/bin',
+          GIT_CONFIG_NOSYSTEM: '1',
+          GIT_CONFIG_GLOBAL: '/dev/null',
+          GIT_NO_REPLACE_OBJECTS: '1',
+          GIT_TERMINAL_PROMPT: '0',
+        },
+        stdio: ['pipe', 'ignore', 'ignore'],
+      });
+      const closePromise = closed(child);
+      await spawned(child);
+      let evidence;
+      let lastError;
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        try {
+          evidence = collectProcessRuntimeClosure({ pid: child.pid });
+          break;
+        } catch (error) {
+          lastError = error;
+          await new Promise((resolveDelay) => setTimeout(resolveDelay, 5));
+        }
+      }
+      child.kill('SIGKILL');
+      await closePromise;
+      rmSync(repository, { recursive: true, force: true });
+      if (!evidence) throw new Error(`TEST_GIT_RUNTIME_NOT_OBSERVED:${lastError?.message}`);
+      return runtimeDescriptorFromEvidence(evidence);
+    })();
+  }
+  return expectedGitRuntimePromise;
+}
+
+const expectedNodeRuntime = runtimeDescriptorFromEvidence(collectNodeRuntimeClosure());
+const closurePaths = ['dependency.mjs', 'package.json', 'script.mjs'];
+
+async function snapshotFor(fixture, paths = closurePaths) {
+  return readTrackedTreeSnapshot({
+    repository: fixture.repository,
+    commit: fixture.commit,
+    paths,
+    expectedGitRuntime: await expectedGitRuntime(),
+  });
+}
+
+test('commit snapshot ignores repo-local config, hooks, filters, and fsmonitor', async () => {
   const fixture = makeRepository();
   try {
     const hooks = join(fixture.repository, 'malicious-hooks');
@@ -73,34 +154,31 @@ test('commit snapshot is independent of repo-local config, hooks, filters, and f
     git(fixture.repository, ['config', '--local', 'core.fsmonitor', '/bin/false']);
     git(fixture.repository, ['config', '--local', 'filter.hostile.smudge', '/bin/false']);
     git(fixture.repository, ['config', '--local', 'filter.hostile.clean', '/bin/false']);
-    const snapshot = readTrackedTreeSnapshot({
-      repository: fixture.repository,
-      commit: fixture.commit,
-      paths: ['script.mjs', 'hidden.txt'],
-    });
+    const snapshot = await snapshotFor(fixture, ['hidden.txt', 'script.mjs']);
     assert.equal(snapshot.records[0].bytes.toString('utf8'), 'COMMITTED\n');
-    assert.equal(snapshot.records[1].bytes.toString('utf8'), 'process.stdout.write("ORIGINAL\\n");\n');
-    assert.deepEqual({
-      ...snapshot.evidence.gitExecution,
-      executable: undefined,
-    }, {
-      configurationSource: 'ISOLATED_GIT_DIR_WITH_SOURCE_OBJECT_ALTERNATE',
-      executable: undefined,
-      originalLocalConfigLoaded: false,
-      originalIndexLoaded: false,
-      originalHooksLoaded: false,
-      originalWorktreeLoaded: false,
-      replaceObjectsDisabled: true,
-      promptsDisabled: true,
-    });
-    assert.equal(snapshot.evidence.gitExecution.executable.path, '/usr/bin/git');
     assert.match(snapshot.evidence.gitExecution.executable.digest, /^sha256:[0-9a-f]{64}$/);
+    assert.notEqual(snapshot.evidence.gitExecution.runtime.pid, process.pid);
+    assert.ok(snapshot.evidence.gitExecution.runtimeExecutions.length >= 3);
+    const gitRuntime = await expectedGitRuntime();
+    assert.ok(snapshot.evidence.gitExecution.runtimeExecutions.every((runtime) => (
+      runtime.pid !== process.pid
+      && runtimeDescriptorFromEvidence(runtime).mappedNativeObjectSetDigest
+        === gitRuntime.mappedNativeObjectSetDigest
+    )));
+    assert.deepEqual(
+      runtimeDescriptorFromEvidence(snapshot.evidence.gitExecution.runtime),
+      await expectedGitRuntime(),
+    );
+    assert.equal(snapshot.evidence.gitExecution.originalLocalConfigLoaded, false);
+    assert.equal(snapshot.evidence.gitExecution.originalIndexLoaded, false);
+    assert.equal(snapshot.evidence.gitExecution.originalHooksLoaded, false);
+    assert.equal(snapshot.evidence.gitExecution.replaceObjectsDisabled, true);
   } finally {
     rmSync(fixture.repository, { recursive: true, force: true });
   }
 });
 
-test('replace refs cannot redirect the commit snapshot', () => {
+test('replace refs cannot redirect the commit snapshot', async () => {
   const fixture = makeRepository();
   try {
     writeFileSync(join(fixture.repository, 'script.mjs'), 'process.stdout.write("REPLACED\\n");\n', { mode: 0o755 });
@@ -108,161 +186,304 @@ test('replace refs cannot redirect the commit snapshot', () => {
     git(fixture.repository, ['commit', '--quiet', '-m', 'replacement']);
     const replacement = git(fixture.repository, ['rev-parse', 'HEAD']).stdout.toString('utf8').trim();
     git(fixture.repository, ['replace', fixture.commit, replacement]);
-    const redirected = git(fixture.repository, ['show', `${fixture.commit}:script.mjs`])
-      .stdout.toString('utf8');
-    assert.equal(redirected, 'process.stdout.write("REPLACED\\n");\n');
-    const snapshot = readTrackedTreeSnapshot({
-      repository: fixture.repository,
-      commit: fixture.commit,
-      paths: ['script.mjs'],
-    });
-    assert.equal(snapshot.records[0].bytes.toString('utf8'), 'process.stdout.write("ORIGINAL\\n");\n');
+    assert.equal(
+      git(fixture.repository, ['show', `${fixture.commit}:script.mjs`]).stdout.toString('utf8'),
+      'process.stdout.write("REPLACED\\n");\n',
+    );
+    const snapshot = await snapshotFor(fixture, ['script.mjs']);
+    assert.match(snapshot.records[0].bytes.toString('utf8'), /dependency\.mjs/);
   } finally {
     rmSync(fixture.repository, { recursive: true, force: true });
   }
 });
 
-test('skip-worktree and assume-unchanged cannot hide changed source from byte verification', () => {
+test('skip-worktree and assume-unchanged cannot hide changed source bytes', async () => {
   const fixture = makeRepository();
   try {
-    const snapshot = readTrackedTreeSnapshot({
-      repository: fixture.repository,
-      commit: fixture.commit,
-      paths: ['hidden.txt', 'script.mjs'],
-    });
+    const snapshot = await snapshotFor(fixture, ['hidden.txt', 'script.mjs']);
     git(fixture.repository, ['update-index', '--assume-unchanged', 'hidden.txt']);
     git(fixture.repository, ['update-index', '--skip-worktree', 'script.mjs']);
     writeFileSync(join(fixture.repository, 'hidden.txt'), 'HIDDEN DIRTY\n');
     writeFileSync(join(fixture.repository, 'script.mjs'), 'process.stdout.write("HIDDEN DIRTY\\n");\n', { mode: 0o755 });
-    const status = git(fixture.repository, ['status', '--porcelain=v1']).stdout.toString('utf8');
-    assert.equal(status, '');
-    const comparison = compareWorktreeToSnapshot({
-      repository: fixture.repository,
-      snapshot,
-    });
+    assert.equal(git(fixture.repository, ['status', '--porcelain=v1']).stdout.toString('utf8'), '');
+    const comparison = compareWorktreeToSnapshot({ repository: fixture.repository, snapshot });
     assert.equal(comparison.matches, false);
     assert.deepEqual(
       comparison.results.filter(({ matches }) => !matches).map(({ path }) => path),
       ['hidden.txt', 'script.mjs'],
     );
+  } finally {
+    rmSync(fixture.repository, { recursive: true, force: true });
+  }
+});
+
+test('intermediate symlinks are refused even when target bytes match', async () => {
+  const fixture = makeRepository();
+  const external = mkdtempSync(join(tmpdir(), 'usf-hermeticity-external-'));
+  try {
+    const snapshot = await snapshotFor(fixture, ['nested/file.txt']);
+    writeFileSync(join(external, 'file.txt'), 'NESTED\n');
+    renameSync(join(fixture.repository, 'nested'), join(fixture.repository, 'nested.real'));
+    symlinkSync(external, join(fixture.repository, 'nested'));
+    const comparison = compareWorktreeToSnapshot({ repository: fixture.repository, snapshot });
+    assert.equal(comparison.matches, false);
+    assert.match(comparison.results[0].error, /SYMLINK_COMPONENT/);
     assert.throws(
       () => assertWorktreeMatchesSnapshot({ repository: fixture.repository, snapshot }),
       /WORKTREE_DOES_NOT_MATCH_COMMIT_SNAPSHOT/,
     );
   } finally {
+    rmSync(external, { recursive: true, force: true });
     rmSync(fixture.repository, { recursive: true, force: true });
   }
 });
 
-test('pinned Node execution uses opened committed bytes during pathname substitution', () => {
+test('hard-linked worktree source is refused', async () => {
   const fixture = makeRepository();
   try {
-    const snapshot = readTrackedTreeSnapshot({
-      repository: fixture.repository,
-      commit: fixture.commit,
-      paths: ['script.mjs'],
-    });
-    const record = snapshot.records[0];
-    const path = join(fixture.repository, 'script.mjs');
-    const displaced = join(fixture.repository, 'script.original.mjs');
-    const result = runPinnedNodeScript({
-      scriptPath: path,
-      expectedDigest: record.digest,
-      expectedByteLength: record.byteLength,
-      requireStablePath: false,
-      afterPin() {
-        renameSync(path, displaced);
-        writeFileSync(path, 'process.stdout.write("SUBSTITUTED\\n");\n', { mode: 0o755 });
-      },
+    const snapshot = await snapshotFor(fixture, ['hidden.txt']);
+    linkSync(join(fixture.repository, 'hidden.txt'), join(fixture.repository, 'hidden.link'));
+    const comparison = compareWorktreeToSnapshot({ repository: fixture.repository, snapshot });
+    assert.equal(comparison.matches, false);
+    assert.match(comparison.results[0].error, /LINK_COUNT_NOT_ONE/);
+  } finally {
+    rmSync(fixture.repository, { recursive: true, force: true });
+  }
+});
+
+test('complete committed dependency closure executes independently of mutable checkout', async () => {
+  const fixture = makeRepository();
+  try {
+    const snapshot = await snapshotFor(fixture);
+    writeFileSync(join(fixture.repository, 'dependency.mjs'), 'export const value = "SUBSTITUTED";\n');
+    const result = await runCommittedNodeClosure({
+      snapshot,
+      closurePaths,
+      entryPath: 'script.mjs',
+      expectedNodeRuntime,
     });
     assert.equal(result.stdout.toString('utf8'), 'ORIGINAL\n');
-    assert.equal(result.script.pathStable, false);
-    assert.equal(readFileSync(path, 'utf8'), 'process.stdout.write("SUBSTITUTED\\n");\n');
+    assert.equal(result.closure.recordCount, 3);
+    assert.notEqual(result.runtimeEvidence.pid, process.pid);
+    assert.deepEqual(result.runtimeDescriptor, expectedNodeRuntime);
   } finally {
     rmSync(fixture.repository, { recursive: true, force: true });
   }
 });
 
-test('stable-path enforcement fails closed after pathname substitution', () => {
+test('dependency substitution after child binding cannot execute', async () => {
   const fixture = makeRepository();
   try {
-    const snapshot = readTrackedTreeSnapshot({
-      repository: fixture.repository,
-      commit: fixture.commit,
-      paths: ['script.mjs'],
-    });
-    const record = snapshot.records[0];
-    const path = join(fixture.repository, 'script.mjs');
-    assert.throws(() => runPinnedNodeScript({
-      scriptPath: path,
-      expectedDigest: record.digest,
-      expectedByteLength: record.byteLength,
-      afterPin() {
-        renameSync(path, join(fixture.repository, 'script.original.mjs'));
-        writeFileSync(path, 'process.stdout.write("SUBSTITUTED\\n");\n', { mode: 0o755 });
+    const snapshot = await snapshotFor(fixture);
+    await assert.rejects(runCommittedNodeClosure({
+      snapshot,
+      closurePaths,
+      entryPath: 'script.mjs',
+      expectedNodeRuntime,
+      afterRuntimeBound(closure) {
+        const dependency = join(closure.root, 'dependency.mjs');
+        chmodSync(closure.root, 0o700);
+        chmodSync(dependency, 0o600);
+        writeFileSync(dependency, 'export const value = "SUBSTITUTED";\n');
       },
-    }), /PINNED_NODE_SCRIPT_PATH_CHANGED/);
+    }), /COMMITTED_NODE_CLOSURE_FAILED|CLOSURE_FILE_CHANGED/);
   } finally {
     rmSync(fixture.repository, { recursive: true, force: true });
   }
 });
 
-test('Node execution rejects unexpected bytes before contact', () => {
+test('caller cannot omit a committed dependency from the declared source set', async () => {
+  const fixture = makeRepository();
+  let materialized = false;
+  try {
+    const snapshot = await snapshotFor(fixture);
+    await assert.rejects(runCommittedNodeClosure({
+      snapshot,
+      closurePaths: ['package.json', 'script.mjs'],
+      entryPath: 'script.mjs',
+      expectedNodeRuntime,
+      afterMaterialize() {
+        materialized = true;
+      },
+    }), /CLOSURE_PATH_SET_MISMATCH/);
+    assert.equal(materialized, false);
+  } finally {
+    rmSync(fixture.repository, { recursive: true, force: true });
+  }
+});
+
+test('a snapshot that omits an imported dependency fails closed in the private root', async () => {
   const fixture = makeRepository();
   try {
-    assert.throws(() => runPinnedNodeScript({
-      scriptPath: join(fixture.repository, 'script.mjs'),
-      expectedDigest: sha256('different'),
-    }), /NODE_SCRIPT_COMMIT_DIGEST_MISMATCH/);
+    const snapshot = await snapshotFor(fixture, ['package.json', 'script.mjs']);
+    await assert.rejects(runCommittedNodeClosure({
+      snapshot,
+      closurePaths: ['package.json', 'script.mjs'],
+      entryPath: 'script.mjs',
+      expectedNodeRuntime,
+    }), /COMMITTED_NODE_CLOSURE_FAILED/);
   } finally {
     rmSync(fixture.repository, { recursive: true, force: true });
   }
 });
 
-test('sanitized environments reject process-influencing variables', () => {
+test('Node permission boundary refuses mutable dependencies outside the committed closure', async () => {
+  const fixture = makeRepository();
+  const external = mkdtempSync(join(tmpdir(), 'usf-hermeticity-external-module-'));
+  const marker = join(external, 'executed.marker');
+  try {
+    writeFileSync(
+      join(fixture.repository, 'script.mjs'),
+      [
+        'import { createRequire } from "node:module";',
+        'const require = createRequire(import.meta.url);',
+        'require(process.argv[2]);',
+      ].join('\n'),
+      { mode: 0o755 },
+    );
+    writeFileSync(
+      join(external, 'mutable.cjs'),
+      `require("node:fs").writeFileSync(${JSON.stringify(marker)}, "executed");\n`,
+    );
+    git(fixture.repository, ['add', 'script.mjs']);
+    git(fixture.repository, ['commit', '--quiet', '-m', 'external dependency adversary']);
+    fixture.commit = git(fixture.repository, ['rev-parse', 'HEAD']).stdout.toString('utf8').trim();
+    const snapshot = await snapshotFor(fixture, ['package.json', 'script.mjs']);
+    await assert.rejects(runCommittedNodeClosure({
+      snapshot,
+      closurePaths: ['package.json', 'script.mjs'],
+      entryPath: 'script.mjs',
+      expectedNodeRuntime,
+      arguments: [join(external, 'mutable.cjs')],
+    }), /COMMITTED_NODE_CLOSURE_FAILED/);
+    assert.throws(() => readFileSync(marker), /ENOENT/);
+  } finally {
+    rmSync(external, { recursive: true, force: true });
+    rmSync(fixture.repository, { recursive: true, force: true });
+  }
+});
+
+test('environment allowlist cannot override helper-owned controls', () => {
   const home = mkdtempSync(join(tmpdir(), 'usf-hermeticity-home-'));
   try {
+    for (const [name, value] of [
+      ['HOME', '/hostile'],
+      ['XDG_CONFIG_HOME', '/hostile'],
+      ['PATH', '/hostile'],
+      ['NODE_OPTIONS', '--require=/tmp/hostile.cjs'],
+      ['NODE_PATH', '/hostile'],
+      ['LD_PRELOAD', '/tmp/hostile.so'],
+      ['OPENSSL_CONF', '/tmp/hostile.cnf'],
+      ['LANG', 'hostile'],
+      ['LC_ALL', 'hostile'],
+      ['TZ', 'hostile'],
+    ]) {
+      assert.throws(() => buildSanitizedExecutionEnvironment({
+        homeDirectory: home,
+        allowedEnvironmentNames: [name],
+        explicitEnvironment: { [name]: value },
+      }), new RegExp(`RESERVED_ENVIRONMENT_NAME_${name}`));
+    }
     assert.throws(() => buildSanitizedExecutionEnvironment({
       homeDirectory: home,
-      explicitEnvironment: { NODE_OPTIONS: '--require=/tmp/hostile.cjs' },
-    }), /UNSAFE_ENVIRONMENT_NAME_NODE_OPTIONS/);
+      explicitEnvironment: { USF_PUBLIC_INPUT: 'bounded' },
+    }), /ENVIRONMENT_NAME_NOT_ALLOWLISTED_USF_PUBLIC_INPUT/);
     const environment = buildSanitizedExecutionEnvironment({
       homeDirectory: home,
-      includeGitControls: true,
+      allowedEnvironmentNames: ['USF_PUBLIC_INPUT'],
       explicitEnvironment: { USF_PUBLIC_INPUT: 'bounded' },
     });
-    assert.equal(environment.GIT_NO_REPLACE_OBJECTS, '1');
-    assert.equal(environment.GIT_TERMINAL_PROMPT, '0');
-    assert.equal(environment.USF_PUBLIC_INPUT, 'bounded');
-    assert.equal('PATH' in environment, false);
+    assert.equal(environment.HOME, home);
+    assert.equal(environment.XDG_CONFIG_HOME, join(home, '.config'));
+    assert.equal(environment.PATH, '');
+    assert.equal(environment.NODE_OPTIONS, '');
+    assert.equal(environment.OPENSSL_CONF, '/dev/null');
   } finally {
     rmSync(home, { recursive: true, force: true });
   }
 });
 
-test('Node runtime closure binds executable and every mapped native object', () => {
-  const closure = collectNodeRuntimeClosure();
-  assert.equal(closure.schemaVersion, 1);
-  assert.match(closure.executable.digest, /^sha256:[0-9a-f]{64}$/);
-  assert.ok(closure.mappedNativeObjectCount > 0);
-  assert.equal(closure.mappedNativeObjectCount, closure.mappedNativeObjects.length);
-  assert.match(closure.mappedNativeObjectSetDigest, /^sha256:[0-9a-f]{64}$/);
-  assert.ok(closure.mappedNativeObjects.every(({ digest }) => /^sha256:[0-9a-f]{64}$/.test(digest)));
+test('wrong expected Node runtime digest fails before materialisation or execution', async () => {
+  const fixture = makeRepository();
+  let materialized = false;
+  try {
+    const snapshot = await snapshotFor(fixture);
+    const wrong = structuredClone(expectedNodeRuntime);
+    wrong.executable.digest = sha256('wrong executable');
+    const executableIndex = wrong.mappedNativeObjects
+      .findIndex(({ path }) => path === wrong.executable.path);
+    wrong.mappedNativeObjects[executableIndex] = wrong.executable;
+    wrong.mappedNativeObjectSetDigest = sha256(JSON.stringify(wrong.mappedNativeObjects));
+    await assert.rejects(runCommittedNodeClosure({
+      snapshot,
+      closurePaths,
+      entryPath: 'script.mjs',
+      expectedNodeRuntime: wrong,
+      afterMaterialize() {
+        materialized = true;
+      },
+    }), /NODE_RUNTIME_(?:SET_DIGEST_MISMATCH|EXPECTED_OBJECT_CHANGED)/);
+    assert.equal(materialized, false);
+  } finally {
+    rmSync(fixture.repository, { recursive: true, force: true });
+  }
 });
 
-test('executable-mode drift is detected independently from content', () => {
+test('wrong expected Git runtime digest fails before repository execution', async () => {
   const fixture = makeRepository();
   try {
-    const snapshot = readTrackedTreeSnapshot({
+    const wrong = structuredClone(await expectedGitRuntime());
+    wrong.executable.digest = sha256('wrong git executable');
+    const executableIndex = wrong.mappedNativeObjects
+      .findIndex(({ path }) => path === wrong.executable.path);
+    wrong.mappedNativeObjects[executableIndex] = wrong.executable;
+    wrong.mappedNativeObjectSetDigest = sha256(JSON.stringify(wrong.mappedNativeObjects));
+    await assert.rejects(readTrackedTreeSnapshot({
       repository: fixture.repository,
       commit: fixture.commit,
       paths: ['script.mjs'],
-    });
-    chmodSync(join(fixture.repository, 'script.mjs'), 0o644);
-    const comparison = compareWorktreeToSnapshot({
-      repository: fixture.repository,
+      expectedGitRuntime: wrong,
+    }), /GIT_RUNTIME_(?:SET_DIGEST_MISMATCH|EXPECTED_OBJECT_CHANGED)/);
+  } finally {
+    rmSync(fixture.repository, { recursive: true, force: true });
+  }
+});
+
+test('Node runtime evidence identifies the executed child and mapped objects', async () => {
+  const fixture = makeRepository();
+  try {
+    const snapshot = await snapshotFor(fixture);
+    const result = await runCommittedNodeClosure({
       snapshot,
+      closurePaths,
+      entryPath: 'script.mjs',
+      expectedNodeRuntime,
     });
+    assert.ok(Number.isInteger(result.runtimeEvidence.pid));
+    assert.notEqual(result.runtimeEvidence.pid, process.pid);
+    assert.equal(
+      result.runtimeEvidence.mappedNativeObjectCount,
+      result.runtimeEvidence.mappedNativeObjects.length,
+    );
+    assert.ok(result.runtimeEvidence.mappedNativeObjects.every((record) => (
+      record.identity === undefined
+      && record.path
+      && record.digest
+      && record.device
+      && record.inode
+      && record.linkCount === '1'
+    )));
+  } finally {
+    rmSync(fixture.repository, { recursive: true, force: true });
+  }
+});
+
+test('executable-mode drift is detected independently from content', async () => {
+  const fixture = makeRepository();
+  try {
+    const snapshot = await snapshotFor(fixture, ['script.mjs']);
+    chmodSync(join(fixture.repository, 'script.mjs'), 0o644);
+    const comparison = compareWorktreeToSnapshot({ repository: fixture.repository, snapshot });
     assert.equal(comparison.matches, false);
     assert.equal(comparison.results[0].expectedDigest, comparison.results[0].observedDigest);
     assert.equal(comparison.results[0].expectedMode, '100755');

@@ -1,7 +1,8 @@
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   closeSync,
+  chmodSync,
   constants,
   existsSync,
   fstatSync,
@@ -14,19 +15,20 @@ import {
   realpathSync,
   rmSync,
   statSync,
-  unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import {
   isAbsolute,
   join,
+  relative,
   resolve,
+  sep,
 } from 'node:path';
 
 const GIT_OBJECT_ID = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
-const unsafeEnvironmentNames = /^(?:BASH_ENV|ENV|GIT_|LD_|NODE_|DYLD_|PYTHON)/;
+const reservedEnvironmentNames = /^(?:BASH_ENV|ENV|GIT_|HOME$|LANG$|LANGUAGE$|LC_|LD_|LOCPATH$|NLSPATH$|NODE_|DYLD_|OPENSSL_|PATH$|PYTHON|SSL_CERT_DIR$|SSL_CERT_FILE$|SSLKEYLOGFILE$|TEMP$|TMP$|TMPDIR$|TZ$|TZDIR$|UV_THREADPOOL_SIZE$|XDG_)/;
 const utf8Compare = (left, right) => Buffer.compare(Buffer.from(String(left)), Buffer.from(String(right)));
 
 export function sha256(bytes) {
@@ -45,10 +47,27 @@ function canonicalJson(value) {
   return JSON.stringify(canonical(value));
 }
 
+function assertNoSymlinkComponents(path, code, boundary = '/') {
+  const absolute = resolve(path);
+  const root = resolve(boundary);
+  const remainder = relative(root, absolute);
+  if (remainder === '..' || remainder.startsWith(`..${sep}`) || isAbsolute(remainder)) {
+    throw new Error(`${code}_OUTSIDE_BOUNDARY`);
+  }
+  let current = root;
+  if (lstatSync(current).isSymbolicLink()) throw new Error(`${code}_SYMLINK_COMPONENT`);
+  for (const component of remainder.split(sep).filter(Boolean)) {
+    current = join(current, component);
+    if (lstatSync(current).isSymbolicLink()) throw new Error(`${code}_SYMLINK_COMPONENT`);
+  }
+  return absolute;
+}
+
 function exactDirectory(path, code) {
   const absolute = resolve(path);
+  assertNoSymlinkComponents(absolute, code);
   const canonicalPath = realpathSync(absolute);
-  if (lstatSync(absolute).isSymbolicLink() || !statSync(canonicalPath).isDirectory()) {
+  if (canonicalPath !== absolute || !statSync(canonicalPath).isDirectory()) {
     throw new Error(code);
   }
   return canonicalPath;
@@ -83,10 +102,12 @@ function readPinnedBytes(fd, stat) {
 }
 
 function openPinnedRegularFile(path, code) {
+  assertNoSymlinkComponents(path, code);
   const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
   try {
     const beforeStat = fstatSync(fd, { bigint: true });
     if (!beforeStat.isFile()) throw new Error(`${code}_NOT_REGULAR`);
+    if (beforeStat.nlink !== 1n) throw new Error(`${code}_LINK_COUNT_NOT_ONE`);
     const bytes = readPinnedBytes(fd, beforeStat);
     const afterStat = fstatSync(fd, { bigint: true });
     if (!identitiesEqual(identity(beforeStat), identity(afterStat))) {
@@ -108,32 +129,47 @@ function closePinned(pinned) {
   if (pinned && Number.isInteger(pinned.fd)) closeSync(pinned.fd);
 }
 
-function pathnameIdentity(path) {
+function readPinnedUtf8(path, code) {
+  const pinned = openPinnedRegularFile(path, code);
   try {
-    const stat = lstatSync(path, { bigint: true });
-    if (stat.isSymbolicLink() || !stat.isFile()) return null;
-    return identity(stat);
-  } catch (error) {
-    if (error.code === 'ENOENT') return null;
-    throw error;
+    const text = pinned.bytes.toString('utf8');
+    if (!Buffer.from(text, 'utf8').equals(pinned.bytes)) throw new Error(`${code}_NOT_STRICT_UTF8`);
+    return text;
+  } finally {
+    closePinned(pinned);
   }
 }
 
 export function buildSanitizedExecutionEnvironment({
   homeDirectory,
   explicitEnvironment = {},
+  allowedEnvironmentNames = [],
   includeGitControls = false,
 } = {}) {
   if (!homeDirectory) throw new Error('HOME_DIRECTORY_REQUIRED');
   const home = exactDirectory(homeDirectory, 'HOME_NOT_EXACT_DIRECTORY');
+  if (!Array.isArray(allowedEnvironmentNames)) throw new Error('ENVIRONMENT_ALLOWLIST_REQUIRED');
+  const allowed = new Set(allowedEnvironmentNames);
+  if (allowed.size !== allowedEnvironmentNames.length) throw new Error('ENVIRONMENT_ALLOWLIST_NOT_UNIQUE');
+  for (const name of allowed) {
+    if (!/^[A-Z][A-Z0-9_]*$/.test(name) || reservedEnvironmentNames.test(name)) {
+      throw new Error(`RESERVED_ENVIRONMENT_NAME_${name}`);
+    }
+  }
   for (const name of Object.keys(explicitEnvironment)) {
-    if (unsafeEnvironmentNames.test(name)) throw new Error(`UNSAFE_ENVIRONMENT_NAME_${name}`);
+    if (reservedEnvironmentNames.test(name)) throw new Error(`RESERVED_ENVIRONMENT_NAME_${name}`);
+    if (!allowed.has(name)) throw new Error(`ENVIRONMENT_NAME_NOT_ALLOWLISTED_${name}`);
   }
   const environment = {
     HOME: home,
     XDG_CONFIG_HOME: join(home, '.config'),
+    PATH: '',
     LANG: 'C',
     LC_ALL: 'C',
+    NODE_OPTIONS: '',
+    NODE_PATH: '',
+    OPENSSL_CONF: '/dev/null',
+    OPENSSL_MODULES: '',
     TZ: 'UTC',
     ...explicitEnvironment,
   };
@@ -162,7 +198,7 @@ function resolveRepositoryObjectStore(repository) {
   if (dotGitStat.isDirectory() && !dotGitStat.isSymbolicLink()) {
     gitDirectory = realpathSync(dotGit);
   } else if (dotGitStat.isFile() && !dotGitStat.isSymbolicLink()) {
-    const match = /^gitdir: ([^\0\r\n]+)\n?$/.exec(readFileSync(dotGit, 'utf8'));
+    const match = /^gitdir: ([^\0\r\n]+)\n?$/.exec(readPinnedUtf8(dotGit, 'GITDIR_POINTER'));
     if (!match) throw new Error('GITDIR_POINTER_INVALID');
     gitDirectory = realpathSync(resolve(worktree, match[1]));
   } else {
@@ -172,7 +208,7 @@ function resolveRepositoryObjectStore(repository) {
   const commonDirectoryFile = join(gitDirectory, 'commondir');
   let commonDirectory = gitDirectory;
   if (existsSync(commonDirectoryFile)) {
-    const commondir = readFileSync(commonDirectoryFile, 'utf8').trim();
+    const commondir = readPinnedUtf8(commonDirectoryFile, 'COMMONDIR_POINTER').trim();
     if (!commondir || commondir.includes('\0')) throw new Error('COMMONDIR_POINTER_INVALID');
     commonDirectory = realpathSync(resolve(gitDirectory, commondir));
   }
@@ -180,7 +216,7 @@ function resolveRepositoryObjectStore(repository) {
   if (lstatSync(objectStorePath).isSymbolicLink()) throw new Error('OBJECT_STORE_SYMLINK_REFUSED');
   const objectStore = exactDirectory(objectStorePath, 'OBJECT_STORE_NOT_EXACT_DIRECTORY');
   const alternates = join(objectStore, 'info', 'alternates');
-  if (existsSync(alternates) && readFileSync(alternates, 'utf8').trim()) {
+  if (existsSync(alternates) && readPinnedUtf8(alternates, 'OBJECT_ALTERNATES').trim()) {
     throw new Error('SOURCE_OBJECT_ALTERNATES_UNSUPPORTED');
   }
   const objectStoreStat = statSync(objectStore, { bigint: true });
@@ -207,59 +243,6 @@ function createIsolatedObjectRepository(sourceObjectStore) {
   return { root, gitDirectory };
 }
 
-function runPinnedExecutable({
-  executable,
-  arguments: args,
-  cwd,
-  environment,
-  inputFd = null,
-  timeout = 120_000,
-  code,
-}) {
-  const executablePath = realpathSync(executable);
-  const pinnedExecutable = openPinnedRegularFile(executablePath, `${code}_EXECUTABLE`);
-  try {
-    const result = spawnSync(`/proc/self/fd/${pinnedExecutable.fd}`, args, {
-      cwd,
-      env: environment,
-      encoding: null,
-      maxBuffer: 64 * 1024 * 1024,
-      timeout,
-      stdio: [
-        inputFd === null ? 'ignore' : inputFd,
-        'pipe',
-        'pipe',
-      ],
-    });
-    const executableAfter = fstatSync(pinnedExecutable.fd, { bigint: true });
-    if (!identitiesEqual(pinnedExecutable.identity, identity(executableAfter))) {
-      throw new Error(`${code}_EXECUTABLE_CHANGED`);
-    }
-    if (result.error || result.signal || result.status !== 0) {
-      const error = new Error(`${code}_FAILED`);
-      error.commandResult = {
-        status: Number.isInteger(result.status) ? result.status : null,
-        signal: result.signal || null,
-        stdoutDigest: sha256(result.stdout || Buffer.alloc(0)),
-        stderrDigest: sha256(result.stderr || Buffer.alloc(0)),
-      };
-      throw error;
-    }
-    return {
-      stdout: Buffer.from(result.stdout || ''),
-      stderr: Buffer.from(result.stderr || ''),
-      status: result.status,
-      executable: {
-        path: executablePath,
-        digest: pinnedExecutable.digest,
-        ...pinnedExecutable.identity,
-      },
-    };
-  } finally {
-    closePinned(pinnedExecutable);
-  }
-}
-
 function gitObjectDigest(type, bytes, hexadecimalLength) {
   const algorithm = hexadecimalLength === 40 ? 'sha1' : 'sha256';
   const header = Buffer.from(`${type} ${bytes.length}\0`, 'utf8');
@@ -271,37 +254,100 @@ function validateObjectId(value, code) {
   return value;
 }
 
-function runIsolatedGit(context, args, code) {
-  const result = runPinnedExecutable({
-    executable: context.gitExecutable,
-    arguments: [
+function collectChildStream(stream) {
+  const chunks = [];
+  stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+  return new Promise((resolveStream, rejectStream) => {
+    stream.once('end', () => resolveStream(Buffer.concat(chunks)));
+    stream.once('error', rejectStream);
+  });
+}
+
+function childSpawned(child) {
+  return new Promise((resolveSpawn, rejectSpawn) => {
+    child.once('spawn', resolveSpawn);
+    child.once('error', rejectSpawn);
+  });
+}
+
+function childClosed(child) {
+  return new Promise((resolveClose, rejectClose) => {
+    child.once('close', (status, signal) => resolveClose({ status, signal }));
+    child.once('error', rejectClose);
+  });
+}
+
+async function runIsolatedGitObject(context, objectId) {
+  validateObjectId(objectId, 'GIT_OBJECT_ID_INVALID');
+  const pinnedExecutable = openPinnedRegularFile(
+    context.gitExecutable,
+    'GIT_CAT_FILE_EXECUTABLE',
+  );
+  let child;
+  try {
+    child = spawn(`/proc/self/fd/${pinnedExecutable.fd}`, [
       '--no-replace-objects',
       `--git-dir=${context.isolatedGitDirectory}`,
       '-c', 'core.hooksPath=/dev/null',
       '-c', 'core.fsmonitor=false',
       '-c', 'core.attributesFile=/dev/null',
-      ...args,
-    ],
-    environment: context.environment,
-    timeout: 120_000,
-    code,
-  });
-  if (
-    context.gitExecutableEvidence
-    && canonicalJson(context.gitExecutableEvidence) !== canonicalJson(result.executable)
-  ) {
-    throw new Error('GIT_EXECUTABLE_EVIDENCE_CHANGED');
+      'cat-file', '--batch',
+    ], {
+      env: context.environment,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    const stdoutPromise = collectChildStream(child.stdout);
+    const stderrPromise = collectChildStream(child.stderr);
+    const closePromise = childClosed(child);
+    await childSpawned(child);
+    const runtimeEvidence = await waitForExpectedChildRuntime(
+      child.pid,
+      context.expectedGitRuntime,
+      'GIT_RUNTIME',
+    );
+    child.stdin.end(`${objectId}\n`);
+    const [{ status, signal }, stdout, stderr] = await Promise.all([
+      closePromise,
+      stdoutPromise,
+      stderrPromise,
+    ]);
+    if (status !== 0 || signal) {
+      const error = new Error('GIT_CAT_FILE_FAILED');
+      error.commandResult = {
+        status,
+        signal,
+        stdoutDigest: sha256(stdout),
+        stderrDigest: sha256(stderr),
+      };
+      throw error;
+    }
+    const newline = stdout.indexOf(0x0a);
+    if (newline === -1 || stdout.at(-1) !== 0x0a) throw new Error('GIT_BATCH_OUTPUT_INVALID');
+    const header = stdout.subarray(0, newline).toString('ascii');
+    const match = /^([0-9a-f]{40}|[0-9a-f]{64}) ([a-z]+) ([0-9]+)$/.exec(header);
+    if (!match || match[1] !== objectId) throw new Error('GIT_BATCH_HEADER_INVALID');
+    const byteLength = Number(match[3]);
+    const bytes = stdout.subarray(newline + 1, -1);
+    if (!Number.isSafeInteger(byteLength) || bytes.length !== byteLength) {
+      throw new Error('GIT_BATCH_LENGTH_INVALID');
+    }
+    context.gitExecutableEvidence = runtimeEvidence.executable;
+    context.gitRuntimeEvidence.push(runtimeEvidence);
+    return { type: match[2], bytes, runtimeEvidence };
+  } catch (error) {
+    if (child && child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+    throw error;
+  } finally {
+    closePinned(pinnedExecutable);
   }
-  context.gitExecutableEvidence = result.executable;
-  return result;
 }
 
-function readVerifiedGitObject(context, type, objectId) {
-  validateObjectId(objectId, 'GIT_OBJECT_ID_INVALID');
-  const result = runIsolatedGit(context, ['cat-file', type, objectId], 'GIT_CAT_FILE');
-  const observed = gitObjectDigest(type, result.stdout, objectId.length);
+async function readVerifiedGitObject(context, type, objectId) {
+  const result = await runIsolatedGitObject(context, objectId);
+  if (result.type !== type) throw new Error('GIT_OBJECT_TYPE_MISMATCH');
+  const observed = gitObjectDigest(type, result.bytes, objectId.length);
   if (observed !== objectId) throw new Error('GIT_OBJECT_CONTENT_DIGEST_MISMATCH');
-  return result.stdout;
+  return result.bytes;
 }
 
 function parseCommitTree(commitBytes, objectIdLength) {
@@ -337,12 +383,12 @@ function parseTreeEntries(bytes, hexadecimalLength) {
   return entries;
 }
 
-function walkTree(context, treeId, prefix, records) {
-  const tree = readVerifiedGitObject(context, 'tree', treeId);
+async function walkTree(context, treeId, prefix, records) {
+  const tree = await readVerifiedGitObject(context, 'tree', treeId);
   for (const entry of parseTreeEntries(tree, treeId.length)) {
     const path = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.mode === '40000' || entry.mode === '040000') {
-      walkTree(context, entry.objectId, path, records);
+      await walkTree(context, entry.objectId, path, records);
     } else {
       const type = entry.mode === '160000' ? 'commit' : 'blob';
       records.set(path, { path, mode: entry.mode, objectId: entry.objectId, type });
@@ -364,22 +410,26 @@ function validateTrackedPath(path) {
   return path;
 }
 
-export function readTrackedTreeSnapshot({
+export async function readTrackedTreeSnapshot({
   repository,
   commit,
   paths,
   gitExecutable = '/usr/bin/git',
+  expectedGitRuntime,
 }) {
   validateObjectId(commit, 'COMMIT_ID_INVALID');
   if (!Array.isArray(paths) || paths.length === 0) throw new Error('TRACKED_PATHS_REQUIRED');
   const requestedPaths = [...new Set(paths.map(validateTrackedPath))].sort(utf8Compare);
   if (requestedPaths.length !== paths.length) throw new Error('TRACKED_PATHS_NOT_UNIQUE');
+  verifyExpectedRuntimeBeforeExecution(expectedGitRuntime, gitExecutable, 'GIT_RUNTIME');
   const source = resolveRepositoryObjectStore(repository);
   const isolated = createIsolatedObjectRepository(source.objectStore);
   const temporaryHome = mkdtempSync(join(tmpdir(), 'usf-hermetic-git-home-'));
   const context = {
     gitExecutable,
     isolatedGitDirectory: isolated.gitDirectory,
+    expectedGitRuntime,
+    gitRuntimeEvidence: [],
     environment: buildSanitizedExecutionEnvironment({
       homeDirectory: temporaryHome,
       includeGitControls: true,
@@ -390,24 +440,25 @@ export function readTrackedTreeSnapshot({
     if (!identitiesEqual(source.objectStoreIdentity, objectStoreBefore)) {
       throw new Error('OBJECT_STORE_CHANGED_BEFORE_READ');
     }
-    const commitBytes = readVerifiedGitObject(context, 'commit', commit);
+    const commitBytes = await readVerifiedGitObject(context, 'commit', commit);
     const treeId = parseCommitTree(commitBytes, commit.length);
     const treeRecords = new Map();
-    walkTree(context, treeId, '', treeRecords);
-    const records = requestedPaths.map((path) => {
+    await walkTree(context, treeId, '', treeRecords);
+    const records = [];
+    for (const path of requestedPaths) {
       const entry = treeRecords.get(path);
       if (!entry) throw new Error(`TRACKED_PATH_ABSENT_${path}`);
       if (entry.type !== 'blob' || !/^(?:100644|100755)$/.test(entry.mode)) {
         throw new Error(`TRACKED_PATH_NOT_REGULAR_BLOB_${path}`);
       }
-      const bytes = readVerifiedGitObject(context, 'blob', entry.objectId);
-      return {
+      const bytes = await readVerifiedGitObject(context, 'blob', entry.objectId);
+      records.push({
         ...entry,
         bytes,
         byteLength: bytes.length,
         digest: sha256(bytes),
-      };
-    });
+      });
+    }
     const objectStoreAfter = identity(statSync(source.objectStore, { bigint: true }));
     if (!identitiesEqual(objectStoreBefore, objectStoreAfter)) {
       throw new Error('OBJECT_STORE_CHANGED_DURING_READ');
@@ -431,6 +482,8 @@ export function readTrackedTreeSnapshot({
         gitExecution: {
           configurationSource: 'ISOLATED_GIT_DIR_WITH_SOURCE_OBJECT_ALTERNATE',
           executable: context.gitExecutableEvidence,
+          runtime: context.gitRuntimeEvidence.at(-1),
+          runtimeExecutions: context.gitRuntimeEvidence,
           originalLocalConfigLoaded: false,
           originalIndexLoaded: false,
           originalHooksLoaded: false,
@@ -492,85 +545,353 @@ export function assertWorktreeMatchesSnapshot(options) {
   return result;
 }
 
-export function runPinnedNodeScript({
-  scriptPath,
-  expectedDigest,
-  expectedByteLength = null,
+const closureLoaderSource = `
+import { createHash } from 'node:crypto';
+import { lstatSync } from 'node:fs';
+import { registerHooks } from 'node:module';
+import { relative, resolve as resolvePath, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const digest = (bytes) => 'sha256:' + createHash('sha256').update(bytes).digest('hex');
+export function installClosureHooks(root, records) {
+  const manifest = new Map(records.map((record) => [record.path, record]));
+  const within = (path) => path === root || path.startsWith(root + '/');
+  const assertComponents = (path) => {
+    const remainder = relative(root, resolvePath(path));
+    if (remainder === '..' || remainder.startsWith('..' + sep)) {
+      throw new Error('CLOSURE_COMPONENT_OUTSIDE_ROOT');
+    }
+    let current = root;
+    if (lstatSync(current).isSymbolicLink()) throw new Error('CLOSURE_SYMLINK_COMPONENT');
+    for (const component of remainder.split(sep).filter(Boolean)) {
+      current = resolvePath(current, component);
+      if (lstatSync(current).isSymbolicLink()) throw new Error('CLOSURE_SYMLINK_COMPONENT');
+    }
+  };
+  registerHooks({
+    resolve(specifier, context, nextResolve) {
+      if (specifier.startsWith('node:')) return nextResolve(specifier, context);
+      const resolved = nextResolve(specifier, context);
+      if (!resolved.url.startsWith('file:')) throw new Error('CLOSURE_NON_FILE_IMPORT_REFUSED');
+      const path = fileURLToPath(resolved.url);
+      if (!within(path) || !manifest.has(path)) throw new Error('CLOSURE_IMPORT_OUTSIDE_MANIFEST');
+      return resolved;
+    },
+    load(url, context, nextLoad) {
+      if (url.startsWith('node:')) return nextLoad(url, context);
+      if (!url.startsWith('file:')) throw new Error('CLOSURE_NON_FILE_LOAD_REFUSED');
+      const path = fileURLToPath(url);
+      const expected = manifest.get(path);
+      if (!within(path) || !expected) throw new Error('CLOSURE_LOAD_OUTSIDE_MANIFEST');
+      assertComponents(path);
+      const before = lstatSync(path, { bigint: true });
+      if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1n) {
+        throw new Error('CLOSURE_LOAD_IDENTITY_INVALID');
+      }
+      const loaded = nextLoad(url, context);
+      if (loaded.source === null || loaded.source === undefined) {
+        throw new Error('CLOSURE_LOADER_SOURCE_UNAVAILABLE');
+      }
+      const bytes = Buffer.isBuffer(loaded.source) ? loaded.source : Buffer.from(loaded.source);
+      if (digest(bytes) !== expected.digest || bytes.length !== expected.byteLength) {
+        throw new Error('CLOSURE_LOADED_BYTES_MISMATCH');
+      }
+      const after = lstatSync(path, { bigint: true });
+      assertComponents(path);
+      if (
+        before.dev !== after.dev
+        || before.ino !== after.ino
+        || before.ctimeNs !== after.ctimeNs
+        || before.nlink !== after.nlink
+        || before.size !== after.size
+      ) throw new Error('CLOSURE_LOAD_IDENTITY_CHANGED');
+      return loaded;
+    },
+  });
+}
+`;
+
+function dataModule(source) {
+  return `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
+}
+
+function validateSnapshotClosure(snapshot, closurePaths, entryPath) {
+  if (
+    !snapshot
+    || snapshot.schemaVersion !== 1
+    || !snapshot.evidence
+    || !Array.isArray(snapshot.records)
+    || !Array.isArray(closurePaths)
+  ) {
+    throw new Error('COMMITTED_CLOSURE_REQUIRED');
+  }
+  const expectedPaths = snapshot.records.map(({ path }) => path).sort(utf8Compare);
+  const suppliedPaths = [...closurePaths].sort(utf8Compare);
+  if (
+    new Set(suppliedPaths).size !== suppliedPaths.length
+    || canonicalJson(suppliedPaths) !== canonicalJson(expectedPaths)
+  ) {
+    throw new Error('CLOSURE_PATH_SET_MISMATCH');
+  }
+  validateTrackedPath(entryPath);
+  if (!suppliedPaths.includes(entryPath)) throw new Error('CLOSURE_ENTRY_NOT_IN_SOURCE_SET');
+  const evidenceRecords = snapshot.records.map(({ bytes, ...record }) => record);
+  if (
+    snapshot.evidence.recordCount !== evidenceRecords.length
+    || canonicalJson(snapshot.evidence.records) !== canonicalJson(evidenceRecords)
+    || sha256(canonicalJson(evidenceRecords)) !== snapshot.evidence.sourceSetDigest
+  ) {
+    throw new Error('CLOSURE_SOURCE_SET_BINDING_INVALID');
+  }
+  for (const record of snapshot.records) {
+    if (
+      !Buffer.isBuffer(record.bytes)
+      || record.bytes.length !== record.byteLength
+      || sha256(record.bytes) !== record.digest
+      || !/^(?:100644|100755)$/.test(record.mode)
+    ) {
+      throw new Error(`CLOSURE_RECORD_INVALID_${record.path}`);
+    }
+  }
+  return snapshot.records;
+}
+
+function createMaterializedClosure(snapshot, closurePaths, entryPath) {
+  const records = validateSnapshotClosure(snapshot, closurePaths, entryPath);
+  const root = mkdtempSync(join(tmpdir(), 'usf-committed-node-closure-'));
+  const rootStat = lstatSync(root, { bigint: true });
+  const rootAnchor = { device: rootStat.dev.toString(), inode: rootStat.ino.toString() };
+  const directories = new Set([root]);
+  const materialized = [];
+  try {
+    for (const record of records) {
+      const components = record.path.split('/');
+      let directory = root;
+      for (const component of components.slice(0, -1)) {
+        directory = join(directory, component);
+        if (!existsSync(directory)) mkdirSync(directory, { mode: 0o700 });
+        assertNoSymlinkComponents(directory, 'CLOSURE_DIRECTORY', root);
+        directories.add(directory);
+      }
+      const path = join(root, ...components);
+      writeFileSync(path, record.bytes, {
+        flag: 'wx',
+        mode: record.mode === '100755' ? 0o500 : 0o400,
+      });
+      const pinned = openPinnedRegularFile(path, 'CLOSURE_FILE');
+      try {
+        if (pinned.digest !== record.digest || pinned.bytes.length !== record.byteLength) {
+          throw new Error('CLOSURE_MATERIALISATION_MISMATCH');
+        }
+        materialized.push({
+          path: record.path,
+          absolutePath: path,
+          digest: record.digest,
+          byteLength: record.byteLength,
+          mode: record.mode,
+          identity: pinned.identity,
+        });
+      } finally {
+        closePinned(pinned);
+      }
+    }
+    return {
+      root,
+      rootAnchor,
+      entryPath: join(root, ...entryPath.split('/')),
+      materialized,
+      directories: [...directories].sort((left, right) => right.length - left.length),
+    };
+  } catch (error) {
+    rmSync(root, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+function verifyMaterializedClosure(closure) {
+  for (const record of closure.materialized) {
+    assertNoSymlinkComponents(record.absolutePath, 'CLOSURE_FILE', closure.root);
+    const pinned = openPinnedRegularFile(record.absolutePath, 'CLOSURE_FILE');
+    try {
+      if (
+        pinned.digest !== record.digest
+        || pinned.bytes.length !== record.byteLength
+        || !identitiesEqual(pinned.identity, record.identity)
+      ) {
+        throw new Error('CLOSURE_FILE_CHANGED');
+      }
+    } finally {
+      closePinned(pinned);
+    }
+  }
+}
+
+function closeChildOnTimeout(child, timeout) {
+  const timer = setTimeout(() => {
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+  }, timeout);
+  timer.unref();
+  return () => clearTimeout(timer);
+}
+
+function makePrivateDirectoryCleanupWritable(path) {
+  try {
+    const stat = lstatSync(path);
+    if (stat.isDirectory() && !stat.isSymbolicLink()) chmodSync(path, 0o700);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+}
+
+export async function runCommittedNodeClosure({
+  snapshot,
+  closurePaths,
+  entryPath,
+  expectedNodeRuntime,
   nodeExecutable = process.execPath,
   arguments: args = [],
-  cwd,
   explicitEnvironment = {},
+  allowedEnvironmentNames = [],
   timeout = 120_000,
-  afterPin,
-  requireStablePath = true,
+  afterMaterialize,
+  afterRuntimeBound,
 }) {
-  if (!SHA256.test(expectedDigest)) throw new Error('EXPECTED_SCRIPT_DIGEST_INVALID');
-  const absoluteScript = resolve(scriptPath);
-  const pathIdentityBefore = pathnameIdentity(absoluteScript);
-  const temporaryHome = mkdtempSync(join(tmpdir(), 'usf-hermetic-node-home-'));
-  let sourceScript;
-  let pinnedScript;
+  verifyExpectedRuntimeBeforeExecution(expectedNodeRuntime, nodeExecutable, 'NODE_RUNTIME');
+  const closure = createMaterializedClosure(snapshot, closurePaths, entryPath);
+  const home = join(closure.root, '.home');
+  const xdg = join(home, '.config');
+  mkdirSync(xdg, { recursive: true, mode: 0o700 });
+  const environment = buildSanitizedExecutionEnvironment({
+    homeDirectory: home,
+    explicitEnvironment,
+    allowedEnvironmentNames,
+  });
+  const loaderRecords = closure.materialized.map((record) => ({
+    path: record.absolutePath,
+    digest: record.digest,
+    byteLength: record.byteLength,
+  }));
+  const registerSource = `${closureLoaderSource}
+installClosureHooks(
+  ${JSON.stringify(closure.root)},
+  ${JSON.stringify(loaderRecords)}
+);
+`;
+  const launcherSource = `
+import { pathToFileURL } from 'node:url';
+await import(pathToFileURL(${JSON.stringify(closure.entryPath)}).href);
+`;
+  let child;
+  let pinnedExecutable;
   try {
-    sourceScript = openPinnedRegularFile(absoluteScript, 'NODE_SCRIPT_SOURCE');
-    if (sourceScript.digest !== expectedDigest) throw new Error('NODE_SCRIPT_COMMIT_DIGEST_MISMATCH');
-    if (expectedByteLength !== null && sourceScript.bytes.length !== expectedByteLength) {
-      throw new Error('NODE_SCRIPT_COMMIT_LENGTH_MISMATCH');
-    }
-    const snapshotPath = join(temporaryHome, 'committed-script.snapshot');
-    writeFileSync(snapshotPath, sourceScript.bytes, { flag: 'wx', mode: 0o400 });
-    pinnedScript = openPinnedRegularFile(snapshotPath, 'NODE_SCRIPT_SNAPSHOT');
-    unlinkSync(snapshotPath);
-    pinnedScript.identity = identity(fstatSync(pinnedScript.fd, { bigint: true }));
-    closePinned(sourceScript);
-    sourceScript = null;
-    if (typeof afterPin === 'function') {
-      afterPin(Object.freeze({
-        digest: pinnedScript.digest,
-        byteLength: pinnedScript.bytes.length,
-        identity: pinnedScript.identity,
-      }));
-    }
-    const result = runPinnedExecutable({
-      executable: nodeExecutable,
-      arguments: ['--input-type=module', '-', ...args],
-      cwd: cwd ? exactDirectory(cwd, 'NODE_CWD_NOT_EXACT_DIRECTORY') : undefined,
-      environment: buildSanitizedExecutionEnvironment({
-        homeDirectory: temporaryHome,
-        explicitEnvironment,
-      }),
-      inputFd: pinnedScript.fd,
-      timeout,
-      code: 'PINNED_NODE',
+    if (typeof afterMaterialize === 'function') await afterMaterialize(closure);
+    verifyMaterializedClosure(closure);
+    for (const directory of closure.directories) chmodSync(directory, 0o500);
+    chmodSync(xdg, 0o500);
+    chmodSync(home, 0o500);
+    pinnedExecutable = openPinnedRegularFile(nodeExecutable, 'NODE_EXECUTABLE');
+    child = spawn(`/proc/self/fd/${pinnedExecutable.fd}`, [
+      '--no-addons',
+      '--permission',
+      `--allow-fs-read=${closure.root}`,
+      `--import=${dataModule(registerSource)}`,
+      '--input-type=module',
+      '-',
+      ...args,
+    ], {
+      cwd: closure.root,
+      env: environment,
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
-    const pinnedAfter = identity(fstatSync(pinnedScript.fd, { bigint: true }));
-    if (!identitiesEqual(pinnedScript.identity, pinnedAfter)) throw new Error('PINNED_NODE_SCRIPT_CHANGED');
-    const pathIdentityAfter = pathnameIdentity(absoluteScript);
-    const pathStable = pathIdentityBefore !== null
-      && pathIdentityAfter !== null
-      && identitiesEqual(pathIdentityBefore, pathIdentityAfter);
-    if (requireStablePath && !pathStable) throw new Error('PINNED_NODE_SCRIPT_PATH_CHANGED');
+    const stdoutPromise = collectChildStream(child.stdout);
+    const stderrPromise = collectChildStream(child.stderr);
+    const closePromise = childClosed(child);
+    const cancelTimeout = closeChildOnTimeout(child, timeout);
+    await childSpawned(child);
+    const runtimeEvidence = await waitForExpectedChildRuntime(
+      child.pid,
+      expectedNodeRuntime,
+      'NODE_RUNTIME',
+    );
+    if (typeof afterRuntimeBound === 'function') await afterRuntimeBound(closure, runtimeEvidence);
+    child.stdin.end(launcherSource);
+    const [{ status, signal }, stdout, stderr] = await Promise.all([
+      closePromise,
+      stdoutPromise,
+      stderrPromise,
+    ]);
+    cancelTimeout();
+    verifyExpectedRuntimeBeforeExecution(expectedNodeRuntime, nodeExecutable, 'NODE_RUNTIME_POST');
+    verifyMaterializedClosure(closure);
+    if (status !== 0 || signal) {
+      const error = new Error('COMMITTED_NODE_CLOSURE_FAILED');
+      error.commandResult = {
+        status,
+        signal,
+        stdoutDigest: sha256(stdout),
+        stderrDigest: sha256(stderr),
+      };
+      throw error;
+    }
     return {
-      ...result,
-      script: {
-        path: absoluteScript,
-        digest: pinnedScript.digest,
-        byteLength: pinnedScript.bytes.length,
-        ...pinnedScript.identity,
-        pathStable,
+      status,
+      stdout,
+      stderr,
+      runtimeEvidence,
+      runtimeDescriptor: runtimeDescriptorFromEvidence(runtimeEvidence),
+      executable: runtimeEvidence.executable,
+      closure: {
+        schemaVersion: 1,
+        sourceSetDigest: snapshot.evidence.sourceSetDigest,
+        entryPath,
+        recordCount: closure.materialized.length,
+        records: closure.materialized.map(({
+          absolutePath,
+          identity: fileIdentity,
+          ...record
+        }) => ({ ...record, identity: fileIdentity })),
+        loaderDigest: sha256(closureLoaderSource),
+        environmentAllowlist: [...allowedEnvironmentNames].sort(utf8Compare),
       },
     };
+  } catch (error) {
+    if (child && child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+    throw error;
   } finally {
-    closePinned(sourceScript);
-    closePinned(pinnedScript);
-    rmSync(temporaryHome, { recursive: true, force: true });
+    closePinned(pinnedExecutable);
+    let rootStable = false;
+    try {
+      const rootStat = lstatSync(closure.root, { bigint: true });
+      rootStable = rootStat.isDirectory()
+        && !rootStat.isSymbolicLink()
+        && rootStat.dev.toString() === closure.rootAnchor.device
+        && rootStat.ino.toString() === closure.rootAnchor.inode;
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+    if (rootStable) {
+      makePrivateDirectoryCleanupWritable(closure.root);
+      for (const directory of closure.directories) {
+        makePrivateDirectoryCleanupWritable(directory);
+      }
+      makePrivateDirectoryCleanupWritable(home);
+      makePrivateDirectoryCleanupWritable(xdg);
+    }
+    rmSync(closure.root, { recursive: true, force: true });
   }
+}
+
+export async function runPinnedNodeScript(options = {}) {
+  if (!options.snapshot || !options.closurePaths || !options.entryPath) {
+    throw new Error('COMPLETE_COMMITTED_CLOSURE_REQUIRED');
+  }
+  return runCommittedNodeClosure(options);
 }
 
 function decodeProcMapsPath(value) {
   return value.replace(/\\([0-7]{3})/g, (_, octal) => String.fromCharCode(Number.parseInt(octal, 8)));
 }
 
-export function collectNodeRuntimeClosure({ pid = process.pid } = {}) {
+export function collectProcessRuntimeClosure({ pid = process.pid } = {}) {
   if (!Number.isInteger(pid) || pid <= 0) throw new Error('PID_INVALID');
   const executablePath = realpathSync(`/proc/${pid}/exe`);
   const mappedPaths = new Set();
@@ -604,4 +925,106 @@ export function collectNodeRuntimeClosure({ pid = process.pid } = {}) {
     mappedNativeObjectSetDigest: sha256(canonicalJson(mappedNativeObjects)),
     mappedNativeObjects,
   };
+}
+
+export function collectNodeRuntimeClosure(options = {}) {
+  return collectProcessRuntimeClosure(options);
+}
+
+export function runtimeDescriptorFromEvidence(evidence) {
+  if (!evidence || evidence.schemaVersion !== 1 || !Number.isInteger(evidence.pid)) {
+    throw new Error('RUNTIME_EVIDENCE_INVALID');
+  }
+  return Object.freeze({
+    schemaVersion: 1,
+    executable: evidence.executable,
+    mappedNativeObjectCount: evidence.mappedNativeObjectCount,
+    mappedNativeObjectSetDigest: evidence.mappedNativeObjectSetDigest,
+    mappedNativeObjects: evidence.mappedNativeObjects,
+  });
+}
+
+function validateRuntimeDescriptor(descriptor, code) {
+  if (
+    !descriptor
+    || descriptor.schemaVersion !== 1
+    || !descriptor.executable
+    || !Array.isArray(descriptor.mappedNativeObjects)
+    || descriptor.mappedNativeObjectCount !== descriptor.mappedNativeObjects.length
+    || !SHA256.test(descriptor.mappedNativeObjectSetDigest)
+    || !SHA256.test(descriptor.executable.digest)
+  ) {
+    throw new Error(`${code}_INVALID`);
+  }
+  const paths = descriptor.mappedNativeObjects.map(({ path }) => path);
+  if (
+    new Set(paths).size !== paths.length
+    || [...paths].sort(utf8Compare).some((path, index) => path !== paths[index])
+    || !descriptor.mappedNativeObjects.some(({ path }) => path === descriptor.executable.path)
+  ) {
+    throw new Error(`${code}_OBJECT_SET_INVALID`);
+  }
+  const executableRecord = descriptor.mappedNativeObjects
+    .find(({ path }) => path === descriptor.executable.path);
+  if (canonicalJson(executableRecord) !== canonicalJson(descriptor.executable)) {
+    throw new Error(`${code}_EXECUTABLE_RECORD_MISMATCH`);
+  }
+  if (sha256(canonicalJson(descriptor.mappedNativeObjects)) !== descriptor.mappedNativeObjectSetDigest) {
+    throw new Error(`${code}_SET_DIGEST_MISMATCH`);
+  }
+  return descriptor;
+}
+
+function verifyExpectedRuntimeBeforeExecution(descriptor, executable, code) {
+  validateRuntimeDescriptor(descriptor, code);
+  const requestedExecutablePath = resolve(executable);
+  assertNoSymlinkComponents(requestedExecutablePath, `${code}_EXECUTABLE`);
+  const executablePath = realpathSync(requestedExecutablePath);
+  if (requestedExecutablePath !== executablePath) throw new Error(`${code}_EXECUTABLE_NOT_EXACT`);
+  if (descriptor.executable.path !== executablePath) throw new Error(`${code}_EXECUTABLE_PATH_MISMATCH`);
+  for (const expected of descriptor.mappedNativeObjects) {
+    const pinned = openPinnedRegularFile(expected.path, `${code}_EXPECTED_OBJECT`);
+    try {
+      const observed = {
+        path: expected.path,
+        digest: pinned.digest,
+        ...pinned.identity,
+      };
+      if (canonicalJson(observed) !== canonicalJson(expected)) {
+        throw new Error(`${code}_EXPECTED_OBJECT_CHANGED`);
+      }
+    } finally {
+      closePinned(pinned);
+    }
+  }
+  return descriptor;
+}
+
+function assertRuntimeMatchesExpected(evidence, expected, code) {
+  const observed = runtimeDescriptorFromEvidence(evidence);
+  if (canonicalJson(observed) !== canonicalJson(expected)) {
+    throw new Error(`${code}_CHILD_RUNTIME_MISMATCH`);
+  }
+  return evidence;
+}
+
+function delay(milliseconds) {
+  return new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds));
+}
+
+async function waitForExpectedChildRuntime(pid, expected, code) {
+  let lastError;
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    try {
+      const evidence = collectProcessRuntimeClosure({ pid });
+      return assertRuntimeMatchesExpected(evidence, expected, code);
+    } catch (error) {
+      lastError = error;
+      if (error.code === 'ENOENT') break;
+      await delay(5);
+    }
+  }
+  const error = new Error(`${code}_CHILD_RUNTIME_NOT_ESTABLISHED`);
+  error.cause = lastError;
+  throw error;
 }
