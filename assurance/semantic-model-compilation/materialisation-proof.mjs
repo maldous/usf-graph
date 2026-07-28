@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import {
   chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync,
 } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
@@ -475,6 +475,95 @@ const {
 } = await import(canonicalModule(
   'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.mjs',
 ));
+const {
+  inspectHermeticCasSystemPublisher,
+  putCasObject,
+  readCasObject,
+} = await import(canonicalModule(
+  'assurance/provider-workforce-closure/hermetic-cas.mjs',
+));
+const externallySuppliedCasPublisherDescriptor = Object.keys(process.env).some(
+  (name) => name.startsWith('USF_')
+    && name.includes('CAS')
+    && (name.includes('PUBLISHER') || name.includes('RUNTIME'))
+    && (name.includes('DESCRIPTOR')
+      || name.endsWith('PUBLISHER')
+      || name.endsWith('RUNTIME')),
+) || process.argv.slice(2).some((argument) => {
+  const lower = argument.toLowerCase();
+  return lower.startsWith('--')
+    && lower.includes('cas')
+    && (lower.includes('publisher') || lower.includes('runtime'))
+    && lower.includes('descriptor');
+});
+if (externallySuppliedCasPublisherDescriptor) {
+  fail('EXTERNAL_CAS_SYSTEM_PUBLISHER_DESCRIPTOR_FORBIDDEN');
+}
+failureContext.phase = 'HERMETIC_CAS_SYSTEM_PUBLISHER_INSPECTION';
+const hermeticCasSystemPublisher = await inspectHermeticCasSystemPublisher();
+const hermeticCasSystemPublisherDigest = sha256(
+  canonicalJson(hermeticCasSystemPublisher),
+);
+const proofToolchain = Object.freeze({
+  ...producerPreflight.toolchain,
+  hermeticCasSystemPublisher,
+  hermeticCasSystemPublisherDigest,
+});
+const proofToolchainDigest = sha256(canonicalJson(proofToolchain));
+failureContext.toolchain = proofToolchain;
+failureContext.toolchainDigest = proofToolchainDigest;
+
+async function putProofCasObject(input, mediaType) {
+  const bytes = Buffer.isBuffer(input) ? Buffer.from(input) : Buffer.from(input);
+  const expectedDigest = sha256(bytes);
+  const published = await putCasObject({
+    root: casRoot,
+    bytes,
+    mediaType,
+    expectedDigest,
+    systemPublisher: hermeticCasSystemPublisher,
+    maxBytes: bytes.length,
+  });
+  const observed = await readCasObject({
+    root: casRoot,
+    digest: expectedDigest,
+    maxBytes: bytes.length,
+  });
+  if (
+    published.digest !== expectedDigest
+    || published.byteSize !== bytes.length
+    || observed.digest !== expectedDigest
+    || observed.byteSize !== bytes.length
+    || !observed.bytes.equals(bytes)
+  ) {
+    fail('HERMETIC_CAS_EXACT_BYTES_VERIFICATION_FAILED');
+  }
+  return Object.freeze({
+    digest: published.digest,
+    byteSize: published.byteSize,
+    mediaType: published.mediaType,
+    locator: published.locator,
+  });
+}
+
+if (process.argv.includes('--test-hermetic-cas-publishing-only')) {
+  failureContext.phase = 'HERMETIC_CAS_TEST_PUBLISHING';
+  const bytes = Buffer.from('usf-materialisation-proof-hermetic-cas-test-v1\n');
+  const object = await putProofCasObject(bytes, 'text/plain');
+  process.stdout.write(`${canonicalJson({
+    schemaVersion: 1,
+    recordKind: 'USF_TEST_ONLY_HERMETIC_CAS_PUBLISHING',
+    publisherSource: 'locally-inspected',
+    hermeticCasSystemPublisher,
+    hermeticCasSystemPublisherDigest,
+    object,
+    exactStoredBytesDigest: sha256(bytes),
+    exactStoredByteSize: bytes.length,
+    eligibleForAdmission: false,
+    authorityClaims: [],
+  })}\n`);
+  process.exit(0);
+}
 if (!expectedDependencySetDigest) fail('EXPECTED_DEPENDENCY_SET_DIGEST_REQUIRED');
 const { DataFactory } = require('n3');
 const { authorityWitness } = await import(canonicalModule('processes/semantic-assurance/semantic-bootstrap-packet.mjs'));
@@ -519,17 +608,6 @@ const { namedNode } = DataFactory;
 function sourceSetDigest(paths) {
   const records = paths.slice().sort().map((path) => ({ path, digest: sha256(readFileSync(join(repo, path))) }));
   return { records, digest: digest(jcs(records)) };
-}
-
-function putCas(bytes, mediaType) {
-  const value = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
-  const contentDigest = sha256(value);
-  const hex = contentDigest.slice(7);
-  const path = join(casRoot, 'sha256', hex.slice(0, 2), hex);
-  mkdirSync(dirname(path), { recursive: true });
-  if (!existsSync(path)) writeFileSync(path, value, { flag: 'wx', mode: 0o600 });
-  if (!readFileSync(path).equals(value)) throw new Error(`CAS round-trip failed for ${contentDigest}`);
-  return { digest: contentDigest, byteSize: value.length, mediaType, locator: `cas://sha256/${hex}` };
 }
 
 function removeProofRoot(path, cleanupPhase) {
@@ -962,8 +1040,8 @@ const evidenceCore = {
   graphTree: producerPreflight.graphTree,
   signatureVerification: producerPreflight.signatureVerification,
   runner: producerPreflight.runner,
-  toolchain: producerPreflight.toolchain,
-  toolchainDigest: producerPreflight.toolchainDigest,
+  toolchain: proofToolchain,
+  toolchainDigest: proofToolchainDigest,
   validationCommands: [
     {
       executable: GIT_EXECUTABLE,
@@ -1009,7 +1087,10 @@ const evidenceCore = {
 const exactEvidenceSetDigest = digest(jcs(evidenceCore));
 const evidenceManifest = { ...evidenceCore, exactEvidenceSetDigest };
 const evidenceManifestBytes = Buffer.from(jcs(evidenceManifest));
-const evidenceManifestDescriptor = putCas(evidenceManifestBytes, 'application/json');
+const evidenceManifestDescriptor = await putProofCasObject(
+  evidenceManifestBytes,
+  'application/json',
+);
 
 failureContext.phase = 'EVIDENCE_ATTESTATION';
 const seed = createHash('sha256').update('repository-materialisation-control-plane-integrity-key').digest();
@@ -1040,7 +1121,10 @@ const envelope = {
   signatures: [{ keyid: sha256(publicKey.export({ type: 'spki', format: 'der' })).slice(7), sig: signature.toString('base64') }],
 };
 const proofAttestationBytes = Buffer.from(jcs(envelope));
-const proofAttestationDescriptor = putCas(proofAttestationBytes, 'application/vnd.in-toto+json');
+const proofAttestationDescriptor = await putProofCasObject(
+  proofAttestationBytes,
+  'application/vnd.in-toto+json',
+);
 
 rmSync(outputRoot, { recursive: true, force: true });
 mkdirSync(outputRoot, { recursive: true });
@@ -1060,7 +1144,7 @@ const evidenceReceipt = {
   graphTree: producerPreflight.graphTree,
   signatureVerification: producerPreflight.signatureVerification,
   runner: producerPreflight.runner,
-  toolchainDigest: producerPreflight.toolchainDigest,
+  toolchainDigest: proofToolchainDigest,
   commandResults: failureContext.commands,
   candidateGraphInventoryAlgorithm: CANDIDATE_GRAPH_INVENTORY_ALGORITHM,
   candidateAuthorityDigest,
