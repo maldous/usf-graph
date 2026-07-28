@@ -52,6 +52,7 @@ function sourceModules(root = REPOSITORY_ROOT, accumulated = []) {
 
 const FAMILY = 'urn:usf:artefactfamily:capabilitysource';
 const FORMAT = 'urn:usf:representationformat:ecmascriptmodule2024';
+const SQL_FORMAT = 'urn:usf:representationformat:sqltext';
 const ROLE = 'urn:usf:pathrole:capabilitysource';
 const DIGEST = `sha256:${'a1'.repeat(32)}`;
 
@@ -67,18 +68,19 @@ const context = () => ({
   },
   acceptedDecisionCount: 1,
   authorisedPaths: ['capabilities', '.claude/skills/usf'],
+  authorisedFormats: [FORMAT],
   pathRoles: [{ id: ROLE, canonicalName: 'capabilitysource', parent: 'capabilities', onDemand: true }],
   rules: [{ family: FAMILY, representationFormat: FORMAT, pathRole: ROLE, namingPattern: '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:.[a-z0-9]+)+$' }],
 });
 
 // A verdict the gateway will accept, so the only thing under test is the operation
 // and path mechanics rather than the live-authority decision the gateway owns.
-const verdict = () => ({
+const verdict = (authority = context()) => ({
   actionState: 'PROCEED',
   actionStateReasons: [],
   stateFailureCode: 'plan-realisation-not-proceed',
   validation: { validationSatisfied: false },
-  context: context(),
+  context: authority,
   witness: { digest: DIGEST, graphCount: 1, triples: 1 },
 });
 
@@ -205,13 +207,34 @@ test('one operation schema governs both surfaces', async () => {
   assert.ok(codesOf(engineResult).includes('operation-action'));
   assert.deepEqual(codesOf(gatewayResult), codesOf(engineResult));
 
-  const unauthorisedRepresentation = plan([
-    { ...operation('capabilities/example/assembled.mjs'), representationFormat: 'urn:usf:representationformat:sqltext' },
+  const globallyPermitted = context();
+  globallyPermitted.rules.push({
+    family: FAMILY,
+    representationFormat: SQL_FORMAT,
+    pathRole: ROLE,
+    namingPattern: '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:.[a-z0-9]+)+$',
+  });
+  const decisionExcludedRepresentation = plan([
+    { ...operation('capabilities/example/query.sql', 'select 1;\n'), representationFormat: SQL_FORMAT },
   ]);
-  const engineRepresentation = validateMaterialisationPlan(context(), unauthorisedRepresentation);
-  const gatewayRepresentation = await validateLayoutPlan({}, unauthorisedRepresentation, verdict());
-  assert.ok(codesOf(engineRepresentation).includes('operation-write-representation'));
+  const engineRepresentation = validateMaterialisationPlan(globallyPermitted, decisionExcludedRepresentation);
+  const gatewayRepresentation = await validateLayoutPlan({}, decisionExcludedRepresentation, verdict(globallyPermitted));
+  assert.ok(codesOf(engineRepresentation).includes('operation-decision-representation-format'));
+  assert.equal(codesOf(engineRepresentation).includes('operation-write-representation'), false);
   assert.deepEqual(codesOf(gatewayRepresentation), codesOf(engineRepresentation));
+});
+
+test('both surfaces fail closed when mutable decision format authority is absent or empty', async () => {
+  const candidate = plan([operation('capabilities/example/assembled.mjs')]);
+  const absent = context();
+  delete absent.authorisedFormats;
+  for (const authority of [absent, { ...context(), authorisedFormats: [] }]) {
+    const engineResult = validateMaterialisationPlan(authority, candidate);
+    const gatewayResult = await validateLayoutPlan({}, candidate, verdict(authority));
+    assert.ok(codesOf(engineResult).includes('authorised-formats'));
+    assert.ok(codesOf(engineResult).includes('operation-decision-representation-format'));
+    assert.deepEqual(codesOf(gatewayResult), codesOf(engineResult));
+  }
 });
 
 test('a well-formed plan is accepted identically by both surfaces', async () => {

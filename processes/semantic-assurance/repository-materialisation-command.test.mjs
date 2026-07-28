@@ -24,6 +24,7 @@ function fixture() {
     contract: { id: MATERIALISATION_CONTRACT, activationState: ACTIVE, proofResultState: SUCCESSFUL, decisionState: ACCEPTED },
     acceptedDecisionCount: 1,
     authorisedPaths: ['capabilities'],
+    authorisedFormats: [format],
     pathRoles: [{ id: role, parent: 'capabilities' }],
     rules: [{ family, pathRole: role, representationFormat: format, namingPattern: '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\.[a-z0-9]+)+$' }],
   };
@@ -56,6 +57,26 @@ test('thin process assembly validates and applies explicit inputs', () => {
     );
   }
   assert.equal(existsSync(join(repository, 'capabilities/example/assembled.mjs')), false);
+});
+
+test('thin process assembly fails closed on absent or empty decision formats', () => {
+  const work = mkdtempSync(join(tmpdir(), 'semantic-assurance-command-'));
+  const { authority, plan } = fixture();
+  const planPath = join(work, 'plan.json');
+  writeFileSync(planPath, JSON.stringify(plan));
+  const absent = structuredClone(authority);
+  delete absent.authorisedFormats;
+  for (const [name, candidate] of [
+    ['absent', absent],
+    ['empty', { ...authority, authorisedFormats: [] }],
+  ]) {
+    const authorityPath = join(work, `${name}-authority.json`);
+    writeFileSync(authorityPath, JSON.stringify(candidate));
+    const result = runRepositoryMaterialisationCommand(['validate', authorityPath, planPath], { write() {} });
+    assert.equal(result.ok, false);
+    assert.equal(result.failures.some((item) => item.code === 'authorised-formats'), true);
+    assert.equal(result.failures.some((item) => item.code === 'operation-decision-representation-format'), true);
+  }
 });
 
 test('thin process assembly rejects ambient defaults and unknown commands', () => {

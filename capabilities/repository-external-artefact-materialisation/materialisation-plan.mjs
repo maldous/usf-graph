@@ -314,6 +314,10 @@ function authorityFailures(authority, contract) {
 
 export function validatePlanOperation(operation, index, authority) {
   const failures = [];
+  if (Array.isArray(authority?.authorisedPaths) && authority.authorisedPaths.length > 0
+    && (!Array.isArray(authority?.authorisedFormats) || authority.authorisedFormats.length === 0)) {
+    failures.push({ index, code: 'authorised-formats' });
+  }
   if (!operation || operation.index !== index) failures.push({ index, code: 'operation-index' });
   if (!ACTIONS.has(operation?.action)) failures.push({ index, code: 'operation-action' });
   let path;
@@ -333,6 +337,9 @@ export function validatePlanOperation(operation, index, authority) {
   if (operation?.action === 'delete-path' && operation?.sourceDigest === undefined) failures.push({ index, code: 'operation-source-digest' });
   if (operation?.action === 'write-file') {
     if (!SHA256.test(operation.contentDigest || '')) failures.push({ index, code: 'operation-content-digest' });
+    if (!Array.isArray(authority?.authorisedFormats) || !authority.authorisedFormats.includes(operation.representationFormat)) {
+      failures.push({ index, code: 'operation-decision-representation-format' });
+    }
     const rule = authority.rules.find((item) => item.family === operation.artefactFamily && item.representationFormat === operation.representationFormat && item.pathRole === operation.pathRole);
     if (!rule) failures.push({ index, code: 'operation-write-representation' });
     else if (path && !new RegExp(rule.namingPattern).test(basename(path))) failures.push({ index, code: 'operation-filename' });
