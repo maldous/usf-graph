@@ -293,7 +293,7 @@ function readQuoted(source, start, sourcePath) {
   throw new Error(`PROVIDER_PROOF_IMPORT_STRING_UNTERMINATED:${sourcePath}`);
 }
 
-function skipStringOrTemplate(source, start, sourcePath) {
+function skipQuotedString(source, start, sourcePath) {
   const quote = source[start];
   let escaped = false;
   for (let index = start + 1; index < source.length; index += 1) {
@@ -307,7 +307,7 @@ function skipStringOrTemplate(source, start, sourcePath) {
       continue;
     }
     if (character === quote) return index + 1;
-    if (quote !== '`' && (character === '\n' || character === '\r')) {
+    if (character === '\n' || character === '\r') {
       throw new Error(`PROVIDER_PROOF_SOURCE_STRING_UNTERMINATED:${sourcePath}`);
     }
   }
@@ -318,6 +318,27 @@ function canStartRegexAt(source, start) {
   let index = start - 1;
   while (index >= 0 && /\s/u.test(source[index])) index -= 1;
   if (index < 0) return true;
+  if (source[index] === '}') return true;
+  if (source[index] === ')') {
+    let depth = 1;
+    index -= 1;
+    while (index >= 0 && depth > 0) {
+      if (source[index] === ')') depth += 1;
+      if (source[index] === '(') depth -= 1;
+      index -= 1;
+    }
+    if (depth === 0) {
+      while (index >= 0 && /\s/u.test(source[index])) index -= 1;
+      const end = index + 1;
+      while (index >= 0 && isIdentifierPart(source[index])) index -= 1;
+      if (['catch', 'for', 'if', 'switch', 'while', 'with'].includes(
+        source.slice(index + 1, end),
+      )) {
+        return true;
+      }
+    }
+    return false;
+  }
   if ('([{:;,=!?&|+-*%^~<>'.includes(source[index])) return true;
   let end = index + 1;
   while (index >= 0 && isIdentifierPart(source[index])) index -= 1;
@@ -392,10 +413,11 @@ function findFromSpecifier(source, start, sourcePath) {
     index = skipTrivia(source, index);
     const character = source[index];
     if (character === ';') return null;
-    if (character === "'" || character === '"' || character === '`') {
-      index = skipStringOrTemplate(source, index, sourcePath);
+    if (character === "'" || character === '"') {
+      index = skipQuotedString(source, index, sourcePath);
       continue;
     }
+    if (character === '`') throw new Error(`PROVIDER_PROOF_IMPORT_FROM_INVALID:${sourcePath}`);
     if (isIdentifierStart(character)) {
       const token = readIdentifier(source, index);
       if (token.value === 'from') {
@@ -412,9 +434,42 @@ function findFromSpecifier(source, start, sourcePath) {
   return null;
 }
 
-function scanModuleSpecifiers(source, sourcePath) {
-  const imports = [];
-  let index = 0;
+function previousNonWhitespaceCharacter(source, start) {
+  let index = start - 1;
+  while (index >= 0 && /\s/u.test(source[index])) index -= 1;
+  return index >= 0 ? source[index] : null;
+}
+
+function scanTemplateLiteral(source, start, sourcePath, imports) {
+  let index = start + 1;
+  while (index < source.length) {
+    const character = source[index];
+    if (character === '\\') {
+      index += 2;
+      continue;
+    }
+    if (character === '`') return index + 1;
+    if (character === '$' && source[index + 1] === '{') {
+      const expression = scanCode(source, sourcePath, {
+        imports,
+        start: index + 2,
+        stopAtTemplateExpressionEnd: true,
+      });
+      index = expression.end;
+      continue;
+    }
+    index += 1;
+  }
+  throw new Error(`PROVIDER_PROOF_SOURCE_TEMPLATE_UNTERMINATED:${sourcePath}`);
+}
+
+function scanCode(source, sourcePath, {
+  imports,
+  start = 0,
+  stopAtTemplateExpressionEnd = false,
+}) {
+  let braceDepth = stopAtTemplateExpressionEnd ? 1 : 0;
+  let index = start;
   while (index < source.length) {
     const character = source[index];
     if (source.startsWith('//', index) || source.startsWith('/*', index)) {
@@ -425,8 +480,23 @@ function scanModuleSpecifiers(source, sourcePath) {
       index = skipRegexLiteral(source, index, sourcePath);
       continue;
     }
-    if (character === "'" || character === '"' || character === '`') {
-      index = skipStringOrTemplate(source, index, sourcePath);
+    if (character === "'" || character === '"') {
+      index = skipQuotedString(source, index, sourcePath);
+      continue;
+    }
+    if (character === '`') {
+      index = scanTemplateLiteral(source, index, sourcePath, imports);
+      continue;
+    }
+    if (stopAtTemplateExpressionEnd && character === '{') {
+      braceDepth += 1;
+      index += 1;
+      continue;
+    }
+    if (stopAtTemplateExpressionEnd && character === '}') {
+      braceDepth -= 1;
+      index += 1;
+      if (braceDepth === 0) return { end: index, imports };
       continue;
     }
     if (!isIdentifierStart(character)) {
@@ -435,6 +505,13 @@ function scanModuleSpecifiers(source, sourcePath) {
     }
     const token = readIdentifier(source, index);
     if (token.value !== 'import' && token.value !== 'export') {
+      index = token.end;
+      continue;
+    }
+    if (
+      token.value === 'import'
+      && previousNonWhitespaceCharacter(source, index) === '.'
+    ) {
       index = token.end;
       continue;
     }
@@ -447,6 +524,10 @@ function scanModuleSpecifiers(source, sourcePath) {
       cursor = skipTrivia(source, cursor + 1);
       const quoted = readQuoted(source, cursor, sourcePath);
       if (!quoted) {
+        throw new Error(`PROVIDER_PROOF_DYNAMIC_IMPORT_NOT_LITERAL:${sourcePath}`);
+      }
+      const afterLiteral = skipTrivia(source, quoted.end);
+      if (source[afterLiteral] !== ')' && source[afterLiteral] !== ',') {
         throw new Error(`PROVIDER_PROOF_DYNAMIC_IMPORT_NOT_LITERAL:${sourcePath}`);
       }
       imports.push({ kind: 'dynamic-import', specifier: quoted.value });
@@ -474,7 +555,14 @@ function scanModuleSpecifiers(source, sourcePath) {
     }
     index = token.end;
   }
-  return imports;
+  if (stopAtTemplateExpressionEnd) {
+    throw new Error(`PROVIDER_PROOF_SOURCE_TEMPLATE_EXPRESSION_UNTERMINATED:${sourcePath}`);
+  }
+  return { end: index, imports };
+}
+
+function scanModuleSpecifiers(source, sourcePath) {
+  return scanCode(source, sourcePath, { imports: [] }).imports;
 }
 
 function resolveRelativeImport(importer, specifier) {
@@ -541,7 +629,9 @@ function closureFrom(entrypoints, importsByPath, sourceSet) {
  * Verifies the frozen provider proof algorithm source set against an exact
  * repository tree or snapshot. `trackedSourcePaths` must come from the
  * caller's independently verified signed-tree capture; this module never
- * treats a mutable Git index as evidence that a source is tracked.
+ * treats a mutable Git index as evidence that a source is tracked. The
+ * declared set is the exact union reachable from several declared
+ * entrypoints; it is intentionally not represented as one import tree.
  */
 export function verifyProviderProofSourceManifest({
   manifest = PROVIDER_PROOF_SOURCE_MANIFEST,
@@ -596,12 +686,23 @@ export function verifyProviderProofSourceManifest({
     `${left.from}\0${left.to}\0${left.kind}`,
     `${right.from}\0${right.to}\0${right.kind}`,
   ));
-  const completeClosure = closureFrom(entrypoints, importsByPath, sourceSet);
+  const reachableSourcePaths = closureFrom(entrypoints, importsByPath, sourceSet);
   exactArray(
-    completeClosure,
+    reachableSourcePaths,
     sources,
-    'PROVIDER_PROOF_DECLARED_SOURCE_NOT_IN_IMPORT_CLOSURE',
+    'PROVIDER_PROOF_DECLARED_SOURCE_NOT_REACHABLE_FROM_DECLARED_ENTRYPOINTS',
   );
+  const sourceRecordByPath = new Map(sourceRecords.map((record) => [record.path, record]));
+  const entrypointClosures = entrypoints.map((entrypoint) => {
+    const sourcePaths = closureFrom([entrypoint], importsByPath, sourceSet);
+    const records = sourcePaths.map((path) => sourceRecordByPath.get(path));
+    return Object.freeze({
+      entrypoint,
+      sourceCount: records.length,
+      sourcePaths: Object.freeze(sourcePaths),
+      sourceSetDigest: sha256(Buffer.from(canonicalJson(records), 'utf8')),
+    });
+  });
   const publicationClosure = closureFrom(
     [PUBLICATION_ENTRYPOINT],
     importsByPath,
@@ -618,27 +719,41 @@ export function verifyProviderProofSourceManifest({
   const publicationSourceSetDigest = sha256(
     Buffer.from(canonicalJson(publicationSourceRecords), 'utf8'),
   );
-  const importClosureDigest = sha256(Buffer.from(canonicalJson(importEdges), 'utf8'));
+  const firstPartyImportEdgeSetDigest = sha256(
+    Buffer.from(canonicalJson(importEdges), 'utf8'),
+  );
+  const entrypointClosureSetDigest = sha256(
+    Buffer.from(canonicalJson(entrypointClosures), 'utf8'),
+  );
   const manifestDigest = sha256(Buffer.from(canonicalJson(manifest), 'utf8'));
   if (
     !SHA256.test(sourceSetDigest)
     || !SHA256.test(publicationSourceSetDigest)
-    || !SHA256.test(importClosureDigest)
+    || !SHA256.test(firstPartyImportEdgeSetDigest)
+    || !SHA256.test(entrypointClosureSetDigest)
     || !SHA256.test(manifestDigest)
   ) {
     throw new Error('PROVIDER_PROOF_SOURCE_MANIFEST_DIGEST_INVALID');
   }
   return Object.freeze({
-    entrypoints: Object.freeze([...entrypoints]),
-    importClosureDigest,
-    importEdges: Object.freeze(importEdges),
+    declaredEntrypoints: Object.freeze([...entrypoints]),
+    declaredSourceCount: sourceRecords.length,
+    declaredSourceRecords: Object.freeze(sourceRecords),
+    declaredSourceSetDigest: sourceSetDigest,
+    entrypointClosureCount: entrypointClosures.length,
+    entrypointClosures: Object.freeze(entrypointClosures),
+    entrypointClosureSetDigest,
+    firstPartyImportEdgeCount: importEdges.length,
+    firstPartyImportEdges: Object.freeze(importEdges),
+    firstPartyImportEdgeSetDigest,
     manifestDigest,
+    publicationEntrypoint: PUBLICATION_ENTRYPOINT,
+    publicationReachableSourcePaths: Object.freeze(publicationClosure),
     publicationSourceCount: publicationSourceRecords.length,
     publicationSourceRecords: Object.freeze(publicationSourceRecords),
     publicationSourceSetDigest,
+    reachableSourceCount: reachableSourcePaths.length,
+    reachableSourcePaths: Object.freeze(reachableSourcePaths),
     schemaVersion: PROVIDER_PROOF_SOURCE_MANIFEST_SCHEMA_VERSION,
-    sourceCount: sourceRecords.length,
-    sourceRecords: Object.freeze(sourceRecords),
-    sourceSetDigest,
   });
 }
