@@ -66,7 +66,8 @@ function sole(rows, key) {
 
 export async function readProofCurrentnessFacts(client, contract) {
   const [resultRows, evidenceRows, algorithmRows, bindingRows] = await Promise.all([
-    client.select(`SELECT ?result ?state ?obligation ?proof ?algorithm ?algorithmVersion ?evidenceSetDigest
+    client.select(`SELECT ?result ?state ?obligation ?proof ?algorithm ?algorithmVersion
+        ?algorithmSourceSetDigest ?algorithmVersionSourceSetDigest ?evidenceSetDigest
         ?implementationDigest ?dependencyDigest ?dependencyAlgorithm ?toolchainDigest ?packageLockDigest
         ?producerCommit ?producerTree ?binding ?evidence ?invalidation ?supersession WHERE {
       <${contract}> <urn:usf:ontology:reliesOnProofResult> ?result .
@@ -75,6 +76,11 @@ export async function readProofCurrentnessFacts(client, contract) {
       OPTIONAL { ?result <urn:usf:ontology:resultForProof> ?proof }
       OPTIONAL { ?result <urn:usf:ontology:usesProofAlgorithm> ?algorithm }
       OPTIONAL { ?result <urn:usf:ontology:usesAlgorithmVersion> ?algorithmVersion }
+      OPTIONAL { ?result <urn:usf:ontology:algorithmSourceSetDigest> ?algorithmSourceSetDigest }
+      OPTIONAL {
+        ?result <urn:usf:ontology:usesAlgorithmVersion> ?algorithmVersion .
+        ?algorithmVersion <urn:usf:ontology:proofAlgorithmVersionSourceSetDigest> ?algorithmVersionSourceSetDigest
+      }
       OPTIONAL { ?result <urn:usf:ontology:evidenceSetDigest> ?evidenceSetDigest }
       OPTIONAL { ?result <urn:usf:ontology:implementationSourceSetDigest> ?implementationDigest }
       OPTIONAL { ?result <urn:usf:ontology:dependencySetDigest> ?dependencyDigest }
@@ -100,12 +106,15 @@ export async function readProofCurrentnessFacts(client, contract) {
       OPTIONAL { ?evidence <urn:usf:ontology:supersededByEvidenceResult> ?supersession }
       OPTIONAL { ?evidence <urn:usf:ontology:contentDigest> ?contentDigest }
     } ORDER BY ?evidence LIMIT 256`),
-    client.select(`SELECT ?algorithm ?sourceDigest ?currentSourceDigest ?currentVersion ?currentImplementation
+    client.select(`SELECT ?algorithm ?sourceDigest ?currentSourceDigest ?sourceSetDigest ?currentSourceSetDigest
+        ?currentVersion ?currentImplementation
         ?currentDependency ?currentDependencyAlgorithm ?currentToolchain ?currentPackageLock ?requiresGraphSource WHERE {
       <${contract}> <urn:usf:ontology:reliesOnProofResult> ?result .
       ?result <urn:usf:ontology:usesProofAlgorithm> ?algorithm .
       OPTIONAL { ?algorithm <urn:usf:ontology:proofAlgorithmSourceDigest> ?sourceDigest }
       OPTIONAL { ?algorithm <urn:usf:ontology:currentAlgorithmSourceDigest> ?currentSourceDigest }
+      OPTIONAL { ?algorithm <urn:usf:ontology:proofAlgorithmSourceSetDigest> ?sourceSetDigest }
+      OPTIONAL { ?algorithm <urn:usf:ontology:currentAlgorithmSourceSetDigest> ?currentSourceSetDigest }
       OPTIONAL { ?algorithm <urn:usf:ontology:currentAlgorithmVersion> ?currentVersion }
       OPTIONAL { ?algorithm <urn:usf:ontology:currentImplementationSourceSetDigest> ?currentImplementation }
       OPTIONAL { ?algorithm <urn:usf:ontology:currentDependencySetDigest> ?currentDependency }
@@ -205,8 +214,40 @@ export function deriveProofCurrentness(facts, { mandatoryObligations = [], obser
     if (observed.state !== 'present') { unresolved(PROOF_CURRENTNESS_CODES.currentnessUnresolved, `proof result records no ${label}`); return; }
     if (declared.value !== observed.value) stale(code, `${label}: result ${observed.value} != current ${declared.value}`);
   };
-  compare(sole(algorithmRows, 'currentSourceDigest'), sole(algorithmRows, 'sourceDigest'),
-    PROOF_CURRENTNESS_CODES.algorithmDigestStale, 'algorithm source digest');
+  // A source-set binding supersedes the legacy primary-file binding. The set
+  // axis is all-or-nothing: once any participant declares it, the algorithm's
+  // authored set, the algorithm's current set, the result's observed set and
+  // the exact version's set must all be present and agree. Falling back to the
+  // primary file while only one side is missing would make ancillary proof
+  // source movement invisible.
+  const sourceSetBindings = [
+    ['algorithm source-set digest', sole(algorithmRows, 'sourceSetDigest')],
+    ['current algorithm source-set digest', sole(algorithmRows, 'currentSourceSetDigest')],
+    ['proof-result algorithm source-set digest', sole(resultRows, 'algorithmSourceSetDigest')],
+    ['algorithm-version source-set digest', sole(resultRows, 'algorithmVersionSourceSetDigest')],
+  ];
+  const sourceSetDeclared = sourceSetBindings.some(([, binding]) => binding.state !== 'absent');
+  if (sourceSetDeclared) {
+    for (const [label, binding] of sourceSetBindings) {
+      if (binding.state !== 'present') {
+        unresolved(PROOF_CURRENTNESS_CODES.currentnessUnresolved, `${label} is absent or ambiguous`);
+      }
+    }
+    const currentSourceSet = sourceSetBindings[1][1];
+    if (currentSourceSet.state === 'present') {
+      for (const [label, binding] of [sourceSetBindings[0], ...sourceSetBindings.slice(2)]) {
+        if (binding.state === 'present' && binding.value !== currentSourceSet.value) {
+          stale(
+            PROOF_CURRENTNESS_CODES.algorithmDigestStale,
+            `${label}: ${binding.value} != current ${currentSourceSet.value}`,
+          );
+        }
+      }
+    }
+  } else {
+    compare(sole(algorithmRows, 'currentSourceDigest'), sole(algorithmRows, 'sourceDigest'),
+      PROOF_CURRENTNESS_CODES.algorithmDigestStale, 'algorithm source digest');
+  }
   compare(sole(algorithmRows, 'currentVersion'), sole(resultRows, 'algorithmVersion'),
     PROOF_CURRENTNESS_CODES.algorithmDigestStale, 'algorithm version');
   compare(sole(algorithmRows, 'currentImplementation'), sole(resultRows, 'implementationDigest'),
@@ -289,6 +330,10 @@ export function deriveProofCurrentness(facts, { mandatoryObligations = [], obser
     obligation: obligation.value,
     algorithm: algorithm.value,
     algorithmSourceDigest: sole(algorithmRows, 'sourceDigest').value,
+    proofAlgorithmSourceSetDigest: sole(algorithmRows, 'sourceSetDigest').value,
+    currentAlgorithmSourceSetDigest: sole(algorithmRows, 'currentSourceSetDigest').value,
+    algorithmSourceSetDigest: sole(resultRows, 'algorithmSourceSetDigest').value,
+    algorithmVersionSourceSetDigest: sole(resultRows, 'algorithmVersionSourceSetDigest').value,
     algorithmVersion: sole(resultRows, 'algorithmVersion').value,
     implementationSourceSetDigest: sole(resultRows, 'implementationDigest').value,
     dependencySetDigest: sole(resultRows, 'dependencyDigest').value,

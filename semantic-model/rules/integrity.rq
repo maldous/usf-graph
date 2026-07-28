@@ -241,6 +241,45 @@ SELECT DISTINCT ?violation ?subject WHERE {
     }
     BIND("historicalproofstillcurrent" AS ?violation)
   } UNION {
+    # Source-set currentness is an all-or-nothing binding across the algorithm,
+    # its selected version and the result that records the evaluated set.
+    # Legacy algorithms declare none of these four properties.
+    ?subject a usf:ProofResult ;
+      usf:usesProofAlgorithm ?sourceSetAlgorithm ;
+      usf:usesAlgorithmVersion ?sourceSetVersion .
+    FILTER(
+      (
+        EXISTS { ?sourceSetAlgorithm usf:proofAlgorithmSourceSetDigest ?anyDeclaredSourceSet }
+        || EXISTS { ?sourceSetAlgorithm usf:currentAlgorithmSourceSetDigest ?anyCurrentSourceSet }
+        || EXISTS { ?subject usf:algorithmSourceSetDigest ?anyResultSourceSet }
+        || EXISTS { ?sourceSetVersion usf:proofAlgorithmVersionSourceSetDigest ?anyVersionSourceSet }
+      )
+      && (
+        NOT EXISTS { ?sourceSetAlgorithm usf:proofAlgorithmSourceSetDigest ?declaredSourceSet }
+        || NOT EXISTS { ?sourceSetAlgorithm usf:currentAlgorithmSourceSetDigest ?currentSourceSet }
+        || NOT EXISTS { ?subject usf:algorithmSourceSetDigest ?resultSourceSet }
+        || NOT EXISTS { ?sourceSetVersion usf:proofAlgorithmVersionSourceSetDigest ?versionSourceSet }
+      )
+    )
+    BIND("proofalgorithmsourcesetbindingincomplete" AS ?violation)
+  } UNION {
+    # A complete but unequal set binding is explicitly stale. Keep the data
+    # representable so the resolver can derive STALE_BLOCK; make the
+    # inconsistency visible to whole-dataset integrity as well.
+    ?subject a usf:ProofResult ;
+      usf:usesProofAlgorithm ?sourceSetAlgorithm ;
+      usf:usesAlgorithmVersion ?sourceSetVersion ;
+      usf:algorithmSourceSetDigest ?resultSourceSet .
+    ?sourceSetAlgorithm usf:proofAlgorithmSourceSetDigest ?declaredSourceSet ;
+      usf:currentAlgorithmSourceSetDigest ?currentSourceSet .
+    ?sourceSetVersion usf:proofAlgorithmVersionSourceSetDigest ?versionSourceSet .
+    FILTER(
+      ?declaredSourceSet != ?currentSourceSet
+      || ?resultSourceSet != ?currentSourceSet
+      || ?versionSourceSet != ?currentSourceSet
+    )
+    BIND("proofalgorithmsourcesetbindingmismatch" AS ?violation)
+  } UNION {
     # Replaced realisation decisions and realisations retain lineage but no
     # longer authorise implementation.
     VALUES ?disposition {

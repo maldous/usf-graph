@@ -404,11 +404,20 @@ usf:proofAlgorithmSourcePath a owl:DatatypeProperty, owl:FunctionalProperty;
 usf:proofAlgorithmSourceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:ProofAlgorithm;
     rdfs:range xsd:string.
+usf:proofAlgorithmSourceSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:string.
 usf:proofAlgorithmVersionOf a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:ProofAlgorithmVersion;
     rdfs:range usf:ProofAlgorithm.
 usf:proofAlgorithmVersionIdentifier a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:ProofAlgorithmVersion;
+    rdfs:range xsd:string.
+usf:proofAlgorithmVersionSourceSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithmVersion;
+    rdfs:range xsd:string.
+usf:algorithmSourceSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofResult;
     rdfs:range xsd:string.
 usf:evaluatedByValidator a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:ProofResult;
@@ -2864,6 +2873,9 @@ usf:currentAlgorithmVersion a owl:ObjectProperty, owl:FunctionalProperty;
 usf:currentAlgorithmSourceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:ProofAlgorithm;
     rdfs:range xsd:string.
+usf:currentAlgorithmSourceSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:string.
 usf:currentImplementationSourceSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:ProofAlgorithm;
     rdfs:range xsd:string.
@@ -4937,6 +4949,22 @@ usf:Feature a owl:Class;
 # executable use explicit without claiming that the still-pending result and
 # authority-binding records already exist.
 usf:currentAlgorithmSourceDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:proofAlgorithmSourceSetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:currentAlgorithmSourceSetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:algorithmSourceSetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
+    usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
+    usf:termUsageLifecycleStage "proof-currentness-resolution";
+    usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".
+usf:proofAlgorithmVersionSourceSetDigest usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>;
     usf:termUsageOwningContract <urn:usf:semanticcontract:compilersemanticenforcement>;
     usf:termUsageLifecycleStage "proof-currentness-resolution";
     usf:termUsageRationale "USED: referenced by the bounded proof-currentness SPARQL resolver; no ordinary authority instance is required before its lifecycle stage is published.".

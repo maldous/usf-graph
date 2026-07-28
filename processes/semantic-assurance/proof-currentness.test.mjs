@@ -22,6 +22,8 @@ const binding = (value) => ({ value });
 const ALGORITHM = 'urn:usf:proofalgorithm:repositorymaterialisationcontrolplane';
 const VERSION = 'urn:usf:proofalgorithmversion:current';
 const SOURCE = `sha256:${'11'.repeat(32)}`;
+const SOURCE_SET = `sha256:${'12'.repeat(32)}`;
+const PROVIDER_SOURCE_SET = 'sha256:257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf';
 const IMPLEMENTATION = `sha256:${'22'.repeat(32)}`;
 const DEPENDENCY = `sha256:${'33'.repeat(32)}`;
 const DEPENDENCY_ALGORITHM = 'sha256-rdfc10-nonpublication-graph-inventory-v1';
@@ -36,6 +38,8 @@ function facts(overrides = {}) {
       proof: binding('urn:usf:proof:repositorymaterialisationcontrolplane'),
       algorithm: binding(ALGORITHM),
       algorithmVersion: binding(VERSION),
+      algorithmSourceSetDigest: binding(SOURCE_SET),
+      algorithmVersionSourceSetDigest: binding(SOURCE_SET),
       evidenceSetDigest: binding(`sha256:${'44'.repeat(32)}`),
       implementationDigest: binding(IMPLEMENTATION),
       dependencyDigest: binding(DEPENDENCY),
@@ -55,6 +59,8 @@ function facts(overrides = {}) {
       algorithm: binding(ALGORITHM),
       sourceDigest: binding(SOURCE),
       currentSourceDigest: binding(SOURCE),
+      sourceSetDigest: binding(SOURCE_SET),
+      currentSourceSetDigest: binding(SOURCE_SET),
       currentVersion: binding(VERSION),
       currentImplementation: binding(IMPLEMENTATION),
       currentDependency: binding(DEPENDENCY),
@@ -97,9 +103,10 @@ test('a complete agreeing chain is the only way to reach CURRENT', () => {
   assert.equal(verdict.facts.proofResultState, 'urn:usf:proofresultstate:successful');
 });
 
-test('a successful result alone does not reach CURRENT', () => {
-  // Everything about the result is successful; only the algorithm has moved.
-  const verdict = derive(mutate('algorithmRows', 0, { currentSourceDigest: binding(`sha256:${'ff'.repeat(32)}`) }));
+test('a successful result alone does not reach CURRENT after the algorithm source set moves', () => {
+  // Everything about the result is successful; only the complete algorithm
+  // source set has moved.
+  const verdict = derive(mutate('algorithmRows', 0, { currentSourceSetDigest: binding(`sha256:${'ff'.repeat(32)}`) }));
   assert.equal(verdict.facts.proofResultState, 'urn:usf:proofresultstate:successful');
   assert.equal(verdict.state, PROOF_CURRENTNESS.stale);
   assert.ok(verdict.reasons.includes(PROOF_CURRENTNESS_CODES.algorithmDigestStale));
@@ -108,6 +115,9 @@ test('a successful result alone does not reach CURRENT', () => {
 test('every explicit mismatch is STALE_BLOCK under its own code', () => {
   const cases = [
     [mutate('algorithmRows', 0, { currentVersion: binding('urn:usf:proofalgorithmversion:other') }), PROOF_CURRENTNESS_CODES.algorithmDigestStale],
+    [mutate('algorithmRows', 0, { sourceSetDigest: binding(`sha256:${'a1'.repeat(32)}`) }), PROOF_CURRENTNESS_CODES.algorithmDigestStale],
+    [mutate('resultRows', 0, { algorithmSourceSetDigest: binding(`sha256:${'a2'.repeat(32)}`) }), PROOF_CURRENTNESS_CODES.algorithmDigestStale],
+    [mutate('resultRows', 0, { algorithmVersionSourceSetDigest: binding(`sha256:${'a3'.repeat(32)}`) }), PROOF_CURRENTNESS_CODES.algorithmDigestStale],
     [mutate('algorithmRows', 0, { currentImplementation: binding(`sha256:${'ab'.repeat(32)}`) }), PROOF_CURRENTNESS_CODES.implementationDigestStale],
     [mutate('algorithmRows', 0, { currentDependency: binding(`sha256:${'cd'.repeat(32)}`) }), PROOF_CURRENTNESS_CODES.dependencyDigestStale],
     [mutate('algorithmRows', 0, { currentDependencyAlgorithm: binding('sha256-other') }), PROOF_CURRENTNESS_CODES.dependencyDigestStale],
@@ -140,6 +150,10 @@ test('missing or ambiguous information is UNRESOLVED_FAIL_CLOSED, never CURRENT'
     without('resultRows', 0, 'dependencyDigest'),
     without('resultRows', 0, 'binding'),
     without('resultRows', 0, 'evidence'),
+    without('resultRows', 0, 'algorithmSourceSetDigest'),
+    without('resultRows', 0, 'algorithmVersionSourceSetDigest'),
+    without('algorithmRows', 0, 'sourceSetDigest'),
+    without('algorithmRows', 0, 'currentSourceSetDigest'),
     without('algorithmRows', 0, 'currentImplementation'),
     without('algorithmRows', 0, 'currentDependency'),
     without('evidenceRows', 0, 'admission'),
@@ -163,6 +177,56 @@ test('missing or ambiguous information is UNRESOLVED_FAIL_CLOSED, never CURRENT'
   });
   assert.equal(ambiguous.state, PROOF_CURRENTNESS.unresolved);
   assert.ok(ambiguous.reasons.includes(PROOF_CURRENTNESS_CODES.currentnessAmbiguous));
+});
+
+test('source-set currentness never falls back when only part of the set axis is declared', () => {
+  const algorithm = facts().algorithmRows.map((row) => ({ ...row }));
+  delete algorithm[0].sourceSetDigest;
+  delete algorithm[0].currentSourceSetDigest;
+  const result = facts().resultRows.map((row) => ({ ...row }));
+  delete result[0].algorithmVersionSourceSetDigest;
+
+  // The result still declares one source-set binding, while the legacy
+  // primary-file bindings agree. That is unresolved, never current.
+  const verdict = derive({ algorithmRows: algorithm, resultRows: result });
+  assert.equal(verdict.state, PROOF_CURRENTNESS.unresolved);
+  assert.ok(verdict.reasons.includes(PROOF_CURRENTNESS_CODES.currentnessUnresolved));
+});
+
+test('legacy primary-file comparison applies only when no source-set binding exists anywhere', () => {
+  const algorithm = facts().algorithmRows.map((row) => ({ ...row }));
+  delete algorithm[0].sourceSetDigest;
+  delete algorithm[0].currentSourceSetDigest;
+  const result = facts().resultRows.map((row) => ({ ...row }));
+  delete result[0].algorithmSourceSetDigest;
+  delete result[0].algorithmVersionSourceSetDigest;
+
+  assert.equal(derive({ algorithmRows: algorithm, resultRows: result }).state, PROOF_CURRENTNESS.current);
+  algorithm[0].currentSourceDigest = binding(`sha256:${'fe'.repeat(32)}`);
+  const stale = derive({ algorithmRows: algorithm, resultRows: result });
+  assert.equal(stale.state, PROOF_CURRENTNESS.stale);
+  assert.ok(stale.reasons.includes(PROOF_CURRENTNESS_CODES.algorithmDigestStale));
+});
+
+test('an agreeing complete source set is authoritative over the descriptive primary-file pair', () => {
+  const verdict = derive(mutate('algorithmRows', 0, {
+    currentSourceDigest: binding(`sha256:${'fd'.repeat(32)}`),
+  }));
+  assert.equal(verdict.state, PROOF_CURRENTNESS.current);
+  assert.equal(verdict.facts.algorithmSourceSetDigest, SOURCE_SET);
+});
+
+test('ambiguous source-set values fail closed rather than selecting a favourable binding', () => {
+  const resultRows = [
+    ...facts().resultRows,
+    {
+      ...facts().resultRows[0],
+      algorithmSourceSetDigest: binding(`sha256:${'fc'.repeat(32)}`),
+    },
+  ];
+  const verdict = derive({ resultRows });
+  assert.equal(verdict.state, PROOF_CURRENTNESS.unresolved);
+  assert.ok(verdict.reasons.includes(PROOF_CURRENTNESS_CODES.currentnessUnresolved));
 });
 
 test('a pending post-publication reevaluation fails closed rather than blocking', () => {
@@ -237,4 +301,26 @@ test('no MCP surface can inject a currentness or action state', () => {
       `MCP forwards a caller-supplied ${injected}`,
     );
   }
+});
+
+test('semantic source-set vocabulary is functional, constrained and bound by the provider proof', () => {
+  const ontology = readFileSync(join(REPOSITORY_ROOT, 'semantic-model/ontology.ttl'), 'utf8');
+  const shapes = readFileSync(join(REPOSITORY_ROOT, 'semantic-model/shapes/lifecycle.ttl'), 'utf8');
+  const integrity = readFileSync(join(REPOSITORY_ROOT, 'semantic-model/rules/integrity.rq'), 'utf8');
+  const proofs = readFileSync(join(REPOSITORY_ROOT, 'semantic-model/assurance/proofs.trig'), 'utf8');
+  for (const property of [
+    'proofAlgorithmSourceSetDigest',
+    'currentAlgorithmSourceSetDigest',
+    'algorithmSourceSetDigest',
+    'proofAlgorithmVersionSourceSetDigest',
+  ]) {
+    assert.ok(
+      ontology.includes(`usf:${property} a owl:DatatypeProperty, owl:FunctionalProperty;`),
+      `${property} must be functional`,
+    );
+    assert.ok(shapes.includes(`sh:path usf:${property}`), `${property} must have a lifecycle shape`);
+    assert.ok(proofs.includes(`usf:${property} "${PROVIDER_SOURCE_SET}"`), `provider proof must bind ${property}`);
+  }
+  assert.ok(integrity.includes('BIND("proofalgorithmsourcesetbindingincomplete" AS ?violation)'));
+  assert.ok(integrity.includes('BIND("proofalgorithmsourcesetbindingmismatch" AS ?violation)'));
 });
