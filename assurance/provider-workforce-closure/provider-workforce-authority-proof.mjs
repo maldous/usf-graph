@@ -484,6 +484,83 @@ export function createPoisonPytestPlugin(root) {
   return Object.freeze({ poisonRoot, marker });
 }
 
+function topLevelPythonDefinition(source, name) {
+  if (typeof source !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+    throw new TypeError('Python source and definition name are required');
+  }
+  const lines = source.split('\n');
+  const starts = lines
+    .map((line, index) => (/^(?:async\s+)?def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/.exec(line)?.[1] === name
+      ? index : -1))
+    .filter((index) => index >= 0);
+  if (starts.length !== 1) throw new Error(`PYTHON_DEFINITION_NOT_EXACTLY_ONE:${name}`);
+  const start = starts[0];
+  let end = lines.length;
+  for (let index = start + 1; index < lines.length; index += 1) {
+    if (/^(?:(?:async\s+)?def|class)\s+[A-Za-z_]/.test(lines[index])) {
+      end = index;
+      break;
+    }
+  }
+  return `${lines.slice(start, end).join('\n').trimEnd()}\n`;
+}
+
+export function subscriptionPaidBoundarySourceEvidence({
+  activationSource,
+  bootstrapSource,
+  providerEvaluationSource,
+  paidBudgetTestSource,
+}) {
+  const activationMode = topLevelPythonDefinition(activationSource, '_mode_for');
+  const bootstrapAuthorization = topLevelPythonDefinition(bootstrapSource, '_auth_for');
+  const providerEvaluation = topLevelPythonDefinition(providerEvaluationSource, 'evaluate_provider');
+  const paidBudgetTest = topLevelPythonDefinition(
+    paidBudgetTestSource,
+    'test_subscription_value_not_against_paid_budget',
+  );
+  const activationOidcMapsToSubscription = /if auth_mode == AuthMode[.]OIDC_CLI:\n\s+return "subscription"/
+    .test(activationMode);
+  const activationNonfreeFallbackMapsToPaid = /\n\s+return "paid"\n/.test(activationMode);
+  const bootstrapSubscriptionGate = /allow_subscription_inference=policy[.]allow_subscription\s+and mode == InferenceMode[.]SUBSCRIPTION[.]value/
+    .test(bootstrapAuthorization);
+  const bootstrapPaidGate = /allow_paid_inference=policy[.]allow_paid\s+and mode == InferenceMode[.]PAID[.]value/
+    .test(bootstrapAuthorization);
+  const bootstrapModesNotConflated = !/allow_subscription_inference=[^\n]*PAID/.test(bootstrapAuthorization)
+    && !/allow_paid_inference=[^\n]*SUBSCRIPTION/.test(bootstrapAuthorization);
+  const providerEvaluationGatesDistinct = /if rep[.]mode == "subscription" and not auth[.]allow_subscription_inference:/
+    .test(providerEvaluation)
+    && /if rep[.]mode == "paid" and not auth[.]allow_paid_inference:/.test(providerEvaluation)
+    && /if rep[.]mode == "paid" and auth[.]max_cost_usd <= 0:/.test(providerEvaluation);
+  const providerAccountingSeparatesSubscriptionFromPaid = /paid = reported if rep[.]mode == "paid" else 0[.]0/
+    .test(providerEvaluation)
+    && /sub = reported if rep[.]mode == "subscription" else 0[.]0/.test(providerEvaluation);
+  const zeroPaidBudgetTestBound = /EvalAuth\([\s\S]*allow_subscription_inference=True,[\s\S]*max_cost_usd=0[.]0[\s\S]*\)/
+    .test(paidBudgetTest)
+    && /assert ev[.]paid_api_spend_usd == 0[.]0/.test(paidBudgetTest)
+    && /assert ev[.]subscription_reported_value_usd == 0[.]06/.test(paidBudgetTest);
+  const checks = {
+    activationNonfreeFallbackMapsToPaid,
+    activationOidcMapsToSubscription,
+    bootstrapModesNotConflated,
+    bootstrapPaidGate,
+    bootstrapSubscriptionGate,
+    providerAccountingSeparatesSubscriptionFromPaid,
+    providerEvaluationGatesDistinct,
+    zeroPaidBudgetTestBound,
+  };
+  return Object.freeze({
+    schemaVersion: 1,
+    checks: Object.freeze(checks),
+    passed: Object.values(checks).every((value) => value === true),
+    sourceEvidence: Object.freeze({
+      activationModeFunctionDigest: sha256(activationMode),
+      bootstrapAuthorizationFunctionDigest: sha256(bootstrapAuthorization),
+      paidBudgetTestFunctionDigest: sha256(paidBudgetTest),
+      providerEvaluationFunctionDigest: sha256(providerEvaluation),
+    }),
+  });
+}
+
 function requiredEnvironment(name, pattern = /./) {
   const value = process.env[name] || '';
   if (!pattern.test(value)) throw new Error(`${name}_REQUIRED`);
@@ -692,7 +769,8 @@ record('factory-worktree-clean', '', status);
 
 const sourcePaths = PROVIDER_WORKFORCE_IMPLEMENTATION_SOURCE_PATHS;
 const proofInputPaths = PROVIDER_WORKFORCE_PROOF_INPUT_PATHS;
-const sourceReadPaths = [...sourcePaths, ...proofInputPaths];
+const subscriptionBoundarySourcePaths = Object.freeze(['tests/test_provider_coverage.py']);
+const sourceReadPaths = [...sourcePaths, ...proofInputPaths, ...subscriptionBoundarySourcePaths];
 const sources = Object.fromEntries(sourceReadPaths.map((path) => [
   path,
   run(`source-${sha256(path).slice(7, 15)}`, '/usr/bin/git', ['show', `${factoryCommit}:${path}`], { cwd: factoryRepo }),
@@ -717,14 +795,33 @@ record('run-authorization-at-provider-call', true, /RunAuthorization disappeared
 record('zero-paid-budget-denial', true, /allow_paid/.test(text('src/usf_factory/workforce_policy.py')) && /max_paid_cost_usd/.test(text('src/usf_factory/workforce_policy.py')) && /paid_api_budget_usd/.test(text('src/usf_factory/run_authorization.py')));
 const authorisedSubscriptionTransports = Object.freeze(['antigravity-cli', 'claude-cli', 'codex-cli']);
 const operatorConfiguredSubscriptionDefaults = Object.freeze({ 'antigravity-cli': 'claude-opus-4.6' });
+const subscriptionBoundaryEvidence = subscriptionPaidBoundarySourceEvidence({
+  activationSource: text('src/usf_factory/activation.py'),
+  bootstrapSource: text('src/usf_factory/bootstrap.py'),
+  providerEvaluationSource: text('src/usf_factory/provider_eval.py'),
+  paidBudgetTestSource: text('tests/test_provider_coverage.py'),
+});
 record('subscription-api-distinction', {
+  boundaryChecks: {
+    activationNonfreeFallbackMapsToPaid: true,
+    activationOidcMapsToSubscription: true,
+    bootstrapModesNotConflated: true,
+    bootstrapPaidGate: true,
+    bootstrapSubscriptionGate: true,
+    providerAccountingSeparatesSubscriptionFromPaid: true,
+    providerEvaluationGatesDistinct: true,
+    zeroPaidBudgetTestBound: true,
+  },
   paidApiBoundaryPresent: true,
   authorisedSubscriptionTransports: ['antigravity-cli', 'claude-cli', 'codex-cli'],
   operatorConfiguredSubscriptionDefaults: { 'antigravity-cli': 'claude-opus-4.6' },
 }, {
-  paidApiBoundaryPresent: /allow_subscription_inference/.test(text('src/usf_factory/bootstrap.py')) && /mode == "subscription"/.test(text('src/usf_factory/activation.py')),
+  boundaryChecks: subscriptionBoundaryEvidence.checks,
+  paidApiBoundaryPresent: subscriptionBoundaryEvidence.passed,
   authorisedSubscriptionTransports,
   operatorConfiguredSubscriptionDefaults,
+}, {
+  sourceEvidence: subscriptionBoundaryEvidence.sourceEvidence,
 });
 const openRouterCases = [
   { requestedModel: 'vendor/model:free', catalogueFree: true, quotedRequestPrice: 0, observedChargedCost: 0, actualProvider: 'provider-a', actualModel: 'vendor/model:free', paidFallback: false },
