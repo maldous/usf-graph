@@ -1,12 +1,13 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   constants as fsConstants,
-  link,
   mkdir,
   open,
-  unlink,
 } from 'node:fs/promises';
 import {
+  basename,
+  dirname,
   isAbsolute,
   join,
   normalize,
@@ -14,9 +15,7 @@ import {
 } from 'node:path';
 
 const {
-  O_CREAT,
   O_DIRECTORY,
-  O_EXCL,
   O_NONBLOCK,
   O_NOFOLLOW,
   O_RDONLY,
@@ -29,8 +28,12 @@ const SAFE_MEDIA_TYPE = /^[\x21-\x7e]{1,255}$/;
 const DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
 const DIRECTORY_FLAGS = O_RDONLY | O_DIRECTORY | O_NOFOLLOW;
 const FILE_READ_FLAGS = O_RDONLY | O_NOFOLLOW | O_NONBLOCK;
-const FILE_CREATE_FLAGS = O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW;
+// Linux UAPI: __O_TMPFILE (0x400000) | O_DIRECTORY (0x10000).
+const O_TMPFILE_LINUX = 0x410000;
+const ANONYMOUS_STAGING_FLAGS = O_RDWR | O_TMPFILE_LINUX;
 const PROC_FD_ROOT = '/proc/self/fd';
+const NATIVE_PUBLISH_PROTOCOL = 'usf-hermetic-cas-linkat-empty-path-v1';
+const NATIVE_PUBLISH_EXISTING_STATUS = 17;
 
 /*
  * This symbol exists only so the adversarial tests can stop execution at exact
@@ -40,19 +43,19 @@ const PROC_FD_ROOT = '/proc/self/fd';
 export const HERMITIC_CAS_TEST_HOOK = Symbol('HERMITIC_CAS_TEST_HOOK');
 
 /*
- * Node does not expose openat2(RESOLVE_BENEATH|RESOLVE_NO_SYMLINKS),
- * renameat2(RENAME_NOREPLACE), or an inode-conditional unlinkat. This module
- * therefore traverses pinned directory fds through /proc/self/fd, publishes
- * with atomic link(2)-if-absent instead of clobbering rename(2), and always
- * reopens/verifies the final name. A hostile peer with write access can still
- * change a pathname immediately after the final verification, or race the
- * best-effort rollback unlink. Consumers must read through readCasObject for
- * every use; a returned filesystem pathname is intentionally not exposed.
+ * Node does not expose linkat(AT_EMPTY_PATH), openat2, or renameat2. Creation
+ * consequently requires an authority-approved native publisher whose exact
+ * executable bytes are digest pinned. Node creates and verifies an anonymous
+ * O_TMPFILE inode; the publisher may only link fd 4 into pinned directory fd 5
+ * at the requested digest name. No published name is ever removed here.
+ *
+ * Consumers must still read through readCasObject for every use: a same-uid
+ * hostile process can mutate a pathname after verification. A returned
+ * filesystem pathname is intentionally not exposed.
  */
 export const HERMITIC_CAS_RESIDUAL_RISKS = Object.freeze([
   'NODE_HAS_NO_OPENAT2_RESOLVE_BENEATH',
-  'NODE_HAS_NO_RENAMEAT2_NOREPLACE',
-  'NODE_HAS_NO_INODE_CONDITIONAL_UNLINKAT',
+  'NATIVE_LINKAT_AT_EMPTY_PATH_HELPER_REQUIRED_FOR_CREATION',
   'HOSTILE_WRITER_CAN_MUTATE_NAMESPACE_AFTER_RETURN',
 ]);
 
@@ -103,11 +106,10 @@ function checkedBytes(value, maximum) {
   if (!(value instanceof Uint8Array)) {
     fail('CAS_BYTES_INVALID', 'CAS object bytes must be a Buffer or Uint8Array');
   }
-  const bytes = Buffer.from(value);
-  if (bytes.length > maximum) {
+  if (value.byteLength > maximum) {
     fail('CAS_OBJECT_TOO_LARGE', 'CAS object exceeds the configured byte bound');
   }
-  return bytes;
+  return Buffer.from(value);
 }
 
 function checkedMediaType(mediaType) {
@@ -171,21 +173,29 @@ function assertDirectoryStat(stat, label, { secureOwner = false } = {}) {
   }
   if (secureOwner) {
     const effectiveUid = typeof process.geteuid === 'function' ? process.geteuid() : null;
-    if (effectiveUid === null || Number(stat.uid) !== effectiveUid || (Number(stat.mode) & 0o022) !== 0) {
+    if (
+      effectiveUid === null
+      || Number(stat.uid) !== effectiveUid
+      || (Number(stat.mode) & 0o7777) !== 0o700
+    ) {
       fail('CAS_DIRECTORY_PERMISSIONS_UNSAFE', `${label} ownership or permissions are unsafe`);
     }
   }
 }
 
-function assertFileStat(stat, label) {
+function assertFileStat(stat, label, { links = 1n, mode = 0o600 } = {}) {
   if (!stat.isFile()) {
     fail('CAS_OBJECT_NOT_REGULAR', `${label} is not a regular file`);
   }
-  if (stat.nlink !== 1n) {
-    fail('CAS_OBJECT_LINK_COUNT_INVALID', `${label} must have exactly one link`);
+  if (stat.nlink !== links) {
+    fail('CAS_OBJECT_LINK_COUNT_INVALID', `${label} has an invalid link count`);
   }
   const effectiveUid = typeof process.geteuid === 'function' ? process.geteuid() : null;
-  if (effectiveUid === null || Number(stat.uid) !== effectiveUid || (Number(stat.mode) & 0o022) !== 0) {
+  if (
+    effectiveUid === null
+    || Number(stat.uid) !== effectiveUid
+    || (Number(stat.mode) & 0o7777) !== mode
+  ) {
     fail('CAS_OBJECT_PERMISSIONS_UNSAFE', `${label} ownership or permissions are unsafe`);
   }
 }
@@ -329,12 +339,19 @@ async function openObject(shard, hexadecimal, label = 'CAS object') {
   }
 }
 
-async function readAndVerifyOpenObject(handle, initialStat, expectedDigest, maximum, label) {
-  assertFileStat(initialStat, label);
+async function readAndVerifyOpenObject(
+  handle,
+  initialStat,
+  expectedDigest,
+  maximum,
+  label,
+  statPolicy = {},
+) {
+  assertFileStat(initialStat, label, statPolicy);
   const before = fileIdentity(initialStat);
   const bytes = await readHandleExact(handle, initialStat, maximum, label);
   const afterStat = await handle.stat({ bigint: true });
-  assertFileStat(afterStat, label);
+  assertFileStat(afterStat, label, statPolicy);
   const after = fileIdentity(afterStat);
   if (!sameFileIdentity(before, after)) {
     fail('CAS_OBJECT_CHANGED_DURING_READ', `${label} changed while being read`);
@@ -358,6 +375,139 @@ function assertKnownOptions(options) {
       fail('CAS_OPTION_UNKNOWN', `unknown CAS option ${String(key)}`);
     }
   }
+}
+
+function checkedNativePublisher(publisher) {
+  if (!publisher || typeof publisher !== 'object' || Array.isArray(publisher)) {
+    fail(
+      'CAS_NATIVE_PUBLISHER_REQUIRED',
+      'CAS creation requires an authority-approved digest-pinned native publisher',
+    );
+  }
+  const keys = Object.keys(publisher).sort();
+  if (keys.length !== 3 || keys.join(',') !== 'digest,executable,protocol') {
+    fail('CAS_NATIVE_PUBLISHER_INVALID', 'native publisher descriptor fields are not exact');
+  }
+  if (publisher.protocol !== NATIVE_PUBLISH_PROTOCOL) {
+    fail('CAS_NATIVE_PUBLISHER_PROTOCOL_INVALID', 'native publisher protocol is not supported');
+  }
+  if (
+    typeof publisher.executable !== 'string'
+    || !isAbsolute(publisher.executable)
+    || normalize(publisher.executable) !== publisher.executable
+    || publisher.executable === parse(publisher.executable).root
+  ) {
+    fail('CAS_NATIVE_PUBLISHER_PATH_INVALID', 'native publisher path is not exact and absolute');
+  }
+  return Object.freeze({
+    executable: publisher.executable,
+    digest: checkedDigest(publisher.digest),
+    protocol: publisher.protocol,
+  });
+}
+
+async function assertAbsoluteDirectoryChainStable(path, expected) {
+  const reopened = await openAbsoluteDirectoryChain(path);
+  try {
+    if (reopened.length !== expected.length) {
+      fail('CAS_NATIVE_PUBLISHER_DIRECTORY_CHANGED', 'native publisher directory chain changed');
+    }
+    for (let index = 0; index < expected.length; index += 1) {
+      const observed = directoryIdentity(await reopened[index].stat({ bigint: true }));
+      if (!sameDirectoryIdentity(observed, expected[index])) {
+        fail(
+          'CAS_NATIVE_PUBLISHER_DIRECTORY_CHANGED',
+          `native publisher directory changed at index ${index}`,
+        );
+      }
+    }
+  } finally {
+    await closeHandles(reopened);
+  }
+}
+
+async function openPinnedNativePublisher(publisher) {
+  const parentPath = dirname(publisher.executable);
+  const name = basename(publisher.executable);
+  const directoryHandles = await openAbsoluteDirectoryChain(parentPath);
+  let handle;
+  try {
+    handle = await open(procEntry(directoryHandles.at(-1), name), FILE_READ_FLAGS);
+    const stat = await handle.stat({ bigint: true });
+    const verified = await readAndVerifyOpenObject(
+      handle,
+      stat,
+      publisher.digest,
+      16 * 1024 * 1024,
+      'native CAS publisher',
+      { links: 1n, mode: 0o500 },
+    );
+    const directoryIdentities = [];
+    for (const directoryHandle of directoryHandles) {
+      directoryIdentities.push(directoryIdentity(await directoryHandle.stat({ bigint: true })));
+    }
+    return {
+      handle,
+      identity: verified.identity,
+      directoryHandles,
+      directoryIdentities,
+      parentPath,
+    };
+  } catch (error) {
+    await handle?.close().catch(() => {});
+    await closeHandles(directoryHandles);
+    if (error instanceof HermeticCasError) throw error;
+    fail('CAS_NATIVE_PUBLISHER_OPEN_FAILED', 'native publisher could not be pinned', error);
+  }
+}
+
+async function closePinnedNativePublisher(pinned) {
+  await pinned?.handle.close().catch(() => {});
+  await closeHandles(pinned?.directoryHandles || []);
+}
+
+async function invokeNativePublisher({
+  publisher,
+  pinned,
+  stagingHandle,
+  shardHandle,
+  hexadecimal,
+}) {
+  const result = spawnSync(
+    '/proc/self/fd/3',
+    [publisher.protocol, hexadecimal],
+    {
+      env: Object.freeze({ LANG: 'C', LC_ALL: 'C' }),
+      encoding: null,
+      maxBuffer: 64 * 1024,
+      timeout: 10_000,
+      stdio: [
+        'ignore',
+        'pipe',
+        'pipe',
+        pinned.handle.fd,
+        stagingHandle.fd,
+        shardHandle.fd,
+      ],
+    },
+  );
+  const stdout = Buffer.isBuffer(result.stdout) ? result.stdout : Buffer.from(result.stdout || '');
+  const stderr = Buffer.isBuffer(result.stderr) ? result.stderr : Buffer.from(result.stderr || '');
+  if (result.error || result.signal || stdout.length || stderr.length) {
+    fail('CAS_NATIVE_PUBLISHER_EXECUTION_FAILED', 'native publisher execution was not clean', result.error);
+  }
+  if (result.status !== 0 && result.status !== NATIVE_PUBLISH_EXISTING_STATUS) {
+    fail(
+      'CAS_NATIVE_PUBLISHER_STATUS_INVALID',
+      `native publisher returned unsupported status ${String(result.status)}`,
+    );
+  }
+  const after = fileIdentity(await pinned.handle.stat({ bigint: true }));
+  if (!sameFileIdentity(pinned.identity, after)) {
+    fail('CAS_NATIVE_PUBLISHER_CHANGED', 'native publisher changed during execution');
+  }
+  await assertAbsoluteDirectoryChainStable(pinned.parentPath, pinned.directoryIdentities);
+  return result.status === 0 ? 'PUBLISHED' : 'EXISTING';
 }
 
 async function verifyFinalName({
@@ -388,37 +538,6 @@ async function verifyFinalName({
   }
 }
 
-async function removeEntryIfIdentity(shard, name, expectedInode) {
-  const failures = [];
-  let candidate;
-  try {
-    candidate = await openObject(shard, name, 'CAS rollback object');
-    const identity = fileIdentity(candidate.stat);
-    if (!sameInode(identity, expectedInode)) {
-      return ['ROLLBACK_IDENTITY_MISMATCH'];
-    }
-    await candidate.handle.close();
-    candidate = null;
-    await unlink(procEntry(shard, name));
-    await shard.sync();
-  } catch (error) {
-    if (error.code !== 'ENOENT') failures.push(error.code || error.name || 'ROLLBACK_FAILED');
-  } finally {
-    await candidate?.handle.close().catch(() => {});
-  }
-  return failures;
-}
-
-async function removeTemporary(shard, name) {
-  try {
-    await unlink(procEntry(shard, name));
-    await shard.sync();
-    return [];
-  } catch (error) {
-    return error.code === 'ENOENT' ? [] : [error.code || error.name || 'TEMP_CLEANUP_FAILED'];
-  }
-}
-
 function descriptor(digest, byteSize, mediaType, created) {
   return Object.freeze({
     digest,
@@ -434,6 +553,7 @@ export async function putCasObject({
   bytes: input,
   mediaType,
   expectedDigest,
+  nativePublisher,
   mode = 0o600,
   maxBytes = DEFAULT_MAX_BYTES,
   ...options
@@ -443,89 +563,88 @@ export async function putCasObject({
   const maximum = checkedMaxBytes(maxBytes);
   const bytes = checkedBytes(input, maximum);
   const checkedType = checkedMediaType(mediaType);
-  if (mode !== 0o600 && mode !== 0o400) {
-    fail('CAS_OBJECT_MODE_INVALID', 'CAS object mode must be 0600 or 0400');
+  if (mode !== 0o600) {
+    fail('CAS_OBJECT_MODE_INVALID', 'CAS object mode must be exactly 0600');
   }
   const digest = sha256(bytes);
   if (expectedDigest !== undefined && checkedDigest(expectedDigest) !== digest) {
     fail('CAS_EXPECTED_DIGEST_MISMATCH', 'CAS object does not match the expected digest');
   }
   const hexadecimal = digest.slice(7);
-  const directories = await openCasDirectoryChain(canonicalRoot, hexadecimal, { create: true });
-  const temporaryName = `.tmp-${process.pid}-${randomBytes(24).toString('hex')}`;
-  const temporaryPath = join(canonicalRoot, 'sha256', hexadecimal.slice(0, 2), temporaryName);
+  const publisher = checkedNativePublisher(nativePublisher);
+  const pinnedPublisher = await openPinnedNativePublisher(publisher);
+  let directories;
+  let stagingHandle;
   const objectPath = join(canonicalRoot, 'sha256', hexadecimal.slice(0, 2), hexadecimal);
-  let temporaryHandle;
-  let temporaryIdentity;
-  let publishedByThisCall = false;
-  let publishedIdentity;
-  let temporaryExists = false;
   try {
+    directories = await openCasDirectoryChain(canonicalRoot, hexadecimal, { create: true });
     try {
-      temporaryHandle = await open(procEntry(directories.shard, temporaryName), FILE_CREATE_FLAGS, mode);
-      temporaryExists = true;
+      stagingHandle = await open(
+        `${PROC_FD_ROOT}/${directories.shard.fd}`,
+        ANONYMOUS_STAGING_FLAGS,
+        mode,
+      );
     } catch (error) {
-      fail('CAS_TEMP_CREATE_FAILED', 'CAS temporary object could not be created exclusively', error);
+      fail(
+        'CAS_ANONYMOUS_STAGING_UNAVAILABLE',
+        'CAS filesystem does not support safe anonymous O_TMPFILE staging',
+        error,
+      );
     }
-    const emptyStat = await temporaryHandle.stat({ bigint: true });
-    assertFileStat(emptyStat, 'CAS temporary object');
-    await temporaryHandle.writeFile(bytes);
-    await temporaryHandle.sync();
-    const writtenStat = await temporaryHandle.stat({ bigint: true });
-    assertFileStat(writtenStat, 'CAS temporary object');
+    const emptyStat = await stagingHandle.stat({ bigint: true });
+    assertFileStat(emptyStat, 'CAS anonymous staging object', { links: 0n, mode });
+    await stagingHandle.writeFile(bytes);
+    await stagingHandle.sync();
+    const writtenStat = await stagingHandle.stat({ bigint: true });
+    assertFileStat(writtenStat, 'CAS anonymous staging object', { links: 0n, mode });
     if (writtenStat.size !== BigInt(bytes.length)) {
-      fail('CAS_TEMP_SIZE_MISMATCH', 'CAS temporary object size is incorrect');
+      fail('CAS_STAGING_SIZE_MISMATCH', 'CAS anonymous staging object size is incorrect');
     }
-    const verifiedTemporary = await readAndVerifyOpenObject(
-      temporaryHandle, writtenStat, digest, maximum, 'CAS temporary object',
+    const verifiedStaging = await readAndVerifyOpenObject(
+      stagingHandle,
+      writtenStat,
+      digest,
+      maximum,
+      'CAS anonymous staging object',
+      { links: 0n, mode },
     );
-    temporaryIdentity = verifiedTemporary.identity;
     await invokeTestHook(options, 'after-temporary-verified', {
       rootPath: canonicalRoot,
-      temporaryPath,
       objectPath,
       digest,
+      anonymousStaging: true,
     });
-    const postHookTemporaryStat = await temporaryHandle.stat({ bigint: true });
-    assertFileStat(postHookTemporaryStat, 'CAS temporary object');
-    if (!sameFileIdentity(temporaryIdentity, fileIdentity(postHookTemporaryStat))) {
-      fail('CAS_TEMP_IDENTITY_CHANGED', 'CAS temporary object changed before publication');
+    const postHookStagingStat = await stagingHandle.stat({ bigint: true });
+    assertFileStat(postHookStagingStat, 'CAS anonymous staging object', { links: 0n, mode });
+    if (!sameFileIdentity(verifiedStaging.identity, fileIdentity(postHookStagingStat))) {
+      fail('CAS_STAGING_IDENTITY_CHANGED', 'CAS anonymous staging object changed before publication');
     }
     await assertDirectoryChainStable(canonicalRoot, hexadecimal, directories.identities);
 
-    try {
-      await link(
-        procEntry(directories.shard, temporaryName),
-        procEntry(directories.shard, hexadecimal),
-      );
-      publishedByThisCall = true;
-      const linkedStat = await temporaryHandle.stat({ bigint: true });
-      if (linkedStat.nlink !== 2n) {
-        fail('CAS_PUBLISH_LINK_COUNT_INVALID', 'CAS publication did not create exactly one final link');
-      }
-      publishedIdentity = fileIdentity(linkedStat);
-    } catch (error) {
-      if (error.code !== 'EEXIST') {
-        if (error instanceof HermeticCasError) throw error;
-        fail('CAS_PUBLISH_FAILED', 'CAS object could not be published atomically', error);
-      }
-    }
-
-    if (publishedByThisCall) {
-      await unlink(procEntry(directories.shard, temporaryName));
-      temporaryExists = false;
+    const publication = await invokeNativePublisher({
+      publisher,
+      pinned: pinnedPublisher,
+      stagingHandle,
+      shardHandle: directories.shard,
+      hexadecimal,
+    });
+    if (publication === 'PUBLISHED') {
+      const finalStat = await stagingHandle.stat({ bigint: true });
+      assertFileStat(finalStat, 'published CAS object', { links: 1n, mode });
+      const publishedIdentity = fileIdentity(finalStat);
       await directories.shard.sync();
-      const finalStat = await temporaryHandle.stat({ bigint: true });
-      assertFileStat(finalStat, 'published CAS object');
-      publishedIdentity = fileIdentity(finalStat);
       await invokeTestHook(options, 'after-publish', {
         rootPath: canonicalRoot,
-        temporaryPath,
         objectPath,
         digest,
       });
       const finalVerified = await readAndVerifyOpenObject(
-        temporaryHandle, finalStat, digest, maximum, 'published CAS object',
+        stagingHandle,
+        finalStat,
+        digest,
+        maximum,
+        'published CAS object',
+        { links: 1n, mode },
       );
       if (!sameInode(finalVerified.identity, publishedIdentity)) {
         fail('CAS_OBJECT_IDENTITY_CHANGED', 'published CAS object identity changed');
@@ -541,14 +660,10 @@ export async function putCasObject({
       return descriptor(digest, bytes.length, checkedType, true);
     }
 
-    const cleanup = await removeTemporary(directories.shard, temporaryName);
-    temporaryExists = false;
-    if (cleanup.length) {
-      throw new HermeticCasError(
-        'CAS_TEMP_CLEANUP_FAILED',
-        'CAS temporary object could not be removed after concurrent publication',
-        { cleanupFailures: cleanup },
-      );
+    const unpublishedStat = await stagingHandle.stat({ bigint: true });
+    assertFileStat(unpublishedStat, 'unpublished CAS staging object', { links: 0n, mode });
+    if (!sameFileIdentity(verifiedStaging.identity, fileIdentity(unpublishedStat))) {
+      fail('CAS_STAGING_IDENTITY_CHANGED', 'unpublished CAS staging object changed');
     }
     const existing = await verifyFinalName({
       root: canonicalRoot,
@@ -561,24 +676,10 @@ export async function putCasObject({
       fail('CAS_EXISTING_SIZE_MISMATCH', 'existing CAS object size is incorrect');
     }
     return descriptor(digest, bytes.length, checkedType, false);
-  } catch (error) {
-    const cleanupFailures = [];
-    if (temporaryExists) {
-      cleanupFailures.push(...await removeTemporary(directories.shard, temporaryName));
-      temporaryExists = false;
-    }
-    if (publishedByThisCall && publishedIdentity) {
-      cleanupFailures.push(...await removeEntryIfIdentity(
-        directories.shard, hexadecimal, publishedIdentity,
-      ));
-    }
-    if (cleanupFailures.length && error instanceof HermeticCasError) {
-      error.cleanupFailures = Object.freeze(cleanupFailures);
-    }
-    throw error;
   } finally {
-    await temporaryHandle?.close().catch(() => {});
-    await closeHandles(directories.handles);
+    await stagingHandle?.close().catch(() => {});
+    await closeHandles(directories?.handles || []);
+    await closePinnedNativePublisher(pinnedPublisher);
   }
 }
 
