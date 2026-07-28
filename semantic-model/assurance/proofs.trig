@@ -416,8 +416,10 @@
   usf:canonicalName "providerworkforceauthority";
   usf:proofAlgorithmSourcePath "assurance/provider-workforce-closure/provider-workforce-authority-proof.mjs";
   usf:proofAlgorithmSourceDigest "sha256:257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf";
+  usf:proofAlgorithmSourceSetDigest "sha256:257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf";
   usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf>;
   usf:currentAlgorithmSourceDigest "sha256:257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf";
+  usf:currentAlgorithmSourceSetDigest "sha256:257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf";
   usf:currentImplementationSourceSetDigest "sha256:a9cc301223acf928259193f05f8bc928957b5aa0c8f9bb1a15e095b66b071994";
   usf:currentDependencySetDigest "sha256:8960758a7debe6fc3f20eef635ef4b54eb8a052c7fcb905923833380c36aff60";
   usf:currentDependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
@@ -429,6 +431,7 @@
 <urn:usf:proofalgorithmversion:providerworkforceauthority257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf> a usf:ProofAlgorithmVersion;
   usf:canonicalName "providerworkforceauthority257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf";
   usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:providerworkforceauthority>;
+  usf:proofAlgorithmVersionSourceSetDigest "sha256:257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf";
   usf:proofAlgorithmVersionIdentifier "1.1.0".
 <urn:usf:proof:providerworkforceauthority> a usf:Proof;
   usf:canonicalName "providerworkforceauthority";
@@ -461,6 +464,7 @@
   usf:evidenceSetDigest "sha256:39e156d7940bd46696adcc9557e8652527db9095ad62d84ee64b3f5e17ba139c";
   usf:usesProofAlgorithm <urn:usf:proofalgorithm:providerworkforceauthority>;
   usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf>;
+  usf:algorithmSourceSetDigest "sha256:257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf";
   usf:implementationSourceSetDigest "sha256:a9cc301223acf928259193f05f8bc928957b5aa0c8f9bb1a15e095b66b071994";
   usf:dependencySetDigest "sha256:8960758a7debe6fc3f20eef635ef4b54eb8a052c7fcb905923833380c36aff60";
   usf:dependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
@@ -513,6 +517,7 @@
   usf:evidenceSetDigest "sha256:39e156d7940bd46696adcc9557e8652527db9095ad62d84ee64b3f5e17ba139c";
   usf:usesProofAlgorithm <urn:usf:proofalgorithm:providerworkforceauthority>;
   usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf>;
+  usf:algorithmSourceSetDigest "sha256:257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf";
   usf:implementationSourceSetDigest "sha256:a9cc301223acf928259193f05f8bc928957b5aa0c8f9bb1a15e095b66b071994";
   usf:dependencySetDigest "sha256:8960758a7debe6fc3f20eef635ef4b54eb8a052c7fcb905923833380c36aff60";
   usf:dependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
@@ -565,6 +570,7 @@
   usf:evidenceSetDigest "sha256:39e156d7940bd46696adcc9557e8652527db9095ad62d84ee64b3f5e17ba139c";
   usf:usesProofAlgorithm <urn:usf:proofalgorithm:providerworkforceauthority>;
   usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf>;
+  usf:algorithmSourceSetDigest "sha256:257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf";
   usf:implementationSourceSetDigest "sha256:a9cc301223acf928259193f05f8bc928957b5aa0c8f9bb1a15e095b66b071994";
   usf:dependencySetDigest "sha256:8960758a7debe6fc3f20eef635ef4b54eb8a052c7fcb905923833380c36aff60";
   usf:dependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";

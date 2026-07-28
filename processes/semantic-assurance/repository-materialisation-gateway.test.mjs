@@ -333,7 +333,7 @@ function fakeClient({
       if (query.includes('<urn:usf:ontology:mandatoryProofObligation> ?obligation')) return currentness.mandatory;
       if (query.includes('?implementationDigest ?dependencyDigest')) return currentness.result;
       if (query.includes('?evidence ?admission ?freshness')) return currentness.evidence;
-      if (query.includes('?currentSourceDigest ?currentVersion')) return currentness.algorithm;
+      if (query.includes('?currentSourceDigest ?sourceSetDigest ?currentSourceSetDigest')) return currentness.algorithm;
       if (query.includes('?requiresReevaluation ?reevaluationState')) return currentness.binding;
       if (query.includes('a <urn:usf:ontology:PathRole>')) return pathRoleRows;
       if (query.includes('a <urn:usf:ontology:ArtefactFamily>')) return materialisationRuleRows;

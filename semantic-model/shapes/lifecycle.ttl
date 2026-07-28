@@ -80,6 +80,16 @@ _:b38_b38_n3-571 sh:path usf:proofAlgorithmSourceDigest;
     sh:datatype xsd:string;
     sh:pattern "^sha256:[0-9a-f]{64}$".
 <urn:usf:shape:proofalgorithmsource> sh:property _:b38_b38_n3-571.
+_:proof_algorithm_source_set_digest sh:path usf:proofAlgorithmSourceSetDigest;
+    sh:maxCount 1;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$".
+<urn:usf:shape:proofalgorithmsource> sh:property _:proof_algorithm_source_set_digest.
+_:current_algorithm_source_set_digest sh:path usf:currentAlgorithmSourceSetDigest;
+    sh:maxCount 1;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$".
+<urn:usf:shape:proofalgorithmsource> sh:property _:current_algorithm_source_set_digest.
 <urn:usf:shape:proofalgorithmversionidentity> a sh:NodeShape;
     sh:targetClass usf:ProofAlgorithmVersion.
 _:b38_b38_n3-572 sh:path usf:proofAlgorithmVersionOf;
@@ -93,6 +103,18 @@ _:b38_b38_n3-573 sh:path usf:proofAlgorithmVersionIdentifier;
     sh:datatype xsd:string;
     sh:pattern "^[0-9]+[.][0-9]+[.][0-9]+$".
 <urn:usf:shape:proofalgorithmversionidentity> sh:property _:b38_b38_n3-573.
+_:proof_algorithm_version_source_set_digest sh:path usf:proofAlgorithmVersionSourceSetDigest;
+    sh:maxCount 1;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$".
+<urn:usf:shape:proofalgorithmversionidentity> sh:property _:proof_algorithm_version_source_set_digest.
+<urn:usf:shape:proofresultalgorithmsourceset> a sh:NodeShape;
+    sh:targetClass usf:ProofResult.
+_:proof_result_algorithm_source_set_digest sh:path usf:algorithmSourceSetDigest;
+    sh:maxCount 1;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$".
+<urn:usf:shape:proofresultalgorithmsourceset> sh:property _:proof_result_algorithm_source_set_digest.
 <urn:usf:shape:forbiddenshortcuts> a sh:NodeShape;
     sh:targetSubjectsOf usf:establishesSemanticTruth, usf:directlyActivatesContract, usf:directlyAdmitsEvidence, usf:directlyEstablishesProof.
 _:b38_b38_n3-574 sh:message "ADR, external-work-record, report and test authority inversions are forbidden.";
