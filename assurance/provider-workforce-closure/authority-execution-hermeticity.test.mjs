@@ -80,8 +80,12 @@ test('commit snapshot is independent of repo-local config, hooks, filters, and f
     });
     assert.equal(snapshot.records[0].bytes.toString('utf8'), 'COMMITTED\n');
     assert.equal(snapshot.records[1].bytes.toString('utf8'), 'process.stdout.write("ORIGINAL\\n");\n');
-    assert.deepEqual(snapshot.evidence.gitExecution, {
+    assert.deepEqual({
+      ...snapshot.evidence.gitExecution,
+      executable: undefined,
+    }, {
       configurationSource: 'ISOLATED_GIT_DIR_WITH_SOURCE_OBJECT_ALTERNATE',
+      executable: undefined,
       originalLocalConfigLoaded: false,
       originalIndexLoaded: false,
       originalHooksLoaded: false,
@@ -89,6 +93,8 @@ test('commit snapshot is independent of repo-local config, hooks, filters, and f
       replaceObjectsDisabled: true,
       promptsDisabled: true,
     });
+    assert.equal(snapshot.evidence.gitExecution.executable.path, '/usr/bin/git');
+    assert.match(snapshot.evidence.gitExecution.executable.digest, /^sha256:[0-9a-f]{64}$/);
   } finally {
     rmSync(fixture.repository, { recursive: true, force: true });
   }

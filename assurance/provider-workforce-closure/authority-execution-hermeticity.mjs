@@ -272,7 +272,7 @@ function validateObjectId(value, code) {
 }
 
 function runIsolatedGit(context, args, code) {
-  return runPinnedExecutable({
+  const result = runPinnedExecutable({
     executable: context.gitExecutable,
     arguments: [
       '--no-replace-objects',
@@ -286,6 +286,14 @@ function runIsolatedGit(context, args, code) {
     timeout: 120_000,
     code,
   });
+  if (
+    context.gitExecutableEvidence
+    && canonicalJson(context.gitExecutableEvidence) !== canonicalJson(result.executable)
+  ) {
+    throw new Error('GIT_EXECUTABLE_EVIDENCE_CHANGED');
+  }
+  context.gitExecutableEvidence = result.executable;
+  return result;
 }
 
 function readVerifiedGitObject(context, type, objectId) {
@@ -422,6 +430,7 @@ export function readTrackedTreeSnapshot({
         },
         gitExecution: {
           configurationSource: 'ISOLATED_GIT_DIR_WITH_SOURCE_OBJECT_ALTERNATE',
+          executable: context.gitExecutableEvidence,
           originalLocalConfigLoaded: false,
           originalIndexLoaded: false,
           originalHooksLoaded: false,
