@@ -23,6 +23,8 @@ export const MATERIALISATION_CANDIDATE_GRAPH_INVENTORY_ALGORITHM =
 export const MATERIALISATION_PROOF_RUNNER_PATH =
   'assurance/semantic-model-compilation/materialisation-proof.mjs';
 export const MATERIALISATION_IMPLEMENTATION_SOURCE_PATHS = Object.freeze([
+  'assurance/provider-workforce-closure/hermetic-cas.mjs',
+  'assurance/provider-workforce-closure/hermetic-cas.test.mjs',
   'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.mjs',
   'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.test.mjs',
   'assurance/semantic-model-compilation/materialisation-proof.hostile-test.mjs',
@@ -144,6 +146,7 @@ export const MATERIALISATION_COMMAND_RESULT_FIELDS = Object.freeze([
 ].sort(utf8Compare));
 export const MATERIALISATION_FOCUSED_TEST_ARGUMENTS = Object.freeze([
   '--test',
+  'assurance/provider-workforce-closure/hermetic-cas.test.mjs',
   'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.test.mjs',
   'capabilities/repository-external-artefact-materialisation/materialisation-plan.test.mjs',
   'configuration/semantic-assurance/semantic-authority.test.mjs',

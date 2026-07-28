@@ -10,6 +10,10 @@ import test, { after, before } from 'node:test';
 
 const sourceRoot = resolve(import.meta.dirname, '../..');
 const relativeRunner = 'assurance/semantic-model-compilation/materialisation-proof.mjs';
+const relativeHermeticCas =
+  'assurance/provider-workforce-closure/hermetic-cas.mjs';
+const relativeAttestationVerifier =
+  'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.mjs';
 const sourceRunner = join(sourceRoot, relativeRunner);
 const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 
@@ -97,6 +101,7 @@ before(() => {
   repository = join(root, 'repository');
   gnupgHome = join(root, 'gnupg');
   mkdirSync(join(repository, 'assurance/semantic-model-compilation'), { recursive: true });
+  mkdirSync(join(repository, 'assurance/provider-workforce-closure'), { recursive: true });
   mkdirSync(join(repository, 'capabilities/semantic-model-compilation'), { recursive: true });
   mkdirSync(join(repository, 'configuration/semantic-assurance'), { recursive: true });
   mkdirSync(join(repository, 'provider-bindings/stardog'), { recursive: true });
@@ -105,6 +110,14 @@ before(() => {
   mkdirSync(join(root, 'cas'), { mode: 0o700 });
   chmodSync(gnupgHome, 0o700);
   cpSync(sourceRunner, join(repository, relativeRunner));
+  cpSync(
+    join(sourceRoot, relativeHermeticCas),
+    join(repository, relativeHermeticCas),
+  );
+  cpSync(
+    join(sourceRoot, relativeAttestationVerifier),
+    join(repository, relativeAttestationVerifier),
+  );
   cpSync(
     join(sourceRoot, 'capabilities/semantic-model-compilation/authority-binding.mjs'),
     join(repository, 'capabilities/semantic-model-compilation/authority-binding.mjs'),
@@ -282,6 +295,78 @@ test('producer compile assembly fails closed when the provider lacks validation 
   assert.deepEqual(receipt.failureCodes, ['SEMANTIC_AUTHORITY_RECEIPT_PROVIDER_REQUIRED']);
   assert.equal(receipt.eligibleForAdmission, false);
   assert.deepEqual(receipt.authorityClaims, []);
+});
+
+test('producer publishes through the locally inspected shared CAS and verifies exact stored bytes', () => {
+  const { result, receipt } = runProducer({
+    mode: '--test-hermetic-cas-publishing-only',
+  });
+  assert.equal(result.status, 0);
+  assert.equal(receipt.recordKind, 'USF_TEST_ONLY_HERMETIC_CAS_PUBLISHING');
+  assert.equal(receipt.publisherSource, 'locally-inspected');
+  assert.deepEqual(receipt.authorityClaims, []);
+  assert.equal(receipt.eligibleForAdmission, false);
+  assert.equal(
+    receipt.hermeticCasSystemPublisherDigest,
+    sha256(JSON.stringify(receipt.hermeticCasSystemPublisher)),
+  );
+  assert.equal(receipt.object.digest, receipt.exactStoredBytesDigest);
+  assert.equal(receipt.object.byteSize, receipt.exactStoredByteSize);
+  assert.deepEqual(
+    Object.keys(receipt.object).sort(),
+    ['byteSize', 'digest', 'locator', 'mediaType'],
+  );
+  const hexadecimal = receipt.object.digest.slice('sha256:'.length);
+  const stored = readFileSync(
+    join(root, 'cas', 'sha256', hexadecimal.slice(0, 2), hexadecimal),
+  );
+  assert.equal(sha256(stored), receipt.exactStoredBytesDigest);
+  assert.equal(stored.length, receipt.exactStoredByteSize);
+});
+
+test('producer rejects every externally supplied CAS publisher runtime descriptor', () => {
+  const { result, receipt } = runProducer({
+    mode: '--test-hermetic-cas-publishing-only',
+    environment: {
+      USF_CAS_SYSTEM_PUBLISHER_DESCRIPTOR: '{"forged":true}',
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.deepEqual(receipt.failureCodes, [
+    'EXTERNAL_CAS_SYSTEM_PUBLISHER_DESCRIPTOR_FORBIDDEN',
+  ]);
+  assert.equal(receipt.eligibleForAdmission, false);
+  assert.deepEqual(receipt.authorityClaims, []);
+});
+
+test('producer delegates CAS safety and binds the shared adversarial suite', () => {
+  const producerSource = readFileSync(sourceRunner, 'utf8');
+  const verifierSource = readFileSync(
+    join(sourceRoot, relativeAttestationVerifier),
+    'utf8',
+  );
+  const sharedTests = readFileSync(
+    join(
+      sourceRoot,
+      'assurance/provider-workforce-closure/hermetic-cas.test.mjs',
+    ),
+    'utf8',
+  );
+  assert.doesNotMatch(producerSource, /\bfunction putCas\s*\(/u);
+  assert.match(producerSource, /\bputCasObject\s*\(/u);
+  assert.match(producerSource, /\breadCasObject\s*\(/u);
+  assert.match(producerSource, /\binspectHermeticCasSystemPublisher\s*\(\s*\)/u);
+  assert.match(
+    verifierSource,
+    /assurance\/provider-workforce-closure\/hermetic-cas\.test\.mjs/u,
+  );
+  for (const requiredEvidence of [
+    'reader sees no partial final while a fsynced staging writer is blocked',
+    'publishes N cross-process writers once and quarantines losing staging files',
+    'rejects symlink parent/leaf, special type and hard-linked object',
+  ]) {
+    assert.match(sharedTests, new RegExp(requiredEvidence, 'u'));
+  }
 });
 
 test('preflight rejects an unexpected graph head', () => {
