@@ -39,6 +39,11 @@ import {
   verifyPinnedPythonRuntimeEvidence,
 } from '../semantic-model-compilation/local-shacl-validation.mjs';
 import { assertSupportedPublicationReceipt } from '../../processes/semantic-assurance/publication-receipt.mjs';
+import {
+  MATERIALISATION_IMPLEMENTATION_SOURCE_PATHS,
+  MATERIALISATION_PROOF_RUNNER_PATH,
+  verifyMaterialisationProofAttestation,
+} from './materialisation-proof-attestation-verifier.mjs';
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const COMMIT = /^[0-9a-f]{40}$/;
@@ -48,6 +53,7 @@ const PROVIDER_MUTATION_PATH = 'assurance/provider-workforce-closure/provider-ma
 const PROVIDER_PROOF_SOURCE_PATHS = Object.freeze([
   PROVIDER_PROOF_PATH,
   PROVIDER_MUTATION_PATH,
+  'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.mjs',
   'assurance/provider-workforce-closure/provider-workforce-authority-projection.mjs',
   'assurance/semantic-model-compilation/local-shacl-validation.mjs',
   'capabilities/semantic-model-compilation/authority-binding.mjs',
@@ -61,6 +67,7 @@ const EVIDENCE_RESOURCE = '<urn:usf:externalpayloaddescriptor:providerworkforcea
 const PROOF_RESOURCE = '<urn:usf:proofalgorithm:providerworkforceauthority>';
 const APPLICATION_BINDINGS = new WeakMap();
 const APPLICATION_ROLLBACKS = new WeakMap();
+const PROJECTION_MATERIALISATION_ATTESTATIONS = new WeakMap();
 export const PROVIDER_WORKFORCE_REQUIRED_CLAIMS = Object.freeze([
   'provider-secrets-remain-outside-git-and-semantic-authority',
   'environment-inspection-exposes-names-and-presence-only',
@@ -511,6 +518,7 @@ function verifyEvidence(receipt, evidenceBytes) {
     'proofInputSourceDigest',
     'proofInputSources',
     'proofAlgorithmSourceDigest',
+    'proofAlgorithmSourceSetDigest',
     'proofAlgorithmSources',
     'runtimeDependencyEvidence',
     'runtimeDependencyEvidenceDigest',
@@ -525,7 +533,7 @@ function verifyEvidence(receipt, evidenceBytes) {
     'nonclaims',
     'exactEvidenceSetDigest',
   ], 'EVIDENCE_FIELDS_INVALID');
-  assert(evidence.schemaVersion === 2, 'EVIDENCE_SCHEMA_UNSUPPORTED');
+  assert(evidence.schemaVersion === 3, 'EVIDENCE_SCHEMA_UNSUPPORTED');
   assert(evidence.recordKind === 'USF_PROVIDER_WORKFORCE_AUTHORITY_EVIDENCE_CANDIDATE', 'EVIDENCE_KIND_INVALID');
   assert(evidence.passed === true && evidence.eligibleForAdmission === true, 'EVIDENCE_NOT_ELIGIBLE');
   exactStringSet(evidence.authorityClaims, PROVIDER_WORKFORCE_REQUIRED_CLAIMS, 'EVIDENCE_AUTHORITY_CLAIM_SET_MISMATCH');
@@ -556,6 +564,7 @@ function verifyEvidence(receipt, evidenceBytes) {
     'implementationSourceDigest',
     'proofInputSourceDigest',
     'proofAlgorithmSourceDigest',
+    'proofAlgorithmSourceSetDigest',
     'runtimeDependencyEvidenceDigest',
     'policyDigest',
     'populationDigest',
@@ -619,8 +628,13 @@ function verifyEvidence(receipt, evidenceBytes) {
   }), 'PROOF_ALGORITHM_SOURCE_RECORD_INVALID');
   exactStringSet(evidence.proofAlgorithmSources.map(({ path }) => path), PROVIDER_PROOF_SOURCE_PATHS,
     'PROOF_ALGORITHM_SOURCE_SET_INVALID');
-  assert(sha256(canonicalJson(evidence.proofAlgorithmSources)) === evidence.proofAlgorithmSourceDigest,
+  assert(sha256(canonicalJson(evidence.proofAlgorithmSources))
+    === evidence.proofAlgorithmSourceSetDigest,
     'PROOF_ALGORITHM_SOURCE_SET_DIGEST_MISMATCH');
+  const primaryAlgorithmSource = evidence.proofAlgorithmSources
+    .find(({ path }) => path === PROVIDER_PROOF_PATH);
+  assert(primaryAlgorithmSource?.digest === evidence.proofAlgorithmSourceDigest,
+    'PROOF_ALGORITHM_PRIMARY_SOURCE_DIGEST_MISMATCH');
   return Object.freeze(evidence);
 }
 
@@ -661,6 +675,8 @@ function verifyAttestation(receipt, evidence, evidenceDescriptor, attestationByt
     'ATTESTATION_IMPLEMENTATION_DIGEST_MISMATCH');
   assert(statement.predicate?.proofAlgorithmSourceDigest === evidence.proofAlgorithmSourceDigest,
     'ATTESTATION_ALGORITHM_DIGEST_MISMATCH');
+  assert(statement.predicate?.proofAlgorithmSourceSetDigest === evidence.proofAlgorithmSourceSetDigest,
+    'ATTESTATION_ALGORITHM_SOURCE_SET_DIGEST_MISMATCH');
   assert(statement.predicate?.proofInputSourceDigest === evidence.proofInputSourceDigest,
     'ATTESTATION_PROOF_INPUT_DIGEST_MISMATCH');
   assert(statement.predicate?.runtimeDependencyEvidenceDigest === evidence.runtimeDependencyEvidenceDigest,
@@ -671,6 +687,7 @@ function verifyAttestation(receipt, evidence, evidenceDescriptor, attestationByt
     'implementationSourceDigest',
     'proofInputSourceDigest',
     'proofAlgorithmSourceDigest',
+    'proofAlgorithmSourceSetDigest',
     'runtimeDependencyEvidenceDigest',
     'result',
   ], 'ATTESTATION_PREDICATE_FIELDS_INVALID');
@@ -685,6 +702,7 @@ function scopeManifest({ evidence, evidenceDescriptor, classification }) {
     evidenceDigest: evidenceDescriptor.digest,
     proofInputSourceDigest: evidence.proofInputSourceDigest,
     proofAlgorithmSourceDigest: evidence.proofAlgorithmSourceDigest,
+    proofAlgorithmSourceSetDigest: evidence.proofAlgorithmSourceSetDigest,
     runtimeDependencyEvidenceDigest: evidence.runtimeDependencyEvidenceDigest,
     authorityClaims: [...evidence.authorityClaims].sort(utf8Compare),
     caseIds: evidence.cases.map(({ id }) => id).sort(utf8Compare),
@@ -884,7 +902,8 @@ function proofProjection({
   settledAuthorityDigest,
   reevaluatedAt,
 }) {
-  const algorithmVersionIri = `urn:usf:proofalgorithmversion:providerworkforceauthority${evidence.proofAlgorithmSourceDigest.slice(7)}`;
+  const algorithmVersionIri =
+    `urn:usf:proofalgorithmversion:providerworkforceauthority${evidence.proofAlgorithmSourceSetDigest.slice(7)}`;
   const primaryAlgorithmSourceDigest = evidence.proofAlgorithmSources
     .find(({ path }) => path === PROVIDER_PROOF_PATH).digest;
   const contracts = CONTRACTS.map(({ name }) => iri(`urn:usf:semanticcontract:${name}`)).join(', ');
@@ -898,15 +917,18 @@ function proofProjection({
   lines.push('  usf:canonicalName "providerworkforceauthority";');
   lines.push(`  usf:proofAlgorithmSourcePath ${q(PROVIDER_PROOF_PATH)};`);
   lines.push(`  usf:proofAlgorithmSourceDigest ${q(primaryAlgorithmSourceDigest)};`);
+  lines.push(`  usf:proofAlgorithmSourceSetDigest ${q(evidence.proofAlgorithmSourceSetDigest)};`);
   lines.push(`  usf:currentAlgorithmVersion <${algorithmVersionIri}>;`);
   lines.push(`  usf:currentAlgorithmSourceDigest ${q(primaryAlgorithmSourceDigest)};`);
+  lines.push(`  usf:currentAlgorithmSourceSetDigest ${q(evidence.proofAlgorithmSourceSetDigest)};`);
   lines.push(`  usf:currentImplementationSourceSetDigest ${q(evidence.implementationSourceDigest)};`);
   lines.push(`  usf:currentDependencySetDigest ${q(dependencySetDigest)};`);
   lines.push(`  usf:currentDependencyDigestAlgorithm ${q(dependencyDigestAlgorithm)};`);
   lines.push('  usf:requiresGraphSourceBinding true.');
   lines.push(`<${algorithmVersionIri}> a usf:ProofAlgorithmVersion;`);
-  lines.push(`  usf:canonicalName ${q(`providerworkforceauthority${evidence.proofAlgorithmSourceDigest.slice(7)}`)};`);
+  lines.push(`  usf:canonicalName ${q(`providerworkforceauthority${evidence.proofAlgorithmSourceSetDigest.slice(7)}`)};`);
   lines.push('  usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:providerworkforceauthority>;');
+  lines.push(`  usf:proofAlgorithmVersionSourceSetDigest ${q(evidence.proofAlgorithmSourceSetDigest)};`);
   lines.push(`  usf:proofAlgorithmVersionIdentifier ${q(algorithmVersion)}.`);
   lines.push('<urn:usf:proof:providerworkforceauthority> a usf:Proof;');
   lines.push('  usf:canonicalName "providerworkforceauthority";');
@@ -942,6 +964,7 @@ function proofProjection({
     lines.push(`  usf:evidenceSetDigest ${q(evidence.exactEvidenceSetDigest)};`);
     lines.push('  usf:usesProofAlgorithm <urn:usf:proofalgorithm:providerworkforceauthority>;');
     lines.push(`  usf:usesAlgorithmVersion <${algorithmVersionIri}>;`);
+    lines.push(`  usf:algorithmSourceSetDigest ${q(evidence.proofAlgorithmSourceSetDigest)};`);
     lines.push(`  usf:implementationSourceSetDigest ${q(evidence.implementationSourceDigest)};`);
     lines.push(`  usf:dependencySetDigest ${q(dependencySetDigest)};`);
     lines.push(`  usf:dependencyDigestAlgorithm ${q(dependencyDigestAlgorithm)};`);
@@ -980,6 +1003,10 @@ export function projectProviderWorkforceAuthorityReceipt({
   receipt,
   evidenceBytes,
   attestationBytes,
+  materialisationReceipt,
+  materialisationReceiptBytes,
+  materialisationEvidenceBytes,
+  materialisationAttestationBytes,
   candidatePublicationReceipt,
   candidatePublicationReceiptBytes,
   proofProducerCommit,
@@ -1005,6 +1032,7 @@ export function projectProviderWorkforceAuthorityReceipt({
     'implementationSourceDigest',
     'proofInputSourceDigest',
     'proofAlgorithmSourceDigest',
+    'proofAlgorithmSourceSetDigest',
     'runtimeDependencyEvidenceDigest',
     'exactEvidenceSetDigest',
     'policyDigest',
@@ -1016,7 +1044,7 @@ export function projectProviderWorkforceAuthorityReceipt({
     'signingKeyFingerprint',
     'outputRoot',
   ], 'RECEIPT_FIELDS_INVALID');
-  assert(receipt.schemaVersion === 2, 'RECEIPT_SCHEMA_UNSUPPORTED');
+  assert(receipt.schemaVersion === 3, 'RECEIPT_SCHEMA_UNSUPPORTED');
   assert(receipt.recordKind === 'USF_PROVIDER_WORKFORCE_AUTHORITY_EVIDENCE_RECEIPT', 'RECEIPT_KIND_INVALID');
   assert(receipt.ok === true && receipt.passed === true && receipt.eligibleForAdmission === true, 'RECEIPT_NOT_ELIGIBLE');
   assert(receipt.outputRoot === 'SESSION_TRANSIENT_OUTPUT_ROOT',
@@ -1036,6 +1064,12 @@ export function projectProviderWorkforceAuthorityReceipt({
   const evidenceDescriptor = descriptor(receipt, 'evidenceManifest', evidenceBytes, 'application/json');
   const attestationDescriptor = descriptor(receipt, 'proofAttestation', attestationBytes, 'application/vnd.in-toto+json');
   const evidence = verifyEvidence(receipt, evidenceBytes);
+  const materialisation = verifyMaterialisationProofAttestation({
+    receipt: materialisationReceipt,
+    receiptBytes: materialisationReceiptBytes,
+    evidenceBytes: materialisationEvidenceBytes,
+    attestationBytes: materialisationAttestationBytes,
+  });
   const candidatePublication = verifyCandidatePublicationReceipt({
     receipt: candidatePublicationReceipt,
     receiptBytes: candidatePublicationReceiptBytes,
@@ -1043,14 +1077,29 @@ export function projectProviderWorkforceAuthorityReceipt({
   });
   const dependencySetDigest = authorityDependencySetDigest(candidatePublication.candidateGraphs);
   const dependencyDigestAlgorithm = AUTHORITY_DEPENDENCY_DIGEST_ALGORITHM;
+  assert(materialisation.evidence.evaluatedAuthorityDigest === evidence.evaluatedAuthorityDigest,
+    'MATERIALISATION_PROVIDER_AUTHORITY_BINDING_MISMATCH');
+  assert(materialisation.evidence.graphCommit === proofProducerCommit,
+    'MATERIALISATION_PROOF_PRODUCER_COMMIT_MISMATCH');
+  assert(materialisation.evidence.graphTree === proofProducerTree,
+    'MATERIALISATION_PROOF_PRODUCER_TREE_MISMATCH');
+  assert(materialisation.candidateGraphInventoryAlgorithm
+    === candidatePublication.candidateInventoryAlgorithm,
+  'MATERIALISATION_CANDIDATE_INVENTORY_ALGORITHM_MISMATCH');
+  assert(canonicalJson(materialisation.candidateGraphs)
+    === canonicalJson(candidatePublication.candidateGraphs),
+  'MATERIALISATION_CANDIDATE_GRAPH_INVENTORY_MISMATCH');
+  assert(materialisation.candidateAuthorityDigest === candidatePublication.candidateInventoryDigest,
+    'MATERIALISATION_CANDIDATE_AUTHORITY_DIGEST_MISMATCH');
+  assert(materialisation.candidateDependencySetDigest === dependencySetDigest,
+    'MATERIALISATION_CANDIDATE_DEPENDENCY_DIGEST_MISMATCH');
   assert(Date.parse(evidence.evaluatedAt) <= Date.parse(observedAt), 'EVIDENCE_NOT_YET_VALID');
   assert(Date.parse(observedAt) < Date.parse(evidence.validUntil), 'EVIDENCE_EXPIRED');
   if (reevaluationState === 'successful') {
     assert(Date.parse(reevaluatedAt) >= Date.parse(evidence.evaluatedAt)
       && Date.parse(reevaluatedAt) <= Date.parse(observedAt), 'REEVALUATED_AT_OUTSIDE_OBSERVATION');
   }
-  const primaryAlgorithmSourceDigest = evidence.proofAlgorithmSources
-    .find(({ path }) => path === PROVIDER_PROOF_PATH).digest;
+  const primaryAlgorithmSourceDigest = evidence.proofAlgorithmSourceDigest;
   const attestation = verifyAttestation(receipt, evidence, evidenceDescriptor, attestationBytes);
   const enrichedReceipt = Object.freeze({ ...receipt, dependencySetDigest });
   const evidenceTurtle = evidenceProjection({
@@ -1074,7 +1123,7 @@ export function projectProviderWorkforceAuthorityReceipt({
     reevaluatedAt,
   });
   const metadataCore = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     recordKind: 'USF_PROVIDER_WORKFORCE_AUTHORITY_RDF_PROJECTION',
     evidenceDigest: evidenceDescriptor.digest,
     attestationDigest: attestationDescriptor.digest,
@@ -1089,8 +1138,20 @@ export function projectProviderWorkforceAuthorityReceipt({
     implementationSourceDigest: evidence.implementationSourceDigest,
     proofInputSourceDigest: evidence.proofInputSourceDigest,
     proofAlgorithmSourceDigest: evidence.proofAlgorithmSourceDigest,
+    proofAlgorithmSourceSetDigest: evidence.proofAlgorithmSourceSetDigest,
     runtimeDependencyEvidenceDigest: evidence.runtimeDependencyEvidenceDigest,
     primaryAlgorithmSourceDigest,
+    materialisationProofReceiptDigest: sha256(materialisationReceiptBytes),
+    materialisationProofEvidenceDigest: materialisation.evidenceDescriptor.digest,
+    materialisationProofAttestationDigest: materialisation.attestationDescriptor.digest,
+    materialisationProofExactEvidenceSetDigest: materialisation.evidence.exactEvidenceSetDigest,
+    materialisationProofImplementationSourceDigest:
+      materialisation.evidence.implementationSourceDigest,
+    materialisationProofAlgorithmSourceDigest:
+      materialisation.evidence.proofAlgorithmSourceDigest,
+    materialisationProofGraphCommit: materialisation.evidence.graphCommit,
+    materialisationProofGraphTree: materialisation.evidence.graphTree,
+    materialisationProofSigningKeyFingerprint: materialisation.signingKeyFingerprint,
     proofProducerCommit,
     proofProducerTree,
     algorithmVersion,
@@ -1101,11 +1162,13 @@ export function projectProviderWorkforceAuthorityReceipt({
     evidenceProjectionDigest: sha256(evidenceTurtle),
     proofProjectionDigest: sha256(proofsTurtle),
   };
-  return Object.freeze({
+  const projection = Object.freeze({
     evidenceTurtle,
     proofsTurtle,
     metadata: Object.freeze({ ...metadataCore, projectionDigest: sha256(canonicalJson(metadataCore)) }),
   });
+  PROJECTION_MATERIALISATION_ATTESTATIONS.set(projection, materialisation);
+  return projection;
 }
 
 function replaceExactBlock(source, start, end, replacement, label) {
@@ -1361,8 +1424,12 @@ function parseArguments(argv) {
 
 function exactInputFile(path, label) {
   assert(typeof path === 'string' && path.length > 0, `${label}_PATH_REQUIRED`);
-  assert(!lstatSync(path).isSymbolicLink() && statSync(path).isFile(), `${label}_NOT_EXACT_FILE`);
-  return readFileSync(path);
+  const absolutePath = resolve(path);
+  const stat = lstatSync(absolutePath);
+  assert(!stat.isSymbolicLink() && stat.isFile() && stat.nlink === 1,
+    `${label}_NOT_EXACT_FILE`);
+  assert(realpathSync(absolutePath) === absolutePath, `${label}_PATH_NOT_EXACT`);
+  return readFileSync(absolutePath);
 }
 
 export function prepareProjectionOutputRoot(repositoryRoot, requestedOutputRoot) {
@@ -1465,6 +1532,7 @@ export function verifyProjectionRepositoryBinding({
   proofProducerCommit,
   proofProducerTree,
   evidence,
+  materialisation,
 }) {
   const root = verifyGitRepository({
     repositoryRoot,
@@ -1484,8 +1552,35 @@ export function verifyProjectionRepositoryBinding({
   evidence.proofAlgorithmSources.forEach((record, index) => {
     verifyTrackedSource(root, record, `PROOF_ALGORITHM_SOURCE_${index}`);
   });
-  assert(sha256(canonicalJson(evidence.proofAlgorithmSources)) === evidence.proofAlgorithmSourceDigest,
+  assert(sha256(canonicalJson(evidence.proofAlgorithmSources))
+    === evidence.proofAlgorithmSourceSetDigest,
     'PROOF_ALGORITHM_SOURCE_SET_DIGEST_MISMATCH');
+  assert(evidence.proofAlgorithmSources
+    .find(({ path }) => path === PROVIDER_PROOF_PATH)?.digest
+      === evidence.proofAlgorithmSourceDigest,
+  'PROOF_ALGORITHM_PRIMARY_SOURCE_DIGEST_MISMATCH');
+  assert(materialisation && typeof materialisation === 'object',
+    'MATERIALISATION_PROOF_ATTESTATION_BINDING_REQUIRED');
+  assert(materialisation.evidence?.graphCommit === proofProducerCommit
+    && materialisation.evidence?.graphTree === proofProducerTree,
+  'MATERIALISATION_PROOF_CHECKOUT_BINDING_MISMATCH');
+  exactStringSet(
+    materialisation.evidence?.implementationSources?.map(({ path }) => path),
+    MATERIALISATION_IMPLEMENTATION_SOURCE_PATHS,
+    'MATERIALISATION_IMPLEMENTATION_SOURCE_SET_INVALID',
+  );
+  materialisation.evidence.implementationSources.forEach((record, index) => {
+    verifyTrackedSource(root, record, `MATERIALISATION_IMPLEMENTATION_SOURCE_${index}`);
+  });
+  assert(sha256(canonicalJson(materialisation.evidence.implementationSources))
+    === materialisation.evidence.implementationSourceDigest,
+  'MATERIALISATION_IMPLEMENTATION_SOURCE_SET_DIGEST_MISMATCH');
+  assert(materialisation.evidence?.runner?.sourcePath === MATERIALISATION_PROOF_RUNNER_PATH,
+    'MATERIALISATION_PROOF_RUNNER_PATH_INVALID');
+  verifyTrackedSource(root, {
+    path: materialisation.evidence.runner.sourcePath,
+    digest: materialisation.evidence.runner.sourceDigest,
+  }, 'MATERIALISATION_PROOF_RUNNER');
   verifyProviderMaterialisationAuthorityMutationEvidence(
     evidence.materialisationAuthorityMutationEvidence,
     { repositoryRoot: root },
@@ -1582,6 +1677,7 @@ function reproduceProviderWorkforceEvidence({
 function exactExecutionSourceIdentitySnapshot({
   repositories,
   evidence,
+  materialisation,
 }) {
   const paths = [
     ...evidence.proofAlgorithmSources.map(({ path }) => join(repositories.repositoryRoot, path)),
@@ -1589,6 +1685,9 @@ function exactExecutionSourceIdentitySnapshot({
       .map(({ path }) => join(repositories.repositoryRoot, path)),
     ...evidence.implementationSources.map(({ path }) => join(repositories.factoryRepositoryRoot, path)),
     ...evidence.proofInputSources.map(({ path }) => join(repositories.factoryRepositoryRoot, path)),
+    ...materialisation.evidence.implementationSources
+      .map(({ path }) => join(repositories.repositoryRoot, path)),
+    join(repositories.repositoryRoot, materialisation.evidence.runner.sourcePath),
   ];
   return [...new Set(paths)].sort(utf8Compare).map((path) => {
     const stat = statSync(path, { bigint: true });
@@ -1605,14 +1704,24 @@ function exactExecutionSourceIdentitySnapshot({
   });
 }
 
+export const providerWorkforceAuthorityProjectionInternals = Object.freeze({
+  exactExecutionSourceIdentitySnapshot,
+});
+
 function createProjectionApplicationBinding(arguments_) {
-  const repositories = verifyProjectionRepositoryBinding(arguments_);
+  const materialisation = PROJECTION_MATERIALISATION_ATTESTATIONS.get(arguments_.projection);
+  assert(materialisation, 'PROJECTION_MATERIALISATION_ATTESTATION_BINDING_INVALID');
+  const repositories = verifyProjectionRepositoryBinding({
+    ...arguments_,
+    materialisation,
+  });
   assert(canonicalJson(arguments_.mutationRuntime)
     === canonicalJson(arguments_.evidence.materialisationAuthorityMutationEvidence.runtime),
   'MATERIALISATION_MUTATION_RUNTIME_BINDING_MISMATCH');
   const executionSourceIdentityBefore = exactExecutionSourceIdentitySnapshot({
     repositories,
     evidence: arguments_.evidence,
+    materialisation,
   });
   reproduceProviderWorkforceEvidence({
     repositories,
@@ -1625,6 +1734,7 @@ function createProjectionApplicationBinding(arguments_) {
   const executionSourceIdentityAfter = exactExecutionSourceIdentitySnapshot({
     repositories,
     evidence: arguments_.evidence,
+    materialisation,
   });
   assert(canonicalJson(executionSourceIdentityAfter) === canonicalJson(executionSourceIdentityBefore),
     'PROVIDER_WORKFORCE_EXECUTION_SOURCE_IDENTITY_MOVED');
@@ -1647,6 +1757,7 @@ function createProjectionApplicationBinding(arguments_) {
       proofProducerCommit: arguments_.proofProducerCommit,
       proofProducerTree: arguments_.proofProducerTree,
       evidence: arguments_.evidence,
+      materialisation,
     }),
   }));
   return binding;
@@ -1746,6 +1857,9 @@ function runCli() {
     'evidence',
     'factory-repository-root',
     'local-shacl-python',
+    'materialisation-attestation',
+    'materialisation-evidence',
+    'materialisation-receipt',
     'observed-at',
     'output-root',
     'proof-producer-commit',
@@ -1780,6 +1894,24 @@ function runCli() {
     executableDigest: sha256(readFileSync(mutationResolvedExecutablePath)),
   });
   const attestationBytes = exactInputFile(values.attestation, 'ATTESTATION');
+  const materialisationReceiptBytes = exactInputFile(
+    values['materialisation-receipt'],
+    'MATERIALISATION_RECEIPT',
+  );
+  let materialisationReceipt;
+  try {
+    materialisationReceipt = JSON.parse(materialisationReceiptBytes.toString('utf8'));
+  } catch {
+    throw new Error('MATERIALISATION_RECEIPT_JSON_INVALID');
+  }
+  const materialisationEvidenceBytes = exactInputFile(
+    values['materialisation-evidence'],
+    'MATERIALISATION_EVIDENCE',
+  );
+  const materialisationAttestationBytes = exactInputFile(
+    values['materialisation-attestation'],
+    'MATERIALISATION_ATTESTATION',
+  );
   const candidatePublicationReceiptBytes = exactInputFile(
     values['candidate-publication-receipt'],
     'CANDIDATE_PUBLICATION_RECEIPT',
@@ -1794,6 +1926,10 @@ function runCli() {
     receipt,
     evidenceBytes,
     attestationBytes,
+    materialisationReceipt,
+    materialisationReceiptBytes,
+    materialisationEvidenceBytes,
+    materialisationAttestationBytes,
     candidatePublicationReceipt,
     candidatePublicationReceiptBytes,
     proofProducerCommit: values['proof-producer-commit'],
@@ -1837,6 +1973,7 @@ function runCli() {
     proofProducerCommit: values['proof-producer-commit'],
     proofProducerTree: values['proof-producer-tree'],
     evidence,
+    materialisation: PROJECTION_MATERIALISATION_ATTESTATIONS.get(projection),
   });
   const exactOutputRoot = prepareProjectionOutputRoot(root, values['output-root']);
   writeProjectionOutputFile(
