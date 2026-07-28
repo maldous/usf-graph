@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import {
   constants as fsConstants,
   mkdir,
@@ -15,7 +15,9 @@ import {
 } from 'node:path';
 
 const {
+  O_CREAT,
   O_DIRECTORY,
+  O_EXCL,
   O_NONBLOCK,
   O_NOFOLLOW,
   O_RDONLY,
@@ -28,12 +30,18 @@ const SAFE_MEDIA_TYPE = /^[\x21-\x7e]{1,255}$/;
 const DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
 const DIRECTORY_FLAGS = O_RDONLY | O_DIRECTORY | O_NOFOLLOW;
 const FILE_READ_FLAGS = O_RDONLY | O_NOFOLLOW | O_NONBLOCK;
-// Linux UAPI: __O_TMPFILE (0x400000) | O_DIRECTORY (0x10000).
-const O_TMPFILE_LINUX = 0x410000;
-const ANONYMOUS_STAGING_FLAGS = O_RDWR | O_TMPFILE_LINUX;
+const STAGING_CREATE_FLAGS = O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW;
 const PROC_FD_ROOT = '/proc/self/fd';
-const NATIVE_PUBLISH_PROTOCOL = 'usf-hermetic-cas-linkat-empty-path-v1';
-const NATIVE_PUBLISH_EXISTING_STATUS = 17;
+const SYSTEM_PUBLISH_PROTOCOL = 'usf-hermetic-cas-gnu-mv-noreplace-v1';
+const SYSTEM_PUBLISH_EXECUTABLE = '/usr/bin/mv';
+const SYSTEM_PUBLISH_LOADER = '/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2';
+const SYSTEM_PUBLISH_LIBRARIES = Object.freeze([
+  '/usr/lib/x86_64-linux-gnu/libc.so.6',
+  '/usr/lib/x86_64-linux-gnu/libpcre2-8.so.0.11.2',
+  '/usr/lib/x86_64-linux-gnu/libattr.so.1.1.2501',
+  '/usr/lib/x86_64-linux-gnu/libacl.so.1.1.2301',
+  '/usr/lib/x86_64-linux-gnu/libselinux.so.1',
+]);
 
 /*
  * This symbol exists only so the adversarial tests can stop execution at exact
@@ -43,11 +51,12 @@ const NATIVE_PUBLISH_EXISTING_STATUS = 17;
 export const HERMITIC_CAS_TEST_HOOK = Symbol('HERMITIC_CAS_TEST_HOOK');
 
 /*
- * Node does not expose linkat(AT_EMPTY_PATH), openat2, or renameat2. Creation
- * consequently requires an authority-approved native publisher whose exact
- * executable bytes are digest pinned. Node creates and verifies an anonymous
- * O_TMPFILE inode; the publisher may only link fd 4 into pinned directory fd 5
- * at the requested digest name. No published name is ever removed here.
+ * Node does not expose renameat2(RENAME_NOREPLACE) or openat2. Creation
+ * consequently requires an authority-approved GNU mv runtime whose exact
+ * executable, loader and library bytes are digest pinned. The fixed installed
+ * GNU mv 9.1 protocol has been observed to use RENAME_NOREPLACE for -n on this
+ * platform. It atomically renames a unique, fsynced, same-filesystem staging
+ * file. Failed or losing staging names are quarantined and never deleted here.
  *
  * Consumers must still read through readCasObject for every use: a same-uid
  * hostile process can mutate a pathname after verification. A returned
@@ -55,7 +64,9 @@ export const HERMITIC_CAS_TEST_HOOK = Symbol('HERMITIC_CAS_TEST_HOOK');
  */
 export const HERMITIC_CAS_RESIDUAL_RISKS = Object.freeze([
   'NODE_HAS_NO_OPENAT2_RESOLVE_BENEATH',
-  'NATIVE_LINKAT_AT_EMPTY_PATH_HELPER_REQUIRED_FOR_CREATION',
+  'GNU_MV_RUNTIME_DESCRIPTOR_REQUIRED_FOR_CREATION',
+  'KERNEL_VDSO_IS_OUTSIDE_FILE_DIGEST_CLOSURE',
+  'FAILED_STAGING_RECOVERY_IS_SEPARATE_AND_FAIL_CLOSED',
   'HOSTILE_WRITER_CAN_MUTATE_NAMESPACE_AFTER_RETURN',
 ]);
 
@@ -77,6 +88,14 @@ function fail(code, message, cause) {
 function sha256(bytes) {
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 }
+
+const utf8Compare = (left, right) => Buffer.compare(Buffer.from(String(left)), Buffer.from(String(right)));
+const stable = (value) => Array.isArray(value)
+  ? value.map(stable)
+  : value && typeof value === 'object'
+    ? Object.fromEntries(Object.keys(value).sort(utf8Compare).map((key) => [key, stable(value[key])]))
+    : value;
+const canonicalJson = (value) => JSON.stringify(stable(value));
 
 function checkedRoot(root) {
   if (typeof root !== 'string' || !isAbsolute(root) || root === parse(root).root) {
@@ -226,7 +245,7 @@ async function openDirectory(path, label, { secureOwner = false } = {}) {
   }
 }
 
-async function openAbsoluteDirectoryChain(root) {
+async function openAbsoluteDirectoryChain(root, { secureLeaf = true } = {}) {
   const handles = [];
   try {
     let current = await openDirectory(parse(root).root, 'filesystem root');
@@ -236,7 +255,7 @@ async function openAbsoluteDirectoryChain(root) {
       handles.push(current);
     }
     const rootStat = await current.stat({ bigint: true });
-    assertDirectoryStat(rootStat, 'CAS root', { secureOwner: true });
+    assertDirectoryStat(rootStat, 'absolute directory leaf', { secureOwner: secureLeaf });
     return handles;
   } catch (error) {
     await closeHandles(handles);
@@ -377,47 +396,132 @@ function assertKnownOptions(options) {
   }
 }
 
-function checkedNativePublisher(publisher) {
-  if (!publisher || typeof publisher !== 'object' || Array.isArray(publisher)) {
-    fail(
-      'CAS_NATIVE_PUBLISHER_REQUIRED',
-      'CAS creation requires an authority-approved digest-pinned native publisher',
-    );
+function checkedSystemFileRecord(record, label) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) {
+    fail('CAS_SYSTEM_PUBLISHER_RECORD_INVALID', `${label} record is not an object`);
   }
-  const keys = Object.keys(publisher).sort();
-  if (keys.length !== 3 || keys.join(',') !== 'digest,executable,protocol') {
-    fail('CAS_NATIVE_PUBLISHER_INVALID', 'native publisher descriptor fields are not exact');
-  }
-  if (publisher.protocol !== NATIVE_PUBLISH_PROTOCOL) {
-    fail('CAS_NATIVE_PUBLISHER_PROTOCOL_INVALID', 'native publisher protocol is not supported');
+  const keys = Object.keys(record).sort();
+  if (keys.join(',') !== 'digest,gid,mode,path,size,uid') {
+    fail('CAS_SYSTEM_PUBLISHER_RECORD_INVALID', `${label} record fields are not exact`);
   }
   if (
-    typeof publisher.executable !== 'string'
-    || !isAbsolute(publisher.executable)
-    || normalize(publisher.executable) !== publisher.executable
-    || publisher.executable === parse(publisher.executable).root
+    typeof record.path !== 'string'
+    || !isAbsolute(record.path)
+    || normalize(record.path) !== record.path
+    || record.path === parse(record.path).root
   ) {
-    fail('CAS_NATIVE_PUBLISHER_PATH_INVALID', 'native publisher path is not exact and absolute');
+    fail('CAS_SYSTEM_PUBLISHER_PATH_INVALID', `${label} path is not exact and absolute`);
+  }
+  for (const field of ['uid', 'gid', 'mode', 'size']) {
+    if (!Number.isSafeInteger(record[field]) || record[field] < 0) {
+      fail('CAS_SYSTEM_PUBLISHER_RECORD_INVALID', `${label} ${field} is invalid`);
+    }
   }
   return Object.freeze({
-    executable: publisher.executable,
-    digest: checkedDigest(publisher.digest),
-    protocol: publisher.protocol,
+    path: record.path,
+    digest: checkedDigest(record.digest),
+    uid: record.uid,
+    gid: record.gid,
+    mode: record.mode,
+    size: record.size,
   });
 }
 
-async function assertAbsoluteDirectoryChainStable(path, expected) {
-  const reopened = await openAbsoluteDirectoryChain(path);
+function checkedSystemPublisher(publisher) {
+  if (!publisher || typeof publisher !== 'object' || Array.isArray(publisher)) {
+    fail(
+      'CAS_SYSTEM_PUBLISHER_REQUIRED',
+      'CAS creation requires an authority-approved digest-pinned GNU mv runtime',
+    );
+  }
+  const keys = Object.keys(publisher).sort();
+  if (
+    keys.join(',')
+    !== 'closureDigest,executable,libraries,loader,protocol,version,versionStdoutDigest'
+  ) {
+    fail('CAS_SYSTEM_PUBLISHER_INVALID', 'system publisher descriptor fields are not exact');
+  }
+  if (publisher.protocol !== SYSTEM_PUBLISH_PROTOCOL) {
+    fail('CAS_SYSTEM_PUBLISHER_PROTOCOL_INVALID', 'system publisher protocol is not supported');
+  }
+  if (publisher.version !== 'mv (GNU coreutils) 9.1') {
+    fail('CAS_SYSTEM_PUBLISHER_VERSION_INVALID', 'system publisher version is not approved');
+  }
+  if (!Array.isArray(publisher.libraries) || publisher.libraries.length === 0) {
+    fail('CAS_SYSTEM_PUBLISHER_CLOSURE_INVALID', 'system publisher libraries are missing');
+  }
+  const executable = checkedSystemFileRecord(publisher.executable, 'publisher executable');
+  const loader = checkedSystemFileRecord(publisher.loader, 'publisher loader');
+  const libraries = publisher.libraries.map((record, index) => (
+    checkedSystemFileRecord(record, `publisher library ${index}`)
+  ));
+  if (
+    executable.path !== SYSTEM_PUBLISH_EXECUTABLE
+    || loader.path !== SYSTEM_PUBLISH_LOADER
+    || canonicalJson(libraries.map(({ path }) => path)) !== canonicalJson(SYSTEM_PUBLISH_LIBRARIES)
+  ) {
+    fail('CAS_SYSTEM_PUBLISHER_PATH_INVALID', 'system publisher runtime paths are not approved');
+  }
+  if (
+    executable.uid !== 0
+    || executable.gid !== 0
+    || executable.mode !== 0o755
+    || loader.uid !== 0
+    || loader.gid !== 0
+    || loader.mode !== 0o755
+    || libraries.some((record, index) => (
+      record.uid !== 0
+      || record.gid !== 0
+      || record.mode !== (index === 0 ? 0o755 : 0o644)
+    ))
+  ) {
+    fail('CAS_SYSTEM_PUBLISHER_METADATA_INVALID', 'system publisher ownership or modes are not approved');
+  }
+  const paths = [loader.path, executable.path, ...libraries.map(({ path }) => path)];
+  if (new Set(paths).size !== paths.length) {
+    fail('CAS_SYSTEM_PUBLISHER_CLOSURE_INVALID', 'system publisher paths are not unique');
+  }
+  const closure = { executable, libraries, loader };
+  if (checkedDigest(publisher.closureDigest) !== sha256(Buffer.from(canonicalJson(closure)))) {
+    fail('CAS_SYSTEM_PUBLISHER_CLOSURE_DIGEST_INVALID', 'system publisher closure digest is invalid');
+  }
+  return Object.freeze({
+    closureDigest: publisher.closureDigest,
+    executable,
+    libraries: Object.freeze(libraries),
+    loader,
+    protocol: publisher.protocol,
+    version: publisher.version,
+    versionStdoutDigest: checkedDigest(publisher.versionStdoutDigest),
+  });
+}
+
+function assertSystemFileStat(stat, record, label) {
+  if (!stat.isFile() || stat.nlink !== 1n) {
+    fail('CAS_SYSTEM_PUBLISHER_FILE_INVALID', `${label} type or link count is invalid`);
+  }
+  if (
+    Number(stat.uid) !== record.uid
+    || Number(stat.gid) !== record.gid
+    || (Number(stat.mode) & 0o7777) !== record.mode
+    || stat.size !== BigInt(record.size)
+  ) {
+    fail('CAS_SYSTEM_PUBLISHER_FILE_INVALID', `${label} metadata is invalid`);
+  }
+}
+
+async function assertAbsoluteDirectoryChainStable(path, expected, { secureLeaf = true } = {}) {
+  const reopened = await openAbsoluteDirectoryChain(path, { secureLeaf });
   try {
     if (reopened.length !== expected.length) {
-      fail('CAS_NATIVE_PUBLISHER_DIRECTORY_CHANGED', 'native publisher directory chain changed');
+      fail('CAS_SYSTEM_PUBLISHER_DIRECTORY_CHANGED', 'system publisher directory chain changed');
     }
     for (let index = 0; index < expected.length; index += 1) {
       const observed = directoryIdentity(await reopened[index].stat({ bigint: true }));
       if (!sameDirectoryIdentity(observed, expected[index])) {
         fail(
-          'CAS_NATIVE_PUBLISHER_DIRECTORY_CHANGED',
-          `native publisher directory changed at index ${index}`,
+          'CAS_SYSTEM_PUBLISHER_DIRECTORY_CHANGED',
+          `system publisher directory changed at index ${index}`,
         );
       }
     }
@@ -426,88 +530,151 @@ async function assertAbsoluteDirectoryChainStable(path, expected) {
   }
 }
 
-async function openPinnedNativePublisher(publisher) {
-  const parentPath = dirname(publisher.executable);
-  const name = basename(publisher.executable);
-  const directoryHandles = await openAbsoluteDirectoryChain(parentPath);
+async function openPinnedSystemFile(record, label) {
+  const parentPath = dirname(record.path);
+  const name = basename(record.path);
+  const directoryHandles = await openAbsoluteDirectoryChain(parentPath, { secureLeaf: false });
   let handle;
   try {
     handle = await open(procEntry(directoryHandles.at(-1), name), FILE_READ_FLAGS);
     const stat = await handle.stat({ bigint: true });
-    const verified = await readAndVerifyOpenObject(
-      handle,
-      stat,
-      publisher.digest,
-      16 * 1024 * 1024,
-      'native CAS publisher',
-      { links: 1n, mode: 0o500 },
-    );
+    assertSystemFileStat(stat, record, label);
+    const before = fileIdentity(stat);
+    const bytes = await readHandleExact(handle, stat, 64 * 1024 * 1024, label);
+    const afterStat = await handle.stat({ bigint: true });
+    assertSystemFileStat(afterStat, record, label);
+    const after = fileIdentity(afterStat);
+    if (!sameFileIdentity(before, after) || sha256(bytes) !== record.digest) {
+      fail('CAS_SYSTEM_PUBLISHER_DIGEST_INVALID', `${label} bytes or identity are invalid`);
+    }
     const directoryIdentities = [];
     for (const directoryHandle of directoryHandles) {
       directoryIdentities.push(directoryIdentity(await directoryHandle.stat({ bigint: true })));
     }
     return {
       handle,
-      identity: verified.identity,
+      identity: after,
       directoryHandles,
       directoryIdentities,
       parentPath,
+      record,
+      label,
     };
   } catch (error) {
     await handle?.close().catch(() => {});
     await closeHandles(directoryHandles);
     if (error instanceof HermeticCasError) throw error;
-    fail('CAS_NATIVE_PUBLISHER_OPEN_FAILED', 'native publisher could not be pinned', error);
+    fail('CAS_SYSTEM_PUBLISHER_OPEN_FAILED', `${label} could not be pinned`, error);
   }
 }
 
-async function closePinnedNativePublisher(pinned) {
-  await pinned?.handle.close().catch(() => {});
-  await closeHandles(pinned?.directoryHandles || []);
+async function openPinnedSystemRuntime(publisher) {
+  const pinned = [];
+  try {
+    pinned.push(await openPinnedSystemFile(publisher.loader, 'publisher loader'));
+    pinned.push(await openPinnedSystemFile(publisher.executable, 'publisher executable'));
+    for (let index = 0; index < publisher.libraries.length; index += 1) {
+      pinned.push(await openPinnedSystemFile(
+        publisher.libraries[index],
+        `publisher library ${index}`,
+      ));
+    }
+    return pinned;
+  } catch (error) {
+    for (const entry of pinned.reverse()) {
+      await entry.handle.close().catch(() => {});
+      await closeHandles(entry.directoryHandles);
+    }
+    throw error;
+  }
 }
 
-async function invokeNativePublisher({
+async function closePinnedSystemRuntime(pinned) {
+  for (const entry of [...(pinned || [])].reverse()) {
+    await entry.handle.close().catch(() => {});
+    await closeHandles(entry.directoryHandles);
+  }
+}
+
+async function verifyPinnedSystemRuntime(pinned) {
+  for (const entry of pinned) {
+    const stat = await entry.handle.stat({ bigint: true });
+    assertSystemFileStat(stat, entry.record, entry.label);
+    const before = fileIdentity(stat);
+    const bytes = await readHandleExact(
+      entry.handle,
+      stat,
+      64 * 1024 * 1024,
+      entry.label,
+    );
+    const after = fileIdentity(await entry.handle.stat({ bigint: true }));
+    if (
+      !sameFileIdentity(entry.identity, before)
+      || !sameFileIdentity(before, after)
+      || sha256(bytes) !== entry.record.digest
+    ) {
+      fail('CAS_SYSTEM_PUBLISHER_CHANGED', `${entry.label} changed during execution`);
+    }
+    await assertAbsoluteDirectoryChainStable(
+      entry.parentPath,
+      entry.directoryIdentities,
+      { secureLeaf: false },
+    );
+  }
+}
+
+function runPinnedSystemPublisher({
   publisher,
   pinned,
-  stagingHandle,
+  stagingDirectory,
   shardHandle,
-  hexadecimal,
+  arguments: mvArguments,
+  expectedOutput,
 }) {
+  const loaderChildFd = 3;
+  const executableChildFd = 4;
+  const firstLibraryChildFd = 5;
+  const stagingDirectoryChildFd = firstLibraryChildFd + publisher.libraries.length;
+  const shardChildFd = stagingDirectoryChildFd + 1;
+  const preload = publisher.libraries
+    .map((_, index) => `/proc/self/fd/${firstLibraryChildFd + index}`)
+    .join(':');
+  const stdio = [
+    'ignore',
+    'pipe',
+    'pipe',
+    ...pinned.map(({ handle }) => handle.fd),
+    stagingDirectory.fd,
+    shardHandle.fd,
+  ];
   const result = spawnSync(
-    '/proc/self/fd/3',
-    [publisher.protocol, hexadecimal],
+    `/proc/self/fd/${loaderChildFd}`,
+    [
+      '--inhibit-cache',
+      '--library-path',
+      '/nonexistent',
+      '--preload',
+      preload,
+      `/proc/self/fd/${executableChildFd}`,
+      ...mvArguments({ stagingDirectoryChildFd, shardChildFd }),
+    ],
     {
       env: Object.freeze({ LANG: 'C', LC_ALL: 'C' }),
       encoding: null,
       maxBuffer: 64 * 1024,
       timeout: 10_000,
-      stdio: [
-        'ignore',
-        'pipe',
-        'pipe',
-        pinned.handle.fd,
-        stagingHandle.fd,
-        shardHandle.fd,
-      ],
+      stdio,
     },
   );
   const stdout = Buffer.isBuffer(result.stdout) ? result.stdout : Buffer.from(result.stdout || '');
   const stderr = Buffer.isBuffer(result.stderr) ? result.stderr : Buffer.from(result.stderr || '');
-  if (result.error || result.signal || stdout.length || stderr.length) {
-    fail('CAS_NATIVE_PUBLISHER_EXECUTION_FAILED', 'native publisher execution was not clean', result.error);
+  if (result.error || result.signal || stderr.length || result.status !== 0) {
+    fail('CAS_SYSTEM_PUBLISHER_EXECUTION_FAILED', 'system publisher execution was not clean', result.error);
   }
-  if (result.status !== 0 && result.status !== NATIVE_PUBLISH_EXISTING_STATUS) {
-    fail(
-      'CAS_NATIVE_PUBLISHER_STATUS_INVALID',
-      `native publisher returned unsupported status ${String(result.status)}`,
-    );
+  if (expectedOutput === null ? stdout.length !== 0 : sha256(stdout) !== expectedOutput) {
+    fail('CAS_SYSTEM_PUBLISHER_OUTPUT_INVALID', 'system publisher output is not approved');
   }
-  const after = fileIdentity(await pinned.handle.stat({ bigint: true }));
-  if (!sameFileIdentity(pinned.identity, after)) {
-    fail('CAS_NATIVE_PUBLISHER_CHANGED', 'native publisher changed during execution');
-  }
-  await assertAbsoluteDirectoryChainStable(pinned.parentPath, pinned.directoryIdentities);
-  return result.status === 0 ? 'PUBLISHED' : 'EXISTING';
+  return { stagingDirectoryChildFd, shardChildFd };
 }
 
 async function verifyFinalName({
@@ -538,6 +705,27 @@ async function verifyFinalName({
   }
 }
 
+async function openObjectOrAbsent(directory, name, label) {
+  try {
+    return await openObject(directory, name, label);
+  } catch (error) {
+    if (error.code === 'CAS_OBJECT_OPEN_FAILED' && error.cause?.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+async function assertChildDirectoryStable(parent, name, expected, label) {
+  const reopened = await openDirectory(procEntry(parent, name), label, { secureOwner: true });
+  try {
+    const observed = directoryIdentity(await reopened.stat({ bigint: true }));
+    if (!sameDirectoryIdentity(observed, expected)) {
+      fail('CAS_DIRECTORY_IDENTITY_CHANGED', `${label} identity changed`);
+    }
+  } finally {
+    await reopened.close();
+  }
+}
+
 function descriptor(digest, byteSize, mediaType, created) {
   return Object.freeze({
     digest,
@@ -553,7 +741,7 @@ export async function putCasObject({
   bytes: input,
   mediaType,
   expectedDigest,
-  nativePublisher,
+  systemPublisher,
   mode = 0o600,
   maxBytes = DEFAULT_MAX_BYTES,
   ...options
@@ -571,64 +759,129 @@ export async function putCasObject({
     fail('CAS_EXPECTED_DIGEST_MISMATCH', 'CAS object does not match the expected digest');
   }
   const hexadecimal = digest.slice(7);
-  const publisher = checkedNativePublisher(nativePublisher);
-  const pinnedPublisher = await openPinnedNativePublisher(publisher);
+  const publisher = checkedSystemPublisher(systemPublisher);
+  const pinnedRuntime = await openPinnedSystemRuntime(publisher);
   let directories;
+  let stagingDirectory;
   let stagingHandle;
+  let stagingName;
   const objectPath = join(canonicalRoot, 'sha256', hexadecimal.slice(0, 2), hexadecimal);
   try {
+    runPinnedSystemPublisher({
+      publisher,
+      pinned: pinnedRuntime,
+      stagingDirectory: { fd: pinnedRuntime.at(-1).handle.fd },
+      shardHandle: { fd: pinnedRuntime.at(-1).handle.fd },
+      arguments: () => ['--version'],
+      expectedOutput: publisher.versionStdoutDigest,
+    });
+    await verifyPinnedSystemRuntime(pinnedRuntime);
     directories = await openCasDirectoryChain(canonicalRoot, hexadecimal, { create: true });
+    const existingBeforeStaging = await openObjectOrAbsent(
+      directories.shard,
+      hexadecimal,
+      'existing CAS object',
+    );
+    if (existingBeforeStaging) {
+      try {
+        const verified = await readAndVerifyOpenObject(
+          existingBeforeStaging.handle,
+          existingBeforeStaging.stat,
+          digest,
+          maximum,
+          'existing CAS object',
+        );
+        if (verified.bytes.length !== bytes.length) {
+          fail('CAS_EXISTING_SIZE_MISMATCH', 'existing CAS object size is incorrect');
+        }
+        return descriptor(digest, bytes.length, checkedType, false);
+      } finally {
+        await existingBeforeStaging.handle.close();
+      }
+    }
+    stagingDirectory = await openOrCreateDirectory(
+      directories.shard,
+      '.staging',
+      'CAS staging quarantine directory',
+      true,
+    );
+    const stagingDirectoryIdentity = directoryIdentity(
+      await stagingDirectory.stat({ bigint: true }),
+    );
+    stagingName = `${hexadecimal}.${process.pid}.${randomBytes(24).toString('hex')}`;
     try {
-      stagingHandle = await open(
-        `${PROC_FD_ROOT}/${directories.shard.fd}`,
-        ANONYMOUS_STAGING_FLAGS,
-        mode,
-      );
+      stagingHandle = await open(procEntry(stagingDirectory, stagingName), STAGING_CREATE_FLAGS, mode);
     } catch (error) {
       fail(
-        'CAS_ANONYMOUS_STAGING_UNAVAILABLE',
-        'CAS filesystem does not support safe anonymous O_TMPFILE staging',
+        'CAS_STAGING_CREATE_FAILED',
+        'CAS unique staging object could not be created exclusively',
         error,
       );
     }
     const emptyStat = await stagingHandle.stat({ bigint: true });
-    assertFileStat(emptyStat, 'CAS anonymous staging object', { links: 0n, mode });
+    assertFileStat(emptyStat, 'CAS staging object', { links: 1n, mode });
     await stagingHandle.writeFile(bytes);
     await stagingHandle.sync();
     const writtenStat = await stagingHandle.stat({ bigint: true });
-    assertFileStat(writtenStat, 'CAS anonymous staging object', { links: 0n, mode });
+    assertFileStat(writtenStat, 'CAS staging object', { links: 1n, mode });
     if (writtenStat.size !== BigInt(bytes.length)) {
-      fail('CAS_STAGING_SIZE_MISMATCH', 'CAS anonymous staging object size is incorrect');
+      fail('CAS_STAGING_SIZE_MISMATCH', 'CAS staging object size is incorrect');
     }
     const verifiedStaging = await readAndVerifyOpenObject(
       stagingHandle,
       writtenStat,
       digest,
       maximum,
-      'CAS anonymous staging object',
-      { links: 0n, mode },
+      'CAS staging object',
+      { links: 1n, mode },
     );
     await invokeTestHook(options, 'after-temporary-verified', {
       rootPath: canonicalRoot,
       objectPath,
       digest,
-      anonymousStaging: true,
+      stagingName,
+      stagingPath: join(
+        canonicalRoot,
+        'sha256',
+        hexadecimal.slice(0, 2),
+        '.staging',
+        stagingName,
+      ),
     });
     const postHookStagingStat = await stagingHandle.stat({ bigint: true });
-    assertFileStat(postHookStagingStat, 'CAS anonymous staging object', { links: 0n, mode });
+    assertFileStat(postHookStagingStat, 'CAS staging object', { links: 1n, mode });
     if (!sameFileIdentity(verifiedStaging.identity, fileIdentity(postHookStagingStat))) {
-      fail('CAS_STAGING_IDENTITY_CHANGED', 'CAS anonymous staging object changed before publication');
+      fail('CAS_STAGING_IDENTITY_CHANGED', 'CAS staging object changed before publication');
     }
     await assertDirectoryChainStable(canonicalRoot, hexadecimal, directories.identities);
+    await assertChildDirectoryStable(
+      directories.shard,
+      '.staging',
+      stagingDirectoryIdentity,
+      'CAS staging quarantine directory',
+    );
 
-    const publication = await invokeNativePublisher({
+    runPinnedSystemPublisher({
       publisher,
-      pinned: pinnedPublisher,
-      stagingHandle,
+      pinned: pinnedRuntime,
+      stagingDirectory,
       shardHandle: directories.shard,
-      hexadecimal,
+      arguments: ({ stagingDirectoryChildFd, shardChildFd }) => [
+        '--no-clobber',
+        '--no-target-directory',
+        '--',
+        `/proc/self/fd/${stagingDirectoryChildFd}/${stagingName}`,
+        `/proc/self/fd/${shardChildFd}/${hexadecimal}`,
+      ],
+      expectedOutput: null,
     });
-    if (publication === 'PUBLISHED') {
+    await verifyPinnedSystemRuntime(pinnedRuntime);
+    const remainingStaging = await openObjectOrAbsent(
+      stagingDirectory,
+      stagingName,
+      'quarantined CAS staging object',
+    );
+    if (!remainingStaging) {
       const finalStat = await stagingHandle.stat({ bigint: true });
       assertFileStat(finalStat, 'published CAS object', { links: 1n, mode });
       const publishedIdentity = fileIdentity(finalStat);
@@ -660,10 +913,19 @@ export async function putCasObject({
       return descriptor(digest, bytes.length, checkedType, true);
     }
 
-    const unpublishedStat = await stagingHandle.stat({ bigint: true });
-    assertFileStat(unpublishedStat, 'unpublished CAS staging object', { links: 0n, mode });
-    if (!sameFileIdentity(verifiedStaging.identity, fileIdentity(unpublishedStat))) {
-      fail('CAS_STAGING_IDENTITY_CHANGED', 'unpublished CAS staging object changed');
+    try {
+      const quarantined = await readAndVerifyOpenObject(
+        remainingStaging.handle,
+        remainingStaging.stat,
+        digest,
+        maximum,
+        'quarantined CAS staging object',
+      );
+      if (!sameInode(quarantined.identity, verifiedStaging.identity)) {
+        fail('CAS_STAGING_IDENTITY_CHANGED', 'quarantined CAS staging identity changed');
+      }
+    } finally {
+      await remainingStaging.handle.close();
     }
     const existing = await verifyFinalName({
       root: canonicalRoot,
@@ -678,8 +940,9 @@ export async function putCasObject({
     return descriptor(digest, bytes.length, checkedType, false);
   } finally {
     await stagingHandle?.close().catch(() => {});
+    await stagingDirectory?.close().catch(() => {});
     await closeHandles(directories?.handles || []);
-    await closePinnedNativePublisher(pinnedPublisher);
+    await closePinnedSystemRuntime(pinnedRuntime);
   }
 }
 
