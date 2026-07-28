@@ -462,6 +462,7 @@ path:codexagentintegration a usf:PathRole, usf:RepositoryLayoutRole;
     usf:usesRepositoryNamingStandard <urn:usf:repositorynamingstandard:semanticpurpose>;
     usf:selectsRepositoryLayoutRole path:repositorydirective, path:processsource, path:capabilitysource, path:runtimemechanismsource, path:providerbindingsource, path:persistencesource, path:configurationsource, path:environmentsource, path:semanticmodelsource, path:assurancesource, path:operationssource, path:documentationsource, path:generatedoutput, path:programmeexecutionstate, path:claudeagentintegration, path:codexagentintegration;
     usf:authorisesSourcePath ".", "processes", "capabilities", "runtime-mechanisms", "provider-bindings", "persistence", "configuration", "environments", "semantic-model", "assurance", "operations", "documentation", ".work/generated", ".work/programme", ".claude/skills/usf", ".codex/skills/usf";
+    usf:authorisesRepresentationFormat format:ecmascriptmodule2024, format:graphqlschema, format:javascriptmodule2024, format:jsondata8259, format:markdowncommonmark, format:openapijson, format:rdfdatasettrig11, format:rdfgraphturtle11, format:shellscriptposix, format:sparqlquery11current, format:sqltext, format:yamlconfiguration12;
     usf:authorisesRepository "usf";
     usf:authorisesRealisationType usf:Implementation;
     usf:requiresADR <urn:usf:adrrequirement:repositoryarchitectureandnaming>.
@@ -499,6 +500,10 @@ format:javascriptmodule2024 a usf:RepresentationFormat;
     usf:canonicalName "javascriptmodule2024";
     usf:canonicalMediaType "text/javascript";
     usf:canonicalExtension ".js".
+format:pythonsource311 a usf:RepresentationFormat;
+    usf:canonicalName "pythonsource311";
+    usf:canonicalMediaType "text/x-python";
+    usf:canonicalExtension ".py".
 format:jsondata8259 a usf:RepresentationFormat;
     usf:canonicalName "jsondata8259";
     usf:canonicalMediaType "application/json";
@@ -520,6 +525,10 @@ format:shellscriptposix a usf:RepresentationFormat;
     usf:canonicalName "shellscriptposix";
     usf:canonicalMediaType "text/x-shellscript";
     usf:canonicalExtension ".sh".
+format:environmentvariableexample a usf:RepresentationFormat;
+    usf:canonicalName "environmentvariableexample";
+    usf:canonicalMediaType "text/plain";
+    usf:canonicalExtension ".example".
 format:sqltext a usf:RepresentationFormat;
     usf:canonicalName "sqltext";
     usf:canonicalMediaType "application/sql";
