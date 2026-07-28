@@ -216,6 +216,7 @@ function satisfyingResultRow({
 const CURRENT_ALGORITHM = 'urn:usf:proofalgorithm:repositorymaterialisationcontrolplane';
 const CURRENT_VERSION = 'urn:usf:proofalgorithmversion:current';
 const CURRENT_SOURCE_DIGEST = `sha256:${'11'.repeat(32)}`;
+const CURRENT_SOURCE_SET_DIGEST = `sha256:${'12'.repeat(32)}`;
 const CURRENT_IMPLEMENTATION = `sha256:${'22'.repeat(32)}`;
 const CURRENT_DEPENDENCY = `sha256:${'33'.repeat(32)}`;
 const DEPENDENCY_ALGORITHM = 'sha256-rdfc10-nonpublication-graph-inventory-v1';
@@ -267,6 +268,26 @@ function defaultCurrentness(overrides = {}) {
     }],
   };
   return { ...base, ...overrides };
+}
+
+function sourceSetCurrentness({
+  proofAlgorithm = CURRENT_SOURCE_SET_DIGEST,
+  currentAlgorithm = CURRENT_SOURCE_SET_DIGEST,
+  proofResult = CURRENT_SOURCE_SET_DIGEST,
+  algorithmVersion = CURRENT_SOURCE_SET_DIGEST,
+} = {}) {
+  const currentness = defaultCurrentness();
+  currentness.algorithm = [{
+    ...currentness.algorithm[0],
+    ...(proofAlgorithm === null ? {} : { sourceSetDigest: binding(proofAlgorithm) }),
+    ...(currentAlgorithm === null ? {} : { currentSourceSetDigest: binding(currentAlgorithm) }),
+  }];
+  currentness.result = [{
+    ...currentness.result[0],
+    ...(proofResult === null ? {} : { algorithmSourceSetDigest: binding(proofResult) }),
+    ...(algorithmVersion === null ? {} : { algorithmVersionSourceSetDigest: binding(algorithmVersion) }),
+  }];
+  return currentness;
 }
 
 function fakeClient({
@@ -748,6 +769,126 @@ test('contract projection reports each validation obligation with its activation
     recordedSatisfactionCount: 0,
   }]);
   assert.ok(packet.semanticIdentifiers.includes(validationObligation));
+});
+
+test('contract projection exposes every agreeing proof-currentness source-set binding', async () => {
+  const packet = await projectContract({
+    client: fakeClient({ currentness: sourceSetCurrentness() }),
+  }, { contract });
+
+  assert.equal(packet.proofCurrentness.state, 'CURRENT');
+  assert.equal(packet.proofCurrentness.stateIri, 'urn:usf:proofcurrentnessstate:current');
+  assert.deepEqual(packet.proofCurrentness.reasons, []);
+  assert.deepEqual(packet.proofCurrentness.reasonDetail, []);
+  assert.deepEqual({
+    proofAlgorithmSourceSetDigest: packet.proofCurrentness.proofAlgorithmSourceSetDigest,
+    currentAlgorithmSourceSetDigest: packet.proofCurrentness.currentAlgorithmSourceSetDigest,
+    algorithmSourceSetDigest: packet.proofCurrentness.algorithmSourceSetDigest,
+    algorithmVersionSourceSetDigest: packet.proofCurrentness.algorithmVersionSourceSetDigest,
+  }, {
+    proofAlgorithmSourceSetDigest: CURRENT_SOURCE_SET_DIGEST,
+    currentAlgorithmSourceSetDigest: CURRENT_SOURCE_SET_DIGEST,
+    algorithmSourceSetDigest: CURRENT_SOURCE_SET_DIGEST,
+    algorithmVersionSourceSetDigest: CURRENT_SOURCE_SET_DIGEST,
+  });
+  assert.equal(packet.actionState, 'PROCEED');
+  assert.ok(packet.authorisedActions.length > 0);
+});
+
+test('missing or ambiguous source-set bindings project the resolver exact UNRESOLVED result', async () => {
+  const missing = await projectContract({
+    client: fakeClient({
+      currentness: sourceSetCurrentness({ algorithmVersion: null }),
+    }),
+  }, { contract });
+  assert.equal(missing.proofCurrentness.state, 'UNRESOLVED_FAIL_CLOSED');
+  assert.equal(missing.proofCurrentness.stateIri, 'urn:usf:proofcurrentnessstate:unresolvedfailclosed');
+  assert.deepEqual(missing.proofCurrentness.reasons, ['proof-currentness-unresolved']);
+  assert.deepEqual(missing.proofCurrentness.reasonDetail, [{
+    code: 'proof-currentness-unresolved',
+    state: 'UNRESOLVED_FAIL_CLOSED',
+    detail: 'algorithm-version source-set digest is absent or ambiguous',
+  }]);
+  assert.equal(missing.proofCurrentness.algorithmVersionSourceSetDigest, null);
+
+  const ambiguousCurrentness = sourceSetCurrentness();
+  ambiguousCurrentness.result = [
+    ambiguousCurrentness.result[0],
+    {
+      ...ambiguousCurrentness.result[0],
+      algorithmSourceSetDigest: binding(`sha256:${'aa'.repeat(32)}`),
+    },
+  ];
+  const ambiguous = await projectContract({
+    client: fakeClient({ currentness: ambiguousCurrentness }),
+  }, { contract });
+  assert.equal(ambiguous.proofCurrentness.state, 'UNRESOLVED_FAIL_CLOSED');
+  assert.deepEqual(ambiguous.proofCurrentness.reasons, ['proof-currentness-unresolved']);
+  assert.deepEqual(ambiguous.proofCurrentness.reasonDetail, [{
+    code: 'proof-currentness-unresolved',
+    state: 'UNRESOLVED_FAIL_CLOSED',
+    detail: 'proof-result algorithm source-set digest is absent or ambiguous',
+  }]);
+  assert.equal(ambiguous.proofCurrentness.algorithmSourceSetDigest, null);
+});
+
+test('a source-set mismatch projects the resolver exact STALE result', async () => {
+  const observed = `sha256:${'bb'.repeat(32)}`;
+  const packet = await projectContract({
+    client: fakeClient({
+      currentness: sourceSetCurrentness({ proofResult: observed }),
+    }),
+  }, { contract });
+
+  assert.equal(packet.proofCurrentness.state, 'STALE_BLOCK');
+  assert.equal(packet.proofCurrentness.stateIri, 'urn:usf:proofcurrentnessstate:staleblock');
+  assert.deepEqual(packet.proofCurrentness.reasons, ['proof-algorithm-digest-stale']);
+  assert.deepEqual(packet.proofCurrentness.reasonDetail, [{
+    code: 'proof-algorithm-digest-stale',
+    state: 'STALE_BLOCK',
+    detail: `proof-result algorithm source-set digest: ${observed} != current ${CURRENT_SOURCE_SET_DIGEST}`,
+  }]);
+  assert.equal(packet.proofCurrentness.algorithmSourceSetDigest, observed);
+  assert.equal(packet.actionState, 'BLOCK');
+});
+
+test('legacy proof currentness with no source-set binding preserves primary-file fallback', async () => {
+  const packet = await projectContract({ client: fakeClient() }, { contract });
+  assert.equal(packet.proofCurrentness.state, 'CURRENT');
+  assert.deepEqual(packet.proofCurrentness.reasons, []);
+  assert.deepEqual(packet.proofCurrentness.reasonDetail, []);
+  assert.deepEqual([
+    packet.proofCurrentness.proofAlgorithmSourceSetDigest,
+    packet.proofCurrentness.currentAlgorithmSourceSetDigest,
+    packet.proofCurrentness.algorithmSourceSetDigest,
+    packet.proofCurrentness.algorithmVersionSourceSetDigest,
+  ], [null, null, null, null]);
+  assert.equal(packet.proofCurrentness.proofAlgorithmSourceDigest, CURRENT_SOURCE_DIGEST);
+  assert.equal(packet.actionState, 'PROCEED');
+});
+
+test('source-set currentness failures never broaden decision-scoped permissions', async () => {
+  const cases = [
+    sourceSetCurrentness({ currentAlgorithm: null }),
+    sourceSetCurrentness({ proofAlgorithm: `sha256:${'cc'.repeat(32)}` }),
+  ];
+  for (const currentness of cases) {
+    const packet = await projectContract({
+      client: fakeClient({
+        ...scopedProviderFixture(),
+        currentness,
+      }),
+    }, { contract: scopedContract });
+    assert.notEqual(packet.actionState, 'PROCEED');
+    assert.deepEqual(packet.authorisedActions, []);
+    assert.deepEqual(packet.authorisedRepositories, []);
+    assert.deepEqual(packet.authorisedPaths, []);
+    assert.deepEqual(packet.authorisedDirectoryPrefixes, []);
+    assert.deepEqual(packet.authorisedArtefactFamilies, []);
+    assert.deepEqual(packet.authorisedFormats, []);
+    assert.deepEqual(packet.authorisedStorageClasses, []);
+    assert.equal(packet.permissionSetDigest, null);
+  }
 });
 
 // The boundary that keeps the model honest in both directions: a reserved

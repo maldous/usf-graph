@@ -972,12 +972,20 @@ export async function projectContract(ctx, args = {}) {
       evidenceSetDigest: currentness.facts.evidenceSetDigest ?? null,
       proofAlgorithm: currentness.facts.algorithm ?? null,
       proofAlgorithmSourceDigest: currentness.facts.algorithmSourceDigest ?? null,
+      proofAlgorithmSourceSetDigest: currentness.facts.proofAlgorithmSourceSetDigest ?? null,
+      currentAlgorithmSourceSetDigest: currentness.facts.currentAlgorithmSourceSetDigest ?? null,
+      algorithmSourceSetDigest: currentness.facts.algorithmSourceSetDigest ?? null,
+      algorithmVersionSourceSetDigest: currentness.facts.algorithmVersionSourceSetDigest ?? null,
       proofAlgorithmVersion: currentness.facts.algorithmVersion ?? null,
       implementationSourceSetDigest: currentness.facts.implementationSourceSetDigest ?? null,
       dependencySetDigest: currentness.facts.dependencySetDigest ?? null,
       authorityBinding: currentness.facts.authorityBinding ?? null,
       authorityBindingRule: currentness.facts.authorityBindingRule ?? null,
       postPublicationReevaluationState: currentness.facts.reevaluationState ?? null,
+      // Keep the stable reason codes above for existing consumers while exposing
+      // the resolver's exact observations. Consumers must not reconstruct
+      // currentness from the four bindings or from a successful result alone.
+      reasonDetail: currentness.reasonDetail,
     },
     actionState,
     actionStateReasons,
