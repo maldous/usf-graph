@@ -16,6 +16,7 @@ import test from 'node:test';
 
 import {
   effectiveLocalShaclPythonSource,
+  LOCAL_SHACL_WORKLOAD_TIMEOUT_MS,
   localShaclRuntimeInternals,
   localShaclPythonSource,
   runLocalShaclValidation,
@@ -26,6 +27,7 @@ import {
 
 const roots = [];
 const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
+const LOCAL_SHACL_HARNESS_TIMEOUT_MS = LOCAL_SHACL_WORKLOAD_TIMEOUT_MS + 120_000;
 const stable = (value) => Array.isArray(value)
   ? value.map(stable)
   : value && typeof value === 'object'
@@ -286,8 +288,14 @@ test('planted-fixture regression selects executable and child-process-free branc
   }), 'EXECUTE_PINNED_RUNTIME');
 });
 
+test('local SHACL harness timeout exceeds the evidence-backed full-workload budget', () => {
+  assert.equal(LOCAL_SHACL_WORKLOAD_TIMEOUT_MS, 1_200_000);
+  assert.equal(LOCAL_SHACL_HARNESS_TIMEOUT_MS - LOCAL_SHACL_WORKLOAD_TIMEOUT_MS, 120_000);
+  assert.equal(LOCAL_SHACL_HARNESS_TIMEOUT_MS > LOCAL_SHACL_WORKLOAD_TIMEOUT_MS, true);
+});
+
 test('effective harness executes the planted-fixture contract against registered graph and shapes', {
-  timeout: 600_000,
+  timeout: LOCAL_SHACL_HARNESS_TIMEOUT_MS,
 }, () => {
   assertPlantedFixtureContractBinding();
   if (plantedFixtureTestMode(process.env) === 'VERIFY_EMBEDDED_CONTRACT') return;
