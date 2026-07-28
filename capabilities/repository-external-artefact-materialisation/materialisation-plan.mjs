@@ -307,6 +307,10 @@ function authorityFailures(authority, contract) {
   if (authority?.contract?.decisionState !== ACCEPTED) failures.push({ code: 'decision-not-accepted' });
   if (authority?.acceptedDecisionCount !== 1) failures.push({ code: 'decision-not-unique' });
   if (!Array.isArray(authority?.authorisedPaths)) failures.push({ code: 'authorised-paths' });
+  if (Array.isArray(authority?.authorisedPaths) && authority.authorisedPaths.length > 0
+    && (!Array.isArray(authority?.authorisedFormats) || authority.authorisedFormats.length === 0)) {
+    failures.push({ code: 'authorised-formats' });
+  }
   if (!Array.isArray(authority?.pathRoles)) failures.push({ code: 'path-roles' });
   if (!Array.isArray(authority?.rules)) failures.push({ code: 'materialisation-rules' });
   return failures;
@@ -333,6 +337,9 @@ export function validatePlanOperation(operation, index, authority) {
   if (operation?.action === 'delete-path' && operation?.sourceDigest === undefined) failures.push({ index, code: 'operation-source-digest' });
   if (operation?.action === 'write-file') {
     if (!SHA256.test(operation.contentDigest || '')) failures.push({ index, code: 'operation-content-digest' });
+    if (!Array.isArray(authority?.authorisedFormats) || !authority.authorisedFormats.includes(operation.representationFormat)) {
+      failures.push({ index, code: 'operation-decision-representation-format' });
+    }
     const rule = authority.rules.find((item) => item.family === operation.artefactFamily && item.representationFormat === operation.representationFormat && item.pathRole === operation.pathRole);
     if (!rule) failures.push({ index, code: 'operation-write-representation' });
     else if (path && !new RegExp(rule.namingPattern).test(basename(path))) failures.push({ index, code: 'operation-filename' });
