@@ -1137,7 +1137,30 @@ test('node dependency evidence changes when an executed package byte changes', (
     const child = join(root, 'node_modules', 'child-package');
     mkdirSync(parent, { recursive: true });
     mkdirSync(child, { recursive: true });
-    writeFileSync(join(root, 'package-lock.json'), '{"lockfileVersion":3}\n');
+    writeFileSync(join(root, 'package.json'), canonicalJson({
+      name: 'fixture-root',
+      version: '1.0.0',
+      dependencies: { 'root-package': '1.0.0' },
+    }));
+    writeFileSync(join(root, 'package-lock.json'), canonicalJson({
+      name: 'fixture-root',
+      version: '1.0.0',
+      lockfileVersion: 3,
+      packages: {
+        '': {
+          name: 'fixture-root',
+          version: '1.0.0',
+          dependencies: { 'root-package': '1.0.0' },
+        },
+        'node_modules/root-package': {
+          version: '1.0.0',
+          dependencies: { 'child-package': '1.0.0' },
+        },
+        'node_modules/child-package': {
+          version: '1.0.0',
+        },
+      },
+    }));
     writeFileSync(join(parent, 'package.json'), canonicalJson({
       name: 'root-package',
       version: '1.0.0',
@@ -1152,16 +1175,16 @@ test('node dependency evidence changes when an executed package byte changes', (
     const resolvePackageJson = (name) => join(root, 'node_modules', name, 'package.json');
     const before = providerMaterialisationAuthorityMutationInternals.inspectNodeDependencyEvidence({
       repositoryRoot: root,
-      rootPackage: 'root-package',
+      rootPackages: ['root-package'],
       resolvePackageJson,
     });
     writeFileSync(join(child, 'index.js'), 'export const child = 2;\n');
     const after = providerMaterialisationAuthorityMutationInternals.inspectNodeDependencyEvidence({
       repositoryRoot: root,
-      rootPackage: 'root-package',
+      rootPackages: ['root-package'],
       resolvePackageJson,
     });
-    assert.notEqual(before.byteSetDigest, after.byteSetDigest);
+    assert.notEqual(before.packageByteSetDigest, after.packageByteSetDigest);
     assert.notEqual(
       before.packages.find(({ name }) => name === 'child-package')?.byteSetDigest,
       after.packages.find(({ name }) => name === 'child-package')?.byteSetDigest,
