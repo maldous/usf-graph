@@ -17,15 +17,29 @@ const { namedNode } = DataFactory;
 const contract = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation';
 const family = 'urn:usf:artefactfamily:compiler';
 const format = 'urn:usf:representationformat:ecmascriptmodule';
+const jsonFormat = 'urn:usf:representationformat:json';
+const markdownFormat = 'urn:usf:representationformat:markdown';
 const role = 'urn:usf:pathrole:compilersource';
 const compilerContract = 'urn:usf:semanticcontract:compilersemanticenforcement';
 const compilerDecision = 'urn:usf:realisationdecision:semanticmodelcompilationrealisation';
 const authorityDecision = 'urn:usf:realisationdecision:semanticauthoritycontrolselection';
+const materialisationDecision = 'urn:usf:realisationdecision:repositoryexternalartefactmaterialisation';
+const decisionFormatPredicate = 'urn:usf:ontology:authorisesRepresentationFormat';
 
 const roots = [];
 test.after(() => roots.forEach((root) => rmSync(root, { recursive: true, force: true })));
 
 function binding(value) { return { value }; }
+function materialisationRule(representationFormat = format) {
+  return {
+    family: binding(family),
+    familyName: binding('compiler'),
+    storage: binding('urn:usf:storageclass:gittrackedsource'),
+    pathRole: binding(role),
+    format: binding(representationFormat),
+    namingPattern: binding('^[A-Za-z0-9._-]+$'),
+  };
+}
 function defaultContractRows() {
   return [{
     canonicalName: binding('repositoryexternalartefactmaterialisation'),
@@ -33,7 +47,7 @@ function defaultContractRows() {
     activation: binding('urn:usf:contractactivationstate:active'),
     proof: binding('urn:usf:proofresult:repositoryexternalartefactmaterialisation'),
     proofState: binding('urn:usf:proofresultstate:successful'),
-    decision: binding('urn:usf:realisationdecision:repositoryexternalartefactmaterialisation'),
+    decision: binding(materialisationDecision),
     decisionState: binding('urn:usf:decisionstate:accepted'),
     authorisedRepository: binding('usf'),
     authorisedPath: binding('capabilities/semantic-model-compilation'),
@@ -157,6 +171,9 @@ function defaultCurrentness(overrides = {}) {
 function fakeClient({
   descriptor,
   contractRows = defaultContractRows(),
+  decisionFormatRows = [{ format: binding(format) }],
+  decisionFormatCountRows = null,
+  ruleRows = [materialisationRule()],
   applicabilityRows = defaultApplicabilityRows(),
   validationObligationRows = defaultValidationObligationRows(),
   proofGapRows = [],
@@ -166,7 +183,13 @@ function fakeClient({
     size: async () => 10,
     construct: async () => '<urn:s> <urn:p> "materialisation" .\n',
     select: async (query) => {
-      if (query.includes('COUNT(*) AS ?count')) return [{ count: binding('1') }];
+      if (query.includes(`<${decisionFormatPredicate}>`)) {
+        if (query.includes('COUNT(DISTINCT ?format) AS ?count')) {
+          return decisionFormatCountRows ?? [{ count: binding(String(decisionFormatRows.length)) }];
+        }
+        return decisionFormatRows;
+      }
+      if (query.includes('COUNT(*) AS ?count')) return [{ count: binding(String(ruleRows.length)) }];
       if (query.includes('SELECT DISTINCT ?g')) return [{ g: binding('urn:g') }];
       if (query.includes('?canonicalName ?lifecycle')) return contractRows;
       if (query.includes('<urn:usf:ontology:hasValidationApplicability> ?state')) return applicabilityRows;
@@ -178,7 +201,7 @@ function fakeClient({
       if (query.includes('?currentSourceDigest ?currentVersion')) return currentness.algorithm;
       if (query.includes('?requiresReevaluation ?reevaluationState')) return currentness.binding;
       if (query.includes('a <urn:usf:ontology:PathRole>')) return [{ role: binding(role), canonicalName: binding('compilersource'), parent: binding('capabilities/semantic-model-compilation'), onDemand: binding('true') }];
-      if (query.includes('a <urn:usf:ontology:ArtefactFamily>')) return [{ family: binding(family), familyName: binding('compiler'), storage: binding('urn:usf:storageclass:gittrackedsource'), pathRole: binding(role), format: binding(format), namingPattern: binding('^[A-Za-z0-9._-]+$') }];
+      if (query.includes('a <urn:usf:ontology:ArtefactFamily>')) return ruleRows;
       if (query.includes('ExternalPayloadDescriptor')) return descriptor ? [Object.fromEntries(Object.entries(descriptor).map(([key, item]) => [key, binding(item)]))] : [];
       return [];
     },
@@ -250,6 +273,127 @@ test('layout context is live-digest-bound and exposes active proof and authorise
   assert.equal(context.decisionResolution, 'unique-accepted');
   assert.deepEqual(context.authorisedRepositories, ['usf']);
   assert.deepEqual(context.authorisedPaths, ['capabilities/semantic-model-compilation']);
+  assert.deepEqual(context.authorisedFormats, [format]);
+});
+
+test('contract packet projects the selected decision exact representation-format set', async () => {
+  const packet = await projectContract({
+    client: fakeClient({
+      decisionFormatRows: [{ format: binding(jsonFormat) }, { format: binding(format) }],
+    }),
+  }, { contract });
+  assert.deepEqual(packet.authorisedFormats, [format, jsonFormat]);
+});
+
+test('global materialisation-rule formats do not leak into decision authority', async () => {
+  const client = fakeClient({
+    ruleRows: [materialisationRule(), materialisationRule(markdownFormat)],
+  });
+  const packet = await projectContract({ client }, { contract });
+  assert.deepEqual(packet.authorisedFormats, [format]);
+
+  const content = '# globally valid rule, decision-denied format\n';
+  await assert.rejects(
+    () => createLayoutPlan({ client }, {
+      contract,
+      operations: [{
+        action: 'write-file',
+        artefactFamily: family,
+        content,
+        contentDigest: digest(content),
+        contentEncoding: 'utf8',
+        index: 0,
+        path: 'capabilities/semantic-model-compilation/value.md',
+        pathRole: role,
+        representationFormat: markdownFormat,
+      }],
+    }),
+    /operation-decision-representation-format/,
+  );
+});
+
+test('formats authorised by another accepted decision do not leak into the selected decision', async () => {
+  const client = fakeClient({ contractRows: complementaryCompilerRows() });
+  const select = client.select;
+  const formatQueries = [];
+  client.select = async (query) => {
+    if (!query.includes(`<${decisionFormatPredicate}>`)) return select(query);
+    formatQueries.push(query);
+    if (query.includes(`<${compilerDecision}>`)) {
+      return query.includes('COUNT(DISTINCT ?format) AS ?count')
+        ? [{ count: binding('1') }]
+        : [{ format: binding(format) }];
+    }
+    return query.includes('COUNT(DISTINCT ?format) AS ?count')
+      ? [{ count: binding('2') }]
+      : [{ format: binding(format) }, { format: binding(markdownFormat) }];
+  };
+
+  const context = await layoutContext({ client }, { contract: compilerContract });
+  assert.deepEqual(context.authorisedFormats, [format]);
+  assert.equal(formatQueries.length, 2);
+  assert.ok(formatQueries.every((query) => query.includes(`<${compilerDecision}>`)));
+  assert.ok(formatQueries.every((query) => !query.includes(`<${authorityDecision}>`)));
+});
+
+test('a decision with authorised paths and zero representation formats fails closed', async () => {
+  await assert.rejects(
+    () => layoutContext({
+      client: fakeClient({ decisionFormatRows: [] }),
+    }),
+    /authorises source paths but no representation formats/,
+  );
+});
+
+test('decision representation-format count and row mismatch fails closed', async () => {
+  await assert.rejects(
+    () => layoutContext({
+      client: fakeClient({
+        decisionFormatCountRows: [{ count: binding('2') }],
+        decisionFormatRows: [{ format: binding(format) }],
+      }),
+    }),
+    /representation-format projection is incomplete/,
+  );
+});
+
+test('more than 256 decision representation formats fails closed', async () => {
+  const decisionFormatRows = Array.from({ length: 256 }, (_, index) => ({
+    format: binding(`urn:usf:representationformat:test${index}`),
+  }));
+  await assert.rejects(
+    () => layoutContext({
+      client: fakeClient({
+        decisionFormatCountRows: [{ count: binding('257') }],
+        decisionFormatRows,
+      }),
+    }),
+    /representation-format projection exceeds 256 items/,
+  );
+});
+
+test('decision format count and bounded rows are queried after decision resolution without a path join', async () => {
+  const client = fakeClient();
+  const select = client.select;
+  const queries = [];
+  client.select = async (query) => {
+    queries.push(query);
+    return select(query);
+  };
+
+  await layoutContext({ client });
+  const contractQueryIndex = queries.findIndex((query) => query.includes('?canonicalName ?lifecycle'));
+  const formatQueryIndexes = queries
+    .map((query, index) => ({ query, index }))
+    .filter(({ query }) => query.includes(`<${decisionFormatPredicate}>`));
+  assert.equal(formatQueryIndexes.length, 2);
+  assert.ok(formatQueryIndexes.every(({ index }) => index > contractQueryIndex));
+  assert.ok(formatQueryIndexes.every(({ query }) => query.includes(`<${materialisationDecision}>`)));
+  assert.ok(formatQueryIndexes.every(({ query }) => !query.includes('authorisesSourcePath')));
+  assert.equal(formatQueryIndexes.filter(({ query }) => query.includes('COUNT(DISTINCT ?format)')).length, 1);
+  assert.equal(formatQueryIndexes.filter(({ query }) => query.includes('SELECT DISTINCT ?format')).length, 1);
+  assert.ok(formatQueryIndexes.some(({ query }) => query.includes('LIMIT 256')));
+  assert.ok(!queries[contractQueryIndex].includes(decisionFormatPredicate));
 });
 
 // --- authored-model closure ------------------------------------------------

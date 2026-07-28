@@ -129,6 +129,7 @@ function strongestState(states) {
 const MAX_PACKET_BYTES = 65_536;
 const MAX_PACKET_ITEMS = 256;
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
+const DECISION_FORMAT_PREDICATE = 'urn:usf:ontology:authorisesRepresentationFormat';
 
 const value = (row, key) => row[key]?.value ?? null;
 const MATERIALISATION_RULE_WHERE = `
@@ -284,6 +285,38 @@ async function readLayoutSemantics(ctx, args = {}) {
   const acceptedDecision = candidateDecision?.state === ACCEPTED ? candidateDecision : null;
   const repositories = acceptedDecision ? [...acceptedDecision.authorisedRepositories].sort() : [];
   const paths = acceptedDecision ? [...acceptedDecision.authorisedPaths].sort() : [];
+  // Formats are authority granted by the selected decision, not an inference
+  // from the global family/materialisation-rule catalogue. Resolve the
+  // decision first, then count and read its exact set in separate bounded
+  // queries. Keeping this out of the contract/path query also avoids a
+  // path-by-format cross product that could mask truncation.
+  let authorisedFormats = [];
+  if (acceptedDecision) {
+    const [formatCountRows, formatRows] = await Promise.all([
+      ctx.client.select(`SELECT (COUNT(DISTINCT ?format) AS ?count) WHERE { <${acceptedDecision.id}> <${DECISION_FORMAT_PREDICATE}> ?format . }`),
+      ctx.client.select(`SELECT DISTINCT ?format WHERE { <${acceptedDecision.id}> <${DECISION_FORMAT_PREDICATE}> ?format . } ORDER BY ?format LIMIT ${MAX_PACKET_ITEMS}`),
+    ]);
+    const formatCount = formatCountRows.length === 1 ? value(formatCountRows[0], 'count') : null;
+    const expectedFormatCount = formatCount === null ? Number.NaN : Number(formatCount);
+    const formats = formatRows.map((row) => value(row, 'format'));
+    if (formatCountRows.length !== 1 || !Number.isSafeInteger(expectedFormatCount) || expectedFormatCount < 0) {
+      throw new Error('decision representation-format count is invalid');
+    }
+    if (expectedFormatCount > MAX_PACKET_ITEMS) {
+      throw new Error(`decision representation-format projection exceeds ${MAX_PACKET_ITEMS} items`);
+    }
+    if (
+      formatRows.length !== expectedFormatCount
+      || formats.some((item) => item === null)
+      || new Set(formats).size !== expectedFormatCount
+    ) {
+      throw new Error('decision representation-format projection is incomplete');
+    }
+    if (paths.length > 0 && expectedFormatCount === 0) {
+      throw new Error('decision authorises source paths but no representation formats');
+    }
+    authorisedFormats = formats.sort();
+  }
   return {
     schemaVersion: 1,
     contract: {
@@ -303,6 +336,7 @@ async function readLayoutSemantics(ctx, args = {}) {
     decisionResolution,
     authorisedRepositories: repositories,
     authorisedPaths: paths,
+    authorisedFormats,
     pathRoles: roleRows.map((row) => ({ id: value(row, 'role'), canonicalName: value(row, 'canonicalName'), parent: value(row, 'parent'), onDemand: value(row, 'onDemand') === 'true' })),
     materialisationRuleCount: expectedRuleCount,
     rules: ruleRows.map((row) => ({ family: value(row, 'family'), familyName: value(row, 'familyName'), storageClass: value(row, 'storage'), pathRole: value(row, 'pathRole'), representationFormat: value(row, 'format'), namingPattern: value(row, 'namingPattern') })),
@@ -765,7 +799,7 @@ export async function projectContract(ctx, args = {}) {
     authorisedActions: authorised ? [...ACTIONS] : [],
     authorisedRepositories: authorised ? context.authorisedRepositories : [],
     authorisedPaths: authorised ? context.authorisedPaths : [],
-    authorisedFormats: authorised ? [...new Set(context.rules.map((item) => item.representationFormat))].sort() : [],
+    authorisedFormats: authorised ? [...context.authorisedFormats] : [],
     acceptanceObligations: [...new Set([...ids(requirements), ...ids(obligations)])].sort(),
     validationApplicability: {
       state: scope.applicability,
