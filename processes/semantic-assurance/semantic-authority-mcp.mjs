@@ -200,16 +200,25 @@ export async function callTool(name, args, ctx) {
 // checkout (with /usf as the root, `documentation/x.md` landed at
 // /documentation/x.md). Verified by the repository root carrying package.json.
 export const MCP_REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+export const MCP_REPOSITORY_IDENTITY = 'maldous/usf-graph';
+export const FACTORY_REPOSITORY_IDENTITY = 'maldous/usf-factory';
 
 export async function runMcpServer({ input = process.stdin, output = process.stdout } = {}) {
   const config = loadConfig();
   const redact = makeRedactor(config);
+  const repositoryRoots = new Map([[MCP_REPOSITORY_IDENTITY, MCP_REPOSITORY_ROOT]]);
+  const configuredFactoryRoot = process.env.USF_FACTORY_REPOSITORY_ROOT?.trim();
+  if (configuredFactoryRoot) {
+    repositoryRoots.set(FACTORY_REPOSITORY_IDENTITY, resolve(configuredFactoryRoot));
+  }
   const ctx = {
     client: createClient(config),
     config,
     casRoot: process.env.USF_CAS_ROOT || null,
     coordinator: process.env.USF_COORDINATOR_MODE === 'apply',
     repositoryRoot: MCP_REPOSITORY_ROOT,
+    repositoryIdentity: MCP_REPOSITORY_IDENTITY,
+    repositoryRoots,
   };
   const send = (msg) => output.write(redact(JSON.stringify(msg)) + '\n');
 

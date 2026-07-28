@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
@@ -20,6 +21,106 @@ import { DataFactory } from 'n3';
 const { namedNode } = DataFactory;
 
 export const MATERIALISATION_CONTRACT = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation';
+export const PROVIDER_FACTORY_REPOSITORY = 'maldous/usf-factory';
+export const PROVIDER_FACTORY_PATH_SCOPES = Object.freeze({
+  'urn:usf:semanticcontract:providerconfigurationplane': Object.freeze({
+    count: 102,
+    digest: 'sha256:cfb3cc646ac93a523c5b108174114dd943ec46485dbc5fc4a955f3c51e8c11f9',
+  }),
+  'urn:usf:semanticcontract:providerenvironmentclassification': Object.freeze({
+    count: 63,
+    digest: 'sha256:13624cf373024e620d1b91a31a8d7539669c7853a72fc9815f3235a768a20d42',
+  }),
+  'urn:usf:semanticcontract:servicecatalogandproviderintegrationmodel': Object.freeze({
+    count: 63,
+    digest: 'sha256:13624cf373024e620d1b91a31a8d7539669c7853a72fc9815f3235a768a20d42',
+  }),
+});
+export const PROVIDER_FACTORY_DIRECTORIES = Object.freeze([
+  'src/usf_factory/providers',
+  'tests/provider_workforce',
+]);
+export const PROVIDER_FACTORY_FAMILIES = Object.freeze([
+  'urn:usf:artefactfamily:factoryconfiguration',
+  'urn:usf:artefactfamily:factoryenvironmentexample',
+  'urn:usf:artefactfamily:factorymarkdowndocumentation',
+  'urn:usf:artefactfamily:factorypythonoperatorrealisation',
+  'urn:usf:artefactfamily:factorypythonpackagerealisation',
+  'urn:usf:artefactfamily:factorypythontestrealisation',
+  'urn:usf:artefactfamily:factoryyamldocumentation',
+]);
+export const PROVIDER_FACTORY_RULES = Object.freeze([
+  {
+    rule: 'urn:usf:materialisationrule:factoryconfiguration',
+    family: 'urn:usf:artefactfamily:factoryconfiguration',
+    storageClass: 'urn:usf:storageclass:gittrackedsource',
+    pathRole: 'urn:usf:pathrole:factoryconfigurationsource',
+    representationFormat: 'urn:usf:representationformat:yamlconfiguration12',
+    canonicalExtension: '.yaml',
+    namingRule: 'urn:usf:namingrule:factoryyamlconfiguration',
+    namingPattern: '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]yaml$',
+  },
+  {
+    rule: 'urn:usf:materialisationrule:factoryenvironmentexample',
+    family: 'urn:usf:artefactfamily:factoryenvironmentexample',
+    storageClass: 'urn:usf:storageclass:gittrackedsource',
+    pathRole: 'urn:usf:pathrole:factoryenvironmentexample',
+    representationFormat: 'urn:usf:representationformat:dotenvexample',
+    canonicalExtension: '.env.example',
+    namingRule: 'urn:usf:namingrule:factoryenvironmentexample',
+    namingPattern: '^[.]env[.]example$',
+  },
+  {
+    rule: 'urn:usf:materialisationrule:factorymarkdowndocumentation',
+    family: 'urn:usf:artefactfamily:factorymarkdowndocumentation',
+    storageClass: 'urn:usf:storageclass:gittrackedsource',
+    pathRole: 'urn:usf:pathrole:factorydocumentationsource',
+    representationFormat: 'urn:usf:representationformat:markdowncommonmark',
+    canonicalExtension: '.md',
+    namingRule: 'urn:usf:namingrule:factorymarkdowndocumentation',
+    namingPattern: '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]md$',
+  },
+  {
+    rule: 'urn:usf:materialisationrule:factorypythonoperatorrealisation',
+    family: 'urn:usf:artefactfamily:factorypythonoperatorrealisation',
+    storageClass: 'urn:usf:storageclass:gittrackedsource',
+    pathRole: 'urn:usf:pathrole:factoryproviderscriptsource',
+    representationFormat: 'urn:usf:representationformat:python311source',
+    canonicalExtension: '.py',
+    namingRule: 'urn:usf:namingrule:factorypythonoperatorscript',
+    namingPattern: '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]py$',
+  },
+  {
+    rule: 'urn:usf:materialisationrule:factorypythonpackagerealisation',
+    family: 'urn:usf:artefactfamily:factorypythonpackagerealisation',
+    storageClass: 'urn:usf:storageclass:gittrackedsource',
+    pathRole: 'urn:usf:pathrole:factorypythonpackagesource',
+    representationFormat: 'urn:usf:representationformat:python311source',
+    canonicalExtension: '.py',
+    namingRule: 'urn:usf:namingrule:factorypythonmodule',
+    namingPattern: '^(?:__init__|[a-z][a-z0-9]*(?:_[a-z0-9]+)*)[.]py$',
+  },
+  {
+    rule: 'urn:usf:materialisationrule:factorypythontestrealisation',
+    family: 'urn:usf:artefactfamily:factorypythontestrealisation',
+    storageClass: 'urn:usf:storageclass:gittrackedsource',
+    pathRole: 'urn:usf:pathrole:factoryproviderworkforcetestsource',
+    representationFormat: 'urn:usf:representationformat:python311source',
+    canonicalExtension: '.py',
+    namingRule: 'urn:usf:namingrule:factorypythontest',
+    namingPattern: '^test_[a-z][a-z0-9]*(?:_[a-z0-9]+)*[.]py$',
+  },
+  {
+    rule: 'urn:usf:materialisationrule:factoryyamldocumentation',
+    family: 'urn:usf:artefactfamily:factoryyamldocumentation',
+    storageClass: 'urn:usf:storageclass:gittrackedsource',
+    pathRole: 'urn:usf:pathrole:factorydocumentationsource',
+    representationFormat: 'urn:usf:representationformat:yamlconfiguration12',
+    canonicalExtension: '.yaml',
+    namingRule: 'urn:usf:namingrule:factoryyamldocumentation',
+    namingPattern: '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]yaml$',
+  },
+]);
 export const ACTIVE = 'urn:usf:contractactivationstate:active';
 export const SUCCESSFUL = 'urn:usf:proofresultstate:successful';
 export const ACCEPTED = 'urn:usf:decisionstate:accepted';
@@ -37,6 +138,62 @@ export const MATERIALISATION_ACTIONS = Object.freeze(['create-directory', 'write
 const { MAX_OPERATIONS, MAX_PLAN_BYTES, MAX_TRACKED_WRITE_BYTES } = MATERIALISATION_BOUNDS;
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const ACTIONS = new Set(MATERIALISATION_ACTIONS);
+
+function repositoryIdentityFromRemote(remote) {
+  const value = String(remote).trim().replace(/[/.]git\/?$/u, '');
+  const match = value.match(/^(?:https:\/\/github[.]com\/|ssh:\/\/git@github[.]com\/|git@github[.]com:)([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)$/u);
+  return match?.[1] ?? null;
+}
+
+function gitRead(repositoryRoot, args) {
+  return execFileSync('git', ['-C', repositoryRoot, ...args], {
+    encoding: 'utf8',
+    maxBuffer: 4096,
+    stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim();
+}
+
+/**
+ * Bind the semantic repository identity to a real Git worktree before any
+ * filesystem mutation. The identity is never accepted from a caller alone:
+ * the selected root must be the Git top-level and its GitHub origin must name
+ * the exact authority-selected repository. Detached and linked worktrees are
+ * supported; an arbitrary directory carrying only the asserted string is not.
+ */
+export function attestRepositoryRoot(repositoryRoot, expectedRepositoryIdentity) {
+  if (typeof repositoryRoot !== 'string' || repositoryRoot.length === 0) {
+    throw new Error('repository root is required');
+  }
+  if (typeof expectedRepositoryIdentity !== 'string' || expectedRepositoryIdentity.length === 0) {
+    throw new Error('expected repository identity is required');
+  }
+  const unresolvedRoot = resolve(repositoryRoot);
+  if (lstatSync(unresolvedRoot).isSymbolicLink()) {
+    throw new Error('materialisation repository root must not be a symbolic link');
+  }
+  const canonicalRoot = realpathSync(unresolvedRoot);
+  let gitTopLevel;
+  let origin;
+  try {
+    gitTopLevel = realpathSync(gitRead(canonicalRoot, ['rev-parse', '--show-toplevel']));
+    origin = gitRead(canonicalRoot, ['config', '--get', 'remote.origin.url']);
+  } catch {
+    throw new Error('materialisation repository root is not an attested Git worktree');
+  }
+  if (gitTopLevel !== canonicalRoot) {
+    throw new Error('materialisation repository root must be the Git worktree top-level');
+  }
+  const observedRepositoryIdentity = repositoryIdentityFromRemote(origin);
+  if (observedRepositoryIdentity !== expectedRepositoryIdentity) {
+    throw new Error('materialisation repository origin does not match the authority-bound repository');
+  }
+  return Object.freeze({
+    schemaVersion: 1,
+    repositoryIdentity: observedRepositoryIdentity,
+    repositoryRoot: canonicalRoot,
+    originDigest: sha256(Buffer.from(origin, 'utf8')),
+  });
+}
 
 // One path policy for every materialisation surface, COMPILED FROM SEMANTIC
 // AUTHORITY rather than asserted to match it.
@@ -138,6 +295,10 @@ export const stable = (input) => Array.isArray(input)
 
 export const canonicalJson = (input) => JSON.stringify(stable(input));
 export const sha256 = (input) => `sha256:${createHash('sha256').update(input).digest('hex')}`;
+export const utf8Compare = (left, right) => Buffer.compare(
+  Buffer.from(String(left), 'utf8'),
+  Buffer.from(String(right), 'utf8'),
+);
 
 function bounded(input, maximum, label) {
   const bytes = Buffer.byteLength(canonicalJson(input));
@@ -237,7 +398,7 @@ export function comparePathPolicyToAuthority(observed) {
     observedTokenCount: observedTokens.length,
     enforcedSegmentCount: PATH_POLICY.forbiddenSegments.size,
     differences: Object.freeze(differences
-      .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))
+      .sort((left, right) => utf8Compare(JSON.stringify(left), JSON.stringify(right)))
       .map((item) => Object.freeze(item))),
   });
 }
@@ -294,8 +455,39 @@ export function sourceDigest(path) {
   return lstatSync(path).isDirectory() ? sha256(canonicalJson(treeEntries(path))) : sha256(readFileSync(path));
 }
 
-export function decisionAuthorisesPath(path, authorisedPaths) {
+export function decisionAuthorisesPath(path, authorisedPaths, authorisedDirectoryPrefixes = null) {
+  if (Array.isArray(authorisedDirectoryPrefixes)) {
+    return authorisedPaths.includes(path)
+      || authorisedDirectoryPrefixes.some((directory) => path.startsWith(`${directory}/`));
+  }
   return authorisedPaths.some((authorised) => authorised === '.' ? !path.includes('/') : path === authorised || path.startsWith(`${authorised}/`));
+}
+
+const sortedStrings = (items) => Array.isArray(items) ? [...items].sort(utf8Compare) : [];
+
+export function scopedPermissionSet(authority) {
+  const rules = Array.isArray(authority?.rules) ? authority.rules.map((rule) => ({
+    family: rule.family,
+    rule: rule.rule,
+    storageClass: rule.storageClass,
+    pathRole: rule.pathRole,
+    representationFormat: rule.representationFormat,
+    canonicalExtension: rule.canonicalExtension,
+    namingRule: rule.namingRule,
+    namingPattern: rule.namingPattern,
+  })).sort((left, right) => utf8Compare(canonicalJson(left), canonicalJson(right))) : [];
+  return {
+    repositories: sortedStrings(authority?.authorisedRepositories),
+    paths: sortedStrings(authority?.authorisedPaths),
+    directories: sortedStrings(authority?.authorisedDirectoryPrefixes),
+    actions: sortedStrings(authority?.authorisedActions),
+    families: sortedStrings(authority?.authorisedFamilies),
+    rules,
+  };
+}
+
+export function scopedPermissionSetDigest(authority) {
+  return sha256(canonicalJson(scopedPermissionSet(authority)));
 }
 
 function authorityFailures(authority, contract) {
@@ -307,6 +499,47 @@ function authorityFailures(authority, contract) {
   if (authority?.contract?.decisionState !== ACCEPTED) failures.push({ code: 'decision-not-accepted' });
   if (authority?.acceptedDecisionCount !== 1) failures.push({ code: 'decision-not-unique' });
   if (!Array.isArray(authority?.authorisedPaths)) failures.push({ code: 'authorised-paths' });
+  if (authority?.decisionScopedMaterialisationRequired === true) {
+    if (!Array.isArray(authority?.authorisedRepositories)
+      || canonicalJson(sortedStrings(authority.authorisedRepositories)) !== canonicalJson([PROVIDER_FACTORY_REPOSITORY])) {
+      failures.push({ code: 'authorised-repositories' });
+    }
+    if (!Array.isArray(authority?.authorisedDirectoryPrefixes)
+      || canonicalJson(sortedStrings(authority.authorisedDirectoryPrefixes)) !== canonicalJson(sortedStrings(PROVIDER_FACTORY_DIRECTORIES))) {
+      failures.push({ code: 'authorised-directory-prefixes' });
+    }
+    else if (authority.authorisedDirectoryPrefixes.some((directory) => authority.authorisedPaths.includes(directory))) failures.push({ code: 'authorised-path-directory-overlap' });
+    const expectedPathScope = PROVIDER_FACTORY_PATH_SCOPES[contract];
+    if (!expectedPathScope
+      || authority.authorisedPaths.length !== expectedPathScope.count
+      || sha256(canonicalJson(sortedStrings(authority.authorisedPaths))) !== expectedPathScope.digest) {
+      failures.push({ code: 'authorised-path-set' });
+    }
+    if (!Array.isArray(authority?.authorisedActions)
+      || authority.authorisedActions.length !== 1
+      || authority.authorisedActions[0] !== 'write-file') failures.push({ code: 'authorised-actions' });
+    if (!Array.isArray(authority?.authorisedFamilies)
+      || canonicalJson(sortedStrings(authority.authorisedFamilies)) !== canonicalJson(sortedStrings(PROVIDER_FACTORY_FAMILIES))) {
+      failures.push({ code: 'authorised-families' });
+    } else if (!Array.isArray(authority?.rules)
+      || authority.rules.length !== authority.authorisedFamilies.length
+      || new Set(authority.rules.map((rule) => rule.family)).size !== authority.authorisedFamilies.length
+      || authority.rules.some((rule) => !authority.authorisedFamilies.includes(rule.family)
+        || typeof rule.rule !== 'string'
+        || rule.storageClass !== 'urn:usf:storageclass:gittrackedsource'
+        || typeof rule.pathRole !== 'string'
+        || typeof rule.representationFormat !== 'string'
+        || typeof rule.canonicalExtension !== 'string'
+        || typeof rule.namingRule !== 'string'
+        || typeof rule.namingPattern !== 'string')) {
+      failures.push({ code: 'authorised-family-rules' });
+    } else if (canonicalJson(scopedPermissionSet({ rules: authority.rules }).rules)
+      !== canonicalJson(scopedPermissionSet({ rules: PROVIDER_FACTORY_RULES }).rules)) {
+      failures.push({ code: 'authorised-family-rule-set' });
+    }
+    if (!SHA256.test(authority?.permissionSetDigest || '')) failures.push({ code: 'permission-set-digest' });
+    else if (authority.permissionSetDigest !== scopedPermissionSetDigest(authority)) failures.push({ code: 'permission-set-digest-mismatch' });
+  }
   if (!Array.isArray(authority?.pathRoles)) failures.push({ code: 'path-roles' });
   if (!Array.isArray(authority?.rules)) failures.push({ code: 'materialisation-rules' });
   return failures;
@@ -316,9 +549,16 @@ export function validatePlanOperation(operation, index, authority) {
   const failures = [];
   if (!operation || operation.index !== index) failures.push({ index, code: 'operation-index' });
   if (!ACTIONS.has(operation?.action)) failures.push({ index, code: 'operation-action' });
+  if (authority?.decisionScopedMaterialisationRequired === true
+    && !authority.authorisedActions.includes(operation?.action)) failures.push({ index, code: 'operation-decision-action' });
+  if (authority?.decisionScopedMaterialisationRequired === true
+    && !authority.authorisedFamilies.includes(operation?.artefactFamily)) failures.push({ index, code: 'operation-decision-family' });
   let path;
   try { path = safeRelativePath(operation?.path); } catch { failures.push({ index, code: 'operation-path' }); }
-  if (path && !decisionAuthorisesPath(path, authority.authorisedPaths)) failures.push({ index, code: 'operation-decision-path' });
+  const directoryPrefixes = authority?.decisionScopedMaterialisationRequired === true
+    ? authority.authorisedDirectoryPrefixes
+    : null;
+  if (path && !decisionAuthorisesPath(path, authority.authorisedPaths, directoryPrefixes)) failures.push({ index, code: 'operation-decision-path' });
   const role = authority.pathRoles.find((item) => item.id === operation?.pathRole);
   if (!role) failures.push({ index, code: 'operation-path-role' });
   if (path && role && role.parent !== '.' && path !== role.parent && !path.startsWith(`${role.parent}/`)) failures.push({ index, code: 'operation-unauthorised-parent' });
@@ -327,15 +567,24 @@ export function validatePlanOperation(operation, index, authority) {
   if (operation?.action === 'move-path') {
     let sourcePath;
     try { sourcePath = safeRelativePath(operation.sourcePath, 'sourcePath'); } catch { failures.push({ index, code: 'operation-move-source' }); }
-    if (sourcePath && !decisionAuthorisesPath(sourcePath, authority.authorisedPaths)) failures.push({ index, code: 'operation-move-source-decision-path' });
+    if (sourcePath && !decisionAuthorisesPath(sourcePath, authority.authorisedPaths, directoryPrefixes)) failures.push({ index, code: 'operation-move-source-decision-path' });
     if (operation?.sourceDigest === undefined) failures.push({ index, code: 'operation-source-digest' });
   }
   if (operation?.action === 'delete-path' && operation?.sourceDigest === undefined) failures.push({ index, code: 'operation-source-digest' });
   if (operation?.action === 'write-file') {
     if (!SHA256.test(operation.contentDigest || '')) failures.push({ index, code: 'operation-content-digest' });
-    const rule = authority.rules.find((item) => item.family === operation.artefactFamily && item.representationFormat === operation.representationFormat && item.pathRole === operation.pathRole);
-    if (!rule) failures.push({ index, code: 'operation-write-representation' });
-    else if (path && !new RegExp(rule.namingPattern).test(basename(path))) failures.push({ index, code: 'operation-filename' });
+    const matchingRules = authority.rules.filter((item) => item.family === operation.artefactFamily
+      && item.representationFormat === operation.representationFormat
+      && item.pathRole === operation.pathRole);
+    if (matchingRules.length !== 1) failures.push({ index, code: matchingRules.length === 0 ? 'operation-write-representation' : 'operation-write-representation-ambiguous' });
+    else if (path) {
+      const [rule] = matchingRules;
+      if (!new RegExp(rule.namingPattern).test(basename(path))) failures.push({ index, code: 'operation-filename' });
+      if (authority?.decisionScopedMaterialisationRequired === true
+        && (typeof rule.canonicalExtension !== 'string' || !basename(path).endsWith(rule.canonicalExtension))) {
+        failures.push({ index, code: 'operation-format-extension' });
+      }
+    }
     const inline = typeof operation.content === 'string' && ['utf8', 'base64'].includes(operation.contentEncoding);
     const located = typeof operation.contentLocator === 'string' && /^cas:\/\/sha256\/[0-9a-f]{64}$/.test(operation.contentLocator)
       && operation.contentLocator.slice('cas://sha256/'.length) === operation.contentDigest?.slice(7);
@@ -354,6 +603,10 @@ export function validateMaterialisationPlan(authority, plan) {
   const failures = authorityFailures(authority, plan?.contract);
   if (plan?.schemaVersion !== 1) failures.push({ code: 'plan-schema-version' });
   if (plan?.authorityDigest !== authority?.authorityDigest) failures.push({ code: 'plan-authority-digest' });
+  if (authority?.decisionScopedMaterialisationRequired === true
+    && plan?.permissionSetDigest !== authority?.permissionSetDigest) failures.push({ code: 'plan-permission-set-digest' });
+  if (authority?.decisionScopedMaterialisationRequired === true
+    && plan?.repositoryIdentity !== PROVIDER_FACTORY_REPOSITORY) failures.push({ code: 'plan-repository-identity' });
   if (!Array.isArray(plan?.operations) || plan.operations.length < 1 || plan.operations.length > MAX_OPERATIONS) failures.push({ code: 'plan-operation-bound' });
   else plan.operations.forEach((operation, index) => failures.push(...validatePlanOperation(operation, index, authority)));
   const unsigned = { ...plan };
@@ -365,7 +618,18 @@ export function validateMaterialisationPlan(authority, plan) {
 
 export function createMaterialisationPlan(authority, operations, contract = MATERIALISATION_CONTRACT) {
   if (!Array.isArray(operations)) throw new TypeError('operations must be an array');
-  const plan = { schemaVersion: 1, authorityDigest: authority?.authorityDigest, contract, operations };
+  const plan = {
+    schemaVersion: 1,
+    authorityDigest: authority?.authorityDigest,
+    ...(authority?.decisionScopedMaterialisationRequired === true
+      ? {
+        permissionSetDigest: authority.permissionSetDigest,
+        repositoryIdentity: authority.authorisedRepositories[0],
+      }
+      : {}),
+    contract,
+    operations,
+  };
   plan.planDigest = sha256(canonicalJson(plan));
   const validation = validateMaterialisationPlan(authority, plan);
   if (!validation.ok) throw new Error(`invalid materialisation plan: ${validation.failures.map((item) => `${item.index ?? '-'}:${item.code}`).join(',')}`);
@@ -449,9 +713,21 @@ function operationBytes(operation, casRoot) {
  *
  * @returns {{operations: object[], rollbackAndThrow: (error: Error) => never}}
  */
-export function executePlanOperations({ plan, repositoryRoot, casRoot }) {
+export function executePlanOperations({
+  plan,
+  repositoryRoot,
+  repositoryIdentity = null,
+  expectedRepositoryIdentity = null,
+  casRoot,
+}) {
   if (!repositoryRoot) throw new Error('repository root is required');
-  const root = realpathSync(repositoryRoot);
+  if (expectedRepositoryIdentity !== null
+    && (repositoryIdentity !== expectedRepositoryIdentity || plan?.repositoryIdentity !== expectedRepositoryIdentity)) {
+    throw new Error('materialisation repository identity does not match the authority-bound repository');
+  }
+  const root = expectedRepositoryIdentity === null
+    ? realpathSync(repositoryRoot)
+    : attestRepositoryRoot(repositoryRoot, expectedRepositoryIdentity).repositoryRoot;
   const rollback = [];
   const operations = [];
   try {
@@ -528,10 +804,31 @@ export function executePlanOperations({ plan, repositoryRoot, casRoot }) {
   });
 }
 
-export function materialisePlan({ authority, plan, repositoryRoot, casRoot, apply = false }) {
+export function materialisePlan({
+  authority,
+  plan,
+  repositoryRoot,
+  repositoryIdentity = null,
+  casRoot,
+  apply = false,
+}) {
   const validation = validateMaterialisationPlan(authority, plan);
   if (!validation.ok) return { applied: false, validation };
   if (!apply) return { applied: false, dryRun: true, validation };
-  const execution = executePlanOperations({ plan, repositoryRoot, casRoot });
-  return { applied: true, validation, operations: execution.operations };
+  const expectedRepositoryIdentity = authority?.decisionScopedMaterialisationRequired === true
+    ? authority.authorisedRepositories[0]
+    : null;
+  const execution = executePlanOperations({
+    plan,
+    repositoryRoot,
+    repositoryIdentity,
+    expectedRepositoryIdentity,
+    casRoot,
+  });
+  return {
+    applied: true,
+    validation,
+    repositoryIdentity: expectedRepositoryIdentity,
+    operations: execution.operations,
+  };
 }

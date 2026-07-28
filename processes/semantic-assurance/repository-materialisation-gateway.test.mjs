@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -12,6 +13,16 @@ import {
   refuseLifecycleMutation, planWork, projectContract, sourceDigest, stableAuthorityRead,
   validateLayoutPlan, verifyArtifact,
 } from './repository-materialisation-gateway.mjs';
+import {
+  PROVIDER_FACTORY_PATH_SCOPES,
+  PROVIDER_FACTORY_RULES,
+  attestRepositoryRoot,
+  createMaterialisationPlan,
+  decisionAuthorisesPath,
+  scopedPermissionSetDigest,
+  validateMaterialisationPlan,
+  validatePlanOperation,
+} from '../../capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs';
 
 const { namedNode } = DataFactory;
 const contract = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation';
@@ -21,14 +32,44 @@ const role = 'urn:usf:pathrole:compilersource';
 const compilerContract = 'urn:usf:semanticcontract:compilersemanticenforcement';
 const compilerDecision = 'urn:usf:realisationdecision:semanticmodelcompilationrealisation';
 const authorityDecision = 'urn:usf:realisationdecision:semanticauthoritycontrolselection';
+const scopedContract = 'urn:usf:semanticcontract:providerconfigurationplane';
+const scopedDecision = 'urn:usf:realisationdecision:providerconfigurationplanefactoryworkforce';
+const scopedFamily = 'urn:usf:artefactfamily:factorypythonpackagerealisation';
+const scopedRole = 'urn:usf:pathrole:factorypythonpackagesource';
+const scopedFormat = 'urn:usf:representationformat:python311source';
+const scopedFamilies = [
+  'urn:usf:artefactfamily:factoryconfiguration',
+  'urn:usf:artefactfamily:factoryenvironmentexample',
+  'urn:usf:artefactfamily:factorymarkdowndocumentation',
+  'urn:usf:artefactfamily:factorypythonoperatorrealisation',
+  scopedFamily,
+  'urn:usf:artefactfamily:factorypythontestrealisation',
+  'urn:usf:artefactfamily:factoryyamldocumentation',
+];
+const semanticBindingQuads = new Parser()
+  .parse(readFileSync(new URL('../../semantic-model/realisation/bindings.trig', import.meta.url), 'utf8'));
+const decisionPaths = (decision) => [...new Set(
+  semanticBindingQuads
+    .filter((quad) => quad.subject.value === decision
+      && quad.predicate.value === 'urn:usf:ontology:authorisesSourcePath')
+    .map((quad) => quad.object.value),
+)].sort((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)));
+const scopedPaths = decisionPaths(scopedDecision);
 
 const roots = [];
 test.after(() => roots.forEach((root) => rmSync(root, { recursive: true, force: true })));
 
 function binding(value) { return { value }; }
+function initialiseFactoryWorktree(root) {
+  execFileSync('git', ['init', '--quiet', root], { stdio: 'ignore' });
+  execFileSync('git', ['-C', root, 'remote', 'add', 'origin', 'https://github.com/maldous/usf-factory.git'], { stdio: 'ignore' });
+  return root;
+}
+function bindingValue(row, key) { return row[key]?.value ?? null; }
 function defaultContractRows() {
   return [{
     canonicalName: binding('repositoryexternalartefactmaterialisation'),
+    decisionScoped: binding('false'),
     lifecycle: binding('urn:usf:semanticlifecyclestate:active'),
     activation: binding('urn:usf:contractactivationstate:active'),
     proof: binding('urn:usf:proofresult:repositoryexternalartefactmaterialisation'),
@@ -42,6 +83,7 @@ function defaultContractRows() {
 function complementaryCompilerRows(effectiveDecisions = [compilerDecision]) {
   const base = {
     canonicalName: binding('compilersemanticenforcement'),
+    decisionScoped: binding('false'),
     lifecycle: binding('urn:usf:semanticlifecyclestate:active'),
     activation: binding('urn:usf:contractactivationstate:active'),
     proof: binding('urn:usf:proofresult:compilersemanticenforcement'),
@@ -58,6 +100,79 @@ function complementaryCompilerRows(effectiveDecisions = [compilerDecision]) {
     ...row,
     effectiveDecision: binding(effective),
   })));
+}
+
+function scopedProviderFixture({
+  mode = 'true',
+  effective = true,
+  decision = scopedDecision,
+  repository = 'maldous/usf-factory',
+  paths = scopedPaths,
+  directories = ['src/usf_factory/providers', 'tests/provider_workforce'],
+  families = scopedFamilies,
+} = {}) {
+  const contractRows = [{
+    canonicalName: binding('providerconfigurationplane'),
+    lifecycle: binding('urn:usf:semanticlifecyclestate:active'),
+    activation: binding('urn:usf:contractactivationstate:active'),
+    proof: binding('urn:usf:proofresult:providerconfigurationplane'),
+    proofState: binding('urn:usf:proofresultstate:successful'),
+    decisionScoped: binding(mode),
+    ...(effective ? { effectiveDecision: binding(decision) } : {}),
+    decision: binding(decision),
+    decisionState: binding('urn:usf:decisionstate:accepted'),
+    authorisedRepository: binding(repository),
+    authorisedPath: binding(paths[0]),
+  }];
+  const permissionRows = [
+    ['authorisesRepository', repository],
+    ...paths.map((path) => ['authorisesSourcePath', path]),
+    ...directories.map((directory) => ['authorisesSourceDirectory', directory]),
+    ['authorisesMaterialisationAction', 'write-file'],
+    ...families.map((item) => ['authorisesArtefactFamily', item]),
+  ].map(([permission, permissionValue]) => ({
+    decision: binding(decision),
+    permission: binding(`urn:usf:ontology:${permission}`),
+    permissionValue: binding(permissionValue),
+  }));
+  const materialisationRuleRows = PROVIDER_FACTORY_RULES
+    .filter(({ family }) => families.includes(family))
+    .map((rule) => ({
+      family: binding(rule.family),
+      familyName: binding(rule.family.split(':').at(-1)),
+      rule: binding(rule.rule),
+      storage: binding(rule.storageClass),
+      pathRole: binding(rule.pathRole),
+      format: binding(rule.representationFormat),
+      canonicalExtension: binding(rule.canonicalExtension),
+      naming: binding(rule.namingRule),
+      namingPattern: binding(rule.namingPattern),
+    }));
+  return {
+    contractRows,
+    permissionRows,
+    pathRoleRows: [{
+      role: binding(scopedRole),
+      canonicalName: binding('factorypythonpackagesource'),
+      parent: binding('src/usf_factory'),
+      onDemand: binding('true'),
+    }],
+    materialisationRuleRows,
+  };
+}
+
+function scopedWriteOperation(content = 'pass\n') {
+  return {
+    index: 0,
+    action: 'write-file',
+    path: 'src/usf_factory/providers/cohere.py',
+    pathRole: scopedRole,
+    artefactFamily: scopedFamily,
+    representationFormat: scopedFormat,
+    contentDigest: digest(content),
+    content,
+    contentEncoding: 'utf8',
+  };
 }
 const validationObligation = 'urn:usf:validationobligation:repositoryexternalartefactmaterialisation';
 // The fake's authority witness is one graph with one triple. The witness total
@@ -157,18 +272,61 @@ function defaultCurrentness(overrides = {}) {
 function fakeClient({
   descriptor,
   contractRows = defaultContractRows(),
+  permissionRows = null,
+  pathRoleRows = [{
+    role: binding(role),
+    canonicalName: binding('compilersource'),
+    parent: binding('capabilities/semantic-model-compilation'),
+    onDemand: binding('true'),
+  }],
+  materialisationRuleRows = [{
+    family: binding(family),
+    familyName: binding('compiler'),
+    storage: binding('urn:usf:storageclass:gittrackedsource'),
+    pathRole: binding(role),
+    format: binding(format),
+    canonicalExtension: binding('.mjs'),
+    naming: binding('urn:usf:namingrule:repositorysemanticpurpose'),
+    namingPattern: binding('^[A-Za-z0-9._-]+$'),
+  }],
   applicabilityRows = defaultApplicabilityRows(),
   validationObligationRows = defaultValidationObligationRows(),
   proofGapRows = [],
   currentness = defaultCurrentness(),
 } = {}) {
+  const effectivePermissionRows = permissionRows ?? [...new Map(contractRows.flatMap((row) => {
+    const decision = bindingValue(row, 'decision');
+    if (!decision || bindingValue(row, 'decisionState') !== 'urn:usf:decisionstate:accepted') return [];
+    return [
+      ['authorisesRepository', bindingValue(row, 'authorisedRepository')],
+      ['authorisesSourcePath', bindingValue(row, 'authorisedPath')],
+    ].filter(([, permissionValue]) => permissionValue).map(([permission, permissionValue]) => {
+      const result = {
+        decision: binding(decision),
+        permission: binding(`urn:usf:ontology:${permission}`),
+        permissionValue: binding(permissionValue),
+      };
+      return [`${decision}\0${permission}\0${permissionValue}`, result];
+    });
+  })).values()];
   return {
     size: async () => 10,
     construct: async () => '<urn:s> <urn:p> "materialisation" .\n',
     select: async (query) => {
-      if (query.includes('COUNT(*) AS ?count')) return [{ count: binding('1') }];
+      if (query.includes('COUNT(*) AS ?count') && query.includes('?decisionState')) {
+        return [{
+          count: binding(String(new Set(contractRows.map((row) => bindingValue(row, 'decision')).filter(Boolean)).size)),
+        }];
+      }
+      if (query.includes('COUNT(*) AS ?count') && query.includes('?permission')) {
+        return [{ count: binding(String(effectivePermissionRows.length)) }];
+      }
+      if (query.includes('COUNT(*) AS ?count')) return [{ count: binding(String(materialisationRuleRows.length)) }];
       if (query.includes('SELECT DISTINCT ?g')) return [{ g: binding('urn:g') }];
       if (query.includes('?canonicalName ?lifecycle')) return contractRows;
+      if (query.includes('?decision ?permission ?permissionValue') && !query.includes('COUNT(*) AS ?count')) {
+        return effectivePermissionRows;
+      }
       if (query.includes('<urn:usf:ontology:hasValidationApplicability> ?state')) return applicabilityRows;
       if (query.includes('a <urn:usf:ontology:ValidationObligation>')) return validationObligationRows;
       if (query.includes('<urn:usf:ontology:mandatoryProofObligation> ?subject')) return proofGapRows;
@@ -177,8 +335,8 @@ function fakeClient({
       if (query.includes('?evidence ?admission ?freshness')) return currentness.evidence;
       if (query.includes('?currentSourceDigest ?currentVersion')) return currentness.algorithm;
       if (query.includes('?requiresReevaluation ?reevaluationState')) return currentness.binding;
-      if (query.includes('a <urn:usf:ontology:PathRole>')) return [{ role: binding(role), canonicalName: binding('compilersource'), parent: binding('capabilities/semantic-model-compilation'), onDemand: binding('true') }];
-      if (query.includes('a <urn:usf:ontology:ArtefactFamily>')) return [{ family: binding(family), familyName: binding('compiler'), storage: binding('urn:usf:storageclass:gittrackedsource'), pathRole: binding(role), format: binding(format), namingPattern: binding('^[A-Za-z0-9._-]+$') }];
+      if (query.includes('a <urn:usf:ontology:PathRole>')) return pathRoleRows;
+      if (query.includes('a <urn:usf:ontology:ArtefactFamily>')) return materialisationRuleRows;
       if (query.includes('ExternalPayloadDescriptor')) return descriptor ? [Object.fromEntries(Object.entries(descriptor).map(([key, item]) => [key, binding(item)]))] : [];
       return [];
     },
@@ -232,6 +390,78 @@ test('semantic authority explicitly selects the compiler decision and exact grap
     namedNode('urn:usf:ontology:RealisationDecision'),
     null,
   ), true);
+});
+
+test('materialisation authority declares exact scoped and legacy permission sets without cross-products', () => {
+  const model = new Store();
+  for (const [relativePath, formatName] of [
+    ['../../semantic-model/contracts/materialisation.trig', 'application/trig'],
+    ['../../semantic-model/contracts/capabilities.trig', 'application/trig'],
+    ['../../semantic-model/realisation/bindings.trig', 'application/trig'],
+  ]) {
+    model.addQuads(new Parser({ format: formatName }).parse(
+      readFileSync(new URL(relativePath, import.meta.url), 'utf8'),
+    ));
+  }
+  const iri = (local) => namedNode(`urn:usf:${local}`);
+  const objects = (subject, predicate) => model.getObjects(subject, predicate, null).map(({ value }) => value).sort();
+  const mode = iri('ontology:decisionScopedMaterialisationRequired');
+  for (const contractId of [
+    'semanticcontract:repositoryexternalartefactmaterialisation',
+    'semanticcontract:compilersemanticenforcement',
+  ]) {
+    const contractNode = iri(contractId);
+    assert.deepEqual(objects(contractNode, mode), ['false']);
+    for (const decision of model.getSubjects(iri('ontology:decisionForContract'), contractNode, null)) {
+      assert.deepEqual(objects(decision, iri('ontology:authorisesSourceDirectory')), []);
+      assert.deepEqual(objects(decision, iri('ontology:authorisesMaterialisationAction')), []);
+      assert.deepEqual(objects(decision, iri('ontology:authorisesArtefactFamily')), []);
+    }
+  }
+
+  const families = [
+    'artefactfamily:factoryconfiguration',
+    'artefactfamily:factoryenvironmentexample',
+    'artefactfamily:factorymarkdowndocumentation',
+    'artefactfamily:factorypythonoperatorrealisation',
+    'artefactfamily:factorypythonpackagerealisation',
+    'artefactfamily:factorypythontestrealisation',
+    'artefactfamily:factoryyamldocumentation',
+  ].map((value) => `urn:usf:${value}`).sort();
+  for (const [contractId, decisionId] of [
+    ['semanticcontract:providerconfigurationplane', 'realisationdecision:providerconfigurationplanefactoryworkforce'],
+    ['semanticcontract:providerenvironmentclassification', 'realisationdecision:providerenvironmentclassificationfactoryworkforce'],
+    ['semanticcontract:servicecatalogandproviderintegrationmodel', 'realisationdecision:servicecatalogandproviderintegrationmodelfactoryworkforce'],
+  ]) {
+    const contractNode = iri(contractId);
+    const decisionNode = iri(decisionId);
+    assert.deepEqual(objects(contractNode, mode), ['true']);
+    assert.deepEqual(objects(contractNode, iri('ontology:effectiveRealisationDecision')), [decisionNode.value]);
+    assert.deepEqual(objects(decisionNode, iri('ontology:authorisesRepository')), ['maldous/usf-factory']);
+    assert.deepEqual(objects(decisionNode, iri('ontology:authorisesMaterialisationAction')), ['write-file']);
+    assert.deepEqual(objects(decisionNode, iri('ontology:authorisesSourceDirectory')), [
+      'src/usf_factory/providers',
+      'tests/provider_workforce',
+    ]);
+    assert.deepEqual(objects(decisionNode, iri('ontology:authorisesArtefactFamily')), families);
+    const exactPaths = objects(decisionNode, iri('ontology:authorisesSourcePath'));
+    for (const directory of objects(decisionNode, iri('ontology:authorisesSourceDirectory'))) {
+      assert.equal(exactPaths.includes(directory), false);
+    }
+  }
+
+  for (const familyId of families) {
+    const familyNode = namedNode(familyId);
+    const rules = model.getObjects(familyNode, iri('ontology:usesMaterialisationRule'), null);
+    assert.equal(rules.length, 1);
+    const [rule] = rules;
+    assert.equal(objects(rule, iri('ontology:usesStorageClass')).length, 1);
+    assert.equal(objects(rule, iri('ontology:usesPathRole')).length, 1);
+    assert.equal(objects(rule, iri('ontology:usesRepresentationFormat')).length, 1);
+    assert.equal(objects(rule, iri('ontology:usesNamingRule')).length, 1);
+    const [formatId] = objects(rule, iri('ontology:usesRepresentationFormat'));
+    assert.equal(objects(namedNode(formatId), iri('ontology:canonicalExtension')).length, 1);
+  }
 });
 
 test('layout context is live-digest-bound and exposes active proof and authorised paths', async () => {
@@ -466,9 +696,12 @@ test('multiple accepted decisions fail closed without exactly one valid effectiv
 test('layout context rejects a truncated materialisation-rule projection', async () => {
   const client = fakeClient();
   const select = client.select;
-  client.select = async (query) => query.includes('COUNT(*) AS ?count')
-    ? [{ count: binding('2') }]
-    : select(query);
+  client.select = async (query) => {
+    if (query.includes('COUNT(*) AS ?count') && query.includes('?family a <urn:usf:ontology:ArtefactFamily>')) {
+      return [{ count: binding('2') }];
+    }
+    return select(query);
+  };
   await assert.rejects(() => layoutContext({ client }), /rule projection is incomplete/);
 });
 
@@ -899,6 +1132,7 @@ test('work planning fails closed when live authority changes while the plan is b
 test("proof-blocked contract projection is available but grants no materialisation authority", async () => {
   const packet = await projectContract({ client: fakeClient({ contractRows: [{
     canonicalName: binding("compilersemanticenforcement"),
+    decisionScoped: binding("false"),
     lifecycle: binding("urn:usf:semanticlifecyclestate:planned"),
     activation: binding("urn:usf:contractactivationstate:proofblocked"),
   }] }) }, { contract: "urn:usf:semanticcontract:compilersemanticenforcement" });
@@ -1457,7 +1691,7 @@ test('plans reject root-role descendants, forbidden segments and family naming v
   const client = fakeClient();
   const originalSelect = client.select;
   client.select = async (query) => {
-    if (query.includes('COUNT(*) AS ?count')) return [{ count: binding('1') }];
+    if (query.includes('COUNT(*) AS ?count') && query.includes('?family a <urn:usf:ontology:ArtefactFamily>')) return [{ count: binding('1') }];
     if (query.includes('a <urn:usf:ontology:PathRole>')) return [{ role: binding(rootRole), canonicalName: binding('repositoryroot'), parent: binding('.'), onDemand: binding('true') }];
     if (query.includes('a <urn:usf:ontology:ArtefactFamily>')) return [{ family: binding(rootFamily), familyName: binding('repositorydocumentation'), storage: binding('urn:usf:storageclass:gittrackedsource'), pathRole: binding(rootRole), format: binding(rootFormat), namingPattern: binding('^[A-Za-z0-9._-]+$') }];
     return originalSelect(query);
@@ -1511,4 +1745,258 @@ test('source digests distinguish exact file and deterministic tree state', () =>
     writeFileSync(join(root, 'a'), 'two');
     assert.notEqual(sourceDigest(root), first);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('decision-scoped materialisation distinguishes exact files from explicit directory prefixes', () => {
+  const paths = ['config/providers.yaml'];
+  const directories = ['src/usf_factory/providers'];
+  assert.equal(decisionAuthorisesPath('config/providers.yaml', paths, directories), true);
+  assert.equal(decisionAuthorisesPath('config/providers.yaml/child.py', paths, directories), false);
+  assert.equal(decisionAuthorisesPath('config/providers.yml', paths, directories), false);
+  assert.equal(decisionAuthorisesPath('src/usf_factory/providers', paths, directories), false);
+  assert.equal(decisionAuthorisesPath('src/usf_factory/providers/cohere.py', paths, directories), true);
+  assert.equal(decisionAuthorisesPath('src/usf_factory/provider/cohere.py', paths, directories), false);
+});
+
+test('live layout projection binds an exact decision-scoped permission set', async () => {
+  const context = await layoutContext({
+    client: fakeClient(scopedProviderFixture()),
+  }, { contract: scopedContract });
+  assert.equal(context.decisionScopedMaterialisationRequired, true);
+  assert.deepEqual(context.authorisedRepositories, ['maldous/usf-factory']);
+  assert.deepEqual(context.authorisedDirectoryPrefixes, [
+    'src/usf_factory/providers',
+    'tests/provider_workforce',
+  ]);
+  assert.deepEqual(context.authorisedActions, ['write-file']);
+  assert.equal(context.authorisedPaths.length, PROVIDER_FACTORY_PATH_SCOPES[scopedContract].count);
+  assert.equal(digest(JSON.stringify(context.authorisedPaths)), PROVIDER_FACTORY_PATH_SCOPES[scopedContract].digest);
+  assert.deepEqual(context.authorisedFamilies, scopedFamilies);
+  assert.equal(context.materialisationRuleCount, 7);
+  assert.match(context.permissionSetDigest, /^sha256:[0-9a-f]{64}$/);
+});
+
+test('runtime exact-path digests match every authority-selected provider decision path set', () => {
+  for (const [contractId, decisionId] of [
+    [scopedContract, scopedDecision],
+    [
+      'urn:usf:semanticcontract:providerenvironmentclassification',
+      'urn:usf:realisationdecision:providerenvironmentclassificationfactoryworkforce',
+    ],
+    [
+      'urn:usf:semanticcontract:servicecatalogandproviderintegrationmodel',
+      'urn:usf:realisationdecision:servicecatalogandproviderintegrationmodelfactoryworkforce',
+    ],
+  ]) {
+    const paths = decisionPaths(decisionId);
+    assert.equal(paths.length, PROVIDER_FACTORY_PATH_SCOPES[contractId].count, contractId);
+    assert.equal(digest(JSON.stringify(paths)), PROVIDER_FACTORY_PATH_SCOPES[contractId].digest, contractId);
+  }
+});
+
+test('materialisation scope mode and permission projection fail closed when absent, malformed or truncated', async () => {
+  const undeclaredRows = defaultContractRows();
+  delete undeclaredRows[0].decisionScoped;
+  await assert.rejects(
+    () => realisationVerdict({ client: fakeClient({ contractRows: undeclaredRows }) }),
+    /mode differs from its authority-declared gateway mode/,
+  );
+
+  const malformedRows = defaultContractRows();
+  malformedRows[0].decisionScoped = binding('yes');
+  await assert.rejects(
+    () => layoutContext({ client: fakeClient({ contractRows: malformedRows }) }),
+    /invalid decision-scoped materialisation boolean/,
+  );
+
+  const truncated = fakeClient();
+  const select = truncated.select;
+  truncated.select = async (query) => {
+    if (query.includes('COUNT(*) AS ?count') && query.includes('?permission')) {
+      return [{ count: binding('3') }];
+    }
+    return select(query);
+  };
+  await assert.rejects(
+    () => layoutContext({ client: truncated }),
+    /materialisation permission projection is incomplete/,
+  );
+});
+
+test('contract-specific materialisation mode cannot be flipped between scoped and legacy semantics', async () => {
+  const legacyFlipped = defaultContractRows();
+  legacyFlipped[0].decisionScoped = binding('true');
+  await assert.rejects(
+    () => layoutContext({ client: fakeClient({ contractRows: legacyFlipped }) }),
+    /mode differs from its authority-declared gateway mode/,
+  );
+
+  await assert.rejects(
+    () => layoutContext({
+      client: fakeClient(scopedProviderFixture({ mode: 'false' })),
+    }, { contract: scopedContract }),
+    /mode differs from its authority-declared gateway mode/,
+  );
+});
+
+test('scoped provider decisions require the explicit effective decision and exact repository and directories', async () => {
+  const substitutedRuleFixture = scopedProviderFixture();
+  substitutedRuleFixture.materialisationRuleRows = substitutedRuleFixture.materialisationRuleRows.map((row) => (
+    bindingValue(row, 'family') === scopedFamily
+      ? { ...row, pathRole: binding('urn:usf:pathrole:factoryproviderworkforcetestsource') }
+      : row
+  ));
+  const substitutedRuleIdentityFixture = scopedProviderFixture();
+  substitutedRuleIdentityFixture.materialisationRuleRows = substitutedRuleIdentityFixture.materialisationRuleRows.map((row) => (
+    bindingValue(row, 'family') === scopedFamily
+      ? { ...row, rule: binding('urn:usf:materialisationrule:structurallyidenticalsubstitute') }
+      : row
+  ));
+  const substitutedNamingPatternFixture = scopedProviderFixture();
+  substitutedNamingPatternFixture.materialisationRuleRows = substitutedNamingPatternFixture.materialisationRuleRows.map((row) => (
+    bindingValue(row, 'family') === scopedFamily
+      ? { ...row, namingPattern: binding('^[a-z][a-z0-9_]*[.]py$') }
+      : row
+  ));
+  for (const [name, fixture, expected] of [
+    ['missing effective decision', scopedProviderFixture({ effective: false }), /explicit effective accepted decision/],
+    ['substituted effective decision', scopedProviderFixture({
+      decision: 'urn:usf:realisationdecision:structurallysimilarproviderdecision',
+    }), /effective decision differs from the authority-selected decision/],
+    ['wrong repository', scopedProviderFixture({ repository: 'maldous/usf-graph' }), /permissions are incomplete/],
+    ['missing exact path', scopedProviderFixture({ paths: scopedPaths.slice(1) }), /permissions are incomplete/],
+    ['extra exact path', scopedProviderFixture({ paths: [...scopedPaths, 'src/usf_factory/credentials.py'] }), /permissions are incomplete/],
+    ['missing directory', scopedProviderFixture({ directories: ['src/usf_factory/providers'] }), /permissions are incomplete/],
+    ['extra directory', scopedProviderFixture({
+      directories: ['src/usf_factory/providers', 'tests/provider_workforce', 'docs'],
+    }), /permissions are incomplete/],
+    ['structurally valid rule substitution', substitutedRuleFixture, /rule set differs from the exact authority-selected tuples/],
+    ['materialisation rule identity substitution', substitutedRuleIdentityFixture, /rule set differs from the exact authority-selected tuples/],
+    ['naming pattern substitution', substitutedNamingPatternFixture, /rule set differs from the exact authority-selected tuples/],
+  ]) {
+    await assert.rejects(
+      () => layoutContext({ client: fakeClient(fixture) }, { contract: scopedContract }),
+      expected,
+      name,
+    );
+  }
+});
+
+test('a scoped provider plan refuses a coordinator bound to the wrong repository before any write', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'usf-provider-wrong-root-'));
+  roots.push(root);
+  const fixture = scopedProviderFixture();
+  const plan = await createLayoutPlan(
+    { client: fakeClient(fixture) },
+    { contract: scopedContract, operations: [scopedWriteOperation()] },
+  );
+  await assert.rejects(
+    () => applyLayoutPlan({
+      client: fakeClient(fixture),
+      coordinator: true,
+      repositoryRoots: new Map([['maldous/usf-factory', root]]),
+    }, { plan, apply: true }),
+    /not an attested Git worktree/,
+  );
+  assert.deepEqual(readdirSync(root), []);
+});
+
+test('repository identity is derived from the selected Git worktree origin, never a caller string', () => {
+  const plainRoot = mkdtempSync(join(tmpdir(), 'usf-provider-unattested-root-'));
+  const factoryRoot = mkdtempSync(join(tmpdir(), 'usf-provider-attested-root-'));
+  const graphRoot = mkdtempSync(join(tmpdir(), 'usf-provider-wrong-origin-'));
+  roots.push(plainRoot, factoryRoot, graphRoot);
+  assert.throws(
+    () => attestRepositoryRoot(plainRoot, 'maldous/usf-factory'),
+    /not an attested Git worktree/,
+  );
+  initialiseFactoryWorktree(factoryRoot);
+  const attestation = attestRepositoryRoot(factoryRoot, 'maldous/usf-factory');
+  assert.equal(attestation.repositoryIdentity, 'maldous/usf-factory');
+  assert.equal(attestation.repositoryRoot, factoryRoot);
+  assert.match(attestation.originDigest, /^sha256:[0-9a-f]{64}$/);
+  execFileSync('git', ['init', '--quiet', graphRoot], { stdio: 'ignore' });
+  execFileSync('git', ['-C', graphRoot, 'remote', 'add', 'origin', 'https://github.com/maldous/usf-graph.git'], { stdio: 'ignore' });
+  assert.throws(
+    () => attestRepositoryRoot(graphRoot, 'maldous/usf-factory'),
+    /origin does not match/,
+  );
+});
+
+test('canonical scoped apply selects the configured factory worktree and writes only after Git identity attestation', async () => {
+  const root = initialiseFactoryWorktree(mkdtempSync(join(tmpdir(), 'usf-provider-scoped-apply-')));
+  roots.push(root);
+  const fixture = scopedProviderFixture();
+  const plan = await createLayoutPlan(
+    { client: fakeClient(fixture) },
+    { contract: scopedContract, operations: [scopedWriteOperation()] },
+  );
+  const result = await applyLayoutPlan({
+    client: fakeClient(fixture),
+    coordinator: true,
+    repositoryRoots: new Map([['maldous/usf-factory', root]]),
+  }, { plan, apply: true });
+  assert.equal(result.applied, true);
+  assert.equal(result.repositoryIdentity, 'maldous/usf-factory');
+  assert.equal(readFileSync(join(root, 'src/usf_factory/providers/cohere.py'), 'utf8'), 'pass\n');
+});
+
+test('decision-scoped operations fail closed on action, format extension and ambiguous rule substitution', () => {
+  const scopedAuthority = {
+    authorityDigest: `sha256:${'aa'.repeat(32)}`,
+    contract: {
+      id: scopedContract,
+      activationState: 'urn:usf:contractactivationstate:active',
+      proofResultState: 'urn:usf:proofresultstate:successful',
+      decisionState: 'urn:usf:decisionstate:accepted',
+    },
+    acceptedDecisionCount: 1,
+    decisionScopedMaterialisationRequired: true,
+    authorisedRepositories: ['maldous/usf-factory'],
+    authorisedActions: ['write-file'],
+    authorisedFamilies: scopedFamilies,
+    authorisedPaths: scopedPaths,
+    authorisedDirectoryPrefixes: ['src/usf_factory/providers', 'tests/provider_workforce'],
+    pathRoles: [{
+      id: 'urn:usf:pathrole:factorypythonpackagesource',
+      parent: 'src/usf_factory',
+    }],
+    rules: scopedProviderFixture().materialisationRuleRows.map((row) => ({
+      family: bindingValue(row, 'family'),
+      rule: bindingValue(row, 'rule'),
+      storageClass: bindingValue(row, 'storage'),
+      pathRole: bindingValue(row, 'pathRole'),
+      representationFormat: bindingValue(row, 'format'),
+      canonicalExtension: bindingValue(row, 'canonicalExtension'),
+      namingRule: bindingValue(row, 'naming'),
+      namingPattern: bindingValue(row, 'namingPattern'),
+    })),
+  };
+  scopedAuthority.permissionSetDigest = scopedPermissionSetDigest(scopedAuthority);
+  const bytes = Buffer.from('pass\n');
+  const operation = scopedWriteOperation(bytes.toString('utf8'));
+  assert.deepEqual(validatePlanOperation(operation, 0, scopedAuthority), []);
+  assert.ok(validatePlanOperation({ ...operation, action: 'delete-path', sourceDigest: digest(bytes) }, 0, scopedAuthority)
+    .some(({ code }) => code === 'operation-decision-action'));
+  assert.ok(validatePlanOperation({
+    ...operation,
+    artefactFamily: 'urn:usf:artefactfamily:notauthorised',
+  }, 0, scopedAuthority).some(({ code }) => code === 'operation-decision-family'));
+  assert.ok(validatePlanOperation({ ...operation, path: 'src/usf_factory/providers/cohere.yaml' }, 0, scopedAuthority)
+    .some(({ code }) => code === 'operation-format-extension'));
+  assert.ok(validatePlanOperation(operation, 0, {
+    ...scopedAuthority,
+    rules: [
+      ...scopedAuthority.rules,
+      { ...scopedAuthority.rules.find((item) => item.family === scopedFamily) },
+    ],
+  }).some(({ code }) => code === 'operation-write-representation-ambiguous'));
+
+  const plan = createMaterialisationPlan(scopedAuthority, [operation], scopedContract);
+  const driftedAuthority = {
+    ...scopedAuthority,
+    rules: [{ ...scopedAuthority.rules[0], namingPattern: '^different[.]py$' }],
+  };
+  assert.ok(validateMaterialisationPlan(driftedAuthority, plan).failures
+    .some(({ code }) => code === 'permission-set-digest-mismatch'));
 });

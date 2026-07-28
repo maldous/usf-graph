@@ -407,6 +407,7 @@
     usf:requiresEnvironmentClass <urn:usf:environmentclass:hermetic>;
     usf:requiresEvidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:signed>, <urn:usf:evidencestage:integrityverified>.
 
+# BEGIN GENERATED PROVIDER-WORKFORCE AUTHORITY PROOF
 <urn:usf:nonclaim:providerworkforceproofisfactoryvalidation> a usf:NonClaim;
   usf:canonicalName "providerworkforceproofisfactoryvalidation".
 <urn:usf:nonclaim:providerworkforceproofisproductionreadiness> a usf:NonClaim;
@@ -592,5 +593,6 @@
   usf:reevaluationEvidenceDigest "sha256:4a6c37c6a0392b44cf0d00f65adb1822c95a34d73598ff1b985691a18dca09aa";
   usf:reevaluatedAt "2026-07-27T08:03:46Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:coverage"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:obligations"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:readiness"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:surfaces"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:proofs"^^<http://www.w3.org/2001/XMLSchema#anyURI>.
+# END GENERATED PROVIDER-WORKFORCE AUTHORITY PROOF
 
 }

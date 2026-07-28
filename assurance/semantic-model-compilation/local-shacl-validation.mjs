@@ -1,5 +1,13 @@
 import { createHash } from 'node:crypto';
-import { lstatSync, readFileSync, realpathSync } from 'node:fs';
+import {
+  closeSync,
+  constants as fsConstants,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+} from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -557,15 +565,205 @@ function injectReviewGraphPlane(source) {
   return result;
 }
 
-export const effectiveLocalShaclPythonSource = injectReviewGraphPlane(injectPythonFixtureContract(
+function injectRuntimeClosureEvidence(source) {
+  let result = replacePythonMarkerExactly(
+    source,
+    '\ndef main():\n',
+    String.raw`
+
+def mapped_system_object_evidence():
+    paths = set()
+    for line in pathlib.Path("/proc/self/maps").read_text(encoding="utf-8").splitlines():
+        fields = line.split()
+        mapped_path = " ".join(fields[5:]) if len(fields) >= 6 else ""
+        if mapped_path.startswith("/") and mapped_path.endswith(" (deleted)"):
+            raise RuntimeError("MAPPED_RUNTIME_OBJECT_DELETED:" + mapped_path)
+        if mapped_path.startswith("/"):
+            path = pathlib.Path(mapped_path).resolve(strict=True)
+            if not path.is_file():
+                raise RuntimeError("MAPPED_RUNTIME_OBJECT_NOT_FILE:" + mapped_path)
+            paths.add(path)
+    records = [
+        {
+            "path": path.as_posix(),
+            "digest": sha256(path.read_bytes()),
+            "byteSize": path.stat().st_size,
+        }
+        for path in sorted(paths, key=lambda item: item.as_posix().encode("utf-8"))
+    ]
+    return {"count": len(records), "digest": sha256(canonical_json(records))}
+
+
+def main():
+`,
+    'workload mapped runtime evidence function',
+  );
+  result = replacePythonMarkerExactly(
+    result,
+    '    result = {\n',
+    '    mapped_objects = mapped_system_object_evidence()\n    result = {\n',
+    'workload mapped runtime evidence binding',
+  );
+  result = replacePythonMarkerExactly(
+    result,
+    '        "pythonExecutableDigest": sha256(pathlib.Path(os.path.realpath(sys.executable)).read_bytes()),\n',
+    '        "pythonExecutableDigest": sha256(pathlib.Path(os.path.realpath(sys.executable)).read_bytes()),\n'
+      + '        "mappedSystemObjectCount": mapped_objects["count"],\n'
+      + '        "mappedSystemObjectSetDigest": mapped_objects["digest"],\n'
+      + '        "siteCustomizationLoaded": "sitecustomize" in sys.modules or "usercustomize" in sys.modules,\n',
+    'workload mapped runtime evidence fields',
+  );
+  return result;
+}
+
+export const effectiveLocalShaclPythonSource = injectRuntimeClosureEvidence(injectReviewGraphPlane(injectPythonFixtureContract(
   extendPythonPredicateTuple(
     extendPythonPredicateTuple(localShaclPythonSource, 'FORWARD_PREDICATES', STRUCTURED_PERMUTATION_FORWARD_PREDICATES),
     'INVERSE_PREDICATES',
     STRUCTURED_PERMUTATION_INVERSE_PREDICATES,
   ),
-));
+)));
 
 const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+const ISOLATED_SITE_BOOTSTRAP = 'import sys\nsys.path.insert(0, sys.argv.pop(1))\n';
+const PYTHON_RUNTIME_INSPECTION_SOURCE = String.raw`
+import sys
+sys.path.insert(0, sys.argv.pop(1))
+import hashlib
+import importlib.metadata
+import json
+import pathlib
+import sysconfig
+
+import pyshacl
+import pytest
+import rdflib
+import yaml
+
+
+def canonical_json(value):
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+
+
+def sha256(value):
+    if isinstance(value, str):
+        value = value.encode("utf-8")
+    return "sha256:" + hashlib.sha256(value).hexdigest()
+
+
+def distribution_evidence():
+    records = []
+    names = sorted(
+        {distribution.metadata["Name"] for distribution in importlib.metadata.distributions()},
+        key=str.casefold,
+    )
+    for name in names:
+        distribution = importlib.metadata.distribution(name)
+        files = []
+        for relative_path in distribution.files or []:
+            path_text = str(relative_path).replace("\\", "/")
+            if "/__pycache__/" in f"/{path_text}" or path_text.endswith((".pyc", ".pyo")):
+                continue
+            path = pathlib.Path(distribution.locate_file(relative_path))
+            if path.is_file() and not path.is_symlink():
+                files.append({"path": path_text, "digest": sha256(path.read_bytes())})
+        files.sort(key=lambda item: item["path"])
+        records.append({
+            "name": name,
+            "version": distribution.version,
+            "fileCount": len(files),
+            "byteSetDigest": sha256(canonical_json(files)),
+        })
+    return records
+
+
+def stdlib_evidence():
+    root = pathlib.Path(sysconfig.get_paths()["stdlib"]).resolve()
+    files = []
+    for path in sorted(root.rglob("*"), key=lambda item: item.as_posix().encode("utf-8")):
+        relative = path.relative_to(root).as_posix()
+        if (
+            any(segment in {"__pycache__", "site-packages", "dist-packages"} for segment in relative.split("/"))
+            or relative.endswith((".pyc", ".pyo"))
+            or path.is_symlink()
+            or not path.is_file()
+        ):
+            continue
+        files.append({"path": relative, "digest": sha256(path.read_bytes())})
+    return {"fileCount": len(files), "byteSetDigest": sha256(canonical_json(files))}
+
+
+def mapped_object_evidence():
+    paths = set()
+    for line in pathlib.Path("/proc/self/maps").read_text(encoding="utf-8").splitlines():
+        fields = line.split()
+        mapped_path = " ".join(fields[5:]) if len(fields) >= 6 else ""
+        if mapped_path.startswith("/") and mapped_path.endswith(" (deleted)"):
+            raise RuntimeError("MAPPED_RUNTIME_OBJECT_DELETED:" + mapped_path)
+        if mapped_path.startswith("/"):
+            path = pathlib.Path(mapped_path).resolve(strict=True)
+            if not path.is_file():
+                raise RuntimeError("MAPPED_RUNTIME_OBJECT_NOT_FILE:" + mapped_path)
+            paths.add(path)
+    records = [
+        {
+            "path": path.as_posix(),
+            "digest": sha256(path.read_bytes()),
+            "byteSize": path.stat().st_size,
+        }
+        for path in sorted(paths, key=lambda item: item.as_posix().encode("utf-8"))
+    ]
+    return {"count": len(records), "digest": sha256(canonical_json(records))}
+
+
+prefix = pathlib.Path(sys.argv.pop(1)).resolve()
+configuration = prefix / "pyvenv.cfg"
+if not configuration.is_file() or configuration.is_symlink():
+    raise RuntimeError("PYVENV_CONFIGURATION_NOT_EXACT_FILE")
+settings = {}
+for line in configuration.read_text(encoding="utf-8").splitlines():
+    if " = " in line:
+        key, value = line.split(" = ", 1)
+        settings[key] = value
+if settings.get("include-system-site-packages") != "false":
+    raise RuntimeError("PYVENV_SYSTEM_SITE_PACKAGES_NOT_DISABLED")
+if settings.get("version") != ".".join(str(item) for item in sys.version_info[:3]):
+    raise RuntimeError("PYVENV_VERSION_MISMATCH")
+distributions = distribution_evidence()
+stdlib = stdlib_evidence()
+mapped_objects = mapped_object_evidence()
+core = {
+    "schemaVersion": 2,
+    "executionMode": "FD_PINNED_PROC_SELF_FD_WITH_LOGICAL_VENV_ARGV0_ISOLATED_NO_SITE",
+    "pythonVersion": ".".join(str(item) for item in sys.version_info[:3]),
+    "resolvedExecutableDigest": sha256(pathlib.Path("/proc/self/exe").read_bytes()),
+    "venvPrefix": prefix.as_posix(),
+    "pyvenvConfigurationDigest": sha256(configuration.read_bytes()),
+    "includeSystemSitePackages": False,
+    "distributionCount": len(distributions),
+    "distributionSetDigest": sha256(canonical_json(distributions)),
+    "stdlibFileCount": stdlib["fileCount"],
+    "stdlibByteSetDigest": stdlib["byteSetDigest"],
+    "mappedSystemObjectCount": mapped_objects["count"],
+    "mappedSystemObjectSetDigest": mapped_objects["digest"],
+    "siteCustomizationLoaded": "sitecustomize" in sys.modules or "usercustomize" in sys.modules,
+}
+print(canonical_json({**core, "evidenceDigest": sha256(canonical_json(core))}))
+`;
+const EXPECTED_PYTHON_RUNTIME = Object.freeze({
+  pythonVersion: '3.11.2',
+  resolvedExecutableDigest: 'sha256:c6e1f1ef67ab331cbb83bfbd5bbb9b766fbb2228ce848b038141cb7d2cad3158',
+  distributionCount: 56,
+  distributionSetDigest: 'sha256:8d8c40b038b21aaed0fc0d944912a2e0d6fea79add7463672abb1f1d38c65668',
+  stdlibFileCount: 723,
+  stdlibByteSetDigest: 'sha256:a789ca9789eb7ed46ef7d6733bfafea0f079ebe17f20c8a4b32dbf9bc3943b36',
+  mappedSystemObjectCount: 23,
+  mappedSystemObjectSetDigest: 'sha256:2aa149da8aefbaaa71c1f887620b75d2f47b9dea26f57663fa92eda8da92755f',
+  siteCustomizationLoaded: false,
+});
+const canonicalJson = (value) => JSON.stringify(
+  Object.fromEntries(Object.keys(value).sort().map((key) => [key, value[key]])),
+);
 
 export function validateLocalShaclRuntime(runtime) {
   if (!runtime || typeof runtime !== 'object' || !isAbsolute(runtime.executablePath || '')
@@ -587,22 +785,146 @@ export function validateLocalShaclRuntime(runtime) {
   });
 }
 
-export function runLocalShaclValidation({ repositoryRoot, runtime, arguments: validationArguments }) {
+function pinnedFileIdentity(fd) {
+  const stat = fstatSync(fd, { bigint: true });
+  return Object.freeze({
+    device: stat.dev.toString(),
+    inode: stat.ino.toString(),
+    mode: stat.mode.toString(),
+    size: stat.size.toString(),
+  });
+}
+
+export function spawnPinnedLocalShaclRuntime(runtime, arguments_, options = {}) {
   const binding = validateLocalShaclRuntime(runtime);
+  if (!Array.isArray(arguments_) || options.stdio !== undefined || options.argv0 !== undefined) {
+    throw new TypeError('pinned local SHACL execution requires an argument array and controls argv0/stdio');
+  }
+  const executableFd = openSync(
+    binding.resolvedExecutablePath,
+    fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+  );
+  try {
+    const beforeIdentity = pinnedFileIdentity(executableFd);
+    const fdPath = `/proc/self/fd/${executableFd}`;
+    if (sha256(readFileSync(fdPath)) !== binding.executableDigest
+      || realpathSync(binding.executablePath) !== binding.resolvedExecutablePath) {
+      throw new Error('LOCAL_SHACL_PINNED_RUNTIME_BINDING_INVALID');
+    }
+    const result = spawnSync(fdPath, arguments_, {
+      ...options,
+      argv0: binding.executablePath,
+      stdio: ['pipe', 'pipe', 'pipe', executableFd],
+    });
+    if (JSON.stringify(pinnedFileIdentity(executableFd)) !== JSON.stringify(beforeIdentity)
+      || sha256(readFileSync(fdPath)) !== binding.executableDigest
+      || realpathSync(binding.executablePath) !== binding.resolvedExecutablePath) {
+      throw new Error('LOCAL_SHACL_PINNED_RUNTIME_MOVED');
+    }
+    return result;
+  } finally {
+    closeSync(executableFd);
+  }
+}
+
+export function verifyPinnedPythonRuntimeEvidence(evidence) {
+  if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)
+    || JSON.stringify(Object.keys(evidence).sort()) !== JSON.stringify([
+      'distributionCount',
+      'distributionSetDigest',
+      'evidenceDigest',
+      'executionMode',
+      'includeSystemSitePackages',
+      'mappedSystemObjectCount',
+      'mappedSystemObjectSetDigest',
+      'pyvenvConfigurationDigest',
+      'pythonVersion',
+      'resolvedExecutableDigest',
+      'schemaVersion',
+      'stdlibByteSetDigest',
+      'stdlibFileCount',
+      'siteCustomizationLoaded',
+      'venvPrefix',
+    ].sort())) {
+    throw new Error('PINNED_PYTHON_RUNTIME_EVIDENCE_FIELDS_INVALID');
+  }
+  const { evidenceDigest, ...core } = evidence;
+  if (evidence.schemaVersion !== 2
+    || evidence.executionMode !== 'FD_PINNED_PROC_SELF_FD_WITH_LOGICAL_VENV_ARGV0_ISOLATED_NO_SITE'
+    || evidence.includeSystemSitePackages !== false
+    || !isAbsolute(evidence.venvPrefix || '')
+    || !SHA256.test(evidence.pyvenvConfigurationDigest || '')
+    || evidence.evidenceDigest !== sha256(canonicalJson(core))
+    || Object.entries(EXPECTED_PYTHON_RUNTIME).some(([key, value]) => evidence[key] !== value)) {
+    throw new Error('PINNED_PYTHON_RUNTIME_EVIDENCE_INVALID');
+  }
+  return Object.freeze(evidence);
+}
+
+export function inspectPinnedPythonRuntime(runtime) {
+  const venvPrefix = realpathSync(dirname(dirname(runtime.executablePath)));
+  const sitePackages = join(venvPrefix, 'lib', 'python3.11', 'site-packages');
+  const result = spawnPinnedLocalShaclRuntime(runtime, ['-I', '-S', '-', sitePackages, venvPrefix], {
+    cwd: '/',
+    encoding: 'utf8',
+    env: { LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', PATH: '/usr/bin:/bin', TZ: 'UTC' },
+    input: PYTHON_RUNTIME_INSPECTION_SOURCE,
+    maxBuffer: 16 * 1024 * 1024,
+    timeout: 120_000,
+  });
+  if (result.error) throw result.error;
+  if (result.signal || result.status !== 0) {
+    throw new Error(`pinned Python runtime inspection failed (${result.status}): ${result.stderr.trim()}`);
+  }
+  let evidence;
+  try {
+    evidence = JSON.parse(result.stdout);
+  } catch {
+    throw new Error('PINNED_PYTHON_RUNTIME_EVIDENCE_JSON_INVALID');
+  }
+  const verified = verifyPinnedPythonRuntimeEvidence(evidence);
+  const expectedPrefix = realpathSync(dirname(dirname(runtime.executablePath)));
+  const configurationPath = join(expectedPrefix, 'pyvenv.cfg');
+  if (verified.venvPrefix !== expectedPrefix
+    || lstatSync(configurationPath).isSymbolicLink()
+    || sha256(readFileSync(configurationPath)) !== verified.pyvenvConfigurationDigest) {
+    throw new Error('PINNED_PYTHON_VENV_BINDING_MISMATCH');
+  }
+  return verified;
+}
+
+export function runLocalShaclValidation({ repositoryRoot, runtime, arguments: validationArguments }) {
   if (!isAbsolute(repositoryRoot || '') || !Array.isArray(validationArguments)) throw new TypeError('local SHACL repository root and arguments are required');
-  const result = spawnSync(binding.executablePath, [
-    '-', repositoryRoot, modulePath, dependencySpecificationPath, ...validationArguments,
+  const runtimeEvidenceBefore = inspectPinnedPythonRuntime(runtime);
+  const sitePackages = join(runtimeEvidenceBefore.venvPrefix, 'lib', 'python3.11', 'site-packages');
+  const result = spawnPinnedLocalShaclRuntime(runtime, [
+    '-I', '-S', '-', sitePackages, repositoryRoot, modulePath, dependencySpecificationPath, ...validationArguments,
   ], {
     cwd: repositoryRoot,
     encoding: 'utf8',
     env: { LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', PATH: '/usr/bin:/bin', TZ: 'UTC' },
-    input: effectiveLocalShaclPythonSource,
+    input: `${ISOLATED_SITE_BOOTSTRAP}${effectiveLocalShaclPythonSource}`,
     maxBuffer: 64 * 1024 * 1024,
     timeout: 600_000,
   });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`local SHACL validation failed (${result.status}): ${result.stderr.trim()}`);
   if (result.signal) throw new Error(`local SHACL validation terminated by ${result.signal}`);
+  let workloadEvidence;
+  try {
+    workloadEvidence = JSON.parse(result.stdout);
+  } catch {
+    throw new Error('LOCAL_SHACL_WORKLOAD_EVIDENCE_JSON_INVALID');
+  }
+  if (!Number.isSafeInteger(workloadEvidence.mappedSystemObjectCount)
+    || !SHA256.test(workloadEvidence.mappedSystemObjectSetDigest || '')
+    || workloadEvidence.siteCustomizationLoaded !== false) {
+    throw new Error('LOCAL_SHACL_WORKLOAD_RUNTIME_EVIDENCE_INVALID');
+  }
+  const runtimeEvidenceAfter = inspectPinnedPythonRuntime(runtime);
+  if (canonicalJson(runtimeEvidenceAfter) !== canonicalJson(runtimeEvidenceBefore)) {
+    throw new Error('LOCAL_SHACL_RUNTIME_DEPENDENCY_CLOSURE_MOVED');
+  }
   return result.stdout;
 }
 

@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +17,7 @@ import {
   effectiveLocalShaclPythonSource,
   localShaclPythonSource,
   runLocalShaclValidation,
+  spawnPinnedLocalShaclRuntime,
   validateLocalShaclRuntime,
 } from './local-shacl-validation.mjs';
 
@@ -42,6 +50,30 @@ test('rejects a launcher whose resolved executable differs from its binding', ()
     ...runtime,
     resolvedExecutablePath: other.resolvedExecutablePath,
   }), /resolve to its declared executable/);
+});
+
+test('fd-pinned execution detects a launcher retarget performed by the child', () => {
+  const root = mkdtempSync(join(tmpdir(), 'local-shacl-pinned-runtime-'));
+  roots.push(root);
+  const executablePath = join(root, 'node');
+  const resolvedExecutablePath = realpathSync(process.execPath);
+  symlinkSync(resolvedExecutablePath, executablePath);
+  const executableDigest = `sha256:${createHash('sha256')
+    .update(readFileSync(resolvedExecutablePath)).digest('hex')}`;
+  const retargetSource = `
+    const { unlinkSync, symlinkSync } = require('node:fs');
+    unlinkSync(process.argv[1]);
+    symlinkSync('/usr/bin/false', process.argv[1]);
+  `;
+  assert.throws(() => spawnPinnedLocalShaclRuntime(
+    { executablePath, resolvedExecutablePath, executableDigest },
+    ['-e', retargetSource, executablePath],
+    {
+      cwd: root,
+      encoding: 'utf8',
+      env: { LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', PATH: '/usr/bin:/bin', TZ: 'UTC' },
+    },
+  ), /LOCAL_SHACL_PINNED_RUNTIME_MOVED/);
 });
 
 function pythonTuple(source, name) {

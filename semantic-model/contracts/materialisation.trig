@@ -57,6 +57,7 @@
     usf:canonicalName "transactionalmodelupdate".
 <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> a usf:SemanticContract;
     usf:canonicalName "repositoryexternalartefactmaterialisation";
+    usf:decisionScopedMaterialisationRequired false;
     usf:requiresRealisationOptionEvaluation true;
     usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:active>;
     usf:hasActivationState <urn:usf:contractactivationstate:active>;
@@ -451,6 +452,30 @@ path:codexagentintegration a usf:PathRole, usf:RepositoryLayoutRole;
     usf:layoutRoleForbiddenContent "Independent semantic requirements, implementation source, programme memory and tool-specific authority.";
     usf:layoutRoleDependencyRule "Must remain meaning-equivalent to the canonical agent-neutral skill content and cannot override GOAL.md or Stardog.";
     usf:layoutRoleDeploymentBoundary "Agent-product compatibility boundary; not application runtime.".
+path:factorypythonpackagesource a usf:PathRole;
+    usf:canonicalName "factorypythonpackagesource";
+    usf:authorisedParentPath "src/usf_factory";
+    usf:materialisesOnDemand true.
+path:factoryproviderworkforcetestsource a usf:PathRole;
+    usf:canonicalName "factoryproviderworkforcetestsource";
+    usf:authorisedParentPath "tests";
+    usf:materialisesOnDemand true.
+path:factoryconfigurationsource a usf:PathRole;
+    usf:canonicalName "factoryconfigurationsource";
+    usf:authorisedParentPath "config";
+    usf:materialisesOnDemand true.
+path:factorydocumentationsource a usf:PathRole;
+    usf:canonicalName "factorydocumentationsource";
+    usf:authorisedParentPath "docs";
+    usf:materialisesOnDemand true.
+path:factoryproviderscriptsource a usf:PathRole;
+    usf:canonicalName "factoryproviderscriptsource";
+    usf:authorisedParentPath "scripts";
+    usf:materialisesOnDemand true.
+path:factoryenvironmentexample a usf:PathRole;
+    usf:canonicalName "factoryenvironmentexample";
+    usf:authorisedParentPath ".";
+    usf:materialisesOnDemand true.
 <urn:usf:realisationdecision:repositoryarchitectureandnaming> a usf:RealisationDecision, usf:RepositoryArchitectureDecision;
     usf:canonicalName "repositoryarchitectureandnaming";
     usf:decisionState <urn:usf:decisionstate:accepted>;
@@ -520,6 +545,14 @@ format:shellscriptposix a usf:RepresentationFormat;
     usf:canonicalName "shellscriptposix";
     usf:canonicalMediaType "text/x-shellscript";
     usf:canonicalExtension ".sh".
+format:python311source a usf:RepresentationFormat;
+    usf:canonicalName "python311source";
+    usf:canonicalMediaType "text/x-python";
+    usf:canonicalExtension ".py".
+format:dotenvexample a usf:RepresentationFormat;
+    usf:canonicalName "dotenvexample";
+    usf:canonicalMediaType "text/plain";
+    usf:canonicalExtension ".env.example".
 format:sqltext a usf:RepresentationFormat;
     usf:canonicalName "sqltext";
     usf:canonicalMediaType "application/sql";
@@ -535,6 +568,27 @@ format:openapijson a usf:RepresentationFormat;
 naming:repositorysemanticpurpose a usf:NamingRule;
     usf:canonicalName "repositorysemanticpurpose";
     usf:filenamePattern "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:.[a-z0-9]+)+$".
+naming:factorypythonmodule a usf:NamingRule;
+    usf:canonicalName "factorypythonmodule";
+    usf:filenamePattern "^(?:__init__|[a-z][a-z0-9]*(?:_[a-z0-9]+)*)[.]py$".
+naming:factorypythontest a usf:NamingRule;
+    usf:canonicalName "factorypythontest";
+    usf:filenamePattern "^test_[a-z][a-z0-9]*(?:_[a-z0-9]+)*[.]py$".
+naming:factorypythonoperatorscript a usf:NamingRule;
+    usf:canonicalName "factorypythonoperatorscript";
+    usf:filenamePattern "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]py$".
+naming:factoryyamlconfiguration a usf:NamingRule;
+    usf:canonicalName "factoryyamlconfiguration";
+    usf:filenamePattern "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]yaml$".
+naming:factorymarkdowndocumentation a usf:NamingRule;
+    usf:canonicalName "factorymarkdowndocumentation";
+    usf:filenamePattern "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]md$".
+naming:factoryyamldocumentation a usf:NamingRule;
+    usf:canonicalName "factoryyamldocumentation";
+    usf:filenamePattern "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]yaml$".
+naming:factoryenvironmentexample a usf:NamingRule;
+    usf:canonicalName "factoryenvironmentexample";
+    usf:filenamePattern "^[.]env[.]example$".
 naming:repositorydirective a usf:NamingRule;
     usf:canonicalName "repositorydirective";
     usf:filenamePattern "^(?:AGENTS|CLAUDE|CODEX|GOAL|LICENSE|NOTICE|README|package)(?:.[A-Za-z0-9-]+)*.(?:md|json|txt)$".
@@ -1217,6 +1271,167 @@ rule:localcoderealisation a usf:MaterialisationRule;
     usf:usesRepresentationFormat format:ecmascriptmodule2024, format:javascriptmodule2024, format:jsondata8259, format:yamlconfiguration12, format:shellscriptposix, format:sqltext, format:graphqlschema, format:openapijson;
     usf:usesPathRole path:processsource, path:capabilitysource, path:runtimemechanismsource, path:providerbindingsource, path:persistencesource, path:configurationsource, path:environmentsource, path:semanticmodelsource, path:assurancesource, path:operationssource;
     usf:usesNamingRule naming:repositorysemanticpurpose;
+    usf:usesNumberingScope numbering:languagenative;
+    usf:usesGenerationMode mode:authored;
+    usf:usesAuthorityClass authority:authoreddefinition;
+    usf:usesRetentionClass retention:permanenthistory;
+    usf:usesSupersessionRule supersession:versionedreplacement;
+    usf:localRepresentation true;
+    usf:trackedRepresentation true;
+    usf:contentAddressingRequired false;
+    usf:signatureRequired false;
+    usf:maximumInlineBytes 0;
+    usf:materialisationGenerator actor:coordinator;
+    usf:materialisationValidator actor:materialisationvalidator;
+    usf:materialisationConsumer actor:externalservice.
+fam:factorypythonpackagerealisation a usf:ArtefactFamily;
+    usf:canonicalName "factorypythonpackagerealisation";
+    usf:usesMaterialisationRule rule:factorypythonpackagerealisation.
+rule:factorypythonpackagerealisation a usf:MaterialisationRule;
+    usf:canonicalName "factorypythonpackagerealisation";
+    usf:governedArtefactFamily fam:factorypythonpackagerealisation;
+    usf:usesStorageClass storage:gittrackedsource;
+    usf:usesRepresentationFormat format:python311source;
+    usf:usesPathRole path:factorypythonpackagesource;
+    usf:usesNamingRule naming:factorypythonmodule;
+    usf:usesNumberingScope numbering:languagenative;
+    usf:usesGenerationMode mode:authored;
+    usf:usesAuthorityClass authority:authoreddefinition;
+    usf:usesRetentionClass retention:permanenthistory;
+    usf:usesSupersessionRule supersession:versionedreplacement;
+    usf:localRepresentation true;
+    usf:trackedRepresentation true;
+    usf:contentAddressingRequired false;
+    usf:signatureRequired false;
+    usf:maximumInlineBytes 0;
+    usf:materialisationGenerator actor:coordinator;
+    usf:materialisationValidator actor:materialisationvalidator;
+    usf:materialisationConsumer actor:externalservice.
+fam:factorypythontestrealisation a usf:ArtefactFamily;
+    usf:canonicalName "factorypythontestrealisation";
+    usf:usesMaterialisationRule rule:factorypythontestrealisation.
+rule:factorypythontestrealisation a usf:MaterialisationRule;
+    usf:canonicalName "factorypythontestrealisation";
+    usf:governedArtefactFamily fam:factorypythontestrealisation;
+    usf:usesStorageClass storage:gittrackedsource;
+    usf:usesRepresentationFormat format:python311source;
+    usf:usesPathRole path:factoryproviderworkforcetestsource;
+    usf:usesNamingRule naming:factorypythontest;
+    usf:usesNumberingScope numbering:languagenative;
+    usf:usesGenerationMode mode:authored;
+    usf:usesAuthorityClass authority:authoreddefinition;
+    usf:usesRetentionClass retention:permanenthistory;
+    usf:usesSupersessionRule supersession:versionedreplacement;
+    usf:localRepresentation true;
+    usf:trackedRepresentation true;
+    usf:contentAddressingRequired false;
+    usf:signatureRequired false;
+    usf:maximumInlineBytes 0;
+    usf:materialisationGenerator actor:coordinator;
+    usf:materialisationValidator actor:materialisationvalidator;
+    usf:materialisationConsumer actor:externalservice.
+fam:factorypythonoperatorrealisation a usf:ArtefactFamily;
+    usf:canonicalName "factorypythonoperatorrealisation";
+    usf:usesMaterialisationRule rule:factorypythonoperatorrealisation.
+rule:factorypythonoperatorrealisation a usf:MaterialisationRule;
+    usf:canonicalName "factorypythonoperatorrealisation";
+    usf:governedArtefactFamily fam:factorypythonoperatorrealisation;
+    usf:usesStorageClass storage:gittrackedsource;
+    usf:usesRepresentationFormat format:python311source;
+    usf:usesPathRole path:factoryproviderscriptsource;
+    usf:usesNamingRule naming:factorypythonoperatorscript;
+    usf:usesNumberingScope numbering:languagenative;
+    usf:usesGenerationMode mode:authored;
+    usf:usesAuthorityClass authority:authoreddefinition;
+    usf:usesRetentionClass retention:permanenthistory;
+    usf:usesSupersessionRule supersession:versionedreplacement;
+    usf:localRepresentation true;
+    usf:trackedRepresentation true;
+    usf:contentAddressingRequired false;
+    usf:signatureRequired false;
+    usf:maximumInlineBytes 0;
+    usf:materialisationGenerator actor:coordinator;
+    usf:materialisationValidator actor:materialisationvalidator;
+    usf:materialisationConsumer actor:externalservice.
+fam:factoryconfiguration a usf:ArtefactFamily;
+    usf:canonicalName "factoryconfiguration";
+    usf:usesMaterialisationRule rule:factoryconfiguration.
+rule:factoryconfiguration a usf:MaterialisationRule;
+    usf:canonicalName "factoryconfiguration";
+    usf:governedArtefactFamily fam:factoryconfiguration;
+    usf:usesStorageClass storage:gittrackedsource;
+    usf:usesRepresentationFormat format:yamlconfiguration12;
+    usf:usesPathRole path:factoryconfigurationsource;
+    usf:usesNamingRule naming:factoryyamlconfiguration;
+    usf:usesNumberingScope numbering:languagenative;
+    usf:usesGenerationMode mode:authored;
+    usf:usesAuthorityClass authority:authoreddefinition;
+    usf:usesRetentionClass retention:permanenthistory;
+    usf:usesSupersessionRule supersession:versionedreplacement;
+    usf:localRepresentation true;
+    usf:trackedRepresentation true;
+    usf:contentAddressingRequired false;
+    usf:signatureRequired false;
+    usf:maximumInlineBytes 0;
+    usf:materialisationGenerator actor:coordinator;
+    usf:materialisationValidator actor:materialisationvalidator;
+    usf:materialisationConsumer actor:externalservice.
+fam:factorymarkdowndocumentation a usf:ArtefactFamily;
+    usf:canonicalName "factorymarkdowndocumentation";
+    usf:usesMaterialisationRule rule:factorymarkdowndocumentation.
+rule:factorymarkdowndocumentation a usf:MaterialisationRule;
+    usf:canonicalName "factorymarkdowndocumentation";
+    usf:governedArtefactFamily fam:factorymarkdowndocumentation;
+    usf:usesStorageClass storage:gittrackedsource;
+    usf:usesRepresentationFormat format:markdowncommonmark;
+    usf:usesPathRole path:factorydocumentationsource;
+    usf:usesNamingRule naming:factorymarkdowndocumentation;
+    usf:usesNumberingScope numbering:languagenative;
+    usf:usesGenerationMode mode:authored;
+    usf:usesAuthorityClass authority:authoreddefinition;
+    usf:usesRetentionClass retention:permanenthistory;
+    usf:usesSupersessionRule supersession:versionedreplacement;
+    usf:localRepresentation true;
+    usf:trackedRepresentation true;
+    usf:contentAddressingRequired false;
+    usf:signatureRequired false;
+    usf:maximumInlineBytes 0;
+    usf:materialisationGenerator actor:coordinator;
+    usf:materialisationValidator actor:materialisationvalidator;
+    usf:materialisationConsumer actor:humanreviewer, actor:agent.
+fam:factoryyamldocumentation a usf:ArtefactFamily;
+    usf:canonicalName "factoryyamldocumentation";
+    usf:usesMaterialisationRule rule:factoryyamldocumentation.
+rule:factoryyamldocumentation a usf:MaterialisationRule;
+    usf:canonicalName "factoryyamldocumentation";
+    usf:governedArtefactFamily fam:factoryyamldocumentation;
+    usf:usesStorageClass storage:gittrackedsource;
+    usf:usesRepresentationFormat format:yamlconfiguration12;
+    usf:usesPathRole path:factorydocumentationsource;
+    usf:usesNamingRule naming:factoryyamldocumentation;
+    usf:usesNumberingScope numbering:languagenative;
+    usf:usesGenerationMode mode:authored;
+    usf:usesAuthorityClass authority:authoreddefinition;
+    usf:usesRetentionClass retention:permanenthistory;
+    usf:usesSupersessionRule supersession:versionedreplacement;
+    usf:localRepresentation true;
+    usf:trackedRepresentation true;
+    usf:contentAddressingRequired false;
+    usf:signatureRequired false;
+    usf:maximumInlineBytes 0;
+    usf:materialisationGenerator actor:coordinator;
+    usf:materialisationValidator actor:materialisationvalidator;
+    usf:materialisationConsumer actor:humanreviewer, actor:agent.
+fam:factoryenvironmentexample a usf:ArtefactFamily;
+    usf:canonicalName "factoryenvironmentexample";
+    usf:usesMaterialisationRule rule:factoryenvironmentexample.
+rule:factoryenvironmentexample a usf:MaterialisationRule;
+    usf:canonicalName "factoryenvironmentexample";
+    usf:governedArtefactFamily fam:factoryenvironmentexample;
+    usf:usesStorageClass storage:gittrackedsource;
+    usf:usesRepresentationFormat format:dotenvexample;
+    usf:usesPathRole path:factoryenvironmentexample;
+    usf:usesNamingRule naming:factoryenvironmentexample;
     usf:usesNumberingScope numbering:languagenative;
     usf:usesGenerationMode mode:authored;
     usf:usesAuthorityClass authority:authoreddefinition;

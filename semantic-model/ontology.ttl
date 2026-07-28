@@ -503,6 +503,18 @@ usf:authorisedSourcePath a owl:DatatypeProperty;
 usf:authorisesSourcePath a owl:DatatypeProperty;
     rdfs:domain usf:RealisationDecision;
     rdfs:range xsd:string.
+usf:authorisesSourceDirectory a owl:DatatypeProperty;
+    rdfs:domain usf:RealisationDecision;
+    rdfs:range xsd:string.
+usf:authorisesMaterialisationAction a owl:DatatypeProperty;
+    rdfs:domain usf:RealisationDecision;
+    rdfs:range xsd:string.
+usf:authorisesArtefactFamily a owl:ObjectProperty;
+    rdfs:domain usf:RealisationDecision;
+    rdfs:range usf:ArtefactFamily.
+usf:decisionScopedMaterialisationRequired a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticContract;
+    rdfs:range xsd:boolean.
 usf:authorisesRepository a owl:DatatypeProperty;
     rdfs:domain usf:RealisationDecision;
     rdfs:range xsd:string.

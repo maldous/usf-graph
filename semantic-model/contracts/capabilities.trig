@@ -2232,9 +2232,11 @@ sc:productcatalogplansprices a usf:SemanticContract;
     usf:declaresFacet cf:productcatalogplanspricesauditmodel, cf:productcatalogplanspricescontracts, cf:productcatalogplanspriceserrormodel, cf:productcatalogplanspriceslifecycle, cf:productcatalogplanspricespermissions, cf:productcatalogplanspricesproof, cf:productcatalogplanspricesreadinessmodel, cf:productcatalogplanspricesstatemodel, cf:productcatalogplanspricesuisemantics, cf:productcatalogplanspricesvalidation.
 sc:providerconfigurationplane a usf:SemanticContract;
     usf:canonicalName "providerconfigurationplane";
+    usf:decisionScopedMaterialisationRequired true;
     usf:declaresFacet cf:providerconfigurationplaneauditmodel, cf:providerconfigurationplanecontracts, cf:providerconfigurationplaneerrormodel, cf:providerconfigurationplanelifecycle, cf:providerconfigurationplanepermissions, cf:providerconfigurationplaneproof, cf:providerconfigurationplanereadinessmodel, cf:providerconfigurationplanestatemodel, cf:providerconfigurationplaneuisemantics, cf:providerconfigurationplanevalidation.
 sc:providerenvironmentclassification a usf:SemanticContract;
     usf:canonicalName "providerenvironmentclassification";
+    usf:decisionScopedMaterialisationRequired true;
     usf:declaresFacet cf:providerenvironmentclassificationauditmodel, cf:providerenvironmentclassificationcontracts, cf:providerenvironmentclassificationerrormodel, cf:providerenvironmentclassificationlifecycle, cf:providerenvironmentclassificationpermissions, cf:providerenvironmentclassificationproof, cf:providerenvironmentclassificationreadinessmodel, cf:providerenvironmentclassificationstatemodel, cf:providerenvironmentclassificationuisemantics, cf:providerenvironmentclassificationvalidation.
 sc:quotaenforcement a usf:SemanticContract;
     usf:canonicalName "quotaenforcement";
@@ -2259,6 +2261,7 @@ sc:searchandindexingproductsearch a usf:SemanticContract;
     usf:declaresFacet cf:searchandindexingproductsearchauditmodel, cf:searchandindexingproductsearchcontracts, cf:searchandindexingproductsearcherrormodel, cf:searchandindexingproductsearchlifecycle, cf:searchandindexingproductsearchpermissions, cf:searchandindexingproductsearchproof, cf:searchandindexingproductsearchreadinessmodel, cf:searchandindexingproductsearchstatemodel, cf:searchandindexingproductsearchuisemantics, cf:searchandindexingproductsearchvalidation.
 sc:servicecatalogandproviderintegrationmodel a usf:SemanticContract;
     usf:canonicalName "servicecatalogandproviderintegrationmodel";
+    usf:decisionScopedMaterialisationRequired true;
     usf:declaresFacet cf:servicecatalogandproviderintegrationmodelauditmodel, cf:servicecatalogandproviderintegrationmodelcontracts, cf:servicecatalogandproviderintegrationmodelerrormodel, cf:servicecatalogandproviderintegrationmodellifecycle, cf:servicecatalogandproviderintegrationmodelpermissions, cf:servicecatalogandproviderintegrationmodelproof, cf:servicecatalogandproviderintegrationmodelreadinessmodel, cf:servicecatalogandproviderintegrationmodelstatemodel, cf:servicecatalogandproviderintegrationmodeluisemantics, cf:servicecatalogandproviderintegrationmodelvalidation.
 sc:suborganisations a usf:SemanticContract;
     usf:canonicalName "suborganisations";
@@ -2319,6 +2322,7 @@ sc:writeonlysecretsettings a usf:SemanticContract;
     usf:declaresFacet cf:writeonlysecretsettingsauditmodel, cf:writeonlysecretsettingscontracts, cf:writeonlysecretsettingserrormodel, cf:writeonlysecretsettingslifecycle, cf:writeonlysecretsettingspermissions, cf:writeonlysecretsettingsproof, cf:writeonlysecretsettingsreadinessmodel, cf:writeonlysecretsettingsstatemodel, cf:writeonlysecretsettingsuisemantics, cf:writeonlysecretsettingsvalidation.
 sc:compilersemanticenforcement a usf:SemanticContract;
     usf:canonicalName "compilersemanticenforcement";
+    usf:decisionScopedMaterialisationRequired false;
     usf:requiresRealisationOptionEvaluation true;
     usf:semanticLifecycleState <urn:usf:semanticlifecyclestate:active>;
     usf:hasActivationState contractstate:active;

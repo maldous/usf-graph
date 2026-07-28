@@ -15,6 +15,18 @@ const ACTIVE_LIFECYCLE = 'urn:usf:semanticlifecyclestate:active';
 const SUCCESSFUL = 'urn:usf:proofresultstate:successful';
 const ACCEPTED = 'urn:usf:decisionstate:accepted';
 const RESOLVED_DECISION = new Set(['explicit', 'unique-accepted']);
+const EXPECTED_MATERIALISATION_MODE = new Map([
+  ['urn:usf:semanticcontract:repositoryexternalartefactmaterialisation', false],
+  ['urn:usf:semanticcontract:compilersemanticenforcement', false],
+  ['urn:usf:semanticcontract:providerconfigurationplane', true],
+  ['urn:usf:semanticcontract:providerenvironmentclassification', true],
+  ['urn:usf:semanticcontract:servicecatalogandproviderintegrationmodel', true],
+]);
+const EXPECTED_SCOPED_DECISION = new Map([
+  ['urn:usf:semanticcontract:providerconfigurationplane', 'urn:usf:realisationdecision:providerconfigurationplanefactoryworkforce'],
+  ['urn:usf:semanticcontract:providerenvironmentclassification', 'urn:usf:realisationdecision:providerenvironmentclassificationfactoryworkforce'],
+  ['urn:usf:semanticcontract:servicecatalogandproviderintegrationmodel', 'urn:usf:realisationdecision:servicecatalogandproviderintegrationmodelfactoryworkforce'],
+]);
 
 // Factory action states. Every factory-consumed conclusion in this module
 // resolves to exactly one of these, and absence never selects PROCEED.
@@ -155,6 +167,11 @@ const MATERIALISATION_RULE_WHERE = `
 import {
   MATERIALISATION_ACTIONS,
   MATERIALISATION_BOUNDS,
+  PROVIDER_FACTORY_DIRECTORIES,
+  PROVIDER_FACTORY_FAMILIES,
+  PROVIDER_FACTORY_PATH_SCOPES,
+  PROVIDER_FACTORY_REPOSITORY,
+  PROVIDER_FACTORY_RULES,
   assertNoSymlinkSegments,
   canonicalJson,
   containedBy,
@@ -163,7 +180,9 @@ import {
   sourceDigest as planSourceDigest,
   resolveCasObject,
   rollbackAndThrow as rethrowWithRollback,
+  scopedPermissionSetDigest,
   stable as stableInput,
+  utf8Compare,
   validatePlanOperation,
 } from '../../capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs';
 
@@ -200,25 +219,69 @@ async function resolveContract(client, reference = CONTRACT) {
 // stable authority read.
 async function readLayoutSemantics(ctx, args = {}) {
   const contract = await resolveContract(ctx.client, args.contract || CONTRACT);
-  const [contractRows, roleRows, ruleRows, ruleCountRows] = await Promise.all([
-    ctx.client.select(`SELECT ?canonicalName ?lifecycle ?activation ?proof ?proofState ?effectiveDecision ?decision ?decisionState ?authorisedRepository ?authorisedPath WHERE {
+  const [contractRows, decisionCountRows, permissionRows, permissionCountRows, roleRows, ruleRows, ruleCountRows] = await Promise.all([
+    ctx.client.select(`SELECT DISTINCT ?canonicalName ?lifecycle ?activation ?proof ?proofState ?decisionScoped ?effectiveDecision ?decision ?decisionState WHERE {
       <${contract}> <urn:usf:ontology:canonicalName> ?canonicalName .
       OPTIONAL { <${contract}> <urn:usf:ontology:semanticLifecycleState> ?lifecycle }
       OPTIONAL { <${contract}> <urn:usf:ontology:hasActivationState> ?activation }
       OPTIONAL { <${contract}> <urn:usf:ontology:reliesOnProofResult> ?proof . ?proof <urn:usf:ontology:hasProofResultState> ?proofState . }
+      OPTIONAL { <${contract}> <urn:usf:ontology:decisionScopedMaterialisationRequired> ?decisionScoped }
       OPTIONAL { <${contract}> <urn:usf:ontology:effectiveRealisationDecision> ?effectiveDecision }
       OPTIONAL {
         ?realisation <urn:usf:ontology:realisesContract> <${contract}> ; <urn:usf:ontology:authorisedByDecision> ?decision .
         ?decision <urn:usf:ontology:decisionForContract> <${contract}> ; <urn:usf:ontology:decisionState> ?decisionState .
-        OPTIONAL { ?decision <urn:usf:ontology:authorisesRepository> ?authorisedRepository }
-        OPTIONAL { ?decision <urn:usf:ontology:authorisesSourcePath> ?authorisedPath }
       }
-    } ORDER BY ?decision ?authorisedRepository ?authorisedPath LIMIT 512`),
+    } ORDER BY ?decision LIMIT 64`),
+    ctx.client.select(`SELECT (COUNT(*) AS ?count) WHERE {
+      {
+        SELECT DISTINCT ?decision ?decisionState WHERE {
+          ?realisation <urn:usf:ontology:realisesContract> <${contract}> ; <urn:usf:ontology:authorisedByDecision> ?decision .
+          ?decision <urn:usf:ontology:decisionForContract> <${contract}> ; <urn:usf:ontology:decisionState> ?decisionState .
+        }
+      }
+    }`),
+    ctx.client.select(`SELECT DISTINCT ?decision ?permission ?permissionValue WHERE {
+      ?realisation <urn:usf:ontology:realisesContract> <${contract}> ; <urn:usf:ontology:authorisedByDecision> ?decision .
+      ?decision <urn:usf:ontology:decisionForContract> <${contract}> ;
+                <urn:usf:ontology:decisionState> <urn:usf:decisionstate:accepted> ;
+                ?permission ?permissionValue .
+      VALUES ?permission {
+        <urn:usf:ontology:authorisesRepository>
+        <urn:usf:ontology:authorisesSourcePath>
+        <urn:usf:ontology:authorisesSourceDirectory>
+        <urn:usf:ontology:authorisesMaterialisationAction>
+        <urn:usf:ontology:authorisesArtefactFamily>
+      }
+    } ORDER BY ?decision ?permission ?permissionValue LIMIT 512`),
+    ctx.client.select(`SELECT (COUNT(*) AS ?count) WHERE {
+      {
+        SELECT DISTINCT ?decision ?permission ?permissionValue WHERE {
+          ?realisation <urn:usf:ontology:realisesContract> <${contract}> ; <urn:usf:ontology:authorisedByDecision> ?decision .
+          ?decision <urn:usf:ontology:decisionForContract> <${contract}> ;
+                    <urn:usf:ontology:decisionState> <urn:usf:decisionstate:accepted> ;
+                    ?permission ?permissionValue .
+          VALUES ?permission {
+            <urn:usf:ontology:authorisesRepository>
+            <urn:usf:ontology:authorisesSourcePath>
+            <urn:usf:ontology:authorisesSourceDirectory>
+            <urn:usf:ontology:authorisesMaterialisationAction>
+            <urn:usf:ontology:authorisesArtefactFamily>
+          }
+        }
+      }
+    }`),
     ctx.client.select('SELECT ?role ?canonicalName ?parent ?onDemand WHERE { ?role a <urn:usf:ontology:PathRole> ; <urn:usf:ontology:canonicalName> ?canonicalName ; <urn:usf:ontology:authorisedParentPath> ?parent ; <urn:usf:ontology:materialisesOnDemand> ?onDemand . FILTER NOT EXISTS { ?role <urn:usf:ontology:semanticAdequacyDisposition> ?disposition . FILTER(?disposition != <urn:usf:semanticadequacydisposition:independentlywarrantedretained>) } } ORDER BY ?canonicalName LIMIT 256'),
-    ctx.client.select(`SELECT ?family ?familyName ?storage ?pathRole ?format ?namingPattern WHERE { ${MATERIALISATION_RULE_WHERE} } ORDER BY ?familyName ?format LIMIT 512`),
+    ctx.client.select(`SELECT ?family ?familyName ?rule ?storage ?pathRole ?format ?canonicalExtension ?naming ?namingPattern WHERE { ${MATERIALISATION_RULE_WHERE} OPTIONAL { ?format <urn:usf:ontology:canonicalExtension> ?canonicalExtension } } ORDER BY ?familyName ?format LIMIT 512`),
     ctx.client.select(`SELECT (COUNT(*) AS ?count) WHERE { ${MATERIALISATION_RULE_WHERE} }`),
   ]);
   if (contractRows.length === 0) throw new Error('contract does not exist in live authority');
+  const projectedDecisionCount = new Set(contractRows.map((row) => value(row, 'decision')).filter(Boolean)).size;
+  const expectedDecisionCount = Number(value(decisionCountRows[0], 'count'));
+  if (decisionCountRows.length !== 1
+    || !Number.isSafeInteger(expectedDecisionCount)
+    || expectedDecisionCount !== projectedDecisionCount) {
+    throw new Error('materialisation decision projection is incomplete');
+  }
   // Every scalar conclusion must resolve exactly once. The rows are a cross
   // product of OPTIONAL patterns, so repetition is expected but disagreement is
   // not: taking the first row would let a contradictory second row hide behind a
@@ -233,7 +296,29 @@ async function readLayoutSemantics(ctx, args = {}) {
   const activationState = sole('activation', 'activation state');
   const proofResult = sole('proof', 'proof result');
   const proofResultState = sole('proofState', 'proof result state');
+  const decisionScopedValues = [...new Set(contractRows.map((row) => value(row, 'decisionScoped')).filter((item) => item !== null))];
+  if (decisionScopedValues.length > 1) throw new Error('contract has ambiguous decision-scoped materialisation requirement');
+  const decisionScopedMaterialisationRequired = decisionScopedValues.length === 0 ? null : (() => {
+    const [lexical] = decisionScopedValues;
+    if (lexical === 'true' || lexical === '1') return true;
+    if (lexical === 'false' || lexical === '0') return false;
+    throw new Error(`contract has invalid decision-scoped materialisation boolean: ${lexical}`);
+  })();
+  const expectedMaterialisationMode = EXPECTED_MATERIALISATION_MODE.get(contract);
+  if (expectedMaterialisationMode !== undefined
+    && decisionScopedMaterialisationRequired !== expectedMaterialisationMode) {
+    throw new Error('contract decision-scoped materialisation mode differs from its authority-declared gateway mode');
+  }
+  if (expectedMaterialisationMode === undefined && decisionScopedMaterialisationRequired === true) {
+    throw new Error('contract is not an authority-declared decision-scoped materialisation gateway contract');
+  }
   if (canonicalName === null) throw new Error('contract has no canonical name in live authority');
+  const expectedPermissionCount = Number(value(permissionCountRows[0], 'count'));
+  if (permissionCountRows.length !== 1
+    || !Number.isSafeInteger(expectedPermissionCount)
+    || expectedPermissionCount !== permissionRows.length) {
+    throw new Error('materialisation permission projection is incomplete');
+  }
   const expectedRuleCount = Number(value(ruleCountRows[0], 'count'));
   if (ruleCountRows.length !== 1 || !Number.isSafeInteger(expectedRuleCount) || expectedRuleCount !== ruleRows.length) {
     throw new Error('materialisation rule projection is incomplete');
@@ -251,13 +336,27 @@ async function readLayoutSemantics(ctx, args = {}) {
       state,
       authorisedRepositories: new Set(),
       authorisedPaths: new Set(),
+      authorisedDirectories: new Set(),
+      authorisedActions: new Set(),
+      authorisedFamilies: new Set(),
     };
     if (existing.state !== state) throw new Error('realisation decision has inconsistent state');
-    const repository = value(row, 'authorisedRepository');
-    if (repository) existing.authorisedRepositories.add(repository);
-    const path = value(row, 'authorisedPath');
-    if (path) existing.authorisedPaths.add(path);
     decisions.set(id, existing);
+  }
+  const permissionPredicates = Object.freeze({
+    'urn:usf:ontology:authorisesRepository': 'authorisedRepositories',
+    'urn:usf:ontology:authorisesSourcePath': 'authorisedPaths',
+    'urn:usf:ontology:authorisesSourceDirectory': 'authorisedDirectories',
+    'urn:usf:ontology:authorisesMaterialisationAction': 'authorisedActions',
+    'urn:usf:ontology:authorisesArtefactFamily': 'authorisedFamilies',
+  });
+  for (const row of permissionRows) {
+    const id = value(row, 'decision');
+    const target = permissionPredicates[value(row, 'permission')];
+    const permissionValue = value(row, 'permissionValue');
+    const decision = decisions.get(id);
+    if (!decision || !target || !permissionValue) continue;
+    decision[target].add(permissionValue);
   }
   const acceptedDecisions = [...decisions.values()].filter((decision) => decision.state === ACCEPTED);
   let decisionResolution = 'unresolved';
@@ -267,9 +366,11 @@ async function readLayoutSemantics(ctx, args = {}) {
     decisionResolution = candidateDecision?.state === ACCEPTED ? 'explicit' : 'invalid-effective-decision';
   } else if (effectiveDecisionIds.size > 1) {
     decisionResolution = 'multiple-effective-decisions';
-  } else if (acceptedDecisions.length === 1) {
+  } else if (!decisionScopedMaterialisationRequired && acceptedDecisions.length === 1) {
     [candidateDecision] = acceptedDecisions;
     decisionResolution = 'unique-accepted';
+  } else if (decisionScopedMaterialisationRequired && acceptedDecisions.length > 0) {
+    decisionResolution = 'missing-effective-decision';
   } else if (acceptedDecisions.length > 1) {
     decisionResolution = 'missing-effective-decision';
   } else {
@@ -282,8 +383,79 @@ async function readLayoutSemantics(ctx, args = {}) {
     }
   }
   const acceptedDecision = candidateDecision?.state === ACCEPTED ? candidateDecision : null;
+  if (decisionScopedMaterialisationRequired
+    && decisionResolution === 'explicit'
+    && acceptedDecision?.id !== EXPECTED_SCOPED_DECISION.get(contract)) {
+    throw new Error('decision-scoped materialisation effective decision differs from the authority-selected decision');
+  }
   const repositories = acceptedDecision ? [...acceptedDecision.authorisedRepositories].sort() : [];
-  const paths = acceptedDecision ? [...acceptedDecision.authorisedPaths].sort() : [];
+  const paths = acceptedDecision ? [...acceptedDecision.authorisedPaths].sort(utf8Compare) : [];
+  const directories = acceptedDecision ? [...acceptedDecision.authorisedDirectories].sort() : [];
+  const actions = acceptedDecision ? [...acceptedDecision.authorisedActions].sort() : [];
+  const families = acceptedDecision ? [...acceptedDecision.authorisedFamilies].sort() : [];
+  const projectedRules = ruleRows
+    .map((row) => ({
+      family: value(row, 'family'),
+      familyName: value(row, 'familyName'),
+      rule: value(row, 'rule'),
+      storageClass: value(row, 'storage'),
+      pathRole: value(row, 'pathRole'),
+      representationFormat: value(row, 'format'),
+      canonicalExtension: value(row, 'canonicalExtension'),
+      namingRule: value(row, 'naming'),
+      namingPattern: value(row, 'namingPattern'),
+    }))
+    .filter((rule) => !decisionScopedMaterialisationRequired || families.includes(rule.family));
+  if (decisionScopedMaterialisationRequired) {
+    const expectedPathScope = PROVIDER_FACTORY_PATH_SCOPES[contract];
+    if (decisionResolution !== 'explicit') {
+      throw new Error('decision-scoped materialisation requires one explicit effective accepted decision');
+    }
+    if (jcs(repositories) !== jcs([PROVIDER_FACTORY_REPOSITORY])
+      || !expectedPathScope
+      || paths.length !== expectedPathScope.count
+      || digest(jcs(paths)) !== expectedPathScope.digest
+      || jcs(directories) !== jcs([...PROVIDER_FACTORY_DIRECTORIES].sort(utf8Compare))
+      || actions.length !== 1
+      || actions[0] !== 'write-file'
+      || jcs(families) !== jcs([...PROVIDER_FACTORY_FAMILIES].sort(utf8Compare))) {
+      throw new Error('decision-scoped materialisation permissions are incomplete');
+    }
+    if (directories.some((directory) => paths.includes(directory))) {
+      throw new Error('authorised source directory duplicates an exact authorised source path');
+    }
+    if (projectedRules.length !== families.length || new Set(projectedRules.map((rule) => rule.family)).size !== families.length) {
+      throw new Error('decision-scoped materialisation families do not resolve to one exact rule each');
+    }
+    if (projectedRules.some((rule) => typeof rule.rule !== 'string'
+      || rule.storageClass !== 'urn:usf:storageclass:gittrackedsource'
+      || typeof rule.pathRole !== 'string'
+      || typeof rule.representationFormat !== 'string'
+      || typeof rule.canonicalExtension !== 'string'
+      || typeof rule.namingRule !== 'string'
+      || typeof rule.namingPattern !== 'string')) {
+      throw new Error('decision-scoped materialisation rule is not one exact Git-tracked path/format tuple');
+    }
+    const comparableRules = projectedRules.map(({
+      family, rule, storageClass, pathRole, representationFormat, canonicalExtension, namingRule, namingPattern,
+    }) => ({
+      family, rule, storageClass, pathRole, representationFormat, canonicalExtension, namingRule, namingPattern,
+    })).sort((left, right) => utf8Compare(jcs(left), jcs(right)));
+    const expectedRules = [...PROVIDER_FACTORY_RULES]
+      .sort((left, right) => utf8Compare(jcs(left), jcs(right)));
+    if (jcs(comparableRules) !== jcs(expectedRules)) {
+      throw new Error('decision-scoped materialisation rule set differs from the exact authority-selected tuples');
+    }
+  }
+  const authorisedActions = decisionScopedMaterialisationRequired ? actions : [...ACTIONS];
+  const permissionAuthority = {
+    authorisedRepositories: repositories,
+    authorisedPaths: paths,
+    authorisedDirectoryPrefixes: directories,
+    authorisedActions,
+    authorisedFamilies: families,
+    rules: projectedRules,
+  };
   return {
     schemaVersion: 1,
     contract: {
@@ -301,11 +473,23 @@ async function readLayoutSemantics(ctx, args = {}) {
     acceptedDecisionCount: acceptedDecisions.length,
     effectiveDecisionCount: effectiveDecisionIds.size,
     decisionResolution,
+    decisionScopedMaterialisationRequired,
+    materialisationGatewayContract: expectedMaterialisationMode !== undefined,
     authorisedRepositories: repositories,
     authorisedPaths: paths,
+    authorisedDirectoryPrefixes: directories,
+    authorisedActions,
+    authorisedFamilies: families,
+    authorisedStorageClasses: decisionScopedMaterialisationRequired
+      ? [...new Set(projectedRules.map((rule) => rule.storageClass))].sort()
+      : [],
+    permissionSetDigest: decisionScopedMaterialisationRequired
+      ? scopedPermissionSetDigest(permissionAuthority)
+      : null,
     pathRoles: roleRows.map((row) => ({ id: value(row, 'role'), canonicalName: value(row, 'canonicalName'), parent: value(row, 'parent'), onDemand: value(row, 'onDemand') === 'true' })),
-    materialisationRuleCount: expectedRuleCount,
-    rules: ruleRows.map((row) => ({ family: value(row, 'family'), familyName: value(row, 'familyName'), storageClass: value(row, 'storage'), pathRole: value(row, 'pathRole'), representationFormat: value(row, 'format'), namingPattern: value(row, 'namingPattern') })),
+    materialisationRuleCount: projectedRules.length,
+    authorityMaterialisationRuleCount: expectedRuleCount,
+    rules: projectedRules,
   };
 }
 
@@ -344,8 +528,13 @@ export async function validateLayoutPlan(ctx, plan, verdict = null) {
   const resolved = verdict || await realisationVerdict(ctx, { contract: plan?.contract });
   const { context } = resolved;
   const failures = [];
+  if (context.materialisationGatewayContract !== true) failures.push({ code: 'plan-contract-not-materialisable' });
   if (plan?.schemaVersion !== 1) failures.push({ code: 'plan-schema-version' });
   if (plan?.authorityDigest !== context.authorityDigest) failures.push({ code: 'plan-authority-digest' });
+  if (context.decisionScopedMaterialisationRequired
+    && plan?.permissionSetDigest !== context.permissionSetDigest) failures.push({ code: 'plan-permission-set-digest' });
+  if (context.decisionScopedMaterialisationRequired
+    && plan?.repositoryIdentity !== context.contract.authorisedRepository) failures.push({ code: 'plan-repository-identity' });
   // One stable code per non-PROCEED realisation state, carrying the verdict's own
   // reasons. Calling this tool directly can no longer bypass the projection.
   if (resolved.actionState !== ACTION_STATES.proceed) {
@@ -384,7 +573,17 @@ export async function createLayoutPlan(ctx, args = {}) {
     throw new Error(`${verdict.stateFailureCode}: realisation action state is ${verdict.actionState} (${verdict.actionStateReasons.join(',') || 'no reasons'})`);
   }
   const { context } = verdict;
-  const plan = { schemaVersion: 1, authorityDigest: context.authorityDigest, contract: context.contract.id, operations: args.operations };
+  if (context.materialisationGatewayContract !== true) {
+    throw new Error('contract is not an authority-declared materialisation gateway contract');
+  }
+  const plan = {
+    schemaVersion: 1,
+    authorityDigest: context.authorityDigest,
+    ...(context.decisionScopedMaterialisationRequired ? { permissionSetDigest: context.permissionSetDigest } : {}),
+    ...(context.decisionScopedMaterialisationRequired ? { repositoryIdentity: context.contract.authorisedRepository } : {}),
+    contract: context.contract.id,
+    operations: args.operations,
+  };
   plan.planDigest = digest(jcs(plan));
   const result = await validateLayoutPlan(ctx, plan, verdict);
   if (!result.ok) throw new Error(`invalid materialisation plan: ${result.failures.map((item) => `${item.index ?? '-'}:${item.code}`).join(',')}`);
@@ -402,7 +601,20 @@ export async function applyLayoutPlan(ctx, args = {}) {
     return { applied: false, realisationActionState: verdict.actionState, stateFailureCode: verdict.stateFailureCode, validation };
   }
   if (args.apply !== true) return { applied: false, dryRun: true, validation };
-  if (ctx.coordinator !== true || !ctx.repositoryRoot) throw new Error('materialisation apply is coordinator-only');
+  if (ctx.coordinator !== true) throw new Error('materialisation apply is coordinator-only');
+  const expectedRepositoryIdentity = verdict.context.decisionScopedMaterialisationRequired
+    ? verdict.context.contract.authorisedRepository
+    : null;
+  const repositoryRoot = expectedRepositoryIdentity === null
+    ? ctx.repositoryRoot
+    : ctx.repositoryRoots?.get?.(expectedRepositoryIdentity);
+  if (!repositoryRoot) {
+    throw new Error('authority-bound repository root is not configured for materialisation apply');
+  }
+  if (expectedRepositoryIdentity !== null
+    && plan.repositoryIdentity !== expectedRepositoryIdentity) {
+    throw new Error('materialisation coordinator repository identity does not match the authority-bound repository');
+  }
   // Immediately before the first filesystem mutation, prove authority has not
   // moved since the verdict was taken and that the plan still describes it. A
   // verdict is a statement about one authority state; touching the filesystem on
@@ -418,7 +630,9 @@ export async function applyLayoutPlan(ctx, args = {}) {
   // that same implementation.
   const execution = executePlanOperations({
     plan,
-    repositoryRoot: ctx.repositoryRoot,
+    repositoryRoot,
+    repositoryIdentity: expectedRepositoryIdentity ?? ctx.repositoryIdentity ?? null,
+    expectedRepositoryIdentity,
     casRoot: ctx.casRoot,
   });
   // After every operation but before reporting success: if authority moved while
@@ -434,7 +648,12 @@ export async function applyLayoutPlan(ctx, args = {}) {
   } catch (error) {
     execution.rollbackAndThrow(error);
   }
-  return { applied: true, validation, operations: execution.operations };
+  return {
+    applied: true,
+    validation,
+    repositoryIdentity: expectedRepositoryIdentity,
+    operations: execution.operations,
+  };
 }
 
 export async function describeArtifact(ctx, args = {}) {
@@ -674,6 +893,9 @@ export async function realisationVerdict(ctx, args = {}) {
   require(context.contract.activationState, ACTIVE, 'contract-activation-unresolved', 'contract-not-active');
   require(context.contract.proofResultState, SUCCESSFUL, 'contract-proof-result-unresolved', 'contract-proof-not-successful');
   if (context.contract.proofResult === null) reasons.push({ code: 'contract-proof-result-absent', state: ACTION_STATES.unresolved });
+  if (context.decisionScopedMaterialisationRequired === null) {
+    reasons.push({ code: 'decision-materialisation-scope-unresolved', state: ACTION_STATES.unresolved });
+  }
   // A successful result is necessary and NOT sufficient. PROCEED additionally
   // requires the positive currentness conclusion; anything less contributes its
   // own reasons at their own dispositions.
@@ -762,10 +984,22 @@ export async function projectContract(ctx, args = {}) {
     objective: args.objective || `Realise and validate ${context.contract.canonicalName} from current semantic authority.`,
     claims: ids(assertions.filter((row) => value(row, 'relation') === 'urn:usf:ontology:asserts')),
     nonclaims: ids(assertions.filter((row) => value(row, 'relation') === 'urn:usf:ontology:disclaims')),
-    authorisedActions: authorised ? [...ACTIONS] : [],
+    authorisedActions: authorised ? context.authorisedActions : [],
     authorisedRepositories: authorised ? context.authorisedRepositories : [],
     authorisedPaths: authorised ? context.authorisedPaths : [],
+    authorisedDirectoryPrefixes: authorised && context.decisionScopedMaterialisationRequired
+      ? context.authorisedDirectoryPrefixes
+      : [],
+    authorisedArtefactFamilies: authorised && context.decisionScopedMaterialisationRequired
+      ? context.authorisedFamilies
+      : [],
     authorisedFormats: authorised ? [...new Set(context.rules.map((item) => item.representationFormat))].sort() : [],
+    authorisedStorageClasses: authorised && context.decisionScopedMaterialisationRequired
+      ? context.authorisedStorageClasses
+      : [],
+    permissionSetDigest: authorised && context.decisionScopedMaterialisationRequired
+      ? context.permissionSetDigest
+      : null,
     acceptanceObligations: [...new Set([...ids(requirements), ...ids(obligations)])].sort(),
     validationApplicability: {
       state: scope.applicability,
@@ -846,7 +1080,9 @@ export async function planWork(ctx, args = {}) {
     ...verdict.gaps,
   ]
     .map((gap) => ({ type: gap.code, subject: gap.subject, disposition: resolveDisposition(gap.code) }))
-    .sort((left, right) => (left.type === right.type ? left.subject.localeCompare(right.subject) : left.type.localeCompare(right.type)));
+    .sort((left, right) => (left.type === right.type
+      ? utf8Compare(left.subject, right.subject)
+      : utf8Compare(left.type, right.type)));
 
   // The census is computed over the whole gap set, never over the page, so
   // paginating the projection cannot drop a blocked or unresolved state.

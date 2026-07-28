@@ -674,3 +674,265 @@ _:b39_b39_n3-713 sh:prefixes usf:prefixes;
     sh:message "layout-role-home: selected roles require unique canonical parent homes and exact decision path authority";
     sh:select "SELECT $this WHERE {\n      $this usf:selectsRepositoryLayoutRole ?role .\n      ?role usf:authorisedParentPath ?parent .\n      { FILTER NOT EXISTS { $this usf:authorisesSourcePath ?parent } }\n      UNION\n      { $this usf:selectsRepositoryLayoutRole ?other . ?other usf:authorisedParentPath ?parent . FILTER(?other != ?role) }\n    }".
 shp:RepositoryArchitectureDecisionShape sh:sparql _:b39_b39_n3-713.
+
+shp:DecisionScopedMaterialisationContractShape a sh:NodeShape;
+    usf:canonicalName "decisionscopedmaterialisationcontractshape";
+    sh:targetNode <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation>,
+        <urn:usf:semanticcontract:compilersemanticenforcement>,
+        <urn:usf:semanticcontract:providerconfigurationplane>,
+        <urn:usf:semanticcontract:providerenvironmentclassification>,
+        <urn:usf:semanticcontract:servicecatalogandproviderintegrationmodel>.
+_:decision_scoped_materialisation_boolean sh:path usf:decisionScopedMaterialisationRequired;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:datatype xsd:boolean.
+shp:DecisionScopedMaterialisationContractShape sh:property _:decision_scoped_materialisation_boolean.
+shp:ProviderDecisionScopedMaterialisationModeShape a sh:NodeShape;
+    usf:canonicalName "providerdecisionscopedmaterialisationmodeshape";
+    sh:targetNode <urn:usf:semanticcontract:providerconfigurationplane>,
+        <urn:usf:semanticcontract:providerenvironmentclassification>,
+        <urn:usf:semanticcontract:servicecatalogandproviderintegrationmodel>.
+_:provider_decision_scoped_materialisation_mode sh:path usf:decisionScopedMaterialisationRequired;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:message "materialisation-contract-scope-mode: provider materialisation contracts require decision-scoped mode";
+    sh:hasValue true .
+shp:ProviderDecisionScopedMaterialisationModeShape sh:property _:provider_decision_scoped_materialisation_mode.
+shp:ProviderConfigurationExactPathSetShape a sh:NodeShape;
+    usf:canonicalName "providerconfigurationexactpathsetshape";
+    sh:targetNode <urn:usf:realisationdecision:providerconfigurationplanefactoryworkforce>;
+    sh:property [
+        sh:path usf:authorisesSourcePath;
+        sh:minCount 102;
+        sh:maxCount 102;
+        sh:message "decision-scoped-materialisation-path-set: provider configuration materialisation requires the exact 102 selected source files";
+        sh:in (
+            ".env.example"
+            "config/budgets.yaml"
+            "config/providers.yaml"
+            "config/qualification-suite.yaml"
+            "config/routing.yaml"
+            "config/safe-adaptive-execution.yaml"
+            "config/workforce-policy.yaml"
+            "docs/architecture.md"
+            "docs/credential-import.md"
+            "docs/design-dispositions.yaml"
+            "docs/known-limitations.md"
+            "docs/model-qualification.md"
+            "docs/operator-guide.md"
+            "docs/provider-adapters.md"
+            "docs/security.md"
+            "scripts/check-provider-env.py"
+            "scripts/import-provider-env.py"
+            "src/usf_factory/accounting.py"
+            "src/usf_factory/accounting_cli.py"
+            "src/usf_factory/accounting_models.py"
+            "src/usf_factory/accounting_report.py"
+            "src/usf_factory/accounting_runtime.py"
+            "src/usf_factory/activation.py"
+            "src/usf_factory/adaptive_execution.py"
+            "src/usf_factory/adaptive_routing.py"
+            "src/usf_factory/admission.py"
+            "src/usf_factory/affinity_dispatch.py"
+            "src/usf_factory/agent_runtime.py"
+            "src/usf_factory/bootstrap.py"
+            "src/usf_factory/budget.py"
+            "src/usf_factory/capabilities.py"
+            "src/usf_factory/cli.py"
+            "src/usf_factory/config.py"
+            "src/usf_factory/context_pack.py"
+            "src/usf_factory/dispatch.py"
+            "src/usf_factory/doctor.py"
+            "src/usf_factory/dynamic_dispatch.py"
+            "src/usf_factory/eligibility.py"
+            "src/usf_factory/engine.py"
+            "src/usf_factory/enums.py"
+            "src/usf_factory/errors.py"
+            "src/usf_factory/event_store.py"
+            "src/usf_factory/identity_evidence.py"
+            "src/usf_factory/integration.py"
+            "src/usf_factory/lazy_qualification.py"
+            "src/usf_factory/learning.py"
+            "src/usf_factory/model_market.py"
+            "src/usf_factory/model_market_runtime.py"
+            "src/usf_factory/model_registry.py"
+            "src/usf_factory/models.py"
+            "src/usf_factory/planner.py"
+            "src/usf_factory/probes.py"
+            "src/usf_factory/probing.py"
+            "src/usf_factory/prompt_cache.py"
+            "src/usf_factory/provider_eval.py"
+            "src/usf_factory/qualification.py"
+            "src/usf_factory/review.py"
+            "src/usf_factory/roster.py"
+            "src/usf_factory/run_authorization.py"
+            "src/usf_factory/runtime.py"
+            "src/usf_factory/scheduler.py"
+            "src/usf_factory/secrets.py"
+            "src/usf_factory/selection.py"
+            "src/usf_factory/selection_report.py"
+            "src/usf_factory/supervised_scheduler.py"
+            "src/usf_factory/token_efficiency.py"
+            "src/usf_factory/workers.py"
+            "src/usf_factory/workforce.py"
+            "src/usf_factory/workforce_policy.py"
+            "tests/test_activation.py"
+            "tests/test_adaptive_execution.py"
+            "tests/test_adaptive_routing.py"
+            "tests/test_affinity_chain_execution.py"
+            "tests/test_affinity_dispatch.py"
+            "tests/test_agent_runtime.py"
+            "tests/test_bootstrap.py"
+            "tests/test_codex_containment.py"
+            "tests/test_context_and_usage.py"
+            "tests/test_contract.py"
+            "tests/test_durable_state.py"
+            "tests/test_free_tier_classification.py"
+            "tests/test_lazy_qualification.py"
+            "tests/test_model_market.py"
+            "tests/test_openai_identity_evidence.py"
+            "tests/test_operational_accounting.py"
+            "tests/test_p1.py"
+            "tests/test_prompt_cache.py"
+            "tests/test_provider_contact_exclusions.py"
+            "tests/test_provider_coverage.py"
+            "tests/test_provider_preference_policy.py"
+            "tests/test_review_fixes.py"
+            "tests/test_roster_scheduling.py"
+            "tests/test_runtime.py"
+            "tests/test_scheduler.py"
+            "tests/test_secrets.py"
+            "tests/test_selection.py"
+            "tests/test_supervised_scheduler.py"
+            "tests/test_targeted_qualification.py"
+            "tests/test_token_efficiency.py"
+            "tests/test_workforce_bootstrap.py"
+            "tests/test_workforce_policy.py"
+            "tests/test_workforce_snapshot.py"
+        )
+    ] .
+shp:ProviderSharedExactPathSetShape a sh:NodeShape;
+    usf:canonicalName "providersharedexactpathsetshape";
+    sh:targetNode <urn:usf:realisationdecision:providerenvironmentclassificationfactoryworkforce>,
+        <urn:usf:realisationdecision:servicecatalogandproviderintegrationmodelfactoryworkforce>;
+    sh:property [
+        sh:path usf:authorisesSourcePath;
+        sh:minCount 63;
+        sh:maxCount 63;
+        sh:message "decision-scoped-materialisation-path-set: provider environment and catalogue materialisation require the exact 63 selected source files";
+        sh:in (
+            ".env.example"
+            "config/budgets.yaml"
+            "config/providers.yaml"
+            "config/qualification-suite.yaml"
+            "config/routing.yaml"
+            "config/workforce-policy.yaml"
+            "docs/design-dispositions.yaml"
+            "docs/model-qualification.md"
+            "docs/operator-guide.md"
+            "docs/provider-adapters.md"
+            "docs/security.md"
+            "scripts/check-provider-env.py"
+            "scripts/import-provider-env.py"
+            "src/usf_factory/accounting.py"
+            "src/usf_factory/accounting_models.py"
+            "src/usf_factory/accounting_report.py"
+            "src/usf_factory/accounting_runtime.py"
+            "src/usf_factory/activation.py"
+            "src/usf_factory/admission.py"
+            "src/usf_factory/bootstrap.py"
+            "src/usf_factory/capabilities.py"
+            "src/usf_factory/cli.py"
+            "src/usf_factory/config.py"
+            "src/usf_factory/eligibility.py"
+            "src/usf_factory/enums.py"
+            "src/usf_factory/errors.py"
+            "src/usf_factory/identity_evidence.py"
+            "src/usf_factory/lazy_qualification.py"
+            "src/usf_factory/model_market.py"
+            "src/usf_factory/model_market_runtime.py"
+            "src/usf_factory/model_registry.py"
+            "src/usf_factory/probes.py"
+            "src/usf_factory/probing.py"
+            "src/usf_factory/provider_eval.py"
+            "src/usf_factory/qualification.py"
+            "src/usf_factory/roster.py"
+            "src/usf_factory/run_authorization.py"
+            "src/usf_factory/runtime.py"
+            "src/usf_factory/secrets.py"
+            "src/usf_factory/selection.py"
+            "src/usf_factory/selection_report.py"
+            "src/usf_factory/supervised_scheduler.py"
+            "src/usf_factory/workforce.py"
+            "src/usf_factory/workforce_policy.py"
+            "tests/test_activation.py"
+            "tests/test_agent_runtime.py"
+            "tests/test_bootstrap.py"
+            "tests/test_contract.py"
+            "tests/test_free_tier_classification.py"
+            "tests/test_lazy_qualification.py"
+            "tests/test_model_market.py"
+            "tests/test_openai_identity_evidence.py"
+            "tests/test_operational_accounting.py"
+            "tests/test_p1.py"
+            "tests/test_provider_contact_exclusions.py"
+            "tests/test_provider_coverage.py"
+            "tests/test_provider_preference_policy.py"
+            "tests/test_review_fixes.py"
+            "tests/test_runtime.py"
+            "tests/test_secrets.py"
+            "tests/test_supervised_scheduler.py"
+            "tests/test_workforce_bootstrap.py"
+            "tests/test_workforce_policy.py"
+        )
+    ] .
+shp:LegacyDecisionScopedMaterialisationModeShape a sh:NodeShape;
+    usf:canonicalName "legacydecisionscopedmaterialisationmodeshape";
+    sh:targetNode <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation>,
+        <urn:usf:semanticcontract:compilersemanticenforcement>.
+_:legacy_decision_scoped_materialisation_mode sh:path usf:decisionScopedMaterialisationRequired;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:message "materialisation-contract-scope-mode: legacy materialisation contracts require unscoped mode";
+    sh:hasValue false .
+shp:LegacyDecisionScopedMaterialisationModeShape sh:property _:legacy_decision_scoped_materialisation_mode.
+_:decision_scoped_materialisation_complete sh:prefixes usf:prefixes;
+    sh:message "decision-scoped-materialisation-incomplete: a scoped contract requires one exact effective accepted decision, realisation, repository, exact path, strict directory prefix, write-file action and artefact family";
+    sh:select "SELECT $this WHERE {\n      $this usf:decisionScopedMaterialisationRequired true .\n      FILTER NOT EXISTS {\n        $this usf:effectiveRealisationDecision ?decision .\n        ?realisation a usf:Realisation ; usf:realisesContract $this ; usf:authorisedByDecision ?decision .\n        ?decision a usf:RealisationDecision ; usf:decisionForContract $this ;\n          usf:decisionState <urn:usf:decisionstate:accepted> ;\n          usf:authorisesRepository \"maldous/usf-factory\" ; usf:authorisesSourcePath ?path ;\n          usf:authorisesSourceDirectory \"src/usf_factory/providers\", \"tests/provider_workforce\" ;\n          usf:authorisesMaterialisationAction \"write-file\" ; usf:authorisesArtefactFamily ?family .\n        FILTER NOT EXISTS { $this usf:effectiveRealisationDecision ?otherDecision . FILTER(?otherDecision != ?decision) }\n        FILTER NOT EXISTS { ?decision usf:authorisesRepository ?otherRepository . FILTER(?otherRepository != \"maldous/usf-factory\") }\n        FILTER NOT EXISTS { ?decision usf:authorisesSourceDirectory ?otherDirectory . FILTER(?otherDirectory NOT IN (\"src/usf_factory/providers\", \"tests/provider_workforce\")) }\n        FILTER NOT EXISTS { ?decision usf:authorisesMaterialisationAction ?otherAction . FILTER(?otherAction != \"write-file\") }\n      }\n    }".
+shp:DecisionScopedMaterialisationContractShape sh:sparql _:decision_scoped_materialisation_complete.
+_:decision_scoped_materialisation_effective_decision sh:prefixes usf:prefixes;
+    sh:message "decision-scoped-materialisation-effective-decision: each provider contract requires its exact operator-accepted effective decision";
+    sh:select "SELECT $this WHERE {\n      $this usf:decisionScopedMaterialisationRequired true .\n      BIND(\n        IF($this = <urn:usf:semanticcontract:providerconfigurationplane>,\n          <urn:usf:realisationdecision:providerconfigurationplanefactoryworkforce>,\n          IF($this = <urn:usf:semanticcontract:providerenvironmentclassification>,\n            <urn:usf:realisationdecision:providerenvironmentclassificationfactoryworkforce>,\n            <urn:usf:realisationdecision:servicecatalogandproviderintegrationmodelfactoryworkforce>))\n        AS ?expectedDecision\n      )\n      FILTER(\n        NOT EXISTS { $this usf:effectiveRealisationDecision ?expectedDecision }\n        || EXISTS { $this usf:effectiveRealisationDecision ?observedDecision . FILTER(?observedDecision != ?expectedDecision) }\n      )\n    }".
+shp:DecisionScopedMaterialisationContractShape sh:sparql _:decision_scoped_materialisation_effective_decision.
+_:decision_scoped_materialisation_action sh:prefixes usf:prefixes;
+    sh:message "decision-scoped-materialisation-action: scoped provider-workforce materialisation authorises write-file only";
+    sh:select "SELECT $this WHERE {\n      $this usf:decisionScopedMaterialisationRequired true ; usf:effectiveRealisationDecision ?decision .\n      ?decision usf:decisionForContract $this ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:authorisesMaterialisationAction ?action .\n      FILTER(?action != \"write-file\")\n    }".
+shp:DecisionScopedMaterialisationContractShape sh:sparql _:decision_scoped_materialisation_action.
+_:decision_scoped_materialisation_repository sh:prefixes usf:prefixes;
+    sh:message "decision-scoped-materialisation-repository: scoped provider-workforce materialisation authorises only maldous/usf-factory";
+    sh:select "SELECT $this WHERE {\n      $this usf:decisionScopedMaterialisationRequired true ; usf:effectiveRealisationDecision ?decision .\n      FILTER(\n        NOT EXISTS { ?decision usf:authorisesRepository \"maldous/usf-factory\" }\n        || EXISTS { ?decision usf:authorisesRepository ?repository . FILTER(?repository != \"maldous/usf-factory\") }\n      )\n    }".
+shp:DecisionScopedMaterialisationContractShape sh:sparql _:decision_scoped_materialisation_repository.
+_:decision_scoped_materialisation_directory_set sh:prefixes usf:prefixes;
+    sh:message "decision-scoped-materialisation-directory-set: scoped provider-workforce materialisation authorises exactly the provider source and provider-workforce test directories";
+    sh:select "SELECT $this WHERE {\n      $this usf:decisionScopedMaterialisationRequired true ; usf:effectiveRealisationDecision ?decision .\n      FILTER(\n        NOT EXISTS { ?decision usf:authorisesSourceDirectory \"src/usf_factory/providers\" }\n        || NOT EXISTS { ?decision usf:authorisesSourceDirectory \"tests/provider_workforce\" }\n        || EXISTS { ?decision usf:authorisesSourceDirectory ?unexpectedDirectory . FILTER(?unexpectedDirectory NOT IN (\"src/usf_factory/providers\", \"tests/provider_workforce\")) }\n      )\n    }".
+shp:DecisionScopedMaterialisationContractShape sh:sparql _:decision_scoped_materialisation_directory_set.
+_:decision_scoped_materialisation_directory sh:prefixes usf:prefixes;
+    sh:message "decision-scoped-materialisation-directory: provider directories and exact file paths must be normalised and disjoint";
+    sh:select "SELECT $this WHERE {\n      $this usf:decisionScopedMaterialisationRequired true ; usf:effectiveRealisationDecision ?decision .\n      ?decision usf:decisionForContract $this ; usf:decisionState <urn:usf:decisionstate:accepted> .\n      { ?decision usf:authorisesSourceDirectory ?path }\n      UNION { ?decision usf:authorisesSourcePath ?path }\n      FILTER(\n        EXISTS { ?decision usf:authorisesSourceDirectory ?path ; usf:authorisesSourcePath ?path }\n        || ?path = \".\" || STRSTARTS(?path, \"/\") || STRENDS(?path, \"/\") || CONTAINS(?path, \"//\")\n        || CONTAINS(CONCAT(\"/\", ?path, \"/\"), \"/../\") || CONTAINS(CONCAT(\"/\", ?path, \"/\"), \"/./\")\n        || !REGEX(?path, \"^[A-Za-z0-9._/-]+$\")\n      )\n    }".
+shp:DecisionScopedMaterialisationContractShape sh:sparql _:decision_scoped_materialisation_directory.
+_:decision_scoped_materialisation_family_set sh:prefixes usf:prefixes;
+    sh:message "decision-scoped-materialisation-family-set: the provider-workforce decision requires exactly the seven selected artefact families";
+    sh:select "SELECT $this WHERE {\n      $this usf:decisionScopedMaterialisationRequired true ; usf:effectiveRealisationDecision ?decision .\n      FILTER(\n        NOT EXISTS { ?decision usf:authorisesArtefactFamily <urn:usf:artefactfamily:factorypythonpackagerealisation> }\n        || NOT EXISTS { ?decision usf:authorisesArtefactFamily <urn:usf:artefactfamily:factorypythontestrealisation> }\n        || NOT EXISTS { ?decision usf:authorisesArtefactFamily <urn:usf:artefactfamily:factorypythonoperatorrealisation> }\n        || NOT EXISTS { ?decision usf:authorisesArtefactFamily <urn:usf:artefactfamily:factoryconfiguration> }\n        || NOT EXISTS { ?decision usf:authorisesArtefactFamily <urn:usf:artefactfamily:factorymarkdowndocumentation> }\n        || NOT EXISTS { ?decision usf:authorisesArtefactFamily <urn:usf:artefactfamily:factoryyamldocumentation> }\n        || NOT EXISTS { ?decision usf:authorisesArtefactFamily <urn:usf:artefactfamily:factoryenvironmentexample> }\n        || EXISTS {\n          ?decision usf:authorisesArtefactFamily ?unexpectedFamily .\n          FILTER(?unexpectedFamily NOT IN (\n            <urn:usf:artefactfamily:factorypythonpackagerealisation>,\n            <urn:usf:artefactfamily:factorypythontestrealisation>,\n            <urn:usf:artefactfamily:factorypythonoperatorrealisation>,\n            <urn:usf:artefactfamily:factoryconfiguration>,\n            <urn:usf:artefactfamily:factorymarkdowndocumentation>,\n            <urn:usf:artefactfamily:factoryyamldocumentation>,\n            <urn:usf:artefactfamily:factoryenvironmentexample>\n          ))\n        }\n      )\n    }".
+shp:DecisionScopedMaterialisationContractShape sh:sparql _:decision_scoped_materialisation_family_set.
+_:decision_scoped_materialisation_rule sh:prefixes usf:prefixes;
+    sh:message "decision-scoped-materialisation-rule: each authorised family must resolve to one exact role, format, extension, naming rule and Git storage tuple";
+    sh:select "SELECT $this WHERE {\n      $this usf:decisionScopedMaterialisationRequired true ; usf:effectiveRealisationDecision ?decision .\n      ?decision usf:decisionForContract $this ; usf:decisionState <urn:usf:decisionstate:accepted> ; usf:authorisesArtefactFamily ?family .\n      BIND(IRI(CONCAT(\"urn:usf:materialisationrule:\", STRAFTER(STR(?family), \"urn:usf:artefactfamily:\"))) AS ?expectedRule)\n      BIND(IF(?family = <urn:usf:artefactfamily:factoryconfiguration>, <urn:usf:pathrole:factoryconfigurationsource>, IF(?family = <urn:usf:artefactfamily:factoryenvironmentexample>, <urn:usf:pathrole:factoryenvironmentexample>, IF(?family IN (<urn:usf:artefactfamily:factorymarkdowndocumentation>, <urn:usf:artefactfamily:factoryyamldocumentation>), <urn:usf:pathrole:factorydocumentationsource>, IF(?family = <urn:usf:artefactfamily:factorypythonoperatorrealisation>, <urn:usf:pathrole:factoryproviderscriptsource>, IF(?family = <urn:usf:artefactfamily:factorypythonpackagerealisation>, <urn:usf:pathrole:factorypythonpackagesource>, <urn:usf:pathrole:factoryproviderworkforcetestsource>))))) AS ?expectedRole)\n      BIND(IF(?family IN (<urn:usf:artefactfamily:factoryconfiguration>, <urn:usf:artefactfamily:factoryyamldocumentation>), <urn:usf:representationformat:yamlconfiguration12>, IF(?family = <urn:usf:artefactfamily:factoryenvironmentexample>, <urn:usf:representationformat:dotenvexample>, IF(?family = <urn:usf:artefactfamily:factorymarkdowndocumentation>, <urn:usf:representationformat:markdowncommonmark>, <urn:usf:representationformat:python311source>))) AS ?expectedFormat)\n      BIND(IF(?family IN (<urn:usf:artefactfamily:factoryconfiguration>, <urn:usf:artefactfamily:factoryyamldocumentation>), \".yaml\", IF(?family = <urn:usf:artefactfamily:factoryenvironmentexample>, \".env.example\", IF(?family = <urn:usf:artefactfamily:factorymarkdowndocumentation>, \".md\", \".py\"))) AS ?expectedExtension)\n      BIND(IF(?family = <urn:usf:artefactfamily:factoryconfiguration>, <urn:usf:namingrule:factoryyamlconfiguration>, IF(?family = <urn:usf:artefactfamily:factoryenvironmentexample>, <urn:usf:namingrule:factoryenvironmentexample>, IF(?family = <urn:usf:artefactfamily:factorymarkdowndocumentation>, <urn:usf:namingrule:factorymarkdowndocumentation>, IF(?family = <urn:usf:artefactfamily:factoryyamldocumentation>, <urn:usf:namingrule:factoryyamldocumentation>, IF(?family = <urn:usf:artefactfamily:factorypythonoperatorrealisation>, <urn:usf:namingrule:factorypythonoperatorscript>, IF(?family = <urn:usf:artefactfamily:factorypythonpackagerealisation>, <urn:usf:namingrule:factorypythonmodule>, <urn:usf:namingrule:factorypythontest>)))))) AS ?expectedNaming)\n      FILTER(\n        NOT EXISTS {\n          ?family a usf:ArtefactFamily ; usf:usesMaterialisationRule ?expectedRule .\n          ?expectedRule a usf:MaterialisationRule ; usf:governedArtefactFamily ?family ;\n            usf:usesStorageClass <urn:usf:storageclass:gittrackedsource> ;\n            usf:usesPathRole ?expectedRole ; usf:usesRepresentationFormat ?expectedFormat ; usf:usesNamingRule ?expectedNaming .\n          ?expectedFormat usf:canonicalExtension ?expectedExtension .\n        }\n        || EXISTS { ?family usf:usesMaterialisationRule ?observedRule . FILTER(?observedRule != ?expectedRule) }\n        || EXISTS { ?expectedRule usf:usesPathRole ?observedRole . FILTER(?observedRole != ?expectedRole) }\n        || EXISTS { ?expectedRule usf:usesRepresentationFormat ?observedFormat . FILTER(?observedFormat != ?expectedFormat) }\n        || EXISTS { ?expectedRule usf:usesStorageClass ?observedStorage . FILTER(?observedStorage != <urn:usf:storageclass:gittrackedsource>) }\n        || EXISTS { ?expectedRule usf:usesNamingRule ?observedNaming . FILTER(?observedNaming != ?expectedNaming) }\n        || EXISTS { ?expectedFormat usf:canonicalExtension ?observedExtension . FILTER(?observedExtension != ?expectedExtension) }\n      )\n    }".
+shp:DecisionScopedMaterialisationContractShape sh:sparql _:decision_scoped_materialisation_rule.
+_:decision_scoped_materialisation_naming_pattern sh:prefixes usf:prefixes;
+    sh:message "decision-scoped-materialisation-naming-pattern: selected provider naming rules require their exact filename patterns";
+    sh:select "SELECT $this WHERE {\n      $this usf:decisionScopedMaterialisationRequired true .\n      FILTER(\n        NOT EXISTS { <urn:usf:namingrule:factorypythonmodule> usf:filenamePattern \"^(?:__init__|[a-z][a-z0-9]*(?:_[a-z0-9]+)*)[.]py$\" }\n        || EXISTS { <urn:usf:namingrule:factorypythonmodule> usf:filenamePattern ?p1 . FILTER(?p1 != \"^(?:__init__|[a-z][a-z0-9]*(?:_[a-z0-9]+)*)[.]py$\") }\n        || NOT EXISTS { <urn:usf:namingrule:factorypythontest> usf:filenamePattern \"^test_[a-z][a-z0-9]*(?:_[a-z0-9]+)*[.]py$\" }\n        || EXISTS { <urn:usf:namingrule:factorypythontest> usf:filenamePattern ?p2 . FILTER(?p2 != \"^test_[a-z][a-z0-9]*(?:_[a-z0-9]+)*[.]py$\") }\n        || NOT EXISTS { <urn:usf:namingrule:factorypythonoperatorscript> usf:filenamePattern \"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]py$\" }\n        || EXISTS { <urn:usf:namingrule:factorypythonoperatorscript> usf:filenamePattern ?p3 . FILTER(?p3 != \"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]py$\") }\n        || NOT EXISTS { <urn:usf:namingrule:factoryyamlconfiguration> usf:filenamePattern \"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]yaml$\" }\n        || EXISTS { <urn:usf:namingrule:factoryyamlconfiguration> usf:filenamePattern ?p4 . FILTER(?p4 != \"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]yaml$\") }\n        || NOT EXISTS { <urn:usf:namingrule:factorymarkdowndocumentation> usf:filenamePattern \"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]md$\" }\n        || EXISTS { <urn:usf:namingrule:factorymarkdowndocumentation> usf:filenamePattern ?p5 . FILTER(?p5 != \"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]md$\") }\n        || NOT EXISTS { <urn:usf:namingrule:factoryyamldocumentation> usf:filenamePattern \"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]yaml$\" }\n        || EXISTS { <urn:usf:namingrule:factoryyamldocumentation> usf:filenamePattern ?p6 . FILTER(?p6 != \"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]yaml$\") }\n        || NOT EXISTS { <urn:usf:namingrule:factoryenvironmentexample> usf:filenamePattern \"^[.]env[.]example$\" }\n        || EXISTS { <urn:usf:namingrule:factoryenvironmentexample> usf:filenamePattern ?p7 . FILTER(?p7 != \"^[.]env[.]example$\") }\n      )\n    }".
+shp:DecisionScopedMaterialisationContractShape sh:sparql _:decision_scoped_materialisation_naming_pattern.
+_:decision_scoped_materialisation_legacy sh:prefixes usf:prefixes;
+    sh:message "decision-scoped-materialisation-legacy: an explicitly legacy materialisation contract cannot carry scoped decision permissions";
+    sh:select "SELECT $this WHERE {\n      $this usf:decisionScopedMaterialisationRequired false .\n      ?decision usf:decisionForContract $this .\n      { ?decision usf:authorisesSourceDirectory ?value }\n      UNION { ?decision usf:authorisesMaterialisationAction ?value }\n      UNION { ?decision usf:authorisesArtefactFamily ?value }\n    }".
+shp:DecisionScopedMaterialisationContractShape sh:sparql _:decision_scoped_materialisation_legacy.

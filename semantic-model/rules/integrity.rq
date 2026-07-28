@@ -933,6 +933,412 @@ SELECT DISTINCT ?violation ?subject WHERE {
     )
     BIND("evidencefreshnessaxisdivergence" AS ?violation)
   } UNION {
+    # The five contracts consumed by the materialisation gateway declare the
+    # scoped/legacy mode explicitly. Removing the discriminator cannot remove
+    # the contract from this invariant.
+    VALUES (?subject ?expectedMode) {
+      (<urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> false)
+      (<urn:usf:semanticcontract:compilersemanticenforcement> false)
+      (<urn:usf:semanticcontract:providerconfigurationplane> true)
+      (<urn:usf:semanticcontract:providerenvironmentclassification> true)
+      (<urn:usf:semanticcontract:servicecatalogandproviderintegrationmodel> true)
+    }
+    FILTER(
+      NOT EXISTS { ?subject usf:decisionScopedMaterialisationRequired ?expectedMode }
+      || EXISTS {
+        ?subject usf:decisionScopedMaterialisationRequired ?observedMode .
+        FILTER(?observedMode != ?expectedMode)
+      }
+    )
+    BIND("materialisationcontractscopemodeinvalid" AS ?violation)
+  } UNION {
+    # The owner-selected decision identity is part of the authority boundary;
+    # a structurally similar accepted decision cannot substitute for it.
+    VALUES (?contract ?expectedDecision) {
+      (<urn:usf:semanticcontract:providerconfigurationplane> <urn:usf:realisationdecision:providerconfigurationplanefactoryworkforce>)
+      (<urn:usf:semanticcontract:providerenvironmentclassification> <urn:usf:realisationdecision:providerenvironmentclassificationfactoryworkforce>)
+      (<urn:usf:semanticcontract:servicecatalogandproviderintegrationmodel> <urn:usf:realisationdecision:servicecatalogandproviderintegrationmodelfactoryworkforce>)
+    }
+    FILTER(
+      NOT EXISTS { ?contract usf:effectiveRealisationDecision ?expectedDecision }
+      || EXISTS {
+        ?contract usf:effectiveRealisationDecision ?observedDecision .
+        FILTER(?observedDecision != ?expectedDecision)
+      }
+    )
+    BIND(?contract AS ?subject)
+    BIND("decisionscopedmaterialisationeffectivedecisioninvalid" AS ?violation)
+  } UNION {
+    # A scoped contract projects only its exact effective accepted decision.
+    # Source paths alone never imply directory traversal or filesystem actions.
+    ?contract a usf:SemanticContract ; usf:decisionScopedMaterialisationRequired true .
+    FILTER NOT EXISTS {
+      ?contract usf:effectiveRealisationDecision ?decision .
+      ?realisation a usf:Realisation ; usf:realisesContract ?contract ; usf:authorisedByDecision ?decision .
+      ?decision a usf:RealisationDecision ; usf:decisionForContract ?contract ;
+        usf:decisionState <urn:usf:decisionstate:accepted> ;
+        usf:authorisesRepository "maldous/usf-factory" ;
+        usf:authorisesSourcePath ?path ;
+        usf:authorisesSourceDirectory "src/usf_factory/providers", "tests/provider_workforce" ;
+        usf:authorisesMaterialisationAction "write-file" ;
+        usf:authorisesArtefactFamily ?family .
+      FILTER NOT EXISTS { ?contract usf:effectiveRealisationDecision ?otherDecision . FILTER(?otherDecision != ?decision) }
+      FILTER NOT EXISTS { ?decision usf:authorisesRepository ?otherRepository . FILTER(?otherRepository != "maldous/usf-factory") }
+      FILTER NOT EXISTS { ?decision usf:authorisesSourceDirectory ?otherDirectory . FILTER(?otherDirectory NOT IN ("src/usf_factory/providers", "tests/provider_workforce")) }
+      FILTER NOT EXISTS { ?decision usf:authorisesMaterialisationAction ?otherAction . FILTER(?otherAction != "write-file") }
+    }
+    BIND(?contract AS ?subject)
+    BIND("decisionscopedmaterialisationpermissionincomplete" AS ?violation)
+  } UNION {
+    # The exact provider repository is selected by the owner decision.
+    ?contract a usf:SemanticContract ; usf:decisionScopedMaterialisationRequired true ;
+      usf:effectiveRealisationDecision ?subject .
+    FILTER(
+      NOT EXISTS { ?subject usf:authorisesRepository "maldous/usf-factory" }
+      || EXISTS { ?subject usf:authorisesRepository ?repository . FILTER(?repository != "maldous/usf-factory") }
+    )
+    BIND("decisionscopedmaterialisationrepositoryinvalid" AS ?violation)
+  } UNION {
+    # The scoped gateway accepts write-file only. Any additional action would
+    # make its permission projection broader than the owner decision.
+    ?contract a usf:SemanticContract ; usf:decisionScopedMaterialisationRequired true ;
+      usf:effectiveRealisationDecision ?subject .
+    ?subject a usf:RealisationDecision ; usf:decisionForContract ?contract ;
+      usf:decisionState <urn:usf:decisionstate:accepted> .
+    FILTER(
+      EXISTS {
+        ?subject usf:authorisesMaterialisationAction ?action .
+        FILTER(?action != "write-file")
+      }
+    )
+    BIND("decisionscopedmaterialisationpermissionambiguous" AS ?violation)
+  } UNION {
+    # The provider directory set is exact. Extra normalized directories are
+    # still a scope expansion and therefore an integrity violation.
+    ?contract a usf:SemanticContract ; usf:decisionScopedMaterialisationRequired true ;
+      usf:effectiveRealisationDecision ?subject .
+    ?subject a usf:RealisationDecision ; usf:decisionForContract ?contract ;
+      usf:decisionState <urn:usf:decisionstate:accepted> .
+    FILTER(
+      NOT EXISTS { ?subject usf:authorisesSourceDirectory "src/usf_factory/providers" }
+      || NOT EXISTS { ?subject usf:authorisesSourceDirectory "tests/provider_workforce" }
+      || EXISTS {
+        ?subject usf:authorisesSourceDirectory ?unexpectedDirectory .
+        FILTER(?unexpectedDirectory NOT IN ("src/usf_factory/providers", "tests/provider_workforce"))
+      }
+    )
+    BIND("decisionscopedmaterialisationdirectorysetinvalid" AS ?violation)
+  } UNION {
+    # Directory traversal is strict, normalized and disjoint from exact files.
+    ?contract a usf:SemanticContract ; usf:decisionScopedMaterialisationRequired true ;
+      usf:effectiveRealisationDecision ?subject .
+    ?subject a usf:RealisationDecision ; usf:decisionForContract ?contract ;
+      usf:decisionState <urn:usf:decisionstate:accepted> .
+    { ?subject usf:authorisesSourceDirectory ?path }
+    UNION { ?subject usf:authorisesSourcePath ?path }
+    FILTER(
+      EXISTS { ?subject usf:authorisesSourceDirectory ?path ; usf:authorisesSourcePath ?path }
+      || ?path = "." || STRSTARTS(?path, "/") || STRENDS(?path, "/") || CONTAINS(?path, "//")
+      || CONTAINS(CONCAT("/", ?path, "/"), "/../") || CONTAINS(CONCAT("/", ?path, "/"), "/./")
+      || !REGEX(?path, "^[A-Za-z0-9._/-]+$")
+    )
+    BIND("decisionscopedmaterialisationpathinvalid" AS ?violation)
+  } UNION {
+    # Exact-file authority is enforced independently in the data-plane
+    # integrity query. It does not depend on SHACL graphs, which are not part of
+    # the canonical integrity dataset. Required membership plus exact cardinality
+    # rejects missing, substituted and additional normalized paths.
+    {
+      VALUES ?subject {
+        <urn:usf:realisationdecision:providerconfigurationplanefactoryworkforce>
+      }
+      VALUES ?requiredPath {
+        ".env.example"
+        "config/budgets.yaml"
+        "config/providers.yaml"
+        "config/qualification-suite.yaml"
+        "config/routing.yaml"
+        "config/safe-adaptive-execution.yaml"
+        "config/workforce-policy.yaml"
+        "docs/architecture.md"
+        "docs/credential-import.md"
+        "docs/design-dispositions.yaml"
+        "docs/known-limitations.md"
+        "docs/model-qualification.md"
+        "docs/operator-guide.md"
+        "docs/provider-adapters.md"
+        "docs/security.md"
+        "scripts/check-provider-env.py"
+        "scripts/import-provider-env.py"
+        "src/usf_factory/accounting.py"
+        "src/usf_factory/accounting_cli.py"
+        "src/usf_factory/accounting_models.py"
+        "src/usf_factory/accounting_report.py"
+        "src/usf_factory/accounting_runtime.py"
+        "src/usf_factory/activation.py"
+        "src/usf_factory/adaptive_execution.py"
+        "src/usf_factory/adaptive_routing.py"
+        "src/usf_factory/admission.py"
+        "src/usf_factory/affinity_dispatch.py"
+        "src/usf_factory/agent_runtime.py"
+        "src/usf_factory/bootstrap.py"
+        "src/usf_factory/budget.py"
+        "src/usf_factory/capabilities.py"
+        "src/usf_factory/cli.py"
+        "src/usf_factory/config.py"
+        "src/usf_factory/context_pack.py"
+        "src/usf_factory/dispatch.py"
+        "src/usf_factory/doctor.py"
+        "src/usf_factory/dynamic_dispatch.py"
+        "src/usf_factory/eligibility.py"
+        "src/usf_factory/engine.py"
+        "src/usf_factory/enums.py"
+        "src/usf_factory/errors.py"
+        "src/usf_factory/event_store.py"
+        "src/usf_factory/identity_evidence.py"
+        "src/usf_factory/integration.py"
+        "src/usf_factory/lazy_qualification.py"
+        "src/usf_factory/learning.py"
+        "src/usf_factory/model_market.py"
+        "src/usf_factory/model_market_runtime.py"
+        "src/usf_factory/model_registry.py"
+        "src/usf_factory/models.py"
+        "src/usf_factory/planner.py"
+        "src/usf_factory/probes.py"
+        "src/usf_factory/probing.py"
+        "src/usf_factory/prompt_cache.py"
+        "src/usf_factory/provider_eval.py"
+        "src/usf_factory/qualification.py"
+        "src/usf_factory/review.py"
+        "src/usf_factory/roster.py"
+        "src/usf_factory/run_authorization.py"
+        "src/usf_factory/runtime.py"
+        "src/usf_factory/scheduler.py"
+        "src/usf_factory/secrets.py"
+        "src/usf_factory/selection.py"
+        "src/usf_factory/selection_report.py"
+        "src/usf_factory/supervised_scheduler.py"
+        "src/usf_factory/token_efficiency.py"
+        "src/usf_factory/workers.py"
+        "src/usf_factory/workforce.py"
+        "src/usf_factory/workforce_policy.py"
+        "tests/test_activation.py"
+        "tests/test_adaptive_execution.py"
+        "tests/test_adaptive_routing.py"
+        "tests/test_affinity_chain_execution.py"
+        "tests/test_affinity_dispatch.py"
+        "tests/test_agent_runtime.py"
+        "tests/test_bootstrap.py"
+        "tests/test_codex_containment.py"
+        "tests/test_context_and_usage.py"
+        "tests/test_contract.py"
+        "tests/test_durable_state.py"
+        "tests/test_free_tier_classification.py"
+        "tests/test_lazy_qualification.py"
+        "tests/test_model_market.py"
+        "tests/test_openai_identity_evidence.py"
+        "tests/test_operational_accounting.py"
+        "tests/test_p1.py"
+        "tests/test_prompt_cache.py"
+        "tests/test_provider_contact_exclusions.py"
+        "tests/test_provider_coverage.py"
+        "tests/test_provider_preference_policy.py"
+        "tests/test_review_fixes.py"
+        "tests/test_roster_scheduling.py"
+        "tests/test_runtime.py"
+        "tests/test_scheduler.py"
+        "tests/test_secrets.py"
+        "tests/test_selection.py"
+        "tests/test_supervised_scheduler.py"
+        "tests/test_targeted_qualification.py"
+        "tests/test_token_efficiency.py"
+        "tests/test_workforce_bootstrap.py"
+        "tests/test_workforce_policy.py"
+        "tests/test_workforce_snapshot.py"
+      }
+      FILTER NOT EXISTS { ?subject usf:authorisesSourcePath ?requiredPath }
+    }
+    UNION
+    {
+      VALUES ?subject {
+        <urn:usf:realisationdecision:providerenvironmentclassificationfactoryworkforce>
+        <urn:usf:realisationdecision:servicecatalogandproviderintegrationmodelfactoryworkforce>
+      }
+      VALUES ?requiredPath {
+        ".env.example"
+        "config/budgets.yaml"
+        "config/providers.yaml"
+        "config/qualification-suite.yaml"
+        "config/routing.yaml"
+        "config/workforce-policy.yaml"
+        "docs/design-dispositions.yaml"
+        "docs/model-qualification.md"
+        "docs/operator-guide.md"
+        "docs/provider-adapters.md"
+        "docs/security.md"
+        "scripts/check-provider-env.py"
+        "scripts/import-provider-env.py"
+        "src/usf_factory/accounting.py"
+        "src/usf_factory/accounting_models.py"
+        "src/usf_factory/accounting_report.py"
+        "src/usf_factory/accounting_runtime.py"
+        "src/usf_factory/activation.py"
+        "src/usf_factory/admission.py"
+        "src/usf_factory/bootstrap.py"
+        "src/usf_factory/capabilities.py"
+        "src/usf_factory/cli.py"
+        "src/usf_factory/config.py"
+        "src/usf_factory/eligibility.py"
+        "src/usf_factory/enums.py"
+        "src/usf_factory/errors.py"
+        "src/usf_factory/identity_evidence.py"
+        "src/usf_factory/lazy_qualification.py"
+        "src/usf_factory/model_market.py"
+        "src/usf_factory/model_market_runtime.py"
+        "src/usf_factory/model_registry.py"
+        "src/usf_factory/probes.py"
+        "src/usf_factory/probing.py"
+        "src/usf_factory/provider_eval.py"
+        "src/usf_factory/qualification.py"
+        "src/usf_factory/roster.py"
+        "src/usf_factory/run_authorization.py"
+        "src/usf_factory/runtime.py"
+        "src/usf_factory/secrets.py"
+        "src/usf_factory/selection.py"
+        "src/usf_factory/selection_report.py"
+        "src/usf_factory/supervised_scheduler.py"
+        "src/usf_factory/workforce.py"
+        "src/usf_factory/workforce_policy.py"
+        "tests/test_activation.py"
+        "tests/test_agent_runtime.py"
+        "tests/test_bootstrap.py"
+        "tests/test_contract.py"
+        "tests/test_free_tier_classification.py"
+        "tests/test_lazy_qualification.py"
+        "tests/test_model_market.py"
+        "tests/test_openai_identity_evidence.py"
+        "tests/test_operational_accounting.py"
+        "tests/test_p1.py"
+        "tests/test_provider_contact_exclusions.py"
+        "tests/test_provider_coverage.py"
+        "tests/test_provider_preference_policy.py"
+        "tests/test_review_fixes.py"
+        "tests/test_runtime.py"
+        "tests/test_secrets.py"
+        "tests/test_supervised_scheduler.py"
+        "tests/test_workforce_bootstrap.py"
+        "tests/test_workforce_policy.py"
+      }
+      FILTER NOT EXISTS { ?subject usf:authorisesSourcePath ?requiredPath }
+    }
+    UNION
+    {
+      {
+        SELECT ?subject ?expectedCount (COUNT(DISTINCT ?observedPath) AS ?observedCount) WHERE {
+          VALUES (?subject ?expectedCount) {
+            (<urn:usf:realisationdecision:providerconfigurationplanefactoryworkforce> 102)
+            (<urn:usf:realisationdecision:providerenvironmentclassificationfactoryworkforce> 63)
+            (<urn:usf:realisationdecision:servicecatalogandproviderintegrationmodelfactoryworkforce> 63)
+          }
+          OPTIONAL { ?subject usf:authorisesSourcePath ?observedPath }
+        }
+        GROUP BY ?subject ?expectedCount
+      }
+      FILTER(?observedCount != ?expectedCount)
+    }
+    BIND("decisionscopedmaterialisationpathsetinvalid" AS ?violation)
+  } UNION {
+    # The provider-workforce scope is the exact selected seven-family set.
+    ?contract a usf:SemanticContract ; usf:decisionScopedMaterialisationRequired true ;
+      usf:effectiveRealisationDecision ?subject .
+    VALUES ?requiredFamily {
+      <urn:usf:artefactfamily:factorypythonpackagerealisation>
+      <urn:usf:artefactfamily:factorypythontestrealisation>
+      <urn:usf:artefactfamily:factorypythonoperatorrealisation>
+      <urn:usf:artefactfamily:factoryconfiguration>
+      <urn:usf:artefactfamily:factorymarkdowndocumentation>
+      <urn:usf:artefactfamily:factoryyamldocumentation>
+      <urn:usf:artefactfamily:factoryenvironmentexample>
+    }
+    FILTER(
+      NOT EXISTS { ?subject usf:authorisesArtefactFamily ?requiredFamily }
+      || EXISTS {
+        ?subject usf:authorisesArtefactFamily ?unexpectedFamily .
+        FILTER(?unexpectedFamily NOT IN (
+          <urn:usf:artefactfamily:factorypythonpackagerealisation>,
+          <urn:usf:artefactfamily:factorypythontestrealisation>,
+          <urn:usf:artefactfamily:factorypythonoperatorrealisation>,
+          <urn:usf:artefactfamily:factoryconfiguration>,
+          <urn:usf:artefactfamily:factorymarkdowndocumentation>,
+          <urn:usf:artefactfamily:factoryyamldocumentation>,
+          <urn:usf:artefactfamily:factoryenvironmentexample>
+        ))
+      }
+    )
+    BIND("decisionscopedmaterialisationfamilysetinvalid" AS ?violation)
+  } UNION {
+    # Each authorised family resolves to its exact selected Git-tracked rule,
+    # role, format, extension and naming tuple. A structurally valid substitute
+    # is still an authority change, not an equivalent permission.
+    ?contract a usf:SemanticContract ; usf:decisionScopedMaterialisationRequired true ;
+      usf:effectiveRealisationDecision ?subject .
+    ?subject a usf:RealisationDecision ; usf:decisionForContract ?contract ;
+      usf:decisionState <urn:usf:decisionstate:accepted> ;
+      usf:authorisesArtefactFamily ?family .
+    VALUES (?family ?expectedRule ?expectedRole ?expectedFormat ?expectedExtension ?expectedNaming) {
+      (<urn:usf:artefactfamily:factorypythonpackagerealisation> <urn:usf:materialisationrule:factorypythonpackagerealisation> <urn:usf:pathrole:factorypythonpackagesource> <urn:usf:representationformat:python311source> ".py" <urn:usf:namingrule:factorypythonmodule>)
+      (<urn:usf:artefactfamily:factorypythontestrealisation> <urn:usf:materialisationrule:factorypythontestrealisation> <urn:usf:pathrole:factoryproviderworkforcetestsource> <urn:usf:representationformat:python311source> ".py" <urn:usf:namingrule:factorypythontest>)
+      (<urn:usf:artefactfamily:factorypythonoperatorrealisation> <urn:usf:materialisationrule:factorypythonoperatorrealisation> <urn:usf:pathrole:factoryproviderscriptsource> <urn:usf:representationformat:python311source> ".py" <urn:usf:namingrule:factorypythonoperatorscript>)
+      (<urn:usf:artefactfamily:factoryconfiguration> <urn:usf:materialisationrule:factoryconfiguration> <urn:usf:pathrole:factoryconfigurationsource> <urn:usf:representationformat:yamlconfiguration12> ".yaml" <urn:usf:namingrule:factoryyamlconfiguration>)
+      (<urn:usf:artefactfamily:factorymarkdowndocumentation> <urn:usf:materialisationrule:factorymarkdowndocumentation> <urn:usf:pathrole:factorydocumentationsource> <urn:usf:representationformat:markdowncommonmark> ".md" <urn:usf:namingrule:factorymarkdowndocumentation>)
+      (<urn:usf:artefactfamily:factoryyamldocumentation> <urn:usf:materialisationrule:factoryyamldocumentation> <urn:usf:pathrole:factorydocumentationsource> <urn:usf:representationformat:yamlconfiguration12> ".yaml" <urn:usf:namingrule:factoryyamldocumentation>)
+      (<urn:usf:artefactfamily:factoryenvironmentexample> <urn:usf:materialisationrule:factoryenvironmentexample> <urn:usf:pathrole:factoryenvironmentexample> <urn:usf:representationformat:dotenvexample> ".env.example" <urn:usf:namingrule:factoryenvironmentexample>)
+    }
+    FILTER(
+      NOT EXISTS {
+        ?family a usf:ArtefactFamily ; usf:usesMaterialisationRule ?expectedRule .
+        ?expectedRule a usf:MaterialisationRule ; usf:governedArtefactFamily ?family ;
+          usf:usesStorageClass <urn:usf:storageclass:gittrackedsource> ;
+          usf:usesPathRole ?expectedRole ; usf:usesRepresentationFormat ?expectedFormat ;
+          usf:usesNamingRule ?expectedNaming .
+        ?expectedFormat usf:canonicalExtension ?expectedExtension .
+      }
+      || EXISTS { ?family usf:usesMaterialisationRule ?observedRule . FILTER(?observedRule != ?expectedRule) }
+      || EXISTS { ?expectedRule usf:usesPathRole ?observedRole . FILTER(?observedRole != ?expectedRole) }
+      || EXISTS { ?expectedRule usf:usesRepresentationFormat ?observedFormat . FILTER(?observedFormat != ?expectedFormat) }
+      || EXISTS { ?expectedRule usf:usesStorageClass ?observedStorage . FILTER(?observedStorage != <urn:usf:storageclass:gittrackedsource>) }
+      || EXISTS { ?expectedRule usf:usesNamingRule ?observedNaming . FILTER(?observedNaming != ?expectedNaming) }
+      || EXISTS { ?expectedFormat usf:canonicalExtension ?observedExtension . FILTER(?observedExtension != ?expectedExtension) }
+    )
+    BIND("decisionscopedmaterialisationruleinvalid" AS ?violation)
+  } UNION {
+    # Naming-rule identity is not sufficient: the selected filename pattern is
+    # itself part of the materialisation permission tuple.
+    VALUES (?naming ?expectedPattern) {
+      (<urn:usf:namingrule:factorypythonmodule> "^(?:__init__|[a-z][a-z0-9]*(?:_[a-z0-9]+)*)[.]py$")
+      (<urn:usf:namingrule:factorypythontest> "^test_[a-z][a-z0-9]*(?:_[a-z0-9]+)*[.]py$")
+      (<urn:usf:namingrule:factorypythonoperatorscript> "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]py$")
+      (<urn:usf:namingrule:factoryyamlconfiguration> "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]yaml$")
+      (<urn:usf:namingrule:factorymarkdowndocumentation> "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]md$")
+      (<urn:usf:namingrule:factoryyamldocumentation> "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*[.]yaml$")
+      (<urn:usf:namingrule:factoryenvironmentexample> "^[.]env[.]example$")
+    }
+    FILTER(
+      NOT EXISTS { ?naming usf:filenamePattern ?expectedPattern }
+      || EXISTS { ?naming usf:filenamePattern ?observedPattern . FILTER(?observedPattern != ?expectedPattern) }
+    )
+    BIND(?naming AS ?subject)
+    BIND("decisionscopedmaterialisationnamingpatterninvalid" AS ?violation)
+  } UNION {
+    # Legacy materialisation contracts retain their existing mechanics and
+    # cannot silently acquire the scoped permission vocabulary.
+    ?contract a usf:SemanticContract ; usf:decisionScopedMaterialisationRequired false .
+    ?subject a usf:RealisationDecision ; usf:decisionForContract ?contract .
+    { ?subject usf:authorisesSourceDirectory ?value }
+    UNION { ?subject usf:authorisesMaterialisationAction ?value }
+    UNION { ?subject usf:authorisesArtefactFamily ?value }
+    BIND("legacymaterialisationdecisionhasscopedpermission" AS ?violation)
+  } UNION {
     # an ArtefactPlan that does not resolve exactly one materialisation
     # destination. A plan naming a path and a generator but leaving the family,
     # format, repository or rule undetermined cannot produce an operation, and

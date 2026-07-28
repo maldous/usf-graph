@@ -4,7 +4,15 @@ import { classifySparql } from './sparql-guard.mjs';
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MCP_REPOSITORY_ROOT, makeRedactor, callTool, cappedSelect, TOOLS } from './semantic-authority-mcp.mjs';
+import {
+  FACTORY_REPOSITORY_IDENTITY,
+  MCP_REPOSITORY_IDENTITY,
+  MCP_REPOSITORY_ROOT,
+  makeRedactor,
+  callTool,
+  cappedSelect,
+  TOOLS,
+} from './semantic-authority-mcp.mjs';
 import { BOOTSTRAP_TRACE, MAX_BOOTSTRAP_BINDINGS, MAX_BOOTSTRAP_BYTES, MAX_BOOTSTRAP_DEPTH, validContractRef, authorityDigest, authorityWitness, bootstrapPacket } from './semantic-bootstrap-packet.mjs';
 
 test('read-only query forms are accepted', () => {
@@ -380,6 +388,8 @@ test('the materialisation repository root is the repository, not its parent', ()
   // outside the checkout, so the root is pinned to the directory that actually
   // carries this repository's package.json and authorised path roles.
   assert.equal(MCP_REPOSITORY_ROOT, resolve(dirname(fileURLToPath(import.meta.url)), '..', '..'));
+  assert.equal(MCP_REPOSITORY_IDENTITY, 'maldous/usf-graph');
+  assert.equal(FACTORY_REPOSITORY_IDENTITY, 'maldous/usf-factory');
   assert.ok(existsSync(join(MCP_REPOSITORY_ROOT, 'package.json')));
   // Only roots the semantic-assurance gate snapshots may be asserted here: the
   // gate executes from an immutable snapshot containing exactly snapshotPaths,

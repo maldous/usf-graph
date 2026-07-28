@@ -901,6 +901,7 @@ const evidenceCore = {
     },
   ],
   commandResults: failureContext.commands,
+  candidateAuthorityDigest: candidate.commitOutcome.candidateDigest,
   candidateDependencySetDigest,
   dependencyDigestAlgorithm: AUTHORITY_DEPENDENCY_DIGEST_ALGORITHM,
   authorityBindingRule: SELF_PUBLICATION_RULE,
@@ -939,7 +940,10 @@ const statement = {
   subject: [{ name: 'repository-materialisation-control-plane-evidence', digest: { sha256: evidenceManifestDescriptor.digest.slice(7) } }],
   predicateType: 'https://in-toto.io/attestation/test-result/v0.1',
   predicate: {
-    evaluatedAuthorityDigest, candidateDependencySetDigest, exactEvidenceSetDigest,
+    evaluatedAuthorityDigest,
+    candidateAuthorityDigest: candidate.commitOutcome.candidateDigest,
+    candidateDependencySetDigest,
+    exactEvidenceSetDigest,
     implementationSourceDigest: implementationSources.digest, proofAlgorithmSourceDigest, result: 'passed',
   },
 };
