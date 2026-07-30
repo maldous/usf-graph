@@ -17,7 +17,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const TEST_SUFFIX = '.test.mjs';
@@ -81,6 +81,21 @@ const sha256 = (value) => `sha256:${createHash('sha256').update(value).digest('h
 const rejectionCodeVocabularyDigest = sha256(canonicalJson(TEST_REJECTION_CODES));
 const comparePaths = (left, right) => left < right ? -1 : left > right ? 1 : 0;
 const portable = (path) => path.replaceAll('\\', '/').replace(/^\.\//, '');
+const currentNodeExecutable = (
+  executable = process.execPath,
+  searchPath = process.env.PATH || '',
+) => {
+  if (isAbsolute(executable)) return realpathSync(executable);
+  if (!executable || executable.includes(sep)) {
+    reject('NODE_VERSION_MISMATCH', 'relative Node executable identity is not a bare command');
+  }
+  for (const directory of searchPath.split(delimiter)) {
+    if (!isAbsolute(directory)) continue;
+    const candidate = join(directory, executable);
+    if (existsSync(candidate)) return realpathSync(candidate);
+  }
+  reject('NODE_VERSION_MISMATCH', 'relative Node executable cannot be resolved through the controlled PATH');
+};
 
 const observedStatIdentity = (stat) => ({
   device: stat.dev.toString(),
@@ -576,7 +591,7 @@ function removeSnapshot(snapshot) {
 export function executeTestInventory(inventory, {
   repositoryRoot,
   execute = execFileSync,
-  nodeExecutable = process.execPath,
+  nodeExecutable = currentNodeExecutable(),
   expectedNodeExecutableDigest = REQUIRED_NODE_EXECUTABLE_DIGEST,
   nodeIdentityVerifier = inspectNodeIdentity,
   networkIsolator = '/usr/bin/unshare',
@@ -874,6 +889,7 @@ export const testRunnerInternals = Object.freeze({
   classifyTargetStat,
   enumerateSnapshot,
   inspectNodeIdentity,
+  currentNodeExecutable,
   snapshotModuleRecord,
   snapshotLoadedModuleRecord,
   snapshotExecutionBytes,

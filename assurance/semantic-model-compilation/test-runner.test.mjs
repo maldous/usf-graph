@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import net from 'node:net';
 import { tmpdir } from 'node:os';
@@ -35,6 +35,19 @@ function fixture({ withTests = true } = {}) {
 }
 
 test.after(() => roots.forEach((root) => rmSync(root, { recursive: true, force: true })));
+
+test('relative process executable identity resolves through the controlled PATH', () => {
+  const root = fixture({ withTests: false });
+  const expected = realpathSync(join(root, 'authorised', 'fake-node'));
+  assert.equal(
+    testRunnerInternals.currentNodeExecutable('fake-node', join(root, 'authorised')),
+    expected,
+  );
+  expectCode(
+    () => testRunnerInternals.currentNodeExecutable('missing-node', join(root, 'authorised')),
+    'NODE_VERSION_MISMATCH',
+  );
+});
 
 const expectCode = (operation, reasonCode) => assert.throws(operation, (error) => {
   assert.equal(error.reasonCode, reasonCode);
