@@ -13,6 +13,7 @@ import {
   PROOF_CURRENTNESS_CODES,
   PROOF_CURRENTNESS_STATE_IRI,
   deriveProofCurrentness,
+  readProofCurrentnessFacts,
 } from './proof-currentness.mjs';
 import { GAP_DISPOSITIONS, ACTION_STATES } from './repository-materialisation-gateway.mjs';
 
@@ -38,6 +39,7 @@ function facts(overrides = {}) {
       proof: binding('urn:usf:proof:repositorymaterialisationcontrolplane'),
       algorithm: binding(ALGORITHM),
       algorithmVersion: binding(VERSION),
+      algorithmVersionOwner: binding(ALGORITHM),
       algorithmSourceSetDigest: binding(SOURCE_SET),
       algorithmVersionSourceSetDigest: binding(SOURCE_SET),
       evidenceSetDigest: binding(`sha256:${'44'.repeat(32)}`),
@@ -62,6 +64,7 @@ function facts(overrides = {}) {
       sourceSetDigest: binding(SOURCE_SET),
       currentSourceSetDigest: binding(SOURCE_SET),
       currentVersion: binding(VERSION),
+      currentVersionOwner: binding(ALGORITHM),
       currentImplementation: binding(IMPLEMENTATION),
       currentDependency: binding(DEPENDENCY),
       currentDependencyAlgorithm: binding(DEPENDENCY_ALGORITHM),
@@ -73,7 +76,9 @@ function facts(overrides = {}) {
       reevaluationState: binding('urn:usf:proofreevaluationstate:successful'),
       settledDigest: binding(`sha256:${'66'.repeat(32)}`),
       reevaluationDependency: binding(DEPENDENCY),
+      evaluatedDigest: binding(`sha256:${'55'.repeat(32)}`),
       bindingDependency: binding(DEPENDENCY),
+      bindingDependencyAlgorithm: binding(DEPENDENCY_ALGORITHM),
     }],
   };
   return { ...base, ...overrides };
@@ -121,6 +126,9 @@ test('every explicit mismatch is STALE_BLOCK under its own code', () => {
     [mutate('algorithmRows', 0, { currentImplementation: binding(`sha256:${'ab'.repeat(32)}`) }), PROOF_CURRENTNESS_CODES.implementationDigestStale],
     [mutate('algorithmRows', 0, { currentDependency: binding(`sha256:${'cd'.repeat(32)}`) }), PROOF_CURRENTNESS_CODES.dependencyDigestStale],
     [mutate('algorithmRows', 0, { currentDependencyAlgorithm: binding('sha256-other') }), PROOF_CURRENTNESS_CODES.dependencyDigestStale],
+    [mutate('resultRows', 0, { algorithmVersionOwner: binding('urn:usf:proofalgorithm:other') }), PROOF_CURRENTNESS_CODES.algorithmDigestStale],
+    [mutate('algorithmRows', 0, { currentVersionOwner: binding('urn:usf:proofalgorithm:other') }), PROOF_CURRENTNESS_CODES.algorithmDigestStale],
+    [mutate('algorithmRows', 0, { algorithm: binding('urn:usf:proofalgorithm:other') }), PROOF_CURRENTNESS_CODES.algorithmDigestStale],
     [mutate('evidenceRows', 0, { freshness: binding('urn:usf:evidencefreshnessstate:stale') }), PROOF_CURRENTNESS_CODES.evidenceStale],
     [mutate('evidenceRows', 0, { integrity: binding('urn:usf:evidenceintegritystate:invalid') }), PROOF_CURRENTNESS_CODES.evidenceInvalid],
     [mutate('evidenceRows', 0, { admission: binding('urn:usf:evidenceadmissionstate:rejected') }), PROOF_CURRENTNESS_CODES.evidenceInvalid],
@@ -132,6 +140,9 @@ test('every explicit mismatch is STALE_BLOCK under its own code', () => {
     [mutate('resultRows', 0, { invalidation: binding('urn:usf:condition:y') }), PROOF_CURRENTNESS_CODES.evidenceInvalid],
     [mutate('bindingRows', 0, { reevaluationState: binding('urn:usf:proofreevaluationstate:failed') }), PROOF_CURRENTNESS_CODES.authorityBindingStale],
     [mutate('bindingRows', 0, { reevaluationDependency: binding(`sha256:${'ef'.repeat(32)}`) }), PROOF_CURRENTNESS_CODES.authorityBindingStale],
+    [mutate('bindingRows', 0, { bindingDependency: binding(`sha256:${'ed'.repeat(32)}`) }), PROOF_CURRENTNESS_CODES.authorityBindingStale],
+    [mutate('bindingRows', 0, { bindingDependencyAlgorithm: binding('sha256-other') }), PROOF_CURRENTNESS_CODES.authorityBindingStale],
+    [mutate('bindingRows', 0, { binding: binding('urn:usf:proofauthoritybinding:other') }), PROOF_CURRENTNESS_CODES.authorityBindingStale],
   ];
   for (const [overrides, code] of cases) {
     const verdict = derive(overrides);
@@ -140,33 +151,115 @@ test('every explicit mismatch is STALE_BLOCK under its own code', () => {
   }
 });
 
+test('authority binding rule and reevaluation requirement must be explicit and coherent', () => {
+  const wrongRule = derive(mutate('bindingRows', 0, {
+    rule: binding('urn:usf:authoritybindingrule:other'),
+  }));
+  assert.equal(wrongRule.state, PROOF_CURRENTNESS.unresolved);
+  assert.ok(wrongRule.reasons.includes(PROOF_CURRENTNESS_CODES.currentnessAmbiguous));
+
+  const unknownRequirement = derive(mutate('bindingRows', 0, {
+    requiresReevaluation: binding('unknown'),
+  }));
+  assert.equal(unknownRequirement.state, PROOF_CURRENTNESS.unresolved);
+  assert.ok(
+    unknownRequirement.reasons.includes(
+      PROOF_CURRENTNESS_CODES.currentnessAmbiguous,
+    ),
+  );
+});
+
+test('algorithm versions must be singly owned by the evaluated proof algorithm', () => {
+  for (const overrides of [
+    mutate('resultRows', 0, {
+      algorithmVersionOwner: binding('urn:usf:proofalgorithm:other'),
+    }),
+    mutate('algorithmRows', 0, {
+      currentVersionOwner: binding('urn:usf:proofalgorithm:other'),
+    }),
+  ]) {
+    const verdict = derive(overrides);
+    assert.equal(verdict.state, PROOF_CURRENTNESS.stale);
+    assert.ok(verdict.reasons.includes(PROOF_CURRENTNESS_CODES.algorithmDigestStale));
+  }
+
+  const ambiguous = derive({
+    resultRows: [
+      ...facts().resultRows,
+      {
+        ...facts().resultRows[0],
+        algorithmVersionOwner: binding('urn:usf:proofalgorithm:other'),
+      },
+    ],
+  });
+  assert.equal(ambiguous.state, PROOF_CURRENTNESS.unresolved);
+  assert.ok(ambiguous.reasons.includes(PROOF_CURRENTNESS_CODES.currentnessUnresolved));
+});
+
+test('fact projection retrieves ownership for both used and current algorithm versions', async () => {
+  const queries = [];
+  await readProofCurrentnessFacts({
+    select: async (query) => {
+      queries.push(query);
+      return [];
+    },
+  }, 'urn:usf:semanticcontract:test');
+  assert.equal(queries.length, 4);
+  assert.match(queries[0], /\?algorithmVersionOwner/u);
+  assert.match(
+    queries[0],
+    /\?algorithmVersion <urn:usf:ontology:proofAlgorithmVersionOf> \?algorithmVersionOwner/u,
+  );
+  assert.match(queries[2], /\?currentVersionOwner/u);
+  assert.match(
+    queries[2],
+    /\?currentVersion <urn:usf:ontology:proofAlgorithmVersionOf> \?currentVersionOwner/u,
+  );
+});
+
 test('missing or ambiguous information is UNRESOLVED_FAIL_CLOSED, never CURRENT', () => {
   const cases = [
     without('resultRows', 0, 'state'),
     without('resultRows', 0, 'obligation'),
     without('resultRows', 0, 'proof'),
+    without('resultRows', 0, 'algorithm'),
+    without('resultRows', 0, 'algorithmVersion'),
+    without('resultRows', 0, 'algorithmVersionOwner'),
     without('resultRows', 0, 'evidenceSetDigest'),
     without('resultRows', 0, 'implementationDigest'),
     without('resultRows', 0, 'dependencyDigest'),
+    without('resultRows', 0, 'dependencyAlgorithm'),
     without('resultRows', 0, 'binding'),
     without('resultRows', 0, 'evidence'),
     without('resultRows', 0, 'algorithmSourceSetDigest'),
     without('resultRows', 0, 'algorithmVersionSourceSetDigest'),
     without('algorithmRows', 0, 'sourceSetDigest'),
     without('algorithmRows', 0, 'currentSourceSetDigest'),
+    without('algorithmRows', 0, 'currentVersion'),
+    without('algorithmRows', 0, 'currentVersionOwner'),
     without('algorithmRows', 0, 'currentImplementation'),
     without('algorithmRows', 0, 'currentDependency'),
+    without('algorithmRows', 0, 'currentDependencyAlgorithm'),
     without('evidenceRows', 0, 'admission'),
     without('evidenceRows', 0, 'freshness'),
     without('evidenceRows', 0, 'integrity'),
     without('evidenceRows', 0, 'withinScope'),
     without('evidenceRows', 0, 'validUntil'),
+    without('bindingRows', 0, 'rule'),
+    without('bindingRows', 0, 'requiresReevaluation'),
+    without('bindingRows', 0, 'evaluatedDigest'),
+    without('bindingRows', 0, 'bindingDependency'),
+    without('bindingRows', 0, 'bindingDependencyAlgorithm'),
     { bindingRows: [] },
     { resultRows: [] },
   ];
   for (const overrides of cases) {
     const verdict = derive(overrides);
-    assert.notEqual(verdict.state, PROOF_CURRENTNESS.current, `absence reached CURRENT: ${JSON.stringify(overrides).slice(0, 90)}`);
+    assert.equal(
+      verdict.state,
+      PROOF_CURRENTNESS.unresolved,
+      `absence did not fail unresolved: ${JSON.stringify(overrides).slice(0, 90)}`,
+    );
   }
   // Two contradictory relied-on results are ambiguous, not "the first one".
   const ambiguous = derive({
@@ -249,11 +342,43 @@ test('a pending post-publication reevaluation fails closed rather than blocking'
   const notRequired = derive({
     bindingRows: [{
       binding: binding('urn:usf:proofauthoritybinding:repositorymaterialisationcontrolplane'),
+      rule: binding('urn:usf:authoritybindingrule:directauthoritybinding'),
       requiresReevaluation: binding('false'),
+      evaluatedDigest: binding(`sha256:${'55'.repeat(32)}`),
       bindingDependency: binding(DEPENDENCY),
+      bindingDependencyAlgorithm: binding(DEPENDENCY_ALGORITHM),
     }],
   });
   assert.equal(notRequired.state, PROOF_CURRENTNESS.current);
+});
+
+test('Stage-1 pending remains unresolved through publication and fresh Stage-2 becomes CURRENT', () => {
+  const stageOne = facts().bindingRows.map((row) => ({ ...row }));
+  stageOne[0].reevaluationState = binding(
+    'urn:usf:proofreevaluationstate:pending',
+  );
+  delete stageOne[0].settledDigest;
+  delete stageOne[0].reevaluationDependency;
+  const beforePublication = derive({ bindingRows: stageOne });
+  assert.equal(beforePublication.state, PROOF_CURRENTNESS.unresolved);
+
+  // Publication moves authority outside this pure resolver. Until a new
+  // reevaluation fact is projected, the same bound Stage-1 input must remain
+  // unresolved rather than being inferred current from successful proof state.
+  const afterPublication = derive({
+    bindingRows: stageOne.map((row) => ({ ...row })),
+  });
+  assert.equal(afterPublication.state, PROOF_CURRENTNESS.unresolved);
+
+  const stageTwo = stageOne.map((row) => ({
+    ...row,
+    reevaluationState: binding('urn:usf:proofreevaluationstate:successful'),
+    settledDigest: binding(`sha256:${'66'.repeat(32)}`),
+    reevaluationDependency: binding(DEPENDENCY),
+  }));
+  const fresh = derive({ bindingRows: stageTwo });
+  assert.equal(fresh.state, PROOF_CURRENTNESS.current);
+  assert.deepEqual([...fresh.reasons], []);
 });
 
 test('a proof for an obligation the contract does not mandate is not current', () => {

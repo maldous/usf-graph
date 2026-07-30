@@ -66,7 +66,7 @@ function sole(rows, key) {
 
 export async function readProofCurrentnessFacts(client, contract) {
   const [resultRows, evidenceRows, algorithmRows, bindingRows] = await Promise.all([
-    client.select(`SELECT ?result ?state ?obligation ?proof ?algorithm ?algorithmVersion
+    client.select(`SELECT ?result ?state ?obligation ?proof ?algorithm ?algorithmVersion ?algorithmVersionOwner
         ?algorithmSourceSetDigest ?algorithmVersionSourceSetDigest ?evidenceSetDigest
         ?implementationDigest ?dependencyDigest ?dependencyAlgorithm ?toolchainDigest ?packageLockDigest
         ?producerCommit ?producerTree ?binding ?evidence ?invalidation ?supersession WHERE {
@@ -75,7 +75,10 @@ export async function readProofCurrentnessFacts(client, contract) {
       OPTIONAL { ?result <urn:usf:ontology:proofResultForObligation> ?obligation }
       OPTIONAL { ?result <urn:usf:ontology:resultForProof> ?proof }
       OPTIONAL { ?result <urn:usf:ontology:usesProofAlgorithm> ?algorithm }
-      OPTIONAL { ?result <urn:usf:ontology:usesAlgorithmVersion> ?algorithmVersion }
+      OPTIONAL {
+        ?result <urn:usf:ontology:usesAlgorithmVersion> ?algorithmVersion .
+        OPTIONAL { ?algorithmVersion <urn:usf:ontology:proofAlgorithmVersionOf> ?algorithmVersionOwner }
+      }
       OPTIONAL { ?result <urn:usf:ontology:algorithmSourceSetDigest> ?algorithmSourceSetDigest }
       OPTIONAL {
         ?result <urn:usf:ontology:usesAlgorithmVersion> ?algorithmVersion .
@@ -107,7 +110,7 @@ export async function readProofCurrentnessFacts(client, contract) {
       OPTIONAL { ?evidence <urn:usf:ontology:contentDigest> ?contentDigest }
     } ORDER BY ?evidence LIMIT 256`),
     client.select(`SELECT ?algorithm ?sourceDigest ?currentSourceDigest ?sourceSetDigest ?currentSourceSetDigest
-        ?currentVersion ?currentImplementation
+        ?currentVersion ?currentVersionOwner ?currentImplementation
         ?currentDependency ?currentDependencyAlgorithm ?currentToolchain ?currentPackageLock ?requiresGraphSource WHERE {
       <${contract}> <urn:usf:ontology:reliesOnProofResult> ?result .
       ?result <urn:usf:ontology:usesProofAlgorithm> ?algorithm .
@@ -115,7 +118,10 @@ export async function readProofCurrentnessFacts(client, contract) {
       OPTIONAL { ?algorithm <urn:usf:ontology:currentAlgorithmSourceDigest> ?currentSourceDigest }
       OPTIONAL { ?algorithm <urn:usf:ontology:proofAlgorithmSourceSetDigest> ?sourceSetDigest }
       OPTIONAL { ?algorithm <urn:usf:ontology:currentAlgorithmSourceSetDigest> ?currentSourceSetDigest }
-      OPTIONAL { ?algorithm <urn:usf:ontology:currentAlgorithmVersion> ?currentVersion }
+      OPTIONAL {
+        ?algorithm <urn:usf:ontology:currentAlgorithmVersion> ?currentVersion .
+        OPTIONAL { ?currentVersion <urn:usf:ontology:proofAlgorithmVersionOf> ?currentVersionOwner }
+      }
       OPTIONAL { ?algorithm <urn:usf:ontology:currentImplementationSourceSetDigest> ?currentImplementation }
       OPTIONAL { ?algorithm <urn:usf:ontology:currentDependencySetDigest> ?currentDependency }
       OPTIONAL { ?algorithm <urn:usf:ontology:currentDependencyDigestAlgorithm> ?currentDependencyAlgorithm }
@@ -207,8 +213,28 @@ export function deriveProofCurrentness(facts, { mandatoryObligations = [], obser
   }
 
   // Algorithm identity and the digests it declares current.
+  const resultAlgorithm = sole(resultRows, 'algorithm');
   const algorithm = sole(algorithmRows, 'algorithm');
-  if (algorithm.state !== 'present') unresolved(PROOF_CURRENTNESS_CODES.currentnessUnresolved, 'proof result names no single algorithm');
+  if (resultAlgorithm.state !== 'present') {
+    unresolved(
+      PROOF_CURRENTNESS_CODES.currentnessUnresolved,
+      'proof result names no single evaluated algorithm',
+    );
+  }
+  if (algorithm.state !== 'present') {
+    unresolved(
+      PROOF_CURRENTNESS_CODES.currentnessUnresolved,
+      'no single current algorithm is projected',
+    );
+  } else if (
+    resultAlgorithm.state === 'present'
+    && algorithm.value !== resultAlgorithm.value
+  ) {
+    stale(
+      PROOF_CURRENTNESS_CODES.algorithmDigestStale,
+      `evaluated algorithm ${resultAlgorithm.value} != projected algorithm ${algorithm.value}`,
+    );
+  }
   const compare = (declared, observed, code, label) => {
     if (declared.state !== 'present') { unresolved(PROOF_CURRENTNESS_CODES.currentnessUnresolved, `algorithm declares no current ${label}`); return; }
     if (observed.state !== 'present') { unresolved(PROOF_CURRENTNESS_CODES.currentnessUnresolved, `proof result records no ${label}`); return; }
@@ -250,6 +276,25 @@ export function deriveProofCurrentness(facts, { mandatoryObligations = [], obser
   }
   compare(sole(algorithmRows, 'currentVersion'), sole(resultRows, 'algorithmVersion'),
     PROOF_CURRENTNESS_CODES.algorithmDigestStale, 'algorithm version');
+  for (const [owner, label] of [
+    [sole(resultRows, 'algorithmVersionOwner'), 'proof-result algorithm version'],
+    [sole(algorithmRows, 'currentVersionOwner'), 'current algorithm version'],
+  ]) {
+    if (owner.state !== 'present') {
+      unresolved(
+        PROOF_CURRENTNESS_CODES.currentnessUnresolved,
+        `${label} has no single proofAlgorithmVersionOf owner`,
+      );
+    } else if (
+      resultAlgorithm.state === 'present'
+      && owner.value !== resultAlgorithm.value
+    ) {
+      stale(
+        PROOF_CURRENTNESS_CODES.algorithmDigestStale,
+        `${label} owner ${owner.value} != evaluated algorithm ${resultAlgorithm.value}`,
+      );
+    }
+  }
   compare(sole(algorithmRows, 'currentImplementation'), sole(resultRows, 'implementationDigest'),
     PROOF_CURRENTNESS_CODES.implementationDigestStale, 'implementation source-set digest');
   compare(sole(algorithmRows, 'currentDependency'), sole(resultRows, 'dependencyDigest'),
@@ -289,15 +334,68 @@ export function deriveProofCurrentness(facts, { mandatoryObligations = [], obser
   if (binding.state !== 'present') {
     unresolved(PROOF_CURRENTNESS_CODES.currentnessUnresolved, 'proof result has no single authority binding');
   } else {
+    if (
+      declaredBinding.state === 'present'
+      && declaredBinding.value !== binding.value
+    ) {
+      stale(
+        PROOF_CURRENTNESS_CODES.authorityBindingStale,
+        `declared authority binding ${declaredBinding.value} != projected binding ${binding.value}`,
+      );
+    }
+    const rule = sole(bindingRows, 'rule');
+    const evaluatedDigest = sole(bindingRows, 'evaluatedDigest');
     const bindingDependency = sole(bindingRows, 'bindingDependency');
+    const bindingDependencyAlgorithm = sole(
+      bindingRows,
+      'bindingDependencyAlgorithm',
+    );
     const resultDependency = sole(resultRows, 'dependencyDigest');
-    if (bindingDependency.state === 'present' && resultDependency.state === 'present'
-      && bindingDependency.value !== resultDependency.value) {
+    const resultDependencyAlgorithm = sole(resultRows, 'dependencyAlgorithm');
+    if (rule.state !== 'present') {
+      unresolved(
+        PROOF_CURRENTNESS_CODES.currentnessUnresolved,
+        'authority binding declares no single binding rule',
+      );
+    }
+    if (evaluatedDigest.state !== 'present') {
+      unresolved(
+        PROOF_CURRENTNESS_CODES.currentnessUnresolved,
+        'authority binding records no single evaluated authority digest',
+      );
+    }
+    if (bindingDependency.state !== 'present') {
+      unresolved(
+        PROOF_CURRENTNESS_CODES.currentnessUnresolved,
+        'authority binding records no single dependency-set digest',
+      );
+    } else if (
+      resultDependency.state === 'present'
+      && bindingDependency.value !== resultDependency.value
+    ) {
       stale(PROOF_CURRENTNESS_CODES.authorityBindingStale, 'authority binding dependency-set digest differs from the proof result');
     }
+    if (bindingDependencyAlgorithm.state !== 'present') {
+      unresolved(
+        PROOF_CURRENTNESS_CODES.currentnessUnresolved,
+        'authority binding records no single dependency digest algorithm',
+      );
+    } else if (
+      resultDependencyAlgorithm.state === 'present'
+      && bindingDependencyAlgorithm.value !== resultDependencyAlgorithm.value
+    ) {
+      stale(
+        PROOF_CURRENTNESS_CODES.authorityBindingStale,
+        'authority binding dependency digest algorithm differs from the proof result',
+      );
+    }
     const requiresReevaluation = sole(bindingRows, 'requiresReevaluation');
-    const rule = sole(bindingRows, 'rule');
-    if (requiresReevaluation.value === 'true') {
+    if (requiresReevaluation.state !== 'present') {
+      unresolved(
+        PROOF_CURRENTNESS_CODES.currentnessUnresolved,
+        'authority binding declares no single post-publication reevaluation requirement',
+      );
+    } else if (requiresReevaluation.value === 'true') {
       if (rule.value !== SELF_PUBLICATION_CLOSURE) {
         unresolved(PROOF_CURRENTNESS_CODES.currentnessAmbiguous, 'post-publication reevaluation is required under no declared closure rule');
       }
@@ -321,6 +419,11 @@ export function deriveProofCurrentness(facts, { mandatoryObligations = [], obser
           stale(PROOF_CURRENTNESS_CODES.authorityBindingStale, 'reevaluation dependency set differs from the bound dependency set');
         }
       }
+    } else if (requiresReevaluation.value !== 'false') {
+      unresolved(
+        PROOF_CURRENTNESS_CODES.currentnessAmbiguous,
+        `unknown post-publication reevaluation requirement ${requiresReevaluation.value}`,
+      );
     }
   }
 
@@ -328,7 +431,7 @@ export function deriveProofCurrentness(facts, { mandatoryObligations = [], obser
     proofResult,
     proofResultState: state.value,
     obligation: obligation.value,
-    algorithm: algorithm.value,
+    algorithm: resultAlgorithm.value,
     algorithmSourceDigest: sole(algorithmRows, 'sourceDigest').value,
     proofAlgorithmSourceSetDigest: sole(algorithmRows, 'sourceSetDigest').value,
     currentAlgorithmSourceSetDigest: sole(algorithmRows, 'currentSourceSetDigest').value,
