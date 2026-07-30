@@ -44,26 +44,23 @@ import {
   MATERIALISATION_PROOF_RUNNER_PATH,
   verifyMaterialisationProofAttestation,
 } from './materialisation-proof-attestation-verifier.mjs';
+import {
+  PROVIDER_PROOF_ALGORITHM_SOURCE_PATHS,
+  verifyProviderProofSourceManifest,
+} from './provider-proof-source-manifest.mjs';
+import { inspectHermeticCasSystemPublisher } from './hermetic-cas.mjs';
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const COMMIT = /^[0-9a-f]{40}$/;
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const PROVIDER_PROOF_PATH = 'assurance/provider-workforce-closure/provider-workforce-authority-proof.mjs';
-const PROVIDER_MUTATION_PATH = 'assurance/provider-workforce-closure/provider-materialisation-authority-mutations.mjs';
-const PROVIDER_PROOF_SOURCE_PATHS = Object.freeze([
-  PROVIDER_PROOF_PATH,
-  PROVIDER_MUTATION_PATH,
-  'assurance/provider-workforce-closure/materialisation-proof-attestation-verifier.mjs',
-  'assurance/provider-workforce-closure/provider-workforce-authority-projection.mjs',
-  'assurance/semantic-model-compilation/local-shacl-validation.mjs',
-  'capabilities/semantic-model-compilation/authority-binding.mjs',
-  'capabilities/repository-external-artefact-materialisation/materialisation-plan.mjs',
-]);
 const EVIDENCE_START = '# BEGIN GENERATED PROVIDER-WORKFORCE AUTHORITY EVIDENCE';
 const EVIDENCE_END = '# END GENERATED PROVIDER-WORKFORCE AUTHORITY EVIDENCE';
 const PROOF_START = '# BEGIN GENERATED PROVIDER-WORKFORCE AUTHORITY PROOF';
 const PROOF_END = '# END GENERATED PROVIDER-WORKFORCE AUTHORITY PROOF';
 const EVIDENCE_RESOURCE = '<urn:usf:externalpayloaddescriptor:providerworkforceauthorityevidence>';
+const PROJECTION_INPUT_CLOSURE_RESOURCE =
+  '<urn:usf:externalpayloaddescriptor:providerworkforceauthorityprojectioninputclosure>';
 const PROOF_RESOURCE = '<urn:usf:proofalgorithm:providerworkforceauthority>';
 const APPLICATION_BINDINGS = new WeakMap();
 const APPLICATION_ROLLBACKS = new WeakMap();
@@ -518,7 +515,10 @@ function verifyEvidence(receipt, evidenceBytes) {
     'proofInputSourceDigest',
     'proofInputSources',
     'proofAlgorithmSourceDigest',
+    'proofAlgorithmSourceManifestDigest',
     'proofAlgorithmSourceSetDigest',
+    'canonicalPublicationSourceSetDigest',
+    'proofAlgorithmImportClosureDigest',
     'proofAlgorithmSources',
     'runtimeDependencyEvidence',
     'runtimeDependencyEvidenceDigest',
@@ -547,7 +547,7 @@ function verifyEvidence(receipt, evidenceBytes) {
   exactStringSet(evidence.cases.map(({ id }) => id), PROVIDER_WORKFORCE_REQUIRED_CASES, 'EVIDENCE_CASE_SET_MISMATCH');
   assert(receipt.caseCount === evidence.cases.length, 'RECEIPT_CASE_COUNT_MISMATCH');
   verifyProviderMaterialisationAuthorityMutationEvidence(evidence.materialisationAuthorityMutationEvidence);
-  exactObjectKeys(evidence.runtimeDependencyEvidence, ['git', 'node', 'python'],
+  exactObjectKeys(evidence.runtimeDependencyEvidence, ['cas', 'git', 'node', 'python'],
     'RUNTIME_DEPENDENCY_EVIDENCE_FIELDS_INVALID');
   verifyGitRuntimeEvidence(evidence.runtimeDependencyEvidence.git);
   verifyProviderProofNodeDependencyEvidence(evidence.runtimeDependencyEvidence.node);
@@ -564,7 +564,10 @@ function verifyEvidence(receipt, evidenceBytes) {
     'implementationSourceDigest',
     'proofInputSourceDigest',
     'proofAlgorithmSourceDigest',
+    'proofAlgorithmSourceManifestDigest',
     'proofAlgorithmSourceSetDigest',
+    'canonicalPublicationSourceSetDigest',
+    'proofAlgorithmImportClosureDigest',
     'runtimeDependencyEvidenceDigest',
     'policyDigest',
     'populationDigest',
@@ -617,16 +620,18 @@ function verifyEvidence(receipt, evidenceBytes) {
     'PROOF_INPUT_SOURCE_SET_DIGEST_MISMATCH');
   assert(Array.isArray(evidence.proofAlgorithmSources) && evidence.proofAlgorithmSources.length > 0, 'PROOF_ALGORITHM_SOURCES_EMPTY');
   assert(evidence.proofAlgorithmSources.every((record) => {
-    exactObjectKeys(record, ['path', 'digest'], 'PROOF_ALGORITHM_SOURCE_FIELDS_INVALID');
-    const { path, digest } = record;
+    exactObjectKeys(record, ['path', 'digest', 'byteSize'], 'PROOF_ALGORITHM_SOURCE_FIELDS_INVALID');
+    const { path, digest, byteSize } = record;
     return typeof path === 'string'
       && path.length > 0
       && !path.startsWith('/')
       && !path.includes('\\')
       && path.split('/').every((segment) => segment.length > 0 && segment !== '.' && segment !== '..')
-      && SHA256.test(digest);
+      && SHA256.test(digest)
+      && Number.isSafeInteger(byteSize)
+      && byteSize >= 0;
   }), 'PROOF_ALGORITHM_SOURCE_RECORD_INVALID');
-  exactStringSet(evidence.proofAlgorithmSources.map(({ path }) => path), PROVIDER_PROOF_SOURCE_PATHS,
+  exactStringSet(evidence.proofAlgorithmSources.map(({ path }) => path), PROVIDER_PROOF_ALGORITHM_SOURCE_PATHS,
     'PROOF_ALGORITHM_SOURCE_SET_INVALID');
   assert(sha256(canonicalJson(evidence.proofAlgorithmSources))
     === evidence.proofAlgorithmSourceSetDigest,
@@ -675,8 +680,17 @@ function verifyAttestation(receipt, evidence, evidenceDescriptor, attestationByt
     'ATTESTATION_IMPLEMENTATION_DIGEST_MISMATCH');
   assert(statement.predicate?.proofAlgorithmSourceDigest === evidence.proofAlgorithmSourceDigest,
     'ATTESTATION_ALGORITHM_DIGEST_MISMATCH');
+  assert(statement.predicate?.proofAlgorithmSourceManifestDigest
+    === evidence.proofAlgorithmSourceManifestDigest,
+  'ATTESTATION_ALGORITHM_MANIFEST_DIGEST_MISMATCH');
   assert(statement.predicate?.proofAlgorithmSourceSetDigest === evidence.proofAlgorithmSourceSetDigest,
     'ATTESTATION_ALGORITHM_SOURCE_SET_DIGEST_MISMATCH');
+  assert(statement.predicate?.canonicalPublicationSourceSetDigest
+    === evidence.canonicalPublicationSourceSetDigest,
+  'ATTESTATION_PUBLICATION_SOURCE_SET_DIGEST_MISMATCH');
+  assert(statement.predicate?.proofAlgorithmImportClosureDigest
+    === evidence.proofAlgorithmImportClosureDigest,
+  'ATTESTATION_ALGORITHM_IMPORT_CLOSURE_DIGEST_MISMATCH');
   assert(statement.predicate?.proofInputSourceDigest === evidence.proofInputSourceDigest,
     'ATTESTATION_PROOF_INPUT_DIGEST_MISMATCH');
   assert(statement.predicate?.runtimeDependencyEvidenceDigest === evidence.runtimeDependencyEvidenceDigest,
@@ -687,7 +701,10 @@ function verifyAttestation(receipt, evidence, evidenceDescriptor, attestationByt
     'implementationSourceDigest',
     'proofInputSourceDigest',
     'proofAlgorithmSourceDigest',
+    'proofAlgorithmSourceManifestDigest',
     'proofAlgorithmSourceSetDigest',
+    'canonicalPublicationSourceSetDigest',
+    'proofAlgorithmImportClosureDigest',
     'runtimeDependencyEvidenceDigest',
     'result',
   ], 'ATTESTATION_PREDICATE_FIELDS_INVALID');
@@ -731,7 +748,93 @@ function scopeManifest({ evidence, evidenceDescriptor, classification }) {
   });
 }
 
-function evidenceProjection({ receipt, evidence, evidenceDescriptor, attestationDescriptor, attestation }) {
+function projectionInputClosure({
+  evidence,
+  evidenceDescriptor,
+  attestationDescriptor,
+  materialisation,
+  materialisationReceiptBytes,
+  candidatePublication,
+  dependencySetDigest,
+  dependencyDigestAlgorithm,
+  proofProducerCommit,
+  proofProducerTree,
+}) {
+  const currentAlgorithmSourceSetCore = Object.freeze({
+    canonicalPublicationSourceSetDigest: evidence.canonicalPublicationSourceSetDigest,
+    materialisationProofAlgorithmSourceDigest:
+      materialisation.evidence.proofAlgorithmSourceDigest,
+    materialisationProofImplementationSourceDigest:
+      materialisation.evidence.implementationSourceDigest,
+    materialisationProofRunnerSourceDigest: materialisation.evidence.runner.sourceDigest,
+    materialisationProofRunnerSourcePath: materialisation.evidence.runner.sourcePath,
+    proofAlgorithmImportClosureDigest: evidence.proofAlgorithmImportClosureDigest,
+    proofAlgorithmSourceManifestDigest: evidence.proofAlgorithmSourceManifestDigest,
+    providerProofAlgorithmSourceSetDigest: evidence.proofAlgorithmSourceSetDigest,
+  });
+  const currentAlgorithmSourceSetDigest = sha256(canonicalJson(
+    currentAlgorithmSourceSetCore,
+  ));
+  const core = Object.freeze({
+    schemaVersion: 1,
+    recordKind: 'USF_PROVIDER_WORKFORCE_AUTHORITY_PROJECTION_INPUT_CLOSURE',
+    attestationDigest: attestationDescriptor.digest,
+    candidateAuthorityDigest: candidatePublication.candidateInventoryDigest,
+    candidateInventoryAlgorithm: candidatePublication.candidateInventoryAlgorithm,
+    candidatePublicationReceiptDigest:
+      candidatePublication.candidatePublicationReceiptDigest,
+    canonicalPublicationSourceSetDigest: evidence.canonicalPublicationSourceSetDigest,
+    currentAlgorithmSourceSetDigest,
+    dependencyDigestAlgorithm,
+    dependencySetDigest,
+    evaluatedAuthorityDigest: evidence.evaluatedAuthorityDigest,
+    materialisationProofAlgorithmSourceDigest:
+      materialisation.evidence.proofAlgorithmSourceDigest,
+    materialisationProofAttestationDigest: materialisation.attestationDescriptor.digest,
+    materialisationProofEvidenceDigest: materialisation.evidenceDescriptor.digest,
+    materialisationProofExactEvidenceSetDigest:
+      materialisation.evidence.exactEvidenceSetDigest,
+    materialisationProofImplementationSourceDigest:
+      materialisation.evidence.implementationSourceDigest,
+    materialisationProofReceiptDigest: sha256(materialisationReceiptBytes),
+    materialisationProofRunnerSourceDigest: materialisation.evidence.runner.sourceDigest,
+    materialisationProofRunnerSourcePath: materialisation.evidence.runner.sourcePath,
+    proofAlgorithmImportClosureDigest: evidence.proofAlgorithmImportClosureDigest,
+    proofAlgorithmSourceManifestDigest: evidence.proofAlgorithmSourceManifestDigest,
+    proofAlgorithmSourceSetDigest: evidence.proofAlgorithmSourceSetDigest,
+    proofProducerCommit,
+    proofProducerTree,
+    providerEvidenceDigest: evidenceDescriptor.digest,
+    providerExactEvidenceSetDigest: evidence.exactEvidenceSetDigest,
+  });
+  const bytes = Buffer.from(canonicalJson(core), 'utf8');
+  const digest = sha256(bytes);
+  return Object.freeze({
+    core,
+    currentAlgorithmSourceSetCore,
+    currentAlgorithmSourceSetDigest,
+    descriptor: Object.freeze({
+      byteSize: bytes.length,
+      digest,
+      locator: `cas://sha256/${digest.slice(7)}`,
+      mediaType: 'application/json',
+    }),
+    evidenceSetDigest: sha256(canonicalJson([
+      evidence.exactEvidenceSetDigest,
+      materialisation.evidence.exactEvidenceSetDigest,
+      digest,
+    ].sort(utf8Compare))),
+  });
+}
+
+function evidenceProjection({
+  receipt,
+  evidence,
+  evidenceDescriptor,
+  attestationDescriptor,
+  attestation,
+  inputClosure,
+}) {
   const contracts = CONTRACTS.map(({ name }) => iri(`urn:usf:semanticcontract:${name}`)).join(', ');
   const obligations = CONTRACTS.map(({ obligation }) => iri(obligation)).join(', ');
   const collections = CONTRACTS.map(({ name }) => iri(`urn:usf:evidencecollection:providerworkforceauthority${name}`)).join(', ');
@@ -759,6 +862,16 @@ function evidenceProjection({ receipt, evidence, evidenceDescriptor, attestation
   lines.push(`  usf:descriptorLocator ${q(attestationDescriptor.locator)}^^xsd:anyURI;`);
   lines.push('  usf:descriptorArtefactType "urn:usf:artefacttype:providerworkforceauthorityattestation"^^xsd:anyURI;');
   lines.push('  usf:descriptorStorageClass <urn:usf:storageclass:contentaddressedobjectstorage>.');
+  lines.push(`${PROJECTION_INPUT_CLOSURE_RESOURCE} a usf:ExternalPayloadDescriptor;`);
+  lines.push('  usf:canonicalName "providerworkforceauthorityprojectioninputclosure";');
+  lines.push('  usf:descriptorArtefactFamily <urn:usf:artefactfamily:evidencepayload>;');
+  lines.push('  usf:descriptorRepresentationFormat <urn:usf:representationformat:jsondata8259>;');
+  lines.push(`  usf:descriptorMediaType ${q(inputClosure.descriptor.mediaType)};`);
+  lines.push(`  usf:descriptorDigest ${q(inputClosure.descriptor.digest)};`);
+  lines.push(`  usf:descriptorByteSize ${inputClosure.descriptor.byteSize};`);
+  lines.push(`  usf:descriptorLocator ${q(inputClosure.descriptor.locator)}^^xsd:anyURI;`);
+  lines.push('  usf:descriptorArtefactType "urn:usf:artefacttype:providerworkforceauthorityprojectioninputclosure"^^xsd:anyURI;');
+  lines.push('  usf:descriptorStorageClass <urn:usf:storageclass:contentaddressedobjectstorage>.');
   lines.push('<urn:usf:signingidentity:providerworkforceauthorityintegrity> a usf:SigningIdentity;');
   lines.push('  usf:canonicalName "providerworkforceauthorityintegrity";');
   lines.push(`  usf:signingKeyFingerprint ${q(receipt.signingKeyFingerprint)}.`);
@@ -775,6 +888,10 @@ function evidenceProjection({ receipt, evidence, evidenceDescriptor, attestation
   lines.push('  usf:canonicalName "providerworkforceauthorityevidence";');
   lines.push('  usf:checksumAlgorithm <urn:usf:checksumalgorithm:sha256>;');
   lines.push(`  usf:checksumValue ${q(evidenceDescriptor.digest.slice(7))}.`);
+  lines.push('<urn:usf:checksum:providerworkforceauthorityprojectioninputclosure> a usf:Checksum;');
+  lines.push('  usf:canonicalName "providerworkforceauthorityprojectioninputclosure";');
+  lines.push('  usf:checksumAlgorithm <urn:usf:checksumalgorithm:sha256>;');
+  lines.push(`  usf:checksumValue ${q(inputClosure.descriptor.digest.slice(7))}.`);
   for (const [name, scope] of [['providerworkforcedeterministicevaluation', deterministic], ['providerworkforcehermeticlocal', hermetic]]) {
     lines.push(`<urn:usf:evidencescopemanifest:${name}> a usf:EvidenceScopeManifest;`);
     lines.push(`  usf:canonicalName ${q(name)};`);
@@ -822,6 +939,31 @@ function evidenceProjection({ receipt, evidence, evidenceDescriptor, attestation
   lines.push('  usf:integrityVerification <urn:usf:integrityverification:providerworkforceauthority>;');
   lines.push(`  usf:applicableToObligation ${obligations};`);
   lines.push('  usf:withinValidityScope true.');
+  lines.push('evr:providerworkforceauthorityprojectioninputclosure a usf:EvidenceResult;');
+  lines.push('  usf:canonicalName "providerworkforceauthorityprojectioninputclosure";');
+  lines.push('  usf:evidenceKind evk:runtimeproofevidence;');
+  lines.push('  usf:hasFreshness fresh:fresh;');
+  lines.push(`  usf:evidenceForContract ${contracts};`);
+  lines.push(`  usf:evidenceFor ${contracts};`);
+  lines.push(`  usf:contentDigest ${q(inputClosure.descriptor.digest)};`);
+  lines.push(`  usf:evaluatedAuthorityDigest ${q(evidence.evaluatedAuthorityDigest)};`);
+  lines.push(`  usf:evidenceProducerDigest ${q(inputClosure.currentAlgorithmSourceSetDigest)};`);
+  lines.push(`  usf:mediaType ${q(inputClosure.descriptor.mediaType)};`);
+  lines.push(`  usf:byteSize ${inputClosure.descriptor.byteSize};`);
+  lines.push(`  usf:storageLocator ${q(inputClosure.descriptor.locator)}^^xsd:anyURI;`);
+  lines.push('  usf:wasProducedBy <urn:usf:validatorrule:validateproviderworkforceauthority>;');
+  lines.push(`  usf:collectedAt ${q(evidence.evaluatedAt)}^^xsd:dateTime;`);
+  lines.push(`  usf:validUntil ${q(evidence.validUntil)}^^xsd:dateTime;`);
+  lines.push('  usf:hasFreshnessPolicy <urn:usf:evidencefreshnesspolicy:providerworkforcethirtydays>;');
+  lines.push('  usf:hasAdmissionState admission:admitted;');
+  lines.push('  usf:hasFreshnessState freshnessstate:fresh;');
+  lines.push('  usf:hasIntegrityState integritystate:valid;');
+  lines.push('  usf:evidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:integrityverified>;');
+  lines.push('  usf:usesProviderMode pmode:deterministictestsubstitute;');
+  lines.push('  usf:inEnvironment env:hermetic;');
+  lines.push('  usf:evidenceChecksum <urn:usf:checksum:providerworkforceauthorityprojectioninputclosure>;');
+  lines.push(`  usf:applicableToObligation ${obligations};`);
+  lines.push('  usf:withinValidityScope true.');
   lines.push('evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvidenceResult;');
   lines.push('  usf:canonicalName "providerworkforcedecisionevaluation";');
   lines.push('  usf:evidenceKind evk:attestation;');
@@ -852,7 +994,11 @@ function evidenceProjection({ receipt, evidence, evidenceDescriptor, attestation
   lines.push('  usf:withinValidityScope true.');
   lines.push('<urn:usf:evidencefreshnesspolicy:providerworkforcethirtydays> a usf:EvidenceRetentionPolicy;');
   lines.push('  usf:canonicalName "providerworkforcethirtydays".');
-  for (const name of ['providerworkforceauthority', 'providerworkforcedecisionevaluation']) {
+  for (const name of [
+    'providerworkforceauthority',
+    'providerworkforceauthorityprojectioninputclosure',
+    'providerworkforcedecisionevaluation',
+  ]) {
     lines.push(`<urn:usf:evidenceadmission:${name}> a usf:EvidenceAdmission;`);
     lines.push(`  usf:canonicalName ${q(name)};`);
     lines.push(`  usf:admissionForEvidence evr:${name};`);
@@ -876,11 +1022,15 @@ function evidenceProjection({ receipt, evidence, evidenceDescriptor, attestation
   lines.push(`  usf:sourceDigest ${q(receipt.dependencySetDigest)}.`);
   lines.push('<urn:usf:evidencenormalisation:providerworkforceauthority> a usf:EvidenceNormalisation;');
   lines.push('  usf:canonicalName "providerworkforceauthority";');
-  lines.push('  usf:normalisesEvidence evr:providerworkforceauthority, evr:providerworkforcedecisionevaluation.');
+  lines.push('  usf:normalisesEvidence evr:providerworkforceauthority, evr:providerworkforceauthorityprojectioninputclosure, evr:providerworkforcedecisionevaluation.');
   lines.push('<urn:usf:evidenceingestion:providerworkforceauthority> a usf:EvidenceIngestion;');
   lines.push('  usf:canonicalName "providerworkforceauthority";');
-  lines.push('  usf:ingestsEvidence evr:providerworkforceauthority, evr:providerworkforcedecisionevaluation.');
-  for (const name of ['providerworkforceauthority', 'providerworkforcedecisionevaluation']) {
+  lines.push('  usf:ingestsEvidence evr:providerworkforceauthority, evr:providerworkforceauthorityprojectioninputclosure, evr:providerworkforcedecisionevaluation.');
+  for (const name of [
+    'providerworkforceauthority',
+    'providerworkforceauthorityprojectioninputclosure',
+    'providerworkforcedecisionevaluation',
+  ]) {
     lines.push(`<urn:usf:integrityverification:${name}> a usf:IntegrityVerification;`);
     lines.push(`  usf:canonicalName ${q(name)};`);
     lines.push(`  usf:verifiesEvidence evr:${name};`);
@@ -891,8 +1041,7 @@ function evidenceProjection({ receipt, evidence, evidenceDescriptor, attestation
 
 function proofProjection({
   evidence,
-  evidenceDescriptor,
-  attestationDescriptor,
+  inputClosure,
   dependencySetDigest,
   dependencyDigestAlgorithm,
   proofProducerCommit,
@@ -903,7 +1052,7 @@ function proofProjection({
   reevaluatedAt,
 }) {
   const algorithmVersionIri =
-    `urn:usf:proofalgorithmversion:providerworkforceauthority${evidence.proofAlgorithmSourceSetDigest.slice(7)}`;
+    `urn:usf:proofalgorithmversion:providerworkforceauthority${inputClosure.currentAlgorithmSourceSetDigest.slice(7)}`;
   const primaryAlgorithmSourceDigest = evidence.proofAlgorithmSources
     .find(({ path }) => path === PROVIDER_PROOF_PATH).digest;
   const contracts = CONTRACTS.map(({ name }) => iri(`urn:usf:semanticcontract:${name}`)).join(', ');
@@ -917,18 +1066,18 @@ function proofProjection({
   lines.push('  usf:canonicalName "providerworkforceauthority";');
   lines.push(`  usf:proofAlgorithmSourcePath ${q(PROVIDER_PROOF_PATH)};`);
   lines.push(`  usf:proofAlgorithmSourceDigest ${q(primaryAlgorithmSourceDigest)};`);
-  lines.push(`  usf:proofAlgorithmSourceSetDigest ${q(evidence.proofAlgorithmSourceSetDigest)};`);
+  lines.push(`  usf:proofAlgorithmSourceSetDigest ${q(inputClosure.currentAlgorithmSourceSetDigest)};`);
   lines.push(`  usf:currentAlgorithmVersion <${algorithmVersionIri}>;`);
   lines.push(`  usf:currentAlgorithmSourceDigest ${q(primaryAlgorithmSourceDigest)};`);
-  lines.push(`  usf:currentAlgorithmSourceSetDigest ${q(evidence.proofAlgorithmSourceSetDigest)};`);
+  lines.push(`  usf:currentAlgorithmSourceSetDigest ${q(inputClosure.currentAlgorithmSourceSetDigest)};`);
   lines.push(`  usf:currentImplementationSourceSetDigest ${q(evidence.implementationSourceDigest)};`);
   lines.push(`  usf:currentDependencySetDigest ${q(dependencySetDigest)};`);
   lines.push(`  usf:currentDependencyDigestAlgorithm ${q(dependencyDigestAlgorithm)};`);
   lines.push('  usf:requiresGraphSourceBinding true.');
   lines.push(`<${algorithmVersionIri}> a usf:ProofAlgorithmVersion;`);
-  lines.push(`  usf:canonicalName ${q(`providerworkforceauthority${evidence.proofAlgorithmSourceSetDigest.slice(7)}`)};`);
+  lines.push(`  usf:canonicalName ${q(`providerworkforceauthority${inputClosure.currentAlgorithmSourceSetDigest.slice(7)}`)};`);
   lines.push('  usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:providerworkforceauthority>;');
-  lines.push(`  usf:proofAlgorithmVersionSourceSetDigest ${q(evidence.proofAlgorithmSourceSetDigest)};`);
+  lines.push(`  usf:proofAlgorithmVersionSourceSetDigest ${q(inputClosure.currentAlgorithmSourceSetDigest)};`);
   lines.push(`  usf:proofAlgorithmVersionIdentifier ${q(algorithmVersion)}.`);
   lines.push('<urn:usf:proof:providerworkforceauthority> a usf:Proof;');
   lines.push('  usf:canonicalName "providerworkforceauthority";');
@@ -960,11 +1109,11 @@ function proofProjection({
     lines.push('  usf:inEnvironment env:hermetic;');
     lines.push('  usf:hasProofResultState <urn:usf:proofresultstate:successful>;');
     lines.push(`  usf:proofResultForObligation <${obligation}>;`);
-    lines.push('  usf:usesAdmittedEvidence <urn:usf:evidenceresult:providerworkforceauthority>;');
-    lines.push(`  usf:evidenceSetDigest ${q(evidence.exactEvidenceSetDigest)};`);
+    lines.push('  usf:usesAdmittedEvidence <urn:usf:evidenceresult:providerworkforceauthority>, <urn:usf:evidenceresult:providerworkforceauthorityprojectioninputclosure>;');
+    lines.push(`  usf:evidenceSetDigest ${q(inputClosure.evidenceSetDigest)};`);
     lines.push('  usf:usesProofAlgorithm <urn:usf:proofalgorithm:providerworkforceauthority>;');
     lines.push(`  usf:usesAlgorithmVersion <${algorithmVersionIri}>;`);
-    lines.push(`  usf:algorithmSourceSetDigest ${q(evidence.proofAlgorithmSourceSetDigest)};`);
+    lines.push(`  usf:algorithmSourceSetDigest ${q(inputClosure.currentAlgorithmSourceSetDigest)};`);
     lines.push(`  usf:implementationSourceSetDigest ${q(evidence.implementationSourceDigest)};`);
     lines.push(`  usf:dependencySetDigest ${q(dependencySetDigest)};`);
     lines.push(`  usf:dependencyDigestAlgorithm ${q(dependencyDigestAlgorithm)};`);
@@ -986,12 +1135,12 @@ function proofProjection({
     lines.push(`  usf:bindingDependencyDigestAlgorithm ${q(dependencyDigestAlgorithm)};`);
     lines.push('  usf:usesAuthorityBindingRule <urn:usf:authoritybindingrule:selfpublicationclosure>;');
     lines.push('  usf:requiresPostPublicationReevaluation true;');
-    lines.push(`  usf:authorityBindingEvidenceDigest ${q(attestationDescriptor.digest)};`);
+    lines.push(`  usf:authorityBindingEvidenceDigest ${q(inputClosure.descriptor.digest)};`);
     lines.push(`  usf:hasPostPublicationReevaluationState <urn:usf:proofreevaluationstate:${reevaluationState}>;`);
     if (reevaluationState === 'successful') {
       lines.push(`  usf:reevaluationSettledAuthorityDigest ${q(settledAuthorityDigest)};`);
       lines.push(`  usf:reevaluationDependencySetDigest ${q(dependencySetDigest)};`);
-      lines.push(`  usf:reevaluationEvidenceDigest ${q(attestationDescriptor.digest)};`);
+      lines.push(`  usf:reevaluationEvidenceDigest ${q(inputClosure.descriptor.digest)};`);
       lines.push(`  usf:reevaluatedAt ${q(reevaluatedAt)}^^xsd:dateTime;`);
     }
     lines.push(`  usf:excludedAuthorityGraphIri ${excluded}.`);
@@ -1032,7 +1181,10 @@ export function projectProviderWorkforceAuthorityReceipt({
     'implementationSourceDigest',
     'proofInputSourceDigest',
     'proofAlgorithmSourceDigest',
+    'proofAlgorithmSourceManifestDigest',
     'proofAlgorithmSourceSetDigest',
+    'canonicalPublicationSourceSetDigest',
+    'proofAlgorithmImportClosureDigest',
     'runtimeDependencyEvidenceDigest',
     'exactEvidenceSetDigest',
     'policyDigest',
@@ -1101,6 +1253,18 @@ export function projectProviderWorkforceAuthorityReceipt({
   }
   const primaryAlgorithmSourceDigest = evidence.proofAlgorithmSourceDigest;
   const attestation = verifyAttestation(receipt, evidence, evidenceDescriptor, attestationBytes);
+  const inputClosure = projectionInputClosure({
+    evidence,
+    evidenceDescriptor,
+    attestationDescriptor,
+    materialisation,
+    materialisationReceiptBytes,
+    candidatePublication,
+    dependencySetDigest,
+    dependencyDigestAlgorithm,
+    proofProducerCommit,
+    proofProducerTree,
+  });
   const enrichedReceipt = Object.freeze({ ...receipt, dependencySetDigest });
   const evidenceTurtle = evidenceProjection({
     receipt: enrichedReceipt,
@@ -1108,11 +1272,11 @@ export function projectProviderWorkforceAuthorityReceipt({
     evidenceDescriptor,
     attestationDescriptor,
     attestation,
+    inputClosure,
   });
   const proofsTurtle = proofProjection({
     evidence,
-    evidenceDescriptor,
-    attestationDescriptor,
+    inputClosure,
     dependencySetDigest,
     dependencyDigestAlgorithm,
     proofProducerCommit,
@@ -1127,7 +1291,10 @@ export function projectProviderWorkforceAuthorityReceipt({
     recordKind: 'USF_PROVIDER_WORKFORCE_AUTHORITY_RDF_PROJECTION',
     evidenceDigest: evidenceDescriptor.digest,
     attestationDigest: attestationDescriptor.digest,
-    exactEvidenceSetDigest: evidence.exactEvidenceSetDigest,
+    exactEvidenceSetDigest: inputClosure.evidenceSetDigest,
+    providerExactEvidenceSetDigest: evidence.exactEvidenceSetDigest,
+    projectionInputClosureDescriptor: inputClosure.descriptor,
+    projectionInputClosureDigest: inputClosure.descriptor.digest,
     evaluatedAuthorityDigest: evidence.evaluatedAuthorityDigest,
     dependencySetDigest,
     dependencyDigestAlgorithm,
@@ -1138,7 +1305,11 @@ export function projectProviderWorkforceAuthorityReceipt({
     implementationSourceDigest: evidence.implementationSourceDigest,
     proofInputSourceDigest: evidence.proofInputSourceDigest,
     proofAlgorithmSourceDigest: evidence.proofAlgorithmSourceDigest,
+    proofAlgorithmSourceManifestDigest: evidence.proofAlgorithmSourceManifestDigest,
     proofAlgorithmSourceSetDigest: evidence.proofAlgorithmSourceSetDigest,
+    canonicalPublicationSourceSetDigest: evidence.canonicalPublicationSourceSetDigest,
+    proofAlgorithmImportClosureDigest: evidence.proofAlgorithmImportClosureDigest,
+    currentAlgorithmSourceSetDigest: inputClosure.currentAlgorithmSourceSetDigest,
     runtimeDependencyEvidenceDigest: evidence.runtimeDependencyEvidenceDigest,
     primaryAlgorithmSourceDigest,
     materialisationProofReceiptDigest: sha256(materialisationReceiptBytes),
@@ -1182,6 +1353,290 @@ function replaceExactBlock(source, start, end, replacement, label) {
 
 const DEFAULT_FILE_OPERATIONS = Object.freeze({ renameSync, rmSync, writeFileSync });
 
+const EXACT_PROJECTION_TRANSACTION_SOURCE = String.raw`
+import base64, ctypes, hashlib, json, os, stat, sys
+
+RENAME_EXCHANGE = 2
+libc = ctypes.CDLL(None, use_errno=True)
+renameat2 = libc.renameat2
+renameat2.argtypes = [
+    ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint,
+]
+renameat2.restype = ctypes.c_int
+
+def fail(code):
+    raise RuntimeError(code)
+
+def identity(value):
+    return {
+        "device": str(value.st_dev),
+        "inode": str(value.st_ino),
+        "ctimeNanoseconds": str(value.st_ctime_ns),
+        "mode": str(value.st_mode),
+        "linkCount": str(value.st_nlink),
+        "size": str(value.st_size),
+    }
+
+def same(actual, expected):
+    return all(actual[key] == expected[key] for key in expected)
+
+def exchange(directory_fd, left, right):
+    result = renameat2(
+        directory_fd, os.fsencode(left), directory_fd, os.fsencode(right),
+        RENAME_EXCHANGE,
+    )
+    if result != 0:
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error))
+
+def opened_file(directory_fd, name):
+    fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory_fd)
+    value = os.fstat(fd)
+    if not stat.S_ISREG(value.st_mode) or value.st_nlink != 1:
+        os.close(fd)
+        fail("PROJECTION_TRANSACTION_LEAF_NOT_EXACT")
+    return fd, value
+
+def digest_fd(fd):
+    result = hashlib.sha256()
+    os.lseek(fd, 0, os.SEEK_SET)
+    while True:
+        chunk = os.read(fd, 1024 * 1024)
+        if not chunk:
+            break
+        result.update(chunk)
+    return "sha256:" + result.hexdigest()
+
+def open_directory_chain(request):
+    handles = []
+    root_fd = os.open(
+        request["repositoryRoot"],
+        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+    )
+    handles.append(root_fd)
+    if not same(identity(os.fstat(root_fd)), request["directories"][0]["identity"]):
+        fail("PROJECTION_TRANSACTION_ROOT_MOVED")
+    current = root_fd
+    for record in request["directories"][1:]:
+        current = os.open(
+            record["name"],
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+            dir_fd=current,
+        )
+        handles.append(current)
+        if not same(identity(os.fstat(current)), record["identity"]):
+            fail("PROJECTION_TRANSACTION_ANCESTOR_MOVED")
+    return handles
+
+def verify_leaf(directory_fd, record, identity_key, digest_key):
+    fd, value = opened_file(directory_fd, record["leaf"])
+    try:
+        observed = identity(value)
+        if not same(observed, record[identity_key]):
+            fail("PROJECTION_TRANSACTION_LEAF_MOVED")
+        if digest_fd(fd) != record[digest_key]:
+            fail("PROJECTION_TRANSACTION_LEAF_DIGEST_MOVED")
+        return observed
+    finally:
+        os.close(fd)
+
+def apply(request, directory_fd):
+    completed = []
+    try:
+        for index, target in enumerate(request["targets"]):
+            verify_leaf(directory_fd, target, "originalIdentity", "originalDigest")
+            stage = ".provider-projection-" + request["transactionId"] + "-" + str(index)
+            content = base64.b64decode(target["contentBase64"], validate=True)
+            fd = os.open(
+                stage,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                target["mode"],
+                dir_fd=directory_fd,
+            )
+            try:
+                written = 0
+                while written < len(content):
+                    written += os.write(fd, content[written:])
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+            exchange(directory_fd, stage, target["leaf"])
+            try:
+                original = verify_leaf(
+                    directory_fd,
+                    {**target, "leaf": stage},
+                    "originalIdentity",
+                    "originalDigest",
+                )
+                applied_fd, applied_stat = opened_file(directory_fd, target["leaf"])
+                try:
+                    applied = identity(applied_stat)
+                    if digest_fd(applied_fd) != target["appliedDigest"]:
+                        fail("PROJECTION_TRANSACTION_APPLIED_DIGEST_MISMATCH")
+                finally:
+                    os.close(applied_fd)
+            except Exception:
+                exchange(directory_fd, stage, target["leaf"])
+                try:
+                    os.unlink(stage, dir_fd=directory_fd)
+                except FileNotFoundError:
+                    pass
+                raise
+            completed.append({
+                "leaf": target["leaf"],
+                "backup": stage,
+                "originalIdentity": original,
+                "originalDigest": target["originalDigest"],
+                "appliedIdentity": applied,
+                "appliedDigest": target["appliedDigest"],
+            })
+        os.fsync(directory_fd)
+        return {"state": "applied", "targets": completed}
+    except Exception:
+        for item in reversed(completed):
+            try:
+                exchange(directory_fd, item["backup"], item["leaf"])
+                os.unlink(item["backup"], dir_fd=directory_fd)
+            except Exception:
+                pass
+        raise
+
+def rollback(request, directory_fd):
+    completed = []
+    try:
+        for item in request["transaction"]["targets"]:
+            verify_leaf(directory_fd, item, "appliedIdentity", "appliedDigest")
+            verify_leaf(
+                directory_fd,
+                {**item, "leaf": item["backup"]},
+                "originalIdentity",
+                "originalDigest",
+            )
+            exchange(directory_fd, item["backup"], item["leaf"])
+            verify_leaf(directory_fd, item, "originalIdentity", "originalDigest")
+            completed.append(item)
+        for item in completed:
+            os.unlink(item["backup"], dir_fd=directory_fd)
+        os.fsync(directory_fd)
+        return {"state": "rolled-back"}
+    except Exception:
+        for item in reversed(completed):
+            try:
+                exchange(directory_fd, item["backup"], item["leaf"])
+            except Exception:
+                pass
+        raise
+
+def finalize(request, directory_fd):
+    for item in request["transaction"]["targets"]:
+        verify_leaf(directory_fd, item, "appliedIdentity", "appliedDigest")
+        verify_leaf(
+            directory_fd,
+            {**item, "leaf": item["backup"]},
+            "originalIdentity",
+            "originalDigest",
+        )
+    for item in request["transaction"]["targets"]:
+        os.unlink(item["backup"], dir_fd=directory_fd)
+    os.fsync(directory_fd)
+    return {"state": "finalized"}
+
+request = json.loads(sys.stdin.buffer.read())
+handles = open_directory_chain(request)
+try:
+    directory_fd = handles[-1]
+    if request["action"] == "apply":
+        result = apply(request, directory_fd)
+    elif request["action"] == "rollback":
+        result = rollback(request, directory_fd)
+    elif request["action"] == "finalize":
+        result = finalize(request, directory_fd)
+    else:
+        fail("PROJECTION_TRANSACTION_ACTION_INVALID")
+    result["directories"] = [
+        {"identity": identity(os.fstat(handle)), "name": record["name"]}
+        for handle, record in zip(handles, request["directories"])
+    ]
+    sys.stdout.write(json.dumps(result, sort_keys=True, separators=(",", ":")) + "\n")
+finally:
+    for handle in reversed(handles):
+        os.close(handle)
+`;
+
+function filesystemIdentity(stat) {
+  return Object.freeze({
+    device: stat.dev.toString(),
+    inode: stat.ino.toString(),
+    ctimeNanoseconds: stat.ctimeNs.toString(),
+    mode: stat.mode.toString(),
+    linkCount: stat.nlink.toString(),
+    size: stat.size.toString(),
+  });
+}
+
+function projectionTargetBinding(repositoryRoot) {
+  const directoryPaths = [
+    repositoryRoot,
+    join(repositoryRoot, 'semantic-model'),
+    join(repositoryRoot, 'semantic-model', 'assurance'),
+  ];
+  const directories = directoryPaths.map((path, index) => {
+    const stat = lstatSync(path, { bigint: true });
+    assert(!stat.isSymbolicLink() && stat.isDirectory(),
+      'PROJECTION_TARGET_ANCESTOR_NOT_EXACT_DIRECTORY');
+    return Object.freeze({
+      identity: filesystemIdentity(stat),
+      name: index === 0 ? '.' : path.slice(directoryPaths[index - 1].length + 1),
+    });
+  });
+  const targets = ['evidence.trig', 'proofs.trig'].map((leaf) => {
+    const path = join(directoryPaths.at(-1), leaf);
+    const stat = lstatSync(path, { bigint: true });
+    assert(!stat.isSymbolicLink() && stat.isFile() && stat.nlink === 1n,
+      'PROJECTION_TARGET_NOT_EXACT_FILE');
+    return Object.freeze({
+      leaf,
+      originalDigest: sha256(readFileSync(path)),
+      originalIdentity: filesystemIdentity(stat),
+      mode: Number(stat.mode & 0o777n),
+    });
+  });
+  return Object.freeze({
+    directories: Object.freeze(directories),
+    repositoryRoot,
+    targets: Object.freeze(targets),
+  });
+}
+
+function runExactProjectionTransaction(runtime, request) {
+  const result = spawnPinnedLocalShaclRuntime(runtime, [
+    '-I',
+    '-S',
+    '-c',
+    EXACT_PROJECTION_TRANSACTION_SOURCE,
+  ], {
+    cwd: request.repositoryRoot,
+    encoding: 'buffer',
+    env: {
+      HOME: '/nonexistent',
+      LANG: 'C.UTF-8',
+      LC_ALL: 'C.UTF-8',
+      PATH: '/usr/bin:/bin',
+      TZ: 'UTC',
+    },
+    input: Buffer.from(canonicalJson(request)),
+    maxBuffer: 4 * 1024 * 1024,
+    timeout: 120_000,
+  });
+  if (result.error || result.signal || result.status !== 0) {
+    throw new Error('PROJECTION_EXACT_FILESYSTEM_TRANSACTION_FAILED');
+  }
+  return parseCanonicalJson(
+    Buffer.from(result.stdout.toString('utf8').trim()),
+    'PROJECTION_TRANSACTION_RESULT',
+  );
+}
+
 function stageFile(path, bytes, mode, label, operations) {
   const staged = `${path}.provider-projection-${process.pid}-${label}`;
   operations.writeFileSync(staged, bytes, { flag: 'wx', mode });
@@ -1207,14 +1662,11 @@ export function replaceProviderWorkforceAuthorityProjection(
   assert(refreshedRepositories.repositoryRoot === admittedBinding.repositoryRoot
     && refreshedRepositories.factoryRepositoryRoot === admittedBinding.factoryRepositoryRoot,
   'PROJECTION_APPLICATION_REPOSITORY_MOVED');
+  assert(canonicalJson(projectionTargetBinding(root))
+    === canonicalJson(admittedBinding.targetBinding),
+  'PROJECTION_TARGET_BINDING_MOVED');
   const evidencePath = join(root, 'semantic-model/assurance/evidence.trig');
   const proofsPath = join(root, 'semantic-model/assurance/proofs.trig');
-  const stats = [];
-  for (const path of [evidencePath, proofsPath]) {
-    const stat = lstatSync(path);
-    assert(!stat.isSymbolicLink() && stat.isFile() && stat.nlink === 1, 'PROJECTION_TARGET_NOT_EXACT_FILE');
-    stats.push(stat);
-  }
   const evidenceSource = readFileSync(evidencePath, 'utf8');
   const proofsSource = readFileSync(proofsPath, 'utf8');
   const nextEvidence = replaceExactBlock(
@@ -1231,56 +1683,29 @@ export function replaceProviderWorkforceAuthorityProjection(
     projection.proofsTurtle,
     'PROOF',
   );
-  const evidenceStage = stageFile(evidencePath, nextEvidence, stats[0].mode & 0o777, 'evidence', operations);
-  const proofStage = stageFile(proofsPath, nextProofs, stats[1].mode & 0o777, 'proof', operations);
-  let evidenceReplaced = false;
-  let proofReplaced = false;
-  try {
-    assert(sha256(readFileSync(evidencePath)) === sha256(evidenceSource), 'EVIDENCE_TARGET_MOVED_BEFORE_APPLY');
-    assert(sha256(readFileSync(proofsPath)) === sha256(proofsSource), 'PROOF_TARGET_MOVED_BEFORE_APPLY');
-    operations.renameSync(evidenceStage, evidencePath);
-    evidenceReplaced = true;
-    operations.renameSync(proofStage, proofsPath);
-    proofReplaced = true;
-    assert(sha256(readFileSync(evidencePath)) === sha256(nextEvidence), 'EVIDENCE_REPLACEMENT_VERIFICATION_FAILED');
-    assert(sha256(readFileSync(proofsPath)) === sha256(nextProofs), 'PROOF_REPLACEMENT_VERIFICATION_FAILED');
-  } catch (error) {
-    const rollbackErrors = [];
-    for (const [replaced, path, source, mode, label] of [
-      [proofReplaced, proofsPath, proofsSource, stats[1].mode & 0o777, 'proof-rollback'],
-      [evidenceReplaced, evidencePath, evidenceSource, stats[0].mode & 0o777, 'evidence-rollback'],
-    ]) {
-      if (!replaced) continue;
-      let rollbackStage = null;
-      try {
-        rollbackStage = stageFile(path, source, mode, label, operations);
-        operations.renameSync(rollbackStage, path);
-        rollbackStage = null;
-        assert(sha256(readFileSync(path)) === sha256(source), `${label.toUpperCase()}_VERIFICATION_FAILED`);
-      } catch (rollbackError) {
-        rollbackErrors.push(rollbackError);
-      } finally {
-        if (rollbackStage !== null) {
-          try {
-            operations.rmSync(rollbackStage, { force: true });
-          } catch {
-            // Preserve the primary rollback outcome.
-          }
-        }
-      }
-    }
-    if (rollbackErrors.length) throw new AggregateError([error, ...rollbackErrors], 'PROJECTION_REPLACEMENT_AND_ROLLBACK_FAILED');
-    throw error;
-  } finally {
-    for (const path of [evidenceStage, proofStage]) {
-      try {
-        operations.rmSync(path, { force: true });
-      } catch {
-        // A retained stage is inert and cannot replace a source without an
-        // explicit later rename; do not mask the authoritative result.
-      }
-    }
-  }
+  const next = [nextEvidence, nextProofs];
+  const request = {
+    action: 'apply',
+    directories: admittedBinding.targetBinding.directories,
+    repositoryRoot: root,
+    targets: admittedBinding.targetBinding.targets.map((target, index) => ({
+      ...target,
+      appliedDigest: sha256(next[index]),
+      contentBase64: Buffer.from(next[index]).toString('base64'),
+    })),
+    transactionId: `${projection.metadata.projectionDigest.slice(7, 31)}-${process.pid}`,
+  };
+  const transact = operations.exactReplaceTransaction
+    ?? ((value) => runExactProjectionTransaction(admittedBinding.mutationRuntime, value));
+  const transaction = transact(request);
+  assert(transaction?.state === 'applied'
+    && Array.isArray(transaction.targets)
+    && transaction.targets.length === 2,
+  'PROJECTION_TRANSACTION_RESULT_INVALID');
+  assert(sha256(readFileSync(evidencePath)) === sha256(nextEvidence),
+    'EVIDENCE_REPLACEMENT_VERIFICATION_FAILED');
+  assert(sha256(readFileSync(proofsPath)) === sha256(nextProofs),
+    'PROOF_REPLACEMENT_VERIFICATION_FAILED');
   const result = Object.freeze({
     evidencePath,
     proofsPath,
@@ -1292,73 +1717,34 @@ export function replaceProviderWorkforceAuthorityProjection(
     proofsPath,
     evidenceSource,
     proofsSource,
-    evidenceAppliedDigest: result.evidenceSourceDigest,
-    proofAppliedDigest: result.proofSourceDigest,
-    evidenceMode: stats[0].mode & 0o777,
-    proofMode: stats[1].mode & 0o777,
+    mutationRuntime: admittedBinding.mutationRuntime,
+    targetBinding: admittedBinding.targetBinding,
+    transaction: Object.freeze(transaction),
+    transact,
   }));
   return result;
 }
 
 export function rollbackProviderWorkforceAuthorityProjection(
   applied,
-  operations = DEFAULT_FILE_OPERATIONS,
+  _operations = DEFAULT_FILE_OPERATIONS,
 ) {
   const rollback = applied && typeof applied === 'object'
     ? APPLICATION_ROLLBACKS.get(applied)
     : null;
   assert(rollback, 'PROJECTION_ROLLBACK_BINDING_INVALID');
-  for (const [path, expectedDigest, label] of [
-    [rollback.evidencePath, rollback.evidenceAppliedDigest, 'EVIDENCE'],
-    [rollback.proofsPath, rollback.proofAppliedDigest, 'PROOF'],
-  ]) {
-    const stat = lstatSync(path);
-    assert(!stat.isSymbolicLink() && stat.isFile() && stat.nlink === 1,
-      `${label}_ROLLBACK_TARGET_NOT_EXACT_FILE`);
-    assert(sha256(readFileSync(path)) === expectedDigest,
-      `${label}_ROLLBACK_TARGET_MOVED`);
-  }
-  const stages = [];
-  const errors = [];
-  try {
-    stages.push(stageFile(
-      rollback.evidencePath,
-      rollback.evidenceSource,
-      rollback.evidenceMode,
-      'evidence-post-closure-rollback',
-      operations,
-    ));
-    stages.push(stageFile(
-      rollback.proofsPath,
-      rollback.proofsSource,
-      rollback.proofMode,
-      'proof-post-closure-rollback',
-      operations,
-    ));
-    for (const [index, [path, source, label]] of [
-      [rollback.evidencePath, rollback.evidenceSource, 'EVIDENCE'],
-      [rollback.proofsPath, rollback.proofsSource, 'PROOF'],
-    ].entries()) {
-      try {
-        operations.renameSync(stages[index], path);
-        assert(sha256(readFileSync(path)) === sha256(source),
-          `${label}_POST_CLOSURE_ROLLBACK_VERIFICATION_FAILED`);
-      } catch (error) {
-        errors.push(error);
-      }
-    }
-  } finally {
-    for (const path of stages) {
-      try {
-        operations.rmSync(path, { force: true });
-      } catch {
-        // Preserve the authoritative rollback outcome.
-      }
-    }
-  }
-  if (errors.length) {
-    throw new AggregateError(errors, 'PROJECTION_POST_CLOSURE_ROLLBACK_FAILED');
-  }
+  const result = rollback.transact({
+    action: 'rollback',
+    directories: rollback.transaction.directories,
+    repositoryRoot: rollback.targetBinding.repositoryRoot,
+    transaction: rollback.transaction,
+  });
+  assert(result?.state === 'rolled-back',
+    'PROJECTION_ROLLBACK_TRANSACTION_RESULT_INVALID');
+  assert(sha256(readFileSync(rollback.evidencePath)) === sha256(rollback.evidenceSource),
+    'EVIDENCE_POST_CLOSURE_ROLLBACK_VERIFICATION_FAILED');
+  assert(sha256(readFileSync(rollback.proofsPath)) === sha256(rollback.proofsSource),
+    'PROOF_POST_CLOSURE_ROLLBACK_VERIFICATION_FAILED');
   APPLICATION_ROLLBACKS.delete(applied);
   return Object.freeze({
     evidencePath: rollback.evidencePath,
@@ -1369,8 +1755,17 @@ export function rollbackProviderWorkforceAuthorityProjection(
 }
 
 function finalizeProviderWorkforceAuthorityProjection(applied) {
-  assert(applied && APPLICATION_ROLLBACKS.has(applied),
+  const rollback = applied && APPLICATION_ROLLBACKS.get(applied);
+  assert(rollback,
     'PROJECTION_FINALIZATION_BINDING_INVALID');
+  const result = rollback.transact({
+    action: 'finalize',
+    directories: rollback.transaction.directories,
+    repositoryRoot: rollback.targetBinding.repositoryRoot,
+    transaction: rollback.transaction,
+  });
+  assert(result?.state === 'finalized',
+    'PROJECTION_FINALIZATION_TRANSACTION_RESULT_INVALID');
   APPLICATION_ROLLBACKS.delete(applied);
 }
 
@@ -1547,8 +1942,32 @@ export function verifyProjectionRepositoryBinding({
     label: 'FACTORY_PRODUCER',
   });
   assert(root !== factoryRoot, 'PROOF_AND_FACTORY_REPOSITORIES_NOT_DISTINCT');
-  exactStringSet(evidence?.proofAlgorithmSources?.map(({ path }) => path), PROVIDER_PROOF_SOURCE_PATHS,
+  exactStringSet(
+    evidence?.proofAlgorithmSources?.map(({ path }) => path),
+    PROVIDER_PROOF_ALGORITHM_SOURCE_PATHS,
     'PROOF_ALGORITHM_SOURCE_SET_INVALID');
+  const trackedSourcePaths = gitValue(
+    root,
+    ['ls-tree', '-r', '--name-only', 'HEAD'],
+    'PROOF_ALGORITHM_TRACKED_SOURCE_PATHS',
+  ).split('\n').filter(Boolean).sort(utf8Compare);
+  const sourceManifest = verifyProviderProofSourceManifest({
+    repositoryRoot: root,
+    trackedSourcePaths,
+  });
+  assert(canonicalJson(sourceManifest.declaredSourceRecords)
+    === canonicalJson(evidence.proofAlgorithmSources),
+  'PROOF_ALGORITHM_SOURCE_MANIFEST_RECORDS_MISMATCH');
+  assert(sourceManifest.manifestDigest === evidence.proofAlgorithmSourceManifestDigest,
+    'PROOF_ALGORITHM_SOURCE_MANIFEST_DIGEST_MISMATCH');
+  assert(sourceManifest.declaredSourceSetDigest === evidence.proofAlgorithmSourceSetDigest,
+    'PROOF_ALGORITHM_SOURCE_MANIFEST_SET_DIGEST_MISMATCH');
+  assert(sourceManifest.publicationSourceSetDigest
+    === evidence.canonicalPublicationSourceSetDigest,
+  'CANONICAL_PUBLICATION_SOURCE_SET_DIGEST_MISMATCH');
+  assert(sourceManifest.entrypointClosureSetDigest
+    === evidence.proofAlgorithmImportClosureDigest,
+    'PROOF_ALGORITHM_IMPORT_CLOSURE_DIGEST_MISMATCH');
   evidence.proofAlgorithmSources.forEach((record, index) => {
     verifyTrackedSource(root, record, `PROOF_ALGORITHM_SOURCE_${index}`);
   });
@@ -1674,6 +2093,164 @@ function reproduceProviderWorkforceEvidence({
     'PROVIDER_WORKFORCE_ATTESTATION_REPRODUCTION_MISMATCH');
 }
 
+function materialisationProofEnvironment({
+  repositories,
+  materialisation,
+  casRoot,
+  environment = process.env,
+}) {
+  const evidence = materialisation.evidence;
+  const outputRoot = materialisation.receipt.outputRoot;
+  assert(/^\/tmp\/usf-materialisation-control-plane-proof(?:-[A-Za-z0-9._-]+)?$/u
+    .test(outputRoot),
+  'MATERIALISATION_REPRODUCTION_OUTPUT_ROOT_INVALID');
+  const currentness = evidence.cases.find(
+    ({ id }) => id === 'live-proof-currentness-state',
+  )?.observed;
+  assert(currentness === 'CURRENT' || currentness === 'UNRESOLVED_FAIL_CLOSED',
+    'MATERIALISATION_REPRODUCTION_CURRENTNESS_INVALID');
+  const signature = evidence.signatureVerification;
+  assert(signature?.gnupgHome && signature?.primaryKeyFingerprint
+    && signature?.publicKeyringDigest,
+  'MATERIALISATION_REPRODUCTION_SIGNATURE_BINDING_INVALID');
+  const stardog = {
+    STARDOG_DATABASE: environment.STARDOG_DATABASE,
+    STARDOG_SERVER: environment.STARDOG_SERVER,
+  };
+  assert(stardog.STARDOG_DATABASE && stardog.STARDOG_SERVER,
+    'MATERIALISATION_REPRODUCTION_STARDOG_ENDPOINT_REQUIRED');
+  if (environment.STARDOG_TOKEN) {
+    stardog.STARDOG_TOKEN = environment.STARDOG_TOKEN;
+  } else {
+    assert(environment.STARDOG_USERNAME && environment.STARDOG_PASSWORD,
+      'MATERIALISATION_REPRODUCTION_STARDOG_AUTH_REQUIRED');
+    stardog.STARDOG_USERNAME = environment.STARDOG_USERNAME;
+    stardog.STARDOG_PASSWORD = environment.STARDOG_PASSWORD;
+  }
+  return Object.freeze({
+    GIT_CONFIG_COUNT: '0',
+    GIT_CONFIG_GLOBAL: '/dev/null',
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_NO_REPLACE_OBJECTS: '1',
+    GIT_OPTIONAL_LOCKS: '0',
+    HOME: '/nonexistent',
+    LANG: 'C.UTF-8',
+    LC_ALL: 'C.UTF-8',
+    PATH: '/usr/bin:/bin',
+    TZ: 'UTC',
+    USF_AUTHORITY_DIGEST: evidence.evaluatedAuthorityDigest,
+    USF_CAS_ROOT: casRoot,
+    USF_EVALUATED_AT: evidence.evaluatedAt,
+    USF_EXPECTED_DEPENDENCY_SET_DIGEST: evidence.candidateDependencySetDigest,
+    USF_EXPECTED_GRAPH_TREE: evidence.graphTree,
+    USF_EXPECTED_KEYRING_DIGEST: signature.publicKeyringDigest,
+    USF_EXPECTED_LIVE_CURRENTNESS: currentness,
+    USF_EXPECTED_SIGNER_FINGERPRINT: signature.primaryKeyFingerprint,
+    USF_GNUPGHOME: signature.gnupgHome,
+    USF_GRAPH_COMMIT: evidence.graphCommit,
+    USF_PROOF_OUTPUT: outputRoot,
+    USF_REPO: repositories.repositoryRoot,
+    ...stardog,
+  });
+}
+
+function defaultMaterialisationProofReproducer({
+  repositories,
+  materialisation,
+  environment,
+}) {
+  let stdout;
+  try {
+    stdout = execFileSync(process.execPath, [
+      join(repositories.repositoryRoot, MATERIALISATION_PROOF_RUNNER_PATH),
+    ], {
+      cwd: repositories.repositoryRoot,
+      encoding: 'buffer',
+      env: environment,
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 3_600_000,
+    });
+  } catch {
+    throw new Error('MATERIALISATION_PROOF_REPRODUCTION_FAILED');
+  }
+  return Object.freeze({
+    attestationBytes: readFileSync(
+      join(materialisation.receipt.outputRoot, 'proof-attestation.dsse.json'),
+    ),
+    evidenceBytes: readFileSync(
+      join(materialisation.receipt.outputRoot, 'evidence-manifest.json'),
+    ),
+    receiptBytes: stdout,
+  });
+}
+
+function reproduceMaterialisationProof({
+  repositories,
+  materialisation,
+  suppliedReceiptBytes,
+  suppliedEvidenceBytes,
+  suppliedAttestationBytes,
+  environment = process.env,
+  reproduce = defaultMaterialisationProofReproducer,
+}) {
+  const casRoot = prepareExactSessionOutputRoot({
+    repositoryRoot: repositories.repositoryRoot,
+    requestedOutputRoot: join(
+      repositories.repositoryRoot,
+      '.work',
+      'materialisation-proof-reproduction-cas',
+    ),
+    clear: true,
+  });
+  const exactEnvironment = materialisationProofEnvironment({
+    repositories,
+    materialisation,
+    casRoot,
+    environment,
+  });
+  const reproduced = reproduce({
+    repositories,
+    materialisation,
+    environment: exactEnvironment,
+  });
+  assert(Buffer.isBuffer(reproduced?.receiptBytes)
+    && reproduced.receiptBytes.equals(suppliedReceiptBytes),
+  'MATERIALISATION_RECEIPT_REPRODUCTION_MISMATCH');
+  assert(Buffer.isBuffer(reproduced?.evidenceBytes)
+    && reproduced.evidenceBytes.equals(suppliedEvidenceBytes),
+  'MATERIALISATION_EVIDENCE_REPRODUCTION_MISMATCH');
+  assert(Buffer.isBuffer(reproduced?.attestationBytes)
+    && reproduced.attestationBytes.equals(suppliedAttestationBytes),
+  'MATERIALISATION_ATTESTATION_REPRODUCTION_MISMATCH');
+  return Object.freeze({
+    environmentClass: 'hermetic-explicit-allowlist',
+    outputRoot: materialisation.receipt.outputRoot,
+  });
+}
+
+function materialisationReproductionEnvironmentIdentity(environment = process.env) {
+  const credentialNames = [
+    'STARDOG_PASSWORD',
+    'STARDOG_TOKEN',
+    'STARDOG_USERNAME',
+  ];
+  return Object.freeze({
+    publicBindings: Object.freeze(Object.fromEntries([
+      'STARDOG_DATABASE',
+      'STARDOG_SERVER',
+    ].map((name) => [name, environment[name] ?? null]))),
+    credentialPresence: Object.freeze(Object.fromEntries(
+      credentialNames.map((name) => [name, typeof environment[name] === 'string'
+        && environment[name].length > 0]),
+    )),
+  });
+}
+
+function assertExactExecutionIdentityStable(before, after, code) {
+  assert(canonicalJson(after) === canonicalJson(before), code);
+}
+
 function exactExecutionSourceIdentitySnapshot({
   repositories,
   evidence,
@@ -1688,6 +2265,11 @@ function exactExecutionSourceIdentitySnapshot({
     ...materialisation.evidence.implementationSources
       .map(({ path }) => join(repositories.repositoryRoot, path)),
     join(repositories.repositoryRoot, materialisation.evidence.runner.sourcePath),
+    join(repositories.repositoryRoot, 'package-lock.json'),
+    materialisation.evidence.signatureVerification.publicKeyringPath,
+    materialisation.evidence.toolchain.node.path,
+    materialisation.evidence.toolchain.git.path,
+    materialisation.evidence.toolchain.gpg.path,
   ];
   return [...new Set(paths)].sort(utf8Compare).map((path) => {
     const stat = statSync(path, { bigint: true });
@@ -1705,10 +2287,19 @@ function exactExecutionSourceIdentitySnapshot({
 }
 
 export const providerWorkforceAuthorityProjectionInternals = Object.freeze({
+  createProjectionApplicationBinding,
+  defaultMaterialisationProofReproducer,
+  assertExactExecutionIdentityStable,
   exactExecutionSourceIdentitySnapshot,
+  materialisationProofEnvironment,
+  materialisationReproductionEnvironmentIdentity,
+  projectionInputClosure,
+  projectionTargetBinding,
+  reproduceMaterialisationProof,
+  runExactProjectionTransaction,
 });
 
-function createProjectionApplicationBinding(arguments_) {
+async function createProjectionApplicationBinding(arguments_, seams = {}) {
   const materialisation = PROJECTION_MATERIALISATION_ATTESTATIONS.get(arguments_.projection);
   assert(materialisation, 'PROJECTION_MATERIALISATION_ATTESTATION_BINDING_INVALID');
   const repositories = verifyProjectionRepositoryBinding({
@@ -1718,7 +2309,17 @@ function createProjectionApplicationBinding(arguments_) {
   assert(canonicalJson(arguments_.mutationRuntime)
     === canonicalJson(arguments_.evidence.materialisationAuthorityMutationEvidence.runtime),
   'MATERIALISATION_MUTATION_RUNTIME_BINDING_MISMATCH');
-  const executionSourceIdentityBefore = exactExecutionSourceIdentitySnapshot({
+  const casRuntime = await inspectHermeticCasSystemPublisher();
+  assert(canonicalJson(casRuntime)
+    === canonicalJson(arguments_.evidence.runtimeDependencyEvidence.cas),
+  'HERMETIC_CAS_RUNTIME_BINDING_MISMATCH');
+  const identitySnapshot = seams.identitySnapshot ?? exactExecutionSourceIdentitySnapshot;
+  const environmentIdentitySnapshot = seams.environmentIdentitySnapshot
+    ?? materialisationReproductionEnvironmentIdentity;
+  const reproductionEnvironment = seams.environment ?? process.env;
+  const executionEnvironmentIdentityBefore =
+    environmentIdentitySnapshot(reproductionEnvironment);
+  const executionSourceIdentityBefore = identitySnapshot({
     repositories,
     evidence: arguments_.evidence,
     materialisation,
@@ -1731,26 +2332,49 @@ function createProjectionApplicationBinding(arguments_) {
     receipt: arguments_.receipt,
     mutationRuntime: arguments_.mutationRuntime,
   });
-  const executionSourceIdentityAfter = exactExecutionSourceIdentitySnapshot({
+  reproduceMaterialisationProof({
+    repositories,
+    materialisation,
+    suppliedReceiptBytes: arguments_.materialisationReceiptBytes,
+    suppliedEvidenceBytes: arguments_.materialisationEvidenceBytes,
+    suppliedAttestationBytes: arguments_.materialisationAttestationBytes,
+    environment: reproductionEnvironment,
+    reproduce: seams.reproduceMaterialisationProof
+      ?? defaultMaterialisationProofReproducer,
+  });
+  const executionSourceIdentityAfter = identitySnapshot({
     repositories,
     evidence: arguments_.evidence,
     materialisation,
   });
-  assert(canonicalJson(executionSourceIdentityAfter) === canonicalJson(executionSourceIdentityBefore),
-    'PROVIDER_WORKFORCE_EXECUTION_SOURCE_IDENTITY_MOVED');
+  const executionEnvironmentIdentityAfter =
+    environmentIdentitySnapshot(reproductionEnvironment);
+  assertExactExecutionIdentityStable(
+    executionSourceIdentityBefore,
+    executionSourceIdentityAfter,
+    'PROVIDER_WORKFORCE_EXECUTION_SOURCE_IDENTITY_MOVED',
+  );
+  assertExactExecutionIdentityStable(
+    executionEnvironmentIdentityBefore,
+    executionEnvironmentIdentityAfter,
+    'PROVIDER_WORKFORCE_EXECUTION_ENVIRONMENT_MOVED',
+  );
   verifyProviderProofNodeDependencyEvidence(
     arguments_.evidence.runtimeDependencyEvidence.node,
     { repositoryRoot: repositories.repositoryRoot },
   );
+  const targetBinding = projectionTargetBinding(repositories.repositoryRoot);
   const binding = Object.freeze({
     ...repositories,
-    exactEvidenceSetDigest: arguments_.evidence.exactEvidenceSetDigest,
+    exactEvidenceSetDigest: arguments_.projection.metadata.exactEvidenceSetDigest,
   });
   APPLICATION_BINDINGS.set(binding, Object.freeze({
     repositoryRoot: repositories.repositoryRoot,
     factoryRepositoryRoot: repositories.factoryRepositoryRoot,
-    exactEvidenceSetDigest: arguments_.evidence.exactEvidenceSetDigest,
+    exactEvidenceSetDigest: arguments_.projection.metadata.exactEvidenceSetDigest,
+    mutationRuntime: arguments_.mutationRuntime,
     projectionDigest: arguments_.projection.metadata.projectionDigest,
+    targetBinding,
     verificationArguments: Object.freeze({
       repositoryRoot: arguments_.repositoryRoot,
       factoryRepositoryRoot: arguments_.factoryRepositoryRoot,
@@ -1848,7 +2472,7 @@ export function assertPostProjectionCandidateClosure(before, after) {
   });
 }
 
-function runCli() {
+async function runCli() {
   const { values, flags } = parseArguments(process.argv.slice(2));
   const expectedArguments = [
     'algorithm-version',
@@ -1940,7 +2564,7 @@ function runCli() {
     settledAuthorityDigest: values['settled-authority-digest'] || null,
     reevaluatedAt: values['reevaluated-at'] || null,
   });
-  const applicationBinding = createProjectionApplicationBinding({
+  const applicationBinding = await createProjectionApplicationBinding({
     repositoryRoot: values['repository-root'],
     factoryRepositoryRoot: values['factory-repository-root'],
     proofProducerCommit: values['proof-producer-commit'],
@@ -1948,6 +2572,9 @@ function runCli() {
     evidence,
     evidenceBytes,
     attestationBytes,
+    materialisationReceiptBytes,
+    materialisationEvidenceBytes,
+    materialisationAttestationBytes,
     receipt,
     mutationRuntime,
     projection,
@@ -2029,10 +2656,8 @@ function runCli() {
 
 const mainPath = process.argv[1] ? realpathSync(process.argv[1]) : null;
 if (mainPath === fileURLToPath(import.meta.url)) {
-  try {
-    runCli();
-  } catch (error) {
+  runCli().catch((error) => {
     process.stderr.write(`${error.name}:${error.message}\n`);
     process.exitCode = 1;
-  }
+  });
 }
