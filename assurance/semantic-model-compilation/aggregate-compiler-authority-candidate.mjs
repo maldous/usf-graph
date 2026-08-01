@@ -43,7 +43,7 @@ const PROTOCOL_IRI = 'urn:usf:semanticproofprotocol:v1';
 const PROVISIONAL_RESULT = 'urn:usf:proofresult:compilersemanticenforcementaggregateprepublication';
 const AGGREGATE_OBLIGATION = 'urn:usf:proofobligation:compilersemanticenforcementaggregate';
 const AGGREGATE_ALGORITHM = 'urn:usf:proofalgorithm:compilersemanticenforcementaggregate';
-const AGGREGATE_VERSION = 'urn:usf:proofalgorithmversion:compilersemanticenforcementaggregate-v2_1_0';
+const AGGREGATE_VERSION = 'urn:usf:proofalgorithmversion:compilersemanticenforcementaggregatev210';
 const PROVISIONAL_PROOF = 'urn:usf:proof:compilersemanticenforcementaggregateprepublication';
 const PROVISIONAL_EXECUTION = 'urn:usf:proofexecution:compilersemanticenforcementaggregateprepublication';
 const PROVISIONAL_EVALUATION = 'urn:usf:proofevaluation:compilersemanticenforcementaggregateprepublication';
@@ -681,8 +681,7 @@ function aggregateFoundation(additions, pending, currentnessBinding) {
   for (const component of COMPONENT_PROOFS) {
     const requirement = `urn:usf:componentproofrequirement:compilersemanticenforcementaggregate:${component.dimension}`;
     additions.push(type(requirement, `${USF}ComponentProofRequirement`, GRAPH_PROOFS));
-    add(additions, requirement, 'canonicalName',
-      literal(`compilersemanticenforcementaggregate${component.dimension}`));
+    add(additions, requirement, 'canonicalName', literal(component.dimension));
     add(additions, requirement, 'componentObligation', iri(component.obligation));
     add(additions, requirement, 'componentProofResult', iri(component.result));
     add(additions, requirement, 'componentDimension', literal(component.dimension));

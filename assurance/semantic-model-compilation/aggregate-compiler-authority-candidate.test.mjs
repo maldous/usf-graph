@@ -27,7 +27,7 @@ const USF = 'urn:usf:ontology:';
 const FINAL_RESULT = 'urn:usf:proofresult:compilersemanticenforcementaggregate';
 const FINAL_PROOF = 'urn:usf:proof:compilersemanticenforcementaggregate';
 const AGGREGATE_ALGORITHM = 'urn:usf:proofalgorithm:compilersemanticenforcementaggregate';
-const AGGREGATE_VERSION = 'urn:usf:proofalgorithmversion:compilersemanticenforcementaggregate-v2_1_0';
+const AGGREGATE_VERSION = 'urn:usf:proofalgorithmversion:compilersemanticenforcementaggregatev210';
 const VALIDATION_RULE = 'urn:usf:authoritybindingrule:validationnonpublicationdependencyclosure';
 const SELF_PUBLICATION_RULE = 'urn:usf:authoritybindingrule:selfpublicationclosure';
 const AGGREGATE_ADMISSION_PATH = 'urn:usf:evidenceadmissionpath:compilersemanticenforcementaggregate';
@@ -559,6 +559,12 @@ test('stage 1 materializes authored aggregate obligation and canonical metadata 
     'urn:usf:proofauthoritybinding:compilersemanticenforcementaggregateprepublication',
     VALIDATION_RULE,
   ]) assert.equal(objects(additions, subject, `${USF}canonicalName`).length, 1, subject);
+  assert.deepEqual(objects(additions, AGGREGATE_VERSION, `${USF}canonicalName`),
+    ['compilersemanticenforcementaggregatev210']);
+  for (const component of COMPONENT_PROOFS) {
+    const requirement = `urn:usf:componentproofrequirement:compilersemanticenforcementaggregate:${component.dimension}`;
+    assert.deepEqual(objects(additions, requirement, `${USF}canonicalName`), [component.dimension]);
+  }
   assert.deepEqual(objects(additions, AGGREGATE_ALGORITHM, `${USF}proofAlgorithmSourcePath`),
     ['assurance/semantic-model-compilation/aggregate-compiler-proof.mjs']);
 });
