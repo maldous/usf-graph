@@ -759,6 +759,7 @@ export async function runPublication({
   pendingPackage,
   candidateApproval,
   publicationGrant,
+  recoveryValidationEvidence,
   priorPublicationReceipt,
   reevaluationPreparation,
   trustAnchor,
@@ -777,6 +778,10 @@ export async function runPublication({
 } = {}) {
   if (!['prepare', 'validate', 'commit'].includes(mode)) throw new Error('mode must be prepare, validate or commit');
   if (!['initial', 'reevaluation'].includes(publicationPhase)) throw new Error('publicationPhase must be initial or reevaluation');
+  if (recoveryValidationEvidence !== undefined
+      && (mode !== 'commit' || publicationPhase !== 'initial')) {
+    throw new Error('recovery validation evidence is restricted to initial publication recovery');
+  }
   assertExpectedDigest(expectedAuthorityDigest, 'authority digest');
   if (!command || typeof command.execute !== 'function' || typeof readAuthorityWitness !== 'function') {
     throw new Error('publisher requires injected compiler command and authority witness reader');
@@ -855,16 +860,22 @@ export async function runPublication({
       }
     }
     if (existing && existing.state !== 'reserved') {
+      const admittedRecoveryValidation = recoveryValidationEvidence === undefined ? null
+        : admitValidationEvidence({ validationEvidence: recoveryValidationEvidence }, admittedEvidence);
       return resumePublication({
         transaction: protocolJournal.readPublicationTransaction(bundle.grant, { ledgerPath }), bundle,
         publicationPhase, expectedAuthorityDigest, expectedCandidateDigest, authorityDomain,
         repository, sourcePaths, ownerAssignment: graphOwnerAssignment, candidateApproval, publicationGrant,
         readAuthorityWitness, postPublicationReevaluate, ledgerPath, settle, persist, protocolJournal,
-        evidenceStore: admittedEvidence, validationEvidence: null, compilerValidation: null,
+        evidenceStore: admittedEvidence, validationEvidence: admittedRecoveryValidation, compilerValidation: null,
         pendingPackage, reevaluationPreparation,
         recovering: true,
       });
     }
+  }
+
+  if (recoveryValidationEvidence !== undefined) {
+    throw new Error('recovery validation evidence requires an existing durable publication outcome');
   }
 
   const before = await readAuthorityWitness();

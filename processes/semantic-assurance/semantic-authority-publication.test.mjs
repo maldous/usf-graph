@@ -604,18 +604,49 @@ test('consume failure is recoverable without republishing', async () => {
     },
   })), /journal write interrupted/);
   assert.equal(state.read().nonces[INITIAL_NONCE].state, 'published_pending_reevaluation');
+  const reportBytes = Buffer.from(canonicalJson({
+    authorityDigest: PRE,
+    candidateDigest: INITIAL_CANDIDATE,
+    providerValidationReceipt: { conforms: true },
+    schema: 'semantic-authority-compiler-validation-report-v1',
+  }));
+  const pendingPackage = {
+    aggregateResult: { evaluation: { sourceBindingDigest: OBSERVATION } },
+    evaluatedAuthorityDigest: PRE,
+  };
   const recovered = await runPublication(invocation({
     mode: 'commit', commandInstance: compiler, ledgerPath: state.ledgerPath,
+    pendingPackage,
     readAuthorityWitness: witnessReader([STAGE_ONE, STAGE_ONE]), settle,
+    recoveryValidationEvidence: { bytes: reportBytes, digest: sha256(reportBytes) },
     postPublicationReevaluate: producer(),
     persist: (receipt) => ({ digest: publicationReceiptDigest(receipt), path: '/proof/recovered.json' }),
   }));
   assert.equal(recovered.recovered, true);
+  assert.equal(recovered.compilerValidation.receipt.authorityBeforeDigest, PRE);
+  assert.equal(recovered.compilerValidation.receipt.authorityAfterDigest, STAGE_ONE);
+  assert.equal(recovered.compilerValidation.receipt.sourceBindingDigest, OBSERVATION);
   assert.equal(consumeAttempts, 1);
   assert.deepEqual(compiler.calls, [
     { expectedAuthorityDigest: PRE, publicationMode: 'validate' },
     { expectedAuthorityDigest: PRE, publicationMode: 'commit' },
   ]);
+  state.remove();
+});
+
+test('recovery validation evidence cannot enter a new or non-initial publication', async () => {
+  const evidenceBytes = Buffer.from('{}');
+  await assert.rejects(runPublication(invocation({
+    mode: 'validate',
+    recoveryValidationEvidence: { bytes: evidenceBytes, digest: sha256(evidenceBytes) },
+  })), /restricted to initial publication recovery/);
+  const state = journal();
+  await assert.rejects(runPublication(invocation({
+    mode: 'commit',
+    ledgerPath: state.ledgerPath,
+    recoveryValidationEvidence: { bytes: evidenceBytes, digest: sha256(evidenceBytes) },
+    postPublicationReevaluate: producer(),
+  })), /requires an existing durable publication outcome/);
   state.remove();
 });
 
