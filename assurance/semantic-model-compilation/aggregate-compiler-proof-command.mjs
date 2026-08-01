@@ -448,7 +448,12 @@ async function queryComponentRows(client) {
 async function readTrustedTime(client) {
   const rows = await client.select(TRUSTED_TIME_QUERY);
   if (!Array.isArray(rows) || rows.length !== 1) fail('AGGREGATE_PRODUCER_TRUSTED_TIME_INVALID', 'NOW() cardinality');
-  return timestamp(binding(rows[0], 'now'), 'Stardog trusted time');
+  const observed = binding(rows[0], 'now');
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(observed)
+      || !Number.isFinite(Date.parse(observed))) {
+    fail('AGGREGATE_PRODUCER_TIME_INVALID', 'Stardog trusted time');
+  }
+  return timestamp(new Date(Date.parse(observed)).toISOString().replace(/\.\d{3}Z$/, 'Z'), 'Stardog trusted time');
 }
 
 function normalizeFacts(rows, casRoot, observedAt, evaluatedAt, authorityDigest) {

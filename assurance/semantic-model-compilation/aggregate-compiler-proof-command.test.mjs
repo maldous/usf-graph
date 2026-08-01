@@ -284,7 +284,7 @@ function harness(base, rows, options = {}) {
     actionState: 'PROCEED', proofCurrentness: { proofResult: AGGREGATE_RESULT_IRI, state: 'CURRENT' },
   };
   const client = { async select(query) {
-    if (query.includes('aggregate-trusted-time-v1')) { metrics.trustedTimeQueries += 1; return [{ now: binding(TRUSTED_AT) }]; }
+    if (query.includes('aggregate-trusted-time-v1')) { metrics.trustedTimeQueries += 1; return [{ now: binding(options.trustedAt || TRUSTED_AT) }]; }
     if (query.includes('aggregate-component-fact-count-v1')) {
       metrics.componentQueries += 1; if (options.rejectComponents) throw new Error('stage-2 component manufacture');
       return [{ count: binding(rows.length) }];
@@ -411,6 +411,14 @@ test('uses one Stardog NOW() and defaults source reachability to origin/main', a
   assert.equal(pending.aggregateResult.evaluation.evaluatedAt, TRUSTED_AT);
   assert.equal(pending.aggregateResult.evaluation.sourceBinding.reachableFrom, DEFAULT_AGGREGATE_REACHABLE_REF);
   assert.equal(run.metrics.trustedTimeQueries, 1);
+});
+
+test('fractional Stardog trusted time is canonicalized to a protocol UTC second', async () => {
+  const base = fixture();
+  const pending = await harness(base, componentRows(base.casRoot), {
+    trustedAt: '2026-08-01T00:10:00.577Z',
+  }).producer.preparePending({ requestedAuthorityDigest: D0 });
+  assert.equal(pending.aggregateResult.evaluation.evaluatedAt, TRUSTED_AT);
 });
 
 test('historical component record preserves queried identities without synthetic receipt claims', async () => {
