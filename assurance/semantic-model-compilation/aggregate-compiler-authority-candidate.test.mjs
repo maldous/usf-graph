@@ -600,11 +600,15 @@ test('stage 2 final aggregate carries every CURRENT projection fact and coherent
   assert.equal(objects(quads, validationResult, `${USF}usesAdmittedValidationEvidence`).length, 3);
   for (const evidence of objects(quads, validationResult, `${USF}usesAdmittedValidationEvidence`)) {
     assert.equal(typedAs(quads, evidence, `${USF}EvidenceResult`), true);
-    assert.equal(typedAs(quads, evidence, `${USF}ValidationEvidence`), true);
+    assert.equal(typedAs(quads, evidence, `${USF}ValidationEvidence`), evidence === compilerEvidence);
     assert.deepEqual(objects(quads, evidence, `${USF}evidenceFor`), [contract]);
     assert.deepEqual(objects(quads, evidence, `${USF}hasAdmissionState`),
       ['urn:usf:evidenceadmissionstate:admitted']);
   }
+  assert.deepEqual(objects(quads, compilerEvidence, `${USF}validationEvidenceForExecution`),
+    [validationExecution]);
+  assert.deepEqual(objects(quads, compilerEvidence, `${USF}validationEvidenceAdmittedThrough`),
+    [AGGREGATE_ADMISSION_PATH]);
   for (const realisation of [
     'urn:usf:realisation:semanticauthoritycontrol',
     'urn:usf:realisation:semanticcontractcompilersemanticenforcement',

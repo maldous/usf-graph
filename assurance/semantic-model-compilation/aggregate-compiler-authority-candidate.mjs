@@ -939,7 +939,6 @@ function stage2Patch(pending, owners, stage2, currentnessBinding) {
     iri('urn:usf:validationactivationstate:activated'), GRAPH_CAPABILITIES);
   for (const descriptor of descriptors) {
     additions.push(type(descriptor.iri, `${USF}EvidenceResult`, GRAPH_PROOFS));
-    additions.push(type(descriptor.iri, `${USF}ValidationEvidence`, GRAPH_PROOFS));
     add(additions, descriptor.iri, 'canonicalName', literal(descriptor.iri.split(':').at(-1)));
     add(additions, descriptor.iri, 'evidenceKind', iri('urn:usf:evidencekind:validationevidence'));
     add(additions, descriptor.iri, 'hasFreshness', iri('urn:usf:freshness:fresh'));
@@ -952,12 +951,15 @@ function stage2Patch(pending, owners, stage2, currentnessBinding) {
     add(additions, descriptor.iri, 'hasIntegrityState', iri('urn:usf:evidenceintegritystate:valid'));
     add(additions, descriptor.iri, 'withinValidityScope', typed(true, XSD_BOOLEAN));
     add(additions, descriptor.iri, 'wasProducedBy', iri(VALIDATION_EXECUTION));
-    add(additions, descriptor.iri, 'validationEvidenceForExecution', iri(VALIDATION_EXECUTION));
-    add(additions, descriptor.iri, 'validationEvidenceAdmittedThrough', iri(EVIDENCE_ADMISSION_PATH));
     add(additions, descriptor.iri, 'contentDigest', literal(descriptor.digest));
     add(additions, descriptor.iri, 'validationEvidencePersistenceReceiptDigest', literal(descriptor.persistenceReceiptDigest));
     add(additions, VALIDATION_RESULT, 'usesAdmittedValidationEvidence', iri(descriptor.iri));
   }
+  additions.push(type(stage2.validatedDescriptors.compiler.iri, `${USF}ValidationEvidence`, GRAPH_PROOFS));
+  add(additions, stage2.validatedDescriptors.compiler.iri, 'validationEvidenceForExecution',
+    iri(VALIDATION_EXECUTION));
+  add(additions, stage2.validatedDescriptors.compiler.iri, 'validationEvidenceAdmittedThrough',
+    iri(EVIDENCE_ADMISSION_PATH));
   additions.push(type(VALIDATION_BINDING, `${USF}ValidationSelfPublicationBinding`, GRAPH_PROOFS));
   add(additions, VALIDATION_BINDING, 'canonicalName', literal('compilersemanticenforcementaggregate'));
   for (const [predicate, object] of [
