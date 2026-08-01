@@ -69,7 +69,6 @@ export const AGGREGATE_REVIEWED_SOURCE_PATHS = Object.freeze([
   'semantic-model/assurance/evidence.trig',
   'semantic-model/assurance/proofs.trig',
   'semantic-model/authority.ttl',
-  'semantic-model/contracts/bindings.trig',
   'semantic-model/contracts/capabilities.trig',
   'semantic-model/manifest.yaml',
   'semantic-model/ontology.ttl',
