@@ -1058,6 +1058,7 @@ export async function runAggregateCompilerProductionLifecycle({
   });
   const stage1Claims = await claimProvider(Object.freeze({
     authorityDigest: expectedAuthorityDigest,
+    canonicalCandidateBytes: stage1.candidate.bytes.toString('base64'),
     candidateDigest: stage1.candidate.candidateDigest,
     stage: 'stage1',
   }));
@@ -1106,6 +1107,7 @@ export async function runAggregateCompilerProductionLifecycle({
   });
   const stage2Claims = await claimProvider(Object.freeze({
     authorityDigest: d1.digest,
+    canonicalCandidateBytes: stage2.candidate.bytes.toString('base64'),
     candidateDigest: stage2.candidate.candidateDigest,
     stage: 'stage2',
   }));

@@ -732,7 +732,8 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
     expectedAuthorityDigest: d0, ownerAssignments, trustAnchor, producer, command, readAuthorityWitness,
     trustedTime: async () => '2026-08-01T00:05:00Z',
     evidenceStore: publisherModule.createCasEvidenceStore(base.casRoot),
-    claimProvider: async ({ authorityDigest: pre, candidateDigest }) => {
+    claimProvider: async ({ authorityDigest: pre, canonicalCandidateBytes, candidateDigest }) => {
+      assert.equal(sha256(Buffer.from(canonicalCandidateBytes, 'base64')), candidateDigest);
       nonce += 1;
       const publicationGrant = { payload: {
         authority_pre_digest: pre, candidate_digest: candidateDigest, claim_type: 'publication_grant',
