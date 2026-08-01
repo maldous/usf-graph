@@ -42,6 +42,7 @@ const immutableEvidence = (index) => {
 const jsonValue = (blob) => JSON.parse(Buffer.from(blob.bytesBase64, 'base64').toString('utf8'));
 
 const childProcessDenied = process.env.USF_EXPECTED_CHILD_PROCESS_PERMISSION === 'denied';
+const permissionModelEnabled = process.permission !== undefined;
 let repositoryPath;
 let sourceHead;
 let sourceTree;
@@ -92,7 +93,7 @@ const inProcessSourceBindingDependency = ({ args, executable, repositoryPath: re
   }
   return failure();
 };
-const sourceBindingDependency = childProcessDenied ? inProcessSourceBindingDependency : undefined;
+const sourceBindingDependency = permissionModelEnabled ? inProcessSourceBindingDependency : undefined;
 
 const authorityPreDigest = digest('authority-pre');
 const authorityAfterDigest = digest('authority-after');

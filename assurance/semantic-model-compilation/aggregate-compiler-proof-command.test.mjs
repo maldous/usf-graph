@@ -30,6 +30,7 @@ const TRUSTED_AT = '2026-08-01T00:10:00Z';
 const binding = (value) => ({ value: String(value) });
 const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 const CHILD_PROCESS_DENIED = process.env.USF_EXPECTED_CHILD_PROCESS_PERMISSION === 'denied';
+const PERMISSION_MODEL_ENABLED = process.permission !== undefined;
 const IN_PROCESS_HEAD = 'd'.repeat(40);
 const IN_PROCESS_TREE = 'e'.repeat(40);
 const IN_PROCESS_REPOSITORY = '/in-process-permission-fixture';
@@ -138,14 +139,14 @@ function fixture({ authoritySource = ACTIVE_AUTHORITY_SOURCE, explicitBranch = t
     git(repositoryPath, 'commit', '-q', '-m', 'fixture');
     git(repositoryPath, 'update-ref', DEFAULT_AGGREGATE_REACHABLE_REF, 'HEAD');
   }
-  const injected = CHILD_PROCESS_DENIED
-    ? {
+  const injected = {
+    ...((CHILD_PROCESS_DENIED || PERMISSION_MODEL_ENABLED) ? {
       evaluateProof: inProcessEvaluateProof,
       readSourceText: ({ path }) => path === 'semantic-model/authority.ttl' ? authoritySource : `${path}\n`,
       resolveSourceBinding: inProcessSourceBinding,
-      syncDescriptor: () => {},
-    }
-    : {};
+    } : {}),
+    ...(PERMISSION_MODEL_ENABLED ? { syncDescriptor: () => {} } : {}),
+  };
   return explicitBranch
     ? { ...injected, casRoot, repositoryPath, reachableFrom: 'refs/heads/main' }
     : { ...injected, casRoot, repositoryPath };
@@ -871,7 +872,7 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
     publicationOptions: {
       ledgerPath,
       persist: (receipt) => ({ digest: protocolModule.publicationReceiptDigest(receipt), path: '/fixture/receipt.json' }),
-      protocolJournal: CHILD_PROCESS_DENIED ? memoryProtocolJournal() : undefined,
+      protocolJournal: PERMISSION_MODEL_ENABLED ? memoryProtocolJournal() : undefined,
       settle: async (_read, first) => first,
       verifyOwnerAssignment,
       verifyBundle: ({ publicationGrant }) => ({
