@@ -35,6 +35,7 @@ const XSD_ANY_URI = 'http://www.w3.org/2001/XMLSchema#anyURI';
 const USF = 'urn:usf:ontology:';
 
 const GRAPH_AUTHORITY = 'urn:usf:graph:authority';
+const GRAPH_BINDINGS = 'urn:usf:graph:bindings';
 const GRAPH_CAPABILITIES = 'urn:usf:graph:capabilities';
 const GRAPH_PROOFS = 'urn:usf:graph:proofs';
 const CONTRACT = 'urn:usf:semanticcontract:compilersemanticenforcement';
@@ -73,9 +74,11 @@ const AGGREGATE_EVIDENCE_REQUIREMENTS = Object.freeze([
   'urn:usf:evidencerequirement:importedauthoritycounterfactualadequacy',
 ]);
 const AGGREGATE_ASSURANCE_CELLS = Object.freeze([
-  'urn:usf:assurancecell:behaviourhermetichermetic',
   'urn:usf:assurancecell:behaviourliveauthoritycontrol',
-  'urn:usf:assurancecell:contracthermetichermetic',
+]);
+const TRANSITIONAL_REALISATIONS = Object.freeze([
+  'urn:usf:realisation:semanticauthoritycontrol',
+  'urn:usf:realisation:semanticcontractcompilersemanticenforcement',
 ]);
 const EXCLUDED_AUTHORITY_GRAPHS = Object.freeze([
   'urn:usf:graph:capabilities',
@@ -785,6 +788,8 @@ function stage1Patch(pending, owners, currentnessBinding) {
     ...COMPONENT_PROOFS.map(({ result }) =>
       q(CONTRACT, `${USF}reliesOnProofResult`, iri(result), GRAPH_CAPABILITIES)),
     q(CONTRACT, `${USF}hasActivationState`, iri('urn:usf:contractactivationstate:active'), GRAPH_CAPABILITIES),
+    ...TRANSITIONAL_REALISATIONS.map((realisation) =>
+      q(realisation, `${USF}realisationState`, iri('urn:usf:realisationstate:implementable'), GRAPH_BINDINGS)),
   ];
   const additions = OWNER_SCOPE_KEYS.flatMap((key, index) => ownerTriples(owners[key], OWNER_SCOPES[key], {
     includeVerifier: index === 0,
@@ -820,21 +825,24 @@ function stage1Patch(pending, owners, currentnessBinding) {
   add(additions, CONTRACT, 'hasActivationState',
     iri('urn:usf:contractactivationstate:proofblocked'), GRAPH_CAPABILITIES);
   add(additions, CONTRACT, 'reliesOnProofResult', iri(PROVISIONAL_RESULT), GRAPH_CAPABILITIES);
+  for (const realisation of TRANSITIONAL_REALISATIONS) {
+    add(additions, realisation, 'realisationState', iri('urn:usf:realisationstate:deferred'), GRAPH_BINDINGS);
+  }
   return { additions, deletions };
 }
 
 function stage2Patch(pending, owners, stage2, currentnessBinding) {
   const stage1 = stage1Patch(pending, owners, currentnessBinding);
-  const transientContractFacts = new Set([
+  const transientFacts = new Set([
     q(CONTRACT, `${USF}reliesOnProofResult`, iri(PROVISIONAL_RESULT), GRAPH_CAPABILITIES),
     q(CONTRACT, `${USF}hasActivationState`,
       iri('urn:usf:contractactivationstate:proofblocked'), GRAPH_CAPABILITIES),
+    ...TRANSITIONAL_REALISATIONS.map((realisation) =>
+      q(realisation, `${USF}realisationState`, iri('urn:usf:realisationstate:deferred'), GRAPH_BINDINGS)),
   ]);
-  const additions = stage1.additions.filter((line) => !transientContractFacts.has(line));
+  const additions = stage1.additions.filter((line) => !transientFacts.has(line));
   const deletions = [
-    q(CONTRACT, `${USF}reliesOnProofResult`, iri(PROVISIONAL_RESULT), GRAPH_CAPABILITIES),
-    q(CONTRACT, `${USF}hasActivationState`,
-      iri('urn:usf:contractactivationstate:proofblocked'), GRAPH_CAPABILITIES),
+    ...transientFacts,
     ...COMPONENT_PROOFS.flatMap(({ obligation, result }) => [
       q(CONTRACT, `${USF}reliesOnProofResult`, iri(result), GRAPH_CAPABILITIES),
       q(CONTRACT, `${USF}mandatoryProofObligation`, iri(obligation), GRAPH_CAPABILITIES),
@@ -884,6 +892,9 @@ function stage2Patch(pending, owners, stage2, currentnessBinding) {
     iri('urn:usf:contractactivationstate:active'), GRAPH_CAPABILITIES);
   add(additions, CONTRACT, 'mandatoryProofObligation', iri(AGGREGATE_OBLIGATION), GRAPH_CAPABILITIES);
   add(additions, CONTRACT, 'reliesOnProofResult', iri(AGGREGATE_RESULT_IRI), GRAPH_CAPABILITIES);
+  for (const realisation of TRANSITIONAL_REALISATIONS) {
+    add(additions, realisation, 'realisationState', iri('urn:usf:realisationstate:implementable'), GRAPH_BINDINGS);
+  }
 
   // This compiler descriptor closes the already-settled D0 -> D1 validation;
   // it is therefore immutable input to D2 rather than a self-reference to the

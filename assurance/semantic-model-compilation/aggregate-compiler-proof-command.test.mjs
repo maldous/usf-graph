@@ -727,6 +727,16 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
       DataFactory.namedNode(obligation),
     ));
   }
+  for (const realisation of [
+    'urn:usf:realisation:semanticauthoritycontrol',
+    'urn:usf:realisation:semanticcontractcompilersemanticenforcement',
+  ]) {
+    live.get(bindingsGraph).addQuad(DataFactory.quad(
+      DataFactory.namedNode(realisation),
+      DataFactory.namedNode('urn:usf:ontology:realisationState'),
+      DataFactory.namedNode('urn:usf:realisationstate:implementable'),
+    ));
+  }
   const transactions = new Map();
   let transactionIndex = 0;
   const cloneDataset = (dataset) => new Map([...dataset].map(([graph, store]) => [graph, new Store(store.getQuads(null, null, null, null))]));
@@ -804,11 +814,27 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
   let finalPackage;
   const producer = {
     preparePending: (input) => harness(base, componentRows(base.casRoot), { authority: d0 }).producer.preparePending(input),
-    observeInitialProjection: (input) => harness(base, [], {
-      authority: d1,
-      projection: { actionState: 'UNRESOLVED_FAIL_CLOSED', proofCurrentness: { state: 'PENDING' } },
-      provisionalRows: [{ current: binding('false'), provisional: binding('true'), result: binding('urn:usf:proofresult:compilersemanticenforcementaggregateprepublication') }],
-    }).producer.observeInitialProjection(input),
+    observeInitialProjection: (input) => {
+      const selections = live.get(capabilitiesGraph).getQuads(
+        DataFactory.namedNode('urn:usf:semanticcontract:compilersemanticenforcement'),
+        DataFactory.namedNode('urn:usf:ontology:reliesOnProofResult'), null, null,
+      ).map((quad) => quad.object.value);
+      const provisionalRows = selections.map((result) => ({
+        current: binding(String(result === AGGREGATE_RESULT_IRI)),
+        provisional: binding(String(result
+          === 'urn:usf:proofresult:compilersemanticenforcementaggregateprepublication')),
+        result: binding(result),
+      }));
+      const pending = provisionalRows.length === 1 && provisionalRows[0].provisional.value === 'true';
+      return harness(base, [], {
+        authority: d1,
+        projection: {
+          actionState: 'UNRESOLVED_FAIL_CLOSED',
+          proofCurrentness: { state: pending ? 'PENDING' : 'AMBIGUOUS' },
+        },
+        provisionalRows,
+      }).producer.observeInitialProjection(input);
+    },
     produceInitial: (input) => harness(base, componentRows(base.casRoot), { authority: d1 }).producer.produceInitial(input),
     async prepareFinalPackage(input) {
       finalPackage = await harness(base, [], { authority: d1 }).producer.prepareFinalPackage(input);

@@ -58,7 +58,7 @@ gcl:derivedgraph usf:mayReference gcl:observedgraph.
 # establish its own trust: the authoritative fingerprint is pinned in the
 # root-owned Semantic Proof Protocol v1 trust anchor.
 <urn:usf:semanticproofprotocol:v1> a <urn:usf:ontology:SemanticProofProtocol>;
-    <urn:usf:ontology:canonicalName> "semanticproofv1";
+    <urn:usf:ontology:canonicalName> "v1";
     <urn:usf:ontology:protocolIdentifier> "semantic-proof-v1";
     <urn:usf:ontology:signatureAlgorithm> "openpgp";
     <urn:usf:ontology:approvalThreshold> 1.

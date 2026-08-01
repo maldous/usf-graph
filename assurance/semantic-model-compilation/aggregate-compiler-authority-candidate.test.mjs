@@ -368,6 +368,8 @@ function rawPatch(bytes) {
 function initialD0State() {
   return new Set([
     `<urn:usf:semanticcontract:compilersemanticenforcement> <${USF}hasActivationState> <urn:usf:contractactivationstate:active> <urn:usf:graph:capabilities> .`,
+    `<urn:usf:realisation:semanticauthoritycontrol> <${USF}realisationState> <urn:usf:realisationstate:implementable> <urn:usf:graph:bindings> .`,
+    `<urn:usf:realisation:semanticcontractcompilersemanticenforcement> <${USF}realisationState> <urn:usf:realisationstate:implementable> <urn:usf:graph:bindings> .`,
     ...COMPONENT_PROOFS.flatMap(({ obligation, result }) => [
       `<urn:usf:semanticcontract:compilersemanticenforcement> <${USF}mandatoryProofObligation> <${obligation}> <urn:usf:graph:capabilities> .`,
       `<urn:usf:semanticcontract:compilersemanticenforcement> <${USF}reliesOnProofResult> <${result}> <urn:usf:graph:capabilities> .`,
@@ -469,6 +471,14 @@ test('stage 1 is deterministic, parses as RDF Patch and preserves immutable comp
     assert.equal(deletions.some((quad) => quad.subject.value === component.result), false);
     assert.equal(has(additions, component.result, `${USF}proofResultForObligation`, component.obligation), true);
   }
+  for (const realisation of [
+    'urn:usf:realisation:semanticauthoritycontrol',
+    'urn:usf:realisation:semanticcontractcompilersemanticenforcement',
+  ]) {
+    assert.equal(has(additions, realisation, `${USF}realisationState`, 'urn:usf:realisationstate:deferred'), true);
+    assert.equal(deletions.some((quad) => quad.subject.value === realisation
+      && quad.object.value === 'urn:usf:realisationstate:implementable'), true);
+  }
   assert.equal(deletions.some((quad) => quad.predicate.value === `${USF}assignmentState`), false);
 });
 
@@ -536,7 +546,8 @@ test('stage 1 materializes authored aggregate obligation and canonical metadata 
     ['urn:usf:semanticcontract:compilersemanticenforcement']);
   assert.deepEqual(objects(additions, obligation, `${USF}requiresRung`), ['urn:usf:proofrung:behaviour']);
   assert.equal(objects(additions, obligation, `${USF}requiresEvidence`).length, 3);
-  assert.equal(objects(additions, obligation, `${USF}usesAssuranceCell`).length, 3);
+  assert.deepEqual(objects(additions, obligation, `${USF}usesAssuranceCell`),
+    ['urn:usf:assurancecell:behaviourliveauthoritycontrol']);
   for (const subject of [
     obligation,
     AGGREGATE_ALGORITHM,
@@ -562,6 +573,11 @@ test('stage 2 final aggregate carries every CURRENT projection fact and coherent
   assert.deepEqual(objects(quads, contract, `${USF}mandatoryProofObligation`), [internals.AGGREGATE_OBLIGATION]);
   assert.deepEqual(objects(quads, contract, `${USF}hasActivationState`),
     ['urn:usf:contractactivationstate:active']);
+  for (const realisation of [
+    'urn:usf:realisation:semanticauthoritycontrol',
+    'urn:usf:realisation:semanticcontractcompilersemanticenforcement',
+  ]) assert.deepEqual(objects(quads, realisation, `${USF}realisationState`),
+    ['urn:usf:realisationstate:implementable']);
   assert.equal(quads.filter((quad) => quad.subject.value === contract
     && [`${USF}reliesOnProofResult`, `${USF}mandatoryProofObligation`, `${USF}hasActivationState`]
       .includes(quad.predicate.value))
@@ -700,10 +716,12 @@ test('rejects unvalidated, mixed, conflicting or byte-tampered base semantic del
     { code: 'CANDIDATE_BASE_DELTA_INVALID' });
   const conflicting = stage1Input();
   const generated = materializeAggregateCompilerAuthorityCandidate(conflicting);
-  const directResultDeletion = rawPatch(generated.bytes).deletions[0];
+  const aggregateAddition = rawPatch(generated.bytes).additions.find((quad) =>
+    quad.includes('<urn:usf:proofobligation:compilersemanticenforcementaggregate>'));
+  assert.ok(aggregateAddition);
   const bytes = Buffer.from([
     '# semantic-proof-v1 canonical-rdf-patch-v1 base',
-    `A ${directResultDeletion}`,
+    `A ${aggregateAddition}`,
     '',
   ].join('\n'), 'utf8');
   conflicting.baseSemanticDelta.bytesBase64 = bytes.toString('base64');
