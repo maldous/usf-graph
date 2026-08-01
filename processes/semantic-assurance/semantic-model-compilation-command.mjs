@@ -21,6 +21,7 @@ export const SEMANTIC_MODEL_PATH = 'semantic-model';
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const PATCH_HEADER = /^# semantic-proof-v1 canonical-rdf-patch-v1 (stage1|stage2)$/;
 const NQUADS = 'application/n-quads';
+const NTRIPLES = 'application/n-triples';
 const TURTLE = 'text/turtle';
 const { defaultGraph, namedNode, quad } = DataFactory;
 
@@ -98,7 +99,7 @@ function triple(item) {
 
 async function graphText(store) {
   return new Promise((resolveText, reject) => {
-    const writer = new Writer({ format: TURTLE });
+    const writer = new Writer({ format: 'N-Triples' });
     writer.addQuads(store.getQuads(null, null, null, null));
     writer.end((error, output) => error ? reject(error) : resolveText(output));
   });
@@ -151,7 +152,7 @@ async function replaceStores(client, transaction, stores) {
   await client.clearGraphs(transaction, graphs);
   for (const graph of graphs) {
     const content = await graphText(stores.get(graph));
-    if (content.trim()) await client.addData(transaction, content, TURTLE, graph);
+    if (content.trim()) await client.addData(transaction, content, NTRIPLES, graph);
   }
 }
 

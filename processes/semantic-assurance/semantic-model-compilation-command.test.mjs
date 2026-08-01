@@ -87,6 +87,7 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
   let live = new Map([[graph, '<urn:test:s> <urn:test:p> "d0" .\n']]);
   let authority = `sha256:${'d'.repeat(64)}`;
   const snapshots = new Map();
+  const addedPayloads = [];
   let next = 0;
   const fakeClient = {
     async connectivity() { return 1; },
@@ -99,6 +100,7 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
     },
     async clearGraphs(id, graphs) { for (const name of graphs) snapshots.get(id).set(name, ''); },
     async addData(id, content, _type, target) {
+      addedPayloads.push({ content, target, type: _type });
       const parsed = new Parser({ format: target ? 'text/turtle' : 'application/n-quads' }).parse(content);
       const byGraph = new Map();
       for (const item of parsed) {
@@ -129,7 +131,7 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
     assert.equal(publicationMode, 'validate');
     const tx = await transactionClient.begin();
     await transactionClient.clearGraphs(tx, [graph]);
-    await transactionClient.addData(tx, `<urn:test:s> <urn:test:p> "${sourceValue}" .\n`, 'text/turtle', graph);
+    await transactionClient.addData(tx, `<urn:test:s> <urn:test:p> "${sourceValue}" .\n<urn:test:boolean> <urn:test:p> true .\n`, 'text/turtle', graph);
     const liveValidation = await transactionClient.validateInTransactionWithReceipt(tx, []);
     await transactionClient.rollback(tx);
     return { ok: true, liveValidation };
@@ -164,6 +166,10 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
   live = originalLive;
   const generated = (stage, from, to) => Buffer.from(`# semantic-proof-v1 canonical-rdf-patch-v1 ${stage}\nD <urn:test:s> <urn:test:p> "${from}" <${graph}> .\nA <urn:test:s> <urn:test:p> "${to}" <${graph}> .\n`);
   const stage1 = await command.composeCandidate({ generatedCandidateBytes: generated('stage1', 'source', 'd1'), expectedAuthorityDigest: authority });
+  const rewritten = addedPayloads.find(({ type }) => type === 'application/n-triples');
+  assert.ok(rewritten);
+  assert.match(rewritten.content, / "true"\^\^<http:\/\/www\.w3\.org\/2001\/XMLSchema#boolean> \.\n/);
+  assert.doesNotMatch(rewritten.content, / true\.\n/);
   assert.equal((await command.inspectCandidateState({ candidateBytes: stage1.bytes, candidateDigest: stage1.digest })).state, 'pre');
   await command.execute({ candidateBytes: stage1.bytes, candidateDigest: stage1.digest, expectedAuthorityDigest: authority, publicationMode: 'commit' });
   assert.match(live.get(graph), /"d1"/);
