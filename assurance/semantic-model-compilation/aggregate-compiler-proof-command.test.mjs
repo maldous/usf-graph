@@ -421,6 +421,25 @@ test('fractional Stardog trusted time is canonicalized to a protocol UTC second'
   assert.equal(pending.aggregateResult.evaluation.evaluatedAt, TRUSTED_AT);
 });
 
+test('evidence lifecycle history requires but does not scalarize integrity-verified stage', async () => {
+  const base = fixture();
+  const rows = componentRows(base.casRoot);
+  rows.push(
+    { ...rows[0], evidenceStage: binding('urn:usf:evidencestage:collected') },
+    { ...rows[0], evidenceStage: binding('urn:usf:evidencestage:signed') },
+  );
+  const pending = await harness(base, rows).producer.preparePending({ requestedAuthorityDigest: D0 });
+  assert.equal(pending.ok, true);
+
+  const incompleteBase = fixture();
+  const incomplete = componentRows(incompleteBase.casRoot);
+  incomplete[0] = { ...incomplete[0], evidenceStage: binding('urn:usf:evidencestage:signed') };
+  await assert.rejects(
+    () => harness(incompleteBase, incomplete).producer.preparePending({ requestedAuthorityDigest: D0 }),
+    /AGGREGATE_PRODUCER_STATE_INVALID/,
+  );
+});
+
 test('historical component record preserves queried identities without synthetic receipt claims', async () => {
   const base = fixture();
   const pending = await harness(base, componentRows(base.casRoot)).producer.preparePending({ requestedAuthorityDigest: D0 });

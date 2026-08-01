@@ -512,7 +512,10 @@ function normalizeFacts(rows, casRoot, observedAt, evaluatedAt, authorityDigest)
       stateSuffix(exactScalar(evidenceRows, 'evidenceFreshness', iri), 'urn:usf:freshness:fresh', `${iri} freshness`);
       stateSuffix(exactScalar(evidenceRows, 'evidenceFreshnessState', iri), 'urn:usf:evidencefreshnessstate:fresh', `${iri} freshness state`);
       stateSuffix(exactScalar(evidenceRows, 'integrityState', iri), 'urn:usf:evidenceintegritystate:valid', `${iri} integrity`);
-      stateSuffix(exactScalar(evidenceRows, 'evidenceStage', iri), 'urn:usf:evidencestage:integrityverified', `${iri} stage`);
+      const evidenceStages = new Set(evidenceRows.map((row) => binding(row, 'evidenceStage')).filter(Boolean));
+      if (!evidenceStages.has('urn:usf:evidencestage:integrityverified')) {
+        fail('AGGREGATE_PRODUCER_STATE_INVALID', `${iri} integrity-verified stage`);
+      }
       stateSuffix(exactScalar(evidenceRows, 'withinValidityScope', iri), 'true', `${iri} validity scope`);
       const evidenceValidUntil = timestamp(exactScalar(evidenceRows, 'validUntil', iri), `${iri} validUntil`);
       const evidenceValidFrom = exactScalar(evidenceRows, 'validFrom', iri, { optional: true });
