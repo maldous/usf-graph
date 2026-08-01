@@ -154,6 +154,14 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
     candidateBytes: nonCanonicalBlankNode.bytes,
     candidateDigest: nonCanonicalBlankNode.digest,
   }), /canonical quad/);
+  const originalLive = live;
+  live = new Map([[graph, '<urn:test:blank> <urn:test:p> _:source .\n']]);
+  const deletionBytes = Buffer.from(`# semantic-proof-v1 canonical-rdf-patch-v1 stage1\nD <urn:test:blank> <urn:test:p> _:c14n0 <${graph}> .\n`);
+  assert.equal((await command.inspectCandidateState({
+    candidateBytes: deletionBytes,
+    candidateDigest: `sha256:${createHash('sha256').update(deletionBytes).digest('hex')}`,
+  })).state, 'pre');
+  live = originalLive;
   const generated = (stage, from, to) => Buffer.from(`# semantic-proof-v1 canonical-rdf-patch-v1 ${stage}\nD <urn:test:s> <urn:test:p> "${from}" <${graph}> .\nA <urn:test:s> <urn:test:p> "${to}" <${graph}> .\n`);
   const stage1 = await command.composeCandidate({ generatedCandidateBytes: generated('stage1', 'source', 'd1'), expectedAuthorityDigest: authority });
   assert.equal((await command.inspectCandidateState({ candidateBytes: stage1.bytes, candidateDigest: stage1.digest })).state, 'pre');

@@ -132,7 +132,7 @@ async function readCanonicalStores(client, transaction, graphs) {
   }
   const canonical = await canonicalNQuads(await nquadsText(dataset));
   const stores = new Map(graphNames.map((graph) => [graph, new Store()]));
-  for (const item of new Parser({ format: NQUADS }).parse(canonical)) {
+  for (const item of new Parser({ format: NQUADS, blankNodePrefix: '' }).parse(canonical)) {
     stores.get(item.graph.value).addQuad(triple(item));
   }
   return Object.freeze({ canonical, stores });
