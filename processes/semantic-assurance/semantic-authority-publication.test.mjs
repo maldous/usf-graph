@@ -442,6 +442,20 @@ test('trusted Stardog time absence fails closed before signed validation', async
   })), /trusted-time reader/);
 });
 
+test('fractional Stardog publication time is canonicalized before envelope verification', async () => {
+  let verifiedAt;
+  const result = await runPublication(invocation({
+    mode: 'validate',
+    trustedTime: async () => '2026-08-01T11:00:00.577Z',
+    verifyBundle: ({ now }) => {
+      verifiedAt = now.toISOString();
+      return { assignment: {}, approval: {}, grant: initialGrant };
+    },
+  }));
+  assert.equal(result.mode, 'validate');
+  assert.equal(verifiedAt, '2026-08-01T11:00:00.000Z');
+});
+
 test('crash after atomic commit recovers from exact post-state without republishing', async () => {
   const state = journal();
   const compiler = command(INITIAL_CANDIDATE, { throwAfterCommit: 'process interrupted after commit' });

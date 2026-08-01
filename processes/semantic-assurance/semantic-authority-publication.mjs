@@ -150,10 +150,16 @@ function assertExpectedDigest(value, label) {
 async function trustedInstant(trustedTime) {
   if (typeof trustedTime !== 'function') throw new Error('publisher requires an injected trusted-time reader');
   const observed = await trustedTime();
-  const value = observed instanceof Date
-    ? observed.toISOString().replace(/\.\d{3}Z$/, 'Z')
-    : observed;
-  const canonical = canonicalUtcSecond(value, 'trusted publication time');
+  const value = observed instanceof Date ? observed.toISOString() : observed;
+  if (typeof value !== 'string'
+      || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(value)
+      || Number.isNaN(Date.parse(value))) {
+    throw new Error('trusted publication time must be an RFC3339 UTC instant');
+  }
+  const canonical = canonicalUtcSecond(
+    new Date(Math.floor(Date.parse(value) / 1000) * 1000).toISOString().replace('.000Z', 'Z'),
+    'trusted publication time',
+  );
   return Object.freeze({ canonical, date: new Date(canonical) });
 }
 
