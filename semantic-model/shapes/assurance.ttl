@@ -841,10 +841,12 @@ shp:EvidenceAdmissionPathShape a sh:NodeShape;
 
 shp:ValidationExecutionShape a sh:NodeShape;
     usf:canonicalName "validationexecutionshape";
-    sh:targetNode <urn:usf:validationexecution:compilersemanticenforcementaggregate>;
-    sh:property [ sh:path usf:validationExecutedByProducer; sh:minCount 1; sh:maxCount 1; sh:class usf:ValidationProducer ];
-    sh:property [ sh:path usf:validationUsesEvidenceAdmissionPath; sh:minCount 1; sh:maxCount 1; sh:class usf:EvidenceAdmissionPath ];
-    sh:property [ sh:path usf:validationExecutionReceiptDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$" ].
+    sh:targetClass usf:ValidationExecution;
+    sh:sparql [
+      sh:prefixes usf:prefixes;
+      sh:message "aggregatevalidationexecution: a materialised aggregate validation execution requires one producer, admission path and receipt digest";
+      sh:select "SELECT $this WHERE { FILTER($this = <urn:usf:validationexecution:compilersemanticenforcementaggregate>) FILTER(NOT EXISTS { $this usf:validationExecutedByProducer ?producer . ?producer a usf:ValidationProducer . } || EXISTS { $this usf:validationExecutedByProducer ?left, ?right . FILTER(?left != ?right) } || NOT EXISTS { $this usf:validationUsesEvidenceAdmissionPath ?admissionPath . ?admissionPath a usf:EvidenceAdmissionPath . } || EXISTS { $this usf:validationUsesEvidenceAdmissionPath ?left, ?right . FILTER(?left != ?right) } || NOT EXISTS { $this usf:validationExecutionReceiptDigest ?receipt . FILTER(REGEX(STR(?receipt), '^sha256:[0-9a-f]{64}$')) } || EXISTS { $this usf:validationExecutionReceiptDigest ?left, ?right . FILTER(?left != ?right) }) }"
+    ].
 
 shp:ValidationEvaluationShape a sh:NodeShape;
     usf:canonicalName "validationevaluationshape";
@@ -854,9 +856,12 @@ shp:ValidationEvaluationShape a sh:NodeShape;
 
 shp:ValidationEvidenceShape a sh:NodeShape;
     usf:canonicalName "validationevidenceshape";
-    sh:targetNode <urn:usf:validationevidence:compilersemanticenforcementaggregate>;
-    sh:property [ sh:path usf:validationEvidenceForExecution; sh:minCount 1; sh:maxCount 1; sh:class usf:ValidationExecution ];
-    sh:property [ sh:path usf:validationEvidenceAdmittedThrough; sh:minCount 1; sh:maxCount 1; sh:class usf:EvidenceAdmissionPath ].
+    sh:targetClass usf:ValidationEvidence;
+    sh:sparql [
+      sh:prefixes usf:prefixes;
+      sh:message "aggregatevalidationevidence: materialised aggregate validation evidence requires one execution and admission path";
+      sh:select "SELECT $this WHERE { FILTER($this = <urn:usf:validationevidence:compilersemanticenforcementaggregate>) FILTER(NOT EXISTS { $this usf:validationEvidenceForExecution ?execution . ?execution a usf:ValidationExecution . } || EXISTS { $this usf:validationEvidenceForExecution ?left, ?right . FILTER(?left != ?right) } || NOT EXISTS { $this usf:validationEvidenceAdmittedThrough ?admissionPath . ?admissionPath a usf:EvidenceAdmissionPath . } || EXISTS { $this usf:validationEvidenceAdmittedThrough ?left, ?right . FILTER(?left != ?right) }) }"
+    ].
 
 shp:ValidationResultSelfPublicationClosureShape a sh:NodeShape;
     usf:canonicalName "validationresultselfpublicationclosureshape";

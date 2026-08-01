@@ -1094,7 +1094,9 @@ test('atomic relationship discovery is mechanical and endpoint defects have exac
 });
 
 test('atomic candidate projection reconciles exact, missing, stale, duplicate and orphan states', () => {
-  const candidate = analysis.atomicCandidates[0];
+  const candidate = analysis.atomicCandidates.find(({ terminalClassIri, terminalDatatypeIri }) => (
+    terminalClassIri || terminalDatatypeIri
+  ));
   assert.ok(candidate);
   const exactRecord = projectedAtomicCandidate(candidate);
   const exact = universalSemanticCoverageInternals.atomicCandidateProjectionState(
@@ -1111,8 +1113,11 @@ test('atomic candidate projection reconciles exact, missing, stale, duplicate an
   const cases = [
     ['UNIVERSAL_ATOMIC_CANDIDATE_MISSING', []],
     ['UNIVERSAL_ATOMIC_CANDIDATE_STALE_OR_INVALID', [projectedAtomicCandidate(candidate, {
-      terminalClassIris: candidate.terminalClassIri ? [`${O}Port`] : [],
-      terminalDatatypeIris: candidate.terminalDatatypeIri ? ['http://www.w3.org/2001/XMLSchema#integer'] : [],
+      terminalClassIris: candidate.terminalClassIri
+        ? [candidate.terminalClassIri === `${O}Port` ? `${O}Interface` : `${O}Port`] : [],
+      terminalDatatypeIris: candidate.terminalDatatypeIri
+        ? [candidate.terminalDatatypeIri === 'http://www.w3.org/2001/XMLSchema#integer'
+          ? 'http://www.w3.org/2001/XMLSchema#string' : 'http://www.w3.org/2001/XMLSchema#integer'] : [],
     })]],
     ['UNIVERSAL_ATOMIC_CANDIDATE_DUPLICATE', [exactRecord, structuredClone(exactRecord)]],
     ['UNIVERSAL_ATOMIC_CANDIDATE_ORPHAN', [projectedAtomicCandidate(candidate, {
