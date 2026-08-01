@@ -10,6 +10,7 @@ import {
   AGGREGATE_RESULT_IRI,
   AGGREGATE_REVIEWED_SOURCE_PATHS,
   DEFAULT_AGGREGATE_REACHABLE_REF,
+  PROVISIONAL_AGGREGATE_RESULT_IRI,
   createAggregateCompilerProofProducer,
 } from './aggregate-compiler-proof-command.mjs';
 import {
@@ -36,6 +37,22 @@ const IN_PROCESS_TREE = 'e'.repeat(40);
 const IN_PROCESS_REPOSITORY = '/in-process-permission-fixture';
 const ACTIVE_AUTHORITY_SOURCE = `<urn:usf:ownerassignment:test> a <urn:usf:ontology:OwnerAssignment>;
   <urn:usf:ontology:assignmentState> "active".\n`;
+const pendingInitialProjection = (overrides = {}) => ({
+  actionState: 'BLOCK',
+  contractState: {
+    activation: 'urn:usf:contractactivationstate:proofblocked',
+    decision: 'urn:usf:decisionstate:accepted',
+    lifecycle: 'urn:usf:semanticlifecyclestate:active',
+    proof: null,
+  },
+  proofCurrentness: {
+    postPublicationReevaluationState: 'urn:usf:proofreevaluationstate:pending',
+    proofResult: PROVISIONAL_AGGREGATE_RESULT_IRI,
+    reasons: ['proof-currentness-ambiguous', 'proof-currentness-unresolved'],
+    state: 'STALE_BLOCK',
+  },
+  ...overrides,
+});
 const EXPECTED_REVIEWED_SOURCE_PATHS = Object.freeze([
   'assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.mjs',
   'assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.test.mjs',
@@ -396,7 +413,7 @@ function harness(base, rows, options = {}) {
       return rows;
     }
     if (query.includes('aggregate-initial-provisional-projection-v1')) return options.provisionalRows || [{
-      current: binding('false'), provisional: binding('true'), result: binding('urn:usf:proofresult:aggregateprovisional'),
+      current: binding('false'), provisional: binding('true'), result: binding(PROVISIONAL_AGGREGATE_RESULT_IRI),
     }];
     if (query.includes('aggregate-contract-selection-v1')) return [{ result: binding(AGGREGATE_RESULT_IRI) }];
     if (query.includes('aggregate-live-reevaluation-bindings-v1')) return [options.receiptBinding];
@@ -457,7 +474,7 @@ async function finalPackageFixture(base) {
 test('observes exactly one provisional D1 result in PENDING fail-closed state', async () => {
   const base = fixture();
   const run = harness(base, [], {
-    authority: D1, projection: { actionState: 'UNRESOLVED_FAIL_CLOSED', proofCurrentness: { state: 'PENDING' } },
+    authority: D1, projection: pendingInitialProjection(),
   });
   const value = await run.producer.observeInitialProjection({ requestedAuthorityDigest: D1 });
   assert.deepEqual(Object.keys(value).sort(), [
@@ -475,6 +492,15 @@ test('observes exactly one provisional D1 result in PENDING fail-closed state', 
   assert.equal(receipt.observedAt, TRUSTED_AT);
   assert.equal(receipt.selectedProvisionalAggregateResult, value.selectedProvisionalAggregateResult);
   assert.equal(run.metrics.trustedTimeQueries, 1);
+});
+
+test('rejects a proof-blocked D1 projection without the exact pending reevaluation binding', async () => {
+  const base = fixture();
+  const projection = pendingInitialProjection();
+  projection.proofCurrentness.postPublicationReevaluationState = null;
+  await assert.rejects(() => harness(base, [], { authority: D1, projection })
+    .producer.observeInitialProjection({ requestedAuthorityDigest: D1 }),
+  (error) => error.code === 'AGGREGATE_PRODUCER_INITIAL_PROJECTION_INVALID');
 });
 
 test('reviewed authority-construction source scope is complete, canonical and path-list-digested', async () => {
@@ -828,9 +854,8 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
       const pending = provisionalRows.length === 1 && provisionalRows[0].provisional.value === 'true';
       return harness(base, [], {
         authority: d1,
-        projection: {
-          actionState: 'UNRESOLVED_FAIL_CLOSED',
-          proofCurrentness: { state: pending ? 'PENDING' : 'AMBIGUOUS' },
+        projection: pending ? pendingInitialProjection() : {
+          actionState: 'BLOCK', proofCurrentness: { state: 'AMBIGUOUS' },
         },
         provisionalRows,
       }).producer.observeInitialProjection(input);

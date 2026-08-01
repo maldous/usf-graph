@@ -45,6 +45,8 @@ const GIT_OBJECT = /^[0-9a-f]{40}$/;
 const RFC3339_SECOND = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 const CONTRACT = 'urn:usf:semanticcontract:compilersemanticenforcement';
 export const AGGREGATE_RESULT_IRI = 'urn:usf:proofresult:compilersemanticenforcementaggregate';
+export const PROVISIONAL_AGGREGATE_RESULT_IRI =
+  'urn:usf:proofresult:compilersemanticenforcementaggregateprepublication';
 export const DEFAULT_AGGREGATE_REACHABLE_REF = 'refs/remotes/origin/main';
 export const AGGREGATE_REVIEWED_SOURCE_PATHS = Object.freeze([
   'assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.mjs',
@@ -830,6 +832,26 @@ function deepFreeze(value, seen = new WeakSet()) {
   return Object.freeze(value);
 }
 
+function isPendingInitialProjection(projection, selectedResult) {
+  const currentness = projection?.proofCurrentness;
+  const contractState = projection?.contractState;
+  const reasons = currentness?.reasons;
+  return selectedResult === PROVISIONAL_AGGREGATE_RESULT_IRI
+    && projection?.actionState === 'BLOCK'
+    && contractState?.lifecycle === 'urn:usf:semanticlifecyclestate:active'
+    && contractState?.activation === 'urn:usf:contractactivationstate:proofblocked'
+    && contractState?.decision === 'urn:usf:decisionstate:accepted'
+    && contractState?.proof === null
+    && currentness?.proofResult === PROVISIONAL_AGGREGATE_RESULT_IRI
+    && currentness?.state === 'STALE_BLOCK'
+    && currentness?.postPublicationReevaluationState === 'urn:usf:proofreevaluationstate:pending'
+    && Array.isArray(reasons)
+    && reasons.length === 2
+    && new Set(reasons).size === 2
+    && reasons.includes('proof-currentness-ambiguous')
+    && reasons.includes('proof-currentness-unresolved');
+}
+
 export function createAggregateCompilerProofProducer({
   evaluateProof = evaluateAggregateCompilerProof,
   resolveSourceBinding = ({ repositoryPath: path, reachableFrom: ref }) => gitSourceBinding(path, ref),
@@ -865,13 +887,13 @@ export function createAggregateCompilerProofProducer({
           client.select(INITIAL_PROVISIONAL_PROJECTION_QUERY),
           readTrustedTime(client),
         ]);
+        const selectedProvisionalAggregateResult = Array.isArray(rows) && rows.length === 1
+          ? binding(rows[0], 'result') : null;
         if (!Array.isArray(rows) || rows.length !== 1
             || binding(rows[0], 'provisional') !== 'true' || binding(rows[0], 'current') !== 'false'
-            || projection?.proofCurrentness?.state !== 'PENDING'
-            || projection?.actionState !== 'UNRESOLVED_FAIL_CLOSED') {
+            || !isPendingInitialProjection(projection, selectedProvisionalAggregateResult)) {
           fail('AGGREGATE_PRODUCER_INITIAL_PROJECTION_INVALID', 'D1 is not one provisional PENDING aggregate');
         }
-        const selectedProvisionalAggregateResult = binding(rows[0], 'result');
         const observationReceipt = writeRecord({
           actionState: 'UNRESOLVED_FAIL_CLOSED',
           authorityDigest: requestedAuthorityDigest,
