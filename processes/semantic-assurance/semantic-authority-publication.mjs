@@ -998,13 +998,25 @@ async function stabilizedCandidate({ stage, input, command, expectedAuthorityDig
     currentnessBinding: { prospectiveAuthorityInventory: inventory },
     stage,
   });
-  const seed = materialize(initialInventory);
+  const compose = async (inventory) => {
+    const generated = materialize(inventory);
+    const composed = await command.composeCandidate({
+      generatedCandidateBytes: generated.bytes,
+      expectedAuthorityDigest,
+    });
+    return Object.freeze({
+      ...generated,
+      bytes: composed.bytes,
+      candidateDigest: composed.digest,
+    });
+  };
+  const seed = await compose(initialInventory);
   const firstPreview = await command.previewCandidateInventory({
     candidateBytes: seed.bytes,
     candidateDigest: seed.candidateDigest,
     expectedAuthorityDigest,
   });
-  const candidate = materialize(firstPreview.inventory);
+  const candidate = await compose(firstPreview.inventory);
   const settledPreview = await command.previewCandidateInventory({
     candidateBytes: candidate.bytes,
     candidateDigest: candidate.candidateDigest,
@@ -1032,7 +1044,8 @@ export async function runAggregateCompilerProductionLifecycle({
 }) {
   if (typeof claimProvider !== 'function' || !producer || typeof producer.preparePending !== 'function'
       || typeof producer.prepareFinalPackage !== 'function' || !command
-      || typeof command.prepareSourceDelta !== 'function' || typeof command.previewCandidateInventory !== 'function') {
+      || typeof command.prepareSourceDelta !== 'function' || typeof command.composeCandidate !== 'function'
+      || typeof command.previewCandidateInventory !== 'function') {
     throw new Error('aggregate production lifecycle requires the real producer, materializer compiler and claim provider');
   }
   const d0 = await readAuthorityWitness();
