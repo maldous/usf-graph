@@ -15,6 +15,8 @@ import {
   ORPHANED_ATTESTATION_DIGEST,
   SHARED_HERMETIC_EVIDENCE,
   SHARED_HERMETIC_RESULTS,
+  SHARED_LIVE_AUTHORITY_EVIDENCE,
+  SHARED_LIVE_AUTHORITY_RESULTS,
   aggregateCompilerProofInternals,
   evaluateAggregateCompilerProof,
 } from './aggregate-compiler-proof.mjs';
@@ -420,6 +422,27 @@ test('the exact two hermetic descriptors may be shared only by the exact two com
     result: 'urn:usf:proofresult:importedauthoritycounterfactualadequacy',
   });
   assert.throws(() => aggregateCompilerProofInternals.aggregateEvidenceDescriptors(wrongResult),
+    /SHARED_EVIDENCE_SUBSTITUTED/);
+});
+
+test('the exact live-authority descriptors may share their exact verified CAS bytes', () => {
+  const completeSharing = SHARED_LIVE_AUTHORITY_RESULTS.map((result) => ({
+    descriptors: SHARED_LIVE_AUTHORITY_EVIDENCE.map((descriptor) => ({ ...descriptor })),
+    result,
+  }));
+  assert.deepEqual(
+    aggregateCompilerProofInternals.aggregateEvidenceDescriptors(completeSharing),
+    SHARED_LIVE_AUTHORITY_EVIDENCE.map((descriptor) => ({ ...descriptor })),
+  );
+
+  const partial = structuredClone(completeSharing);
+  partial[0].descriptors.pop();
+  assert.throws(() => aggregateCompilerProofInternals.aggregateEvidenceDescriptors(partial),
+    /SHARED_EVIDENCE_INCOMPLETE/);
+
+  const substituted = structuredClone(completeSharing);
+  substituted[0].descriptors[0].digest = digest('substituted-live-authority-evidence');
+  assert.throws(() => aggregateCompilerProofInternals.aggregateEvidenceDescriptors(substituted),
     /SHARED_EVIDENCE_SUBSTITUTED/);
 });
 

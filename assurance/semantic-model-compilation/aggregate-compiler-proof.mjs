@@ -29,6 +29,19 @@ export const SHARED_HERMETIC_EVIDENCE = Object.freeze([
     digest: 'sha256:ac5490b46604ca6eb25d739248eb9fb6a188dd7d587edf6215c61b1a593f787c',
   }),
 ]);
+export const SHARED_LIVE_AUTHORITY_RESULTS = Object.freeze([
+  'urn:usf:proofresult:compilerliveauthoritycontrol',
+]);
+export const SHARED_LIVE_AUTHORITY_EVIDENCE = Object.freeze([
+  Object.freeze({
+    iri: 'urn:usf:evidenceresult:compilerliveauthorityruntime',
+    digest: 'sha256:164c0f372063fe1b0addd39127a5380bcf15e3db5014283a9a62a671f41aff55',
+  }),
+  Object.freeze({
+    iri: 'urn:usf:evidenceresult:compilerliveauthoritytransactionvalidation',
+    digest: 'sha256:164c0f372063fe1b0addd39127a5380bcf15e3db5014283a9a62a671f41aff55',
+  }),
+]);
 export const COMPONENT_PROOFS = Object.freeze([
   Object.freeze({
     dimension: 'compilercontractbehaviour',
@@ -338,32 +351,44 @@ function aggregateEvidenceDescriptors(componentEvidence) {
     }
   }
 
-  const sharedIris = new Set(SHARED_HERMETIC_EVIDENCE.map(({ iri }) => iri));
-  const sharedDigests = new Set(SHARED_HERMETIC_EVIDENCE.map(({ digest }) => digest));
-  const allowedResults = new Set(SHARED_HERMETIC_RESULTS);
-  const sharedTouched = occurrences.some(({ iri, digest: evidenceDigest }) => (
-    sharedIris.has(iri) || sharedDigests.has(evidenceDigest)
-  ));
-  if (sharedTouched) {
+  const sharingGroups = [
+    { evidence: SHARED_HERMETIC_EVIDENCE, results: SHARED_HERMETIC_RESULTS },
+    { evidence: SHARED_LIVE_AUTHORITY_EVIDENCE, results: SHARED_LIVE_AUTHORITY_RESULTS },
+  ];
+  const allowedIriCounts = new Map();
+  const allowedDigestCounts = new Map();
+  for (const group of sharingGroups) {
+    const sharedIris = new Set(group.evidence.map(({ iri }) => iri));
+    const sharedDigests = new Set(group.evidence.map(({ digest }) => digest));
+    const allowedResults = new Set(group.results);
+    const sharedTouched = occurrences.some(({ iri, digest: evidenceDigest }) => (
+      sharedIris.has(iri) || sharedDigests.has(evidenceDigest)
+    ));
+    if (!sharedTouched) continue;
     for (const occurrence of occurrences) {
       if (!sharedIris.has(occurrence.iri) && !sharedDigests.has(occurrence.digest)) continue;
-      const exactDescriptor = SHARED_HERMETIC_EVIDENCE.some(({ iri, digest: evidenceDigest }) => (
+      const exactDescriptor = group.evidence.some(({ iri, digest: evidenceDigest }) => (
         iri === occurrence.iri && evidenceDigest === occurrence.digest
       ));
       if (!exactDescriptor || !allowedResults.has(occurrence.result)) {
         fail('AGGREGATE_SHARED_EVIDENCE_SUBSTITUTED', `${occurrence.result} ${occurrence.iri} ${occurrence.digest}`);
       }
     }
-    for (const descriptor of SHARED_HERMETIC_EVIDENCE) {
+    for (const descriptor of group.evidence) {
       const exactOccurrences = occurrences.filter(({ iri, digest: evidenceDigest }) => (
         iri === descriptor.iri && evidenceDigest === descriptor.digest
       ));
       const resultSet = new Set(exactOccurrences.map(({ result }) => result));
-      if (exactOccurrences.length !== SHARED_HERMETIC_RESULTS.length
-          || resultSet.size !== SHARED_HERMETIC_RESULTS.length
-          || SHARED_HERMETIC_RESULTS.some((result) => !resultSet.has(result))) {
+      if (exactOccurrences.length !== group.results.length
+          || resultSet.size !== group.results.length
+          || group.results.some((result) => !resultSet.has(result))) {
         fail('AGGREGATE_SHARED_EVIDENCE_INCOMPLETE', descriptor.iri);
       }
+      allowedIriCounts.set(descriptor.iri, group.results.length);
+    }
+    for (const evidenceDigest of sharedDigests) {
+      const descriptorCount = group.evidence.filter(({ digest }) => digest === evidenceDigest).length;
+      allowedDigestCounts.set(evidenceDigest, descriptorCount * group.results.length);
     }
   }
 
@@ -374,14 +399,12 @@ function aggregateEvidenceDescriptors(componentEvidence) {
     byDigest.set(occurrence.digest, [...(byDigest.get(occurrence.digest) || []), occurrence]);
   }
   for (const [iri, matches] of byIri) {
-    if (matches.length > 1 && !(sharedTouched && sharedIris.has(iri) && matches.length === 2)) {
+    if (matches.length > 1 && matches.length !== allowedIriCounts.get(iri)) {
       fail('AGGREGATE_DUPLICATE_EVIDENCE', iri);
     }
   }
   for (const [evidenceDigest, matches] of byDigest) {
-    const expectedSharedCount = SHARED_HERMETIC_EVIDENCE.length * SHARED_HERMETIC_RESULTS.length;
-    if (matches.length > 1
-        && !(sharedTouched && sharedDigests.has(evidenceDigest) && matches.length === expectedSharedCount)) {
+    if (matches.length > 1 && matches.length !== allowedDigestCounts.get(evidenceDigest)) {
       fail('AGGREGATE_DUPLICATE_EVIDENCE', evidenceDigest);
     }
   }
