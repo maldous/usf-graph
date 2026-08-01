@@ -64,7 +64,7 @@ function parseCanonicalPatch(value, expectedDigest, allowedGraphs) {
     if (!match) throw new CompilerError('candidate contains a malformed RDF Patch operation', { phase: 'candidate:parse' });
     let parsed;
     try {
-      parsed = new Parser({ format: NQUADS }).parse(`${match[2]}\n`);
+      parsed = new Parser({ format: NQUADS, blankNodePrefix: '' }).parse(`${match[2]}\n`);
     } catch (error) {
       throw new CompilerError(`candidate contains invalid N-Quads: ${error.message}`, { phase: 'candidate:parse' });
     }

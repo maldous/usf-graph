@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -139,6 +140,20 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
     readAuthorityWitness: async () => ({ digest: authority, inventory: [], triples: 1 }),
     repositoryRoot: root,
   });
+  const candidate = (label) => {
+    const bytes = Buffer.from(`# semantic-proof-v1 canonical-rdf-patch-v1 stage1\nA <urn:test:blank> <urn:test:p> _:${label} <${graph}> .\n`);
+    return { bytes, digest: `sha256:${createHash('sha256').update(bytes).digest('hex')}` };
+  };
+  const canonicalBlankNode = candidate('c14n0');
+  assert.equal((await command.inspectCandidateState({
+    candidateBytes: canonicalBlankNode.bytes,
+    candidateDigest: canonicalBlankNode.digest,
+  })).state, 'pre');
+  const nonCanonicalBlankNode = candidate('sourceBlank');
+  await assert.rejects(() => command.inspectCandidateState({
+    candidateBytes: nonCanonicalBlankNode.bytes,
+    candidateDigest: nonCanonicalBlankNode.digest,
+  }), /canonical quad/);
   const generated = (stage, from, to) => Buffer.from(`# semantic-proof-v1 canonical-rdf-patch-v1 ${stage}\nD <urn:test:s> <urn:test:p> "${from}" <${graph}> .\nA <urn:test:s> <urn:test:p> "${to}" <${graph}> .\n`);
   const stage1 = await command.composeCandidate({ generatedCandidateBytes: generated('stage1', 'source', 'd1'), expectedAuthorityDigest: authority });
   assert.equal((await command.inspectCandidateState({ candidateBytes: stage1.bytes, candidateDigest: stage1.digest })).state, 'pre');
