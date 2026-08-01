@@ -756,7 +756,9 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
         item.subject, item.predicate, item.object, DataFactory.namedNode(graph),
       )));
       const record = await compilerModule.canonicalGraphDigest(await serialize(nquads, 'N-Quads'));
-      inventory.push({ graph, sha256: `sha256:${record.sha256}`, triples: record.triples });
+      // The live authority gateway transports canonical per-graph RDFC digests
+      // as lowercase hex; the publication lifecycle canonicalises the scheme.
+      inventory.push({ graph, sha256: record.sha256, triples: record.triples });
       triples += record.triples;
     }
     return { digest: authorityDigest(), inventory, triples };

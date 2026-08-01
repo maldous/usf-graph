@@ -976,11 +976,13 @@ function canonicalAuthorityInventory(witness) {
   if (!Array.isArray(witness?.inventory) || witness.inventory.length === 0) {
     throw new Error('authority witness inventory is required for prospective dependency closure');
   }
-  const records = witness.inventory.map((record) => Object.freeze({
-    graph: record.graph,
-    sha256: record.sha256 || record.digest,
-    triples: record.triples,
-  })).sort((left, right) => left.graph.localeCompare(right.graph));
+  const records = witness.inventory.map((record) => {
+    const transportedDigest = record.sha256 || record.digest;
+    const sha256 = /^[0-9a-f]{64}$/.test(transportedDigest || '')
+      ? `sha256:${transportedDigest}`
+      : transportedDigest;
+    return Object.freeze({ graph: record.graph, sha256, triples: record.triples });
+  }).sort((left, right) => left.graph.localeCompare(right.graph));
   for (const record of records) {
     if (typeof record.graph !== 'string' || !SHA256.test(record.sha256 || '')
         || !Number.isSafeInteger(record.triples) || record.triples < 0) {
