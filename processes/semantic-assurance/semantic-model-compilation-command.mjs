@@ -207,12 +207,15 @@ async function composeSourceCandidate({ client, manifest, generatedPatch = null,
       throw new CompilerError('source candidate composition must never commit', { phase: 'candidate:source-delta' });
     },
   };
-  const compositionClient = new Proxy(client, {
-    get(target, property) {
+  const compositionClient = new Proxy(Object.create(null), {
+    get(_target, property) {
       if (Object.hasOwn(overrides, property)) return overrides[property];
-      const value = Reflect.get(target, property);
-      return typeof value === 'function' ? value.bind(target) : value;
+      const value = Reflect.get(client, property, client);
+      return typeof value === 'function' ? value.bind(client) : value;
     },
+    set() { throw new CompilerError('source candidate composition client is read-only', { phase: 'candidate:source-delta' }); },
+    defineProperty() { throw new CompilerError('source candidate composition client is read-only', { phase: 'candidate:source-delta' }); },
+    deleteProperty() { throw new CompilerError('source candidate composition client is read-only', { phase: 'candidate:source-delta' }); },
   });
   const sourceValidation = await compileFunction({
     authorityWitness,

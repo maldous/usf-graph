@@ -134,7 +134,7 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
     return { ok: true, liveValidation };
   };
   const command = createSemanticModelCompilationCommand({
-    checkLocalFunction: () => {}, client: fakeClient, compileFunction: sourceCompiler,
+    checkLocalFunction: () => {}, client: Object.freeze(fakeClient), compileFunction: sourceCompiler,
     loadManifestFunction: () => manifest,
     readAuthorityWitness: async () => ({ digest: authority, inventory: [], triples: 1 }),
     repositoryRoot: root,
