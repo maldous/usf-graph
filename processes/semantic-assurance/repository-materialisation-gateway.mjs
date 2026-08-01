@@ -41,6 +41,20 @@ const ACTIVATION = Object.freeze({
   activated: 'urn:usf:validationactivationstate:activated',
   blocked: 'urn:usf:validationactivationstate:blocked',
 });
+const VALIDATION_NON_PUBLICATION_CLOSURE = 'urn:usf:authoritybindingrule:validationnonpublicationdependencyclosure';
+const NON_PUBLICATION_DEPENDENCY_ALGORITHM = 'sha256-rdfc10-nonpublication-graph-inventory-v1';
+const NON_PUBLICATION_EXCLUDED_GRAPHS = Object.freeze([
+  'urn:usf:graph:capabilities',
+  'urn:usf:graph:derived:coverage',
+  'urn:usf:graph:derived:evidence',
+  'urn:usf:graph:derived:obligations',
+  'urn:usf:graph:derived:readiness',
+  'urn:usf:graph:derived:surfaces',
+  'urn:usf:graph:evidence',
+  'urn:usf:graph:proofs',
+]);
+const NON_PUBLICATION_DIGEST_BINDING_GRAPH = 'urn:usf:graph:proofs';
+const PASSED_RESULT = 'urn:usf:resultstate:passed';
 
 // One gap code -> one factory disposition. A code with no entry here is a
 // programming error, not a silent PROCEED: resolveDisposition throws.
@@ -508,7 +522,15 @@ async function validationScope(client, contract) {
         OPTIONAL { ?authority <urn:usf:ontology:hasProofResultState> ?authorityState } }
       OPTIONAL { <${contract}> <urn:usf:ontology:validationApplicabilityCondition> ?condition }
     } LIMIT 64`),
-    client.select(`SELECT ?id ?activation ?satisfaction ?boundObligation ?resultState ?boundAuthority ?boundHead ?invalidation ?superseded WHERE {
+    client.select(`SELECT ?id ?activation ?satisfaction ?boundObligation ?resultState ?boundAuthority ?boundHead ?invalidation ?superseded
+      ?binding ?bindingResult ?bindingRule ?reevaluationRequired ?reevaluationState ?stageOneEvaluated
+      ?nonPublicationDependency ?dependencyAlgorithm ?reevaluationDependency
+      ?bindingExecutionReceipt ?bindingEvaluationReceipt ?bindingProducer ?bindingAdmissionPath
+      ?bindingProducerRelease ?bindingRepository ?bindingSourceHead ?bindingSourceTree ?bindingSourceScope
+      ?evaluation ?evaluationReceipt ?execution ?executionReceipt ?executionProducer ?executionAdmissionPath
+      ?evidence ?evidenceExecution ?evidenceAdmissionPath
+      ?producerRelease ?producerRepository ?producerSourceHead ?producerSourceTree ?producerSourceScope
+      ?admissionProducer ?admissionRepository ?admissionSourceHead ?admissionSourceTree ?admissionSourceScope WHERE {
       ?id a <urn:usf:ontology:ValidationObligation> ; <urn:usf:ontology:validationForContract> <${contract}> .
       OPTIONAL { ?id <urn:usf:ontology:hasValidationActivationState> ?activation }
       OPTIONAL { ?id <urn:usf:ontology:satisfiedByValidationResult> ?satisfaction .
@@ -517,56 +539,227 @@ async function validationScope(client, contract) {
         OPTIONAL { ?satisfaction <urn:usf:ontology:validationEvaluatedAuthorityDigest> ?boundAuthority }
         OPTIONAL { ?satisfaction <urn:usf:ontology:validationEvaluatedSourceHead> ?boundHead }
         OPTIONAL { ?satisfaction <urn:usf:ontology:hasValidationInvalidationCondition> ?invalidation }
-        OPTIONAL { ?satisfaction <urn:usf:ontology:supersededByValidationResult> ?superseded } }
+        OPTIONAL { ?satisfaction <urn:usf:ontology:supersededByValidationResult> ?superseded }
+        OPTIONAL {
+          ?satisfaction <urn:usf:ontology:hasValidationSelfPublicationAuthorityBinding> ?binding .
+          OPTIONAL { ?binding a <urn:usf:ontology:ValidationSelfPublicationBinding> }
+          OPTIONAL { ?binding <urn:usf:ontology:authorityBindingForValidationResult> ?bindingResult }
+          OPTIONAL { ?binding <urn:usf:ontology:validationUsesAuthorityBindingRule> ?bindingRule }
+          OPTIONAL { ?binding <urn:usf:ontology:validationRequiresPostPublicationReevaluation> ?reevaluationRequired }
+          OPTIONAL { ?binding <urn:usf:ontology:validationPostPublicationReevaluationState> ?reevaluationState }
+          OPTIONAL { ?binding <urn:usf:ontology:validationStageOneEvaluatedAuthorityDigest> ?stageOneEvaluated }
+          OPTIONAL { ?binding <urn:usf:ontology:validationNonPublicationDependencySetDigest> ?nonPublicationDependency }
+          OPTIONAL { ?binding <urn:usf:ontology:validationNonPublicationDependencyDigestAlgorithm> ?dependencyAlgorithm }
+          OPTIONAL { ?binding <urn:usf:ontology:validationReevaluationDependencyDigest> ?reevaluationDependency }
+          OPTIONAL { ?binding <urn:usf:ontology:validationBindingExecutionReceiptDigest> ?bindingExecutionReceipt }
+          OPTIONAL { ?binding <urn:usf:ontology:validationBindingEvaluationReceiptDigest> ?bindingEvaluationReceipt }
+          OPTIONAL { ?binding <urn:usf:ontology:authorityBindingValidationProducer> ?bindingProducer }
+          OPTIONAL { ?binding <urn:usf:ontology:authorityBindingEvidenceAdmissionPath> ?bindingAdmissionPath }
+          OPTIONAL { ?binding <urn:usf:ontology:validationBindingProducerRelease> ?bindingProducerRelease }
+          OPTIONAL { ?binding <urn:usf:ontology:validationBindingRepository> ?bindingRepository }
+          OPTIONAL { ?binding <urn:usf:ontology:validationBindingSourceHead> ?bindingSourceHead }
+          OPTIONAL { ?binding <urn:usf:ontology:validationBindingSourceTree> ?bindingSourceTree }
+          OPTIONAL { ?binding <urn:usf:ontology:validationBindingSourceScopeDigest> ?bindingSourceScope }
+        }
+        OPTIONAL {
+          ?satisfaction <urn:usf:ontology:validationResultOfEvaluation> ?evaluation .
+          OPTIONAL { ?evaluation a <urn:usf:ontology:ValidationEvaluation> }
+          OPTIONAL { ?evaluation <urn:usf:ontology:validationEvaluationReceiptDigest> ?evaluationReceipt }
+          OPTIONAL {
+            ?evaluation <urn:usf:ontology:validationEvaluationOfExecution> ?execution .
+            OPTIONAL { ?execution a <urn:usf:ontology:ValidationExecution> }
+            OPTIONAL { ?execution <urn:usf:ontology:validationExecutionReceiptDigest> ?executionReceipt }
+            OPTIONAL { ?execution <urn:usf:ontology:validationExecutedByProducer> ?executionProducer }
+            OPTIONAL { ?execution <urn:usf:ontology:validationUsesEvidenceAdmissionPath> ?executionAdmissionPath }
+            OPTIONAL {
+              ?evidence a <urn:usf:ontology:ValidationEvidence> ;
+                <urn:usf:ontology:validationEvidenceForExecution> ?evidenceExecution ;
+                <urn:usf:ontology:validationEvidenceAdmittedThrough> ?evidenceAdmissionPath .
+              FILTER(?evidenceExecution = ?execution)
+            }
+          }
+        }
+        OPTIONAL {
+          ?bindingProducer a <urn:usf:ontology:ValidationProducer> .
+          OPTIONAL { ?bindingProducer <urn:usf:ontology:validationProducerRelease> ?producerRelease }
+          OPTIONAL { ?bindingProducer <urn:usf:ontology:validationProducerRepository> ?producerRepository }
+          OPTIONAL { ?bindingProducer <urn:usf:ontology:validationProducerSourceHead> ?producerSourceHead }
+          OPTIONAL { ?bindingProducer <urn:usf:ontology:validationProducerSourceTree> ?producerSourceTree }
+          OPTIONAL { ?bindingProducer <urn:usf:ontology:validationProducerSourceScopeDigest> ?producerSourceScope }
+        }
+        OPTIONAL {
+          ?bindingAdmissionPath a <urn:usf:ontology:EvidenceAdmissionPath> .
+          OPTIONAL { ?bindingAdmissionPath <urn:usf:ontology:admissionPathForProducer> ?admissionProducer }
+          OPTIONAL { ?bindingAdmissionPath <urn:usf:ontology:admissionPathRepository> ?admissionRepository }
+          OPTIONAL { ?bindingAdmissionPath <urn:usf:ontology:admissionPathSourceHead> ?admissionSourceHead }
+          OPTIONAL { ?bindingAdmissionPath <urn:usf:ontology:admissionPathSourceTree> ?admissionSourceTree }
+          OPTIONAL { ?bindingAdmissionPath <urn:usf:ontology:admissionPathSourceScopeDigest> ?admissionSourceScope }
+        }
+      }
     } ORDER BY ?id LIMIT 256`),
   ]);
   const head = applicabilityRows[0] || {};
   const states = new Set(applicabilityRows.map((row) => value(row, 'state')).filter(Boolean));
   if (states.size > 1) throw new Error('contract declares more than one validation applicability state');
+  const satisfactionFields = [
+    'boundObligation', 'resultState', 'boundAuthority', 'boundHead', 'invalidation', 'superseded',
+    'binding', 'bindingResult', 'bindingRule', 'reevaluationRequired', 'reevaluationState',
+    'stageOneEvaluated', 'nonPublicationDependency', 'dependencyAlgorithm',
+    'reevaluationDependency', 'bindingExecutionReceipt', 'bindingEvaluationReceipt', 'bindingProducer',
+    'bindingAdmissionPath', 'bindingProducerRelease', 'bindingRepository', 'bindingSourceHead',
+    'bindingSourceTree', 'bindingSourceScope', 'evaluation', 'evaluationReceipt', 'execution',
+    'executionReceipt', 'executionProducer', 'executionAdmissionPath', 'evidence', 'evidenceExecution',
+    'evidenceAdmissionPath', 'producerRelease', 'producerRepository', 'producerSourceHead',
+    'producerSourceTree', 'producerSourceScope', 'admissionProducer', 'admissionRepository',
+    'admissionSourceHead', 'admissionSourceTree', 'admissionSourceScope',
+  ];
   const obligations = new Map();
   for (const row of obligationRows) {
     const id = value(row, 'id');
-    const existing = obligations.get(id) || { id, activation: value(row, 'activation'), satisfactions: [] };
+    const existing = obligations.get(id) || {
+      id,
+      activation: value(row, 'activation'),
+      satisfactionRecords: new Map(),
+    };
     if (existing.activation !== value(row, 'activation')) throw new Error('validation obligation declares inconsistent activation state');
     const satisfaction = value(row, 'satisfaction');
     if (satisfaction) {
-      existing.satisfactions.push({
-        result: satisfaction,
-        boundObligation: value(row, 'boundObligation'),
-        resultState: value(row, 'resultState'),
-        boundAuthorityDigest: value(row, 'boundAuthority'),
-        boundSourceHead: value(row, 'boundHead'),
-        invalidated: value(row, 'invalidation') !== null,
-        superseded: value(row, 'superseded') !== null,
-      });
+      const record = existing.satisfactionRecords.get(satisfaction)
+        || Object.fromEntries([['result', satisfaction], ...satisfactionFields.map((field) => [field, new Set()])]);
+      for (const field of satisfactionFields) {
+        const term = value(row, field);
+        if (term !== null) record[field].add(term);
+      }
+      existing.satisfactionRecords.set(satisfaction, record);
     }
     obligations.set(id, existing);
   }
+  const projectedObligations = [...obligations.values()].map(({ satisfactionRecords, ...obligation }) => ({
+    ...obligation,
+    satisfactions: [...satisfactionRecords.values()].map((record) => Object.fromEntries(
+      Object.entries(record).map(([field, terms]) => [field, terms instanceof Set ? [...terms].sort() : terms]),
+    )),
+  }));
   return {
     applicability: [...states][0] ?? null,
     applicabilityReason: value(head, 'reason'),
     exemptionAuthorityProven: applicabilityRows.some((row) => value(row, 'authority') && value(row, 'authorityState') === SUCCESSFUL),
     conditionCount: new Set(applicabilityRows.map((row) => value(row, 'condition')).filter(Boolean)).size,
-    obligations: [...obligations.values()],
+    obligations: projectedObligations,
   };
+}
+
+function soleTerm(item, field) {
+  return item[field]?.length === 1 ? item[field][0] : null;
+}
+
+function validationNonPublicationDependencyDigest(inventory) {
+  if (!Array.isArray(inventory)) return null;
+  const excluded = new Set(NON_PUBLICATION_EXCLUDED_GRAPHS);
+  // The binding carrying this digest is in the proofs graph. Excluding that
+  // exact graph makes the prospective D2 calculation non-recursive while all
+  // non-publication authority graphs remain content-bound.
+  if (!excluded.has(NON_PUBLICATION_DIGEST_BINDING_GRAPH)) return null;
+  const graphs = [];
+  const observed = new Set();
+  for (const record of inventory) {
+    if (!record || typeof record.graph !== 'string' || record.graph.length === 0
+        || !/^sha256:[0-9a-f]{64}$/.test(record.sha256 || '')
+        || !Number.isSafeInteger(record.triples) || record.triples < 0
+        || observed.has(record.graph)) return null;
+    observed.add(record.graph);
+    if (!excluded.has(record.graph)) graphs.push({
+      graph: record.graph,
+      sha256: record.sha256,
+      triples: record.triples,
+    });
+  }
+  graphs.sort((left, right) => left.graph.localeCompare(right.graph));
+  return digest(jcs({
+    algorithm: NON_PUBLICATION_DEPENDENCY_ALGORITHM,
+    excludedGraphs: NON_PUBLICATION_EXCLUDED_GRAPHS,
+    graphs,
+  }));
+}
+
+function completeSelfPublicationClosure(item, authorityWitnessValue) {
+  const authorityDigest = authorityWitnessValue?.digest ?? null;
+  const resultAuthority = soleTerm(item, 'boundAuthority');
+  const resultHead = soleTerm(item, 'boundHead');
+  const stageOneEvaluated = soleTerm(item, 'stageOneEvaluated');
+  const dependency = soleTerm(item, 'nonPublicationDependency');
+  const currentDependency = validationNonPublicationDependencyDigest(authorityWitnessValue?.inventory);
+  const executionReceipt = soleTerm(item, 'executionReceipt');
+  const evaluationReceipt = soleTerm(item, 'evaluationReceipt');
+  const producer = soleTerm(item, 'bindingProducer');
+  const admissionPath = soleTerm(item, 'bindingAdmissionPath');
+  const repository = soleTerm(item, 'bindingRepository');
+  const sourceTree = soleTerm(item, 'bindingSourceTree');
+  const sourceScope = soleTerm(item, 'bindingSourceScope');
+
+  return item.binding?.length === 1
+    && soleTerm(item, 'bindingResult') === item.result
+    && soleTerm(item, 'bindingRule') === VALIDATION_NON_PUBLICATION_CLOSURE
+    && soleTerm(item, 'reevaluationRequired') === 'true'
+    && soleTerm(item, 'reevaluationState') === PASSED_RESULT
+    && stageOneEvaluated === resultAuthority
+    && stageOneEvaluated !== authorityDigest
+    && dependency !== null
+    && dependency === currentDependency
+    && soleTerm(item, 'reevaluationDependency') === dependency
+    && soleTerm(item, 'dependencyAlgorithm') === NON_PUBLICATION_DEPENDENCY_ALGORITHM
+    && executionReceipt !== null
+    && evaluationReceipt !== null
+    && soleTerm(item, 'bindingExecutionReceipt') === executionReceipt
+    && soleTerm(item, 'bindingEvaluationReceipt') === evaluationReceipt
+    && soleTerm(item, 'evaluation') !== null
+    && soleTerm(item, 'execution') !== null
+    && soleTerm(item, 'executionProducer') === producer
+    && soleTerm(item, 'executionAdmissionPath') === admissionPath
+    && soleTerm(item, 'evidence') !== null
+    && soleTerm(item, 'evidenceExecution') === soleTerm(item, 'execution')
+    && soleTerm(item, 'evidenceAdmissionPath') === admissionPath
+    && soleTerm(item, 'admissionProducer') === producer
+    && soleTerm(item, 'bindingProducerRelease') === soleTerm(item, 'producerRelease')
+    && soleTerm(item, 'bindingRepository') === soleTerm(item, 'producerRepository')
+    && soleTerm(item, 'bindingRepository') === soleTerm(item, 'admissionRepository')
+    && soleTerm(item, 'bindingSourceHead') === resultHead
+    && soleTerm(item, 'bindingSourceHead') === soleTerm(item, 'producerSourceHead')
+    && soleTerm(item, 'bindingSourceHead') === soleTerm(item, 'admissionSourceHead')
+    && sourceTree !== null
+    && sourceTree === soleTerm(item, 'producerSourceTree')
+    && sourceTree === soleTerm(item, 'admissionSourceTree')
+    && sourceScope !== null
+    && sourceScope === soleTerm(item, 'producerSourceScope')
+    && sourceScope === soleTerm(item, 'admissionSourceScope')
+    && repository !== null;
 }
 
 // A satisfaction survives only while it stays identity-bound to this obligation
 // and bound to the exact authority the factory is acting on. Anything less is a
 // historical record, not a current conclusion.
-function satisfactionCurrent(obligation, authorityDigest) {
-  return obligation.satisfactions.some((item) => item.boundObligation === obligation.id
-    && item.resultState === 'urn:usf:resultstate:passed'
-    && item.boundAuthorityDigest === authorityDigest
-    && typeof item.boundSourceHead === 'string' && item.boundSourceHead.length > 0
-    && !item.invalidated
-    && !item.superseded);
+function satisfactionCurrent(obligation, authorityWitnessValue) {
+  const authorityDigest = authorityWitnessValue?.digest ?? null;
+  return obligation.satisfactions.some((item) => {
+    const boundSourceHead = soleTerm(item, 'boundHead');
+    const exactResult = soleTerm(item, 'boundObligation') === obligation.id
+      && soleTerm(item, 'resultState') === PASSED_RESULT
+      && typeof boundSourceHead === 'string' && boundSourceHead.length > 0
+      && item.invalidation.length === 0
+      && item.superseded.length === 0;
+    if (!exactResult) return false;
+    // Preserve the historical direct-binding path exactly. The closure is an
+    // additional fail-closed path for a result whose publication necessarily
+    // changed the authority digest it originally evaluated.
+    return (authorityDigest !== null && soleTerm(item, 'boundAuthority') === authorityDigest)
+      || completeSelfPublicationClosure(item, authorityWitnessValue);
+  });
 }
 
 // The complete gap set for one contract, as {code, subject} pairs. This is the
 // single definition of "outstanding" that both the paged projection and the
 // unpaged disposition census use, so a page boundary can never hide a state.
-function validationGaps(contract, scope, authorityDigest) {
+function validationGaps(contract, scope, authorityWitnessValue) {
   const gaps = [];
   const { applicability } = scope;
   if (applicability === null || applicability === APPLICABILITY.unresolved) {
@@ -598,7 +791,7 @@ function validationGaps(contract, scope, authorityDigest) {
       gaps.push({ code: 'validation-obligation-activation-unresolved', subject: obligation.id });
       continue;
     }
-    if (!satisfactionCurrent(obligation, authorityDigest)) {
+    if (!satisfactionCurrent(obligation, authorityWitnessValue)) {
       gaps.push({
         code: obligation.satisfactions.length > 0 ? 'validation-satisfaction-not-current' : 'missing-current-passing-validation',
         subject: obligation.id,
@@ -631,8 +824,8 @@ function validationActionStateFor(scope) {
   return ACTION_STATES.reserved;
 }
 
-function validationVerdict(contract, scope, authorityDigest) {
-  const gaps = validationGaps(contract, scope, authorityDigest);
+function validationVerdict(contract, scope, authorityWitnessValue) {
+  const gaps = validationGaps(contract, scope, authorityWitnessValue);
   const dispositions = gaps.map((gap) => resolveDisposition(gap.code));
   const realisationBlocking = gaps.filter((gap) => !VALIDATION_SCOPED_GAPS.has(gap.code));
   const validationActionState = validationActionStateFor(scope);
@@ -644,7 +837,7 @@ function validationVerdict(contract, scope, authorityDigest) {
     // activated and currently satisfied, never merely "no gap recorded".
     validationSatisfied: scope.applicability === APPLICABILITY.required
       && scope.obligations.length > 0
-      && scope.obligations.every((item) => item.activation === ACTIVATION.activated && satisfactionCurrent(item, authorityDigest)),
+      && scope.obligations.every((item) => item.activation === ACTIVATION.activated && satisfactionCurrent(item, authorityWitnessValue)),
     validationActionState,
   };
 }
@@ -694,7 +887,7 @@ export async function realisationVerdict(ctx, args = {}) {
   const context = withAuthority(value.semantics, witness, ctx);
   const scope = value.scope;
   const currentness = value.currentness;
-  const validation = validationVerdict(context.contract.id, scope, context.authorityDigest);
+  const validation = validationVerdict(context.contract.id, scope, witness);
 
   // Each conjunct is explicit. A null state is unproven, not permission; a wrong
   // state is an explicit negative. Both withhold PROCEED, and they are reported
@@ -811,7 +1004,7 @@ export async function projectContract(ctx, args = {}) {
     validationObligations: scope.obligations.map((item) => ({
       id: item.id,
       activation: item.activation,
-      satisfactionCurrent: satisfactionCurrent(item, context.authorityDigest),
+      satisfactionCurrent: satisfactionCurrent(item, verdict.witness),
       recordedSatisfactionCount: item.satisfactions.length,
     })),
     validationActionState: validation.validationActionState,
@@ -848,7 +1041,8 @@ export async function planWork(ctx, args = {}) {
   if (offset > 10_000) throw new Error('work-plan offset exceeds bounded maximum');
   const pageSize = 50;
   const before = await authorityWitness(ctx.client);
-  const authorityDigest = `sha256:${before.digest}`;
+  const authorityWitnessValue = witnessSummary(before);
+  const authorityDigest = authorityWitnessValue.digest;
   const [proofRows, scope, mandatoryRows] = await Promise.all([
     ctx.client.select(`SELECT ?subject WHERE {
       <${contract}> <urn:usf:ontology:mandatoryProofObligation> ?subject .
@@ -869,9 +1063,9 @@ export async function planWork(ctx, args = {}) {
     observedAt: ctx.observedAt ?? null,
   });
   const after = await authorityWitness(ctx.client);
-  if (before.digest !== after.digest) throw new Error('live authority changed while building the work plan');
+  assertWitnessUnchanged(authorityWitnessValue, witnessSummary(after), 'work plan read');
 
-  const verdict = validationVerdict(contract, scope, authorityDigest);
+  const verdict = validationVerdict(contract, scope, authorityWitnessValue);
   const all = [
     ...proofRows.map((row) => ({ code: 'missing-successful-proof', subject: value(row, 'subject') })),
     ...(currentness.state === PROOF_CURRENTNESS.current
@@ -923,4 +1117,5 @@ export const materialisationInternals = Object.freeze({
   assertNoSymlinkSegments,
   containedBy,
   rethrowWithRollback,
+  validationNonPublicationDependencyDigest,
 });

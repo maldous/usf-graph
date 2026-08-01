@@ -11,8 +11,9 @@
   "scripts": {
     "test": "node assurance/semantic-model-compilation/test-runner.mjs all",
     "test:semantic-assurance": "node assurance/semantic-model-compilation/test-runner.mjs semantic-assurance",
-    "publish:authority:validate": "node processes/semantic-assurance/semantic-authority-publication.mjs --mode=validate",
-    "publish:authority": "node processes/semantic-assurance/semantic-authority-publication.mjs --mode=commit",
+    "test:semantic-proof-v1": "node --test processes/semantic-assurance/semantic-proof-v1.test.mjs processes/semantic-assurance/semantic-authority-publication.test.mjs assurance/semantic-model-compilation/aggregate-compiler-proof.test.mjs assurance/semantic-model-compilation/aggregate-compiler-proof-command.test.mjs assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.test.mjs",
+    "publish:authority:validate": "node processes/semantic-assurance/semantic-authority-publication.mjs --mode=validate --producer=aggregate-compiler-v1",
+    "publish:authority": "node processes/semantic-assurance/semantic-authority-publication.mjs --mode=commit --producer=aggregate-compiler-v1",
     "authority:drift": "node processes/semantic-assurance/semantic-authority-drift.mjs",
     "authority:snapshot-derived": "node processes/semantic-assurance/semantic-authority-drift.mjs --write-derived"
   },
