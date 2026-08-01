@@ -66,6 +66,28 @@ test('rejects invalid named graphs before any mutation call', async () => {
   await assert.rejects(() => client.clearGraphs('transaction', []), /explicit named-graph IRIs/);
 });
 
+test('targets named graphs for triple syntaxes and leaves N-Quads dataset-scoped', async () => {
+  const calls = [];
+  const sdk = fakeSdk({ db: {
+    add: async (...args) => { calls.push(args); return { ok: true }; },
+  } });
+  const client = createStardogSemanticAuthorityClient({
+    sdk,
+    configuration: configuration(),
+    resolveSecret: () => 'token-value',
+  });
+  const graph = 'urn:usf:graph:ontology';
+  await client.addData('transaction', '<urn:test:s> <urn:test:p> <urn:test:o> .', 'text/turtle', graph);
+  await client.addData('transaction', '<urn:test:s> <urn:test:p> <urn:test:o> .', 'application/n-triples', graph);
+  await client.addData('transaction', '<urn:test:s> <urn:test:p> <urn:test:o> <urn:test:g> .',
+    'application/n-quads', null);
+  assert.deepEqual(calls.map((args) => [args[4], args[5]]), [
+    [{ contentType: 'text/turtle' }, { graphUri: graph }],
+    [{ contentType: 'application/n-triples' }, { graphUri: graph }],
+    [{ contentType: 'application/n-quads' }, {}],
+  ]);
+});
+
 test('fails closed with redacted operational errors', async () => {
   const sdk = fakeSdk({ db: { size: async () => ({ ok: false, status: 401 }) } });
   const client = createStardogSemanticAuthorityClient({ sdk, configuration: configuration(), resolveSecret: () => 'sensitive-token' });

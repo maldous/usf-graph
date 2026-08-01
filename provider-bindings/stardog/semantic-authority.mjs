@@ -2,6 +2,7 @@ import { resolveLiveSemanticAuthorityConfiguration } from '../../configuration/s
 import { createHash } from 'node:crypto';
 
 const TURTLE = 'text/turtle';
+const NTRIPLES = 'application/n-triples';
 const NQUADS = 'application/n-quads';
 const SPARQL_JSON = 'application/sparql-results+json';
 const GRAPH_IRI = /^[A-Za-z][A-Za-z0-9+.-]*:[^<>"{}\\\s]+$/;
@@ -162,7 +163,9 @@ export function createStardogSemanticAuthorityClient({ sdk, configuration, resol
     },
 
     async addData(transaction, content, contentType, graphIri) {
-      const parameters = contentType === TURTLE && graphIri ? { graphUri: graphIri } : {};
+      const parameters = (contentType === TURTLE || contentType === NTRIPLES) && graphIri
+        ? { graphUri: graphIri }
+        : {};
       successful(await db.add(connection, database, transaction, content, { contentType }, parameters), 'add');
     },
 
