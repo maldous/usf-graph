@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
 
 import { DataFactory, Parser, Store } from 'n3';
+
+import { canonicalInventoryGraphDigest } from '../../capabilities/semantic-model-compilation/compiler.mjs';
 
 import {
   ACTION_STATES, applyLayoutPlan, AUTHORITY_MOVED_CODE, createLayoutPlan, digest, GAP_DISPOSITIONS,
@@ -80,11 +81,11 @@ const validationObligation = 'urn:usf:validationobligation:repositoryexternalart
 // the digest a satisfying result has to bind to be current.
 const witnessDigest = 'sha256:a28dfd4cb3960f9078f558caf098cb215aabad01c74593035ccab63acaf90e76';
 const AUTHORITY_NQUADS = '<urn:s> <urn:p> "materialisation" .\n';
-const authorityGraphDigest = (nquads) => `sha256:${createHash('sha256').update(nquads).digest('hex')}`;
-const validationDependency = (nquads = AUTHORITY_NQUADS) => materialisationInternals
+const authorityGraphDependencyDigest = (await canonicalInventoryGraphDigest('urn:g', AUTHORITY_NQUADS)).sha256;
+const validationDependency = () => materialisationInternals
   .validationNonPublicationDependencyDigest([{
+    dependencySha256: authorityGraphDependencyDigest,
     graph: 'urn:g',
-    sha256: authorityGraphDigest(nquads),
     triples: 1,
   }]);
 
@@ -126,6 +127,7 @@ const validationClosure = Object.freeze({
   evaluation: 'urn:usf:validationevaluation:materialisation',
   execution: 'urn:usf:validationexecution:materialisation',
   evidence: 'urn:usf:validationevidence:materialisation',
+  priorAuthority: `sha256:${'76'.repeat(32)}`,
   evaluatedAuthority: `sha256:${'77'.repeat(32)}`,
   executionReceipt: `sha256:${'88'.repeat(32)}`,
   evaluationReceipt: `sha256:${'99'.repeat(32)}`,
@@ -146,7 +148,8 @@ function selfPublicationClosureRow(overrides = {}) {
     bindingRule: binding('urn:usf:authoritybindingrule:validationnonpublicationdependencyclosure'),
     reevaluationRequired: binding('true'),
     reevaluationState: binding('urn:usf:resultstate:passed'),
-    stageOneEvaluated: binding(validationClosure.evaluatedAuthority),
+    stageOneEvaluated: binding(validationClosure.priorAuthority),
+    stageOneSettled: binding(validationClosure.evaluatedAuthority),
     nonPublicationDependency: binding(validationClosure.dependency),
     dependencyAlgorithm: binding(validationClosure.algorithm),
     reevaluationDependency: binding(validationClosure.dependency),
@@ -336,11 +339,13 @@ test('layout context is live-digest-bound and exposes active proof and authorise
   assert.match(context.authorityDigest, /^sha256:[0-9a-f]{64}$/);
   assert.equal(context.authorityDigestAlgorithm, 'sha256-rdfc10-graph-inventory-v2');
   assert.deepEqual(context.authorityGraphInventory, [{
+    dependencySha256: context.authorityGraphInventory[0].dependencySha256,
     graph: 'urn:g',
     sha256: context.authorityGraphInventory[0].sha256,
     triples: 1,
   }]);
   assert.match(context.authorityGraphInventory[0].sha256, /^sha256:[0-9a-f]{64}$/);
+  assert.match(context.authorityGraphInventory[0].dependencySha256, /^sha256:[0-9a-f]{64}$/);
   assert.equal(context.contract.activationState, 'urn:usf:contractactivationstate:active');
   assert.equal(context.contract.proofResultState, 'urn:usf:proofresultstate:successful');
   assert.equal(context.acceptedDecisionCount, 1);

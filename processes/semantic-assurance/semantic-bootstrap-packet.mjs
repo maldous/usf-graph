@@ -3,7 +3,10 @@
 // model -> evidence -> proof -> contract -> realisation -> validation trace.
 
 import { createHash } from 'node:crypto';
-import { canonicalGraphDigest } from '../../capabilities/semantic-model-compilation/compiler.mjs';
+import {
+  canonicalGraphDigest,
+  canonicalInventoryGraphDigest,
+} from '../../capabilities/semantic-model-compilation/compiler.mjs';
 
 const ONT = 'urn:usf:ontology:';
 export const BOOTSTRAP_TRACE = 'model -> evidence -> proof -> contract -> realisation -> validation';
@@ -71,8 +74,10 @@ export async function authorityWitness(client) {
   for (const row of rows) {
     const graph = val(row, 'g');
     const content = await client.construct(`CONSTRUCT { ?s ?p ?o } WHERE { GRAPH <${graph}> { ?s ?p ?o } }`, 'application/n-quads');
-    const record = await canonicalGraphDigest(content);
-    if (record.triples > 0) inventory.push({ graph, ...record });
+    const [record, dependencyRecord] = await Promise.all([
+      canonicalGraphDigest(content), canonicalInventoryGraphDigest(graph, content),
+    ]);
+    if (record.triples > 0) inventory.push({ graph, ...record, dependencySha256: dependencyRecord.sha256 });
   }
   const triples = inventory.reduce((total, record) => total + record.triples, 0);
   if (!Number.isSafeInteger(triples) || triples < 0) throw new Error('authority witness inventory total is invalid');

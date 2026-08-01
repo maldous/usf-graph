@@ -105,6 +105,7 @@ function witnessSummary(witness) {
     inventory: Object.freeze(witness.inventory.map((record) => Object.freeze({
       graph: record.graph,
       sha256: `sha256:${record.sha256}`,
+      dependencySha256: `sha256:${record.dependencySha256}`,
       triples: record.triples,
     }))),
   });
@@ -523,7 +524,7 @@ async function validationScope(client, contract) {
       OPTIONAL { <${contract}> <urn:usf:ontology:validationApplicabilityCondition> ?condition }
     } LIMIT 64`),
     client.select(`SELECT ?id ?activation ?satisfaction ?boundObligation ?resultState ?boundAuthority ?boundHead ?invalidation ?superseded
-      ?binding ?bindingResult ?bindingRule ?reevaluationRequired ?reevaluationState ?stageOneEvaluated
+      ?binding ?bindingResult ?bindingRule ?reevaluationRequired ?reevaluationState ?stageOneEvaluated ?stageOneSettled
       ?nonPublicationDependency ?dependencyAlgorithm ?reevaluationDependency
       ?bindingExecutionReceipt ?bindingEvaluationReceipt ?bindingProducer ?bindingAdmissionPath
       ?bindingProducerRelease ?bindingRepository ?bindingSourceHead ?bindingSourceTree ?bindingSourceScope
@@ -548,6 +549,7 @@ async function validationScope(client, contract) {
           OPTIONAL { ?binding <urn:usf:ontology:validationRequiresPostPublicationReevaluation> ?reevaluationRequired }
           OPTIONAL { ?binding <urn:usf:ontology:validationPostPublicationReevaluationState> ?reevaluationState }
           OPTIONAL { ?binding <urn:usf:ontology:validationStageOneEvaluatedAuthorityDigest> ?stageOneEvaluated }
+          OPTIONAL { ?binding <urn:usf:ontology:validationStageOneSettledAuthorityDigest> ?stageOneSettled }
           OPTIONAL { ?binding <urn:usf:ontology:validationNonPublicationDependencySetDigest> ?nonPublicationDependency }
           OPTIONAL { ?binding <urn:usf:ontology:validationNonPublicationDependencyDigestAlgorithm> ?dependencyAlgorithm }
           OPTIONAL { ?binding <urn:usf:ontology:validationReevaluationDependencyDigest> ?reevaluationDependency }
@@ -604,7 +606,7 @@ async function validationScope(client, contract) {
   const satisfactionFields = [
     'boundObligation', 'resultState', 'boundAuthority', 'boundHead', 'invalidation', 'superseded',
     'binding', 'bindingResult', 'bindingRule', 'reevaluationRequired', 'reevaluationState',
-    'stageOneEvaluated', 'nonPublicationDependency', 'dependencyAlgorithm',
+    'stageOneEvaluated', 'stageOneSettled', 'nonPublicationDependency', 'dependencyAlgorithm',
     'reevaluationDependency', 'bindingExecutionReceipt', 'bindingEvaluationReceipt', 'bindingProducer',
     'bindingAdmissionPath', 'bindingProducerRelease', 'bindingRepository', 'bindingSourceHead',
     'bindingSourceTree', 'bindingSourceScope', 'evaluation', 'evaluationReceipt', 'execution',
@@ -663,14 +665,17 @@ function validationNonPublicationDependencyDigest(inventory) {
   const graphs = [];
   const observed = new Set();
   for (const record of inventory) {
+    const observedDigest = record?.dependencySha256 ?? record?.sha256 ?? record?.digest;
+    const normalizedDigest = /^[0-9a-f]{64}$/.test(observedDigest || '')
+      ? `sha256:${observedDigest}` : observedDigest;
     if (!record || typeof record.graph !== 'string' || record.graph.length === 0
-        || !/^sha256:[0-9a-f]{64}$/.test(record.sha256 || '')
+        || !/^sha256:[0-9a-f]{64}$/.test(normalizedDigest || '')
         || !Number.isSafeInteger(record.triples) || record.triples < 0
         || observed.has(record.graph)) return null;
     observed.add(record.graph);
     if (!excluded.has(record.graph)) graphs.push({
       graph: record.graph,
-      sha256: record.sha256,
+      sha256: normalizedDigest,
       triples: record.triples,
     });
   }
@@ -687,6 +692,7 @@ function completeSelfPublicationClosure(item, authorityWitnessValue) {
   const resultAuthority = soleTerm(item, 'boundAuthority');
   const resultHead = soleTerm(item, 'boundHead');
   const stageOneEvaluated = soleTerm(item, 'stageOneEvaluated');
+  const stageOneSettled = soleTerm(item, 'stageOneSettled');
   const dependency = soleTerm(item, 'nonPublicationDependency');
   const currentDependency = validationNonPublicationDependencyDigest(authorityWitnessValue?.inventory);
   const executionReceipt = soleTerm(item, 'executionReceipt');
@@ -702,8 +708,10 @@ function completeSelfPublicationClosure(item, authorityWitnessValue) {
     && soleTerm(item, 'bindingRule') === VALIDATION_NON_PUBLICATION_CLOSURE
     && soleTerm(item, 'reevaluationRequired') === 'true'
     && soleTerm(item, 'reevaluationState') === PASSED_RESULT
-    && stageOneEvaluated === resultAuthority
-    && stageOneEvaluated !== authorityDigest
+    && stageOneEvaluated !== null
+    && stageOneEvaluated !== stageOneSettled
+    && stageOneSettled === resultAuthority
+    && stageOneSettled !== authorityDigest
     && dependency !== null
     && dependency === currentDependency
     && soleTerm(item, 'reevaluationDependency') === dependency

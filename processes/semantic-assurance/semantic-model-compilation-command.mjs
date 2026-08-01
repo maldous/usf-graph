@@ -5,6 +5,7 @@ import { DataFactory, Parser, Store, Writer } from 'n3';
 
 import {
   canonicalGraphDigest,
+  canonicalInventoryGraphDigest,
   canonicalNQuads,
   checkLocal,
   compile,
@@ -479,9 +480,7 @@ export function createSemanticModelCompilationCommand({
         }
         const inventory = [];
         for (const [graph, store] of [...current.stores.entries()].sort(([left], [right]) => left.localeCompare(right))) {
-          const graphQuads = store.getQuads(null, null, null, null)
-            .map((item) => quad(item.subject, item.predicate, item.object, namedNode(graph)));
-          const record = await canonicalGraphDigest(await nquadsText(graphQuads));
+          const record = await canonicalInventoryGraphDigest(graph, await graphText(store));
           inventory.push(Object.freeze({ graph, sha256: `sha256:${record.sha256}`, triples: record.triples }));
         }
         await client.rollback(transaction);

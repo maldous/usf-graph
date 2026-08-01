@@ -174,26 +174,32 @@ SELECT ?result ?reevaluation ?evaluatedAuthorityDigest ?executionReceiptDigest ?
 export const FINAL_VALIDATION_BINDINGS_QUERY = `# aggregate-final-validation-bindings-v1
 SELECT ?validationResult ?resultState ?validationEvaluation ?validationExecution
        ?executionReceiptDigest ?evaluationReceiptDigest ?bindingExecutionReceiptDigest
-       ?bindingEvaluationReceiptDigest ?stageOneEvaluatedAuthorityDigest ?reevaluationState
-       ?producer ?admissionPath ?validationEvidence ?validationEvidenceDigest WHERE {
+       ?bindingEvaluationReceiptDigest ?stageOneSettledAuthorityDigest ?reevaluationState
+       ?producer ?admissionPath ?validationEvidence ?validationEvidenceDigest
+       ?compilerValidationEvidence ?compilerValidationEvidenceDigest WHERE {
   ?obligation a <urn:usf:ontology:ValidationObligation> ;
               <urn:usf:ontology:validationForContract> <${CONTRACT}> ;
               <urn:usf:ontology:satisfiedByValidationResult> ?validationResult .
   ?validationResult <urn:usf:ontology:resultState> ?resultState ;
                     <urn:usf:ontology:validationResultOfEvaluation> ?validationEvaluation ;
-                    <urn:usf:ontology:hasValidationSelfPublicationAuthorityBinding> ?binding .
+                    <urn:usf:ontology:hasValidationSelfPublicationAuthorityBinding> ?binding ;
+                    <urn:usf:ontology:entersEvidenceLifecycleAs> ?compilerValidationEvidence ;
+                    <urn:usf:ontology:usesAdmittedValidationEvidence> ?validationEvidence .
   ?validationEvaluation <urn:usf:ontology:validationEvaluationOfExecution> ?validationExecution ;
                         <urn:usf:ontology:validationEvaluationReceiptDigest> ?evaluationReceiptDigest .
   ?validationExecution <urn:usf:ontology:validationExecutionReceiptDigest> ?executionReceiptDigest ;
                        <urn:usf:ontology:validationExecutedByProducer> ?producer ;
                        <urn:usf:ontology:validationUsesEvidenceAdmissionPath> ?admissionPath .
-  ?validationEvidence a <urn:usf:ontology:ValidationEvidence> ;
-                      <urn:usf:ontology:validationEvidenceForExecution> ?validationExecution ;
-                      <urn:usf:ontology:validationEvidenceAdmittedThrough> ?admissionPath ;
+  ?validationEvidence a <urn:usf:ontology:EvidenceResult> ;
                       <urn:usf:ontology:contentDigest> ?validationEvidenceDigest .
+  ?compilerValidationEvidence a <urn:usf:ontology:ValidationEvidence> ;
+                              <urn:usf:ontology:validationEvidenceForExecution> ?validationExecution ;
+                              <urn:usf:ontology:validationEvidenceAdmittedThrough> ?admissionPath ;
+                              <urn:usf:ontology:contentDigest> ?compilerValidationEvidenceDigest .
+  FILTER (?validationEvidence != ?compilerValidationEvidence)
   ?binding <urn:usf:ontology:validationBindingExecutionReceiptDigest> ?bindingExecutionReceiptDigest ;
            <urn:usf:ontology:validationBindingEvaluationReceiptDigest> ?bindingEvaluationReceiptDigest ;
-           <urn:usf:ontology:validationStageOneEvaluatedAuthorityDigest> ?stageOneEvaluatedAuthorityDigest ;
+           <urn:usf:ontology:validationStageOneSettledAuthorityDigest> ?stageOneSettledAuthorityDigest ;
            <urn:usf:ontology:validationPostPublicationReevaluationState> ?reevaluationState .
 } ORDER BY ?validationResult ?validationEvidence`;
 
@@ -792,9 +798,14 @@ function validateFinalValidationEvidence(casRoot, rows, expectedAuthorityDigest)
   const evaluationReceiptDigest = digest(exactScalar(rows, 'evaluationReceiptDigest', validationResult), 'validation evaluation receipt');
   const producer = exactScalar(rows, 'producer', validationResult);
   const admissionPath = exactScalar(rows, 'admissionPath', validationResult);
+  const compilerValidationEvidence = exactScalar(rows, 'compilerValidationEvidence', validationResult);
+  const compilerValidationEvidenceDigest = digest(
+    exactScalar(rows, 'compilerValidationEvidenceDigest', validationResult), 'compiler validation evidence',
+  );
+  readCasBytes(casRoot, compilerValidationEvidenceDigest);
   if (exactScalar(rows, 'resultState', validationResult) !== 'urn:usf:resultstate:passed'
       || exactScalar(rows, 'reevaluationState', validationResult) !== 'urn:usf:resultstate:passed'
-      || exactScalar(rows, 'stageOneEvaluatedAuthorityDigest', validationResult) !== expectedAuthorityDigest
+      || exactScalar(rows, 'stageOneSettledAuthorityDigest', validationResult) !== expectedAuthorityDigest
       || exactScalar(rows, 'bindingExecutionReceiptDigest', validationResult) !== executionReceiptDigest
       || exactScalar(rows, 'bindingEvaluationReceiptDigest', validationResult) !== evaluationReceiptDigest) {
     fail('AGGREGATE_PRODUCER_VALIDATION_EVIDENCE_INVALID', 'graph receipt bindings');
@@ -805,6 +816,9 @@ function validateFinalValidationEvidence(casRoot, rows, expectedAuthorityDigest)
     readCasBytes(casRoot, evidenceDigest);
     return [`${iri}\u0000${evidenceDigest}`, { digest: evidenceDigest, iri }];
   })).values()].sort((left, right) => left.iri.localeCompare(right.iri));
+  if (evidence.some(({ iri }) => iri === compilerValidationEvidence)) {
+    fail('AGGREGATE_PRODUCER_VALIDATION_EVIDENCE_INVALID', 'compiler evidence conflated with receipt evidence');
+  }
   const execution = readCanonicalRecord(casRoot, executionReceiptDigest, 'validation execution receipt').value;
   exactObjectKeys(execution, ['admissionPath', 'authorityDigest', 'evidence', 'execution', 'producer', 'schema'],
     'validation execution receipt');

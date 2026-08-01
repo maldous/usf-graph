@@ -359,7 +359,9 @@ function validationRows(casRoot, authorityDigest = D1) {
   const producer = 'urn:usf:validationproducer:aggregate';
   const admissionPath = 'urn:usf:evidenceadmissionpath:aggregate';
   const validationEvidence = 'urn:usf:validationevidence:aggregate';
+  const compilerValidationEvidence = 'urn:usf:validationevidence:compiler';
   const evidenceDigest = putCas(casRoot, Buffer.from('validation-evidence'));
+  const compilerValidationEvidenceDigest = putCas(casRoot, Buffer.from('compiler-validation-evidence'));
   const executionReceiptDigest = putJson(casRoot, {
     admissionPath, authorityDigest, evidence: [{ digest: evidenceDigest, iri: validationEvidence }],
     execution: validationExecution, producer, schema: 'usf-validation-execution-receipt-v1',
@@ -372,8 +374,10 @@ function validationRows(casRoot, authorityDigest = D1) {
     admissionPath: binding(admissionPath), bindingEvaluationReceiptDigest: binding(evaluationReceiptDigest),
     bindingExecutionReceiptDigest: binding(executionReceiptDigest), evaluationReceiptDigest: binding(evaluationReceiptDigest),
     executionReceiptDigest: binding(executionReceiptDigest), producer: binding(producer),
+    compilerValidationEvidence: binding(compilerValidationEvidence),
+    compilerValidationEvidenceDigest: binding(compilerValidationEvidenceDigest),
     reevaluationState: binding('urn:usf:resultstate:passed'), resultState: binding('urn:usf:resultstate:passed'),
-    stageOneEvaluatedAuthorityDigest: binding(authorityDigest), validationEvaluation: binding(validationEvaluation),
+    stageOneSettledAuthorityDigest: binding(authorityDigest), validationEvaluation: binding(validationEvaluation),
     validationEvidence: binding(validationEvidence), validationEvidenceDigest: binding(evidenceDigest),
     validationExecution: binding(validationExecution), validationResult: binding(validationResult),
   }];
@@ -872,12 +876,14 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
         admissionPath: binding('urn:usf:evidenceadmissionpath:compilersemanticenforcementaggregate'),
         bindingEvaluationReceiptDigest: binding(receipt.evaluationReceiptDigest),
         bindingExecutionReceiptDigest: binding(receipt.executionReceiptDigest),
+        compilerValidationEvidence: binding(finalPackage.compilerValidation.descriptor.iri),
+        compilerValidationEvidenceDigest: binding(finalPackage.compilerValidation.descriptor.digest),
         evaluationReceiptDigest: binding(receipt.evaluationReceiptDigest),
         executionReceiptDigest: binding(receipt.executionReceiptDigest),
         producer: binding('urn:usf:validationproducer:compilersemanticenforcementaggregate'),
         reevaluationState: binding('urn:usf:resultstate:passed'),
         resultState: binding('urn:usf:resultstate:passed'),
-        stageOneEvaluatedAuthorityDigest: binding(d1),
+        stageOneSettledAuthorityDigest: binding(d1),
         validationEvaluation: binding('urn:usf:validationevaluation:compilersemanticenforcementaggregate'),
         validationEvidence: binding(descriptor.iri),
         validationEvidenceDigest: binding(descriptor.digest),

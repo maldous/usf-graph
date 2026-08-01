@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto';
 
-import { canonicalGraphDigest } from '../../capabilities/semantic-model-compilation/compiler.mjs';
+import {
+  canonicalGraphDigest,
+  canonicalInventoryGraphDigest,
+} from '../../capabilities/semantic-model-compilation/compiler.mjs';
 
 const ACCEPTED = 'urn:usf:decisionstate:accepted';
 const CONTRACT_REFERENCE = /^(?:urn:usf:[a-z0-9:._-]+|[a-z][a-z0-9]*)$/;
@@ -48,8 +51,10 @@ export async function readSemanticAuthorityWitness(client) {
   const inventory = [];
   for (const graph of graphs) {
     const content = await client.construct(`CONSTRUCT { ?s ?p ?o } WHERE { GRAPH <${graph}> { ?s ?p ?o } }`, 'application/n-quads');
-    const record = await canonicalGraphDigest(content);
-    if (record.triples > 0) inventory.push({ graph, ...record });
+    const [record, dependencyRecord] = await Promise.all([
+      canonicalGraphDigest(content), canonicalInventoryGraphDigest(graph, content),
+    ]);
+    if (record.triples > 0) inventory.push({ graph, ...record, dependencySha256: dependencyRecord.sha256 });
   }
   const triples = inventoryTotal(inventory);
   if (!Number.isSafeInteger(triples) || triples < 0) throw new Error('semantic authority witness inventory total is invalid');
