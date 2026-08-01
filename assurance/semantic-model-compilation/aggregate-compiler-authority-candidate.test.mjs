@@ -585,6 +585,26 @@ test('stage 2 final aggregate carries every CURRENT projection fact and coherent
   assert.deepEqual(objects(quads, contract, `${USF}mandatoryProofObligation`), [internals.AGGREGATE_OBLIGATION]);
   assert.deepEqual(objects(quads, contract, `${USF}hasActivationState`),
     ['urn:usf:contractactivationstate:active']);
+  const validationObligation = 'urn:usf:validationobligation:compilersemanticenforcement';
+  const validationExecution = 'urn:usf:validationexecution:compilersemanticenforcementaggregate';
+  const validationResult = 'urn:usf:validationresult:compilersemanticenforcementaggregate';
+  const compilerEvidence = 'urn:usf:validationevidence:compilersemanticenforcementcompilervalidation';
+  assert.deepEqual(objects(quads, validationObligation, `${USF}hasValidationActivationState`),
+    ['urn:usf:validationactivationstate:activated']);
+  assert.deepEqual(objects(quads, validationExecution, `${USF}executesValidation`), [validationObligation]);
+  assert.deepEqual(objects(quads, validationExecution, `${USF}producesValidationResult`), [validationResult]);
+  assert.deepEqual(objects(quads, validationResult, `${USF}resultForValidationObligation`), [validationObligation]);
+  assert.deepEqual(objects(quads, validationResult, `${USF}validationEvaluatedAuthorityDigest`), [D1]);
+  assert.deepEqual(objects(quads, validationResult, `${USF}validationEvaluatedSourceHead`), [HEAD]);
+  assert.deepEqual(objects(quads, validationResult, `${USF}entersEvidenceLifecycleAs`), [compilerEvidence]);
+  assert.equal(objects(quads, validationResult, `${USF}usesAdmittedValidationEvidence`).length, 3);
+  for (const evidence of objects(quads, validationResult, `${USF}usesAdmittedValidationEvidence`)) {
+    assert.equal(typedAs(quads, evidence, `${USF}EvidenceResult`), true);
+    assert.equal(typedAs(quads, evidence, `${USF}ValidationEvidence`), true);
+    assert.deepEqual(objects(quads, evidence, `${USF}evidenceFor`), [contract]);
+    assert.deepEqual(objects(quads, evidence, `${USF}hasAdmissionState`),
+      ['urn:usf:evidenceadmissionstate:admitted']);
+  }
   for (const realisation of [
     'urn:usf:realisation:semanticauthoritycontrol',
     'urn:usf:realisation:semanticcontractcompilersemanticenforcement',

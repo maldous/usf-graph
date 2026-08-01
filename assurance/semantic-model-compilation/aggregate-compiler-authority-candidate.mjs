@@ -62,6 +62,7 @@ const VALIDATION_OBLIGATION = 'urn:usf:validationobligation:compilersemanticenfo
 const VALIDATION_BINDING = 'urn:usf:validationselfpublicationbinding:compilersemanticenforcementaggregate';
 const VALIDATION_RULE = 'urn:usf:authoritybindingrule:validationnonpublicationdependencyclosure';
 const SELF_PUBLICATION_RULE = 'urn:usf:authoritybindingrule:selfpublicationclosure';
+const VALIDATION_RESERVATION_REASON = 'No authority-grade validation producer or admission path is declared for this obligation yet. Reserved is the safe default: an obligation with no explicit activation state must never be treated as actionable or closeable.';
 const PROVISIONAL_BINDING = 'urn:usf:proofauthoritybinding:compilersemanticenforcementaggregateprepublication';
 const FINAL_BINDING = 'urn:usf:proofauthoritybinding:compilersemanticenforcementaggregate';
 const DEPENDENCY_DIGEST_ALGORITHM = 'sha256-rdfc10-nonpublication-graph-inventory-v1';
@@ -844,6 +845,10 @@ function stage2Patch(pending, owners, stage2, currentnessBinding) {
   const additions = stage1.additions.filter((line) => !transientFacts.has(line));
   const deletions = [
     ...transientFacts,
+    q(VALIDATION_OBLIGATION, `${USF}hasValidationActivationState`,
+      iri('urn:usf:validationactivationstate:reserved'), GRAPH_CAPABILITIES),
+    q(VALIDATION_OBLIGATION, `${USF}validationActivationReason`,
+      literal(VALIDATION_RESERVATION_REASON), GRAPH_CAPABILITIES),
     ...COMPONENT_PROOFS.flatMap(({ obligation, result }) => [
       q(CONTRACT, `${USF}reliesOnProofResult`, iri(result), GRAPH_CAPABILITIES),
       q(CONTRACT, `${USF}mandatoryProofObligation`, iri(obligation), GRAPH_CAPABILITIES),
@@ -908,6 +913,8 @@ function stage2Patch(pending, owners, stage2, currentnessBinding) {
   const compilerValidation = stage2.compilerValidation.receipt;
   additions.push(type(VALIDATION_EXECUTION, `${USF}ValidationExecution`, GRAPH_PROOFS));
   add(additions, VALIDATION_EXECUTION, 'canonicalName', literal('compilersemanticenforcementaggregate'));
+  add(additions, VALIDATION_EXECUTION, 'executesValidation', iri(VALIDATION_OBLIGATION));
+  add(additions, VALIDATION_EXECUTION, 'producesValidationResult', iri(VALIDATION_RESULT));
   add(additions, VALIDATION_EXECUTION, 'validationExecutedByProducer', iri(VALIDATION_PRODUCER));
   add(additions, VALIDATION_EXECUTION, 'validationUsesEvidenceAdmissionPath', iri(EVIDENCE_ADMISSION_PATH));
   add(additions, VALIDATION_EXECUTION, 'validationExecutionReceiptDigest', literal(compilerValidation.executionReceiptDigest));
@@ -919,16 +926,37 @@ function stage2Patch(pending, owners, stage2, currentnessBinding) {
   add(additions, VALIDATION_RESULT, 'canonicalName', literal('compilersemanticenforcementaggregate'));
   add(additions, VALIDATION_RESULT, 'resultState', iri('urn:usf:resultstate:passed'));
   add(additions, VALIDATION_RESULT, 'hasFreshness', iri('urn:usf:freshness:fresh'));
+  add(additions, VALIDATION_RESULT, 'resultForValidationObligation', iri(VALIDATION_OBLIGATION));
+  add(additions, VALIDATION_RESULT, 'validationEvaluatedAuthorityDigest',
+    literal(compilerValidation.authorityAfterDigest));
+  add(additions, VALIDATION_RESULT, 'validationEvaluatedSourceHead', literal(source.head));
   add(additions, VALIDATION_RESULT, 'validationResultOfEvaluation', iri(VALIDATION_EVALUATION));
   add(additions, VALIDATION_RESULT, 'hasValidationSelfPublicationAuthorityBinding', iri(VALIDATION_BINDING));
+  add(additions, VALIDATION_RESULT, 'entersEvidenceLifecycleAs',
+    iri(stage2.validatedDescriptors.compiler.iri));
   add(additions, VALIDATION_OBLIGATION, 'satisfiedByValidationResult', iri(VALIDATION_RESULT));
+  add(additions, VALIDATION_OBLIGATION, 'hasValidationActivationState',
+    iri('urn:usf:validationactivationstate:activated'), GRAPH_CAPABILITIES);
   for (const descriptor of descriptors) {
+    additions.push(type(descriptor.iri, `${USF}EvidenceResult`, GRAPH_PROOFS));
     additions.push(type(descriptor.iri, `${USF}ValidationEvidence`, GRAPH_PROOFS));
     add(additions, descriptor.iri, 'canonicalName', literal(descriptor.iri.split(':').at(-1)));
+    add(additions, descriptor.iri, 'evidenceKind', iri('urn:usf:evidencekind:validationevidence'));
+    add(additions, descriptor.iri, 'hasFreshness', iri('urn:usf:freshness:fresh'));
+    add(additions, descriptor.iri, 'evidenceForContract', iri(CONTRACT));
+    add(additions, descriptor.iri, 'evidenceFor', iri(CONTRACT));
+    add(additions, descriptor.iri, 'usesProviderMode', iri(AGGREGATE_PROVIDER_MODE));
+    add(additions, descriptor.iri, 'inEnvironment', iri(AGGREGATE_ENVIRONMENT));
+    add(additions, descriptor.iri, 'hasAdmissionState', iri('urn:usf:evidenceadmissionstate:admitted'));
+    add(additions, descriptor.iri, 'hasFreshnessState', iri('urn:usf:evidencefreshnessstate:fresh'));
+    add(additions, descriptor.iri, 'hasIntegrityState', iri('urn:usf:evidenceintegritystate:valid'));
+    add(additions, descriptor.iri, 'withinValidityScope', typed(true, XSD_BOOLEAN));
+    add(additions, descriptor.iri, 'wasProducedBy', iri(VALIDATION_EXECUTION));
     add(additions, descriptor.iri, 'validationEvidenceForExecution', iri(VALIDATION_EXECUTION));
     add(additions, descriptor.iri, 'validationEvidenceAdmittedThrough', iri(EVIDENCE_ADMISSION_PATH));
     add(additions, descriptor.iri, 'contentDigest', literal(descriptor.digest));
     add(additions, descriptor.iri, 'validationEvidencePersistenceReceiptDigest', literal(descriptor.persistenceReceiptDigest));
+    add(additions, VALIDATION_RESULT, 'usesAdmittedValidationEvidence', iri(descriptor.iri));
   }
   additions.push(type(VALIDATION_BINDING, `${USF}ValidationSelfPublicationBinding`, GRAPH_PROOFS));
   add(additions, VALIDATION_BINDING, 'canonicalName', literal('compilersemanticenforcementaggregate'));
