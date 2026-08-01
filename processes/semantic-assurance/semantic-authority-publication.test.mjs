@@ -590,13 +590,22 @@ test('expiry during validation is rechecked immediately before commit', async ()
   state.remove();
 });
 
-test('consume failure is recoverable without republishing', async () => {
+test('consume failure remains recoverable after grant expiry without republishing', async () => {
   const state = journal();
   const compiler = command(INITIAL_CANDIDATE);
   let consumeAttempts = 0;
+  const verificationTimes = [];
+  const verifyBundle = ({ now }) => {
+    verificationTimes.push(now.toISOString());
+    if (now.getTime() >= Date.parse('2026-08-01T13:00:00Z')) {
+      throw new Error('signed envelope is not current at trusted time');
+    }
+    return { assignment: {}, approval: {}, grant: initialGrant };
+  };
   await assert.rejects(runPublication(invocation({
     mode: 'commit', commandInstance: compiler, ledgerPath: state.ledgerPath,
     readAuthorityWitness: witnessReader([PRE, PRE, STAGE_ONE, STAGE_ONE]), settle,
+    verifyBundle,
     postPublicationReevaluate: producer(),
     protocolJournal: {
       ...(state.protocolJournal || DEFAULT_PROTOCOL_JOURNAL),
@@ -618,6 +627,8 @@ test('consume failure is recoverable without republishing', async () => {
     mode: 'commit', commandInstance: compiler, ledgerPath: state.ledgerPath,
     pendingPackage,
     readAuthorityWitness: witnessReader([STAGE_ONE, STAGE_ONE]), settle,
+    trustedTime: timeReader(['2026-08-01T14:00:00Z']),
+    verifyBundle,
     recoveryValidationEvidence: { bytes: reportBytes, digest: sha256(reportBytes) },
     postPublicationReevaluate: producer(),
     persist: (receipt) => ({ digest: publicationReceiptDigest(receipt), path: '/proof/recovered.json' }),
@@ -627,6 +638,11 @@ test('consume failure is recoverable without republishing', async () => {
   assert.equal(recovered.compilerValidation.receipt.authorityAfterDigest, STAGE_ONE);
   assert.equal(recovered.compilerValidation.receipt.sourceBindingDigest, OBSERVATION);
   assert.equal(consumeAttempts, 1);
+  assert.deepEqual(verificationTimes, [
+    '2026-08-01T12:00:00.000Z',
+    '2026-08-01T12:00:00.000Z',
+    '2026-08-01T12:00:00.000Z',
+  ]);
   assert.deepEqual(compiler.calls, [
     { expectedAuthorityDigest: PRE, publicationMode: 'validate' },
     { expectedAuthorityDigest: PRE, publicationMode: 'commit' },

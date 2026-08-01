@@ -39,6 +39,9 @@ import {
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const PREPARE_STATES = new Set(['ROLLED_BACK', 'VALIDATED', 'VALIDATED_ROLLBACK']);
 const COMMIT_STATE = 'COMMITTED';
+const POST_PUBLICATION_JOURNAL_STATES = new Set([
+  'published_pending_reevaluation', 'reevaluated_pending_receipt', 'consumed',
+]);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const GRAPH_DOMAIN = 'urn:usf:capabilityowner:semanticmodelcompilation';
 const FACTORY_DOMAIN = 'urn:usf:capabilityowner:providerconfigurationplane';
@@ -810,7 +813,15 @@ export async function runPublication({
     existing = mode === 'commit'
       ? protocolJournal.readPublicationTransactionForEnvelope(publicationGrant, { ledgerPath })
       : null;
-    const verificationTime = await trustedInstant(trustedTime);
+    const currentVerificationTime = await trustedInstant(trustedTime);
+    let verificationTime = currentVerificationTime;
+    if (existing && POST_PUBLICATION_JOURNAL_STATES.has(existing.state)) {
+      const publishedAt = canonicalUtcSecond(existing.published_at, 'journal published_at');
+      if (Date.parse(publishedAt) > currentVerificationTime.date.getTime()) {
+        throw new Error('journal publication time is later than current trusted time');
+      }
+      verificationTime = Object.freeze({ canonical: publishedAt, date: new Date(publishedAt) });
+    }
     const activeTrustAnchor = trustAnchor || readTrustAnchor();
     const assignments = verifyOwnerAssignmentSet({
       ownerAssignments, trustAnchor: activeTrustAnchor, now: verificationTime.date, verifyOwnerAssignment,
