@@ -661,6 +661,8 @@ shp:OwnerAssignmentShape a sh:NodeShape;
     sh:property [ sh:path usf:assignmentAuthorityPreDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$" ];
     sh:property [ sh:path usf:signedEnvelopeDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$" ];
     sh:property [ sh:path usf:assignmentState; sh:minCount 1; sh:maxCount 1; sh:in ( "pending-verification" "active" ) ];
+    sh:property [ sh:path usf:ownerAssignmentSourcePath ];
+    sh:property [ sh:path usf:hasAdmittedEnvelopeVerification ];
     sh:sparql [
       sh:prefixes usf:prefixes;
       sh:message "ownerassignmentscope: active assignment must bind at least one exact source path and one admitted envelope verification";
@@ -687,6 +689,7 @@ shp:SemanticProofEnvelopeVerificationShape a sh:NodeShape;
     sh:property [ sh:path usf:verifiedAssignmentAuthorityPreDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$" ];
     sh:property [ sh:path usf:verifiedEnvelopeDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$" ];
     sh:property [ sh:path usf:envelopeVerificationState; sh:minCount 1; sh:maxCount 1; sh:hasValue <urn:usf:resultstate:passed> ];
+    sh:property [ sh:path usf:envelopeVerificationAdmissionState ];
     sh:property [ sh:path usf:verifiedByExternalVerifier; sh:minCount 1; sh:maxCount 1; sh:class usf:SemanticProofExternalVerifier ];
     sh:property [ sh:path usf:hasEnvelopeVerificationAdmission; sh:minCount 1; sh:maxCount 1; sh:class usf:SemanticProofEnvelopeVerificationAdmission ];
     sh:property [ sh:path usf:verificationCASDescriptor; sh:minCount 1; sh:maxCount 1; sh:class usf:SemanticProofVerificationCASDescriptor ];
@@ -839,9 +842,19 @@ shp:EvidenceAdmissionPathShape a sh:NodeShape;
     sh:property [ sh:path usf:admissionPathSourcePath; sh:minCount 1 ];
     sh:property [ sh:path usf:admissionPathSourceScopeDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$" ].
 
+shp:AggregateCandidateLifecycleTypeShape a sh:NodeShape;
+    usf:canonicalName "aggregatecandidatelifecycletypeshape";
+    sh:targetClass usf:AggregateProofAlgorithm;
+    sh:targetClass usf:AggregateProofExecution;
+    sh:targetClass usf:AggregateProofEvaluation;
+    sh:targetClass usf:ValidationSelfPublicationAuthorityBinding.
+
 shp:ValidationExecutionShape a sh:NodeShape;
     usf:canonicalName "validationexecutionshape";
     sh:targetClass usf:ValidationExecution;
+    sh:property [ sh:path usf:validationExecutedByProducer ];
+    sh:property [ sh:path usf:validationUsesEvidenceAdmissionPath ];
+    sh:property [ sh:path usf:validationExecutionReceiptDigest ];
     sh:sparql [
       sh:prefixes usf:prefixes;
       sh:message "aggregatevalidationexecution: a materialised aggregate validation execution requires one producer, admission path and receipt digest";
@@ -857,6 +870,8 @@ shp:ValidationEvaluationShape a sh:NodeShape;
 shp:ValidationEvidenceShape a sh:NodeShape;
     usf:canonicalName "validationevidenceshape";
     sh:targetClass usf:ValidationEvidence;
+    sh:property [ sh:path usf:validationEvidenceForExecution ];
+    sh:property [ sh:path usf:validationEvidenceAdmittedThrough ];
     sh:sparql [
       sh:prefixes usf:prefixes;
       sh:message "aggregatevalidationevidence: materialised aggregate validation evidence requires one execution and admission path";
@@ -866,6 +881,8 @@ shp:ValidationEvidenceShape a sh:NodeShape;
 shp:ValidationResultSelfPublicationClosureShape a sh:NodeShape;
     usf:canonicalName "validationresultselfpublicationclosureshape";
     sh:targetClass usf:ValidationResult;
+    sh:property [ sh:path usf:validationResultOfEvaluation ];
+    sh:property [ sh:path usf:hasValidationSelfPublicationAuthorityBinding ];
     sh:sparql [
       sh:prefixes usf:prefixes;
       sh:message "validationcurrentness: a fresh validation result requires successful admitted execution/evaluation evidence and complete self-publication authority closure";
