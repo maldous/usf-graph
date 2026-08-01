@@ -12,7 +12,12 @@ import {
   DEFAULT_AGGREGATE_REACHABLE_REF,
   createAggregateCompilerProofProducer,
 } from './aggregate-compiler-proof-command.mjs';
-import { COMPONENT_PROOFS, ORPHANED_ATTESTATION_DIGEST, aggregateCompilerProofInternals } from './aggregate-compiler-proof.mjs';
+import {
+  COMPONENT_PROOFS,
+  ORPHANED_ATTESTATION_DIGEST,
+  aggregateCompilerProofInternals,
+  evaluateAggregateCompilerProof,
+} from './aggregate-compiler-proof.mjs';
 import { canonicalJson as semanticProofCanonicalJson, publicationReceiptDigest } from '../../processes/semantic-assurance/semantic-proof-v1.mjs';
 
 const roots = [];
@@ -27,6 +32,7 @@ const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('h
 const CHILD_PROCESS_DENIED = process.env.USF_EXPECTED_CHILD_PROCESS_PERMISSION === 'denied';
 const IN_PROCESS_HEAD = 'd'.repeat(40);
 const IN_PROCESS_TREE = 'e'.repeat(40);
+const IN_PROCESS_REPOSITORY = '/in-process-permission-fixture';
 const ACTIVE_AUTHORITY_SOURCE = `<urn:usf:ownerassignment:test> a <urn:usf:ontology:OwnerAssignment>;
   <urn:usf:ontology:assignmentState> "active".\n`;
 const EXPECTED_REVIEWED_SOURCE_PATHS = Object.freeze([
@@ -81,41 +87,35 @@ function inProcessSourceBinding({ reachableFrom, sourcePaths }) {
   };
 }
 
-function inProcessEvaluateProof({ authorityDigest, components, evaluatedAt, phase, sourceBinding }) {
-  const descriptors = aggregateCompilerProofInternals.aggregateEvidenceDescriptors(
-    components.map(({ evidenceReferences, result }) => ({
-      descriptors: evidenceReferences.map(({ digest: evidenceDigest, iri }) => ({ digest: evidenceDigest, iri })),
-      result,
-    })),
-  );
-  const evaluation = {
-    authorityDigest,
-    components: components.map(({ dimension, historicalResult, obligation, result }) => ({
-      dimension,
-      historicalResult: {
-        digest: historicalResult.digest,
-        ...JSON.parse(Buffer.from(historicalResult.bytesBase64, 'base64').toString('utf8')),
-      },
-      obligation,
-      result,
-    })),
-    evaluatedAt,
-    evidenceSetDigest: aggregateCompilerProofInternals.descriptorSetDigest(descriptors),
-    phase,
-    sourceBinding,
-    sourceBindingDigest: aggregateCompilerProofInternals.sourceBindingDigest(sourceBinding),
-  };
-  const passed = phase === 'post-publication';
-  return {
-    evaluation,
-    evaluationDigest: aggregateCompilerProofInternals.sha256(
-      aggregateCompilerProofInternals.canonicalJson(evaluation),
-    ),
-    passed,
-    proofCurrentness: passed ? 'CURRENT' : 'PENDING',
-    resultState: passed ? 'PASSED' : 'PENDING',
-    selectable: passed,
-  };
+function inProcessGitDependency({ args, executable, repositoryPath }) {
+  const success = (stdout = '') => ({ status: 0, stderr: '', stdout });
+  const failure = () => ({ status: 1, stderr: 'fixture source binding mismatch', stdout: '' });
+  if (executable !== '/usr/bin/git' || repositoryPath !== IN_PROCESS_REPOSITORY) return failure();
+  if (args[0] === 'rev-parse' && args[1] === '--verify' && args.length === 3) {
+    if (args[2] === `${IN_PROCESS_HEAD}^{commit}` || args[2] === 'refs/heads/main^{commit}'
+        || args[2] === `${DEFAULT_AGGREGATE_REACHABLE_REF}^{commit}`) return success(IN_PROCESS_HEAD);
+    return failure();
+  }
+  if (args[0] === 'merge-base' && args[1] === '--is-ancestor' && args.length === 4) {
+    return args[2] === IN_PROCESS_HEAD
+      && ['refs/heads/main', DEFAULT_AGGREGATE_REACHABLE_REF].includes(args[3]) ? success() : failure();
+  }
+  if (args[0] === 'rev-parse' && args.length === 2 && args[1] === `${IN_PROCESS_HEAD}^{tree}`) {
+    return success(IN_PROCESS_TREE);
+  }
+  if (args[0] === 'cat-file' && args[1] === '-e' && args.length === 3) {
+    return AGGREGATE_REVIEWED_SOURCE_PATHS.some((path) => args[2] === `${IN_PROCESS_HEAD}:${path}`)
+      ? success() : failure();
+  }
+  return failure();
+}
+
+function inProcessEvaluateProof(input) {
+  return evaluateAggregateCompilerProof({
+    ...input,
+    sourceBindingDependency: inProcessGitDependency,
+    sourceRepositoryPath: IN_PROCESS_REPOSITORY,
+  });
 }
 
 function fixture({ authoritySource = ACTIVE_AUTHORITY_SOURCE, explicitBranch = true } = {}) {
@@ -143,6 +143,7 @@ function fixture({ authoritySource = ACTIVE_AUTHORITY_SOURCE, explicitBranch = t
       evaluateProof: inProcessEvaluateProof,
       readSourceText: ({ path }) => path === 'semantic-model/authority.ttl' ? authoritySource : `${path}\n`,
       resolveSourceBinding: inProcessSourceBinding,
+      syncDescriptor: () => {},
     }
     : {};
   return explicitBranch
@@ -164,6 +165,106 @@ function putCas(root, bytes, claimed = sha256(bytes)) {
 
 function putJson(root, value) {
   return putCas(root, Buffer.from(aggregateCompilerProofInternals.canonicalJson(value), 'utf8'));
+}
+
+function memoryProtocolJournal() {
+  const ledger = { nonces: {} };
+  const clone = (value) => JSON.parse(semanticProofCanonicalJson(value));
+  const current = (grant) => ledger.nonces[grant.nonce];
+  const update = (grant, transform) => {
+    const next = transform(current(grant));
+    ledger.nonces[grant.nonce] = next;
+    return Object.freeze({ nonce: grant.nonce, ...clone(next) });
+  };
+  return Object.freeze({
+    reserveGrantNonce(grant, { observedAt, publicationPhase }) {
+      return update(grant, (record) => {
+        if (record) throw new Error('publication grant nonce was replayed or already entered the transaction journal');
+        return {
+          authority_pre_digest: grant.authority_pre_digest,
+          candidate_digest: grant.candidate_digest,
+          grant_envelope_digest: grant.envelope_digest,
+          publication_outcome: 'pending', publication_phase: publicationPhase,
+          reserved_at: observedAt, state: 'reserved',
+        };
+      });
+    },
+    readPublicationTransaction(grant) { return current(grant) ? Object.freeze(clone(current(grant))) : null; },
+    readPublicationTransactionForEnvelope(envelope) {
+      const record = ledger.nonces[envelope?.payload?.nonce];
+      return record ? Object.freeze(clone(record)) : null;
+    },
+    recordPublicationOutcome(grant, {
+      authorityPublicationDigest, committedCandidateState, observedAt, publishedAt,
+    }) {
+      return update(grant, (record) => ({
+        ...record, authority_publication_digest: authorityPublicationDigest,
+        committed_at: observedAt, committed_candidate_state: committedCandidateState,
+        publication_outcome: 'committed', published_at: publishedAt,
+        state: 'published_pending_reevaluation',
+      }));
+    },
+    recordInitialProjectionObservation(grant, observation, { observedAt }) {
+      return update(grant, (record) => ({
+        ...record,
+        initial_projection_observation: {
+          package: clone(observation), package_digest: sha256(semanticProofCanonicalJson(observation)),
+          recorded_at: observedAt,
+        },
+      }));
+    },
+    recordInitialReevaluationPreparation(grant, preparation, { observedAt }) {
+      return update(grant, (record) => ({
+        ...record,
+        reevaluation_preparation: {
+          package: clone(preparation), package_digest: sha256(semanticProofCanonicalJson(preparation)),
+          recorded_at: observedAt,
+        },
+      }));
+    },
+    assertReevaluationPredecessor({ priorReceipt, preparation, authorityPreDigest }) {
+      const prior = ledger.nonces[priorReceipt.grant_nonce];
+      if (!prior || prior.state !== 'consumed' || prior.publication_phase !== 'initial'
+          || priorReceipt.publication_phase !== 'initial' || priorReceipt.terminal_state !== 'PENDING'
+          || priorReceipt.authority_after_digest !== authorityPreDigest
+          || preparation.evaluatedAuthorityDigest !== authorityPreDigest
+          || preparation.candidateDigest !== priorReceipt.candidate_digest
+          || prior.final_receipt_digest !== publicationReceiptDigest(priorReceipt)
+          || prior.reevaluation_preparation?.package_digest
+            !== sha256(semanticProofCanonicalJson(preparation))
+          || semanticProofCanonicalJson(prior.reevaluation_preparation?.package)
+            !== semanticProofCanonicalJson(preparation)) {
+        throw new Error('reevaluation publication has no durable stage-1 transaction linkage');
+      }
+      return Object.freeze({ prior: clone(prior), preparation: clone(preparation) });
+    },
+    recordPostPublicationReevaluation(grant, reevaluation, { observedAt }) {
+      return update(grant, (record) => ({
+        ...record, action_state: reevaluation.actionState,
+        authority_after_digest: reevaluation.authorityAfterDigest,
+        current_proof_results: reevaluation.currentProofResults,
+        proof_currentness: reevaluation.proofCurrentness, reevaluated_at: observedAt,
+        reevaluation_evaluation_receipt_digest: reevaluation.evaluationReceiptDigest,
+        reevaluation_execution_receipt_digest: reevaluation.executionReceiptDigest,
+        selected_aggregate_result: reevaluation.selectedAggregateResult,
+        state: 'reevaluated_pending_receipt',
+      }));
+    },
+    consumeGrantNonce(grant, { receipt, observedAt }) {
+      return update(grant, (record) => ({
+        ...record, consumed_at: observedAt, final_receipt: clone(receipt),
+        final_receipt_digest: publicationReceiptDigest(receipt),
+        publication_outcome: receipt.publication_outcome,
+        published_at: receipt.published_at, state: 'consumed',
+      }));
+    },
+    failGrantNonce(grant, { stage, observedAt }) {
+      return update(grant, (record) => ({
+        ...record, failed_at: observedAt, failure_stage: stage,
+        previous_state: record.state, state: 'failed',
+      }));
+    },
+  });
 }
 
 function receiptDescriptor(root, iri, value) {
@@ -770,6 +871,7 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
     publicationOptions: {
       ledgerPath,
       persist: (receipt) => ({ digest: protocolModule.publicationReceiptDigest(receipt), path: '/fixture/receipt.json' }),
+      protocolJournal: CHILD_PROCESS_DENIED ? memoryProtocolJournal() : undefined,
       settle: async (_read, first) => first,
       verifyOwnerAssignment,
       verifyBundle: ({ publicationGrant }) => ({

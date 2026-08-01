@@ -302,7 +302,7 @@ function readCasBytes(casRoot, contentDigest) {
   return bytes;
 }
 
-function writeCasBytes(casRoot, bytes) {
+function writeCasBytes(casRoot, bytes, syncDescriptor = fsyncSync) {
   const root = canonicalCasRoot(casRoot);
   const contentDigest = sha256Bytes(bytes);
   const path = casPath(root, contentDigest);
@@ -317,13 +317,13 @@ function writeCasBytes(casRoot, bytes) {
   try {
     descriptor = openSync(temporary, 'wx', 0o600);
     writeFileSync(descriptor, bytes);
-    fsyncSync(descriptor);
+    syncDescriptor(descriptor);
     closeSync(descriptor);
     descriptor = undefined;
     chmodSync(temporary, 0o444);
     renameSync(temporary, path);
     const directoryDescriptor = openSync(dirname(path), 'r');
-    try { fsyncSync(directoryDescriptor); } finally { closeSync(directoryDescriptor); }
+    try { syncDescriptor(directoryDescriptor); } finally { closeSync(directoryDescriptor); }
   } catch (error) {
     if (descriptor !== undefined) closeSync(descriptor);
     try { unlinkSync(temporary); } catch (unlinkError) { if (unlinkError.code !== 'ENOENT') throw unlinkError; }
@@ -332,8 +332,8 @@ function writeCasBytes(casRoot, bytes) {
   return Object.freeze({ bytesBase64: bytes.toString('base64'), digest: contentDigest });
 }
 
-function writeCanonicalRecord(casRoot, value) {
-  return writeCasBytes(casRoot, Buffer.from(canonicalJson(value), 'utf8'));
+function writeCanonicalRecord(casRoot, value, syncDescriptor) {
+  return writeCasBytes(casRoot, Buffer.from(canonicalJson(value), 'utf8'), syncDescriptor);
 }
 
 function git(repositoryPath, args) {
@@ -456,7 +456,7 @@ async function readTrustedTime(client) {
   return timestamp(new Date(Date.parse(observed)).toISOString().replace(/\.\d{3}Z$/, 'Z'), 'Stardog trusted time');
 }
 
-function normalizeFacts(rows, casRoot, observedAt, evaluatedAt, authorityDigest) {
+function normalizeFacts(rows, casRoot, observedAt, evaluatedAt, authorityDigest, writeRecord) {
   const expectedResults = new Set(COMPONENT_PROOFS.map(({ result }) => result));
   const rowResults = new Set(rows.map((row) => binding(row, 'result')));
   if ([...rowResults].some((result) => !expectedResults.has(result))) {
@@ -529,7 +529,7 @@ function normalizeFacts(rows, casRoot, observedAt, evaluatedAt, authorityDigest)
       evidenceReferences.push({ bytesBase64: bytes.toString('base64'), digest: evidenceDigest, iri });
     }
     const evidenceDescriptors = evidenceReferences.map(({ digest: evidenceDigest, iri }) => ({ digest: evidenceDigest, iri }));
-    const historicalResult = writeCanonicalRecord(casRoot, {
+    const historicalResult = writeRecord({
       authorityBindingDigest: historicalAuthorityDigest,
       component: expected,
       evaluatedAt: resultEvaluatedAt,
@@ -546,7 +546,7 @@ function normalizeFacts(rows, casRoot, observedAt, evaluatedAt, authorityDigest)
         proofAlgorithmVersion: algorithmVersion,
       },
     });
-    const snapshot = writeCanonicalRecord(casRoot, {
+    const snapshot = writeRecord({
       admittedEvidence: evidenceDescriptors,
       authorityDigest,
       componentResult: expected.result,
@@ -560,7 +560,7 @@ function normalizeFacts(rows, casRoot, observedAt, evaluatedAt, authorityDigest)
       validFrom: resultEvaluatedAt,
       validUntil,
     });
-    const projectionReceipt = writeCanonicalRecord(casRoot, {
+    const projectionReceipt = writeRecord({
       authorityDigest,
       componentResult: expected.result,
       producedAt: observedAt,
@@ -590,7 +590,8 @@ async function readFacts(dependencies, requestedAuthorityDigest) {
       queryComponentRows(dependencies.client), readTrustedTime(dependencies.client),
     ]);
     return Object.freeze({
-      components: normalizeFacts(rows, dependencies.casRoot, evaluatedAt, evaluatedAt, requestedAuthorityDigest),
+      components: normalizeFacts(rows, dependencies.casRoot, evaluatedAt, evaluatedAt, requestedAuthorityDigest,
+        dependencies.writeRecord),
       evaluatedAt,
     });
   });
@@ -609,11 +610,11 @@ function reevaluationBindings(components, binding) {
   });
 }
 
-function semanticProofReceiptBlob(casRoot, receipt) {
+function semanticProofReceiptBlob(casRoot, receipt, syncDescriptor) {
   assertSemanticProofPublicationReceipt(receipt);
   const bytes = Buffer.from(`${semanticProofCanonicalJson(receipt)}\n`, 'utf8');
   const expectedDigest = semanticProofPublicationReceiptDigest(receipt);
-  const blob = writeCasBytes(casRoot, bytes);
+  const blob = writeCasBytes(casRoot, bytes, syncDescriptor);
   if (blob.digest !== expectedDigest) fail('AGGREGATE_PRODUCER_RECEIPT_INVALID', 'publication receipt digest');
   return blob;
 }
@@ -840,18 +841,20 @@ export function createAggregateCompilerProofProducer({
   repositoryPath,
   reachableFrom = DEFAULT_AGGREGATE_REACHABLE_REF,
   aggregateResultIri = AGGREGATE_RESULT_IRI,
+  syncDescriptor = fsyncSync,
 } = {}) {
   if (!client || typeof client.select !== 'function' || typeof readAuthorityWitness !== 'function'
       || typeof contractProjector !== 'function' || typeof resolveSourceBinding !== 'function'
       || typeof readSourceText !== 'function'
-      || typeof evaluateProof !== 'function') {
+      || typeof evaluateProof !== 'function' || typeof syncDescriptor !== 'function') {
     fail('AGGREGATE_PRODUCER_DEPENDENCY_INVALID',
       'read-only client, witness, projector, source binding, source text and evaluator are required');
   }
+  const writeRecord = (value) => writeCanonicalRecord(casRoot, value, syncDescriptor);
   canonicalCasRoot(casRoot);
   const dependencies = Object.freeze({
     casRoot, client, contractProjector, evaluateProof, readAuthorityWitness, reachableFrom,
-    readSourceText, repositoryPath, resolveSourceBinding,
+    readSourceText, repositoryPath, resolveSourceBinding, writeRecord,
   });
 
   return Object.freeze({
@@ -869,7 +872,7 @@ export function createAggregateCompilerProofProducer({
           fail('AGGREGATE_PRODUCER_INITIAL_PROJECTION_INVALID', 'D1 is not one provisional PENDING aggregate');
         }
         const selectedProvisionalAggregateResult = binding(rows[0], 'result');
-        const observationReceipt = writeCanonicalRecord(casRoot, {
+        const observationReceipt = writeRecord({
           actionState: 'UNRESOLVED_FAIL_CLOSED',
           authorityDigest: requestedAuthorityDigest,
           currentProofResults: 0,
@@ -904,7 +907,7 @@ export function createAggregateCompilerProofProducer({
         sourceBinding: aggregateSourceBinding,
         sourceRepositoryPath: repositoryPath,
       });
-      const executionReceipt = writeCanonicalRecord(casRoot, {
+      const executionReceipt = writeRecord({
         algorithmDigest: AGGREGATE_ALGORITHM_DIGEST,
         algorithmVersion: AGGREGATE_ALGORITHM_VERSION,
         authorityDigest: requestedAuthorityDigest,
@@ -915,7 +918,7 @@ export function createAggregateCompilerProofProducer({
         sourceBindingDigest: aggregate.evaluation.sourceBindingDigest,
         startedAt: evaluatedAt,
       });
-      const evaluationReceipt = writeCanonicalRecord(casRoot, {
+      const evaluationReceipt = writeRecord({
         evaluatedAt,
         evaluationDigest: aggregate.evaluationDigest,
         executionReceiptDigest: executionReceipt.digest,
@@ -939,7 +942,7 @@ export function createAggregateCompilerProofProducer({
 
     async produceInitial({ requestedAuthorityDigest, candidateDigest, pendingPublicationReceipt }) {
       digest(candidateDigest, 'stage-1 candidate digest');
-      const publicationReceipt = semanticProofReceiptBlob(casRoot, pendingPublicationReceipt);
+      const publicationReceipt = semanticProofReceiptBlob(casRoot, pendingPublicationReceipt, syncDescriptor);
       if (pendingPublicationReceipt.publication_phase !== 'initial'
           || pendingPublicationReceipt.authority_after_digest !== requestedAuthorityDigest
           || pendingPublicationReceipt.candidate_digest !== candidateDigest) {
@@ -948,7 +951,7 @@ export function createAggregateCompilerProofProducer({
       const aggregateSourceBinding = await operationSourceBinding(dependencies);
       const { components, evaluatedAt } = await readFacts(dependencies, requestedAuthorityDigest);
       const bindings = reevaluationBindings(components, aggregateSourceBinding);
-      const executionReceipt = writeCanonicalRecord(casRoot, {
+      const executionReceipt = writeRecord({
         algorithmDigest: AGGREGATE_ALGORITHM_DIGEST,
         algorithmVersion: AGGREGATE_ALGORITHM_VERSION,
         authorityAfterDigest: requestedAuthorityDigest,
@@ -960,7 +963,7 @@ export function createAggregateCompilerProofProducer({
         sourceBindingDigest: bindings.sourceBindingDigest,
         startedAt: evaluatedAt,
       });
-      const evaluationReceipt = writeCanonicalRecord(casRoot, {
+      const evaluationReceipt = writeRecord({
         algorithmDigest: AGGREGATE_ALGORITHM_DIGEST,
         algorithmVersion: AGGREGATE_ALGORITHM_VERSION,
         authorityAfterDigest: requestedAuthorityDigest,

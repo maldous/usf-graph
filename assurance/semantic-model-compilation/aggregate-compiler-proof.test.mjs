@@ -70,7 +70,7 @@ if (!childProcessDenied) {
   sourceTree = 'b'.repeat(40);
 }
 after(() => {
-  if (repositoryPath) rmSync(repositoryPath, { force: true, recursive: true });
+  if (repositoryPath && !childProcessDenied) rmSync(repositoryPath, { force: true, recursive: true });
 });
 const inProcessSourceBindingDependency = ({ args, executable, repositoryPath: requestedRepositoryPath }) => {
   const success = (stdout = '') => ({ status: 0, stderr: '', stdout });
