@@ -718,7 +718,7 @@ shp:SemanticProofVerificationCASDescriptorShape a sh:NodeShape;
     usf:canonicalName "semanticproofverificationcasdescriptorshape";
     sh:targetClass usf:SemanticProofVerificationCASDescriptor;
     sh:property [ sh:path usf:semanticProofCASDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$" ];
-    sh:property [ sh:path usf:semanticProofCASByteLength; sh:minCount 1; sh:maxCount 1; sh:datatype <http://www.w3.org/2001/XMLSchema#nonNegativeInteger> ];
+    sh:property [ sh:path usf:semanticProofCASByteLength; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:integer; sh:minInclusive 0 ];
     sh:property [ sh:path usf:semanticProofCASMediaType; sh:minCount 1; sh:maxCount 1 ];
     sh:property [ sh:path usf:semanticProofCASVerificationState; sh:minCount 1; sh:maxCount 1; sh:hasValue <urn:usf:resultstate:passed> ];
     sh:property [ sh:path usf:semanticProofCASDescriptorReceiptDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$" ].
@@ -749,7 +749,7 @@ shp:ProofResultObligationUniquenessShape a sh:NodeShape;
 shp:ComponentProofRequirementShape a sh:NodeShape;
     usf:canonicalName "componentproofrequirementshape";
     sh:targetClass usf:ComponentProofRequirement;
-    sh:property [ sh:path usf:componentObligation; sh:minCount 1; sh:maxCount 1; sh:class usf:ProofObligation ];
+    sh:property [ sh:path usf:componentObligation; sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI ];
     sh:property [ sh:path usf:componentProofResult; sh:minCount 1; sh:maxCount 1; sh:class usf:ProofResult ];
     sh:property [ sh:path usf:componentDimension; sh:minCount 1; sh:maxCount 1 ];
     sh:sparql [
@@ -765,7 +765,7 @@ shp:AggregateProofObligationShape a sh:NodeShape;
     sh:sparql [
       sh:prefixes usf:prefixes;
       sh:message "aggregateproofset: every exact compiler component obligation/result/dimension pair must occur once";
-      sh:select "SELECT $this WHERE { VALUES (?expectedObligation ?expectedResult ?expectedDimension) { (<urn:usf:proofobligation:importedauthoritycounterfactualadequacy> <urn:usf:proofresult:importedauthoritycounterfactualadequacy> \"importedauthoritycounterfactualadequacy\") (<urn:usf:proofobligation:compilerliveauthoritycontrol> <urn:usf:proofresult:compilerliveauthoritycontrol> \"liveauthoritycontrol\") (<urn:usf:proofobligation:p10cc239b81b3890d5714e8996d369bd08394965220eae7c34aa7c3ccbfc2467b> <urn:usf:proofresult:compilercontractbehaviour> \"compilercontractbehaviour\") (<urn:usf:proofobligation:compilersemantics> <urn:usf:proofresult:compilerhermeticsubstitute> \"hermeticsubstitutebehaviour\") } FILTER NOT EXISTS { $this usf:requiresComponentProof ?requirement . ?requirement usf:componentObligation ?expectedObligation ; usf:componentProofResult ?expectedResult ; usf:componentDimension ?expectedDimension . } }"
+      sh:select "SELECT $this WHERE { FILTER(NOT EXISTS { $this usf:requiresComponentProof ?imported . ?imported usf:componentObligation <urn:usf:proofobligation:importedauthoritycounterfactualadequacy> ; usf:componentProofResult <urn:usf:proofresult:importedauthoritycounterfactualadequacy> ; usf:componentDimension \"importedauthoritycounterfactualadequacy\" . } || NOT EXISTS { $this usf:requiresComponentProof ?live . ?live usf:componentObligation <urn:usf:proofobligation:compilerliveauthoritycontrol> ; usf:componentProofResult <urn:usf:proofresult:compilerliveauthoritycontrol> ; usf:componentDimension \"liveauthoritycontrol\" . } || NOT EXISTS { $this usf:requiresComponentProof ?contract . ?contract usf:componentObligation <urn:usf:proofobligation:p10cc239b81b3890d5714e8996d369bd08394965220eae7c34aa7c3ccbfc2467b> ; usf:componentProofResult <urn:usf:proofresult:compilercontractbehaviour> ; usf:componentDimension \"compilercontractbehaviour\" . } || NOT EXISTS { $this usf:requiresComponentProof ?hermetic . ?hermetic usf:componentObligation <urn:usf:proofobligation:compilersemantics> ; usf:componentProofResult <urn:usf:proofresult:compilerhermeticsubstitute> ; usf:componentDimension \"hermeticsubstitutebehaviour\" . }) }"
     ];
     sh:sparql [
       sh:prefixes usf:prefixes;

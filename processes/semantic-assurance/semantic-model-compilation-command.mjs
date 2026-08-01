@@ -233,9 +233,12 @@ async function composeSourceCandidate({ client, manifest, generatedPatch = null,
   const combined = candidateStage === 'base'
     ? Object.freeze({ bytes, digest: sha256(bytes) })
     : parseCanonicalPatch(bytes, undefined, new Set(graphs));
-  const finalLines = new Set(targetDataset.canonical.split('\n').filter(Boolean));
   for (const operation of generatedPatch?.operations || []) {
-    if ((operation.action === 'A') !== finalLines.has(operation.line)) {
+    const targetStore = targetDataset.stores.get(operation.value.graph.value);
+    const present = targetStore?.has(
+      operation.value.subject, operation.value.predicate, operation.value.object, null,
+    ) === true;
+    if ((operation.action === 'A') !== present) {
       throw new CompilerError('generated aggregate intent was not preserved by full source composition', {
         phase: 'candidate:source-delta', operation: `${operation.action} ${operation.line}`,
       });

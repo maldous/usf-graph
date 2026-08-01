@@ -366,8 +366,13 @@ function rawPatch(bytes) {
 }
 
 function initialD0State() {
-  return new Set(COMPONENT_PROOFS.map(({ result }) =>
-    `<urn:usf:semanticcontract:compilersemanticenforcement> <${USF}reliesOnProofResult> <${result}> <urn:usf:graph:bindings> .`));
+  return new Set([
+    `<urn:usf:semanticcontract:compilersemanticenforcement> <${USF}hasActivationState> <urn:usf:contractactivationstate:active> <urn:usf:graph:capabilities> .`,
+    ...COMPONENT_PROOFS.flatMap(({ obligation, result }) => [
+      `<urn:usf:semanticcontract:compilersemanticenforcement> <${USF}mandatoryProofObligation> <${obligation}> <urn:usf:graph:capabilities> .`,
+      `<urn:usf:semanticcontract:compilersemanticenforcement> <${USF}reliesOnProofResult> <${result}> <urn:usf:graph:capabilities> .`,
+    ]),
+  ]);
 }
 
 function applyExactPatch(state, bytes) {
@@ -380,6 +385,13 @@ function applyExactPatch(state, bytes) {
     assert.equal(state.has(quad), false, `addition is already present in pre-state: ${quad}`);
     state.add(quad);
   }
+  return state;
+}
+
+function applyDesiredPatch(state, bytes) {
+  const operations = rawPatch(bytes);
+  for (const quad of operations.deletions) state.delete(quad);
+  for (const quad of operations.additions) state.add(quad);
   return state;
 }
 
@@ -412,7 +424,7 @@ function assertReferencedTypes(quads) {
   }
 }
 
-function assertCommonCurrentnessFacts(quads, result, proof, binding) {
+function assertCommonCurrentnessFacts(quads, result, proof, binding, confidenceState = 'warranted') {
   assert.equal(has(quads, result, `${USF}proofResultForObligation`, internals.AGGREGATE_OBLIGATION), true);
   assert.equal(has(quads, result, `${USF}resultForProof`, proof), true);
   assert.equal(has(quads, result, `${USF}usesProofAlgorithm`, AGGREGATE_ALGORITHM), true);
@@ -427,7 +439,7 @@ function assertCommonCurrentnessFacts(quads, result, proof, binding) {
   assert.deepEqual(objects(quads, result, `${USF}proofProducerTree`), [TREE]);
   assert.equal(has(quads, result, `${USF}hasAuthorityBinding`, binding), true);
   assert.equal(has(quads, result, `${USF}hasFreshness`, 'urn:usf:freshness:fresh'), true);
-  assert.equal(has(quads, result, `${USF}hasConfidenceState`, 'urn:usf:proofconfidencestate:warranted'), true);
+  assert.equal(has(quads, result, `${USF}hasConfidenceState`, `urn:usf:proofconfidencestate:${confidenceState}`), true);
   assert.equal(objects(quads, result, `${USF}hasInvalidation`).length, 0);
   assert.equal(objects(quads, result, `${USF}supersededByProofResult`).length, 0);
   assert.equal(objects(quads, result, `${USF}hasInvalidationCondition`).length, 3);
@@ -449,25 +461,29 @@ test('stage 1 is deterministic, parses as RDF Patch and preserves immutable comp
   const { additions, deletions } = parsePatch(first.bytes);
   assert.equal(has(additions, 'urn:usf:semanticcontract:compilersemanticenforcement', `${USF}reliesOnProofResult`,
     internals.PROVISIONAL_RESULT), true);
+  assert.equal(has(additions, 'urn:usf:semanticcontract:compilersemanticenforcement', `${USF}hasActivationState`,
+    'urn:usf:contractactivationstate:proofblocked'), true);
   for (const component of COMPONENT_PROOFS) {
-    assert.equal(deletions.some((quad) => quad.object.value === component.result), true);
+    assert.equal(deletions.some((quad) => quad.object.value === component.result
+      && quad.graph.value === 'urn:usf:graph:capabilities'), true);
     assert.equal(deletions.some((quad) => quad.subject.value === component.result), false);
     assert.equal(has(additions, component.result, `${USF}proofResultForObligation`, component.obligation), true);
   }
   assert.equal(deletions.some((quad) => quad.predicate.value === `${USF}assignmentState`), false);
 });
 
-test('D0 -> stage 1 -> stage 2 is an exact sequential RDF Patch state machine', () => {
+test('stage 2 desired overlay converges after source reload and preserves stage-1 evidence', () => {
   const state = initialD0State();
   const stage1 = materializeAggregateCompilerAuthorityCandidate(stage1Input());
   applyExactPatch(state, stage1.bytes);
   const stage1State = new Set(state);
   const stage2 = materializeAggregateCompilerAuthorityCandidate(stage2Input());
-  applyExactPatch(state, stage2.bytes);
+  applyDesiredPatch(state, stage2.bytes);
   assert.equal(state.has([...rawPatch(stage2.bytes).additions][0]), true);
   assert.equal(rawPatch(stage2.bytes).additions.some((quad) => !stage1State.has(quad) && state.has(quad)), true);
+  assert.equal(rawPatch(stage2.bytes).additions.some((quad) => quad.includes('OwnerAssignment')), true);
   assert.equal(rawPatch(stage2.bytes).additions.some((quad) =>
-    quad.includes('OwnerAssignment') || quad.includes('AggregateProofAlgorithm')), false);
+    quad.includes('compilersemanticenforcementaggregateprepublication')), true);
 });
 
 test('stage 1 materializes both independently scoped owner assignments and every referenced admission path', () => {
@@ -500,18 +516,56 @@ test('provisional aggregate has the complete structural currentness binding and 
   const { additions } = parsePatch(materializeAggregateCompilerAuthorityCandidate(stage1Input()).bytes);
   assertCommonCurrentnessFacts(additions, internals.PROVISIONAL_RESULT,
     'urn:usf:proof:compilersemanticenforcementaggregateprepublication',
-    'urn:usf:proofauthoritybinding:compilersemanticenforcementaggregateprepublication');
-  assert.deepEqual(objects(additions, internals.PROVISIONAL_RESULT, `${USF}resultState`), ['urn:usf:resultstate:pending']);
+    'urn:usf:proofauthoritybinding:compilersemanticenforcementaggregateprepublication', 'unknown');
+  assert.deepEqual(objects(additions, internals.PROVISIONAL_RESULT, `${USF}resultState`), ['urn:usf:resultstate:notrun']);
+  assert.deepEqual(objects(additions, internals.PROVISIONAL_RESULT, `${USF}hasConfidenceState`),
+    ['urn:usf:proofconfidencestate:unknown']);
+  assert.deepEqual(objects(additions, internals.PROVISIONAL_RESULT, `${USF}claimedRung`),
+    ['urn:usf:proofrung:behaviour']);
+  assert.deepEqual(objects(additions, internals.PROVISIONAL_RESULT, `${USF}inEnvironment`),
+    ['urn:usf:environment:authoritycontrol']);
   assert.equal(objects(additions, internals.PROVISIONAL_RESULT, `${USF}hasProofResultState`).length, 0);
   assert.deepEqual(objects(additions, 'urn:usf:proofauthoritybinding:compilersemanticenforcementaggregateprepublication',
     `${USF}hasPostPublicationReevaluationState`), ['urn:usf:proofreevaluationstate:pending']);
 });
 
+test('stage 1 materializes authored aggregate obligation and canonical metadata closure', () => {
+  const { additions } = parsePatch(materializeAggregateCompilerAuthorityCandidate(stage1Input()).bytes);
+  const obligation = 'urn:usf:proofobligation:compilersemanticenforcementaggregate';
+  assert.deepEqual(objects(additions, obligation, `${USF}obligationFor`),
+    ['urn:usf:semanticcontract:compilersemanticenforcement']);
+  assert.deepEqual(objects(additions, obligation, `${USF}requiresRung`), ['urn:usf:proofrung:behaviour']);
+  assert.equal(objects(additions, obligation, `${USF}requiresEvidence`).length, 3);
+  assert.equal(objects(additions, obligation, `${USF}usesAssuranceCell`).length, 3);
+  for (const subject of [
+    obligation,
+    AGGREGATE_ALGORITHM,
+    AGGREGATE_VERSION,
+    internals.PROVISIONAL_RESULT,
+    'urn:usf:proof:compilersemanticenforcementaggregateprepublication',
+    'urn:usf:proofexecution:compilersemanticenforcementaggregateprepublication',
+    'urn:usf:proofevaluation:compilersemanticenforcementaggregateprepublication',
+    'urn:usf:proofauthoritybinding:compilersemanticenforcementaggregateprepublication',
+    VALIDATION_RULE,
+  ]) assert.equal(objects(additions, subject, `${USF}canonicalName`).length, 1, subject);
+  assert.deepEqual(objects(additions, AGGREGATE_ALGORITHM, `${USF}proofAlgorithmSourcePath`),
+    ['assurance/semantic-model-compilation/aggregate-compiler-proof.mjs']);
+});
+
 test('stage 2 final aggregate carries every CURRENT projection fact and coherent authority closure', () => {
   const state = initialD0State();
   applyExactPatch(state, materializeAggregateCompilerAuthorityCandidate(stage1Input()).bytes);
-  applyExactPatch(state, materializeAggregateCompilerAuthorityCandidate(stage2Input()).bytes);
+  applyDesiredPatch(state, materializeAggregateCompilerAuthorityCandidate(stage2Input()).bytes);
   const quads = parseState(state);
+  const contract = 'urn:usf:semanticcontract:compilersemanticenforcement';
+  assert.deepEqual(objects(quads, contract, `${USF}reliesOnProofResult`), [FINAL_RESULT]);
+  assert.deepEqual(objects(quads, contract, `${USF}mandatoryProofObligation`), [internals.AGGREGATE_OBLIGATION]);
+  assert.deepEqual(objects(quads, contract, `${USF}hasActivationState`),
+    ['urn:usf:contractactivationstate:active']);
+  assert.equal(quads.filter((quad) => quad.subject.value === contract
+    && [`${USF}reliesOnProofResult`, `${USF}mandatoryProofObligation`, `${USF}hasActivationState`]
+      .includes(quad.predicate.value))
+    .every((quad) => quad.graph.value === 'urn:usf:graph:capabilities'), true);
   assertCommonCurrentnessFacts(quads, FINAL_RESULT, FINAL_PROOF, internals.FINAL_BINDING);
   assert.deepEqual(objects(quads, FINAL_RESULT, `${USF}hasProofResultState`),
     ['urn:usf:proofresultstate:successful']);

@@ -35,7 +35,7 @@ const XSD_ANY_URI = 'http://www.w3.org/2001/XMLSchema#anyURI';
 const USF = 'urn:usf:ontology:';
 
 const GRAPH_AUTHORITY = 'urn:usf:graph:authority';
-const GRAPH_BINDINGS = 'urn:usf:graph:bindings';
+const GRAPH_CAPABILITIES = 'urn:usf:graph:capabilities';
 const GRAPH_PROOFS = 'urn:usf:graph:proofs';
 const CONTRACT = 'urn:usf:semanticcontract:compilersemanticenforcement';
 const PROTOCOL_IRI = 'urn:usf:semanticproofprotocol:v1';
@@ -64,6 +64,19 @@ const SELF_PUBLICATION_RULE = 'urn:usf:authoritybindingrule:selfpublicationclosu
 const PROVISIONAL_BINDING = 'urn:usf:proofauthoritybinding:compilersemanticenforcementaggregateprepublication';
 const FINAL_BINDING = 'urn:usf:proofauthoritybinding:compilersemanticenforcementaggregate';
 const DEPENDENCY_DIGEST_ALGORITHM = 'sha256-rdfc10-nonpublication-graph-inventory-v1';
+const AGGREGATE_RUNG = 'urn:usf:proofrung:behaviour';
+const AGGREGATE_PROVIDER_MODE = 'urn:usf:providermode:liveauthoritycontrol';
+const AGGREGATE_ENVIRONMENT = 'urn:usf:environment:authoritycontrol';
+const AGGREGATE_EVIDENCE_REQUIREMENTS = Object.freeze([
+  'urn:usf:evidencerequirement:compilerliveauthoritytransactionvalidation',
+  'urn:usf:evidencerequirement:compilersemanticvalidation',
+  'urn:usf:evidencerequirement:importedauthoritycounterfactualadequacy',
+]);
+const AGGREGATE_ASSURANCE_CELLS = Object.freeze([
+  'urn:usf:assurancecell:behaviourhermetichermetic',
+  'urn:usf:assurancecell:behaviourliveauthoritycontrol',
+  'urn:usf:assurancecell:contracthermetichermetic',
+]);
 const EXCLUDED_AUTHORITY_GRAPHS = Object.freeze([
   'urn:usf:graph:capabilities',
   'urn:usf:graph:derived:coverage',
@@ -606,7 +619,8 @@ function ownerTriples(owner, scope, { includeVerifier }) {
 
   additions.push(type(verificationDescriptor, `${USF}SemanticProofVerificationCASDescriptor`, GRAPH_AUTHORITY));
   add(additions, verificationDescriptor, 'semanticProofCASDigest', literal(owner.descriptor.digest), GRAPH_AUTHORITY);
-  add(additions, verificationDescriptor, 'semanticProofCASByteLength', typed(owner.descriptor.byteLength, XSD_INTEGER), GRAPH_AUTHORITY);
+  add(additions, verificationDescriptor, 'semanticProofCASByteLength',
+    typed(owner.descriptor.byteLength, XSD_INTEGER), GRAPH_AUTHORITY);
   add(additions, verificationDescriptor, 'semanticProofCASMediaType', literal(owner.descriptor.mediaType), GRAPH_AUTHORITY);
   add(additions, verificationDescriptor, 'semanticProofCASVerificationState', iri('urn:usf:resultstate:passed'), GRAPH_AUTHORITY);
   add(additions, verificationDescriptor, 'semanticProofCASDescriptorReceiptDigest', literal(owner.descriptor.receiptDigest), GRAPH_AUTHORITY);
@@ -634,6 +648,9 @@ function aggregateFoundation(additions, pending, currentnessBinding) {
   const source = evaluation.sourceBinding;
   additions.push(type(AGGREGATE_ALGORITHM, `${USF}ProofAlgorithm`, GRAPH_PROOFS));
   additions.push(type(AGGREGATE_ALGORITHM, `${USF}AggregateProofAlgorithm`, GRAPH_PROOFS));
+  add(additions, AGGREGATE_ALGORITHM, 'canonicalName', literal('compilersemanticenforcementaggregate'));
+  add(additions, AGGREGATE_ALGORITHM, 'proofAlgorithmSourcePath',
+    literal('assurance/semantic-model-compilation/aggregate-compiler-proof.mjs'));
   add(additions, AGGREGATE_ALGORITHM, 'proofAlgorithmSourceDigest', literal(AGGREGATE_ALGORITHM_DIGEST));
   add(additions, AGGREGATE_ALGORITHM, 'currentAlgorithmSourceDigest', literal(AGGREGATE_ALGORITHM_DIGEST));
   add(additions, AGGREGATE_ALGORITHM, 'currentAlgorithmVersion', iri(AGGREGATE_VERSION));
@@ -642,13 +659,27 @@ function aggregateFoundation(additions, pending, currentnessBinding) {
   add(additions, AGGREGATE_ALGORITHM, 'currentDependencyDigestAlgorithm', literal(DEPENDENCY_DIGEST_ALGORITHM));
   add(additions, AGGREGATE_ALGORITHM, 'requiresGraphSourceBinding', typed(true, XSD_BOOLEAN));
   additions.push(type(AGGREGATE_VERSION, `${USF}ProofAlgorithmVersion`, GRAPH_PROOFS));
+  add(additions, AGGREGATE_VERSION, 'canonicalName', literal('compilersemanticenforcementaggregatev210'));
   add(additions, AGGREGATE_VERSION, 'proofAlgorithmVersionOf', iri(AGGREGATE_ALGORITHM));
   add(additions, AGGREGATE_VERSION, 'proofAlgorithmVersionIdentifier', literal(AGGREGATE_ALGORITHM_VERSION));
   additions.push(type(AGGREGATE_OBLIGATION, `${USF}AggregateProofObligation`, GRAPH_PROOFS));
+  add(additions, AGGREGATE_OBLIGATION, 'canonicalName', literal('compilersemanticenforcementaggregate'));
+  add(additions, AGGREGATE_OBLIGATION, 'obligationFor', iri(CONTRACT));
+  add(additions, AGGREGATE_OBLIGATION, 'obligationEffect', iri('urn:usf:obligationeffect:blocking'));
+  add(additions, AGGREGATE_OBLIGATION, 'requiresRung', iri(AGGREGATE_RUNG));
+  add(additions, AGGREGATE_OBLIGATION, 'derivedFrom', iri(CONTRACT));
+  for (const cell of AGGREGATE_ASSURANCE_CELLS) {
+    add(additions, AGGREGATE_OBLIGATION, 'usesAssuranceCell', iri(cell));
+  }
+  for (const requirement of AGGREGATE_EVIDENCE_REQUIREMENTS) {
+    add(additions, AGGREGATE_OBLIGATION, 'requiresEvidence', iri(requirement));
+  }
   add(additions, AGGREGATE_OBLIGATION, 'componentSetDigest', literal(COMPONENT_SET_DIGEST));
   for (const component of COMPONENT_PROOFS) {
     const requirement = `urn:usf:componentproofrequirement:compilersemanticenforcementaggregate:${component.dimension}`;
     additions.push(type(requirement, `${USF}ComponentProofRequirement`, GRAPH_PROOFS));
+    add(additions, requirement, 'canonicalName',
+      literal(`compilersemanticenforcementaggregate${component.dimension}`));
     add(additions, requirement, 'componentObligation', iri(component.obligation));
     add(additions, requirement, 'componentProofResult', iri(component.result));
     add(additions, requirement, 'componentDimension', literal(component.dimension));
@@ -666,22 +697,31 @@ function admittedAggregateEvidence(evaluation) {
 }
 
 function materializeAggregateProof(additions, {
-  evaluation, proof, execution, proofEvaluation, result, source, materializeEvidenceApplicability = true,
+  confidenceState = 'warranted', evaluation, proof, execution, proofEvaluation, result, source,
+  materializeEvidenceApplicability = true,
 }) {
   additions.push(type(proof, `${USF}Proof`, GRAPH_PROOFS));
-  add(additions, proof, 'atRung', iri('urn:usf:rung:contract'));
-  add(additions, proof, 'usesProviderMode', iri('urn:usf:providermode:deterministictestsubstitute'));
-  add(additions, proof, 'inEnvironment', iri('urn:usf:environment:live'));
+  add(additions, proof, 'canonicalName', literal(proof === PROVISIONAL_PROOF
+    ? 'compilersemanticenforcementaggregateprepublication' : 'compilersemanticenforcementaggregate'));
+  add(additions, proof, 'atRung', iri(AGGREGATE_RUNG));
+  add(additions, proof, 'usesProviderMode', iri(AGGREGATE_PROVIDER_MODE));
+  add(additions, proof, 'inEnvironment', iri(AGGREGATE_ENVIRONMENT));
   add(additions, proof, 'exercises', iri(CONTRACT));
   add(additions, proof, 'provesSubject', iri(CONTRACT));
   additions.push(type(execution, `${USF}ProofExecution`, GRAPH_PROOFS));
   additions.push(type(execution, `${USF}AggregateProofExecution`, GRAPH_PROOFS));
+  add(additions, execution, 'canonicalName', literal(execution === PROVISIONAL_EXECUTION
+    ? 'compilersemanticenforcementaggregateprepublication' : 'compilersemanticenforcementaggregate'));
   add(additions, execution, 'executesProof', iri(proof));
   add(additions, execution, 'producesResult', iri(result));
   additions.push(type(proofEvaluation, `${USF}ProofEvaluation`, GRAPH_PROOFS));
   additions.push(type(proofEvaluation, `${USF}AggregateProofEvaluation`, GRAPH_PROOFS));
+  add(additions, proofEvaluation, 'canonicalName', literal(proofEvaluation === PROVISIONAL_EVALUATION
+    ? 'compilersemanticenforcementaggregateprepublication' : 'compilersemanticenforcementaggregate'));
   add(additions, proofEvaluation, 'evaluatesObligation', iri(AGGREGATE_OBLIGATION));
   add(additions, proofEvaluation, 'producesProofResult', iri(result));
+  add(additions, result, 'canonicalName', literal(result === PROVISIONAL_RESULT
+    ? 'compilersemanticenforcementaggregateprepublication' : 'compilersemanticenforcementaggregate'));
   for (const evidence of admittedAggregateEvidence(evaluation)) {
     add(additions, result, 'usesAdmittedEvidence', iri(evidence.iri));
     add(additions, result, 'confidenceBasis', iri(evidence.iri));
@@ -694,11 +734,13 @@ function materializeAggregateProof(additions, {
   add(additions, result, 'proofProducerCommit', literal(source.head));
   add(additions, result, 'proofProducerTree', literal(source.tree));
   add(additions, result, 'evaluatedByValidator', iri('urn:usf:validatorrule:validateassuranceconformance'));
-  add(additions, result, 'proofExecutionEnvironment', iri('urn:usf:environment:live'));
-  add(additions, result, 'claimedRung', iri('urn:usf:rung:contract'));
-  add(additions, result, 'observedRung', iri('urn:usf:rung:contract'));
+  add(additions, result, 'proofExecutionEnvironment', iri(AGGREGATE_ENVIRONMENT));
+  add(additions, result, 'usesProviderMode', iri(AGGREGATE_PROVIDER_MODE));
+  add(additions, result, 'inEnvironment', iri(AGGREGATE_ENVIRONMENT));
+  add(additions, result, 'claimedRung', iri(AGGREGATE_RUNG));
+  add(additions, result, 'observedRung', iri(AGGREGATE_RUNG));
   add(additions, result, 'hasFreshness', iri('urn:usf:freshness:fresh'));
-  add(additions, result, 'hasConfidenceState', iri('urn:usf:proofconfidencestate:warranted'));
+  add(additions, result, 'hasConfidenceState', iri(`urn:usf:proofconfidencestate:${confidenceState}`));
   for (const condition of ['evidenceinvalidated', 'evidencestale', 'authoritydigestchanged']) {
     add(additions, result, 'hasInvalidationCondition', iri(`urn:usf:proofinvalidationcondition:${condition}`));
   }
@@ -709,6 +751,8 @@ function materializeProofAuthorityBinding(additions, {
   reevaluationState,
 }) {
   additions.push(type(binding, `${USF}ProofAuthorityBinding`, GRAPH_PROOFS));
+  add(additions, binding, 'canonicalName', literal(binding === PROVISIONAL_BINDING
+    ? 'compilersemanticenforcementaggregateprepublication' : 'compilersemanticenforcementaggregate'));
   add(additions, binding, 'bindingEvaluatedAuthorityDigest', literal(evaluatedAuthorityDigest));
   add(additions, binding, 'bindingDependencySetDigest', literal(dependencySetDigest));
   add(additions, binding, 'bindingDependencyDigestAlgorithm', literal(DEPENDENCY_DIGEST_ALGORITHM));
@@ -737,7 +781,11 @@ function materializeAggregateValidationInfrastructure(additions, source) {
 }
 
 function stage1Patch(pending, owners, currentnessBinding) {
-  const deletions = COMPONENT_PROOFS.map(({ result }) => q(CONTRACT, `${USF}reliesOnProofResult`, iri(result), GRAPH_BINDINGS));
+  const deletions = [
+    ...COMPONENT_PROOFS.map(({ result }) =>
+      q(CONTRACT, `${USF}reliesOnProofResult`, iri(result), GRAPH_CAPABILITIES)),
+    q(CONTRACT, `${USF}hasActivationState`, iri('urn:usf:contractactivationstate:active'), GRAPH_CAPABILITIES),
+  ];
   const additions = OWNER_SCOPE_KEYS.flatMap((key, index) => ownerTriples(owners[key], OWNER_SCOPES[key], {
     includeVerifier: index === 0,
   }));
@@ -745,8 +793,9 @@ function stage1Patch(pending, owners, currentnessBinding) {
   materializeAggregateValidationInfrastructure(additions, source);
   additions.push(type(SELF_PUBLICATION_RULE, `${USF}AuthorityBindingRule`, GRAPH_PROOFS));
   additions.push(type(VALIDATION_RULE, `${USF}AuthorityBindingRule`, GRAPH_PROOFS));
+  add(additions, VALIDATION_RULE, 'canonicalName', literal('validationnonpublicationdependencyclosure'));
   materializeAggregateProof(additions, {
-    evaluation, execution: PROVISIONAL_EXECUTION, proof: PROVISIONAL_PROOF,
+    confidenceState: 'unknown', evaluation, execution: PROVISIONAL_EXECUTION, proof: PROVISIONAL_PROOF,
     proofEvaluation: PROVISIONAL_EVALUATION, result: PROVISIONAL_RESULT, source,
   });
   additions.push(type(PROVISIONAL_RESULT, `${USF}ProofResult`, GRAPH_PROOFS));
@@ -758,7 +807,7 @@ function stage1Patch(pending, owners, currentnessBinding) {
     ['aggregateSourceHead', literal(source.head)], ['aggregateAuthorityDigest', literal(evaluation.authorityDigest)],
     ['dependencySetDigest', literal(currentnessBinding.dependencySetDigest)],
     ['dependencyDigestAlgorithm', literal(DEPENDENCY_DIGEST_ALGORITHM)],
-    ['evaluatedAt', typed(evaluation.evaluatedAt, XSD_DATETIME)], ['resultState', iri('urn:usf:resultstate:pending')],
+    ['evaluatedAt', typed(evaluation.evaluatedAt, XSD_DATETIME)], ['resultState', iri('urn:usf:resultstate:notrun')],
   ]) add(additions, PROVISIONAL_RESULT, predicate, object);
   materializeProofAuthorityBinding(additions, {
     authorityBindingEvidenceDigest: pending.executionReceiptDigest,
@@ -768,13 +817,29 @@ function stage1Patch(pending, owners, currentnessBinding) {
     reevaluationState: 'pending',
     result: PROVISIONAL_RESULT,
   });
-  add(additions, CONTRACT, 'reliesOnProofResult', iri(PROVISIONAL_RESULT), GRAPH_BINDINGS);
+  add(additions, CONTRACT, 'hasActivationState',
+    iri('urn:usf:contractactivationstate:proofblocked'), GRAPH_CAPABILITIES);
+  add(additions, CONTRACT, 'reliesOnProofResult', iri(PROVISIONAL_RESULT), GRAPH_CAPABILITIES);
   return { additions, deletions };
 }
 
-function stage2Patch(pending, stage2, currentnessBinding) {
-  const additions = [];
-  const deletions = [q(CONTRACT, `${USF}reliesOnProofResult`, iri(PROVISIONAL_RESULT), GRAPH_BINDINGS)];
+function stage2Patch(pending, owners, stage2, currentnessBinding) {
+  const stage1 = stage1Patch(pending, owners, currentnessBinding);
+  const transientContractFacts = new Set([
+    q(CONTRACT, `${USF}reliesOnProofResult`, iri(PROVISIONAL_RESULT), GRAPH_CAPABILITIES),
+    q(CONTRACT, `${USF}hasActivationState`,
+      iri('urn:usf:contractactivationstate:proofblocked'), GRAPH_CAPABILITIES),
+  ]);
+  const additions = stage1.additions.filter((line) => !transientContractFacts.has(line));
+  const deletions = [
+    q(CONTRACT, `${USF}reliesOnProofResult`, iri(PROVISIONAL_RESULT), GRAPH_CAPABILITIES),
+    q(CONTRACT, `${USF}hasActivationState`,
+      iri('urn:usf:contractactivationstate:proofblocked'), GRAPH_CAPABILITIES),
+    ...COMPONENT_PROOFS.flatMap(({ obligation, result }) => [
+      q(CONTRACT, `${USF}reliesOnProofResult`, iri(result), GRAPH_CAPABILITIES),
+      q(CONTRACT, `${USF}mandatoryProofObligation`, iri(obligation), GRAPH_CAPABILITIES),
+    ]),
+  ];
   const evaluation = pending.aggregateResult.evaluation;
   const source = evaluation.sourceBinding;
   materializeAggregateProof(additions, {
@@ -804,6 +869,7 @@ function stage2Patch(pending, stage2, currentnessBinding) {
     result: AGGREGATE_RESULT_IRI,
   });
   additions.push(type(REEVALUATION, `${USF}PostPublicationReevaluation`, GRAPH_PROOFS));
+  add(additions, REEVALUATION, 'canonicalName', literal('compilersemanticenforcementaggregate'));
   for (const [predicate, object] of [
     ['reevaluatesProofResult', iri(PROVISIONAL_RESULT)], ['reevaluationProducesProofResult', iri(AGGREGATE_RESULT_IRI)],
     ['reevaluationAuthorityDigest', literal(stage2.package.evaluatedAuthorityDigest)],
@@ -814,8 +880,10 @@ function stage2Patch(pending, stage2, currentnessBinding) {
     ['reevaluationExecutionReceiptDigest', literal(stage2.package.executionReceiptDigest)],
     ['reevaluationEvaluationReceiptDigest', literal(stage2.package.evaluationReceiptDigest)],
   ]) add(additions, REEVALUATION, predicate, object);
-  add(additions, CONTRACT, 'mandatoryProofObligation', iri(AGGREGATE_OBLIGATION), GRAPH_BINDINGS);
-  add(additions, CONTRACT, 'reliesOnProofResult', iri(AGGREGATE_RESULT_IRI), GRAPH_BINDINGS);
+  add(additions, CONTRACT, 'hasActivationState',
+    iri('urn:usf:contractactivationstate:active'), GRAPH_CAPABILITIES);
+  add(additions, CONTRACT, 'mandatoryProofObligation', iri(AGGREGATE_OBLIGATION), GRAPH_CAPABILITIES);
+  add(additions, CONTRACT, 'reliesOnProofResult', iri(AGGREGATE_RESULT_IRI), GRAPH_CAPABILITIES);
 
   // This compiler descriptor closes the already-settled D0 -> D1 validation;
   // it is therefore immutable input to D2 rather than a self-reference to the
@@ -827,13 +895,16 @@ function stage2Patch(pending, stage2, currentnessBinding) {
   ];
   const compilerValidation = stage2.compilerValidation.receipt;
   additions.push(type(VALIDATION_EXECUTION, `${USF}ValidationExecution`, GRAPH_PROOFS));
+  add(additions, VALIDATION_EXECUTION, 'canonicalName', literal('compilersemanticenforcementaggregate'));
   add(additions, VALIDATION_EXECUTION, 'validationExecutedByProducer', iri(VALIDATION_PRODUCER));
   add(additions, VALIDATION_EXECUTION, 'validationUsesEvidenceAdmissionPath', iri(EVIDENCE_ADMISSION_PATH));
   add(additions, VALIDATION_EXECUTION, 'validationExecutionReceiptDigest', literal(compilerValidation.executionReceiptDigest));
   additions.push(type(VALIDATION_EVALUATION, `${USF}ValidationEvaluation`, GRAPH_PROOFS));
+  add(additions, VALIDATION_EVALUATION, 'canonicalName', literal('compilersemanticenforcementaggregate'));
   add(additions, VALIDATION_EVALUATION, 'validationEvaluationOfExecution', iri(VALIDATION_EXECUTION));
   add(additions, VALIDATION_EVALUATION, 'validationEvaluationReceiptDigest', literal(compilerValidation.evaluationReceiptDigest));
   additions.push(type(VALIDATION_RESULT, `${USF}ValidationResult`, GRAPH_PROOFS));
+  add(additions, VALIDATION_RESULT, 'canonicalName', literal('compilersemanticenforcementaggregate'));
   add(additions, VALIDATION_RESULT, 'resultState', iri('urn:usf:resultstate:passed'));
   add(additions, VALIDATION_RESULT, 'hasFreshness', iri('urn:usf:freshness:fresh'));
   add(additions, VALIDATION_RESULT, 'validationResultOfEvaluation', iri(VALIDATION_EVALUATION));
@@ -841,12 +912,14 @@ function stage2Patch(pending, stage2, currentnessBinding) {
   add(additions, VALIDATION_OBLIGATION, 'satisfiedByValidationResult', iri(VALIDATION_RESULT));
   for (const descriptor of descriptors) {
     additions.push(type(descriptor.iri, `${USF}ValidationEvidence`, GRAPH_PROOFS));
+    add(additions, descriptor.iri, 'canonicalName', literal(descriptor.iri.split(':').at(-1)));
     add(additions, descriptor.iri, 'validationEvidenceForExecution', iri(VALIDATION_EXECUTION));
     add(additions, descriptor.iri, 'validationEvidenceAdmittedThrough', iri(EVIDENCE_ADMISSION_PATH));
     add(additions, descriptor.iri, 'contentDigest', literal(descriptor.digest));
     add(additions, descriptor.iri, 'validationEvidencePersistenceReceiptDigest', literal(descriptor.persistenceReceiptDigest));
   }
   additions.push(type(VALIDATION_BINDING, `${USF}ValidationSelfPublicationBinding`, GRAPH_PROOFS));
+  add(additions, VALIDATION_BINDING, 'canonicalName', literal('compilersemanticenforcementaggregate'));
   for (const [predicate, object] of [
     ['authorityBindingForValidationResult', iri(VALIDATION_RESULT)],
     ['authorityBindingValidationProducer', iri(VALIDATION_PRODUCER)],
@@ -902,7 +975,7 @@ export function materializeAggregateCompilerAuthorityCandidate(input) {
   }
   else {
     const stage2 = validateStage2(input.stage2Package, pending);
-    patch = stage2Patch(pending, stage2, currentnessBinding);
+    patch = stage2Patch(pending, owners, stage2, currentnessBinding);
   }
   const bytes = canonicalPatch(input.stage, patch.deletions, patch.additions);
   return Object.freeze({

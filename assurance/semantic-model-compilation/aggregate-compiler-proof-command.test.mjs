@@ -703,17 +703,28 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
   const d2 = `sha256:${'c'.repeat(64)}`;
   const authorityGraph = 'urn:usf:graph:authority';
   const bindingsGraph = 'urn:usf:graph:bindings';
+  const capabilitiesGraph = 'urn:usf:graph:capabilities';
   const proofsGraph = 'urn:usf:graph:proofs';
   const shapesGraph = 'urn:usf:graph:shapes';
-  const graphs = [authorityGraph, bindingsGraph, proofsGraph, shapesGraph];
+  const graphs = [authorityGraph, bindingsGraph, capabilitiesGraph, proofsGraph, shapesGraph];
   let phase = 0;
   let live = new Map(graphs.map((graph) => [graph, new Store()]));
   const rdfType = DataFactory.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
-  for (const { result } of COMPONENT_PROOFS) {
-    live.get(bindingsGraph).addQuad(DataFactory.quad(
+  live.get(capabilitiesGraph).addQuad(DataFactory.quad(
+    DataFactory.namedNode('urn:usf:semanticcontract:compilersemanticenforcement'),
+    DataFactory.namedNode('urn:usf:ontology:hasActivationState'),
+    DataFactory.namedNode('urn:usf:contractactivationstate:active'),
+  ));
+  for (const { obligation, result } of COMPONENT_PROOFS) {
+    live.get(capabilitiesGraph).addQuad(DataFactory.quad(
       DataFactory.namedNode('urn:usf:semanticcontract:compilersemanticenforcement'),
       DataFactory.namedNode('urn:usf:ontology:reliesOnProofResult'),
       DataFactory.namedNode(result),
+    ));
+    live.get(capabilitiesGraph).addQuad(DataFactory.quad(
+      DataFactory.namedNode('urn:usf:semanticcontract:compilersemanticenforcement'),
+      DataFactory.namedNode('urn:usf:ontology:mandatoryProofObligation'),
+      DataFactory.namedNode(obligation),
     ));
   }
   const transactions = new Map();
@@ -764,7 +775,11 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
     return { digest: authorityDigest(), inventory, triples };
   };
   const manifest = {
-    authored: [{ file: 'bindings.trig', graph: bindingsGraph, order: 2 }, { file: 'proofs.trig', graph: proofsGraph, order: 3 }],
+    authored: [
+      { file: 'capabilities.trig', graph: capabilitiesGraph, order: 2 },
+      { file: 'bindings.trig', graph: bindingsGraph, order: 3 },
+      { file: 'proofs.trig', graph: proofsGraph, order: 4 },
+    ],
     definitions: [{ file: 'authority.ttl', graph: authorityGraph, order: 1 }],
     derived: [], reviews: [], rules: [],
     shapes: [{
