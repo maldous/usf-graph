@@ -726,7 +726,7 @@ function materializeAggregateProof(additions, {
     ? 'compilersemanticenforcementaggregateprepublication' : 'compilersemanticenforcementaggregate'));
   for (const evidence of admittedAggregateEvidence(evaluation)) {
     add(additions, result, 'usesAdmittedEvidence', iri(evidence.iri));
-    add(additions, result, 'confidenceBasis', iri(evidence.iri));
+    if (confidenceState !== null) add(additions, result, 'confidenceBasis', iri(evidence.iri));
     if (materializeEvidenceApplicability) {
       add(additions, evidence.iri, 'applicableToObligation', iri(AGGREGATE_OBLIGATION));
     }
@@ -742,7 +742,9 @@ function materializeAggregateProof(additions, {
   add(additions, result, 'claimedRung', iri(AGGREGATE_RUNG));
   add(additions, result, 'observedRung', iri(AGGREGATE_RUNG));
   add(additions, result, 'hasFreshness', iri('urn:usf:freshness:fresh'));
-  add(additions, result, 'hasConfidenceState', iri(`urn:usf:proofconfidencestate:${confidenceState}`));
+  if (confidenceState !== null) {
+    add(additions, result, 'hasConfidenceState', iri(`urn:usf:proofconfidencestate:${confidenceState}`));
+  }
   for (const condition of ['evidenceinvalidated', 'evidencestale', 'authoritydigestchanged']) {
     add(additions, result, 'hasInvalidationCondition', iri(`urn:usf:proofinvalidationcondition:${condition}`));
   }
@@ -799,7 +801,7 @@ function stage1Patch(pending, owners, currentnessBinding) {
   additions.push(type(VALIDATION_RULE, `${USF}AuthorityBindingRule`, GRAPH_PROOFS));
   add(additions, VALIDATION_RULE, 'canonicalName', literal('validationnonpublicationdependencyclosure'));
   materializeAggregateProof(additions, {
-    confidenceState: 'unknown', evaluation, execution: PROVISIONAL_EXECUTION, proof: PROVISIONAL_PROOF,
+    confidenceState: null, evaluation, execution: PROVISIONAL_EXECUTION, proof: PROVISIONAL_PROOF,
     proofEvaluation: PROVISIONAL_EVALUATION, result: PROVISIONAL_RESULT, source,
   });
   additions.push(type(PROVISIONAL_RESULT, `${USF}ProofResult`, GRAPH_PROOFS));

@@ -441,7 +441,13 @@ function assertCommonCurrentnessFacts(quads, result, proof, binding, confidenceS
   assert.deepEqual(objects(quads, result, `${USF}proofProducerTree`), [TREE]);
   assert.equal(has(quads, result, `${USF}hasAuthorityBinding`, binding), true);
   assert.equal(has(quads, result, `${USF}hasFreshness`, 'urn:usf:freshness:fresh'), true);
-  assert.equal(has(quads, result, `${USF}hasConfidenceState`, `urn:usf:proofconfidencestate:${confidenceState}`), true);
+  if (confidenceState === null) {
+    assert.equal(objects(quads, result, `${USF}hasConfidenceState`).length, 0);
+    assert.equal(objects(quads, result, `${USF}confidenceBasis`).length, 0);
+  } else {
+    assert.equal(has(quads, result, `${USF}hasConfidenceState`, `urn:usf:proofconfidencestate:${confidenceState}`), true);
+    assert.ok(objects(quads, result, `${USF}confidenceBasis`).length > 0);
+  }
   assert.equal(objects(quads, result, `${USF}hasInvalidation`).length, 0);
   assert.equal(objects(quads, result, `${USF}supersededByProofResult`).length, 0);
   assert.equal(objects(quads, result, `${USF}hasInvalidationCondition`).length, 3);
@@ -526,10 +532,10 @@ test('provisional aggregate has the complete structural currentness binding and 
   const { additions } = parsePatch(materializeAggregateCompilerAuthorityCandidate(stage1Input()).bytes);
   assertCommonCurrentnessFacts(additions, internals.PROVISIONAL_RESULT,
     'urn:usf:proof:compilersemanticenforcementaggregateprepublication',
-    'urn:usf:proofauthoritybinding:compilersemanticenforcementaggregateprepublication', 'unknown');
+    'urn:usf:proofauthoritybinding:compilersemanticenforcementaggregateprepublication', null);
   assert.deepEqual(objects(additions, internals.PROVISIONAL_RESULT, `${USF}resultState`), ['urn:usf:resultstate:notrun']);
-  assert.deepEqual(objects(additions, internals.PROVISIONAL_RESULT, `${USF}hasConfidenceState`),
-    ['urn:usf:proofconfidencestate:unknown']);
+  assert.equal(objects(additions, internals.PROVISIONAL_RESULT, `${USF}hasConfidenceState`).length, 0);
+  assert.equal(objects(additions, internals.PROVISIONAL_RESULT, `${USF}confidenceBasis`).length, 0);
   assert.deepEqual(objects(additions, internals.PROVISIONAL_RESULT, `${USF}claimedRung`),
     ['urn:usf:proofrung:behaviour']);
   assert.deepEqual(objects(additions, internals.PROVISIONAL_RESULT, `${USF}inEnvironment`),
