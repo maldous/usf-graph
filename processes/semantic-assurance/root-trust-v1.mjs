@@ -223,7 +223,9 @@ export function atomicWrite(path, bytes, { mode = 0o444, fault = null, root = TR
     }
     chmodSync(temporary, mode);
     if (fault === 'temporary-read-back-mismatch') {
+      chmodSync(temporary, 0o600);
       writeFileSync(temporary, Buffer.concat([bytes, Buffer.from('corrupt')]), { flag: 'r+' });
+      chmodSync(temporary, mode);
     }
     assertRegular(temporary, { mode, label: 'temporary installation file', root });
     if (sha256(readFileSync(temporary)) !== sha256(bytes)) throw new Error('temporary installation read-back mismatch');
