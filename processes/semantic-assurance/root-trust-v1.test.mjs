@@ -192,6 +192,28 @@ test('signed grants reject invalid signer, stale time, wrong identity and unknow
   }), /closed contract/);
 });
 
+test('predecessor, admitted evidence and temporary read-back mismatches fail closed', () => {
+  const s = sandbox();
+  const grant = installGrant({
+    ...s, candidate: baseAnchor(), current: baseAnchor(), currentVersion: 0,
+    effect: 'governed-root-trust-lifecycle-installation', extension: null, label: 'genesis', resultingVersion: 1,
+  });
+  const wrongPredecessor = {
+    ...grant,
+    envelope: {
+      ...grant.envelope,
+      payload: { ...grant.envelope.payload, predecessor_anchor_file_digest: d('wrong-predecessor') },
+    },
+  };
+  assert.throws(() => install(s, wrongPredecessor, baseAnchor()), /exact predecessor and candidate/);
+  assert.throws(() => install(s, { ...grant, evidence: { ...grant.evidence, admission_receipt_digest: d('wrong-admission') } }, baseAnchor()), /evidence mismatch/);
+  const target = join(s.root, 'read-back-mismatch');
+  assert.throws(() => atomicWrite(target, Buffer.from('approved'), {
+    fault: 'temporary-read-back-mismatch', root: s.root,
+  }), /read-back mismatch/);
+  assert.equal(existsSync(target), false);
+});
+
 test('atomic writer refuses traversal and symlinks and removes interrupted temporary state', () => {
   const s = sandbox();
   const safe = join(s.root, 'safe');
