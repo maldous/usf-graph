@@ -2491,14 +2491,14 @@ sc:notificationdeliveryandpreferencesandchannels usf:hasActivationState contract
     usf:mandatoryProofObligation <urn:usf:proofobligation:p1874b31e72692fcb908b9d1c13a86f9ca955777ba0b338339d6b5f0adb5c65af>;
     usf:permittedRealisationType usf:Implementation.
 sc:providerconfigurationplane usf:hasActivationState contractstate:active;
-    usf:activationReason "Current admitted hermetic evidence and a successful behaviour-rung proof warrant only the bounded provider-workforce implementation surface in maldous/usf-factory. Provider availability, authentication, qualification, admission and production readiness remain unclaimed until separately authorized runtime evidence exists.";
+    usf:activationReason "The original provider-workforce proof continues to warrant its bounded preparation surface. Separately admitted signed V3 implementation, independent evaluation and activation-decision evidence now satisfy the exact providerconfigurationplane validation obligation and warrant only commit 12283e6adbab02a468f15239315e18ae755af5f9 in the nineteen-path Factory durable-control-plane scope. Production operation remains fail-closed on current RunAuthorization, cutover and BAU receipts.";
     usf:requiresRealisationOptionEvaluation true;
     usf:mandatoryProofObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>;
-    usf:reliesOnProofResult <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane>;
+    usf:reliesOnProofResult <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane>, <urn:usf:proofresult:factoryproviderv3implementation>;
     usf:effectiveRealisationDecision <urn:usf:realisationdecision:providerconfigurationplanefactoryworkforce>;
     usf:requiredValidation <urn:usf:validationobligation:providerconfigurationplane>;
     usf:permittedRealisationType usf:Implementation, usf:Adapter, usf:Binding;
-    usf:asserts <urn:usf:claim:providerworkforceboundedimplementationauthority>;
+    usf:asserts <urn:usf:claim:providerworkforceboundedimplementationauthority>, <urn:usf:claim:factoryproviderv3boundedproductionauthority>;
     usf:disclaims <urn:usf:nonclaim:providercredentialsauthority>, <urn:usf:nonclaim:providerresearchprovesavailability>, <urn:usf:nonclaim:providerworkforceproofisfactoryvalidation>, <urn:usf:nonclaim:providerworkforceproofisproductionreadiness>;
     usf:contractConstraint "Provider credentials are operator-owned external secrets. Only canonical variable names and presence booleans may be represented; values, hashes, copied credential files, account sessions and billing information are prohibited from Git, semantic authority, CAS, logs and receipts.", "Provider catalogue discovery, authentication classification, bounded health checks, free or subscription probes, qualification and admission require a current RunAuthorization and the one immutable effective policy formed by intersecting committed defaults, operator policy, RunAuthorization and activation options.", "Paid API inference is denied at zero authorized budget outside Claude, Codex and Google Antigravity subscription transports. Antigravity is the installed agy subscription transport and is operator-configured to request Opus 4.6 by default; requested and actual model identities remain distinct evidence, and it may not fall back to paid Anthropic or Google API access. OpenRouter requires point-of-use explicit-free metadata, zero quoted and observed charge, actual model and actual provider identity, and no paid or unknown fallback. Ollama is inventoried but operator-excluded as operationally impractical.", "Tracked actions are limited to create-directory and create-or-update-file operations at the decision's exact source paths, in Python 3.11 source, YAML 1.2 configuration, CommonMark Markdown or dotenv-example text. Git push, PR, merge, publication and writes outside those paths require separate authority.", "Mutable live quota state, provider responses, runtime logs and assessment transcripts are untracked unless a later exact evidence contract admits a bounded sanitized representation.".
 sc:scheduledjobsbuiltinontheeventsubstrate usf:hasActivationState contractstate:proofblocked;
@@ -4948,14 +4948,18 @@ sc:writeonlysecretsettings usf:hasValidationApplicability vas:unresolved;
 
 <urn:usf:claim:providerworkforceboundedimplementationauthority> a usf:Claim;
   usf:canonicalName "providerworkforceboundedimplementationauthority".
+<urn:usf:claim:factoryproviderv3boundedproductionauthority> a usf:Claim;
+  usf:canonicalName "factoryproviderv3boundedproductionauthority";
+  usf:definition "Authorises only the exact Factory Provider V3 implementation at commit 12283e6adbab02a468f15239315e18ae755af5f9, tree 0575d33afd1e2677f8d15564b3fafeaf1e135b8d and source-scope digest sha256:2abeeefc2ea6d538258eb8367388e47fc7201b64899b18dabb35ab30f18b466d, subject to current RunAuthorization and successful cutover and BAU receipts.".
 <urn:usf:nonclaim:providercredentialsauthority> a usf:NonClaim;
   usf:canonicalName "providercredentialsauthority".
 <urn:usf:nonclaim:providerresearchprovesavailability> a usf:NonClaim;
   usf:canonicalName "providerresearchprovesavailability".
 <urn:usf:validationobligation:providerconfigurationplane> a usf:ValidationObligation;
   usf:canonicalName "providerconfigurationplane";
-  usf:hasValidationActivationState <urn:usf:validationactivationstate:reserved>;
-  usf:validationActivationReason "No exact implementation-validation producer or admission path exists yet. Reserved is fail-closed and does not imply satisfaction, execution authority or production readiness.";
+  usf:hasValidationActivationState <urn:usf:validationactivationstate:activated>;
+  usf:validationActivationReason "The exact Factory V3 validation producer, governed evidence-admission path, signed implementation evidence, independent evaluation and bounded activation decision are current and admitted.";
+  usf:satisfiedByValidationResult <urn:usf:validationresult:factoryproviderv3implementation>;
   usf:validationForContract sc:providerconfigurationplane.
 <urn:usf:validationobligation:providerenvironmentclassification> a usf:ValidationObligation;
   usf:canonicalName "providerenvironmentclassification";

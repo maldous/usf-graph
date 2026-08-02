@@ -597,4 +597,53 @@
   usf:reevaluatedAt "2026-07-27T08:03:46Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:coverage"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:obligations"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:readiness"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:surfaces"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:proofs"^^<http://www.w3.org/2001/XMLSchema#anyURI>.
 
+# Exact Factory Provider V3 implementation proof.  The proof is deliberately
+# attached only to providerconfigurationplane; it does not promote any generic
+# platform contract or future implementation generation.
+<urn:usf:proof:factoryproviderv3implementation> a usf:Proof;
+  usf:canonicalName "factoryproviderv3implementation";
+  usf:atRung rung:behaviour;
+  usf:usesProviderMode pmode:liveexternal;
+  usf:inEnvironment env:productionshaped;
+  usf:exercises <urn:usf:semanticcontract:providerconfigurationplane>;
+  usf:provesSubject <urn:usf:semanticcontract:providerconfigurationplane>.
+<urn:usf:proofexecution:factoryproviderv3implementation> a usf:ProofExecution;
+  usf:canonicalName "factoryproviderv3implementation";
+  usf:executesProof <urn:usf:proof:factoryproviderv3implementation>;
+  usf:producesResult <urn:usf:proofresult:factoryproviderv3implementation>.
+<urn:usf:proofevaluation:factoryproviderv3implementation> a usf:ProofEvaluation;
+  usf:canonicalName "factoryproviderv3implementation";
+  usf:evaluatesObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>;
+  usf:producesProofResult <urn:usf:proofresult:factoryproviderv3implementation>.
+<urn:usf:proofresult:factoryproviderv3implementation> a usf:ProofResult;
+  usf:canonicalName "factoryproviderv3implementation";
+  usf:resultState rs:passed;
+  usf:resultForProof <urn:usf:proof:factoryproviderv3implementation>;
+  usf:claimedRung rung:behaviour;
+  usf:observedRung rung:behaviour;
+  usf:hasFreshness fresh:fresh;
+  usf:usesProviderMode pmode:liveexternal;
+  usf:inEnvironment env:productionshaped;
+  usf:hasProofResultState <urn:usf:proofresultstate:successful>;
+  usf:proofResultForObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>;
+  usf:usesProofAlgorithm <urn:usf:proofalgorithm:providerworkforceauthority>;
+  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf>;
+  usf:usesAdmittedEvidence
+    <urn:usf:evidenceresult:factoryproviderv3implementation>,
+    <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
+    <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
+  usf:evidenceSetDigest "sha256:984e2cffe68cff91b4643ad1625bdd760bf42699a14c16f466f94d39415f947f";
+  usf:implementationSourceSetDigest "sha256:fd5eab88462f261fed51b898e662e6b9878ee41b96f05fb258b6706403fcc782";
+  usf:dependencySetDigest "sha256:984e2cffe68cff91b4643ad1625bdd760bf42699a14c16f466f94d39415f947f";
+  usf:dependencyDigestAlgorithm "sha256-canonical-evidence-file-digest-set-v1";
+  usf:proofProducerCommit "12283e6adbab02a468f15239315e18ae755af5f9";
+  usf:proofProducerTree "0575d33afd1e2677f8d15564b3fafeaf1e135b8d";
+  usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
+  usf:proofExecutionEnvironment env:productionshaped;
+  usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
+  usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
+  usf:uncertaintyStatement "The proof warrants only the exact V3 implementation at commit 12283e6adbab02a468f15239315e18ae755af5f9 within the nineteen-path durable Factory source scope. Production BAU remains conditional on current run authorizations and the cutover and BAU receipts; future implementation generations require new admitted evidence.";
+  usf:evaluatedAt "2026-08-02T22:25:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
+
 }
