@@ -276,6 +276,13 @@ test('genesis installation, bounded extension, replay rejection, rollback and re
     },
     signature,
   };
+  assert.throws(() => rollbackAnchor({
+    ...s,
+    grantEnvelope: { ...rollback, payload: { ...rollback.payload, target_anchor_path: join(s.root, 'other-anchor') } },
+    rolledBackAt: NOW,
+    signatureVerifier: validSignature,
+    trustRoot: s.root,
+  }), /immediately previous verified anchor/);
   const rolledBack = rollbackAnchor({
     ...s, grantEnvelope: rollback, rolledBackAt: NOW, signatureVerifier: validSignature, trustRoot: s.root,
   });

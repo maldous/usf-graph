@@ -527,7 +527,8 @@ export function rollbackAnchor({
   });
   const current = registry.versions[registry.current_version];
   const previous = registry.versions[registry.current_version - 1];
-  if (grant.current_version !== current.version || grant.rollback_to_version !== previous.version
+  if (grant.target_anchor_path !== anchorPath || grant.target_installation_root !== trustRoot
+      || grant.current_version !== current.version || grant.rollback_to_version !== previous.version
       || grant.current_anchor_file_digest !== current.anchor_file_digest
       || grant.rollback_anchor_file_digest !== previous.anchor_file_digest || previous.rollback_eligible !== true) {
     throw new Error('rollback is not bound to the immediately previous verified anchor');
