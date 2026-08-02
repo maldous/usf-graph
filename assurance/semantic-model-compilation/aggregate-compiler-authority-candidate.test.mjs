@@ -763,7 +763,7 @@ test('stage 2 requires a genuine postpublication receipt and ordered trusted tim
     { code: 'CANDIDATE_REEVALUATION_BINDING_INVALID' });
 });
 
-test('rejects unvalidated, mixed, conflicting or byte-tampered base semantic deltas', () => {
+test('rejects unvalidated, mixed or byte-tampered base deltas and gives the generated overlay final-state precedence', () => {
   const unvalidated = stage1Input(); unvalidated.baseSemanticDelta.state = 'UNVALIDATED';
   assert.throws(() => materializeAggregateCompilerAuthorityCandidate(unvalidated),
     { code: 'CANDIDATE_BASE_DELTA_INVALID' });
@@ -771,20 +771,22 @@ test('rejects unvalidated, mixed, conflicting or byte-tampered base semantic del
     = Buffer.from('not a canonical patch').toString('base64');
   assert.throws(() => materializeAggregateCompilerAuthorityCandidate(tampered),
     { code: 'CANDIDATE_BASE_DELTA_INVALID' });
-  const conflicting = stage1Input();
-  const generated = materializeAggregateCompilerAuthorityCandidate(conflicting);
+  const overlapping = stage1Input();
+  const generated = materializeAggregateCompilerAuthorityCandidate(overlapping);
   const aggregateAddition = rawPatch(generated.bytes).additions.find((quad) =>
     quad.includes('<urn:usf:proofobligation:compilersemanticenforcementaggregate>'));
   assert.ok(aggregateAddition);
   const bytes = Buffer.from([
     '# semantic-proof-v1 canonical-rdf-patch-v1 base',
-    `A ${aggregateAddition}`,
+    `D ${aggregateAddition}`,
+    'A <urn:usf:test:authored-source-fact> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:AuthorityPrincipal> <urn:usf:graph:authority> .',
     '',
   ].join('\n'), 'utf8');
-  conflicting.baseSemanticDelta.bytesBase64 = bytes.toString('base64');
-  conflicting.baseSemanticDelta.candidateDigest = internals.sha256Bytes(bytes);
-  assert.throws(() => materializeAggregateCompilerAuthorityCandidate(conflicting),
-    { code: 'CANDIDATE_BASE_DELTA_CONFLICT' });
+  overlapping.baseSemanticDelta.bytesBase64 = bytes.toString('base64');
+  overlapping.baseSemanticDelta.candidateDigest = internals.sha256Bytes(bytes);
+  const composed = rawPatch(materializeAggregateCompilerAuthorityCandidate(overlapping).bytes);
+  assert.equal(composed.deletions.filter((quad) => quad === aggregateAddition).length, 0);
+  assert.equal(composed.additions.filter((quad) => quad === aggregateAddition).length, 1);
 });
 
 test('rejects receipt descriptors that are unpersisted or do not match exact CAS bytes', () => {

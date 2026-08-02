@@ -430,14 +430,15 @@ function parseCanonicalBaseDelta(base, authorityPreDigest) {
 }
 
 function mergeBaseDelta(base, generated) {
-  const conflicts = [
-    ...base.additions.filter((line) => generated.additions.includes(line) || generated.deletions.includes(line)),
-    ...base.deletions.filter((line) => generated.deletions.includes(line) || generated.additions.includes(line)),
-  ];
-  if (conflicts.length > 0) fail('CANDIDATE_BASE_DELTA_CONFLICT', conflicts.sort()[0]);
+  // The source compiler runs first and the authority overlay runs second. A
+  // generated operation therefore establishes the final state for the same
+  // exact quad. This is required for runtime-materialised authority facts that
+  // are deliberately absent from authored source: source compilation removes
+  // them, then the validated overlay restores their current governed form.
+  const generatedLines = new Set([...generated.additions, ...generated.deletions]);
   return {
-    additions: [...base.additions, ...generated.additions],
-    deletions: [...base.deletions, ...generated.deletions],
+    additions: [...base.additions.filter((line) => !generatedLines.has(line)), ...generated.additions],
+    deletions: [...base.deletions.filter((line) => !generatedLines.has(line)), ...generated.deletions],
   };
 }
 
