@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import { DataFactory, Parser, Store } from 'n3';
@@ -23,7 +24,7 @@ const {
   RDF_TYPE, term, iri, objects, subjects, validateEvidenceContext, validateRawAcquisition,
   expectedSupportingManifests,
 } = evaluationInternals;
-const root = resolve(process.env.USF_TEST_REPOSITORY_ROOT || process.cwd());
+const root = fileURLToPath(new URL('../..', import.meta.url));
 const baseline = loadSemanticStore(root).store;
 const decision = iri('urn:usf:realisationdecision:semanticmodelcompilationrealisation');
 const architectureDecision = iri('urn:usf:realisationdecision:repositoryarchitectureandnaming');

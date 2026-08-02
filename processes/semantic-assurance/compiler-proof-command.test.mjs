@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import { discoverTestInventory, TEST_PROFILES } from '../../assurance/semantic-model-compilation/test-runner.mjs';
@@ -18,6 +19,7 @@ const configuration = Object.freeze({
 });
 const resolveSecret = () => 'opaque-test-secret';
 const runtimeRoots = [];
+const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
 
 function localShaclRuntimeFixture() {
   const root = mkdtempSync(join(tmpdir(), 'compiler-proof-shacl-runtime-'));
@@ -68,7 +70,7 @@ test('accepts only the exact configuration and explicit secret resolver pair wit
   assert.throws(() => compilerProofCommandInternals.validateLocalShaclRuntime(), /absolute launcher and resolved executable paths/);
   const runtime = localShaclRuntimeFixture();
   assert.equal(compilerProofCommandInternals.validateLocalShaclRuntime(runtime).executableDigest, runtime.executableDigest);
-  const shaclScope = compilerProofCommandInternals.deriveRegisteredShaclScope(process.cwd());
+  const shaclScope = compilerProofCommandInternals.deriveRegisteredShaclScope(repositoryRoot);
   assert.ok(shaclScope.registeredSparqlConstraintCount > 0);
   assert.ok(shaclScope.shapeSourceFileCount > 0);
   assert.ok(shaclScope.liveValidationDocumentCount > 0);
@@ -81,7 +83,7 @@ test('accepts only the exact configuration and explicit secret resolver pair wit
 
 test('binds every discovered semantic-assurance test into the immutable proof source inventory', () => {
   const inventory = discoverTestInventory({
-    repositoryRoot: process.cwd(),
+    repositoryRoot,
     authorisedRoots: TEST_PROFILES['semantic-assurance'],
   });
   assert.equal(

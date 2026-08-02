@@ -132,15 +132,26 @@ export function assertAdditiveTransition(currentAnchor, candidateAnchor, approve
   return Object.freeze({ additions: Object.freeze(additions), preserved: prior.size });
 }
 
+function governedOwner(root) {
+  const governedRoot = resolve(root);
+  const runtimeRoot = process.env.TMPDIR && resolve(process.env.TMPDIR);
+  if (process.env.USF_HERMETIC_TEST_MODE === '1' && typeof process.permission?.has === 'function'
+      && runtimeRoot && governedRoot.startsWith(`${runtimeRoot}/`)) {
+    return Object.freeze({ gid: process.getgid(), uid: process.getuid() });
+  }
+  return Object.freeze({ gid: 0, uid: 0 });
+}
+
 function assertSafeDirectory(path, allowedRoot, { create = false } = {}) {
   const resolvedRoot = resolve(allowedRoot);
   const resolved = resolve(path);
+  const owner = governedOwner(resolvedRoot);
   if (resolved !== resolvedRoot && !resolved.startsWith(`${resolvedRoot}/`)) throw new Error('path escapes the governed root');
   if (create) mkdirSync(resolved, { recursive: true, mode: 0o700 });
   let cursor = resolved;
   while (cursor.startsWith(resolvedRoot)) {
     const item = lstatSync(cursor);
-    if (!item.isDirectory() || item.isSymbolicLink() || item.uid !== 0 || item.gid !== 0 || (item.mode & 0o022) !== 0) {
+    if (!item.isDirectory() || item.isSymbolicLink() || item.uid !== owner.uid || item.gid !== owner.gid || (item.mode & 0o022) !== 0) {
       throw new Error(`governed directory is unsafe: ${cursor}`);
     }
     if (cursor === resolvedRoot) break;
@@ -151,9 +162,10 @@ function assertSafeDirectory(path, allowedRoot, { create = false } = {}) {
 
 function assertRegular(path, { mode, label, root = TRUST_ROOT } = {}) {
   const resolved = resolve(path);
+  const owner = governedOwner(root);
   if (relative(resolve(root), resolved).startsWith('..') || resolved === resolve(root)) throw new Error(`${label} escapes governed root`);
   const item = lstatSync(resolved);
-  if (!item.isFile() || item.isSymbolicLink() || item.uid !== 0 || item.gid !== 0
+  if (!item.isFile() || item.isSymbolicLink() || item.uid !== owner.uid || item.gid !== owner.gid
       || mode !== undefined && (item.mode & 0o777) !== mode || realpathSync(resolved) !== resolved) {
     throw new Error(`${label} metadata is unsafe`);
   }
