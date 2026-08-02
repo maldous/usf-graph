@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import {
   chmodSync,
   closeSync,
+  existsSync,
   fsyncSync,
   lstatSync,
   mkdirSync,
@@ -18,6 +19,8 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+
+import { GOVERNANCE_ROOT, verifyInstalledAnchor } from './root-trust-v1.mjs';
 
 export const SEMANTIC_PROOF_PROTOCOL = 'semantic-proof-v1';
 export const AUTHORITY_FINGERPRINT = 'B6CBC89C7978AF26F53C33A197E5F20D2A340E5D';
@@ -38,6 +41,14 @@ export const APPROVED_AUTHORITY_SCOPES = Object.freeze([
     authorityDomain: 'urn:usf:capabilityowner:semanticmodelcompilation',
     repository: 'maldous/usf-graph',
   }),
+]);
+export const FACTORY_PROVIDER_DURABLE_CONTROL_PLANE_SCOPE = Object.freeze({
+  authorityDomain: 'urn:usf:capabilityowner:factoryproviderdurablecontrolplane',
+  repository: 'maldous/usf-factory',
+});
+export const GOVERNED_AUTHORITY_SCOPES = Object.freeze([
+  FACTORY_PROVIDER_DURABLE_CONTROL_PLANE_SCOPE,
+  ...APPROVED_AUTHORITY_SCOPES,
 ]);
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
@@ -144,8 +155,17 @@ function assertTrustAnchor(anchor) {
   exactObject(anchor, TRUST_ANCHOR_FIELDS, 'trust anchor');
   if (!Array.isArray(anchor.authorityScopes)) throw new Error('trust anchor authority scopes must be an array');
   const scopes = anchor.authorityScopes.map((scope) => exactObject(scope, TRUST_ANCHOR_SCOPE_FIELDS, 'trust anchor authority scope'));
-  if (canonicalJson(scopes) !== canonicalJson(APPROVED_AUTHORITY_SCOPES)) {
-    throw new Error('trust anchor must pin exactly the approved authority domain and repository pairs');
+  const observed = canonicalJson(scopes);
+  if (observed === canonicalJson(APPROVED_AUTHORITY_SCOPES)) return anchor;
+  if (observed !== canonicalJson(GOVERNED_AUTHORITY_SCOPES)) {
+    throw new Error('trust anchor contains an unapproved authority domain or repository pair');
+  }
+  if (!existsSync(`${GOVERNANCE_ROOT}/registry.json`)) {
+    throw new Error('extended trust anchor requires the governed root-trust version registry');
+  }
+  const governed = verifyInstalledAnchor();
+  if (canonicalJson(governed.anchor) !== canonicalJson(anchor)) {
+    throw new Error('extended trust anchor differs from the active governed registry version');
   }
   return anchor;
 }
