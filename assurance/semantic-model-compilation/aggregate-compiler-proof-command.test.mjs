@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
@@ -177,6 +177,10 @@ function casPath(root, contentDigest) {
 function putCas(root, bytes, claimed = sha256(bytes)) {
   const path = casPath(root, claimed);
   mkdirSync(join(path, '..'), { recursive: true });
+  if (existsSync(path)) {
+    assert.deepEqual(readFileSync(path), bytes);
+    return claimed;
+  }
   writeFileSync(path, bytes);
   return claimed;
 }
