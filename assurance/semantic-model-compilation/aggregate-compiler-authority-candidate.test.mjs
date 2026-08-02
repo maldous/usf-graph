@@ -727,6 +727,16 @@ test('rejects omitted, cross-scoped or substituted owner assignments', () => {
     { code: 'CANDIDATE_OWNER_BINDING_INVALID' });
 });
 
+test('reuses active owner assignments without rewriting their historical issuance baseline', () => {
+  const input = stage1Input();
+  input.ownerAuthority.semanticmodelcompilation.assignment.authorityPreDigest = digest('d');
+  input.ownerAuthority.providerconfigurationplane.assignment.authorityPreDigest = digest('e');
+  const candidate = materializeAggregateCompilerAuthorityCandidate(input);
+  assert.equal(candidate.stage, 'stage1');
+  assert.match(candidate.bytes.toString('utf8'), /sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/);
+  assert.match(candidate.bytes.toString('utf8'), /sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/);
+});
+
 test('rejects stage-1 publication transition and any future authority self-reference', () => {
   const candidate = stage2Input(); candidate.stage2Package.publicationReceipt.candidate_digest = digest('9');
   assert.throws(() => materializeAggregateCompilerAuthorityCandidate(candidate),

@@ -292,8 +292,11 @@ function validateOwner(owner, pending, scope) {
   exactKeys(owner.descriptor, DESCRIPTOR_KEYS, 'CANDIDATE_OWNER_SCHEMA_INVALID', 'CAS descriptor');
   exactKeys(owner.verifier, VERIFIER_KEYS, 'CANDIDATE_OWNER_SCHEMA_INVALID', 'external verifier');
   const assignmentPaths = paths(owner.assignment.sourcePaths, 'owner assignment paths');
-  if (owner.assignment.authorityPreDigest !== pending.evaluatedAuthorityDigest
-      || owner.assignment.sourceScopeDigest !== sourceScopeDigest(assignmentPaths)
+  // Owner assignments are reusable grants. Their authority pre-digest records
+  // the baseline at which the assignment was issued; it is not the baseline of
+  // every later publication that lawfully reuses the active assignment.
+  digest(owner.assignment.authorityPreDigest, 'assignment authority pre-digest');
+  if (owner.assignment.sourceScopeDigest !== sourceScopeDigest(assignmentPaths)
       || owner.assignment.candidateDigest !== ownerAssignmentCandidateDigest({
         authorityDomain: scope.domain, principal: AUTHORITY_PRINCIPAL, repository: scope.repository,
         sourcePaths: assignmentPaths,
