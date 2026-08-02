@@ -302,6 +302,22 @@ test('genesis installation, bounded extension, replay rejection, rollback and re
   assert.equal(final.version, 3);
   assert.equal(final.fileDigest, sha256(canonicalBytes(extended)));
   assert.equal(readRegistry(s.governanceRoot, s.root).versions.length, 4);
+  const restoreRollback = {
+    payload: {
+      ...rollback.payload,
+      current_anchor_file_digest: sha256(canonicalBytes(extended)),
+      current_version: 3,
+      nonce: '66666666-6666-4666-8666-666666666666',
+      reason_digest: d('restored-version-rehearsal'),
+      rollback_to_version: 1,
+    },
+    signature,
+  };
+  rollbackAnchor({
+    ...s, grantEnvelope: restoreRollback, rolledBackAt: NOW, signatureVerifier: validSignature, trustRoot: s.root,
+  });
+  assert.equal(verifyInstalledAnchor({ ...s, trustRoot: s.root }).version, 1);
+  assert.equal(readRegistry(s.governanceRoot, s.root).versions[3].state, 'rolled-back');
 });
 
 for (const fault of ['before-rename', 'after-rename']) {

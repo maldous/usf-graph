@@ -526,7 +526,8 @@ export function rollbackAnchor({
     signatureVerifier,
   });
   const current = registry.versions[registry.current_version];
-  const previous = registry.versions[registry.current_version - 1];
+  const previous = registry.versions[current.predecessor_version];
+  if (!previous) throw new Error('active version has no verified predecessor binding');
   if (grant.target_anchor_path !== anchorPath || grant.target_installation_root !== trustRoot
       || grant.current_version !== current.version || grant.rollback_to_version !== previous.version
       || grant.current_anchor_file_digest !== current.anchor_file_digest
