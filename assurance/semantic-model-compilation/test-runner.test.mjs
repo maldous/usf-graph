@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import net from 'node:net';
 import { tmpdir } from 'node:os';
@@ -318,14 +318,21 @@ test('rejects undeclared or mutated staged bytes before and during execution', (
   let invoked = false;
   expectCode(() => executeTestInventory(inventory, {
     ...common,
-    beforeExecute: ({ snapshotRoot }) => writeFileSync(join(snapshotRoot, 'undeclared.mjs'), 'export {};\n'),
+    beforeExecute: ({ snapshotRoot }) => {
+      chmodSync(snapshotRoot, 0o700);
+      writeFileSync(join(snapshotRoot, 'undeclared.mjs'), 'export {};\n');
+      chmodSync(snapshotRoot, 0o500);
+    },
     execute: () => { invoked = true; return ''; },
   }), 'INVENTORY_DIGEST_CHANGED');
   assert.equal(invoked, false);
   expectCode(() => executeTestInventory(inventory, {
     ...common,
     execute: (_executable, args, options) => {
-      writeFileSync(args.find((path) => path.endsWith('/authorised/alpha.test.mjs')), 'export {};\n');
+      const stagedAlpha = args.find((path) => path.endsWith('/authorised/alpha.test.mjs'));
+      chmodSync(stagedAlpha, 0o600);
+      writeFileSync(stagedAlpha, 'export {};\n');
+      chmodSync(stagedAlpha, 0o400);
       return successfulOutput(args, options);
     },
   }), 'INVENTORY_DIGEST_CHANGED');
