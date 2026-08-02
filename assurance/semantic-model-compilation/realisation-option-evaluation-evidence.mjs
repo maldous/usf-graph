@@ -1250,9 +1250,14 @@ if (process.argv.includes('--replace-evidence')) {
   const target = join(root, 'semantic-model/assurance/evidence.trig');
   const current = readFileSync(target, 'utf8');
   const marker = '<urn:usf:evidencefreshnesspolicy:realisationoptionevaluationthirtydays> a usf:EvidenceRetentionPolicy;';
+  const preservedExternalEvidenceMarker = '<urn:usf:validatorrule:validateexternalroottrustevidence> a usf:ValidatorRule;';
   const markerIndex = current.indexOf(marker);
   const closureIndex = current.lastIndexOf('\n}\n');
   if (markerIndex < 0 || closureIndex < markerIndex) throw new Error('evidence graph does not expose the expected replaceable option-evaluation block');
-  writeFileSync(target, `${current.slice(0, markerIndex).trimEnd()}\n${evidenceGraph.join('\n')}\n\n}\n`);
+  const preservedExternalEvidenceIndex = current.indexOf(preservedExternalEvidenceMarker, markerIndex);
+  const preservedExternalEvidence = preservedExternalEvidenceIndex >= 0
+    ? current.slice(preservedExternalEvidenceIndex, closureIndex).trim()
+    : '';
+  writeFileSync(target, `${current.slice(0, markerIndex).trimEnd()}\n${evidenceGraph.join('\n')}${preservedExternalEvidence ? `\n\n${preservedExternalEvidence}` : ''}\n\n}\n`);
 }
 console.log(canonicalJson({ evidenceDigest, attestationDigest, evaluationDependencySetDigest, implementationSourceDigest, evidenceProducerDigest, assessmentCount: assessmentRecords.length, casPath }));

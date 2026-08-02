@@ -912,15 +912,18 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
     authorityScopes: [
       { authorityDomain: 'urn:usf:capabilityowner:semanticmodelcompilation', repository: 'maldous/usf-graph' },
       { authorityDomain: 'urn:usf:capabilityowner:providerconfigurationplane', repository: 'maldous/usf-factory' },
+      { authorityDomain: 'urn:usf:capabilityowner:factoryproviderdurablecontrolplane', repository: 'maldous/usf-factory' },
     ],
     fingerprint: 'B6CBC89C7978AF26F53C33A197E5F20D2A340E5D', githubPrincipal: 'maldous',
     principal: protocolModule.AUTHORITY_PRINCIPAL, protocol: 'semantic-proof-v1',
   };
   const graphPaths = AGGREGATE_REVIEWED_SOURCE_PATHS;
   const providerPaths = ['src/usf_factory/provider_catalog.py'];
+  const durableProviderPaths = ['src/usf_factory/v3_events.py'];
   const ownerAssignments = [
     { authorityDomain: 'urn:usf:capabilityowner:semanticmodelcompilation', repository: 'maldous/usf-graph', sourcePaths: graphPaths, envelope: { payload: { authority_pre_digest: d0 }, signature: 'fixture' } },
     { authorityDomain: 'urn:usf:capabilityowner:providerconfigurationplane', repository: 'maldous/usf-factory', sourcePaths: providerPaths, envelope: { payload: { authority_pre_digest: d0 }, signature: 'fixture' } },
+    { authorityDomain: 'urn:usf:capabilityowner:factoryproviderdurablecontrolplane', repository: 'maldous/usf-factory', sourcePaths: durableProviderPaths, envelope: { payload: { authority_pre_digest: d0 }, signature: 'fixture' } },
   ];
   const verifyOwnerAssignment = (envelope, options) => ({
     algorithm: trustAnchor.algorithm,

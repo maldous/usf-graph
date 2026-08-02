@@ -45,9 +45,11 @@ const POST_PUBLICATION_JOURNAL_STATES = new Set([
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const GRAPH_DOMAIN = 'urn:usf:capabilityowner:semanticmodelcompilation';
 const FACTORY_DOMAIN = 'urn:usf:capabilityowner:providerconfigurationplane';
+const FACTORY_DURABLE_DOMAIN = 'urn:usf:capabilityowner:factoryproviderdurablecontrolplane';
 const OWNER_SCOPES = Object.freeze([
   Object.freeze({ authorityDomain: GRAPH_DOMAIN, repository: 'maldous/usf-graph' }),
   Object.freeze({ authorityDomain: FACTORY_DOMAIN, repository: 'maldous/usf-factory' }),
+  Object.freeze({ authorityDomain: FACTORY_DURABLE_DOMAIN, repository: 'maldous/usf-factory' }),
 ]);
 const COMPILER_VALIDATION_EVIDENCE_IRI =
   'urn:usf:validationevidence:compilersemanticenforcementcompilervalidation';
@@ -324,8 +326,12 @@ function ownerAuthorityFromVerification({ assignments, pendingPackage, trustAnch
     })];
   });
   const authority = Object.freeze(Object.fromEntries(values));
-  if (Object.keys(authority).sort().join(',') !== 'providerconfigurationplane,semanticmodelcompilation') {
-    throw new Error('verified owner authority did not produce the exact two owner domains');
+  const expectedOwnerKeys = OWNER_SCOPES
+    .map(({ authorityDomain }) => authorityDomain.slice(authorityDomain.lastIndexOf(':') + 1))
+    .sort()
+    .join(',');
+  if (Object.keys(authority).sort().join(',') !== expectedOwnerKeys) {
+    throw new Error(`verified owner authority did not produce the exact ${OWNER_SCOPES.length} owner domains`);
   }
   return authority;
 }
@@ -428,7 +434,7 @@ function verifyReevaluationEvidence(preparation, evidenceStore) {
 
 function ownerAssignmentSet(ownerAssignments) {
   if (!Array.isArray(ownerAssignments) || ownerAssignments.length !== OWNER_SCOPES.length) {
-    throw new Error('exactly two independently scoped owner assignments are required');
+    throw new Error(`exactly ${OWNER_SCOPES.length} independently scoped owner assignments are required`);
   }
   return Object.freeze(OWNER_SCOPES.map((scope) => {
     const matches = ownerAssignments.filter((entry) => entry?.authorityDomain === scope.authorityDomain
@@ -1273,6 +1279,12 @@ export async function main({
         sourcePaths: repeatedArgument(argv, 'provider-source-path'),
         envelope: readEnvelope(requiredArgument(argv, 'owner-assignment-providerconfigurationplane')),
       },
+      {
+        authorityDomain: FACTORY_DURABLE_DOMAIN,
+        repository: 'maldous/usf-factory',
+        sourcePaths: repeatedArgument(argv, 'provider-v3-source-path'),
+        envelope: readEnvelope(requiredArgument(argv, 'owner-assignment-factoryproviderdurablecontrolplane')),
+      },
     ];
     const claims = Object.freeze({
       stage1: Object.freeze({
@@ -1342,6 +1354,12 @@ export async function main({
         repository: 'maldous/usf-factory',
         sourcePaths: repeatedArgument(argv, 'provider-source-path'),
         envelope: readEnvelope(requiredArgument(argv, 'owner-assignment-providerconfigurationplane')),
+      },
+      {
+        authorityDomain: FACTORY_DURABLE_DOMAIN,
+        repository: 'maldous/usf-factory',
+        sourcePaths: repeatedArgument(argv, 'provider-v3-source-path'),
+        envelope: readEnvelope(requiredArgument(argv, 'owner-assignment-factoryproviderdurablecontrolplane')),
       },
     ];
     result = await runPublication({

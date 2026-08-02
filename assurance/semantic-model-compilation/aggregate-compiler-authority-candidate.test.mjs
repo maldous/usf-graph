@@ -171,6 +171,16 @@ function ownerAuthorityFor({ admission, descriptor, descriptorReceipt, domain, e
 
 function ownerAuthority() {
   return {
+    factoryproviderdurablecontrolplane: ownerAuthorityFor({
+      admission: 'c',
+      descriptor: 'f',
+      descriptorReceipt: '7',
+      domain: 'urn:usf:capabilityowner:factoryproviderdurablecontrolplane',
+      envelope: 'e',
+      repository: 'maldous/usf-factory',
+      sourcePaths: FACTORY_PATHS,
+      verification: 'b',
+    }),
     providerconfigurationplane: ownerAuthorityFor({
       admission: 'a',
       descriptor: 'd',
@@ -502,9 +512,10 @@ test('stage 2 desired overlay converges after source reload and preserves stage-
     quad.includes('compilersemanticenforcementaggregateprepublication')), true);
 });
 
-test('stage 1 materializes both independently scoped owner assignments and every referenced admission path', () => {
+test('stage 1 materializes all independently scoped owner assignments and every referenced admission path', () => {
   const { additions } = parsePatch(materializeAggregateCompilerAuthorityCandidate(stage1Input()).bytes);
   const expectations = [
+    ['factoryproviderdurablecontrolplane', 'maldous/usf-factory'],
     ['providerconfigurationplane', 'maldous/usf-factory'],
     ['semanticmodelcompilation', 'maldous/usf-graph'],
   ];

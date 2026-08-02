@@ -93,6 +93,16 @@ const EXCLUDED_AUTHORITY_GRAPHS = Object.freeze([
 ]);
 
 const OWNER_SCOPES = Object.freeze({
+  factoryproviderdurablecontrolplane: Object.freeze({
+    assignment: 'urn:usf:ownerassignment:factoryproviderdurablecontrolplane:matthewaldous',
+    domain: 'urn:usf:capabilityowner:factoryproviderdurablecontrolplane',
+    evidenceAdmissionPath: 'urn:usf:evidenceadmissionpath:ownerassignment:factoryproviderdurablecontrolplane:matthewaldous',
+    repository: 'maldous/usf-factory',
+    validationProducer: 'urn:usf:validationproducer:ownerassignment:factoryproviderdurablecontrolplane:matthewaldous',
+    verification: 'urn:usf:semanticproofverification:ownerassignment:factoryproviderdurablecontrolplane:matthewaldous',
+    verificationAdmission: 'urn:usf:semanticproofverificationadmission:ownerassignment:factoryproviderdurablecontrolplane:matthewaldous',
+    verificationDescriptor: 'urn:usf:semanticproofcasdescriptor:ownerassignment:factoryproviderdurablecontrolplane:matthewaldous',
+  }),
   providerconfigurationplane: Object.freeze({
     assignment: 'urn:usf:ownerassignment:providerconfigurationplane:matthewaldous',
     domain: 'urn:usf:capabilityowner:providerconfigurationplane',
@@ -318,7 +328,7 @@ function validateOwners(owners, pending) {
   const validated = Object.fromEntries(OWNER_SCOPE_KEYS.map((key) => [key, validateOwner(owners[key], pending, OWNER_SCOPES[key])]));
   const verifier = canonicalJson(validated[OWNER_SCOPE_KEYS[0]].verifier);
   if (OWNER_SCOPE_KEYS.some((key) => canonicalJson(validated[key].verifier) !== verifier)) {
-    fail('CANDIDATE_OWNER_BINDING_INVALID', 'both owner assignments must use the same canonical external verifier');
+    fail('CANDIDATE_OWNER_BINDING_INVALID', 'all owner assignments must use the same canonical external verifier');
   }
   const unique = (selector, label) => {
     const values = OWNER_SCOPE_KEYS.map((key) => selector(validated[key]));

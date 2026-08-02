@@ -26,6 +26,13 @@ const PROVIDER_FORMATS = Object.freeze([
   'pythonsource311',
   'yamlconfiguration12',
 ]);
+const PROVIDER_CONFIGURATION_FORMATS = Object.freeze([
+  'environmentvariableexample',
+  'markdowncommonmark',
+  'pythonsource311',
+  'sqltext',
+  'yamlconfiguration12',
+]);
 const GRAPH_FORMATS = Object.freeze([
   'ecmascriptmodule2024',
   'graphqlschema',
@@ -311,19 +318,19 @@ test('provider and graph decisions retain their exact bounded format sets', () =
     store,
     namedNode(`urn:usf:realisationdecision:${name}`),
   );
-  for (const name of [
-    'providerconfigurationplanefactoryworkforce',
-    'providerenvironmentclassificationfactoryworkforce',
-    'servicecatalogandproviderintegrationmodelfactoryworkforce',
+  for (const [name, expectedFormats] of [
+    ['providerconfigurationplanefactoryworkforce', PROVIDER_CONFIGURATION_FORMATS],
+    ['providerenvironmentclassificationfactoryworkforce', PROVIDER_FORMATS],
+    ['servicecatalogandproviderintegrationmodelfactoryworkforce', PROVIDER_FORMATS],
   ]) {
     const record = decision(name);
-    assert.deepEqual(record.formats.map(({ id }) => id), PROVIDER_FORMATS, name);
+    assert.deepEqual(record.formats.map(({ id }) => id), expectedFormats, name);
     assert.ok(record.paths.includes('src/usf_factory/providers'), name);
     assert.ok(record.paths.includes('.env.example'), name);
-    for (const removed of PROVIDER_FORMATS) {
+    for (const removed of expectedFormats) {
       assert.notDeepEqual(
         record.formats.filter(({ id }) => id !== removed).map(({ id }) => id),
-        PROVIDER_FORMATS,
+        expectedFormats,
         `${name}:${removed}`,
       );
     }

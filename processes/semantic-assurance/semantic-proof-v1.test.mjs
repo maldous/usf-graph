@@ -203,7 +203,7 @@ test('owner domains are independently scoped and all three claim types use one v
   }), /not approved by the external trust anchor/);
 });
 
-test('external trust anchor pins exactly the two approved domain and repository pairs', () => {
+test('external trust anchor preserves the base pairs and rejects ungoverned or unknown extensions', () => {
   const factoryDomain = 'urn:usf:capabilityowner:providerconfigurationplane';
   const factoryRepository = 'maldous/usf-factory';
   const factoryPaths = ['factory/provider_catalog.py'];
@@ -224,7 +224,7 @@ test('external trust anchor pins exactly the two approved domain and repository 
   }), /not approved by the external trust anchor/);
   assert.throws(() => verify(envelope('candidate_approval'), {
     trustAnchor: { ...anchor, authorityScopes: [APPROVED_AUTHORITY_SCOPES[1]] },
-  }), /must pin exactly/);
+  }), /unapproved authority domain or repository pair/);
   assert.throws(() => verify(envelope('candidate_approval'), {
     trustAnchor: {
       ...anchor,
@@ -232,7 +232,7 @@ test('external trust anchor pins exactly the two approved domain and repository 
         authorityDomain: 'urn:usf:capabilityowner:unapproved', repository: 'maldous/unapproved',
       }],
     },
-  }), /must pin exactly/);
+  }), /unapproved authority domain or repository pair/);
 });
 
 test('real OpenPGP detached verification accepts the ephemeral signer and rejects tampering and a wrong key', () => {
