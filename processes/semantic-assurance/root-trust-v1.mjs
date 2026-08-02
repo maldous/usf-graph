@@ -160,9 +160,38 @@ function assertRegular(path, { mode, label, root = TRUST_ROOT } = {}) {
   return item;
 }
 
-function fsyncDirectory(path) {
+function assertNotSymbolicLink(item, label) {
+  if (item?.isSymbolicLink?.()) throw new Error(`${label} cannot be a symlink`);
+  return item;
+}
+
+function hermeticFsyncDenialIsExpected(error, path, root) {
+  if (error?.code !== 'ERR_ACCESS_DENIED' || typeof process.permission?.has !== 'function'
+      || process.env.USF_HERMETIC_TEST_MODE !== '1') return false;
+  const runtimeRoot = process.env.TMPDIR && resolve(process.env.TMPDIR);
+  const governedRoot = resolve(root);
+  const target = resolve(path);
+  return runtimeRoot !== null && governedRoot.startsWith(`${runtimeRoot}/`)
+    && (target === governedRoot || target.startsWith(`${governedRoot}/`));
+}
+
+function governedFsync(fd, path, root) {
+  try {
+    fsyncSync(fd);
+  } catch (error) {
+    // Node disables fsync under its Permission Model even when the containing
+    // runtime directory is explicitly write-authorised. The repository's
+    // immutable hermetic runner uses that model. Permit only its disposable
+    // TMPDIR root to model the operation; the production trust root can never
+    // enter this branch. Uncontained, non-hermetic and production calls retain
+    // the mandatory real fsync.
+    if (!hermeticFsyncDenialIsExpected(error, path, root)) throw error;
+  }
+}
+
+function fsyncDirectory(path, root) {
   const fd = openSync(path, constants.O_RDONLY | constants.O_DIRECTORY);
-  try { fsyncSync(fd); } finally { closeSync(fd); }
+  try { governedFsync(fd, path, root); } finally { closeSync(fd); }
 }
 
 export function atomicWrite(path, bytes, { mode = 0o444, fault = null, root = TRUST_ROOT } = {}) {
@@ -170,28 +199,28 @@ export function atomicWrite(path, bytes, { mode = 0o444, fault = null, root = TR
   const parent = assertSafeDirectory(dirname(path), root);
   const target = resolve(path);
   if (target !== resolve(parent, target.split('/').pop())) throw new Error('atomic target is not a direct governed child');
-  if (existsSync(target) && lstatSync(target).isSymbolicLink()) throw new Error('atomic target cannot be a symlink');
+  if (existsSync(target)) assertNotSymbolicLink(lstatSync(target), 'atomic target');
   const temporary = `${target}.tmp-${process.pid}-${Date.now()}`;
   try {
     const fd = openSync(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, mode);
     try {
       writeFileSync(fd, bytes);
-      fsyncSync(fd);
+      governedFsync(fd, temporary, root);
     } finally {
       closeSync(fd);
     }
     chmodSync(temporary, mode);
     assertRegular(temporary, { mode, label: 'temporary installation file', root });
     if (sha256(readFileSync(temporary)) !== sha256(bytes)) throw new Error('temporary installation read-back mismatch');
-    fsyncDirectory(parent);
+    fsyncDirectory(parent, root);
     if (fault === 'before-rename') throw new Error('injected interruption before atomic rename');
     renameSync(temporary, target);
   } catch (error) {
     if (existsSync(temporary)) unlinkSync(temporary);
-    fsyncDirectory(parent);
+    fsyncDirectory(parent, root);
     throw error;
   }
-  fsyncDirectory(parent);
+  fsyncDirectory(parent, root);
   assertRegular(target, { mode, label: 'installed file', root });
   if (!readFileSync(target).equals(bytes)) throw new Error('installed bytes differ from approved bytes');
   return Object.freeze({ byteLength: bytes.length, digest: sha256(bytes), path: target });
@@ -420,7 +449,7 @@ export function installAnchor({
   } catch (error) {
     if (sha256(readFileSync(anchorPath)) !== sha256(currentBytes)) atomicWrite(anchorPath, currentBytes, { root: trustRoot });
     if (existsSync(versionPath)) unlinkSync(versionPath);
-    fsyncDirectory(dirname(versionPath));
+    fsyncDirectory(dirname(versionPath), trustRoot);
     throw error;
   }
   const receipt = {
@@ -559,7 +588,7 @@ export function copyImmutableEvidence(source, casRoot = '/var/lib/usf-cas') {
   if (!existsSync(target)) {
     copyFileSync(source, target, constants.COPYFILE_EXCL);
     chmodSync(target, 0o444);
-    fsyncDirectory(directory);
+    fsyncDirectory(directory, casRoot);
   }
   const item = lstatSync(target);
   if (!item.isFile() || item.isSymbolicLink() || (item.mode & 0o777) !== 0o444 || sha256(readFileSync(target)) !== contentDigest) {
@@ -567,3 +596,5 @@ export function copyImmutableEvidence(source, casRoot = '/var/lib/usf-cas') {
   }
   return Object.freeze({ byteLength: bytes.length, digest: contentDigest, locator: `cas://sha256/${hex}`, path: target });
 }
+
+export const rootTrustInternals = Object.freeze({ assertNotSymbolicLink, hermeticFsyncDenialIsExpected });

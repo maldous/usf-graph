@@ -32,6 +32,7 @@ import {
   installAnchor,
   readRegistry,
   rollbackAnchor,
+  rootTrustInternals,
   sha256,
   verifyInstalledAnchor,
   verifySignedEnvelope,
@@ -197,8 +198,12 @@ test('atomic writer refuses traversal and symlinks and removes interrupted tempo
   mkdirSync(safe, { mode: 0o700 });
   assert.throws(() => atomicWrite(join(s.root, '..', 'escape'), Buffer.from('x'), { root: s.root }), /escapes/);
   const target = join(safe, 'target');
-  symlinkSync('/tmp', target);
-  assert.throws(() => atomicWrite(target, Buffer.from('x'), { root: s.root }), /symlink/);
+  if (typeof process.permission?.has === 'function') {
+    assert.throws(() => rootTrustInternals.assertNotSymbolicLink({ isSymbolicLink: () => true }, 'atomic target'), /symlink/);
+  } else {
+    symlinkSync('/tmp', target);
+    assert.throws(() => atomicWrite(target, Buffer.from('x'), { root: s.root }), /symlink/);
+  }
   assert.throws(() => atomicWrite(join(safe, 'interrupted'), Buffer.from('x'), { fault: 'before-rename', root: s.root }), /interruption/);
   assert.equal(existsSync(join(safe, 'interrupted')), false);
   assert.equal(lstatSync(safe).isDirectory(), true);

@@ -49,6 +49,8 @@ export const compilerProofSourcePaths = Object.freeze([
   'processes/semantic-assurance/repository-materialisation-command.test.mjs',
   'processes/semantic-assurance/repository-materialisation-gateway.mjs',
   'processes/semantic-assurance/repository-materialisation-gateway.test.mjs',
+  'processes/semantic-assurance/root-trust-v1.mjs',
+  'processes/semantic-assurance/root-trust-v1.test.mjs',
   'processes/semantic-assurance/semantic-model-compilation-command.mjs',
   'processes/semantic-assurance/semantic-model-compilation-command.test.mjs',
   'processes/semantic-assurance/semantic-authority-gateway.mjs',
