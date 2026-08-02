@@ -1057,7 +1057,7 @@ rule:evidencepayload a usf:MaterialisationRule;
     usf:canonicalName "evidencepayload";
     usf:governedArtefactFamily fam:evidencepayload;
     usf:usesStorageClass storage:contentaddressedobjectstorage;
-    usf:usesRepresentationFormat format:jsondata8259;
+    usf:usesRepresentationFormat format:jsondata8259, format:markdowncommonmark;
     usf:usesNamingRule naming:contentdigestidentity;
     usf:usesNumberingScope numbering:digestonly;
     usf:usesGenerationMode mode:runtime;

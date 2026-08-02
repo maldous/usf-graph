@@ -34,6 +34,7 @@ const DOMAIN = 'urn:usf:capabilityowner:semanticmodelcompilation';
 const REPOSITORY = 'maldous/usf-graph';
 const PATHS = ['processes/semantic-assurance/semantic-proof-v1.mjs'];
 const PROVIDER_PATHS = ['usf_factory/provider_catalogue.py'];
+const PROVIDER_V3_PATHS = ['src/usf_factory/v3_events.py'];
 const INITIAL_NONCE = '00000000-0000-4000-8000-000000000001';
 const REEVALUATION_NONCE = '00000000-0000-4000-8000-000000000002';
 const PUBLISHED_AT = '2026-08-01T12:00:00Z';
@@ -113,6 +114,11 @@ const ownerAssignments = Object.freeze([
     authorityDomain: 'urn:usf:capabilityowner:providerconfigurationplane',
     repository: 'maldous/usf-factory', sourcePaths: PROVIDER_PATHS,
     envelope: { payload: { claim: 'provider-owner' }, signature: 'provider-owner' },
+  }),
+  Object.freeze({
+    authorityDomain: 'urn:usf:capabilityowner:factoryproviderdurablecontrolplane',
+    repository: 'maldous/usf-factory', sourcePaths: PROVIDER_V3_PATHS,
+    envelope: { payload: { claim: 'provider-v3-owner' }, signature: 'provider-v3-owner' },
   }),
 ]);
 
@@ -368,7 +374,7 @@ test('prepare is read-only and derives the canonical candidate without authority
   assert.deepEqual(compiler.calls, [{ expectedAuthorityDigest: PRE, publicationMode: 'validate' }]);
 });
 
-test('both independently scoped owner assignments are verified before validation and CAS bytes round-trip', async () => {
+test('all independently scoped owner assignments are verified before validation and CAS bytes round-trip', async () => {
   const calls = [];
   const store = memoryEvidenceStore();
   const result = await runPublication(invocation({
@@ -378,6 +384,7 @@ test('both independently scoped owner assignments are verified before validation
   assert.deepEqual(calls, [
     [DOMAIN, REPOSITORY],
     ['urn:usf:capabilityowner:providerconfigurationplane', 'maldous/usf-factory'],
+    ['urn:usf:capabilityowner:factoryproviderdurablecontrolplane', 'maldous/usf-factory'],
   ]);
   assert.equal(sha256(store.read(result.validationEvidence.digest)), result.validationEvidence.digest);
 });

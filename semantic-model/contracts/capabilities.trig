@@ -2980,6 +2980,10 @@ cap:productcatalogplansprices usf:repositoryName "product-catalog-plans-prices";
     usf:canonicalName "providerconfigurationplane";
     usf:repositoryName "provider-configuration-plane-owner";
     usf:definition "Accountable and responsible role for the provider configuration plane capability.".
+<urn:usf:capabilityowner:factoryproviderdurablecontrolplane> a usf:CapabilityOwnerRole;
+    usf:canonicalName "factoryproviderdurablecontrolplane";
+    usf:repositoryName "factory-provider-durable-control-plane-owner";
+    usf:definition "Enduring owner role for the bounded Factory provider durable control plane. Implementation generations remain separately constrained by exact source scope, schemas, event versions, admitted validation evidence and activation receipts; this role grants no unrestricted Factory, provider-contact, migration or production authority.".
 cap:providerconfigurationplane usf:repositoryName "provider-configuration-plane";
     usf:definition "Owns the complete semantic and executable delivery of provider configuration plane.";
     usf:accountableOwner <urn:usf:capabilityowner:providerconfigurationplane>;
