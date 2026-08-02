@@ -1734,4 +1734,23 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
   usf:verifiesEvidence <urn:usf:evidenceresult:factoryproviderv3realisationoptionevaluation>;
   usf:verificationState <urn:usf:resultstate:passed>.
 
+<urn:usf:evidenceresult:roottrustgenesisdecision> usf:evidenceFor <urn:usf:semanticcontract:compilersemanticenforcement>.
+<urn:usf:evidenceresult:roottrustgenesisownerassignment> usf:evidenceFor <urn:usf:semanticcontract:compilersemanticenforcement>.
+<urn:usf:evidenceresult:roottrustlifecycleoptionevaluation> usf:evidenceFor <urn:usf:semanticcontract:compilersemanticenforcement>.
+<urn:usf:evidenceresult:roottrustvalidationevidence> usf:evidenceFor <urn:usf:semanticcontract:compilersemanticenforcement>.
+<urn:usf:evidenceresult:roottrustadmissionreceipt> usf:evidenceFor <urn:usf:semanticcontract:compilersemanticenforcement>.
+<urn:usf:evidenceresult:roottrustgenesisinstallationgrant> usf:evidenceFor <urn:usf:semanticcontract:compilersemanticenforcement>.
+<urn:usf:evidenceresult:roottrustgenesisinstallationreceipt> usf:evidenceFor <urn:usf:semanticcontract:compilersemanticenforcement>.
+<urn:usf:evidenceresult:roottrustversionregistry> usf:evidenceFor <urn:usf:semanticcontract:compilersemanticenforcement>.
+<urn:usf:evidenceresult:roottrustrollbackreceipt> usf:evidenceFor <urn:usf:semanticcontract:compilersemanticenforcement>.
+<urn:usf:evidenceresult:factoryproviderv3trustscopedecision> usf:evidenceFor <urn:usf:semanticcontract:providerconfigurationplane>.
+<urn:usf:evidenceresult:factoryproviderv3trustscopeevaluation> usf:evidenceFor <urn:usf:semanticcontract:providerconfigurationplane>.
+<urn:usf:evidenceresult:factoryproviderv3trustscopeextension> usf:evidenceFor <urn:usf:semanticcontract:providerconfigurationplane>.
+<urn:usf:evidenceresult:factoryproviderv3trustscopevalidation> usf:evidenceFor <urn:usf:semanticcontract:providerconfigurationplane>.
+<urn:usf:evidenceresult:factoryproviderv3trustscopeadmission> usf:evidenceFor <urn:usf:semanticcontract:providerconfigurationplane>.
+<urn:usf:evidenceresult:factoryproviderv3trustscopeinstallationgrant> usf:evidenceFor <urn:usf:semanticcontract:providerconfigurationplane>.
+<urn:usf:evidenceresult:factoryproviderv3trustscopeinstallationreceipt> usf:evidenceFor <urn:usf:semanticcontract:providerconfigurationplane>.
+<urn:usf:evidenceresult:factoryproviderv3ownerassignmentenvelope> usf:evidenceFor <urn:usf:semanticcontract:providerconfigurationplane>.
+<urn:usf:evidenceresult:factoryproviderv3realisationoptionevaluation> usf:evidenceFor <urn:usf:semanticcontract:providerconfigurationplane>.
+
 }
