@@ -28,8 +28,8 @@ jobs:
   realisation-option-evaluation-closure:
     runs-on: ${{ fromJSON(((vars.USF_VALIDATE_RUNNER_TARGET == 'github-hosted') || (github.event_name == 'workflow_dispatch' && inputs.runnerTarget == 'github-hosted') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)) && '["ubuntu-latest"]' || (((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.runnerTarget == 'self-hosted') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.runnerTarget == 'auto')) && '["self-hosted","linux","x64","usf","usf-ci","usf-trusted"]' || '["ubuntu-latest"]')) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "22.23.1"
           cache: npm

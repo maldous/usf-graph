@@ -53,3 +53,26 @@ gcl:shapegraph usf:mayConstrain gcl:observedgraph;
     usf:mayReference gcl:observedgraph.
 gcl:rulegraph usf:mayReference gcl:observedgraph.
 gcl:derivedgraph usf:mayReference gcl:observedgraph.
+
+# The graph records scoped assignments and signed-envelope digests. It does not
+# establish its own trust: the authoritative fingerprint is pinned in the
+# root-owned Semantic Proof Protocol v1 trust anchor.
+<urn:usf:semanticproofprotocol:v1> a <urn:usf:ontology:SemanticProofProtocol>;
+    <urn:usf:ontology:canonicalName> "v1";
+    <urn:usf:ontology:protocolIdentifier> "semantic-proof-v1";
+    <urn:usf:ontology:signatureAlgorithm> "openpgp";
+    <urn:usf:ontology:approvalThreshold> 1.
+<urn:usf:signingtrustclass:semanticauthority> a <urn:usf:ontology:SigningTrustClass>;
+    <urn:usf:ontology:canonicalName> "semanticauthority".
+<urn:usf:signingtrustclass:integrityonly> a <urn:usf:ontology:SigningTrustClass>;
+    <urn:usf:ontology:canonicalName> "integrityonly".
+<urn:usf:principal:matthewaldous> a <urn:usf:ontology:SemanticAuthorityPrincipal>;
+    <urn:usf:ontology:canonicalName> "matthewaldous";
+    <urn:usf:ontology:definition> "Matthew Aldous, GitHub principal maldous, authoritative semantic owner.";
+    <urn:usf:ontology:githubPrincipal> "maldous".
+<urn:usf:signingidentity:matthewaldoussemanticproofv1> a <urn:usf:ontology:SemanticAuthoritySigningIdentity>;
+    <urn:usf:ontology:canonicalName> "matthewaldoussemanticproofv1";
+    <urn:usf:ontology:authorityPrincipal> <urn:usf:principal:matthewaldous>;
+    <urn:usf:ontology:signingTrustClass> <urn:usf:signingtrustclass:semanticauthority>;
+    <urn:usf:ontology:signingKeyFingerprint> "B6CBC89C7978AF26F53C33A197E5F20D2A340E5D";
+    <urn:usf:ontology:signatureAlgorithm> "openpgp".

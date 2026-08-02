@@ -476,6 +476,399 @@ usf:mandatoryProofObligation a owl:ObjectProperty;
 usf:reliesOnProofResult a owl:ObjectProperty;
     rdfs:domain usf:SemanticContract;
     rdfs:range usf:ProofResult.
+
+# Semantic Proof Protocol v1. These terms describe authority claims and the
+# deterministic aggregate lifecycle; cryptographic trust remains rooted in the
+# root-owned external trust anchor rather than candidate-defined graph data.
+usf:SemanticAuthorityPrincipal a owl:Class;
+    rdfs:label "Semantic authority principal".
+usf:SemanticAuthoritySigningIdentity a owl:Class;
+    rdfs:subClassOf usf:SigningIdentity;
+    owl:disjointWith usf:IntegritySigningIdentity;
+    rdfs:label "Semantic authority signing identity".
+usf:IntegritySigningIdentity a owl:Class;
+    rdfs:subClassOf usf:SigningIdentity;
+    rdfs:label "Integrity-only signing identity".
+usf:SigningTrustClass a owl:Class;
+    rdfs:label "Signing trust class".
+usf:SemanticProofProtocol a owl:Class;
+    rdfs:label "Semantic proof protocol".
+usf:OwnerAssignment a owl:Class;
+    rdfs:label "Owner assignment".
+usf:SemanticProofEnvelopeVerification a owl:Class;
+    rdfs:label "Admitted semantic proof envelope verification".
+usf:SemanticProofExternalVerifier a owl:Class;
+    rdfs:label "External semantic proof verifier".
+usf:SemanticProofExternalVerifierIdentity a owl:Class;
+    owl:disjointWith usf:SigningIdentity;
+    rdfs:label "External semantic proof verifier identity".
+usf:SemanticProofEnvelopeVerificationAdmission a owl:Class;
+    rdfs:label "Semantic proof envelope verification admission".
+usf:SemanticProofVerificationCASDescriptor a owl:Class;
+    rdfs:label "Semantic proof verification CAS descriptor".
+usf:AggregateProofObligation a owl:Class;
+    rdfs:subClassOf usf:ProofObligation.
+usf:AggregateProofAlgorithm a owl:Class;
+    rdfs:subClassOf usf:ProofAlgorithm.
+usf:AggregateProofExecution a owl:Class;
+    rdfs:subClassOf usf:ProofExecution.
+usf:AggregateProofEvaluation a owl:Class;
+    rdfs:subClassOf usf:ProofEvaluation.
+usf:AggregateProofResult a owl:Class;
+    rdfs:subClassOf usf:ProofResult.
+usf:PrePublicationAggregateProofResult a owl:Class;
+    rdfs:subClassOf usf:AggregateProofResult;
+    owl:disjointWith usf:PostPublicationAggregateProofResult.
+usf:PostPublicationAggregateProofResult a owl:Class;
+    rdfs:subClassOf usf:AggregateProofResult.
+usf:ComponentProofRequirement a owl:Class.
+usf:PostPublicationReevaluation a owl:Class.
+usf:ValidationProducer a owl:Class;
+    rdfs:label "Validation producer".
+usf:EvidenceAdmissionPath a owl:Class;
+    rdfs:label "Evidence admission path".
+usf:ValidationExecution a owl:Class;
+    rdfs:label "Validation execution".
+usf:ValidationEvaluation a owl:Class;
+    rdfs:label "Validation evaluation".
+usf:ValidationResult a owl:Class;
+    rdfs:label "Validation result".
+usf:ValidationEvidence a owl:Class;
+    rdfs:subClassOf usf:EvidenceResult;
+    rdfs:label "Validation evidence".
+usf:ValidationSelfPublicationBinding a owl:Class;
+    rdfs:label "Validation self-publication binding".
+usf:ValidationSelfPublicationAuthorityBinding a owl:Class;
+    rdfs:subClassOf usf:ValidationSelfPublicationBinding;
+    rdfs:label "Historical validation self-publication authority binding".
+usf:authorityPrincipal a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:range usf:SemanticAuthorityPrincipal.
+usf:authoritySigningIdentity a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:range usf:SemanticAuthoritySigningIdentity.
+usf:signingTrustClass a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SigningIdentity;
+    rdfs:range usf:SigningTrustClass.
+usf:authorityDomain a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:range usf:CapabilityOwnerRole.
+usf:githubPrincipal a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:signatureAlgorithm a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:protocolIdentifier a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:approvalThreshold a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:integer.
+usf:authorityRepository a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:ownerAssignmentSourcePath a owl:DatatypeProperty;
+    rdfs:domain usf:OwnerAssignment;
+    rdfs:range xsd:string.
+usf:sourceScopeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:assignmentCandidateDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:assignmentAuthorityPreDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:signedEnvelopeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:assignmentState a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:hasAdmittedEnvelopeVerification a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:OwnerAssignment;
+    rdfs:range usf:SemanticProofEnvelopeVerification.
+usf:verificationForOwnerAssignment a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range usf:OwnerAssignment.
+usf:verifiedBySemanticProofProtocol a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range usf:SemanticProofProtocol.
+usf:verifiedAuthorityPrincipal a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range usf:SemanticAuthorityPrincipal.
+usf:verifiedAuthoritySigningIdentity a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range usf:SemanticAuthoritySigningIdentity.
+usf:verifiedAuthorityDomain a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range usf:CapabilityOwnerRole.
+usf:verifiedAuthorityRepository a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range xsd:string.
+usf:verifiedOwnerAssignmentSourcePath a owl:DatatypeProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range xsd:string.
+usf:verifiedSourceScopeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range xsd:string.
+usf:verifiedAssignmentCandidateDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range xsd:string.
+usf:verifiedAssignmentAuthorityPreDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range xsd:string.
+usf:verifiedEnvelopeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range xsd:string.
+usf:envelopeVerificationState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range usf:ResultState.
+usf:envelopeVerificationAdmissionState a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range xsd:string.
+usf:envelopeVerifiedAt a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range xsd:dateTime.
+usf:envelopeVerificationReceiptDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range xsd:string.
+usf:verifiedByExternalVerifier a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range usf:SemanticProofExternalVerifier.
+usf:hasEnvelopeVerificationAdmission a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range usf:SemanticProofEnvelopeVerificationAdmission.
+usf:verificationCASDescriptor a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerification;
+    rdfs:range usf:SemanticProofVerificationCASDescriptor.
+usf:externalVerifierIdentity a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofExternalVerifier;
+    rdfs:range usf:SemanticProofExternalVerifierIdentity.
+usf:externalVerifierImplementationRelease a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofExternalVerifier;
+    rdfs:range xsd:string.
+usf:externalVerifierRepository a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofExternalVerifier;
+    rdfs:range xsd:string.
+usf:externalVerifierSourceHead a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofExternalVerifier;
+    rdfs:range xsd:string.
+usf:externalVerifierSourceTree a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofExternalVerifier;
+    rdfs:range xsd:string.
+usf:externalVerifierSourcePath a owl:DatatypeProperty;
+    rdfs:domain usf:SemanticProofExternalVerifier;
+    rdfs:range xsd:string.
+usf:externalVerifierSourceScopeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofExternalVerifier;
+    rdfs:range xsd:string.
+usf:externalVerifierIdentityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofExternalVerifierIdentity;
+    rdfs:range xsd:string.
+usf:externalVerifierTrustAnchorDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofExternalVerifierIdentity;
+    rdfs:range xsd:string.
+usf:admitsEnvelopeVerification a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerificationAdmission;
+    rdfs:range usf:SemanticProofEnvelopeVerification.
+usf:verificationAdmissionUsesEvidencePath a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerificationAdmission;
+    rdfs:range usf:EvidenceAdmissionPath.
+usf:admittedVerificationCASDescriptor a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerificationAdmission;
+    rdfs:range usf:SemanticProofVerificationCASDescriptor.
+usf:verificationAdmissionState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerificationAdmission;
+    rdfs:range usf:ResultState.
+usf:verificationAdmissionReceiptDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofEnvelopeVerificationAdmission;
+    rdfs:range xsd:string.
+usf:semanticProofCASDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofVerificationCASDescriptor;
+    rdfs:range xsd:string.
+usf:semanticProofCASByteLength a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofVerificationCASDescriptor;
+    rdfs:range xsd:nonNegativeInteger.
+usf:semanticProofCASMediaType a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofVerificationCASDescriptor;
+    rdfs:range xsd:string.
+usf:semanticProofCASVerificationState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofVerificationCASDescriptor;
+    rdfs:range usf:ResultState.
+usf:semanticProofCASDescriptorReceiptDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticProofVerificationCASDescriptor;
+    rdfs:range xsd:string.
+usf:requiresComponentProof a owl:ObjectProperty;
+    rdfs:domain usf:AggregateProofObligation;
+    rdfs:range usf:ComponentProofRequirement.
+usf:componentObligation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentProofRequirement;
+    rdfs:range usf:ProofObligation.
+usf:componentProofResult a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentProofRequirement;
+    rdfs:range usf:ProofResult.
+usf:componentDimension a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ComponentProofRequirement;
+    rdfs:range xsd:string.
+usf:componentSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:aggregateAlgorithmDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:aggregateSourceHead a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:aggregateAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:hasPostPublicationReevaluation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PostPublicationAggregateProofResult;
+    rdfs:range usf:PostPublicationReevaluation.
+usf:reevaluatesProofResult a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PostPublicationReevaluation;
+    rdfs:range usf:PrePublicationAggregateProofResult.
+usf:reevaluationProducesProofResult a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PostPublicationReevaluation;
+    rdfs:range usf:PostPublicationAggregateProofResult.
+usf:reevaluationAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PostPublicationReevaluation;
+    rdfs:range xsd:string.
+usf:reevaluationSourceHead a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PostPublicationReevaluation;
+    rdfs:range xsd:string.
+usf:reevaluationAlgorithmDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PostPublicationReevaluation;
+    rdfs:range xsd:string.
+usf:reevaluationComponentSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PostPublicationReevaluation;
+    rdfs:range xsd:string.
+usf:reevaluationResultState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PostPublicationReevaluation;
+    rdfs:range usf:ResultState.
+usf:reevaluationEvaluatedAt a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PostPublicationReevaluation;
+    rdfs:range xsd:dateTime.
+usf:reevaluationExecutionReceiptDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PostPublicationReevaluation;
+    rdfs:range xsd:string.
+usf:reevaluationEvaluationReceiptDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PostPublicationReevaluation;
+    rdfs:range xsd:string.
+usf:validationProducerRepository a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationProducer;
+    rdfs:range xsd:string.
+usf:validationProducerRelease a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationProducer;
+    rdfs:range xsd:string.
+usf:validationProducerSourceHead a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationProducer;
+    rdfs:range xsd:string.
+usf:validationProducerSourceTree a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationProducer;
+    rdfs:range xsd:string.
+usf:validationProducerSourcePath a owl:DatatypeProperty;
+    rdfs:domain usf:ValidationProducer;
+    rdfs:range xsd:string.
+usf:validationProducerSourceScopeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationProducer;
+    rdfs:range xsd:string.
+usf:admissionPathForProducer a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceAdmissionPath;
+    rdfs:range usf:ValidationProducer.
+usf:admissionPathRepository a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceAdmissionPath;
+    rdfs:range xsd:string.
+usf:admissionPathSourceHead a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceAdmissionPath;
+    rdfs:range xsd:string.
+usf:admissionPathSourceTree a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceAdmissionPath;
+    rdfs:range xsd:string.
+usf:admissionPathSourcePath a owl:DatatypeProperty;
+    rdfs:domain usf:EvidenceAdmissionPath;
+    rdfs:range xsd:string.
+usf:admissionPathSourceScopeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceAdmissionPath;
+    rdfs:range xsd:string.
+usf:validationExecutedByProducer a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationExecution;
+    rdfs:range usf:ValidationProducer.
+usf:validationUsesEvidenceAdmissionPath a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationExecution;
+    rdfs:range usf:EvidenceAdmissionPath.
+usf:validationExecutionReceiptDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationExecution;
+    rdfs:range xsd:string.
+usf:validationEvaluationOfExecution a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationEvaluation;
+    rdfs:range usf:ValidationExecution.
+usf:validationEvaluationReceiptDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationEvaluation;
+    rdfs:range xsd:string.
+usf:validationResultOfEvaluation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationResult;
+    rdfs:range usf:ValidationEvaluation.
+usf:validationEvidenceForExecution a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationEvidence;
+    rdfs:range usf:ValidationExecution.
+usf:validationEvidenceAdmittedThrough a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationEvidence;
+    rdfs:range usf:EvidenceAdmissionPath.
+usf:hasValidationSelfPublicationAuthorityBinding a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationResult;
+    rdfs:range usf:ValidationSelfPublicationBinding.
+usf:authorityBindingForValidationResult a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range usf:ValidationResult.
+usf:authorityBindingValidationProducer a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range usf:ValidationProducer.
+usf:authorityBindingEvidenceAdmissionPath a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range usf:EvidenceAdmissionPath.
+usf:validationStageOneEvaluatedAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationNonPublicationDependencySetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationNonPublicationDependencyDigestAlgorithm a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationPostPublicationReevaluationState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range usf:ResultState.
+usf:validationStageOneSettledAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationReevaluationDependencyDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingExecutionReceiptDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingEvaluationReceiptDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingProducerRelease a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingRepository a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingSourceHead a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingSourceTree a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingSourcePath a owl:DatatypeProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingSourceScopeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationUsesAuthorityBindingRule a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range usf:AuthorityBindingRule.
+usf:validationRequiresPostPublicationReevaluation a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:boolean.
+usf:validationBindingEnvelopeVerification a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range usf:SemanticProofEnvelopeVerification.
+usf:validationBindingExternalVerifier a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range usf:SemanticProofExternalVerifier.
+usf:validationBindingVerificationCASDescriptor a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range usf:SemanticProofVerificationCASDescriptor.
 usf:warrantsFeature a owl:ObjectProperty;
     rdfs:domain usf:SemanticContract;
     rdfs:range usf:Feature.

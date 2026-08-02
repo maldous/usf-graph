@@ -47,6 +47,7 @@ WHERE {
   ?proof a usf:Proof ; usf:provesSubject ?subject .
   ?execution a usf:ProofExecution ; usf:executesProof ?proof ; usf:producesResult ?result .
   ?result a usf:ProofResult ; usf:resultForProof ?proof ; usf:resultState rs:passed ;
+      usf:proofResultForObligation ?po ;
       usf:observedRung/usf:rungOrder ?observedOrder ; usf:hasFreshness fresh:fresh ;
       usf:usesProviderMode ?mode ; usf:inEnvironment/usf:hasEnvironmentClass ?environmentClass .
   FILTER(?observedOrder >= ?requiredOrder)

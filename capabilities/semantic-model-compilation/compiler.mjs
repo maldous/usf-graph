@@ -124,6 +124,16 @@ export async function canonicalGraphDigest(nquads) {
   };
 }
 
+export async function canonicalInventoryGraphDigest(graph, content) {
+  if (typeof graph !== 'string' || graph.length === 0) {
+    throw new CompilerError('canonical inventory graph IRI is required', { phase: 'authority:inventory' });
+  }
+  const quads = new Parser({ format: NQUADS }).parse(content).map((item) => DataFactory.quad(
+    item.subject, item.predicate, item.object, DataFactory.namedNode(graph),
+  ));
+  return canonicalGraphDigest(await nquadsFor(quads));
+}
+
 function nquadsFor(quads) {
   return new Promise((resolveOutput, reject) => {
     const writer = new Writer({ format: 'N-Quads' });

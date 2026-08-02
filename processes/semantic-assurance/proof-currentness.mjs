@@ -121,7 +121,13 @@ export async function readProofCurrentnessFacts(client, contract) {
       OPTIONAL { ?binding <urn:usf:ontology:usesAuthorityBindingRule> ?rule }
       OPTIONAL { ?binding <urn:usf:ontology:requiresPostPublicationReevaluation> ?requiresReevaluation }
       OPTIONAL { ?binding <urn:usf:ontology:hasPostPublicationReevaluationState> ?reevaluationState }
-      OPTIONAL { ?binding <urn:usf:ontology:reevaluationSettledAuthorityDigest> ?settledDigest }
+      OPTIONAL {
+        { ?binding <urn:usf:ontology:reevaluationSettledAuthorityDigest> ?settledDigest }
+        UNION
+        { ?result <urn:usf:ontology:hasPostPublicationReevaluation> ?reevaluation .
+          ?reevaluation <urn:usf:ontology:reevaluationProducesProofResult> ?result ;
+            <urn:usf:ontology:reevaluationAuthorityDigest> ?settledDigest . }
+      }
       OPTIONAL { ?binding <urn:usf:ontology:reevaluationDependencySetDigest> ?reevaluationDependency }
       OPTIONAL { ?binding <urn:usf:ontology:bindingEvaluatedAuthorityDigest> ?evaluatedDigest }
       OPTIONAL { ?binding <urn:usf:ontology:bindingDependencySetDigest> ?bindingDependency }

@@ -6,6 +6,8 @@ import test from 'node:test';
 
 import { DataFactory, Parser, Store } from 'n3';
 
+import { canonicalInventoryGraphDigest } from '../../capabilities/semantic-model-compilation/compiler.mjs';
+
 import {
   ACTION_STATES, applyLayoutPlan, AUTHORITY_MOVED_CODE, createLayoutPlan, digest, GAP_DISPOSITIONS,
   layoutContext, materialisationInternals, realisationVerdict, REALISATION_STATE_FAILURE_CODES,
@@ -78,6 +80,14 @@ const validationObligation = 'urn:usf:validationobligation:repositoryexternalart
 // is the inventory sum, not the client's size() reading, so that one triple fixes
 // the digest a satisfying result has to bind to be current.
 const witnessDigest = 'sha256:a28dfd4cb3960f9078f558caf098cb215aabad01c74593035ccab63acaf90e76';
+const AUTHORITY_NQUADS = '<urn:s> <urn:p> "materialisation" .\n';
+const authorityGraphDependencyDigest = (await canonicalInventoryGraphDigest('urn:g', AUTHORITY_NQUADS)).sha256;
+const validationDependency = () => materialisationInternals
+  .validationNonPublicationDependencyDigest([{
+    dependencySha256: authorityGraphDependencyDigest,
+    graph: 'urn:g',
+    triples: 1,
+  }]);
 
 function defaultApplicabilityRows(state = 'urn:usf:validationapplicabilitystate:required', extra = {}) {
   return [{
@@ -107,6 +117,72 @@ function satisfyingResultRow({
     ...(boundHead === null ? {} : { boundHead: binding(boundHead) }),
     ...rest,
   };
+}
+
+const validationClosure = Object.freeze({
+  result: 'urn:usf:validationresult:materialisation',
+  binding: 'urn:usf:validationauthoritybinding:materialisation',
+  producer: 'urn:usf:validationproducer:materialisation',
+  admissionPath: 'urn:usf:evidenceadmissionpath:materialisation',
+  evaluation: 'urn:usf:validationevaluation:materialisation',
+  execution: 'urn:usf:validationexecution:materialisation',
+  evidence: 'urn:usf:validationevidence:materialisation',
+  priorAuthority: `sha256:${'76'.repeat(32)}`,
+  evaluatedAuthority: `sha256:${'77'.repeat(32)}`,
+  executionReceipt: `sha256:${'88'.repeat(32)}`,
+  evaluationReceipt: `sha256:${'99'.repeat(32)}`,
+  dependency: validationDependency(),
+  algorithm: 'sha256-rdfc10-nonpublication-graph-inventory-v1',
+  release: 'urn:usf:validationproducerrelease:materialisation-v1',
+  repository: 'maldous/usf-graph',
+  head: 'a'.repeat(40),
+  tree: 'b'.repeat(40),
+  scope: `sha256:${'cc'.repeat(32)}`,
+});
+
+function selfPublicationClosureRow(overrides = {}) {
+  const row = {
+    ...satisfyingResultRow({ result: validationClosure.result, boundAuthority: validationClosure.evaluatedAuthority }),
+    binding: binding(validationClosure.binding),
+    bindingResult: binding(validationClosure.result),
+    bindingRule: binding('urn:usf:authoritybindingrule:validationnonpublicationdependencyclosure'),
+    reevaluationRequired: binding('true'),
+    reevaluationState: binding('urn:usf:resultstate:passed'),
+    stageOneEvaluated: binding(validationClosure.priorAuthority),
+    stageOneSettled: binding(validationClosure.evaluatedAuthority),
+    nonPublicationDependency: binding(validationClosure.dependency),
+    dependencyAlgorithm: binding(validationClosure.algorithm),
+    reevaluationDependency: binding(validationClosure.dependency),
+    bindingExecutionReceipt: binding(validationClosure.executionReceipt),
+    bindingEvaluationReceipt: binding(validationClosure.evaluationReceipt),
+    bindingProducer: binding(validationClosure.producer),
+    bindingAdmissionPath: binding(validationClosure.admissionPath),
+    bindingProducerRelease: binding(validationClosure.release),
+    bindingRepository: binding(validationClosure.repository),
+    bindingSourceHead: binding(validationClosure.head),
+    bindingSourceTree: binding(validationClosure.tree),
+    bindingSourceScope: binding(validationClosure.scope),
+    evaluation: binding(validationClosure.evaluation),
+    evaluationReceipt: binding(validationClosure.evaluationReceipt),
+    execution: binding(validationClosure.execution),
+    executionReceipt: binding(validationClosure.executionReceipt),
+    executionProducer: binding(validationClosure.producer),
+    executionAdmissionPath: binding(validationClosure.admissionPath),
+    evidence: binding(validationClosure.evidence),
+    evidenceExecution: binding(validationClosure.execution),
+    evidenceAdmissionPath: binding(validationClosure.admissionPath),
+    producerRelease: binding(validationClosure.release),
+    producerRepository: binding(validationClosure.repository),
+    producerSourceHead: binding(validationClosure.head),
+    producerSourceTree: binding(validationClosure.tree),
+    producerSourceScope: binding(validationClosure.scope),
+    admissionProducer: binding(validationClosure.producer),
+    admissionRepository: binding(validationClosure.repository),
+    admissionSourceHead: binding(validationClosure.head),
+    admissionSourceTree: binding(validationClosure.tree),
+    admissionSourceScope: binding(validationClosure.scope),
+  };
+  return { ...row, ...overrides };
 }
 
 // A complete, agreeing currentness chain. Every gateway test that is not about
@@ -178,10 +254,11 @@ function fakeClient({
   validationObligationRows = defaultValidationObligationRows(),
   proofGapRows = [],
   currentness = defaultCurrentness(),
+  authorityNQuads = AUTHORITY_NQUADS,
 } = {}) {
   return {
     size: async () => 10,
-    construct: async () => '<urn:s> <urn:p> "materialisation" .\n',
+    construct: async () => authorityNQuads,
     select: async (query) => {
       if (query.includes(`<${decisionFormatPredicate}>`)) {
         if (query.includes('COUNT(DISTINCT ?format) AS ?count')) {
@@ -262,11 +339,13 @@ test('layout context is live-digest-bound and exposes active proof and authorise
   assert.match(context.authorityDigest, /^sha256:[0-9a-f]{64}$/);
   assert.equal(context.authorityDigestAlgorithm, 'sha256-rdfc10-graph-inventory-v2');
   assert.deepEqual(context.authorityGraphInventory, [{
+    dependencySha256: context.authorityGraphInventory[0].dependencySha256,
     graph: 'urn:g',
     sha256: context.authorityGraphInventory[0].sha256,
     triples: 1,
   }]);
   assert.match(context.authorityGraphInventory[0].sha256, /^sha256:[0-9a-f]{64}$/);
+  assert.match(context.authorityGraphInventory[0].dependencySha256, /^sha256:[0-9a-f]{64}$/);
   assert.equal(context.contract.activationState, 'urn:usf:contractactivationstate:active');
   assert.equal(context.contract.proofResultState, 'urn:usf:proofresultstate:successful');
   assert.equal(context.acceptedDecisionCount, 1);
@@ -703,6 +782,93 @@ test('a fully bound current satisfaction is the only state that reports validati
   assert.equal(plan.actionState, 'PROCEED');
   assert.equal(plan.validationSatisfied, true);
   assert.equal(plan.completionClaim, false);
+});
+
+test('complete validation self-publication closure is current after its authority transition', async () => {
+  const client = fakeClient({
+    validationObligationRows: [{
+      ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+      ...selfPublicationClosureRow(),
+    }],
+  });
+  const packet = await projectContract({ client }, { contract });
+  assert.equal(packet.validationObligations[0].satisfactionCurrent, true);
+  assert.equal(packet.validationSatisfied, true);
+  assert.deepEqual(packet.validationGaps, []);
+  assert.equal(packet.actionState, 'PROCEED');
+});
+
+test('validation non-publication closure rejects unrelated authority drift', async () => {
+  const client = fakeClient({
+    authorityNQuads: '<urn:s> <urn:p> "unrelated-drift" .\n',
+    validationObligationRows: [{
+      ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+      ...selfPublicationClosureRow(),
+    }],
+  });
+  const packet = await projectContract({ client }, { contract });
+  assert.equal(packet.validationObligations[0].satisfactionCurrent, false);
+  assert.equal(packet.validationSatisfied, false);
+  assert.equal(packet.actionState, 'BLOCK');
+  assert.deepEqual(packet.validationGaps.map((gap) => gap.code), ['validation-satisfaction-not-current']);
+});
+
+const selfPublicationClosureAdversarialCases = [
+  {
+    name: 'missing immutable execution receipt',
+    mutate: { executionReceipt: undefined },
+  },
+  {
+    name: 'mismatched reevaluation dependency set',
+    mutate: { reevaluationDependency: binding(`sha256:${'dd'.repeat(32)}`) },
+  },
+  {
+    name: 'wrong non-publication dependency algorithm',
+    mutate: { dependencyAlgorithm: binding('sha256:invented') },
+  },
+  {
+    name: 'failed post-publication reevaluation',
+    mutate: { reevaluationState: binding('urn:usf:resultstate:failed') },
+  },
+  {
+    name: 'validation producer substitution',
+    mutate: { executionProducer: binding('urn:usf:validationproducer:substituted') },
+  },
+];
+
+test('incomplete or substituted validation self-publication closures fail currentness', async () => {
+  for (const item of selfPublicationClosureAdversarialCases) {
+    const row = selfPublicationClosureRow(item.mutate);
+    if (item.mutate.executionReceipt === undefined) delete row.executionReceipt;
+    const client = fakeClient({
+      validationObligationRows: [{
+        ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+        ...row,
+      }],
+    });
+    const packet = await projectContract({ client }, { contract });
+    assert.equal(packet.validationSatisfied, false, item.name);
+    assert.equal(packet.validationObligations[0].satisfactionCurrent, false, item.name);
+    assert.equal(packet.actionState, 'BLOCK', item.name);
+    assert.deepEqual(packet.validationGaps.map((gap) => gap.code), ['validation-satisfaction-not-current'], item.name);
+  }
+});
+
+test('ambiguous validation self-publication authority bindings fail currentness', async () => {
+  const first = selfPublicationClosureRow();
+  const second = selfPublicationClosureRow({
+    binding: binding('urn:usf:validationauthoritybinding:ambiguous'),
+    bindingResult: binding(validationClosure.result),
+  });
+  const activation = defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0];
+  const client = fakeClient({
+    validationObligationRows: [{ ...activation, ...first }, { ...activation, ...second }],
+  });
+  const packet = await projectContract({ client }, { contract });
+  assert.equal(packet.validationSatisfied, false);
+  assert.equal(packet.validationObligations[0].satisfactionCurrent, false);
+  assert.equal(packet.actionState, 'BLOCK');
+  assert.deepEqual(packet.validationGaps.map((gap) => gap.code), ['validation-satisfaction-not-current']);
 });
 
 // Adversarial matrix. Each row is the smallest state that could previously have

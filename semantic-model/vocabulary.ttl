@@ -953,7 +953,7 @@ rr:validationapplicabilityunresolved a usf:ReadinessReason;
     usf:standardDefinesSemanticClass owl:AnnotationProperty, owl:Class,
         owl:DatatypeProperty, owl:DeprecatedProperty, owl:FunctionalProperty,
         owl:ObjectProperty, owl:Ontology;
-    usf:standardDefinesSemanticProperty owl:deprecated, owl:inverseOf.
+    usf:standardDefinesSemanticProperty owl:deprecated, owl:disjointWith, owl:inverseOf.
 <urn:usf:standard:xmlschema11datatypes> a usf:TechnicalStandard;
     usf:canonicalName "xmlschema11datatypes";
     usf:standardIdentifier "W3C XML Schema 1.1 Datatypes";
