@@ -2491,7 +2491,7 @@ sc:notificationdeliveryandpreferencesandchannels usf:hasActivationState contract
     usf:mandatoryProofObligation <urn:usf:proofobligation:p1874b31e72692fcb908b9d1c13a86f9ca955777ba0b338339d6b5f0adb5c65af>;
     usf:permittedRealisationType usf:Implementation.
 sc:providerconfigurationplane usf:hasActivationState contractstate:active;
-    usf:activationReason "The original provider-workforce proof continues to warrant its bounded preparation surface. Separately admitted signed V3 implementation, independent evaluation and activation-decision evidence now satisfy the exact providerconfigurationplane validation obligation and warrant only commit 139644ae05565b806748c8a2aa00f4bb7ca9e75a in the nineteen-path Factory durable-control-plane scope. Production operation remains fail-closed on current RunAuthorization, cutover and BAU receipts.";
+    usf:activationReason "The original provider-workforce proof continues to warrant its bounded preparation surface. Separately admitted signed V3 implementation, independent evaluation and activation-decision evidence now satisfy the exact providerconfigurationplane validation obligation and warrant only commit 820bab3a783228d1051a56d4559cd099f68bbdd4 in the nineteen-path Factory durable-control-plane scope. Production operation remains fail-closed on current RunAuthorization, cutover and BAU receipts.";
     usf:requiresRealisationOptionEvaluation true;
     usf:mandatoryProofObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>;
     usf:reliesOnProofResult <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane>, <urn:usf:proofresult:factoryproviderv3implementation>;
@@ -4950,7 +4950,7 @@ sc:writeonlysecretsettings usf:hasValidationApplicability vas:unresolved;
   usf:canonicalName "providerworkforceboundedimplementationauthority".
 <urn:usf:claim:factoryproviderv3boundedproductionauthority> a usf:Claim;
   usf:canonicalName "factoryproviderv3boundedproductionauthority";
-  usf:definition "Authorises only the exact Factory Provider V3 implementation at commit 139644ae05565b806748c8a2aa00f4bb7ca9e75a, tree 3180407598bd699c916d5818b902f6ff410ec783 and source-scope digest sha256:2abeeefc2ea6d538258eb8367388e47fc7201b64899b18dabb35ab30f18b466d, subject to current RunAuthorization and successful cutover and BAU receipts.".
+  usf:definition "Authorises only the exact Factory Provider V3 implementation at commit 820bab3a783228d1051a56d4559cd099f68bbdd4, tree 9bc59ba92c376c35f46af7282465dbf23425da28 and source-scope digest sha256:2abeeefc2ea6d538258eb8367388e47fc7201b64899b18dabb35ab30f18b466d, subject to current RunAuthorization and successful cutover and BAU receipts.".
 <urn:usf:nonclaim:providercredentialsauthority> a usf:NonClaim;
   usf:canonicalName "providercredentialsauthority".
 <urn:usf:nonclaim:providerresearchprovesavailability> a usf:NonClaim;
