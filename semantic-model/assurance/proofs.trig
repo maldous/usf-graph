@@ -632,18 +632,18 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:50693a8f7cf71ef5991edfd654209099004e4d454acce87bab61d37e302be4bd";
-  usf:implementationSourceSetDigest "sha256:337c808436884b804d74fbe97b4a3720260adbad23b654878ca5ac6058952681";
-  usf:dependencySetDigest "sha256:50693a8f7cf71ef5991edfd654209099004e4d454acce87bab61d37e302be4bd";
+  usf:evidenceSetDigest "sha256:a233bae89bedd3a2f3ae0ac1c2acde71275d833fa1fd2a309124c92fceec144b";
+  usf:implementationSourceSetDigest "sha256:2a5dd38aba10a8d3c82c6a6d82fe7ccbf4de8c455a0f4d2753f4fe09ba139954";
+  usf:dependencySetDigest "sha256:a233bae89bedd3a2f3ae0ac1c2acde71275d833fa1fd2a309124c92fceec144b";
   usf:dependencyDigestAlgorithm "sha256-canonical-evidence-file-digest-set-v1";
-  usf:proofProducerCommit "0432fb69fb9f5bf72e90dbbb81509a8e79f29603";
-  usf:proofProducerTree "c8c0f11f8d3b47df9124bb2d4c2a75d9d53c3163";
+  usf:proofProducerCommit "139644ae05565b806748c8a2aa00f4bb7ca9e75a";
+  usf:proofProducerTree "3180407598bd699c916d5818b902f6ff410ec783";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "The proof warrants only the exact V3 implementation at commit 0432fb69fb9f5bf72e90dbbb81509a8e79f29603 within the nineteen-path durable Factory source scope. Production BAU remains conditional on current run authorizations and the cutover and BAU receipts; future implementation generations require new admitted evidence.";
-  usf:evaluatedAt "2026-08-03T02:22:25Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "The proof warrants only the exact V3 implementation at commit 139644ae05565b806748c8a2aa00f4bb7ca9e75a within the nineteen-path durable Factory source scope. Production BAU remains conditional on current run authorizations and the cutover and BAU receipts; future implementation generations require new admitted evidence.";
+  usf:evaluatedAt "2026-08-03T04:14:37Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
 
 }
