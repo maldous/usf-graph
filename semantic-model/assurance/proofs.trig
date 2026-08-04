@@ -632,17 +632,17 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:0d69cdcbd8cb3c071fab718ca40e0069cc9e7457f59eb1666239bcaf7bc1f6af";
-  usf:implementationSourceSetDigest "sha256:a45252aa7e78f0f0bd0973f3dcf058f993541136df458e4b9f562f039dcf0712";
-  usf:dependencySetDigest "sha256:0d69cdcbd8cb3c071fab718ca40e0069cc9e7457f59eb1666239bcaf7bc1f6af";
+  usf:evidenceSetDigest "sha256:dcf6395219aea2f2252064f44ec40316f13d855128ae1337043c7b2111189d38";
+  usf:implementationSourceSetDigest "sha256:b5d94807411e34d9ddf95abeb400d879ad14da6dd4ff8a1aaddd8ae3049de1a7";
+  usf:dependencySetDigest "sha256:dcf6395219aea2f2252064f44ec40316f13d855128ae1337043c7b2111189d38";
   usf:dependencyDigestAlgorithm "sha256-canonical-evidence-file-digest-set-v1";
-  usf:proofProducerCommit "7db4ef8867ace3a1ee7510df293668086326526a";
-  usf:proofProducerTree "b06d8d0bd4bd6a21d525f7dc3ce1558566a11a17";
+  usf:proofProducerCommit "ef839073dc1a317fd7e6bef55c98afec3d66ecc8";
+  usf:proofProducerTree "93ec839c9fec3f4af0b0f6771163a2799c56af27";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "The proof warrants only the exact V3 implementation at commit 7db4ef8867ace3a1ee7510df293668086326526a within the twenty-eight-path durable Factory source scope. Production BAU remains conditional on current run authorizations and the cutover and BAU receipts; future implementation generations require new admitted evidence.";
+  usf:uncertaintyStatement "The proof warrants only the exact V3 implementation at commit ef839073dc1a317fd7e6bef55c98afec3d66ecc8 within the twenty-eight-path durable Factory source scope. Production BAU remains conditional on current run authorizations and the cutover and BAU receipts; future implementation generations require new admitted evidence.";
   usf:evaluatedAt "2026-08-03T23:28:28Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
 
