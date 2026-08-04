@@ -643,7 +643,7 @@
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
   usf:uncertaintyStatement "The proof warrants only the exact V3 implementation at commit ef839073dc1a317fd7e6bef55c98afec3d66ecc8 within the twenty-eight-path durable Factory source scope. Production BAU remains conditional on current run authorizations and the cutover and BAU receipts; future implementation generations require new admitted evidence.";
-  usf:evaluatedAt "2026-08-03T23:28:28Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:evaluatedAt "2026-08-04T01:57:23Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
 
 }
