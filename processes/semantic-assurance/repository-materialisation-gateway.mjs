@@ -545,7 +545,7 @@ async function validationScope(client, contract) {
       }
       OPTIONAL {
         {
-          FILTER(?id = <urn:usf:validationobligation:operationexpectedoutcomeerrorclass>)
+          BIND(<urn:usf:validationobligation:operationexpectedoutcomeerrorclass> AS ?id)
           <urn:usf:permutationfamily:operationexpectedoutcomeerrorclass>
             <urn:usf:ontology:hasFamilyDimensionBinding> ?errorBinding .
           ?errorBinding <urn:usf:ontology:bindsDimension> <urn:usf:permutationdimension:closureerrorclass> .
@@ -558,7 +558,7 @@ async function validationScope(client, contract) {
         }
         UNION
         {
-          FILTER(?id = <urn:usf:validationobligation:resourceactionretentionstatelegalholdstate>)
+          BIND(<urn:usf:validationobligation:resourceactionretentionstatelegalholdstate> AS ?id)
           <urn:usf:permutationfamily:resourceactionretentionstatelegalholdstate>
             <urn:usf:ontology:familyApplicabilityRule> <urn:usf:permutationapplicabilityrule:datamodels> ;
             <urn:usf:ontology:hasFamilyDimensionBinding> ?resourceBinding .
@@ -572,7 +572,7 @@ async function validationScope(client, contract) {
         }
         UNION
         {
-          FILTER(?id = <urn:usf:validationobligation:scheduledjobactionroleserviceidentityenvironmentclass>)
+          BIND(<urn:usf:validationobligation:scheduledjobactionroleserviceidentityenvironmentclass> AS ?id)
           <urn:usf:permutationfamily:scheduledjobactionroleserviceidentityenvironmentclass>
             <urn:usf:ontology:familyApplicabilityRule> <urn:usf:permutationapplicabilityrule:workflows> ;
             <urn:usf:ontology:hasFamilyDimensionBinding> ?scheduledBinding .

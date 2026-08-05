@@ -288,11 +288,13 @@ function fakeClient({
   proofGapRows = [],
   currentness = defaultCurrentness(),
   authorityNQuads = AUTHORITY_NQUADS,
+  queries = [],
 } = {}) {
   return {
     size: async () => 10,
     construct: async () => authorityNQuads,
     select: async (query) => {
+      queries.push(query);
       if (query.includes(`<${decisionFormatPredicate}>`)) {
         if (query.includes('COUNT(DISTINCT ?format) AS ?count')) {
           return decisionFormatCountRows ?? [{ count: binding(String(decisionFormatRows.length)) }];
@@ -829,8 +831,10 @@ test('an activated but unsatisfied validation obligation blocks realisation auth
 });
 
 test('exact live family defects produce exactly three bounded read-only work rows', async () => {
+  const queries = [];
   const plan = await planWork({ client: fakeClient({
     validationObligationRows: durableFamilyValidationRows(),
+    queries,
   }) }, { contract });
   assert.equal(plan.actionState, 'BLOCK');
   assert.equal(plan.gapCount, 3);
@@ -851,6 +855,12 @@ test('exact live family defects produce exactly three bounded read-only work row
     assert.ok(item.subjects.includes(expected.family));
     assert.ok(item.subjects.includes('urn:usf:artefact:permutationfamilysource'));
     assert.deepEqual(item.decisionIds, ['urn:usf:realisationdecision:repositoryarchitectureandnaming']);
+  }
+  const validationQuery = queries.find((query) => query.includes('a <urn:usf:ontology:ValidationObligation>'));
+  assert.ok(validationQuery);
+  for (const { id } of durableFamilyValidations) {
+    assert.ok(validationQuery.includes(`BIND(<${id}> AS ?id)`));
+    assert.ok(!validationQuery.includes(`FILTER(?id = <${id}>)`));
   }
 });
 
