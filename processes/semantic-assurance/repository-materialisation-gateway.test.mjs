@@ -101,6 +101,39 @@ function defaultApplicabilityRows(state = 'urn:usf:validationapplicabilitystate:
 function defaultValidationObligationRows(activation = 'urn:usf:validationactivationstate:reserved', extra = {}) {
   return [{ id: binding(validationObligation), activation: binding(activation), ...extra }];
 }
+
+const durableFamilyValidations = Object.freeze([
+  {
+    id: 'urn:usf:validationobligation:operationexpectedoutcomeerrorclass',
+    family: 'urn:usf:permutationfamily:operationexpectedoutcomeerrorclass',
+  },
+  {
+    id: 'urn:usf:validationobligation:resourceactionretentionstatelegalholdstate',
+    family: 'urn:usf:permutationfamily:resourceactionretentionstatelegalholdstate',
+  },
+  {
+    id: 'urn:usf:validationobligation:scheduledjobactionroleserviceidentityenvironmentclass',
+    family: 'urn:usf:permutationfamily:scheduledjobactionroleserviceidentityenvironmentclass',
+  },
+]);
+
+function durableFamilyValidationRows({ conditionMatched = true, satisfaction = null } = {}) {
+  return durableFamilyValidations.flatMap(({ id, family }) => [family, 'urn:usf:artefact:permutationfamilysource'].map((evidence) => ({
+    id: binding(id),
+    activation: binding('urn:usf:validationactivationstate:activated'),
+    definition: binding(`read-only analysis objective for ${family}`),
+    activationReason: binding(`live defect condition for ${family}`),
+    target: binding(family),
+    defectEvidence: binding(evidence),
+    ownerPath: binding('semantic-model/permutation/families.trig'),
+    ...(conditionMatched ? { conditionMatched: binding('true') } : {}),
+    ...(satisfaction ? {
+      ...satisfaction,
+      satisfaction: binding(`${id}:result`),
+      boundObligation: binding(id),
+    } : {}),
+  })));
+}
 function satisfyingResultRow({
   result = 'urn:usf:validationresult:materialisation',
   boundObligation = validationObligation,
@@ -498,6 +531,36 @@ function authoredModel() {
   return store;
 }
 
+test('authored model contains exactly three durable family validation obligations and one owner artefact', () => {
+  const model = authoredModel();
+  const activated = namedNode('urn:usf:validationactivationstate:activated');
+  const obligationFor = namedNode(`${ONT}obligationFor`);
+  const derivedFrom = namedNode(`${ONT}derivedFrom`);
+  const expectedIds = durableFamilyValidations.map(({ id }) => id).sort();
+  const obligations = model
+    .getSubjects(namedNode(`${ONT}hasValidationActivationState`), activated, null)
+    .filter((subject) => expectedIds.includes(subject.value))
+    .map(({ value }) => value)
+    .sort();
+  assert.deepEqual(obligations, expectedIds);
+  for (const { id, family } of durableFamilyValidations) {
+    const subject = namedNode(id);
+    assert.deepEqual(model.getObjects(subject, obligationFor, null).map(({ value }) => value), [family]);
+    assert.equal(model.has(subject, derivedFrom, namedNode(family), null), true);
+    assert.equal(model.has(subject, namedNode(`${ONT}validationForContract`), namedNode(contract), null), true);
+  }
+  const ownerArtefacts = model
+    .getSubjects(namedNode(`${ONT}canonicalPath`), DataFactory.literal('semantic-model/permutation/families.trig'), null)
+    .map(({ value }) => value);
+  assert.deepEqual(ownerArtefacts, ['urn:usf:artefact:permutationfamilysource']);
+  const changedSources = [
+    readFileSync(new URL('../../semantic-model/contracts/materialisation.trig', import.meta.url), 'utf8'),
+    readFileSync(new URL('./repository-materialisation-gateway.mjs', import.meta.url), 'utf8'),
+  ].join('\n');
+  assert.ok(!changedSources.includes('validationSubject'));
+  assert.ok(!changedSources.includes('family-model-review-observations.tsv'));
+});
+
 test('the validation applicability vocabulary is a closed five-state set bound to contracts', () => {
   const model = authoredModel();
   const declared = model
@@ -763,6 +826,98 @@ test('an activated but unsatisfied validation obligation blocks realisation auth
   assert.deepEqual(packet.authorisedPaths, []);
   assert.equal(packet.validationActionState, 'PROCEED');
   assert.equal(packet.validationSatisfied, false);
+});
+
+test('exact live family defects produce exactly three bounded read-only work rows', async () => {
+  const plan = await planWork({ client: fakeClient({
+    validationObligationRows: durableFamilyValidationRows(),
+  }) }, { contract });
+  assert.equal(plan.actionState, 'BLOCK');
+  assert.equal(plan.gapCount, 3);
+  assert.deepEqual(plan.gaps.map((item) => item.subject), durableFamilyValidations.map(({ id }) => id).sort());
+  for (const item of plan.gaps) {
+    const expected = durableFamilyValidations.find(({ id }) => id === item.subject);
+    assert.equal(item.type, 'missing-current-passing-validation');
+    assert.equal(item.disposition, 'BLOCK');
+    assert.equal(item.taskClass, 'semantic-planning');
+    assert.equal(item.remediationKind, 'ANALYSIS_ONLY');
+    assert.equal(item.repository, 'maldous/usf-graph');
+    assert.equal(item.materialisationOwnerPath, 'semantic-model/permutation/families.trig');
+    assert.equal(item.familySubject, expected.family);
+    assert.equal(item.sourceArtefact, 'urn:usf:artefact:permutationfamilysource');
+    assert.equal(item.defectCondition, `live defect condition for ${expected.family}`);
+    assert.equal(item.analysisObjective, `read-only analysis objective for ${expected.family}`);
+    assert.ok(item.defectEvidence.includes(expected.family));
+    assert.ok(item.subjects.includes(expected.family));
+    assert.ok(item.subjects.includes('urn:usf:artefact:permutationfamilysource'));
+    assert.deepEqual(item.decisionIds, ['urn:usf:realisationdecision:repositoryarchitectureandnaming']);
+  }
+});
+
+test('removing every faulty live triple pattern suppresses all three work rows', async () => {
+  const plan = await planWork({ client: fakeClient({
+    validationObligationRows: durableFamilyValidationRows({ conditionMatched: false }),
+  }) }, { contract });
+  assert.equal(plan.gapCount, 0);
+  assert.deepEqual(plan.gaps, []);
+});
+
+test('a minimal corrected family with a current passing result produces no work row', async () => {
+  const current = satisfyingResultRow();
+  const plan = await planWork({ client: fakeClient({
+    validationObligationRows: durableFamilyValidationRows({ conditionMatched: false, satisfaction: current }),
+  }) }, { contract });
+  assert.equal(plan.gapCount, 0);
+  assert.equal(plan.validationSatisfied, true);
+});
+
+test('reintroducing exact faulty triples makes all three obligations schedulable again', async () => {
+  const corrected = await planWork({ client: fakeClient({
+    validationObligationRows: durableFamilyValidationRows({ conditionMatched: false }),
+  }) }, { contract });
+  const reintroduced = await planWork({ client: fakeClient({
+    validationObligationRows: durableFamilyValidationRows(),
+  }) }, { contract });
+  assert.equal(corrected.gapCount, 0);
+  assert.equal(reintroduced.gapCount, 3);
+  assert.ok(reintroduced.gaps.every((item) => item.disposition === 'BLOCK'));
+});
+
+test('stale passing results do not satisfy durable family obligations at changed authority', async () => {
+  const stale = satisfyingResultRow({ boundAuthority: `sha256:${'44'.repeat(32)}` });
+  const plan = await planWork({ client: fakeClient({
+    validationObligationRows: durableFamilyValidationRows({ satisfaction: stale }),
+  }) }, { contract });
+  assert.equal(plan.gapCount, 3);
+  assert.ok(plan.gaps.every((item) => item.type === 'validation-satisfaction-not-current'));
+  assert.ok(plan.gaps.every((item) => item.materialisationOwnerPath === 'semantic-model/permutation/families.trig'));
+});
+
+test('durable validation work planning rejects a substituted family binding', async () => {
+  const rows = durableFamilyValidationRows();
+  rows[0] = { ...rows[0], target: binding('urn:usf:permutationfamily:unrelated') };
+  await assert.rejects(
+    () => planWork({ client: fakeClient({ validationObligationRows: rows }) }, { contract }),
+    /has no exact family target/,
+  );
+});
+
+test('durable family validation query contains exactly the three family-specific live patterns', async () => {
+  const client = fakeClient({ validationObligationRows: durableFamilyValidationRows() });
+  const select = client.select;
+  const queries = [];
+  client.select = async (query) => { queries.push(query); return select(query); };
+  await planWork({ client }, { contract });
+  const query = queries.find((item) => item.includes('?conditionMatched'));
+  assert.ok(query);
+  for (const { id, family } of durableFamilyValidations) {
+    assert.ok(query.includes(`<${id}>`));
+    assert.ok(query.includes(`<${family}>`));
+  }
+  assert.ok(query.includes('ValidationFailureCode'));
+  assert.ok(query.includes('permutationapplicabilityrule:datamodels'));
+  assert.ok(query.includes('permutationapplicabilityrule:workflows'));
+  assert.ok(!query.includes('family-model-review-observations.tsv'));
 });
 
 test('a fully bound current satisfaction is the only state that reports validation satisfied', async () => {

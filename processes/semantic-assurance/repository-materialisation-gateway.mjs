@@ -523,7 +523,8 @@ async function validationScope(client, contract) {
         OPTIONAL { ?authority <urn:usf:ontology:hasProofResultState> ?authorityState } }
       OPTIONAL { <${contract}> <urn:usf:ontology:validationApplicabilityCondition> ?condition }
     } LIMIT 64`),
-    client.select(`SELECT ?id ?activation ?satisfaction ?boundObligation ?resultState ?boundAuthority ?boundHead ?invalidation ?superseded
+    client.select(`SELECT ?id ?activation ?definition ?activationReason ?target ?defectEvidence ?ownerPath ?conditionMatched
+      ?satisfaction ?boundObligation ?resultState ?boundAuthority ?boundHead ?invalidation ?superseded
       ?binding ?bindingResult ?bindingRule ?reevaluationRequired ?reevaluationState ?stageOneEvaluated ?stageOneSettled
       ?nonPublicationDependency ?dependencyAlgorithm ?reevaluationDependency
       ?bindingExecutionReceipt ?bindingEvaluationReceipt ?bindingProducer ?bindingAdmissionPath
@@ -534,6 +535,57 @@ async function validationScope(client, contract) {
       ?admissionProducer ?admissionRepository ?admissionSourceHead ?admissionSourceTree ?admissionSourceScope WHERE {
       ?id a <urn:usf:ontology:ValidationObligation> ; <urn:usf:ontology:validationForContract> <${contract}> .
       OPTIONAL { ?id <urn:usf:ontology:hasValidationActivationState> ?activation }
+      OPTIONAL { ?id <urn:usf:ontology:definition> ?definition }
+      OPTIONAL { ?id <urn:usf:ontology:validationActivationReason> ?activationReason }
+      OPTIONAL { ?id <urn:usf:ontology:obligationFor> ?target }
+      OPTIONAL { ?id <urn:usf:ontology:derivedFrom> ?defectEvidence }
+      OPTIONAL {
+        ?id <urn:usf:ontology:derivedFrom> ?ownerArtefact .
+        ?ownerArtefact a <urn:usf:ontology:Artefact> ; <urn:usf:ontology:canonicalPath> ?ownerPath .
+      }
+      OPTIONAL {
+        {
+          FILTER(?id = <urn:usf:validationobligation:operationexpectedoutcomeerrorclass>)
+          <urn:usf:permutationfamily:operationexpectedoutcomeerrorclass>
+            <urn:usf:ontology:hasFamilyDimensionBinding> ?errorBinding .
+          ?errorBinding <urn:usf:ontology:bindsDimension> <urn:usf:permutationdimension:closureerrorclass> .
+          <urn:usf:permutationdimension:closureerrorclass>
+            <urn:usf:ontology:dimensionValueSource> <urn:usf:dimensionvaluesource:errorclass> .
+          <urn:usf:dimensionvaluesource:errorclass>
+            <urn:usf:ontology:valueSourceClassIri> "urn:usf:ontology:ValidationFailureCode"^^<http://www.w3.org/2001/XMLSchema#anyURI> .
+          FILTER NOT EXISTS { <urn:usf:ontology:ErrorClass> ?errorClassPredicate ?errorClassValue }
+          BIND("true" AS ?conditionMatched)
+        }
+        UNION
+        {
+          FILTER(?id = <urn:usf:validationobligation:resourceactionretentionstatelegalholdstate>)
+          <urn:usf:permutationfamily:resourceactionretentionstatelegalholdstate>
+            <urn:usf:ontology:familyApplicabilityRule> <urn:usf:permutationapplicabilityrule:datamodels> ;
+            <urn:usf:ontology:hasFamilyDimensionBinding> ?resourceBinding .
+          ?resourceBinding <urn:usf:ontology:bindsDimension> <urn:usf:permutationdimension:closureresource> .
+          <urn:usf:permutationdimension:closureresource>
+            <urn:usf:ontology:dimensionValueSource> <urn:usf:dimensionvaluesource:resource> .
+          <urn:usf:dimensionvaluesource:resource>
+            <urn:usf:ontology:valueSourceDerivationRoot> <urn:usf:permutationvaluederivation:resource> ;
+            <urn:usf:ontology:valueSourceTerminalClass> <http://www.w3.org/2002/07/owl#Class> .
+          BIND("true" AS ?conditionMatched)
+        }
+        UNION
+        {
+          FILTER(?id = <urn:usf:validationobligation:scheduledjobactionroleserviceidentityenvironmentclass>)
+          <urn:usf:permutationfamily:scheduledjobactionroleserviceidentityenvironmentclass>
+            <urn:usf:ontology:familyApplicabilityRule> <urn:usf:permutationapplicabilityrule:workflows> ;
+            <urn:usf:ontology:hasFamilyDimensionBinding> ?scheduledBinding .
+          ?scheduledBinding <urn:usf:ontology:bindsDimension> <urn:usf:permutationdimension:closurescheduledjob> .
+          <urn:usf:permutationdimension:closurescheduledjob>
+            <urn:usf:ontology:dimensionValueSource> <urn:usf:dimensionvaluesource:scheduledjob> .
+          <urn:usf:dimensionvaluesource:scheduledjob>
+            <urn:usf:ontology:valueSourceDerivationRoot> <urn:usf:permutationvaluederivation:scheduledjob> .
+          <urn:usf:permutationvaluederivation:scheduledjob>
+            <urn:usf:ontology:valueDerivationOperator> <urn:usf:permutationvaluederivationoperator:filterpathexists> .
+          BIND("true" AS ?conditionMatched)
+        }
+      }
       OPTIONAL { ?id <urn:usf:ontology:satisfiedByValidationResult> ?satisfaction .
         OPTIONAL { ?satisfaction <urn:usf:ontology:resultForValidationObligation> ?boundObligation }
         OPTIONAL { ?satisfaction <urn:usf:ontology:resultState> ?resultState }
@@ -621,9 +673,26 @@ async function validationScope(client, contract) {
     const existing = obligations.get(id) || {
       id,
       activation: value(row, 'activation'),
+      definitions: new Set(),
+      activationReasons: new Set(),
+      targets: new Set(),
+      evidence: new Set(),
+      ownerPaths: new Set(),
+      conditionMatched: false,
       satisfactionRecords: new Map(),
     };
     if (existing.activation !== value(row, 'activation')) throw new Error('validation obligation declares inconsistent activation state');
+    for (const [field, terms] of [
+      ['definition', existing.definitions],
+      ['activationReason', existing.activationReasons],
+      ['target', existing.targets],
+      ['defectEvidence', existing.evidence],
+      ['ownerPath', existing.ownerPaths],
+    ]) {
+      const term = value(row, field);
+      if (term !== null) terms.add(term);
+    }
+    existing.conditionMatched ||= value(row, 'conditionMatched') === 'true';
     const satisfaction = value(row, 'satisfaction');
     if (satisfaction) {
       const record = existing.satisfactionRecords.get(satisfaction)
@@ -636,8 +705,13 @@ async function validationScope(client, contract) {
     }
     obligations.set(id, existing);
   }
-  const projectedObligations = [...obligations.values()].map(({ satisfactionRecords, ...obligation }) => ({
+  const projectedObligations = [...obligations.values()].map(({ satisfactionRecords, definitions, activationReasons, targets, evidence, ownerPaths, ...obligation }) => ({
     ...obligation,
+    definitions: [...definitions].sort(),
+    activationReasons: [...activationReasons].sort(),
+    targets: [...targets].sort(),
+    evidence: [...evidence].sort(),
+    ownerPaths: [...ownerPaths].sort(),
     satisfactions: [...satisfactionRecords.values()].map((record) => Object.fromEntries(
       Object.entries(record).map(([field, terms]) => [field, terms instanceof Set ? [...terms].sort() : terms]),
     )),
@@ -764,6 +838,59 @@ function satisfactionCurrent(obligation, authorityWitnessValue) {
   });
 }
 
+const DURABLE_FAMILY_VALIDATION_OBLIGATIONS = Object.freeze({
+  'urn:usf:validationobligation:operationexpectedoutcomeerrorclass': Object.freeze({
+    family: 'urn:usf:permutationfamily:operationexpectedoutcomeerrorclass',
+  }),
+  'urn:usf:validationobligation:resourceactionretentionstatelegalholdstate': Object.freeze({
+    family: 'urn:usf:permutationfamily:resourceactionretentionstatelegalholdstate',
+  }),
+  'urn:usf:validationobligation:scheduledjobactionroleserviceidentityenvironmentclass': Object.freeze({
+    family: 'urn:usf:permutationfamily:scheduledjobactionroleserviceidentityenvironmentclass',
+  }),
+});
+
+function durableFamilyValidationWorkItem(obligation, contract) {
+  const expected = DURABLE_FAMILY_VALIDATION_OBLIGATIONS[obligation.id];
+  // An activated obligation is not evidence that its former defect still
+  // exists. Only the family-specific live triple pattern above enables a work
+  // row. When that pattern disappears the obligation stays visible to the
+  // validation lifecycle but is not scheduled as remediation.
+  if (!expected || !obligation.conditionMatched) return null;
+  if (obligation.targets.length !== 1 || obligation.targets[0] !== expected.family) {
+    throw new Error(`durable family validation obligation ${obligation.id} has no exact family target`);
+  }
+  if (obligation.definitions.length !== 1 || obligation.activationReasons.length !== 1) {
+    throw new Error(`durable family validation obligation ${obligation.id} has ambiguous analysis semantics`);
+  }
+  if (obligation.ownerPaths.length !== 1 || obligation.ownerPaths[0] !== 'semantic-model/permutation/families.trig') {
+    throw new Error(`durable family validation obligation ${obligation.id} has no exact owner path`);
+  }
+  if (!obligation.evidence.includes(expected.family)
+      || !obligation.evidence.includes('urn:usf:artefact:permutationfamilysource')) {
+    throw new Error(`durable family validation obligation ${obligation.id} lacks governed defect evidence`);
+  }
+  return {
+    contract,
+    familySubject: expected.family,
+    sourceArtefact: 'urn:usf:artefact:permutationfamilysource',
+    defectCondition: obligation.activationReasons[0],
+    analysisObjective: obligation.definitions[0],
+    defectEvidence: [...obligation.evidence].sort(),
+    rootCause: obligation.activationReasons[0],
+    subjects: [expected.family, ...obligation.evidence.filter((item) => item !== expected.family)].sort(),
+    taskClass: 'semantic-planning',
+    remediationKind: 'ANALYSIS_ONLY',
+    repository: 'maldous/usf-graph',
+    decisionIds: ['urn:usf:realisationdecision:repositoryarchitectureandnaming'],
+    materialisationOwnerPath: obligation.ownerPaths[0],
+    acceptanceCriteria: [
+      obligation.definitions[0],
+      `Produce a current passing ValidationResult bound to ${obligation.id}; an analysis result alone does not satisfy or close the obligation.`,
+    ],
+  };
+}
+
 // The complete gap set for one contract, as {code, subject} pairs. This is the
 // single definition of "outstanding" that both the paged projection and the
 // unpaged disposition census use, so a page boundary can never hide a state.
@@ -800,9 +927,16 @@ function validationGaps(contract, scope, authorityWitnessValue) {
       continue;
     }
     if (!satisfactionCurrent(obligation, authorityWitnessValue)) {
+      const code = obligation.satisfactions.length > 0 ? 'validation-satisfaction-not-current' : 'missing-current-passing-validation';
+      const workItem = durableFamilyValidationWorkItem(obligation, contract);
+      // A family condition that no longer matches remains an unsatisfied
+      // validation fact, but it is not remediation work. This preserves the
+      // lifecycle record without reopening corrected findings.
+      if (DURABLE_FAMILY_VALIDATION_OBLIGATIONS[obligation.id] && !workItem) continue;
       gaps.push({
-        code: obligation.satisfactions.length > 0 ? 'validation-satisfaction-not-current' : 'missing-current-passing-validation',
+        code,
         subject: obligation.id,
+        ...(workItem || {}),
       });
     }
   }
@@ -1081,7 +1215,7 @@ export async function planWork(ctx, args = {}) {
       : currentness.reasons.map((code) => ({ code, subject: currentness.facts.proofResult ?? contract }))),
     ...verdict.gaps,
   ]
-    .map((gap) => ({ type: gap.code, subject: gap.subject, disposition: resolveDisposition(gap.code) }))
+    .map(({ code, ...gap }) => ({ ...gap, type: code, disposition: resolveDisposition(code) }))
     .sort((left, right) => (left.type === right.type ? left.subject.localeCompare(right.subject) : left.type.localeCompare(right.type)));
 
   // The census is computed over the whole gap set, never over the page, so
