@@ -2491,7 +2491,7 @@ sc:notificationdeliveryandpreferencesandchannels usf:hasActivationState contract
     usf:mandatoryProofObligation <urn:usf:proofobligation:p1874b31e72692fcb908b9d1c13a86f9ca955777ba0b338339d6b5f0adb5c65af>;
     usf:permittedRealisationType usf:Implementation.
 sc:providerconfigurationplane usf:hasActivationState contractstate:active;
-    usf:activationReason "The original provider-workforce proof continues to warrant its bounded preparation surface. Separately admitted signed V3 implementation, independent evaluation and activation-decision evidence satisfy the exact providerconfigurationplane validation obligation and warrant only commit 13d2bc8e5d6092c0d89233d11c16c2463d35acb4, including exact startup policy binding for governed 24-hour roster membership, in the unchanged twenty-eight-path Factory durable-control-plane scope. Production operation remains fail-closed on current RunAuthorization and current provider, model, qualification, admission, policy, cutover and BAU evidence.";
+    usf:activationReason "The original provider-workforce proof continues to warrant its bounded preparation surface. Separately admitted signed V3 implementation, independent evaluation and activation-decision evidence satisfy the exact providerconfigurationplane validation obligation and warrant only commit 4b5cd36b6800cfda942853f707a798dea95551e8, including governed twenty-four-hour membership preservation across independent provider-head renewal, in the unchanged twenty-eight-path Factory durable-control-plane scope. Contract state and scope are unchanged; production remains fail-closed on current RunAuthorization and current provider, model, qualification, admission, policy, cutover and BAU evidence.";
     usf:requiresRealisationOptionEvaluation true;
     usf:mandatoryProofObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>;
     usf:reliesOnProofResult <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane>, <urn:usf:proofresult:factoryproviderv3implementation>;
@@ -4950,7 +4950,7 @@ sc:writeonlysecretsettings usf:hasValidationApplicability vas:unresolved;
   usf:canonicalName "providerworkforceboundedimplementationauthority".
 <urn:usf:claim:factoryproviderv3boundedproductionauthority> a usf:Claim;
   usf:canonicalName "factoryproviderv3boundedproductionauthority";
-  usf:definition "Authorises only the exact Factory Provider V3 implementation at commit 13d2bc8e5d6092c0d89233d11c16c2463d35acb4, tree c27e3b89829a1fc29c34b760265679a98453cfdf and source-scope digest sha256:6611a3337d279a4cf89dad8a97191c8481cb4f3df214c774fd91226e455d358c, subject to current RunAuthorization and current provider, model, qualification, admission, policy, cutover and BAU evidence.".
+  usf:definition "Authorises only the exact Factory Provider V3 implementation at commit 4b5cd36b6800cfda942853f707a798dea95551e8, tree 9a3dcde2c8b72c89cd5e24ca77685989f7b72f24 and source-scope digest sha256:6611a3337d279a4cf89dad8a97191c8481cb4f3df214c774fd91226e455d358c, including preservation of exact governed roster membership across independent provider-head renewal, subject to current RunAuthorization and current provider, model, qualification, admission, policy, cutover and BAU evidence.".
 <urn:usf:nonclaim:providercredentialsauthority> a usf:NonClaim;
   usf:canonicalName "providercredentialsauthority".
 <urn:usf:nonclaim:providerresearchprovesavailability> a usf:NonClaim;
