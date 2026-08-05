@@ -632,18 +632,18 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:c9fea8e6805e21e5e7af138613daf5d6fed65363c42e7e3b07f66f35aeed353f";
-  usf:implementationSourceSetDigest "sha256:953a870d3c4118c94be5217716aea223d8d4549ecb6c56136c88e02d872911db";
-  usf:dependencySetDigest "sha256:c9fea8e6805e21e5e7af138613daf5d6fed65363c42e7e3b07f66f35aeed353f";
+  usf:evidenceSetDigest "sha256:8e2d753d28edfd4bda7b93562e2eee6cf22e1590dfc41651e80b5330a2d86f7a";
+  usf:implementationSourceSetDigest "sha256:c022bf82a4f10dd3270d7010f91c87b62ed51c7db6d85497c8b14c484ffb82e3";
+  usf:dependencySetDigest "sha256:8e2d753d28edfd4bda7b93562e2eee6cf22e1590dfc41651e80b5330a2d86f7a";
   usf:dependencyDigestAlgorithm "sha256-canonical-evidence-file-digest-set-v1";
-  usf:proofProducerCommit "2c4048637a8b5fdee677f8aa8b2eec79b403aa32";
-  usf:proofProducerTree "a43db1df47264410f4ee2a29e0ec915ecf208338";
+  usf:proofProducerCommit "13d2bc8e5d6092c0d89233d11c16c2463d35acb4";
+  usf:proofProducerTree "c27e3b89829a1fc29c34b760265679a98453cfdf";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "The proof warrants only the exact V3 implementation at commit 2c4048637a8b5fdee677f8aa8b2eec79b403aa32 within the unchanged twenty-eight-path durable Factory source scope, including the bounded separation of governed 24-hour roster membership from independently refreshed per-route currentness. Production BAU remains conditional on current run authorizations and current runtime evidence; future machinery generations require new admitted evidence.";
-  usf:evaluatedAt "2026-08-05T14:16:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "The proof warrants only the exact V3 implementation at commit 13d2bc8e5d6092c0d89233d11c16c2463d35acb4 within the unchanged twenty-eight-path durable Factory source scope, including the bounded handoff of the exact production workforce policy to pre-start semantic snapshotting. Production BAU remains conditional on current run authorizations and current provider, model, qualification, admission, policy and execution evidence; future machinery generations require new admitted evidence.";
+  usf:evaluatedAt "2026-08-05T17:23:10Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
 
 }
