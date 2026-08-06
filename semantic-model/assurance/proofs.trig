@@ -643,7 +643,7 @@
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
   usf:uncertaintyStatement "The proof warrants only the exact Provider V3 machinery at owner-signed commit 3a3d1bf9523020c5b2ec5f8195fe1800763991ac and tree 9de7a096cc8f9f11b9d9fdc5f7bbb99468cf8df5 within unchanged source-scope digest sha256:7bee053397774dd0aa5af84d7ad63f11705b09670056e0e25f635a9d8e2f5b4c. An ANALYSIS_ONLY semantic obligation receives no materialisation-index-derived repository read scope only when it explicitly requests neither reads nor writes; exact semantic, family, owner, contract and materialisation metadata remain bound. Explicit file scopes, source changes, provider eligibility, roster currentness, production authorization, trust, Graph authority and completion semantics remain unchanged. Production convergence still requires exact deployment, real inference, validated result and replay evidence.";
-  usf:evaluatedAt "2026-08-06T13:12:01.831Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:evaluatedAt "2026-08-06T13:15:25.929Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
 
 }
