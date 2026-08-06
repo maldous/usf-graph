@@ -2491,7 +2491,7 @@ sc:notificationdeliveryandpreferencesandchannels usf:hasActivationState contract
     usf:mandatoryProofObligation <urn:usf:proofobligation:p1874b31e72692fcb908b9d1c13a86f9ca955777ba0b338339d6b5f0adb5c65af>;
     usf:permittedRealisationType usf:Implementation.
 sc:providerconfigurationplane usf:hasActivationState contractstate:active;
-    usf:activationReason "The existing Provider V3 contract remains active. Newly admitted signed implementation, independent evaluation and activation-decision evidence warrant only owner-signed commit 86591b9f663ea57c8977337b98638c7a44d6a085 in the unchanged thirty-eight-path source scope. The bounded change gives standalone canonical bootstrap the same governed coordinator and authority binding already used by FactoryEngine; all provider discovery, qualification, admission, currentness, roster and execution controls remain fail-closed and unchanged.";
+    usf:activationReason "The existing Provider V3 contract remains active. Newly admitted signed implementation, independent evaluation and activation-decision evidence warrant only owner-signed commit b90db8d6e753943eee367a64e1e4648f688dc94d in the unchanged source scope. The bounded repair enforces the already-authoritative active V3 role roster before adaptive selection while preserving all provider-neutral eligibility, identity, fencing, authorization and fail-closed controls.";
     usf:requiresRealisationOptionEvaluation true;
     usf:mandatoryProofObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>;
     usf:reliesOnProofResult <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane>, <urn:usf:proofresult:factoryproviderv3implementation>;
@@ -4950,7 +4950,7 @@ sc:writeonlysecretsettings usf:hasValidationApplicability vas:unresolved;
   usf:canonicalName "providerworkforceboundedimplementationauthority".
 <urn:usf:claim:factoryproviderv3boundedproductionauthority> a usf:Claim;
   usf:canonicalName "factoryproviderv3boundedproductionauthority";
-  usf:definition "Authorises only the exact Factory Provider V3 implementation at owner-signed commit 86591b9f663ea57c8977337b98638c7a44d6a085, tree 73de7cabf05064b5c7154205f054835ad6ac9967 and unchanged source-scope digest sha256:7bee053397774dd0aa5af84d7ad63f11705b09670056e0e25f635a9d8e2f5b4c. Standalone activate and bootstrap-runtime must acquire the sole V3 coordinator lease, bind the exact RunAuthorization and governed Factory authority context, enforce current fencing at point of use and release or clear all bindings on exit. This grants no trust, provider-contact, paid-inference, roster-membership or Graph-mutation expansion.".
+  usf:definition "Authorises only the exact Factory Provider V3 implementation at owner-signed commit b90db8d6e753943eee367a64e1e4648f688dc94d, tree 394ddef9609be27ede878c449a3e77b69fd2cc10 and unchanged source-scope digest sha256:7bee053397774dd0aa5af84d7ad63f11705b09670056e0e25f635a9d8e2f5b4c. When true V3 activation is live, adaptive scheduling and time-of-use redraw must restrict candidate profiles to the exact active generation and requested role before preference selection and must retain compatibility-only profiles as deterministic rejections. This grants no trust, provider-contact, paid-inference, roster-membership, Graph-mutation, completion or source-scope expansion.".
 <urn:usf:nonclaim:providercredentialsauthority> a usf:NonClaim;
   usf:canonicalName "providercredentialsauthority".
 <urn:usf:nonclaim:providerresearchprovesavailability> a usf:NonClaim;
