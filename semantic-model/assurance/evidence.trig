@@ -1757,77 +1757,77 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
 # These three immutable payloads are the exact independently evaluated
 # implementation witness, its option evaluation, and the bounded owner
 # activation decision.  They activate no generic platform contract.
-<urn:usf:externalpayloaddescriptor:factoryproviderv3implementationevidenceee499fe0f34bed3ae3b57315b8588d71a3e256ef7f1ea910dc68a65ffdca6a9d> a usf:ExternalPayloadDescriptor;
-  usf:canonicalName "factoryproviderv3implementationevidenceee499fe0f34bed3ae3b57315b8588d71a3e256ef7f1ea910dc68a65ffdca6a9d";
+<urn:usf:externalpayloaddescriptor:factoryproviderv3implementationevidencefd0e5923b7924aa46cf7d18cd3c15ec61ac2a40293c1778bc5d5790234b64115> a usf:ExternalPayloadDescriptor;
+  usf:canonicalName "factoryproviderv3implementationevidencefd0e5923b7924aa46cf7d18cd3c15ec61ac2a40293c1778bc5d5790234b64115";
   usf:descriptorArtefactFamily <urn:usf:artefactfamily:evidencepayload>;
   usf:descriptorRepresentationFormat format:jsondata8259;
   usf:descriptorMediaType "application/json";
-  usf:descriptorDigest "sha256:ee499fe0f34bed3ae3b57315b8588d71a3e256ef7f1ea910dc68a65ffdca6a9d";
-  usf:descriptorByteSize 10516;
-  usf:descriptorLocator "cas://sha256/ee499fe0f34bed3ae3b57315b8588d71a3e256ef7f1ea910dc68a65ffdca6a9d"^^xsd:anyURI;
+  usf:descriptorDigest "sha256:fd0e5923b7924aa46cf7d18cd3c15ec61ac2a40293c1778bc5d5790234b64115";
+  usf:descriptorByteSize 11103;
+  usf:descriptorLocator "cas://sha256/fd0e5923b7924aa46cf7d18cd3c15ec61ac2a40293c1778bc5d5790234b64115"^^xsd:anyURI;
   usf:descriptorArtefactType "urn:usf:artefacttype:factoryproviderv3implementationevidence"^^xsd:anyURI;
   usf:descriptorStorageClass <urn:usf:storageclass:contentaddressedobjectstorage>.
-<urn:usf:externalpayloaddescriptor:factoryproviderv3implementationevaluationf4c6702ee3d01c160fe0d534f07d0b3ebd54a846dd5801f4ce2aeec7d12eb883> a usf:ExternalPayloadDescriptor;
-  usf:canonicalName "factoryproviderv3implementationevaluationf4c6702ee3d01c160fe0d534f07d0b3ebd54a846dd5801f4ce2aeec7d12eb883";
+<urn:usf:externalpayloaddescriptor:factoryproviderv3implementationevaluation75534904995ab276adb58589735ab5d2ece61d12018e84ba6ffa41d0bddff2e0> a usf:ExternalPayloadDescriptor;
+  usf:canonicalName "factoryproviderv3implementationevaluation75534904995ab276adb58589735ab5d2ece61d12018e84ba6ffa41d0bddff2e0";
   usf:descriptorArtefactFamily <urn:usf:artefactfamily:evidencepayload>;
   usf:descriptorRepresentationFormat format:jsondata8259;
   usf:descriptorMediaType "application/json";
-  usf:descriptorDigest "sha256:f4c6702ee3d01c160fe0d534f07d0b3ebd54a846dd5801f4ce2aeec7d12eb883";
-  usf:descriptorByteSize 4707;
-  usf:descriptorLocator "cas://sha256/f4c6702ee3d01c160fe0d534f07d0b3ebd54a846dd5801f4ce2aeec7d12eb883"^^xsd:anyURI;
+  usf:descriptorDigest "sha256:75534904995ab276adb58589735ab5d2ece61d12018e84ba6ffa41d0bddff2e0";
+  usf:descriptorByteSize 4861;
+  usf:descriptorLocator "cas://sha256/75534904995ab276adb58589735ab5d2ece61d12018e84ba6ffa41d0bddff2e0"^^xsd:anyURI;
   usf:descriptorArtefactType "urn:usf:artefacttype:factoryproviderv3implementationevaluation"^^xsd:anyURI;
   usf:descriptorStorageClass <urn:usf:storageclass:contentaddressedobjectstorage>.
-<urn:usf:externalpayloaddescriptor:factoryproviderv3productionactivationdecision90628084f04e612d0ff39a0e182284c0beec2009b7a65d858fe92de06fee2866> a usf:ExternalPayloadDescriptor;
-  usf:canonicalName "factoryproviderv3productionactivationdecision90628084f04e612d0ff39a0e182284c0beec2009b7a65d858fe92de06fee2866";
+<urn:usf:externalpayloaddescriptor:factoryproviderv3productionactivationdecision676bf4b249f985af76435c9de5c946dedd7fc9a9cfd136dee69a84493688da68> a usf:ExternalPayloadDescriptor;
+  usf:canonicalName "factoryproviderv3productionactivationdecision676bf4b249f985af76435c9de5c946dedd7fc9a9cfd136dee69a84493688da68";
   usf:descriptorArtefactFamily <urn:usf:artefactfamily:evidencepayload>;
   usf:descriptorRepresentationFormat format:jsondata8259;
   usf:descriptorMediaType "application/json";
-  usf:descriptorDigest "sha256:90628084f04e612d0ff39a0e182284c0beec2009b7a65d858fe92de06fee2866";
-  usf:descriptorByteSize 2546;
-  usf:descriptorLocator "cas://sha256/90628084f04e612d0ff39a0e182284c0beec2009b7a65d858fe92de06fee2866"^^xsd:anyURI;
+  usf:descriptorDigest "sha256:676bf4b249f985af76435c9de5c946dedd7fc9a9cfd136dee69a84493688da68";
+  usf:descriptorByteSize 2421;
+  usf:descriptorLocator "cas://sha256/676bf4b249f985af76435c9de5c946dedd7fc9a9cfd136dee69a84493688da68"^^xsd:anyURI;
   usf:descriptorArtefactType "urn:usf:artefacttype:factoryproviderv3productionactivationdecision"^^xsd:anyURI;
   usf:descriptorStorageClass <urn:usf:storageclass:contentaddressedobjectstorage>.
 
 <urn:usf:signature:factoryproviderv3implementationevidence> a usf:Signature;
   usf:canonicalName "factoryproviderv3implementationevidence";
   usf:artefactKind <urn:usf:artefactkind:signature>;
-  usf:canonicalPath "cas://sha256/322415420a6016d8986b9e019cb57e817e9eea88f22f6bc71544060c1e0a0793";
+  usf:canonicalPath "cas://sha256/59c65af36b490183130a0e9f2b14761d86a88904cecfedf2fc5a0b8cd02c97bf";
   usf:governedByPathRule <urn:usf:pathrule:contentaddressedsignature>;
   usf:signatureMethod <urn:usf:signaturemethod:detached>;
   usf:signingPolicy <urn:usf:policy:hermeticevidenceattestation>;
   usf:signedBy <urn:usf:signingidentity:matthewaldoussemanticproofv1>;
-  usf:signatureValue "LS0tLS1CRUdJTiBQR1AgU0lHTkFUVVJFLS0tLS0KCmlIVUVBQllJQUIwV0lRUzJ5OGljZVhpdkp2VThNNkdYNWZJTktqUU9YUVVDYW5TaEZ3QUtDUkNYNWZJTktqUU8KWFhyQkFQOWVxOUtDelB0OFRoblVQWlBGSVpuYlQyc1BEbWd5dC9oaFNVRzZkakVsa2dFQW9JNjZaKzhFODRoUQorSWd6cXhUS0VxUktQQlh2N2hseGlBdmppTnEyU0FBPQo9YXRRSwotLS0tLUVORCBQR1AgU0lHTkFUVVJFLS0tLS0K".
+  usf:signatureValue "LS0tLS1CRUdJTiBQR1AgU0lHTkFUVVJFLS0tLS0KCmlIVUVBQllJQUIwV0lRUzJ5OGljZVhpdkp2VThNNkdYNWZJTktqUU9YUVVDYW5URHJ3QUtDUkNYNWZJTktqUU8KWFo3OEFQOUttR0czZjdXcFQzYXBwTkxvSFF2V2xsNUVzdDl1WktQVGl0VUY3NnQ3REFEL2ZYRmM3bmI1YWtpTApVd1pVcU9kRm1KQlRnZjZBOXY2cVRQSDFpaHNkWEFFPQo9WVlZegotLS0tLUVORCBQR1AgU0lHTkFUVVJFLS0tLS0K".
 <urn:usf:signature:factoryproviderv3implementationevaluation> a usf:Signature;
   usf:canonicalName "factoryproviderv3implementationevaluation";
   usf:artefactKind <urn:usf:artefactkind:signature>;
-  usf:canonicalPath "cas://sha256/82c2c9d36b704d103977b5c3b4e8857c9043244a1916675218829d3c37540de9";
+  usf:canonicalPath "cas://sha256/f8e3874f33a18004b4a9c55c3288fb678c6bf40ed52f7e7a7ec063a30bc6a4ec";
   usf:governedByPathRule <urn:usf:pathrule:contentaddressedsignature>;
   usf:signatureMethod <urn:usf:signaturemethod:detached>;
   usf:signingPolicy <urn:usf:policy:hermeticevidenceattestation>;
   usf:signedBy <urn:usf:signingidentity:matthewaldoussemanticproofv1>;
-  usf:signatureValue "LS0tLS1CRUdJTiBQR1AgU0lHTkFUVVJFLS0tLS0KCmlIVUVBQllJQUIwV0lRUzJ5OGljZVhpdkp2VThNNkdYNWZJTktqUU9YUVVDYW5TaEZ3QUtDUkNYNWZJTktqUU8KWGVKVEFRQ0l6RnlFQnpSZncxNWoxRXJFcTJRVVl3aStaQmY1cTE5WVg1ZCtvV3ZBcndFQWtTSjZiN2pqbWhuYQpUdmhrbEd1UDhyM0hTMHd4ekNOUEtQeHBZcXFxd3dBPQo9OGxTYQotLS0tLUVORCBQR1AgU0lHTkFUVVJFLS0tLS0K".
+  usf:signatureValue "LS0tLS1CRUdJTiBQR1AgU0lHTkFUVVJFLS0tLS0KCmlIVUVBQllJQUIwV0lRUzJ5OGljZVhpdkp2VThNNkdYNWZJTktqUU9YUVVDYW5URHJ3QUtDUkNYNWZJTktqUU8KWFErTEFQOWtaM2Nxb29zT1J0N0tHTURLS3hJKys3S2RQeDdQNUZMVUVUTEVkd3VaMHdEK1B3VEo4di9GeU1MNAp4MU9TajZJdGpBQW1acVZPT3E2SXhUeVBNU2ZUN3dnPQo9b3NLcAotLS0tLUVORCBQR1AgU0lHTkFUVVJFLS0tLS0K".
 <urn:usf:signature:factoryproviderv3productionactivationdecision> a usf:Signature;
   usf:canonicalName "factoryproviderv3productionactivationdecision";
   usf:artefactKind <urn:usf:artefactkind:signature>;
-  usf:canonicalPath "cas://sha256/07934f580c29c38a67b8f3b9639b6ed1159a3609cf6c2933fd4158297c94b05b";
+  usf:canonicalPath "cas://sha256/a2563a3693230631c2c2bef782d4da7616783268f0cedb8b9bf23d0e83bd58dc";
   usf:governedByPathRule <urn:usf:pathrule:contentaddressedsignature>;
   usf:signatureMethod <urn:usf:signaturemethod:detached>;
   usf:signingPolicy <urn:usf:policy:authoritycontrolevidenceattestation>;
   usf:signedBy <urn:usf:signingidentity:matthewaldoussemanticproofv1>;
-  usf:signatureValue "LS0tLS1CRUdJTiBQR1AgU0lHTkFUVVJFLS0tLS0KCmlIVUVBQllJQUIwV0lRUzJ5OGljZVhpdkp2VThNNkdYNWZJTktqUU9YUVVDYW5TaEZ3QUtDUkNYNWZJTktqUU8KWGNsaEFRRHhmZXRBUjU1OWxQTEM2dnhaNlNtcGFpNC93a1ZPYUtRcDZLRGgzNzFCd0FEL1pXaHgxRDhXaEpiMwpGdzhoeHRsR2t6L2lqbWFvT29JYmJHSmhTR3dJd2dvPQo9UGsxdwotLS0tLUVORCBQR1AgU0lHTkFUVVJFLS0tLS0K".
+  usf:signatureValue "LS0tLS1CRUdJTiBQR1AgU0lHTkFUVVJFLS0tLS0KCmlIVUVBQllJQUIwV0lRUzJ5OGljZVhpdkp2VThNNkdYNWZJTktqUU9YUVVDYW5URHJ3QUtDUkNYNWZJTktqUU8KWFlQN0FQNHpuMlVJOWNTUkxCbHFZbDBEMkpYbkNQUENTTUxLM1VkWHRaT1J0NDgyU1FFQTh0SFBCNkpRVkFtZwpmZmY2dTR1YStqRi9lVThnejlrN0xWcVgzNFl3THdrPQo9TWtZNwotLS0tLUVORCBQR1AgU0lHTkFUVVJFLS0tLS0K".
 
 <urn:usf:checksum:factoryproviderv3implementationevidence> a usf:Checksum;
   usf:canonicalName "factoryproviderv3implementationevidence";
   usf:checksumAlgorithm <urn:usf:checksumalgorithm:sha256>;
-  usf:checksumValue "ee499fe0f34bed3ae3b57315b8588d71a3e256ef7f1ea910dc68a65ffdca6a9d".
+  usf:checksumValue "fd0e5923b7924aa46cf7d18cd3c15ec61ac2a40293c1778bc5d5790234b64115".
 <urn:usf:checksum:factoryproviderv3implementationevaluation> a usf:Checksum;
   usf:canonicalName "factoryproviderv3implementationevaluation";
   usf:checksumAlgorithm <urn:usf:checksumalgorithm:sha256>;
-  usf:checksumValue "f4c6702ee3d01c160fe0d534f07d0b3ebd54a846dd5801f4ce2aeec7d12eb883".
+  usf:checksumValue "75534904995ab276adb58589735ab5d2ece61d12018e84ba6ffa41d0bddff2e0".
 <urn:usf:checksum:factoryproviderv3productionactivationdecision> a usf:Checksum;
   usf:canonicalName "factoryproviderv3productionactivationdecision";
   usf:checksumAlgorithm <urn:usf:checksumalgorithm:sha256>;
-  usf:checksumValue "90628084f04e612d0ff39a0e182284c0beec2009b7a65d858fe92de06fee2866".
+  usf:checksumValue "676bf4b249f985af76435c9de5c946dedd7fc9a9cfd136dee69a84493688da68".
 
 <urn:usf:validatorrule:validatefactoryproviderv3implementation> a usf:ValidatorRule;
   usf:canonicalName "validatefactoryproviderv3implementation";
@@ -1837,10 +1837,10 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
 <urn:usf:validationproducer:factoryproviderv3implementation> a usf:ValidationProducer;
   usf:canonicalName "factoryproviderv3implementation";
   usf:validationProducerRepository "maldous/usf-factory";
-  usf:validationProducerRelease "provider-v3-943d46d-roster-currentness-membership-closure";
-  usf:validationProducerSourceHead "943d46df57654c47512f05ba3e76897fb3ebcbba";
-  usf:validationProducerSourceTree "a89cf15efe85ce52dc287191787c72d9b38bdbc6";
-  usf:validationProducerSourceScopeDigest "sha256:7bee053397774dd0aa5af84d7ad63f11705b09670056e0e25f635a9d8e2f5b4c";
+  usf:validationProducerRelease "provider-v3-64bee85-bounded-validation-analysis-output-budget";
+  usf:validationProducerSourceHead "64bee85a1e6577ea58e474a24f0a1190cfc4ccc7";
+  usf:validationProducerSourceTree "63740f92f2f7a630acd9ae1b8432e5a479989eba";
+  usf:validationProducerSourceScopeDigest "sha256:1266c31922fbef0f94b2d42c530b45a413105d7121f889c4e1371c626a987c5f";
   usf:validationProducerSourcePath
     "config/safe-adaptive-execution.yaml",
     "docs/provider-adapters.md",
@@ -1857,6 +1857,7 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
     "src/usf_factory/model_market.py",
     "src/usf_factory/model_market_runtime.py",
     "src/usf_factory/programme_contracts.py",
+    "src/usf_factory/programme_state.py",
     "src/usf_factory/provider_plane_runtime.py",
     "src/usf_factory/providers/cli_adapters.py",
     "src/usf_factory/roster.py",
@@ -1873,6 +1874,7 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
     "tests/test_openai_identity_evidence.py",
     "tests/test_operational_accounting.py",
     "tests/test_programme_contracts.py",
+    "tests/test_programme_state.py",
     "tests/test_remediation_and_authorization.py",
     "tests/test_roster_scheduling.py",
     "tests/test_safe_operational_profile.py",
@@ -1904,15 +1906,15 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
   usf:hasFreshness fresh:fresh;
   usf:evidenceForContract sc:providerconfigurationplane;
   usf:evidenceFor sc:providerconfigurationplane;
-  usf:contentDigest "sha256:ee499fe0f34bed3ae3b57315b8588d71a3e256ef7f1ea910dc68a65ffdca6a9d";
-  usf:evaluatedAuthorityDigest "sha256:3b79d54a6c9473d466a8a6a99038a438a32508c90ce2579dba7e6cc5eee5a762";
+  usf:contentDigest "sha256:fd0e5923b7924aa46cf7d18cd3c15ec61ac2a40293c1778bc5d5790234b64115";
+  usf:evaluatedAuthorityDigest "sha256:9814962052e8d2dd89da5b888d723d1476f45213e55e57f8dfc1265abecf81ae";
   usf:evidenceProducerDigest "sha256:1f3975b2176334123eb0b66a2631eee702549195bb8ebc448ebdbe73cc359bcf";
   usf:mediaType "application/json";
-  usf:byteSize 10516;
-  usf:storageLocator "cas://sha256/ee499fe0f34bed3ae3b57315b8588d71a3e256ef7f1ea910dc68a65ffdca6a9d"^^xsd:anyURI;
+  usf:byteSize 11103;
+  usf:storageLocator "cas://sha256/fd0e5923b7924aa46cf7d18cd3c15ec61ac2a40293c1778bc5d5790234b64115"^^xsd:anyURI;
   usf:wasProducedBy <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
-  usf:collectedAt "2026-08-06T14:57:30Z"^^xsd:dateTime;
-  usf:validUntil "2026-09-05T14:57:30Z"^^xsd:dateTime;
+  usf:collectedAt "2026-08-06T17:25:11Z"^^xsd:dateTime;
+  usf:validUntil "2026-09-05T17:25:11Z"^^xsd:dateTime;
   usf:hasFreshnessPolicy <urn:usf:evidencefreshnesspolicy:factoryproviderv3implementationthirtydays>;
   usf:hasAdmissionState admission:admitted;
   usf:hasFreshnessState freshnessstate:fresh;
@@ -1936,15 +1938,15 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
   usf:hasFreshness fresh:fresh;
   usf:evidenceForContract sc:providerconfigurationplane;
   usf:evidenceFor sc:providerconfigurationplane;
-  usf:contentDigest "sha256:f4c6702ee3d01c160fe0d534f07d0b3ebd54a846dd5801f4ce2aeec7d12eb883";
-  usf:evaluatedAuthorityDigest "sha256:3b79d54a6c9473d466a8a6a99038a438a32508c90ce2579dba7e6cc5eee5a762";
+  usf:contentDigest "sha256:75534904995ab276adb58589735ab5d2ece61d12018e84ba6ffa41d0bddff2e0";
+  usf:evaluatedAuthorityDigest "sha256:9814962052e8d2dd89da5b888d723d1476f45213e55e57f8dfc1265abecf81ae";
   usf:evidenceProducerDigest "sha256:1f3975b2176334123eb0b66a2631eee702549195bb8ebc448ebdbe73cc359bcf";
   usf:mediaType "application/json";
-  usf:byteSize 4707;
-  usf:storageLocator "cas://sha256/f4c6702ee3d01c160fe0d534f07d0b3ebd54a846dd5801f4ce2aeec7d12eb883"^^xsd:anyURI;
+  usf:byteSize 4861;
+  usf:storageLocator "cas://sha256/75534904995ab276adb58589735ab5d2ece61d12018e84ba6ffa41d0bddff2e0"^^xsd:anyURI;
   usf:wasProducedBy <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
-  usf:collectedAt "2026-08-06T14:57:35Z"^^xsd:dateTime;
-  usf:validUntil "2026-09-05T14:57:30Z"^^xsd:dateTime;
+  usf:collectedAt "2026-08-06T17:25:12Z"^^xsd:dateTime;
+  usf:validUntil "2026-09-05T17:25:11Z"^^xsd:dateTime;
   usf:hasFreshnessPolicy <urn:usf:evidencefreshnesspolicy:factoryproviderv3implementationthirtydays>;
   usf:hasAdmissionState admission:admitted;
   usf:hasFreshnessState freshnessstate:fresh;
@@ -1966,15 +1968,15 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
   usf:hasFreshness fresh:fresh;
   usf:evidenceForContract sc:providerconfigurationplane;
   usf:evidenceFor sc:providerconfigurationplane;
-  usf:contentDigest "sha256:90628084f04e612d0ff39a0e182284c0beec2009b7a65d858fe92de06fee2866";
-  usf:evaluatedAuthorityDigest "sha256:3b79d54a6c9473d466a8a6a99038a438a32508c90ce2579dba7e6cc5eee5a762";
+  usf:contentDigest "sha256:676bf4b249f985af76435c9de5c946dedd7fc9a9cfd136dee69a84493688da68";
+  usf:evaluatedAuthorityDigest "sha256:9814962052e8d2dd89da5b888d723d1476f45213e55e57f8dfc1265abecf81ae";
   usf:evidenceProducerDigest "sha256:22851b0613e397f7c3291c7eb173a34fde9002ff7a984ccf5ee195fa0dc71208";
   usf:mediaType "application/json";
-  usf:byteSize 2546;
-  usf:storageLocator "cas://sha256/90628084f04e612d0ff39a0e182284c0beec2009b7a65d858fe92de06fee2866"^^xsd:anyURI;
+  usf:byteSize 2421;
+  usf:storageLocator "cas://sha256/676bf4b249f985af76435c9de5c946dedd7fc9a9cfd136dee69a84493688da68"^^xsd:anyURI;
   usf:wasProducedBy <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
-  usf:collectedAt "2026-08-06T14:57:40Z"^^xsd:dateTime;
-  usf:validUntil "2026-09-05T14:57:30Z"^^xsd:dateTime;
+  usf:collectedAt "2026-08-06T17:25:13Z"^^xsd:dateTime;
+  usf:validUntil "2026-09-05T17:25:11Z"^^xsd:dateTime;
   usf:hasFreshnessPolicy <urn:usf:evidencefreshnesspolicy:factoryproviderv3implementationthirtydays>;
   usf:hasAdmissionState admission:admitted;
   usf:hasFreshnessState freshnessstate:fresh;
@@ -2008,20 +2010,20 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
   usf:canonicalName "factoryproviderv3implementation";
   usf:collectedEvidence <urn:usf:evidenceresult:factoryproviderv3implementation>;
   usf:collectsEvidence <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:collectedOn "2026-08-06T14:57:30Z"^^xsd:dateTime;
-  usf:sourceDigest "sha256:ee499fe0f34bed3ae3b57315b8588d71a3e256ef7f1ea910dc68a65ffdca6a9d".
+  usf:collectedOn "2026-08-06T17:25:11Z"^^xsd:dateTime;
+  usf:sourceDigest "sha256:fd0e5923b7924aa46cf7d18cd3c15ec61ac2a40293c1778bc5d5790234b64115".
 <urn:usf:evidencecollection:factoryproviderv3implementationevaluation> a usf:EvidenceCollection;
   usf:canonicalName "factoryproviderv3implementationevaluation";
   usf:collectedEvidence <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>;
   usf:collectsEvidence <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>;
-  usf:collectedOn "2026-08-06T14:57:35Z"^^xsd:dateTime;
-  usf:sourceDigest "sha256:f4c6702ee3d01c160fe0d534f07d0b3ebd54a846dd5801f4ce2aeec7d12eb883".
+  usf:collectedOn "2026-08-06T17:25:12Z"^^xsd:dateTime;
+  usf:sourceDigest "sha256:75534904995ab276adb58589735ab5d2ece61d12018e84ba6ffa41d0bddff2e0".
 <urn:usf:evidencecollection:factoryproviderv3productionactivationdecision> a usf:EvidenceCollection;
   usf:canonicalName "factoryproviderv3productionactivationdecision";
   usf:collectedEvidence <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
   usf:collectsEvidence <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:collectedOn "2026-08-06T14:57:40Z"^^xsd:dateTime;
-  usf:sourceDigest "sha256:90628084f04e612d0ff39a0e182284c0beec2009b7a65d858fe92de06fee2866".
+  usf:collectedOn "2026-08-06T17:25:13Z"^^xsd:dateTime;
+  usf:sourceDigest "sha256:676bf4b249f985af76435c9de5c946dedd7fc9a9cfd136dee69a84493688da68".
 <urn:usf:evidencenormalisation:factoryproviderv3implementation> a usf:EvidenceNormalisation;
   usf:canonicalName "factoryproviderv3implementation";
   usf:normalisesEvidence <urn:usf:evidenceresult:factoryproviderv3implementation>.
@@ -2059,12 +2061,12 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
   usf:validationEnvironment <urn:usf:validationenvironment:factoryproviderv3cutoverrehearsal>;
   usf:validationExecutedByProducer <urn:usf:validationproducer:factoryproviderv3implementation>;
   usf:validationUsesEvidenceAdmissionPath <urn:usf:evidenceadmissionpath:factoryproviderv3implementation>;
-  usf:validationExecutionReceiptDigest "sha256:ee499fe0f34bed3ae3b57315b8588d71a3e256ef7f1ea910dc68a65ffdca6a9d";
+  usf:validationExecutionReceiptDigest "sha256:fd0e5923b7924aa46cf7d18cd3c15ec61ac2a40293c1778bc5d5790234b64115";
   usf:producesValidationResult <urn:usf:validationresult:factoryproviderv3implementation>.
 <urn:usf:validationevaluation:factoryproviderv3implementation> a usf:ValidationEvaluation;
   usf:canonicalName "factoryproviderv3implementation";
   usf:validationEvaluationOfExecution <urn:usf:validationexecution:factoryproviderv3implementation>;
-  usf:validationEvaluationReceiptDigest "sha256:f4c6702ee3d01c160fe0d534f07d0b3ebd54a846dd5801f4ce2aeec7d12eb883".
+  usf:validationEvaluationReceiptDigest "sha256:75534904995ab276adb58589735ab5d2ece61d12018e84ba6ffa41d0bddff2e0".
 <urn:usf:validationresult:factoryproviderv3implementation> a usf:ValidationResult;
   usf:canonicalName "factoryproviderv3implementation";
   usf:resultState <urn:usf:resultstate:passed>;
@@ -2073,8 +2075,8 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:validationEvaluatedAuthorityDigest "sha256:3b79d54a6c9473d466a8a6a99038a438a32508c90ce2579dba7e6cc5eee5a762";
-  usf:validationEvaluatedSourceHead "943d46df57654c47512f05ba3e76897fb3ebcbba";
+  usf:validationEvaluatedAuthorityDigest "sha256:9814962052e8d2dd89da5b888d723d1476f45213e55e57f8dfc1265abecf81ae";
+  usf:validationEvaluatedSourceHead "64bee85a1e6577ea58e474a24f0a1190cfc4ccc7";
   usf:validationResultOfEvaluation <urn:usf:validationevaluation:factoryproviderv3implementation>;
   usf:entersEvidenceLifecycleAs <urn:usf:evidenceresult:factoryproviderv3implementation>.
 
