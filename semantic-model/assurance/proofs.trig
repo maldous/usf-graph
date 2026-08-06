@@ -643,7 +643,7 @@
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
   usf:uncertaintyStatement "The proof warrants only the exact V3 implementation at owner-signed protected-main commit b83f4a68691e2991948d4c83f5328d1c365e0fa2 within the exact thirty-eight-path durable Factory source scope. It retires Graph contract projection schema 2, the D2 compatibility adapter and RunAuthorization schema 1; schema 3 remains executable only with the exact content-addressed read-only scope and current run, provider, model, qualification, admission and policy evidence. Future machinery generations require new admitted evidence.";
-  usf:evaluatedAt "2026-08-06T03:08:30Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:evaluatedAt "2026-08-06T03:17:40Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
 
 }
