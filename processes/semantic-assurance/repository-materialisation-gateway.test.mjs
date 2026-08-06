@@ -268,7 +268,8 @@ function defaultCurrentness(overrides = {}) {
       rule: binding('urn:usf:authoritybindingrule:selfpublicationclosure'),
       requiresReevaluation: binding('true'),
       reevaluationState: binding('urn:usf:proofreevaluationstate:successful'),
-      settledDigest: binding(`sha256:${'66'.repeat(32)}`),
+      evaluatedDigest: binding(`sha256:${'66'.repeat(32)}`),
+      settledDigest: binding(witnessDigest),
       reevaluationDependency: binding(CURRENT_DEPENDENCY),
       bindingDependency: binding(CURRENT_DEPENDENCY),
       bindingDependencyAlgorithm: binding(DEPENDENCY_ALGORITHM),
@@ -819,15 +820,20 @@ test('reserved validation withholds the validated claim without withdrawing real
   assert.ok(packet.stopConditions.includes('validationSatisfied is false and the task would claim validation'));
 });
 
-test('an activated but unsatisfied validation obligation blocks realisation authority', async () => {
+test('an activated unsatisfied validation obligation projects only the exact read-only remediation scope', async () => {
   const client = fakeClient({ validationObligationRows: defaultValidationObligationRows('urn:usf:validationactivationstate:activated') });
   const packet = await projectContract({ client }, { contract });
-  assert.equal(packet.actionState, 'BLOCK');
+  assert.equal(packet.schemaVersion, 3);
+  assert.equal(packet.actionState, 'PROCEED');
   assert.deepEqual(packet.actionStateReasons, ['missing-current-passing-validation']);
   assert.deepEqual(packet.authorisedActions, []);
   assert.deepEqual(packet.authorisedPaths, []);
   assert.equal(packet.validationActionState, 'PROCEED');
   assert.equal(packet.validationSatisfied, false);
+  assert.equal(packet.executionScope.scopeCore.modeIri, 'urn:usf:executionscopemode:readonlysemanticvalidation');
+  assert.equal(packet.executionScope.scopeCore.repositoryMutationPermitted, false);
+  assert.equal(packet.executionScope.scopeCore.maximumRepositoryWrites, 0);
+  assert.deepEqual(packet.executionScope.scopeCore.writePaths, []);
 });
 
 test('exact live family defects produce exactly three bounded read-only work rows', async () => {

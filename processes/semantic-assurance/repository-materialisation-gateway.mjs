@@ -145,6 +145,34 @@ const MAX_PACKET_BYTES = 65_536;
 const MAX_PACKET_ITEMS = 256;
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const DECISION_FORMAT_PREDICATE = 'urn:usf:ontology:authorisesRepresentationFormat';
+const READ_ONLY_VALIDATION_MODE = 'urn:usf:executionscopemode:readonlysemanticvalidation';
+const MATERIALISATION_MODE = 'urn:usf:executionscopemode:repositorymaterialisation';
+const EXECUTION_SCOPE_SCHEMA = 'urn:usf:schema:contract-execution-scope-core:1';
+const EXECUTION_SCOPE_PAYLOAD_SCHEMA = Object.freeze({
+  schema: 'urn:usf:identitypayloadschema:contract-execution-scope-v1',
+  canonicalisation: 'RFC8785',
+  digestAlgorithm: 'sha256',
+  version: 1,
+});
+const EXECUTION_SCOPE_PREDICATE_MANIFEST = Object.freeze({
+  schema: EXECUTION_SCOPE_SCHEMA,
+  authorityBindings: Object.freeze([
+    'acceptedDecisionIri',
+    'contractIri',
+    'currentProofIri',
+    'liveProjectionAuthorityDigest',
+    'obligationIri',
+  ]),
+  boundedEffects: Object.freeze([
+    'maximumRepositoryWrites',
+    'permittedActionIris',
+    'permittedEffectIris',
+    'permittedTools',
+    'readableResourceIris',
+    'repositoryMutationPermitted',
+    'writePaths',
+  ]),
+});
 
 const value = (row, key) => row[key]?.value ?? null;
 const MATERIALISATION_RULE_WHERE = `
@@ -1099,33 +1127,161 @@ export async function projectContract(ctx, args = {}) {
   const validationIds = scope.obligations.map((item) => item.id).sort();
   // Realisation authority comes from the one shared verdict, so this packet and
   // the plan tools can never disagree about the same contract.
-  const { actionState, actionStateReasons, validation, currentness } = verdict;
-  const authorised = actionState === ACTION_STATES.proceed;
+  const { actionState: realisationActionState, actionStateReasons, validation, currentness } = verdict;
+  // Validation remediation is a distinct, narrower authority surface.  When
+  // every realisation blocker is exactly an activated validation obligation
+  // lacking a current passing result, project a read-only analysis scope.  The
+  // materialisation verdict remains BLOCK, so no repository or authority write
+  // is thereby authorised and the layout tools continue to refuse mutation.
+  const readOnlyValidation = validation.validationActionState === ACTION_STATES.proceed
+    && actionStateReasons.length > 0
+    && actionStateReasons.every((code) => code === 'missing-current-passing-validation');
+  const actionState = readOnlyValidation ? ACTION_STATES.proceed : realisationActionState;
+  const authorised = actionState === ACTION_STATES.proceed && !readOnlyValidation;
+
+  const proofFacts = currentness.facts;
+  if (currentness.state !== PROOF_CURRENTNESS.current
+    || !proofFacts.proofResult
+    || !proofFacts.obligation
+    || !proofFacts.algorithm
+    || !proofFacts.algorithmSourceDigest
+    || !proofFacts.algorithmVersion
+    || !proofFacts.implementationSourceSetDigest
+    || !proofFacts.dependencySetDigest
+    || !proofFacts.evidenceSetDigest
+    || !proofFacts.authorityBinding
+    || !proofFacts.authorityBindingRule
+    || !proofFacts.evaluatedAuthorityDigest) {
+    throw new Error('contract execution scope requires one exact current proof chain');
+  }
+  const proofResultCore = {
+    schema: 'urn:usf:schema:proof-result-content-binding:1',
+    proofResult: proofFacts.proofResult,
+    proofResultState: proofFacts.proofResultState,
+    obligation: proofFacts.obligation,
+    algorithm: proofFacts.algorithm,
+    algorithmSourceDigest: proofFacts.algorithmSourceDigest,
+    algorithmVersion: proofFacts.algorithmVersion,
+    implementationSourceSetDigest: proofFacts.implementationSourceSetDigest,
+    dependencySetDigest: proofFacts.dependencySetDigest,
+    evidenceSetDigest: proofFacts.evidenceSetDigest,
+    evidence: [...proofFacts.evidence].sort(),
+    authorityBinding: proofFacts.authorityBinding,
+    authorityBindingRule: proofFacts.authorityBindingRule,
+    reevaluationState: proofFacts.reevaluationState ?? null,
+    evaluatedAuthorityDigest: proofFacts.evaluatedAuthorityDigest,
+    settledAuthorityDigest: proofFacts.settledAuthorityDigest ?? null,
+  };
+  const proofResultDigest = digest(jcs(proofResultCore));
+  const proofCurrentness = {
+    state: currentness.state,
+    stateIri: currentness.stateIri,
+    reasons: currentness.reasons,
+    proofResults: [proofFacts.proofResult],
+    mandatoryObligations: [proofFacts.obligation],
+    obligationProofResults: [{
+      obligation: proofFacts.obligation,
+      proofResult: proofFacts.proofResult,
+    }],
+    perProof: [{
+      ...proofResultCore,
+      schema: undefined,
+      proofResultDigest,
+      currentAuthorityDigest: context.authorityDigest,
+    }],
+  };
+  delete proofCurrentness.perProof[0].schema;
+
+  const scopeMode = readOnlyValidation ? READ_ONLY_VALIDATION_MODE : MATERIALISATION_MODE;
+  const scopeCore = readOnlyValidation ? {
+    schema: EXECUTION_SCOPE_SCHEMA,
+    obligationIri: proofFacts.obligation,
+    contractIri: context.contract.id,
+    decisionIri: context.contract.decision,
+    modeIri: scopeMode,
+    permittedActionIris: ['urn:usf:executionaction:semanticvalidation'],
+    permittedActionCount: 1,
+    permittedTools: ['list_paths', 'read_file'],
+    permittedToolCount: 2,
+    readableResourceIris: [
+      'urn:usf:executionresource:authorisedsemanticsnapshot',
+      'urn:usf:executionresource:contractprojection',
+      'urn:usf:executionresource:semanticpacket',
+    ],
+    readableResourceCount: 3,
+    writePaths: [],
+    writePathCount: 0,
+    permittedEffectIris: ['urn:usf:executioneffect:validationevidencecandidate'],
+    permittedEffectCount: 1,
+    repositoryMutationPermitted: false,
+    maximumRepositoryWrites: 0,
+    prepublicationBaseAuthorityDigest: proofFacts.evaluatedAuthorityDigest,
+    prepublicationProofIri: proofFacts.proofResult,
+    prepublicationProofDigest: proofResultDigest,
+    payloadSchemaIri: EXECUTION_SCOPE_PAYLOAD_SCHEMA.schema,
+    payloadSchemaDigest: digest(jcs(EXECUTION_SCOPE_PAYLOAD_SCHEMA)),
+    predicateManifestDigest: digest(jcs(EXECUTION_SCOPE_PREDICATE_MANIFEST)),
+  } : {
+    schema: EXECUTION_SCOPE_SCHEMA,
+    obligationIri: proofFacts.obligation,
+    contractIri: context.contract.id,
+    decisionIri: context.contract.decision,
+    modeIri: scopeMode,
+    permittedActionIris: ['urn:usf:executionaction:repositorymaterialisation'],
+    permittedActionCount: 1,
+    permittedTools: ['read_file', 'write_file'],
+    permittedToolCount: 2,
+    readableResourceIris: ['urn:usf:executionresource:repositorysource'],
+    readableResourceCount: 1,
+    writePaths: [...context.authorisedPaths].sort(),
+    writePathCount: context.authorisedPaths.length,
+    permittedEffectIris: ['urn:usf:executioneffect:repositorymutation'],
+    permittedEffectCount: 1,
+    repositoryMutationPermitted: true,
+    maximumRepositoryWrites: MAX_OPERATIONS,
+    prepublicationBaseAuthorityDigest: proofFacts.evaluatedAuthorityDigest,
+    prepublicationProofIri: proofFacts.proofResult,
+    prepublicationProofDigest: proofResultDigest,
+    payloadSchemaIri: EXECUTION_SCOPE_PAYLOAD_SCHEMA.schema,
+    payloadSchemaDigest: digest(jcs(EXECUTION_SCOPE_PAYLOAD_SCHEMA)),
+    predicateManifestDigest: digest(jcs(EXECUTION_SCOPE_PREDICATE_MANIFEST)),
+  };
+  const scopeDigest = digest(jcs(scopeCore));
+  const scopeIri = `urn:usf:contractexecutionscope:${scopeDigest.slice('sha256:'.length)}`;
+  const scopeProjection = {
+    scopeIri,
+    scopeDigest,
+    scopeCore,
+    liveProjectionAuthorityDigest: context.authorityDigest,
+    currentProofIri: proofFacts.proofResult,
+    currentProofDigest: proofResultDigest,
+  };
+  const scopeProjectionDigest = digest(jcs(scopeProjection));
+  const executionScope = {
+    ...scopeProjection,
+    scopeProjectionRef: `cas://sha256/${scopeProjectionDigest.slice('sha256:'.length)}`,
+    scopeProjectionDigest,
+  };
 
   const packet = {
-    schemaVersion: 2,
-    semanticIdentifiers: [context.contract.id, context.contract.proofResult, context.contract.decision, ...validationIds].filter(Boolean),
+    schemaVersion: 3,
+    contract: context.contract.id,
+    acceptedDecisionIri: context.contract.decision,
+    executionScope,
+    semanticIdentifiers: [
+      context.contract.id,
+      context.contract.proofResult,
+      context.contract.decision,
+      scopeIri,
+      proofFacts.obligation,
+      proofFacts.proofResult,
+      ...validationIds,
+    ].filter(Boolean).sort(),
     authorityDigest: context.authorityDigest,
     contractState: { lifecycle: context.contract.lifecycleState, activation: context.contract.activationState, decision: context.contract.decisionState, proof: context.contract.proofResultState, decisionResolution: context.decisionResolution },
     // Proof currentness is projected explicitly. Neither the graph nor the
     // factory has to infer it from prose or from a successful result state.
-    proofCurrentness: {
-      proofResult: currentness.facts.proofResult ?? null,
-      proofResultState: currentness.facts.proofResultState ?? null,
-      state: currentness.state,
-      stateIri: currentness.stateIri,
-      reasons: currentness.reasons,
-      evidence: currentness.facts.evidence ?? [],
-      evidenceSetDigest: currentness.facts.evidenceSetDigest ?? null,
-      proofAlgorithm: currentness.facts.algorithm ?? null,
-      proofAlgorithmSourceDigest: currentness.facts.algorithmSourceDigest ?? null,
-      proofAlgorithmVersion: currentness.facts.algorithmVersion ?? null,
-      implementationSourceSetDigest: currentness.facts.implementationSourceSetDigest ?? null,
-      dependencySetDigest: currentness.facts.dependencySetDigest ?? null,
-      authorityBinding: currentness.facts.authorityBinding ?? null,
-      authorityBindingRule: currentness.facts.authorityBindingRule ?? null,
-      postPublicationReevaluationState: currentness.facts.reevaluationState ?? null,
-    },
+    proofCurrentness,
     actionState,
     actionStateReasons,
     objective: args.objective || `Realise and validate ${context.contract.canonicalName} from current semantic authority.`,
