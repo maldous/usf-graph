@@ -850,15 +850,24 @@ function isPendingInitialProjection(projection, selectedResult) {
   const currentness = projection?.proofCurrentness;
   const contractState = projection?.contractState;
   const reasons = currentness?.reasons;
+  const perProof = currentness?.perProof;
+  const proofResults = currentness?.proofResults;
   return selectedResult === PROVISIONAL_AGGREGATE_RESULT_IRI
     && projection?.actionState === 'BLOCK'
     && contractState?.lifecycle === 'urn:usf:semanticlifecyclestate:active'
     && contractState?.activation === 'urn:usf:contractactivationstate:proofblocked'
     && contractState?.decision === 'urn:usf:decisionstate:accepted'
     && contractState?.proof === null
-    && currentness?.proofResult === PROVISIONAL_AGGREGATE_RESULT_IRI
     && currentness?.state === 'STALE_BLOCK'
-    && currentness?.postPublicationReevaluationState === 'urn:usf:proofreevaluationstate:pending'
+    && currentness?.stateIri === 'urn:usf:proofcurrentnessstate:staleblock'
+    && Array.isArray(proofResults)
+    && proofResults.length === 1
+    && proofResults[0] === PROVISIONAL_AGGREGATE_RESULT_IRI
+    && Array.isArray(perProof)
+    && perProof.length === 1
+    && perProof[0]?.proofResult === PROVISIONAL_AGGREGATE_RESULT_IRI
+    && perProof[0]?.reevaluationState === 'urn:usf:proofreevaluationstate:pending'
+    && perProof[0]?.currentAuthorityDigest === projection?.authorityDigest
     && Array.isArray(reasons)
     && reasons.length === 2
     && new Set(reasons).size === 2

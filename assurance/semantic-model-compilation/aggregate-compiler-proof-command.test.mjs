@@ -46,11 +46,17 @@ const pendingInitialProjection = (overrides = {}) => ({
     proof: null,
   },
   proofCurrentness: {
-    postPublicationReevaluationState: 'urn:usf:proofreevaluationstate:pending',
-    proofResult: PROVISIONAL_AGGREGATE_RESULT_IRI,
+    perProof: [{
+      currentAuthorityDigest: D1,
+      proofResult: PROVISIONAL_AGGREGATE_RESULT_IRI,
+      reevaluationState: 'urn:usf:proofreevaluationstate:pending',
+    }],
+    proofResults: [PROVISIONAL_AGGREGATE_RESULT_IRI],
     reasons: ['proof-currentness-ambiguous', 'proof-currentness-unresolved'],
     state: 'STALE_BLOCK',
+    stateIri: 'urn:usf:proofcurrentnessstate:staleblock',
   },
+  authorityDigest: D1,
   ...overrides,
 });
 const EXPECTED_REVIEWED_SOURCE_PATHS = Object.freeze([
@@ -505,7 +511,7 @@ test('observes exactly one provisional D1 result in PENDING fail-closed state', 
 test('rejects a proof-blocked D1 projection without the exact pending reevaluation binding', async () => {
   const base = fixture();
   const projection = pendingInitialProjection();
-  projection.proofCurrentness.postPublicationReevaluationState = null;
+  projection.proofCurrentness.perProof[0].reevaluationState = null;
   await assert.rejects(() => harness(base, [], { authority: D1, projection })
     .producer.observeInitialProjection({ requestedAuthorityDigest: D1 }),
   (error) => error.code === 'AGGREGATE_PRODUCER_INITIAL_PROJECTION_INVALID');

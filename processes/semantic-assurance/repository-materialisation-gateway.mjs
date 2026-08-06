@@ -1140,8 +1140,7 @@ export async function projectContract(ctx, args = {}) {
   const authorised = actionState === ACTION_STATES.proceed && !readOnlyValidation;
 
   const proofFacts = currentness.facts;
-  if (currentness.state !== PROOF_CURRENTNESS.current
-    || !proofFacts.proofResult
+  if (!proofFacts.proofResult
     || !proofFacts.obligation
     || !proofFacts.algorithm
     || !proofFacts.algorithmSourceDigest
@@ -1152,7 +1151,7 @@ export async function projectContract(ctx, args = {}) {
     || !proofFacts.authorityBinding
     || !proofFacts.authorityBindingRule
     || !proofFacts.evaluatedAuthorityDigest) {
-    throw new Error('contract execution scope requires one exact current proof chain');
+    throw new Error('contract execution scope requires one exact proof chain');
   }
   const proofResultCore = {
     schema: 'urn:usf:schema:proof-result-content-binding:1',
