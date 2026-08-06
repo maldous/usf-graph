@@ -643,7 +643,7 @@
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
   usf:uncertaintyStatement "The proof warrants only the exact Provider V3 machinery at owner-signed commit 943d46df57654c47512f05ba3e76897fb3ebcbba and tree a89cf15efe85ce52dc287191787c72d9b38bdbc6 within unchanged source-scope digest sha256:7bee053397774dd0aa5af84d7ad63f11705b09670056e0e25f635a9d8e2f5b4c. A currentness-filtered candidate may preserve the exact 24-hour membership only as an order-preserving subset while authority, source, policy, configuration, rule, qualification and admission bindings remain current. Each route remains individually gated by current provider and model evidence. Additions, priority changes and material eligibility changes require a new governed generation. Production convergence still requires exact deployment, real inference, validated result and replay evidence.";
-  usf:evaluatedAt "2026-08-06T14:58:30Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:evaluatedAt "2026-08-06T15:03:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
 
 }
