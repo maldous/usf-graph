@@ -796,8 +796,11 @@ export async function runPublication({
     throw new Error('publisher requires injected compiler command and authority witness reader');
   }
   const admittedEvidence = evidenceStoreAdapter(evidenceStore);
-  let candidate = exactCandidate(candidateBytes, mode === 'prepare' ? undefined : expectedCandidateDigest);
+  let candidate = candidateBytes === undefined
+    ? null
+    : exactCandidate(candidateBytes, mode === 'prepare' ? undefined : expectedCandidateDigest);
   if (mode === 'prepare') {
+    if (candidate === null) throw new Error('publisher requires exact canonical candidate bytes');
     if (typeof command.composeCandidate !== 'function') throw new Error('prepare requires full source and aggregate candidate composition');
     const composed = await command.composeCandidate({ generatedCandidateBytes: candidate.bytes, expectedAuthorityDigest });
     candidate = exactCandidate(composed?.bytes, composed?.digest);
@@ -855,6 +858,9 @@ export async function runPublication({
       });
     }
     if (existing?.state === 'reserved') {
+      if (candidate === null) {
+        throw new Error('reserved publication recovery requires exact canonical candidate bytes');
+      }
       const observed = await command.inspectCandidateState({
         candidateBytes: candidate.bytes, candidateDigest: candidate.digest,
       });
@@ -890,6 +896,8 @@ export async function runPublication({
       });
     }
   }
+
+  if (candidate === null) throw new Error('publisher requires exact canonical candidate bytes');
 
   if (recoveryValidationEvidence !== undefined) {
     throw new Error('recovery validation evidence requires an existing durable publication outcome');

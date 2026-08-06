@@ -486,6 +486,31 @@ test('crash after atomic commit recovers from exact post-state without republish
   state.remove();
 });
 
+test('new and merely reserved publications still require exact candidate bytes', async () => {
+  const empty = journal();
+  await assert.rejects(runPublication(invocation({
+    mode: 'commit', ledgerPath: empty.ledgerPath, candidateBytes: undefined,
+    postPublicationReevaluate: producer(),
+  })), /requires exact canonical candidate bytes/);
+  empty.remove();
+
+  const reserved = journal();
+  const interrupted = command(INITIAL_CANDIDATE, { throwAfterCommit: 'process interrupted after commit' });
+  await assert.rejects(runPublication(invocation({
+    mode: 'commit', commandInstance: interrupted, ledgerPath: reserved.ledgerPath,
+    readAuthorityWitness: witnessReader([PRE, PRE]), settle,
+    postPublicationReevaluate: producer(),
+  })), /process interrupted after commit/);
+  assert.equal(reserved.read().nonces[INITIAL_NONCE].state, 'reserved');
+  await assert.rejects(runPublication(invocation({
+    mode: 'commit', commandInstance: interrupted, ledgerPath: reserved.ledgerPath,
+    candidateBytes: undefined,
+    readAuthorityWitness: witnessReader([FINAL]), settle,
+    postPublicationReevaluate: producer(),
+  })), /reserved publication recovery requires exact canonical candidate bytes/);
+  reserved.remove();
+});
+
 test('compiler failure, unaccepted state, inexact candidate, and digest mismatch fail closed', async () => {
   for (const [bad, pattern] of [
     [{ ...compilerResult('VALIDATED_ROLLBACK', INITIAL_CANDIDATE), ok: false }, /not an exact accepted/],
@@ -632,6 +657,7 @@ test('consume failure remains recoverable after grant expiry without republishin
   };
   const recovered = await runPublication(invocation({
     mode: 'commit', commandInstance: compiler, ledgerPath: state.ledgerPath,
+    candidateBytes: undefined,
     pendingPackage,
     readAuthorityWitness: witnessReader([STAGE_ONE, STAGE_ONE]), settle,
     trustedTime: timeReader(['2026-08-01T14:00:00Z']),

@@ -1140,8 +1140,7 @@ export async function projectContract(ctx, args = {}) {
   const authorised = actionState === ACTION_STATES.proceed && !readOnlyValidation;
 
   const proofFacts = currentness.facts;
-  if (currentness.state !== PROOF_CURRENTNESS.current
-    || !proofFacts.proofResult
+  if (!proofFacts.proofResult
     || !proofFacts.obligation
     || !proofFacts.algorithm
     || !proofFacts.algorithmSourceDigest
@@ -1152,7 +1151,7 @@ export async function projectContract(ctx, args = {}) {
     || !proofFacts.authorityBinding
     || !proofFacts.authorityBindingRule
     || !proofFacts.evaluatedAuthorityDigest) {
-    throw new Error('contract execution scope requires one exact current proof chain');
+    throw new Error('contract execution scope requires one exact proof chain');
   }
   const proofResultCore = {
     schema: 'urn:usf:schema:proof-result-content-binding:1',
@@ -1263,16 +1262,21 @@ export async function projectContract(ctx, args = {}) {
     scopeProjectionDigest,
   };
 
+  // A fail-closed projection may identify the proof that caused the block, but
+  // it must not expose an execution grant.  Consumers other than the Factory
+  // must not be able to mistake a stale projected scope for current authority.
+  const projectedExecutionScope = actionState === ACTION_STATES.proceed ? executionScope : null;
+
   const packet = {
     schemaVersion: 3,
     contract: context.contract.id,
     acceptedDecisionIri: context.contract.decision,
-    executionScope,
+    executionScope: projectedExecutionScope,
     semanticIdentifiers: [
       context.contract.id,
       context.contract.proofResult,
       context.contract.decision,
-      scopeIri,
+      ...(projectedExecutionScope ? [scopeIri] : []),
       proofFacts.obligation,
       proofFacts.proofResult,
       ...validationIds,
