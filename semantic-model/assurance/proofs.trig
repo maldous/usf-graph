@@ -632,18 +632,18 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:b7abf7db877942de1b98b2e6a4e239519eb255585bee9f8deb80ebddea42603c";
-  usf:implementationSourceSetDigest "sha256:4ac84125f6c27592d5594f1288edfc7816aa01b6c091a703a5d5068dcc67c411";
-  usf:dependencySetDigest "sha256:b7abf7db877942de1b98b2e6a4e239519eb255585bee9f8deb80ebddea42603c";
+  usf:evidenceSetDigest "sha256:d458b96eed091a666aba1aebcf3129646795e30aeed5cac24b24ceeb9042cd39";
+  usf:implementationSourceSetDigest "sha256:10af934ca81621f195f1b9d3aa415a1e82a9bd9d47205870eaa46fc83ef447c2";
+  usf:dependencySetDigest "sha256:d458b96eed091a666aba1aebcf3129646795e30aeed5cac24b24ceeb9042cd39";
   usf:dependencyDigestAlgorithm "sha256-canonical-evidence-file-digest-set-v1";
-  usf:proofProducerCommit "4b5cd36b6800cfda942853f707a798dea95551e8";
-  usf:proofProducerTree "9a3dcde2c8b72c89cd5e24ca77685989f7b72f24";
+  usf:proofProducerCommit "b83f4a68691e2991948d4c83f5328d1c365e0fa2";
+  usf:proofProducerTree "a5e83f5446ac2ef3605d7b5ce4fbf570a119cfde";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "The proof warrants only the exact V3 implementation at commit 4b5cd36b6800cfda942853f707a798dea95551e8 within the unchanged twenty-eight-path durable Factory source scope. It preserves governed twenty-four-hour roster membership across provider-head currentness renewal only when the recomputed admitted membership is exact, while route execution remains conditional on current provider, model, qualification, admission, policy and execution evidence. Future machinery generations require new admitted evidence.";
-  usf:evaluatedAt "2026-08-05T19:40:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "The proof warrants only the exact V3 implementation at owner-signed protected-main commit b83f4a68691e2991948d4c83f5328d1c365e0fa2 within the exact thirty-eight-path durable Factory source scope. It retires Graph contract projection schema 2, the D2 compatibility adapter and RunAuthorization schema 1; schema 3 remains executable only with the exact content-addressed read-only scope and current run, provider, model, qualification, admission and policy evidence. Future machinery generations require new admitted evidence.";
+  usf:evaluatedAt "2026-08-06T03:08:30Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
 
 }
