@@ -632,18 +632,18 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:fc17af0a078df4d6cc497f398842ea6ce9918cabbacf294991263908168256be";
-  usf:implementationSourceSetDigest "sha256:fbae3f0072c0e3c045a7630c2c7f15abbeb14c816f0f4ff27bc004742557b12a";
-  usf:dependencySetDigest "sha256:fc17af0a078df4d6cc497f398842ea6ce9918cabbacf294991263908168256be";
+  usf:evidenceSetDigest "sha256:502411f2495b42d56b77182f2d2820e75a469b87b5d181004a005b658f4a1131";
+  usf:implementationSourceSetDigest "sha256:5837ce74085f8937d66a9fbf8fc106f39dfbac0589e98ddb64fbef7a8ca35cc0";
+  usf:dependencySetDigest "sha256:502411f2495b42d56b77182f2d2820e75a469b87b5d181004a005b658f4a1131";
   usf:dependencyDigestAlgorithm "sha256-canonical-evidence-file-digest-set-v1";
-  usf:proofProducerCommit "3a3d1bf9523020c5b2ec5f8195fe1800763991ac";
-  usf:proofProducerTree "9de7a096cc8f9f11b9d9fdc5f7bbb99468cf8df5";
+  usf:proofProducerCommit "943d46df57654c47512f05ba3e76897fb3ebcbba";
+  usf:proofProducerTree "a89cf15efe85ce52dc287191787c72d9b38bdbc6";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "The proof warrants only the exact Provider V3 machinery at owner-signed commit 3a3d1bf9523020c5b2ec5f8195fe1800763991ac and tree 9de7a096cc8f9f11b9d9fdc5f7bbb99468cf8df5 within unchanged source-scope digest sha256:7bee053397774dd0aa5af84d7ad63f11705b09670056e0e25f635a9d8e2f5b4c. An ANALYSIS_ONLY semantic obligation receives no materialisation-index-derived repository read scope only when it explicitly requests neither reads nor writes; exact semantic, family, owner, contract and materialisation metadata remain bound. Explicit file scopes, source changes, provider eligibility, roster currentness, production authorization, trust, Graph authority and completion semantics remain unchanged. Production convergence still requires exact deployment, real inference, validated result and replay evidence.";
-  usf:evaluatedAt "2026-08-06T13:15:25.929Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "The proof warrants only the exact Provider V3 machinery at owner-signed commit 943d46df57654c47512f05ba3e76897fb3ebcbba and tree a89cf15efe85ce52dc287191787c72d9b38bdbc6 within unchanged source-scope digest sha256:7bee053397774dd0aa5af84d7ad63f11705b09670056e0e25f635a9d8e2f5b4c. A currentness-filtered candidate may preserve the exact 24-hour membership only as an order-preserving subset while authority, source, policy, configuration, rule, qualification and admission bindings remain current. Each route remains individually gated by current provider and model evidence. Additions, priority changes and material eligibility changes require a new governed generation. Production convergence still requires exact deployment, real inference, validated result and replay evidence.";
+  usf:evaluatedAt "2026-08-06T14:58:30Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
 
 }

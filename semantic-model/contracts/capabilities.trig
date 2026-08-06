@@ -2491,7 +2491,7 @@ sc:notificationdeliveryandpreferencesandchannels usf:hasActivationState contract
     usf:mandatoryProofObligation <urn:usf:proofobligation:p1874b31e72692fcb908b9d1c13a86f9ca955777ba0b338339d6b5f0adb5c65af>;
     usf:permittedRealisationType usf:Implementation.
 sc:providerconfigurationplane usf:hasActivationState contractstate:active;
-    usf:activationReason "The existing Provider V3 contract remains active. Newly admitted signed implementation, independent evaluation and activation-decision evidence warrant only owner-signed commit 3a3d1bf9523020c5b2ec5f8195fe1800763991ac in the unchanged source scope. The bounded repair prevents the materialisation index from inventing source egress for an unscoped ANALYSIS_ONLY semantic request while preserving every explicit scope and fail-closed authorization boundary.";
+    usf:activationReason "The existing Provider V3 contract remains active. Newly admitted signed implementation, independent evaluation and activation-decision evidence warrant only owner-signed commit 943d46df57654c47512f05ba3e76897fb3ebcbba in the unchanged source scope. The bounded repair prevents temporary provider-currentness gaps from deleting governed roster membership while preserving per-route currentness, qualification, admission, policy, identity, fencing and authorization checks.";
     usf:requiresRealisationOptionEvaluation true;
     usf:mandatoryProofObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>;
     usf:reliesOnProofResult <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane>, <urn:usf:proofresult:factoryproviderv3implementation>;
@@ -4950,7 +4950,7 @@ sc:writeonlysecretsettings usf:hasValidationApplicability vas:unresolved;
   usf:canonicalName "providerworkforceboundedimplementationauthority".
 <urn:usf:claim:factoryproviderv3boundedproductionauthority> a usf:Claim;
   usf:canonicalName "factoryproviderv3boundedproductionauthority";
-  usf:definition "Authorises only the exact Factory Provider V3 implementation at owner-signed commit 3a3d1bf9523020c5b2ec5f8195fe1800763991ac, tree 9de7a096cc8f9f11b9d9fdc5f7bbb99468cf8df5 and unchanged source-scope digest sha256:7bee053397774dd0aa5af84d7ad63f11705b09670056e0e25f635a9d8e2f5b4c. The implementation may retain authoritative semantic and owner metadata without raw repository paths for an ANALYSIS_ONLY obligation that requested no file scope. This grants no source egress, repository mutation, trust, provider-contact, paid-inference, roster-membership, Graph-mutation, completion or source-scope expansion.".
+  usf:definition "Authorises only the exact Factory Provider V3 implementation at owner-signed commit 943d46df57654c47512f05ba3e76897fb3ebcbba, tree a89cf15efe85ce52dc287191787c72d9b38bdbc6 and unchanged source-scope digest sha256:7bee053397774dd0aa5af84d7ad63f11705b09670056e0e25f635a9d8e2f5b4c. A still-current 24-hour roster generation may survive short provider-currentness gaps when the newly derived candidate is only an order-preserving subset of its membership; every route remains executable only with current provider/model, qualification, admission and policy evidence. This grants no trust, provider-contact, paid-inference, roster-policy, Graph-mutation, completion or source-scope expansion.".
 <urn:usf:nonclaim:providercredentialsauthority> a usf:NonClaim;
   usf:canonicalName "providercredentialsauthority".
 <urn:usf:nonclaim:providerresearchprovesavailability> a usf:NonClaim;
