@@ -632,18 +632,18 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:07f2adb5dffe0ac87d43f173807b76828580101b1c76bcedc99779672b9f7689";
-  usf:implementationSourceSetDigest "sha256:e91873f18438b5f1ae4648c70ac2ce92c4fa3717b51f932f6399a84ed4065e11";
-  usf:dependencySetDigest "sha256:07f2adb5dffe0ac87d43f173807b76828580101b1c76bcedc99779672b9f7689";
+  usf:evidenceSetDigest "sha256:fc17af0a078df4d6cc497f398842ea6ce9918cabbacf294991263908168256be";
+  usf:implementationSourceSetDigest "sha256:fbae3f0072c0e3c045a7630c2c7f15abbeb14c816f0f4ff27bc004742557b12a";
+  usf:dependencySetDigest "sha256:fc17af0a078df4d6cc497f398842ea6ce9918cabbacf294991263908168256be";
   usf:dependencyDigestAlgorithm "sha256-canonical-evidence-file-digest-set-v1";
-  usf:proofProducerCommit "75d3def3556502734711eae739d3c941634ccd22";
-  usf:proofProducerTree "9464d106473056c794e486cf638d8e361f0de675";
+  usf:proofProducerCommit "3a3d1bf9523020c5b2ec5f8195fe1800763991ac";
+  usf:proofProducerTree "9de7a096cc8f9f11b9d9fdc5f7bbb99468cf8df5";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "The proof warrants only the exact Provider V3 machinery at owner-signed commit 75d3def3556502734711eae739d3c941634ccd22 and tree 9464d106473056c794e486cf638d8e361f0de675 within the unchanged inherited Factory validation-producer scope. Packet queueing, scheduler run decisions and routing may proceed in DUE_OBSERVATION only through routes that remain individually current and only while executable_roster is true. Stale dependent routes remain excluded. Provider evidence, roster membership, trust, production authorization, completion semantics and Graph content otherwise remain unchanged. Production BAU still requires exact deployment, real inference, validated result and replay evidence.";
-  usf:evaluatedAt "2026-08-06T11:32:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "The proof warrants only the exact Provider V3 machinery at owner-signed commit 3a3d1bf9523020c5b2ec5f8195fe1800763991ac and tree 9de7a096cc8f9f11b9d9fdc5f7bbb99468cf8df5 within unchanged source-scope digest sha256:7bee053397774dd0aa5af84d7ad63f11705b09670056e0e25f635a9d8e2f5b4c. An ANALYSIS_ONLY semantic obligation receives no materialisation-index-derived repository read scope only when it explicitly requests neither reads nor writes; exact semantic, family, owner, contract and materialisation metadata remain bound. Explicit file scopes, source changes, provider eligibility, roster currentness, production authorization, trust, Graph authority and completion semantics remain unchanged. Production convergence still requires exact deployment, real inference, validated result and replay evidence.";
+  usf:evaluatedAt "2026-08-06T13:12:01.831Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
 
 }
