@@ -1087,11 +1087,17 @@ export function createAggregateCompilerProofProducer({
       const liveEvaluatedAuthorityDigest = exactScalar(live.receiptBindingRows, 'evaluatedAuthorityDigest', aggregateResultIri);
       const liveExecutionReceiptDigest = exactScalar(live.receiptBindingRows, 'executionReceiptDigest', aggregateResultIri);
       const liveEvaluationReceiptDigest = exactScalar(live.receiptBindingRows, 'evaluationReceiptDigest', aggregateResultIri);
+      const projectedProofResults = Array.isArray(live.projection?.proofCurrentness?.proofResults)
+        ? live.projection.proofCurrentness.proofResults : [];
+      const projectedAggregateResults = Array.isArray(live.projection?.proofCurrentness?.perProof)
+        ? live.projection.proofCurrentness.perProof.filter((item) => item?.proofResult === aggregateResultIri)
+        : [];
       if (selections.length !== 1 || selections[0] !== aggregateResultIri || liveResult !== aggregateResultIri
           || liveEvaluatedAuthorityDigest !== expectedStage1AuthorityDigest
           || liveExecutionReceiptDigest !== preparation.executionReceiptDigest
           || liveEvaluationReceiptDigest !== preparation.evaluationReceiptDigest
-          || live.projection?.proofCurrentness?.proofResult !== aggregateResultIri
+          || projectedProofResults.length !== 1 || projectedProofResults[0] !== aggregateResultIri
+          || projectedAggregateResults.length !== 1
           || live.projection?.proofCurrentness?.state !== 'CURRENT'
           || live.projection?.actionState !== 'PROCEED') {
         fail('AGGREGATE_PRODUCER_TERMINAL_PROJECTION_INVALID', 'final authority did not preserve the stage-1 CURRENT/PROCEED aggregate');

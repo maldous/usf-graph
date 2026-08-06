@@ -414,7 +414,12 @@ function harness(base, rows, options = {}) {
   const authority = options.authority || D0;
   const metrics = { componentQueries: 0, trustedTimeQueries: 0 };
   const projection = options.projection || {
-    actionState: 'PROCEED', proofCurrentness: { proofResult: AGGREGATE_RESULT_IRI, state: 'CURRENT' },
+    actionState: 'PROCEED',
+    proofCurrentness: {
+      perProof: [{ proofResult: AGGREGATE_RESULT_IRI }],
+      proofResults: [AGGREGATE_RESULT_IRI],
+      state: 'CURRENT',
+    },
   };
   const client = { async select(query) {
     if (query.includes('aggregate-trusted-time-v1')) { metrics.trustedTimeQueries += 1; return [{ now: binding(options.trustedAt || TRUSTED_AT) }]; }
@@ -708,6 +713,22 @@ test('rejects CURRENT initial projection and non-CURRENT final projection', asyn
     projection: { actionState: 'UNRESOLVED_FAIL_CLOSED', proofCurrentness: { state: 'AMBIGUOUS' } },
   });
   await assert.rejects(() => finalRun.producer.produceTerminal({
+    expectedStage1AuthorityDigest: D1, requestedAuthorityDigest: D2, stage1Preparation: preparation,
+  }), (error) => error.code === 'AGGREGATE_PRODUCER_TERMINAL_PROJECTION_INVALID');
+});
+
+test('terminal observation rejects the retired singular proof-result projection', async () => {
+  const base = fixture();
+  const preparation = await stage1(base);
+  const run = harness(base, [], {
+    authority: D2, receiptBinding: liveBinding(preparation), rejectComponents: true,
+    validationRows: validationRows(base.casRoot),
+    projection: {
+      actionState: 'PROCEED',
+      proofCurrentness: { proofResult: AGGREGATE_RESULT_IRI, state: 'CURRENT' },
+    },
+  });
+  await assert.rejects(() => run.producer.produceTerminal({
     expectedStage1AuthorityDigest: D1, requestedAuthorityDigest: D2, stage1Preparation: preparation,
   }), (error) => error.code === 'AGGREGATE_PRODUCER_TERMINAL_PROJECTION_INVALID');
 });
