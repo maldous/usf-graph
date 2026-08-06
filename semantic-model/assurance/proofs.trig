@@ -632,18 +632,18 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:4f300889fbc546fe337bb5d9cc1ef36d3d089cde593784738721a7feeb499f1d";
-  usf:implementationSourceSetDigest "sha256:60ed7a9166cea214fba53a1749c2accb1c7bbb6a9250a699d1d1d587c3f52994";
-  usf:dependencySetDigest "sha256:4f300889fbc546fe337bb5d9cc1ef36d3d089cde593784738721a7feeb499f1d";
+  usf:evidenceSetDigest "sha256:07f2adb5dffe0ac87d43f173807b76828580101b1c76bcedc99779672b9f7689";
+  usf:implementationSourceSetDigest "sha256:e91873f18438b5f1ae4648c70ac2ce92c4fa3717b51f932f6399a84ed4065e11";
+  usf:dependencySetDigest "sha256:07f2adb5dffe0ac87d43f173807b76828580101b1c76bcedc99779672b9f7689";
   usf:dependencyDigestAlgorithm "sha256-canonical-evidence-file-digest-set-v1";
-  usf:proofProducerCommit "b90db8d6e753943eee367a64e1e4648f688dc94d";
-  usf:proofProducerTree "394ddef9609be27ede878c449a3e77b69fd2cc10";
+  usf:proofProducerCommit "75d3def3556502734711eae739d3c941634ccd22";
+  usf:proofProducerTree "9464d106473056c794e486cf638d8e361f0de675";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "The proof warrants only the exact Provider V3 machinery at owner-signed commit b90db8d6e753943eee367a64e1e4648f688dc94d and tree 394ddef9609be27ede878c449a3e77b69fd2cc10 within the unchanged inherited Factory validation-producer scope. Dynamic adaptive candidates are intersected with the exact active V3 generation and required role before preference drawing; compatibility-only profiles remain explicit rejections. Provider evidence, roster membership, trust, contracts, production authorization, completion semantics and Graph content otherwise remain unchanged. Production BAU still requires exact deployment, current routes, real inference, validated result and replay evidence.";
-  usf:evaluatedAt "2026-08-06T09:48:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "The proof warrants only the exact Provider V3 machinery at owner-signed commit 75d3def3556502734711eae739d3c941634ccd22 and tree 9464d106473056c794e486cf638d8e361f0de675 within the unchanged inherited Factory validation-producer scope. Packet queueing, scheduler run decisions and routing may proceed in DUE_OBSERVATION only through routes that remain individually current and only while executable_roster is true. Stale dependent routes remain excluded. Provider evidence, roster membership, trust, production authorization, completion semantics and Graph content otherwise remain unchanged. Production BAU still requires exact deployment, real inference, validated result and replay evidence.";
+  usf:evaluatedAt "2026-08-06T11:20:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
 
 }
