@@ -643,7 +643,7 @@
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
   usf:uncertaintyStatement "The proof warrants only the exact Provider V3 machinery at owner-signed commit 75d3def3556502734711eae739d3c941634ccd22 and tree 9464d106473056c794e486cf638d8e361f0de675 within the unchanged inherited Factory validation-producer scope. Packet queueing, scheduler run decisions and routing may proceed in DUE_OBSERVATION only through routes that remain individually current and only while executable_roster is true. Stale dependent routes remain excluded. Provider evidence, roster membership, trust, production authorization, completion semantics and Graph content otherwise remain unchanged. Production BAU still requires exact deployment, real inference, validated result and replay evidence.";
-  usf:evaluatedAt "2026-08-06T11:20:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:evaluatedAt "2026-08-06T11:32:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
 
 }
