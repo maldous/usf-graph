@@ -643,7 +643,7 @@
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
   usf:uncertaintyStatement "The proof warrants only the exact Provider V3 machinery at owner-signed commit 86591b9f663ea57c8977337b98638c7a44d6a085 and tree 73de7cabf05064b5c7154205f054835ad6ac9967 within the unchanged thirty-eight-path Factory validation-producer scope. Standalone activate and bootstrap-runtime acquire and bind the existing sole V3 coordinator fence before canonical bootstrap, enforce it at point of use and release it on exit. FactoryEngine behaviour, provider evidence, roster semantics, trust, contracts and Graph content otherwise remain unchanged. Production BAU still requires exact deployment, current routes, execution and replay evidence.";
-  usf:evaluatedAt "2026-08-06T07:33:30Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:evaluatedAt "2026-08-06T07:49:57.950Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
 
 }
