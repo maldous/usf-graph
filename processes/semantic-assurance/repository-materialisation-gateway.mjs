@@ -1262,16 +1262,21 @@ export async function projectContract(ctx, args = {}) {
     scopeProjectionDigest,
   };
 
+  // A fail-closed projection may identify the proof that caused the block, but
+  // it must not expose an execution grant.  Consumers other than the Factory
+  // must not be able to mistake a stale projected scope for current authority.
+  const projectedExecutionScope = actionState === ACTION_STATES.proceed ? executionScope : null;
+
   const packet = {
     schemaVersion: 3,
     contract: context.contract.id,
     acceptedDecisionIri: context.contract.decision,
-    executionScope,
+    executionScope: projectedExecutionScope,
     semanticIdentifiers: [
       context.contract.id,
       context.contract.proofResult,
       context.contract.decision,
-      scopeIri,
+      ...(projectedExecutionScope ? [scopeIri] : []),
       proofFacts.obligation,
       proofFacts.proofResult,
       ...validationIds,

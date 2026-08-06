@@ -981,6 +981,8 @@ test('validation non-publication closure rejects unrelated authority drift', asy
   assert.equal(packet.validationObligations[0].satisfactionCurrent, false);
   assert.equal(packet.validationSatisfied, false);
   assert.equal(packet.actionState, 'BLOCK');
+  assert.equal(packet.executionScope, null);
+  assert.equal(packet.semanticIdentifiers.some((item) => item.startsWith('urn:usf:contractexecutionscope:')), false);
   assert.deepEqual(packet.validationGaps.map((gap) => gap.code), ['validation-satisfaction-not-current']);
 });
 
@@ -1021,6 +1023,7 @@ test('incomplete or substituted validation self-publication closures fail curren
     assert.equal(packet.validationSatisfied, false, item.name);
     assert.equal(packet.validationObligations[0].satisfactionCurrent, false, item.name);
     assert.equal(packet.actionState, 'BLOCK', item.name);
+    assert.equal(packet.executionScope, null, item.name);
     assert.deepEqual(packet.validationGaps.map((gap) => gap.code), ['validation-satisfaction-not-current'], item.name);
   }
 });
