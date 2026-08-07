@@ -632,18 +632,18 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:28894af08d1079b55159407b5afeb2ce44f91e52bf1bf6af22eb60bc99caf853";
-  usf:implementationSourceSetDigest "sha256:3fc284f62d2fbe9f449c31489accf7fab0a5eeb22a2ca138d736799c52d549d5";
-  usf:dependencySetDigest "sha256:28894af08d1079b55159407b5afeb2ce44f91e52bf1bf6af22eb60bc99caf853";
+  usf:evidenceSetDigest "sha256:cb751cea764b13768207d94b9a17ed0d61c57aca73f47968dbf411483dc9f4dd";
+  usf:implementationSourceSetDigest "sha256:50726b1aa8537cad2789e3d8f69a1aa913c2d27c4e3fcb4fcfa6d84dd74ec82d";
+  usf:dependencySetDigest "sha256:cb751cea764b13768207d94b9a17ed0d61c57aca73f47968dbf411483dc9f4dd";
   usf:dependencyDigestAlgorithm "sha256-canonical-evidence-file-digest-set-v1";
-  usf:proofProducerCommit "af238e042d9aefb645dd6d37460ffd56fac578f1";
-  usf:proofProducerTree "dc1bbe5c0601481b51ab3a0dd9770a030c5e0361";
+  usf:proofProducerCommit "1501f9b57439050cbcae886c7715adc655b18b58";
+  usf:proofProducerTree "1035550922dc12b4a8be494f688d27177e9b42b0";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit af238e042d9aefb645dd6d37460ffd56fac578f1 and tree dc1bbe5c0601481b51ab3a0dd9770a030c5e0361. It changes exactly one scheduling boundary: a routing decision is persisted only when it selects a profile, and a no-candidate scheduling outcome defers the packet with an observable schedule.no_candidate coverage report instead of persisting an empty decision that the fail-closed V3 execution recorder rejects cycle-fatally. Every execution-phase gate, redraw, market-maintenance recovery, claim fence and recorder invariant remains mandatory and unchanged. The proof does not warrant Graph mutation, source writes, completion, provider-contact, paid-inference, roster, qualification, admission or trust changes. Production convergence still requires exact deployment and a real validated semantic result.";
-  usf:evaluatedAt "2026-08-07T06:36:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 1501f9b57439050cbcae886c7715adc655b18b58 and tree 1035550922dc12b4a8be494f688d27177e9b42b0. It changes exactly one queue boundary: a deterministic packet re-minted under a successor roster generation renews its exact expired, unclaimed, non-terminal predecessor entry through one fenced observable packet.queue.rebound.v3 event with a deterministic replay projector, while a same-generation predecessor returns idempotently and every claimed, unexpired or terminal shape stays fail-closed. The permanent entry row, its unique slot, its identity and its event history are never deleted or rewritten, and the rebound lifecycle is proven schedulable, routable and byte-identical under deterministic rebuild inside the candidate's own regression test. The proof does not warrant Graph mutation, source writes, completion, provider-contact, paid-inference, roster, qualification, admission or trust changes. Production convergence still requires exact deployment and a real validated semantic result.";
+  usf:evaluatedAt "2026-08-07T11:06:04Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
 
 }
