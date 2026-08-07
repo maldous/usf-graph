@@ -2491,7 +2491,7 @@ sc:notificationdeliveryandpreferencesandchannels usf:hasActivationState contract
     usf:mandatoryProofObligation <urn:usf:proofobligation:p1874b31e72692fcb908b9d1c13a86f9ca955777ba0b338339d6b5f0adb5c65af>;
     usf:permittedRealisationType usf:Implementation.
 sc:providerconfigurationplane usf:hasActivationState contractstate:active;
-    usf:activationReason "The existing Provider V3 contract remains active. Newly admitted implementation, independent evaluation and activation-decision evidence warrant only the exact signed candidate that stops a scheduling-phase no-candidate routing decision from being persisted into the fail-closed execution recorder, where its rejection killed every supervised cycle before the provider-refresh phase and deadlocked dispatch. All unrelated machinery, semantic obligations, authorization, roster membership and dynamic currentness behaviour remain unchanged.";
+    usf:activationReason "The existing Provider V3 contract remains active. Newly admitted implementation, independent evaluation and activation-decision evidence warrant only the exact signed candidate that lets a re-minted deterministic packet renew its expired queue slot instead of violating the generation-independent uniqueness constraint and killing the cycle before dispatch. All unrelated machinery, semantic obligations, authorization, roster membership and dynamic currentness behaviour remain unchanged.";
     usf:requiresRealisationOptionEvaluation true;
     usf:mandatoryProofObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>;
     usf:reliesOnProofResult <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane>, <urn:usf:proofresult:factoryproviderv3implementation>;
@@ -4950,7 +4950,7 @@ sc:writeonlysecretsettings usf:hasValidationApplicability vas:unresolved;
   usf:canonicalName "providerworkforceboundedimplementationauthority".
 <urn:usf:claim:factoryproviderv3boundedproductionauthority> a usf:Claim;
   usf:canonicalName "factoryproviderv3boundedproductionauthority";
-  usf:definition "Authorises only Factory commit af238e042d9aefb645dd6d37460ffd56fac578f1, tree dc1bbe5c0601481b51ab3a0dd9770a030c5e0361 and source-scope digest sha256:1266c31922fbef0f94b2d42c530b45a413105d7121f889c4e1371c626a987c5f. A scheduling-phase routing decision is persisted if and only if it selects a profile; a no-candidate outcome defers the packet with an observable schedule.no_candidate event. This grants no trust, provider-contact, paid-inference, roster-policy, Graph-mutation, completion or broader source-write authority.".
+  usf:definition "Authorises only Factory commit 1501f9b57439050cbcae886c7715adc655b18b58, tree 1035550922dc12b4a8be494f688d27177e9b42b0 and source-scope digest sha256:1266c31922fbef0f94b2d42c530b45a413105d7121f889c4e1371c626a987c5f. A queue entry whose roster generation has been superseded and whose validity has lapsed, that is unclaimed and non-terminal, may be re-bound once per re-enqueue to the current active generation through the fenced packet.queue.rebound.v3 event; every other queue shape retains its existing fail-closed behaviour. This grants no trust, provider-contact, paid-inference, roster-policy, Graph-mutation, completion or broader source-write authority.".
 <urn:usf:nonclaim:providercredentialsauthority> a usf:NonClaim;
   usf:canonicalName "providercredentialsauthority".
 <urn:usf:nonclaim:providerresearchprovesavailability> a usf:NonClaim;
