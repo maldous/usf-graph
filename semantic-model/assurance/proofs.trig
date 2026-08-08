@@ -38,6 +38,10 @@
 <urn:usf:evidencerequirement:compilersemanticvalidation> a usf:EvidenceRequirement.
 <urn:usf:authoritybindingrule:selfpublicationclosure> a usf:AuthorityBindingRule;
     usf:canonicalName "selfpublicationclosure".
+<urn:usf:authoritybindingrule:validationnonpublicationdependencyclosure> a usf:AuthorityBindingRule;
+    usf:canonicalName "validationnonpublicationdependencyclosure".
+<urn:usf:authoritybindingrule:validationcrossrepositorynonpublicationclosure> a usf:AuthorityBindingRule;
+    usf:canonicalName "validationcrossrepositorynonpublicationclosure".
 <urn:usf:proofalgorithm:semanticadequacycounterfactualgate> a usf:ProofAlgorithm;
     usf:canonicalName "semanticadequacycounterfactualgate";
     usf:proofAlgorithmSourcePath "assurance/semantic-model-compilation/semantic-adequacy-proof.mjs";

@@ -798,6 +798,7 @@ shp:PostPublicationReevaluationShape a sh:NodeShape;
     usf:canonicalName "postpublicationreevaluationshape";
     sh:targetClass usf:PostPublicationReevaluation;
     sh:property [ sh:path usf:reevaluatesProofResult; sh:minCount 1; sh:maxCount 1; sh:class usf:PrePublicationAggregateProofResult ];
+    sh:property [ sh:path usf:reevaluatesValidationResult; sh:maxCount 1; sh:class usf:ValidationResult ];
     sh:property [ sh:path usf:reevaluationProducesProofResult; sh:minCount 1; sh:maxCount 1; sh:class usf:PostPublicationAggregateProofResult ];
     sh:property [ sh:path usf:reevaluationAuthorityDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$" ];
     sh:property [ sh:path usf:reevaluationSourceHead; sh:minCount 1; sh:maxCount 1; sh:pattern "^[0-9a-f]{40}$" ];

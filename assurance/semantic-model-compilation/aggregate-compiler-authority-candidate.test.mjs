@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { Parser } from 'n3';
 
@@ -29,6 +32,7 @@ const FINAL_PROOF = 'urn:usf:proof:compilersemanticenforcementaggregate';
 const AGGREGATE_ALGORITHM = 'urn:usf:proofalgorithm:compilersemanticenforcementaggregate';
 const AGGREGATE_VERSION = 'urn:usf:proofalgorithmversion:compilersemanticenforcementaggregatev210';
 const VALIDATION_RULE = 'urn:usf:authoritybindingrule:validationnonpublicationdependencyclosure';
+const CROSS_REPOSITORY_VALIDATION_RULE = 'urn:usf:authoritybindingrule:validationcrossrepositorynonpublicationclosure';
 const SELF_PUBLICATION_RULE = 'urn:usf:authoritybindingrule:selfpublicationclosure';
 const AGGREGATE_ADMISSION_PATH = 'urn:usf:evidenceadmissionpath:compilersemanticenforcementaggregate';
 const digest = (character) => `sha256:${character.repeat(64)}`;
@@ -63,6 +67,11 @@ const SOURCE_BINDING = {
   tree: TREE,
 };
 const SOURCE_BINDING_DIGEST = aggregateCompilerProofInternals.sourceBindingDigest(SOURCE_BINDING);
+const REPOSITORY_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+function sourceQuads(path, format) {
+  return new Parser({ format }).parse(readFileSync(join(REPOSITORY_ROOT, path), 'utf8'));
+}
 
 function pendingPackage() {
   const components = COMPONENT_PROOFS.map((component, index) => ({
@@ -502,6 +511,29 @@ function assertCommonCurrentnessFacts(quads, result, proof, binding, confidenceS
     [SOURCE_BINDING_DIGEST]);
   assert.deepEqual(objects(quads, AGGREGATE_ALGORITHM, `${USF}currentDependencySetDigest`), [DEPENDENCY_SET]);
 }
+
+test('base source closes every validation-publication term before the generated D1 overlay', () => {
+  const proofSource = sourceQuads('semantic-model/assurance/proofs.trig', 'application/trig');
+  for (const [rule, canonicalName] of [
+    [VALIDATION_RULE, 'validationnonpublicationdependencyclosure'],
+    [CROSS_REPOSITORY_VALIDATION_RULE, 'validationcrossrepositorynonpublicationclosure'],
+  ]) {
+    assert.equal(typedAs(proofSource, rule, `${USF}AuthorityBindingRule`), true,
+      `${rule} must be an authored rule before source-candidate integrity runs`);
+    assert.deepEqual(objects(proofSource, rule, `${USF}canonicalName`), [canonicalName]);
+  }
+
+  const shapeSource = sourceQuads('semantic-model/shapes/assurance.ttl', 'text/turtle');
+  assert.equal(shapeSource.some((quad) =>
+    quad.predicate.value === 'http://www.w3.org/ns/shacl#path'
+      && quad.object.value === `${USF}reevaluatesValidationResult`), true,
+  'validation reevaluation must be a structural source usage, not only generated D2 data or SPARQL text');
+
+  const generated = parsePatch(materializeAggregateCompilerAuthorityCandidate(stage2Input()).bytes).additions;
+  assert.equal(generated.some((quad) =>
+    quad.predicate.value === `${USF}reevaluatesValidationResult`), true,
+  'stage 2 must retain the validation reevaluation relation closed by the base source');
+});
 
 test('stage 1 is deterministic, parses as RDF Patch and preserves immutable component results', () => {
   const first = materializeAggregateCompilerAuthorityCandidate(stage1Input());
