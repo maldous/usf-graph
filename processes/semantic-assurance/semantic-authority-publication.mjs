@@ -1079,7 +1079,8 @@ export async function runAggregateCompilerProductionLifecycle({
   publicationOptions = {},
 }) {
   if (typeof claimProvider !== 'function' || !producer || typeof producer.preparePending !== 'function'
-      || typeof producer.prepareFinalPackage !== 'function' || !command
+      || typeof producer.prepareFinalPackage !== 'function'
+      || typeof producer.refreshDependentValidation !== 'function' || !command
       || typeof command.prepareSourceDelta !== 'function' || typeof command.composeCandidate !== 'function'
       || typeof command.previewCandidateInventory !== 'function') {
     throw new Error('aggregate production lifecycle requires the real producer, materializer compiler and claim provider');
@@ -1145,19 +1146,26 @@ export async function runAggregateCompilerProductionLifecycle({
   if (!initial.compilerValidation || !initial.executionReceiptDescriptor || !initial.evaluationReceiptDescriptor) {
     throw new Error('stage1 did not produce the closed compiler and reevaluation descriptor package');
   }
+  const d1 = await readAuthorityWitness();
+  if (d1.digest !== initial.authority_after_digest) throw new Error('aggregate lifecycle D1 authority digest drifted');
+  const refreshedDependentValidation = await producer.refreshDependentValidation({
+    requestedAuthorityDigest: d1.digest,
+  });
+  const refreshedPendingPackage = Object.freeze({
+    ...pendingPackage,
+    dependentValidation: refreshedDependentValidation,
+  });
   const stage2Package = await producer.prepareFinalPackage({
     compilerValidation: initial.compilerValidation,
     evaluationReceiptDescriptor: initial.evaluationReceiptDescriptor,
     executionReceiptDescriptor: initial.executionReceiptDescriptor,
-    pending: pendingPackage,
+    pending: refreshedPendingPackage,
     publicationReceipt: initial.semanticProofReceipt,
     stage1Preparation: initial.reevaluationPreparation,
   });
-  const d1 = await readAuthorityWitness();
-  if (d1.digest !== initial.authority_after_digest) throw new Error('aggregate lifecycle D1 authority digest drifted');
   const stage2 = await stabilizedCandidate({
     stage: 'stage2',
-    input: { ownerAuthority, pendingPackage, stage2Package },
+    input: { ownerAuthority, pendingPackage: refreshedPendingPackage, stage2Package },
     command,
     expectedAuthorityDigest: d1.digest,
     initialInventory: canonicalAuthorityInventory(d1),

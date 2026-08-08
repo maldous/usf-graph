@@ -342,14 +342,20 @@ function componentRows(casRoot) {
   }));
 }
 
-function dependentValidationRows(casRoot) {
-  const producerPaths = ['src/usf_factory/provider_plane_runtime.py', 'tests/test_v3_provider_refresh_authority.py'];
-  const admissionPaths = ['processes/semantic-assurance/semantic-authority-publication.mjs',
-    'semantic-model/assurance/evidence.trig'];
-  const producerHead = '6'.repeat(40);
-  const producerTree = '7'.repeat(40);
-  const admissionHead = '8'.repeat(40);
-  const admissionTree = '9'.repeat(40);
+function dependentValidationRows(casRoot, {
+  admissionHead = '8'.repeat(40),
+  admissionPaths = [
+    'processes/semantic-assurance/semantic-authority-publication.mjs',
+    'semantic-model/assurance/evidence.trig',
+  ],
+  admissionTree = '9'.repeat(40),
+  producerHead = '6'.repeat(40),
+  producerPaths = [
+    'src/usf_factory/provider_plane_runtime.py',
+    'tests/test_v3_provider_refresh_authority.py',
+  ],
+  producerTree = '7'.repeat(40),
+} = {}) {
   const executionReceiptDigest = putCas(casRoot, Buffer.from('factory-validation-execution-receipt'));
   const evaluationReceiptDigest = putCas(casRoot, Buffer.from('factory-validation-evaluation-receipt'));
   return producerPaths.flatMap((producerSourcePath) => admissionPaths.map((admissionSourcePath) => ({
@@ -727,6 +733,39 @@ test('final package binds actual compiler and postpublication receipt descriptor
   assert.equal(Object.hasOwn(value.compilerValidation.receipt, 'settledAuthorityDigest'), false);
 });
 
+test('D2 refreshes the dependent Factory validation closure from exact D1 authority', async () => {
+  const base = fixture();
+  const admissionPaths = [
+    'assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.mjs',
+    'processes/semantic-assurance/semantic-authority-publication.mjs',
+    'semantic-model/assurance/evidence.trig',
+  ];
+  const producerPaths = [
+    'src/usf_factory/adaptive_routing.py',
+    'src/usf_factory/provider_plane_runtime.py',
+    'tests/test_v3_provider_refresh_authority.py',
+  ];
+  const rows = dependentValidationRows(base.casRoot, {
+    admissionHead: 'c'.repeat(40),
+    admissionPaths,
+    admissionTree: 'd'.repeat(40),
+    producerHead: 'a'.repeat(40),
+    producerPaths,
+    producerTree: 'b'.repeat(40),
+  });
+  const refreshed = await harness(base, [], {
+    authority: D1,
+    dependentValidationRows: rows,
+  }).producer.refreshDependentValidation({ requestedAuthorityDigest: D1 });
+  assert.equal(refreshed.authorityDigest, HISTORICAL);
+  assert.equal(refreshed.admission.sourceHead, 'c'.repeat(40));
+  assert.equal(refreshed.admission.sourceTree, 'd'.repeat(40));
+  assert.deepEqual(refreshed.admission.sourcePaths, admissionPaths);
+  assert.equal(refreshed.producer.sourceHead, 'a'.repeat(40));
+  assert.equal(refreshed.producer.sourceTree, 'b'.repeat(40));
+  assert.deepEqual(refreshed.producer.sourcePaths, producerPaths);
+});
+
 test('final package fails closed when a lifecycle receipt CAS object is missing', async () => {
   const base = fixture();
   const { input } = await finalPackageFixture(base);
@@ -1015,6 +1054,11 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
   });
   const base = fixture();
   let finalPackage;
+  const refreshedProducerPaths = [
+    'src/usf_factory/adaptive_routing.py',
+    'src/usf_factory/provider_plane_runtime.py',
+    'tests/test_v3_provider_refresh_authority.py',
+  ];
   const producer = {
     preparePending: (input) => harness(base, componentRows(base.casRoot), { authority: d0 }).producer.preparePending(input),
     observeInitialProjection: (input) => {
@@ -1038,6 +1082,21 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
       }).producer.observeInitialProjection(input);
     },
     produceInitial: (input) => harness(base, componentRows(base.casRoot), { authority: d1 }).producer.produceInitial(input),
+    refreshDependentValidation: (input) => harness(base, [], {
+      authority: d1,
+      dependentValidationRows: dependentValidationRows(base.casRoot, {
+        admissionHead: 'c'.repeat(40),
+        admissionPaths: [
+          'assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.mjs',
+          'processes/semantic-assurance/semantic-authority-publication.mjs',
+          'semantic-model/assurance/evidence.trig',
+        ],
+        admissionTree: 'd'.repeat(40),
+        producerHead: 'a'.repeat(40),
+        producerPaths: refreshedProducerPaths,
+        producerTree: 'b'.repeat(40),
+      }),
+    }).producer.refreshDependentValidation(input),
     async prepareFinalPackage(input) {
       finalPackage = await harness(base, [], { authority: d1 }).producer.prepareFinalPackage(input);
       return finalPackage;
@@ -1139,4 +1198,22 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
   assert.equal(result.terminal.action_state, 'PROCEED');
   assert.equal(phase, 2);
   assert.equal(live.get(proofsGraph).has(null, rdfType, DataFactory.namedNode('urn:usf:ontology:PostPublicationAggregateProofResult'), null), true);
+  assert.equal(live.get(proofsGraph).has(
+    DataFactory.namedNode('urn:usf:validationselfpublicationbinding:factoryproviderv3implementation'),
+    DataFactory.namedNode('urn:usf:ontology:validationBindingProducerSourcePath'),
+    DataFactory.literal('src/usf_factory/adaptive_routing.py'),
+    null,
+  ), true);
+  assert.equal(live.get(proofsGraph).has(
+    DataFactory.namedNode('urn:usf:validationselfpublicationbinding:factoryproviderv3implementation'),
+    DataFactory.namedNode('urn:usf:ontology:validationBindingProducerSourceHead'),
+    DataFactory.literal('a'.repeat(40)),
+    null,
+  ), true);
+  assert.equal(live.get(proofsGraph).has(
+    DataFactory.namedNode('urn:usf:validationselfpublicationbinding:factoryproviderv3implementation'),
+    DataFactory.namedNode('urn:usf:ontology:validationBindingAdmissionSourceHead'),
+    DataFactory.literal('c'.repeat(40)),
+    null,
+  ), true);
 });

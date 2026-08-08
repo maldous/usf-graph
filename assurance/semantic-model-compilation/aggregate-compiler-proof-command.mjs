@@ -754,6 +754,13 @@ async function readFacts(dependencies, requestedAuthorityDigest) {
   });
 }
 
+async function readDependentValidation(dependencies, requestedAuthorityDigest) {
+  return stableAuthorityRead(dependencies, requestedAuthorityDigest, async () => normalizeDependentValidation(
+    await dependencies.client.select(DEPENDENT_VALIDATION_FACTS_QUERY),
+    dependencies.casRoot,
+  ));
+}
+
 function reevaluationBindings(components, binding) {
   const descriptors = aggregateCompilerProofInternals.aggregateEvidenceDescriptors(
     components.map(({ evidenceReferences, result }) => ({
@@ -1246,6 +1253,11 @@ export function createAggregateCompilerProofProducer({
 
     async prepareFinalPackage(input) {
       return assembleStage2Package(casRoot, input);
+    },
+
+    async refreshDependentValidation({ requestedAuthorityDigest }) {
+      digest(requestedAuthorityDigest, 'dependent validation authority');
+      return readDependentValidation(dependencies, requestedAuthorityDigest);
     },
 
     async produceTerminal({ requestedAuthorityDigest, expectedStage1AuthorityDigest, stage1Preparation }) {
