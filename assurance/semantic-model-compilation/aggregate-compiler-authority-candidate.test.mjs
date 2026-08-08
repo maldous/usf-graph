@@ -535,6 +535,33 @@ test('base source closes every validation-publication term before the generated 
   'stage 2 must retain the validation reevaluation relation closed by the base source');
 });
 
+test('generated overlays reference but never redeclare source-owned Factory validation resources', () => {
+  const authored = sourceQuads('semantic-model/assurance/evidence.trig', 'application/trig');
+  const generated = parsePatch(materializeAggregateCompilerAuthorityCandidate(stage2Input()).bytes).additions;
+  const sourceOwnedSubjects = [
+    'urn:usf:validationproducer:factoryproviderv3implementation',
+    'urn:usf:evidenceadmissionpath:factoryproviderv3implementation',
+    'urn:usf:validationexecution:factoryproviderv3implementation',
+    'urn:usf:validationevaluation:factoryproviderv3implementation',
+    'urn:usf:validationresult:factoryproviderv3implementation',
+  ];
+
+  for (const subject of sourceOwnedSubjects) {
+    assert.equal(generated.some((quad) => quad.subject.value === subject
+      && quad.predicate.value === RDF_TYPE), false,
+    `${subject} must retain its single authored declaration in the evidence graph`);
+    assert.equal(generated.some((quad) => quad.subject.value === subject
+      && authored.some((sourceQuad) => sourceQuad.subject.equals(quad.subject)
+        && sourceQuad.predicate.equals(quad.predicate)
+        && sourceQuad.object.equals(quad.object))), false,
+    `${subject} must not duplicate an authored source triple in a generated overlay`);
+  }
+
+  assert.deepEqual(objects(generated, internals.FACTORY_PROVIDER_V3_VALIDATION_RESULT,
+    `${USF}hasValidationSelfPublicationAuthorityBinding`),
+  [internals.FACTORY_PROVIDER_V3_VALIDATION_BINDING]);
+});
+
 test('stage 1 is deterministic, parses as RDF Patch and preserves immutable component results', () => {
   const first = materializeAggregateCompilerAuthorityCandidate(stage1Input());
   const second = materializeAggregateCompilerAuthorityCandidate(stage1Input());
@@ -745,7 +772,10 @@ test('stage 2 final aggregate carries every CURRENT projection fact and coherent
   const binding = 'urn:usf:validationselfpublicationbinding:compilersemanticenforcementaggregate';
   assert.deepEqual(objects(quads, binding, `${USF}validationStageOneEvaluatedAuthorityDigest`), [D0]);
   assert.deepEqual(objects(quads, binding, `${USF}validationStageOneSettledAuthorityDigest`), [D1]);
-  assertReferencedTypes(quads);
+  assertReferencedTypes([
+    ...quads,
+    ...sourceQuads('semantic-model/assurance/evidence.trig', 'application/trig'),
+  ]);
 });
 
 test('dependent Factory validation rejects repository collapse and every source identity substitution', () => {
