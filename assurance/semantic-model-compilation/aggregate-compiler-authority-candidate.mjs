@@ -65,6 +65,9 @@ const SELF_PUBLICATION_RULE = 'urn:usf:authoritybindingrule:selfpublicationclosu
 const VALIDATION_RESERVATION_REASON = 'No authority-grade validation producer or admission path is declared for this obligation yet. Reserved is the safe default: an obligation with no explicit activation state must never be treated as actionable or closeable.';
 const PROVISIONAL_BINDING = 'urn:usf:proofauthoritybinding:compilersemanticenforcementaggregateprepublication';
 const FINAL_BINDING = 'urn:usf:proofauthoritybinding:compilersemanticenforcementaggregate';
+const FACTORY_PROVIDER_V3_ALGORITHM = 'urn:usf:proofalgorithm:factoryproviderv3implementation';
+const FACTORY_PROVIDER_V3_RESULT = 'urn:usf:proofresult:factoryproviderv3implementation';
+const FACTORY_PROVIDER_V3_BINDING = 'urn:usf:proofauthoritybinding:factoryproviderv3implementation';
 const DEPENDENCY_DIGEST_ALGORITHM = 'sha256-rdfc10-nonpublication-graph-inventory-v1';
 const AGGREGATE_RUNG = 'urn:usf:proofrung:behaviour';
 const AGGREGATE_PROVIDER_MODE = 'urn:usf:providermode:liveauthoritycontrol';
@@ -767,11 +770,11 @@ function materializeAggregateProof(additions, {
 
 function materializeProofAuthorityBinding(additions, {
   authorityBindingEvidenceDigest, binding, dependencySetDigest, evaluatedAuthorityDigest, result,
-  reevaluationState,
+  reevaluationState, canonicalName = null, settledAuthorityDigest = null,
 }) {
   additions.push(type(binding, `${USF}ProofAuthorityBinding`, GRAPH_PROOFS));
-  add(additions, binding, 'canonicalName', literal(binding === PROVISIONAL_BINDING
-    ? 'compilersemanticenforcementaggregateprepublication' : 'compilersemanticenforcementaggregate'));
+  add(additions, binding, 'canonicalName', literal(canonicalName ?? (binding === PROVISIONAL_BINDING
+    ? 'compilersemanticenforcementaggregateprepublication' : 'compilersemanticenforcementaggregate')));
   add(additions, binding, 'bindingEvaluatedAuthorityDigest', literal(evaluatedAuthorityDigest));
   add(additions, binding, 'bindingDependencySetDigest', literal(dependencySetDigest));
   add(additions, binding, 'bindingDependencyDigestAlgorithm', literal(DEPENDENCY_DIGEST_ALGORITHM));
@@ -781,9 +784,41 @@ function materializeProofAuthorityBinding(additions, {
   add(additions, binding, 'hasPostPublicationReevaluationState', iri(`urn:usf:proofreevaluationstate:${reevaluationState}`));
   if (reevaluationState === 'successful') {
     add(additions, binding, 'reevaluationDependencySetDigest', literal(dependencySetDigest));
+    if (settledAuthorityDigest !== null) {
+      add(additions, binding, 'reevaluationSettledAuthorityDigest', literal(settledAuthorityDigest));
+    }
   }
   for (const graph of EXCLUDED_AUTHORITY_GRAPHS) add(additions, binding, 'excludedAuthorityGraphIri', typed(graph, XSD_ANY_URI));
   add(additions, result, 'hasAuthorityBinding', iri(binding));
+}
+
+// The Factory Provider V3 result is an independently produced proof whose
+// signed evidence and exact implementation witness are immutable. Its Graph
+// dependency and authority binding are nevertheless publication-relative, so
+// they are materialised from the same prospective non-publication inventory as
+// the aggregate proof. Stage 1 remains pending; only the stage-2 reevaluation
+// receipt closes the binding.
+function materializeFactoryProviderV3Currentness(additions, {
+  authorityBindingEvidenceDigest, currentnessBinding, evaluatedAuthorityDigest, reevaluationState,
+}) {
+  add(additions, FACTORY_PROVIDER_V3_ALGORITHM, 'currentDependencySetDigest',
+    literal(currentnessBinding.dependencySetDigest));
+  add(additions, FACTORY_PROVIDER_V3_ALGORITHM, 'currentDependencyDigestAlgorithm',
+    literal(DEPENDENCY_DIGEST_ALGORITHM));
+  add(additions, FACTORY_PROVIDER_V3_RESULT, 'dependencySetDigest',
+    literal(currentnessBinding.dependencySetDigest));
+  add(additions, FACTORY_PROVIDER_V3_RESULT, 'dependencyDigestAlgorithm',
+    literal(DEPENDENCY_DIGEST_ALGORITHM));
+  materializeProofAuthorityBinding(additions, {
+    authorityBindingEvidenceDigest,
+    binding: FACTORY_PROVIDER_V3_BINDING,
+    canonicalName: 'factoryproviderv3implementation',
+    dependencySetDigest: currentnessBinding.dependencySetDigest,
+    evaluatedAuthorityDigest,
+    reevaluationState,
+    result: FACTORY_PROVIDER_V3_RESULT,
+    settledAuthorityDigest: reevaluationState === 'successful' ? evaluatedAuthorityDigest : null,
+  });
 }
 
 function materializeAggregateValidationInfrastructure(additions, source) {
@@ -799,7 +834,7 @@ function materializeAggregateValidationInfrastructure(additions, source) {
   });
 }
 
-function stage1Patch(pending, owners, currentnessBinding) {
+function stage1Patch(pending, owners, currentnessBinding, { includeDependentBindings = true } = {}) {
   const deletions = [
     ...COMPONENT_PROOFS.map(({ result }) =>
       q(CONTRACT, `${USF}reliesOnProofResult`, iri(result), GRAPH_CAPABILITIES)),
@@ -838,6 +873,14 @@ function stage1Patch(pending, owners, currentnessBinding) {
     reevaluationState: 'pending',
     result: PROVISIONAL_RESULT,
   });
+  if (includeDependentBindings) {
+    materializeFactoryProviderV3Currentness(additions, {
+      authorityBindingEvidenceDigest: pending.executionReceiptDigest,
+      currentnessBinding,
+      evaluatedAuthorityDigest: evaluation.authorityDigest,
+      reevaluationState: 'pending',
+    });
+  }
   add(additions, CONTRACT, 'hasActivationState',
     iri('urn:usf:contractactivationstate:proofblocked'), GRAPH_CAPABILITIES);
   add(additions, CONTRACT, 'reliesOnProofResult', iri(PROVISIONAL_RESULT), GRAPH_CAPABILITIES);
@@ -848,7 +891,7 @@ function stage1Patch(pending, owners, currentnessBinding) {
 }
 
 function stage2Patch(pending, owners, stage2, currentnessBinding) {
-  const stage1 = stage1Patch(pending, owners, currentnessBinding);
+  const stage1 = stage1Patch(pending, owners, currentnessBinding, { includeDependentBindings: false });
   const transientFacts = new Set([
     q(CONTRACT, `${USF}reliesOnProofResult`, iri(PROVISIONAL_RESULT), GRAPH_CAPABILITIES),
     q(CONTRACT, `${USF}hasActivationState`,
@@ -859,6 +902,12 @@ function stage2Patch(pending, owners, stage2, currentnessBinding) {
   const additions = stage1.additions.filter((line) => !transientFacts.has(line));
   const deletions = [
     ...transientFacts,
+    q(FACTORY_PROVIDER_V3_BINDING, `${USF}bindingEvaluatedAuthorityDigest`,
+      literal(pending.aggregateResult.evaluation.authorityDigest), GRAPH_PROOFS),
+    q(FACTORY_PROVIDER_V3_BINDING, `${USF}authorityBindingEvidenceDigest`,
+      literal(pending.executionReceiptDigest), GRAPH_PROOFS),
+    q(FACTORY_PROVIDER_V3_BINDING, `${USF}hasPostPublicationReevaluationState`,
+      iri('urn:usf:proofreevaluationstate:pending'), GRAPH_PROOFS),
     q(VALIDATION_OBLIGATION, `${USF}hasValidationActivationState`,
       iri('urn:usf:validationactivationstate:reserved'), GRAPH_CAPABILITIES),
     q(VALIDATION_OBLIGATION, `${USF}validationActivationReason`,
@@ -895,6 +944,12 @@ function stage2Patch(pending, owners, stage2, currentnessBinding) {
     evaluatedAuthorityDigest: stage2.package.evaluatedAuthorityDigest,
     reevaluationState: 'successful',
     result: AGGREGATE_RESULT_IRI,
+  });
+  materializeFactoryProviderV3Currentness(additions, {
+    authorityBindingEvidenceDigest: stage2.package.evaluationReceiptDigest,
+    currentnessBinding,
+    evaluatedAuthorityDigest: stage2.package.evaluatedAuthorityDigest,
+    reevaluationState: 'successful',
   });
   additions.push(type(REEVALUATION, `${USF}PostPublicationReevaluation`, GRAPH_PROOFS));
   add(additions, REEVALUATION, 'canonicalName', literal('compilersemanticenforcementaggregate'));
@@ -1046,6 +1101,9 @@ export function materializeAggregateCompilerAuthorityCandidate(input) {
 export const aggregateCompilerAuthorityCandidateInternals = Object.freeze({
   AGGREGATE_OBLIGATION,
   ASSIGNMENT: OWNER_SCOPES.semanticmodelcompilation.assignment,
+  FACTORY_PROVIDER_V3_ALGORITHM,
+  FACTORY_PROVIDER_V3_BINDING,
+  FACTORY_PROVIDER_V3_RESULT,
   FINAL_BINDING,
   OWNER_SCOPES,
   PROVISIONAL_RESULT,

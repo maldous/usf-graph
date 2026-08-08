@@ -496,6 +496,14 @@ test('stage 1 is deterministic, parses as RDF Patch and preserves immutable comp
       && quad.object.value === 'urn:usf:realisationstate:implementable'), true);
   }
   assert.equal(deletions.some((quad) => quad.predicate.value === `${USF}assignmentState`), false);
+  assert.deepEqual(objects(additions, internals.FACTORY_PROVIDER_V3_RESULT, `${USF}dependencySetDigest`),
+    [DEPENDENCY_SET]);
+  assert.equal(has(additions, internals.FACTORY_PROVIDER_V3_RESULT, `${USF}hasAuthorityBinding`,
+    internals.FACTORY_PROVIDER_V3_BINDING), true);
+  assert.deepEqual(objects(additions, internals.FACTORY_PROVIDER_V3_BINDING,
+    `${USF}hasPostPublicationReevaluationState`), ['urn:usf:proofreevaluationstate:pending']);
+  assert.deepEqual(objects(additions, internals.FACTORY_PROVIDER_V3_BINDING,
+    `${USF}reevaluationSettledAuthorityDigest`), []);
 });
 
 test('stage 2 desired overlay converges after source reload and preserves stage-1 evidence', () => {
@@ -639,6 +647,18 @@ test('stage 2 final aggregate carries every CURRENT projection fact and coherent
     ['urn:usf:proofreevaluationstate:successful']);
   assert.equal(typedAs(quads, SELF_PUBLICATION_RULE, `${USF}AuthorityBindingRule`), true);
   assert.equal(typedAs(quads, VALIDATION_RULE, `${USF}AuthorityBindingRule`), true);
+  assert.deepEqual(objects(quads, internals.FACTORY_PROVIDER_V3_ALGORITHM,
+    `${USF}currentDependencySetDigest`), [DEPENDENCY_SET]);
+  assert.deepEqual(objects(quads, internals.FACTORY_PROVIDER_V3_RESULT,
+    `${USF}dependencySetDigest`), [DEPENDENCY_SET]);
+  assert.deepEqual(objects(quads, internals.FACTORY_PROVIDER_V3_RESULT,
+    `${USF}hasAuthorityBinding`), [internals.FACTORY_PROVIDER_V3_BINDING]);
+  assert.deepEqual(objects(quads, internals.FACTORY_PROVIDER_V3_BINDING,
+    `${USF}hasPostPublicationReevaluationState`), ['urn:usf:proofreevaluationstate:successful']);
+  assert.deepEqual(objects(quads, internals.FACTORY_PROVIDER_V3_BINDING,
+    `${USF}reevaluationSettledAuthorityDigest`), [D1]);
+  assert.deepEqual(objects(quads, internals.FACTORY_PROVIDER_V3_BINDING,
+    `${USF}reevaluationDependencySetDigest`), [DEPENDENCY_SET]);
   const binding = 'urn:usf:validationselfpublicationbinding:compilersemanticenforcementaggregate';
   assert.deepEqual(objects(quads, binding, `${USF}validationStageOneEvaluatedAuthorityDigest`), [D0]);
   assert.deepEqual(objects(quads, binding, `${USF}validationStageOneSettledAuthorityDigest`), [D1]);

@@ -600,6 +600,18 @@
 # Exact Factory Provider V3 implementation proof.  The proof is deliberately
 # attached only to providerconfigurationplane; it does not promote any generic
 # platform contract or future implementation generation.
+<urn:usf:proofalgorithm:factoryproviderv3implementation> a usf:ProofAlgorithm;
+  usf:canonicalName "factoryproviderv3implementation";
+  usf:proofAlgorithmSourcePath "scripts/validate-provider-v3-control-plane.py";
+  usf:proofAlgorithmSourceDigest "sha256:ed5210dbf4532b98b455bd25205add17ae38ae6e862e421c116983e17376113b";
+  usf:currentAlgorithmSourceDigest "sha256:ed5210dbf4532b98b455bd25205add17ae38ae6e862e421c116983e17376113b";
+  usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:factoryproviderv3implementationed5210dbf4532b98b455bd25205add17ae38ae6e862e421c116983e17376113b>;
+  usf:currentImplementationSourceSetDigest "sha256:fff69b18a77c8d904be1ecd200e8696d56fa7fb6dbb204cacae48c7a6b760541";
+  usf:requiresGraphSourceBinding true.
+<urn:usf:proofalgorithmversion:factoryproviderv3implementationed5210dbf4532b98b455bd25205add17ae38ae6e862e421c116983e17376113b> a usf:ProofAlgorithmVersion;
+  usf:canonicalName "factoryproviderv3implementationed5210dbf4532b98b455bd25205add17ae38ae6e862e421c116983e17376113b";
+  usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:factoryproviderv3implementation>;
+  usf:proofAlgorithmVersionIdentifier "1.0.0".
 <urn:usf:proofobligation:factoryproviderv3implementation> a usf:ProofObligation;
   usf:canonicalName "factoryproviderv3implementation";
   usf:obligationFor <urn:usf:semanticcontract:providerconfigurationplane>;
@@ -645,16 +657,14 @@
   usf:inEnvironment env:productionshaped;
   usf:hasProofResultState <urn:usf:proofresultstate:successful>;
   usf:proofResultForObligation <urn:usf:proofobligation:factoryproviderv3implementation>;
-  usf:usesProofAlgorithm <urn:usf:proofalgorithm:providerworkforceauthority>;
-  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf>;
+  usf:usesProofAlgorithm <urn:usf:proofalgorithm:factoryproviderv3implementation>;
+  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:factoryproviderv3implementationed5210dbf4532b98b455bd25205add17ae38ae6e862e421c116983e17376113b>;
   usf:usesAdmittedEvidence
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
   usf:evidenceSetDigest "sha256:989e591ebd3c0c4291dc3d5a785e548ac27af7ee0fa0223171f298d043af8324";
   usf:implementationSourceSetDigest "sha256:fff69b18a77c8d904be1ecd200e8696d56fa7fb6dbb204cacae48c7a6b760541";
-  usf:dependencySetDigest "sha256:989e591ebd3c0c4291dc3d5a785e548ac27af7ee0fa0223171f298d043af8324";
-  usf:dependencyDigestAlgorithm "sha256-canonical-evidence-file-digest-set-v1";
   usf:proofProducerCommit "0a9281845c06d053ae435eb2bf49320b53d13ad6";
   usf:proofProducerTree "415fd0b2f10b234fbdcc74359ee3014d03cb7d5f";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
@@ -663,6 +673,6 @@
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
   usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 0a9281845c06d053ae435eb2bf49320b53d13ad6 and tree 415fd0b2f10b234fbdcc74359ee3014d03cb7d5f. It changes exactly two dispatch boundaries and one scheduler boundary: roster witness-identity comparison is scoped to the anchoring repository while anchored-binding currentness, generation lineage and authority-digest checks stay fail-closed; a provider-refresh identity re-version is carried as the same lawful route lineage through the reader, the structural eligibility check and the recorder with an explicit identity_carryover, while a lineage with no current identity row stays non-recordable and non-executable; a recorder rejection of an already-selected route defers the packet as a retryable market blockage instead of failing the cycle; and every scheduler wake write is coordinator-leased and witness-bound at the wake instant or explicitly deferred to the next fenced decide. The proof does not warrant Graph mutation, source writes, completion, provider-contact, paid-inference, roster, qualification, admission or trust changes. Production convergence still requires exact deployment and a real validated semantic result.";
   usf:evaluatedAt "2026-08-08T05:55:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
-  usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
+  usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 
 }

@@ -249,7 +249,10 @@ async function readLayoutSemantics(ctx, args = {}) {
       <${contract}> <urn:usf:ontology:canonicalName> ?canonicalName .
       OPTIONAL { <${contract}> <urn:usf:ontology:semanticLifecycleState> ?lifecycle }
       OPTIONAL { <${contract}> <urn:usf:ontology:hasActivationState> ?activation }
-      OPTIONAL { <${contract}> <urn:usf:ontology:reliesOnProofResult> ?proof . ?proof <urn:usf:ontology:hasProofResultState> ?proofState . }
+      OPTIONAL {
+        <${contract}> <urn:usf:ontology:reliesOnProofResult> ?proof .
+        OPTIONAL { ?proof <urn:usf:ontology:hasProofResultState> ?proofState }
+      }
       OPTIONAL { <${contract}> <urn:usf:ontology:effectiveRealisationDecision> ?effectiveDecision }
       OPTIONAL {
         ?realisation <urn:usf:ontology:realisesContract> <${contract}> ; <urn:usf:ontology:authorisedByDecision> ?decision .
@@ -275,8 +278,23 @@ async function readLayoutSemantics(ctx, args = {}) {
   const canonicalName = sole('canonicalName', 'canonical name');
   const lifecycleState = sole('lifecycle', 'semantic lifecycle state');
   const activationState = sole('activation', 'activation state');
-  const proofResult = sole('proof', 'proof result');
-  const proofResultState = sole('proofState', 'proof result state');
+  const proofResults = [...new Set(contractRows.map((row) => value(row, 'proof')).filter(Boolean))].sort();
+  const proofResultStates = proofResults.map((proofResult) => {
+    const states = [...new Set(contractRows
+      .filter((row) => value(row, 'proof') === proofResult)
+      .map((row) => value(row, 'proofState'))
+      .filter(Boolean))];
+    if (states.length > 1) {
+      throw new Error(`proof result ${proofResult} has ambiguous state in live authority: ${states.sort().join(', ')}`);
+    }
+    return { proofResult, state: states[0] ?? null };
+  });
+  const aggregateProofStates = [...new Set(proofResultStates.map((item) => item.state).filter(Boolean))];
+  const proofResultState = proofResultStates.length > 0
+    && proofResultStates.every((item) => item.state !== null)
+    && aggregateProofStates.length === 1
+    ? aggregateProofStates[0]
+    : null;
   if (canonicalName === null) throw new Error('contract has no canonical name in live authority');
   const expectedRuleCount = Number(value(ruleCountRows[0], 'count'));
   if (ruleCountRows.length !== 1 || !Number.isSafeInteger(expectedRuleCount) || expectedRuleCount !== ruleRows.length) {
@@ -367,7 +385,9 @@ async function readLayoutSemantics(ctx, args = {}) {
       canonicalName,
       lifecycleState,
       activationState,
-      proofResult,
+      proofResult: proofResults.length === 1 ? proofResults[0] : null,
+      proofResults,
+      proofResultStates,
       proofResultState,
       decision: acceptedDecision?.id ?? null,
       decisionState: acceptedDecision?.state ?? null,
@@ -1070,7 +1090,7 @@ export async function realisationVerdict(ctx, args = {}) {
   require(context.contract.lifecycleState, ACTIVE_LIFECYCLE, 'contract-lifecycle-unresolved', 'contract-lifecycle-not-active');
   require(context.contract.activationState, ACTIVE, 'contract-activation-unresolved', 'contract-not-active');
   require(context.contract.proofResultState, SUCCESSFUL, 'contract-proof-result-unresolved', 'contract-proof-not-successful');
-  if (context.contract.proofResult === null) reasons.push({ code: 'contract-proof-result-absent', state: ACTION_STATES.unresolved });
+  if (context.contract.proofResults.length === 0) reasons.push({ code: 'contract-proof-result-absent', state: ACTION_STATES.unresolved });
   // A successful result is necessary and NOT sufficient. PROCEED additionally
   // requires the positive currentness conclusion; anything less contributes its
   // own reasons at their own dispositions.
@@ -1140,61 +1160,76 @@ export async function projectContract(ctx, args = {}) {
   const authorised = actionState === ACTION_STATES.proceed && !readOnlyValidation;
 
   const proofFacts = currentness.facts;
-  if (!proofFacts.proofResult
-    || !proofFacts.obligation
-    || !proofFacts.algorithm
-    || !proofFacts.algorithmSourceDigest
-    || !proofFacts.algorithmVersion
-    || !proofFacts.implementationSourceSetDigest
-    || !proofFacts.dependencySetDigest
-    || !proofFacts.evidenceSetDigest
-    || !proofFacts.authorityBinding
-    || !proofFacts.authorityBindingRule
-    || !proofFacts.evaluatedAuthorityDigest) {
-    throw new Error('contract execution scope requires one exact proof chain');
-  }
-  const proofResultCore = {
-    schema: 'urn:usf:schema:proof-result-content-binding:1',
-    proofResult: proofFacts.proofResult,
-    proofResultState: proofFacts.proofResultState,
-    obligation: proofFacts.obligation,
-    algorithm: proofFacts.algorithm,
-    algorithmSourceDigest: proofFacts.algorithmSourceDigest,
-    algorithmVersion: proofFacts.algorithmVersion,
-    implementationSourceSetDigest: proofFacts.implementationSourceSetDigest,
-    dependencySetDigest: proofFacts.dependencySetDigest,
-    evidenceSetDigest: proofFacts.evidenceSetDigest,
-    evidence: [...proofFacts.evidence].sort(),
-    authorityBinding: proofFacts.authorityBinding,
-    authorityBindingRule: proofFacts.authorityBindingRule,
-    reevaluationState: proofFacts.reevaluationState ?? null,
-    evaluatedAuthorityDigest: proofFacts.evaluatedAuthorityDigest,
-    settledAuthorityDigest: proofFacts.settledAuthorityDigest ?? null,
-  };
-  const proofResultDigest = digest(jcs(proofResultCore));
+  const proofResultCores = (proofFacts.perProof ?? []).map((item) => {
+    if (!item.proofResult
+      || !item.obligation
+      || !item.algorithm
+      || !item.algorithmSourceDigest
+      || !item.algorithmVersion
+      || !item.implementationSourceSetDigest
+      || !item.dependencySetDigest
+      || !item.evidenceSetDigest
+      || !Array.isArray(item.evidence)
+      || !item.authorityBinding
+      || !item.authorityBindingRule
+      || !item.evaluatedAuthorityDigest) {
+      throw new Error(`contract execution scope requires an exact proof chain for ${item.proofResult ?? 'unknown result'}`);
+    }
+    return {
+      schema: 'urn:usf:schema:proof-result-content-binding:1',
+      proofResult: item.proofResult,
+      proofResultState: item.proofResultState,
+      obligation: item.obligation,
+      algorithm: item.algorithm,
+      algorithmSourceDigest: item.algorithmSourceDigest,
+      algorithmVersion: item.algorithmVersion,
+      implementationSourceSetDigest: item.implementationSourceSetDigest,
+      dependencySetDigest: item.dependencySetDigest,
+      evidenceSetDigest: item.evidenceSetDigest,
+      evidence: [...item.evidence].sort(),
+      authorityBinding: item.authorityBinding,
+      authorityBindingRule: item.authorityBindingRule,
+      reevaluationState: item.reevaluationState ?? null,
+      evaluatedAuthorityDigest: item.evaluatedAuthorityDigest,
+      settledAuthorityDigest: item.settledAuthorityDigest ?? null,
+    };
+  }).sort((left, right) => left.proofResult.localeCompare(right.proofResult));
+  if (proofResultCores.length === 0) throw new Error('contract execution scope requires at least one exact proof chain');
+
   const proofCurrentness = {
     state: currentness.state,
     stateIri: currentness.stateIri,
     reasons: currentness.reasons,
-    proofResults: [proofFacts.proofResult],
-    mandatoryObligations: [proofFacts.obligation],
-    obligationProofResults: [{
-      obligation: proofFacts.obligation,
-      proofResult: proofFacts.proofResult,
-    }],
-    perProof: [{
-      ...proofResultCore,
-      schema: undefined,
-      proofResultDigest,
-      currentAuthorityDigest: context.authorityDigest,
-    }],
+    proofResults: [...proofFacts.proofResults],
+    mandatoryObligations: [...proofFacts.mandatoryObligations],
+    obligationProofResults: proofFacts.obligationProofResults.map((item) => ({ ...item })),
+    perProof: proofResultCores.map((core) => {
+      const proofResultDigest = digest(jcs(core));
+      const projected = {
+        ...core,
+        proofResultDigest,
+        currentAuthorityDigest: context.authorityDigest,
+      };
+      delete projected.schema;
+      return projected;
+    }),
   };
-  delete proofCurrentness.perProof[0].schema;
+  const scopePair = proofCurrentness.obligationProofResults[0];
+  // Execution-scope schema v1 carries one proof anchor for compatibility with
+  // deployed consumers. This canonical member is not a proof selection: the
+  // complete exact obligation/result bijection above has already gated CURRENT
+  // and remains present in proofCurrentness for consumer-side conjunction.
+  const scopeProof = scopePair
+    ? proofCurrentness.perProof.find((item) => item.proofResult === scopePair.proofResult) ?? null
+    : null;
+  if (!scopeProof || scopeProof.obligation !== scopePair.obligation) {
+    throw new Error('contract execution scope requires one canonical member of the exact proof-obligation set');
+  }
 
   const scopeMode = readOnlyValidation ? READ_ONLY_VALIDATION_MODE : MATERIALISATION_MODE;
   const scopeCore = readOnlyValidation ? {
     schema: EXECUTION_SCOPE_SCHEMA,
-    obligationIri: proofFacts.obligation,
+    obligationIri: scopeProof.obligation,
     contractIri: context.contract.id,
     decisionIri: context.contract.decision,
     modeIri: scopeMode,
@@ -1214,15 +1249,15 @@ export async function projectContract(ctx, args = {}) {
     permittedEffectCount: 1,
     repositoryMutationPermitted: false,
     maximumRepositoryWrites: 0,
-    prepublicationBaseAuthorityDigest: proofFacts.evaluatedAuthorityDigest,
-    prepublicationProofIri: proofFacts.proofResult,
-    prepublicationProofDigest: proofResultDigest,
+    prepublicationBaseAuthorityDigest: scopeProof.evaluatedAuthorityDigest,
+    prepublicationProofIri: scopeProof.proofResult,
+    prepublicationProofDigest: scopeProof.proofResultDigest,
     payloadSchemaIri: EXECUTION_SCOPE_PAYLOAD_SCHEMA.schema,
     payloadSchemaDigest: digest(jcs(EXECUTION_SCOPE_PAYLOAD_SCHEMA)),
     predicateManifestDigest: digest(jcs(EXECUTION_SCOPE_PREDICATE_MANIFEST)),
   } : {
     schema: EXECUTION_SCOPE_SCHEMA,
-    obligationIri: proofFacts.obligation,
+    obligationIri: scopeProof.obligation,
     contractIri: context.contract.id,
     decisionIri: context.contract.decision,
     modeIri: scopeMode,
@@ -1238,9 +1273,9 @@ export async function projectContract(ctx, args = {}) {
     permittedEffectCount: 1,
     repositoryMutationPermitted: true,
     maximumRepositoryWrites: MAX_OPERATIONS,
-    prepublicationBaseAuthorityDigest: proofFacts.evaluatedAuthorityDigest,
-    prepublicationProofIri: proofFacts.proofResult,
-    prepublicationProofDigest: proofResultDigest,
+    prepublicationBaseAuthorityDigest: scopeProof.evaluatedAuthorityDigest,
+    prepublicationProofIri: scopeProof.proofResult,
+    prepublicationProofDigest: scopeProof.proofResultDigest,
     payloadSchemaIri: EXECUTION_SCOPE_PAYLOAD_SCHEMA.schema,
     payloadSchemaDigest: digest(jcs(EXECUTION_SCOPE_PAYLOAD_SCHEMA)),
     predicateManifestDigest: digest(jcs(EXECUTION_SCOPE_PREDICATE_MANIFEST)),
@@ -1252,8 +1287,8 @@ export async function projectContract(ctx, args = {}) {
     scopeDigest,
     scopeCore,
     liveProjectionAuthorityDigest: context.authorityDigest,
-    currentProofIri: proofFacts.proofResult,
-    currentProofDigest: proofResultDigest,
+    currentProofIri: scopeProof.proofResult,
+    currentProofDigest: scopeProof.proofResultDigest,
   };
   const scopeProjectionDigest = digest(jcs(scopeProjection));
   const executionScope = {
@@ -1274,11 +1309,10 @@ export async function projectContract(ctx, args = {}) {
     executionScope: projectedExecutionScope,
     semanticIdentifiers: [
       context.contract.id,
-      context.contract.proofResult,
       context.contract.decision,
       ...(projectedExecutionScope ? [scopeIri] : []),
-      proofFacts.obligation,
-      proofFacts.proofResult,
+      ...proofCurrentness.mandatoryObligations,
+      ...proofCurrentness.proofResults,
       ...validationIds,
     ].filter(Boolean).sort(),
     authorityDigest: context.authorityDigest,

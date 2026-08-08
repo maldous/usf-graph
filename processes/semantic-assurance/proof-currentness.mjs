@@ -88,7 +88,7 @@ export async function readProofCurrentnessFacts(client, contract) {
       OPTIONAL { ?result <urn:usf:ontology:hasInvalidation> ?invalidation }
       OPTIONAL { ?result <urn:usf:ontology:supersededByProofResult> ?supersession }
     } LIMIT 256`),
-    client.select(`SELECT ?evidence ?admission ?freshness ?integrity ?withinScope ?validUntil ?invalidation ?supersession ?contentDigest WHERE {
+    client.select(`SELECT ?result ?evidence ?admission ?freshness ?integrity ?withinScope ?validUntil ?invalidation ?supersession ?contentDigest WHERE {
       <${contract}> <urn:usf:ontology:reliesOnProofResult> ?result .
       ?result <urn:usf:ontology:usesAdmittedEvidence> ?evidence .
       OPTIONAL { ?evidence <urn:usf:ontology:hasAdmissionState> ?admission }
@@ -100,7 +100,7 @@ export async function readProofCurrentnessFacts(client, contract) {
       OPTIONAL { ?evidence <urn:usf:ontology:supersededByEvidenceResult> ?supersession }
       OPTIONAL { ?evidence <urn:usf:ontology:contentDigest> ?contentDigest }
     } ORDER BY ?evidence LIMIT 256`),
-    client.select(`SELECT ?algorithm ?sourceDigest ?currentSourceDigest ?currentVersion ?currentImplementation
+    client.select(`SELECT ?result ?algorithm ?sourceDigest ?currentSourceDigest ?currentVersion ?currentImplementation
         ?currentDependency ?currentDependencyAlgorithm ?currentToolchain ?currentPackageLock ?requiresGraphSource WHERE {
       <${contract}> <urn:usf:ontology:reliesOnProofResult> ?result .
       ?result <urn:usf:ontology:usesProofAlgorithm> ?algorithm .
@@ -114,7 +114,7 @@ export async function readProofCurrentnessFacts(client, contract) {
       OPTIONAL { ?algorithm <urn:usf:ontology:currentPackageLockDigest> ?currentPackageLock }
       OPTIONAL { ?algorithm <urn:usf:ontology:requiresGraphSourceBinding> ?requiresGraphSource }
     } LIMIT 64`),
-    client.select(`SELECT ?binding ?rule ?requiresReevaluation ?reevaluationState ?settledDigest
+    client.select(`SELECT ?result ?binding ?rule ?requiresReevaluation ?reevaluationState ?settledDigest
         ?reevaluationDependency ?evaluatedDigest ?bindingDependency ?bindingDependencyAlgorithm WHERE {
       <${contract}> <urn:usf:ontology:reliesOnProofResult> ?result .
       ?result <urn:usf:ontology:hasAuthorityBinding> ?binding .
@@ -141,23 +141,11 @@ export async function readProofCurrentnessFacts(client, contract) {
  * Derive the currentness conclusion. Pure over already-read facts so it can be
  * exercised without a live client.
  */
-export function deriveProofCurrentness(facts, { mandatoryObligations = [], observedAt = null } = {}) {
+function deriveSingleProofCurrentness(facts, { proofResult, observedAt = null }) {
   const { resultRows, evidenceRows, algorithmRows, bindingRows } = facts;
   const reasons = [];
   const unresolved = (code, detail) => reasons.push({ code, state: PROOF_CURRENTNESS.unresolved, detail });
   const stale = (code, detail) => reasons.push({ code, state: PROOF_CURRENTNESS.stale, detail });
-
-  // Exactly one relied-on proof result.
-  const results = distinct(resultRows, 'result');
-  if (results.length === 0) {
-    unresolved(PROOF_CURRENTNESS_CODES.currentnessUnresolved, 'contract relies on no proof result');
-    return conclude(reasons, {});
-  }
-  if (results.length > 1) {
-    unresolved(PROOF_CURRENTNESS_CODES.currentnessAmbiguous, `contract relies on ${results.length} proof results`);
-    return conclude(reasons, { proofResult: null });
-  }
-  const proofResult = results[0];
 
   const state = sole(resultRows, 'state');
   if (state.state !== 'present') unresolved(PROOF_CURRENTNESS_CODES.currentnessUnresolved, 'proof result state is absent or ambiguous');
@@ -166,9 +154,6 @@ export function deriveProofCurrentness(facts, { mandatoryObligations = [], obser
   // Exact proof-result-to-obligation identity.
   const obligation = sole(resultRows, 'obligation');
   if (obligation.state !== 'present') unresolved(PROOF_CURRENTNESS_CODES.currentnessUnresolved, 'proof result names no single obligation');
-  else if (mandatoryObligations.length > 0 && !mandatoryObligations.includes(obligation.value)) {
-    stale(PROOF_CURRENTNESS_CODES.currentnessAmbiguous, `proof result is for ${obligation.value}, which the contract does not mandate`);
-  }
   if (sole(resultRows, 'proof').state !== 'present') unresolved(PROOF_CURRENTNESS_CODES.currentnessUnresolved, 'proof result names no single proof');
 
   if (distinct(resultRows, 'invalidation').length > 0) stale(PROOF_CURRENTNESS_CODES.evidenceInvalid, 'proof result carries an invalidation');
@@ -306,6 +291,91 @@ export function deriveProofCurrentness(facts, { mandatoryObligations = [], obser
     evaluatedAuthorityDigest: sole(bindingRows, 'evaluatedDigest').value,
     settledAuthorityDigest: sole(bindingRows, 'settledDigest').value,
   });
+}
+
+/**
+ * Derive the conjunction of every proof result a contract explicitly relies on.
+ * Currentness is reached only for an exact bijection: each mandatory obligation
+ * has one distinct relied-on result and every relied-on result closes one of
+ * those obligations. Ordering is canonicalisation only; it never selects a
+ * favourable or newer proof.
+ */
+export function deriveProofCurrentness(facts, { mandatoryObligations = [], observedAt = null } = {}) {
+  const reasons = [];
+  const unresolved = (code, detail) => reasons.push({ code, state: PROOF_CURRENTNESS.unresolved, detail });
+  const stale = (code, detail) => reasons.push({ code, state: PROOF_CURRENTNESS.stale, detail });
+  const mandatory = [...new Set(mandatoryObligations.filter(Boolean))].sort();
+  const proofResults = distinct(facts.resultRows, 'result').sort();
+
+  if (mandatory.length === 0) {
+    unresolved(PROOF_CURRENTNESS_CODES.currentnessUnresolved, 'contract declares no mandatory proof obligation');
+  }
+  if (proofResults.length === 0) {
+    unresolved(PROOF_CURRENTNESS_CODES.currentnessUnresolved, 'contract relies on no proof result');
+    return conclude(reasons, {
+      proofResults,
+      mandatoryObligations: mandatory,
+      obligationProofResults: [],
+      perProof: [],
+    });
+  }
+
+  const rowsForResult = (rows, proofResult) => rows.filter((row) => value(row, 'result') === proofResult);
+  const obligationProofResults = [];
+  const perProof = [];
+  for (const proofResult of proofResults) {
+    const resultRows = rowsForResult(facts.resultRows, proofResult);
+    const obligation = sole(resultRows, 'obligation');
+    if (obligation.state === 'absent') {
+      unresolved(PROOF_CURRENTNESS_CODES.currentnessUnresolved, `proof result ${proofResult} names no obligation`);
+    } else if (obligation.state === 'ambiguous') {
+      unresolved(PROOF_CURRENTNESS_CODES.currentnessAmbiguous, `proof result ${proofResult} names multiple obligations`);
+    } else {
+      obligationProofResults.push({ obligation: obligation.value, proofResult });
+    }
+
+    const verdict = deriveSingleProofCurrentness({
+      resultRows,
+      evidenceRows: rowsForResult(facts.evidenceRows, proofResult),
+      algorithmRows: rowsForResult(facts.algorithmRows, proofResult),
+      bindingRows: rowsForResult(facts.bindingRows, proofResult),
+    }, { proofResult, observedAt });
+    reasons.push(...verdict.reasonDetail);
+    perProof.push(verdict.facts);
+  }
+
+  obligationProofResults.sort((left, right) => left.obligation.localeCompare(right.obligation)
+    || left.proofResult.localeCompare(right.proofResult));
+  perProof.sort((left, right) => left.proofResult.localeCompare(right.proofResult));
+
+  for (const obligation of mandatory) {
+    const matches = obligationProofResults.filter((item) => item.obligation === obligation);
+    if (matches.length === 0) {
+      unresolved(PROOF_CURRENTNESS_CODES.currentnessUnresolved, `mandatory obligation ${obligation} has no relied-on proof result`);
+    } else if (matches.length > 1) {
+      unresolved(PROOF_CURRENTNESS_CODES.currentnessAmbiguous, `mandatory obligation ${obligation} has ${matches.length} relied-on proof results`);
+    }
+  }
+  for (const { obligation, proofResult } of obligationProofResults) {
+    if (!mandatory.includes(obligation)) {
+      stale(PROOF_CURRENTNESS_CODES.currentnessAmbiguous, `proof result ${proofResult} is for non-mandatory obligation ${obligation}`);
+    }
+  }
+  if (proofResults.length !== mandatory.length) {
+    unresolved(PROOF_CURRENTNESS_CODES.currentnessAmbiguous,
+      `contract declares ${mandatory.length} mandatory obligations and relies on ${proofResults.length} proof results`);
+  }
+
+  const aggregateFacts = {
+    proofResults,
+    mandatoryObligations: mandatory,
+    obligationProofResults,
+    perProof,
+  };
+  // Preserve the historical scalar fact shape only for genuinely singular
+  // contracts. Multi-proof consumers must use the explicit closed sets above.
+  if (perProof.length === 1) Object.assign(aggregateFacts, perProof[0]);
+  return conclude(reasons, aggregateFacts);
 }
 
 // An explicit negative outranks an unproven one; CURRENT is reached only when

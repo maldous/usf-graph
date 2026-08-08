@@ -227,12 +227,13 @@ const CURRENT_SOURCE_DIGEST = `sha256:${'11'.repeat(32)}`;
 const CURRENT_IMPLEMENTATION = `sha256:${'22'.repeat(32)}`;
 const CURRENT_DEPENDENCY = `sha256:${'33'.repeat(32)}`;
 const DEPENDENCY_ALGORITHM = 'sha256-rdfc10-nonpublication-graph-inventory-v1';
+const CURRENT_RESULT = 'urn:usf:proofresult:repositorymaterialisationcontrolplane';
 
 function defaultCurrentness(overrides = {}) {
   const base = {
     mandatory: [{ obligation: binding('urn:usf:proofobligation:repositoryexternalartefactmaterialisation') }],
     result: [{
-      result: binding('urn:usf:proofresult:repositorymaterialisationcontrolplane'),
+      result: binding(CURRENT_RESULT),
       state: binding('urn:usf:proofresultstate:successful'),
       obligation: binding('urn:usf:proofobligation:repositoryexternalartefactmaterialisation'),
       proof: binding('urn:usf:proof:repositorymaterialisationcontrolplane'),
@@ -246,6 +247,7 @@ function defaultCurrentness(overrides = {}) {
       evidence: binding('urn:usf:evidenceresult:repositorymaterialisationcontrolplane'),
     }],
     evidence: [{
+      result: binding(CURRENT_RESULT),
       evidence: binding('urn:usf:evidenceresult:repositorymaterialisationcontrolplane'),
       admission: binding('urn:usf:evidenceadmissionstate:admitted'),
       freshness: binding('urn:usf:evidencefreshnessstate:fresh'),
@@ -255,6 +257,7 @@ function defaultCurrentness(overrides = {}) {
       contentDigest: binding(`sha256:${'55'.repeat(32)}`),
     }],
     algorithm: [{
+      result: binding(CURRENT_RESULT),
       algorithm: binding(CURRENT_ALGORITHM),
       sourceDigest: binding(CURRENT_SOURCE_DIGEST),
       currentSourceDigest: binding(CURRENT_SOURCE_DIGEST),
@@ -264,6 +267,7 @@ function defaultCurrentness(overrides = {}) {
       currentDependencyAlgorithm: binding(DEPENDENCY_ALGORITHM),
     }],
     binding: [{
+      result: binding(CURRENT_RESULT),
       binding: binding('urn:usf:proofauthoritybinding:repositorymaterialisationcontrolplane'),
       rule: binding('urn:usf:authoritybindingrule:selfpublicationclosure'),
       requiresReevaluation: binding('true'),
@@ -276,6 +280,42 @@ function defaultCurrentness(overrides = {}) {
     }],
   };
   return { ...base, ...overrides };
+}
+
+function pluralCurrentness() {
+  const base = defaultCurrentness();
+  const result = 'urn:usf:proofresult:factoryproviderv3implementation';
+  const obligation = 'urn:usf:proofobligation:factoryproviderv3implementation';
+  const algorithm = 'urn:usf:proofalgorithm:factoryproviderv3implementation';
+  const evidence = 'urn:usf:evidenceresult:factoryproviderv3implementation';
+  const authorityBinding = 'urn:usf:proofauthoritybinding:factoryproviderv3implementation';
+  return {
+    mandatory: [...base.mandatory, { obligation: binding(obligation) }],
+    result: [...base.result, {
+      ...base.result[0],
+      result: binding(result),
+      obligation: binding(obligation),
+      proof: binding('urn:usf:proof:factoryproviderv3implementation'),
+      algorithm: binding(algorithm),
+      evidence: binding(evidence),
+      binding: binding(authorityBinding),
+    }],
+    evidence: [...base.evidence, {
+      ...base.evidence[0],
+      result: binding(result),
+      evidence: binding(evidence),
+    }],
+    algorithm: [...base.algorithm, {
+      ...base.algorithm[0],
+      result: binding(result),
+      algorithm: binding(algorithm),
+    }],
+    binding: [...base.binding, {
+      ...base.binding[0],
+      result: binding(result),
+      binding: binding(authorityBinding),
+    }],
+  };
 }
 
 function fakeClient({
@@ -398,6 +438,33 @@ test('contract packet projects the selected decision exact representation-format
     }),
   }, { contract });
   assert.deepEqual(packet.authorisedFormats, [format, jsonFormat]);
+});
+
+test('contract packet projects an exact two-proof two-obligation conjunction without collapsing it', async () => {
+  const currentness = pluralCurrentness();
+  const contractRows = currentness.result.map((item) => ({
+    ...defaultContractRows()[0],
+    proof: item.result,
+    proofState: item.state,
+  }));
+  const packet = await projectContract({
+    client: fakeClient({ contractRows, currentness }),
+  }, { contract });
+  assert.equal(packet.actionState, ACTION_STATES.proceed);
+  assert.equal(packet.proofCurrentness.state, 'CURRENT');
+  assert.equal(packet.proofCurrentness.proofResults.length, 2);
+  assert.equal(packet.proofCurrentness.mandatoryObligations.length, 2);
+  assert.equal(packet.proofCurrentness.obligationProofResults.length, 2);
+  assert.equal(packet.proofCurrentness.perProof.length, 2);
+  assert.deepEqual(
+    packet.proofCurrentness.proofResults,
+    packet.proofCurrentness.perProof.map((item) => item.proofResult),
+  );
+  assert.ok(packet.proofCurrentness.proofResults.includes(packet.executionScope.currentProofIri));
+  assert.equal(
+    packet.executionScope.scopeCore.obligationIri,
+    packet.proofCurrentness.obligationProofResults[0].obligation,
+  );
 });
 
 test('global materialisation-rule formats do not leak into decision authority', async () => {
@@ -1555,8 +1622,6 @@ test('ambiguous scalar contract conclusions fail closed instead of taking the fi
     ['canonical name', 'canonicalName', binding('somethingelse')],
     ['semantic lifecycle state', 'lifecycle', binding('urn:usf:semanticlifecyclestate:retired')],
     ['activation state', 'activation', binding('urn:usf:contractactivationstate:proofblocked')],
-    ['proof result', 'proof', binding('urn:usf:proofresult:other')],
-    ['proof result state', 'proofState', binding('urn:usf:proofresultstate:failed')],
   ];
   for (const [label, key, contradictory] of cases) {
     const rows = [...defaultContractRows(), { ...defaultContractRows()[0], [key]: contradictory }];
@@ -1566,6 +1631,18 @@ test('ambiguous scalar contract conclusions fail closed instead of taking the fi
     await assert.rejects(() => createLayoutPlan({ client }, { contract, operations: [planOperation()] }), new RegExp(`ambiguous ${label}`), `create: ${label}`);
     await assert.rejects(() => projectContract({ client }, { contract }), new RegExp(`ambiguous ${label}`), `project: ${label}`);
   }
+});
+
+test('distinct relied-on proof results are plural, while contradictory state for one result is ambiguous', async () => {
+  const result = defaultContractRows()[0].proof;
+  const rows = [
+    ...defaultContractRows(),
+    { ...defaultContractRows()[0], proof: result, proofState: binding('urn:usf:proofresultstate:failed') },
+  ];
+  await assert.rejects(
+    () => projectContract({ client: fakeClient({ contractRows: rows }) }, { contract }),
+    /proof result .* has ambiguous state/,
+  );
 });
 
 test('an unknown gap code has no disposition and cannot silently authorise anything', () => {
