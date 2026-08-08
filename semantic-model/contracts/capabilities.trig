@@ -2493,7 +2493,7 @@ sc:notificationdeliveryandpreferencesandchannels usf:hasActivationState contract
 sc:providerconfigurationplane usf:hasActivationState contractstate:active;
     usf:activationReason "Current admitted evidence and successful proof results separately establish deterministic substitute behaviour and exact live Stardog authority-control validation without conflating their environments or provider claims.";
     usf:requiresRealisationOptionEvaluation true;
-    usf:mandatoryProofObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>;
+    usf:mandatoryProofObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>, <urn:usf:proofobligation:factoryproviderv3implementation>;
     usf:reliesOnProofResult <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane>, <urn:usf:proofresult:factoryproviderv3implementation>;
     usf:effectiveRealisationDecision <urn:usf:realisationdecision:providerconfigurationplanefactoryworkforce>;
     usf:requiredValidation <urn:usf:validationobligation:providerconfigurationplane>;

@@ -12,7 +12,7 @@
 <urn:usf:graph:assurance-profiles> {
 matrix:canonical a usf:AssuranceMatrix;
     usf:canonicalName "canonical";
-    usf:hasMatrixCell cell:discoveryhermeticlocal, cell:executablehermetichermetic, cell:contracthermetichermetic, cell:behaviourhermetichermetic, cell:behaviourliveauthoritycontrol, cell:substratesandboxstaging, cell:foundationsandboxproductionshaped, cell:foundationliveproductionlive.
+    usf:hasMatrixCell cell:discoveryhermeticlocal, cell:executablehermetichermetic, cell:contracthermetichermetic, cell:behaviourhermetichermetic, cell:behaviourliveauthoritycontrol, cell:behaviourliveproductionshaped, cell:substratesandboxstaging, cell:foundationsandboxproductionshaped, cell:foundationliveproductionlive.
 cell:discoveryhermeticlocal a usf:AssuranceMatrixCell;
     usf:canonicalName "discoveryhermeticlocal";
     usf:profileRung rung:discovery;
@@ -38,6 +38,11 @@ cell:behaviourliveauthoritycontrol a usf:AssuranceMatrixCell;
     usf:profileRung rung:behaviour;
     usf:profileProviderMode pmode:liveauthoritycontrol;
     usf:profileEnvironmentClass envc:authoritycontrol.
+cell:behaviourliveproductionshaped a usf:AssuranceMatrixCell;
+    usf:canonicalName "behaviourliveproductionshaped";
+    usf:profileRung rung:behaviour;
+    usf:profileProviderMode pmode:liveexternal;
+    usf:profileEnvironmentClass envc:productionshaped.
 cell:substratesandboxstaging a usf:AssuranceMatrixCell;
     usf:canonicalName "substratesandboxstaging";
     usf:profileRung rung:substrate;
