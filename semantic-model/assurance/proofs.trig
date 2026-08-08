@@ -632,18 +632,18 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:cb751cea764b13768207d94b9a17ed0d61c57aca73f47968dbf411483dc9f4dd";
-  usf:implementationSourceSetDigest "sha256:50726b1aa8537cad2789e3d8f69a1aa913c2d27c4e3fcb4fcfa6d84dd74ec82d";
-  usf:dependencySetDigest "sha256:cb751cea764b13768207d94b9a17ed0d61c57aca73f47968dbf411483dc9f4dd";
+  usf:evidenceSetDigest "sha256:989e591ebd3c0c4291dc3d5a785e548ac27af7ee0fa0223171f298d043af8324";
+  usf:implementationSourceSetDigest "sha256:fff69b18a77c8d904be1ecd200e8696d56fa7fb6dbb204cacae48c7a6b760541";
+  usf:dependencySetDigest "sha256:989e591ebd3c0c4291dc3d5a785e548ac27af7ee0fa0223171f298d043af8324";
   usf:dependencyDigestAlgorithm "sha256-canonical-evidence-file-digest-set-v1";
-  usf:proofProducerCommit "1501f9b57439050cbcae886c7715adc655b18b58";
-  usf:proofProducerTree "1035550922dc12b4a8be494f688d27177e9b42b0";
+  usf:proofProducerCommit "0a9281845c06d053ae435eb2bf49320b53d13ad6";
+  usf:proofProducerTree "415fd0b2f10b234fbdcc74359ee3014d03cb7d5f";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 1501f9b57439050cbcae886c7715adc655b18b58 and tree 1035550922dc12b4a8be494f688d27177e9b42b0. It changes exactly one queue boundary: a deterministic packet re-minted under a successor roster generation renews its exact expired, unclaimed, non-terminal predecessor entry through one fenced observable packet.queue.rebound.v3 event with a deterministic replay projector, while a same-generation predecessor returns idempotently and every claimed, unexpired or terminal shape stays fail-closed. The permanent entry row, its unique slot, its identity and its event history are never deleted or rewritten, and the rebound lifecycle is proven schedulable, routable and byte-identical under deterministic rebuild inside the candidate's own regression test. The proof does not warrant Graph mutation, source writes, completion, provider-contact, paid-inference, roster, qualification, admission or trust changes. Production convergence still requires exact deployment and a real validated semantic result.";
-  usf:evaluatedAt "2026-08-07T11:06:04Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 0a9281845c06d053ae435eb2bf49320b53d13ad6 and tree 415fd0b2f10b234fbdcc74359ee3014d03cb7d5f. It changes exactly two dispatch boundaries and one scheduler boundary: roster witness-identity comparison is scoped to the anchoring repository while anchored-binding currentness, generation lineage and authority-digest checks stay fail-closed; a provider-refresh identity re-version is carried as the same lawful route lineage through the reader, the structural eligibility check and the recorder with an explicit identity_carryover, while a lineage with no current identity row stays non-recordable and non-executable; a recorder rejection of an already-selected route defers the packet as a retryable market blockage instead of failing the cycle; and every scheduler wake write is coordinator-leased and witness-bound at the wake instant or explicitly deferred to the next fenced decide. The proof does not warrant Graph mutation, source writes, completion, provider-contact, paid-inference, roster, qualification, admission or trust changes. Production convergence still requires exact deployment and a real validated semantic result.";
+  usf:evaluatedAt "2026-08-08T05:55:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
 
 }
