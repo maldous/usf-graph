@@ -26,11 +26,14 @@ const IMPLEMENTATION = `sha256:${'22'.repeat(32)}`;
 const DEPENDENCY = `sha256:${'33'.repeat(32)}`;
 const DEPENDENCY_ALGORITHM = 'sha256-rdfc10-nonpublication-graph-inventory-v1';
 const OBLIGATION = 'urn:usf:proofobligation:repositoryexternalartefactmaterialisation';
+const RESULT = 'urn:usf:proofresult:repositorymaterialisationcontrolplane';
+const SECOND_OBLIGATION = 'urn:usf:proofobligation:factoryproviderv3implementation';
+const SECOND_RESULT = 'urn:usf:proofresult:factoryproviderv3implementation';
 
 function facts(overrides = {}) {
   const base = {
     resultRows: [{
-      result: binding('urn:usf:proofresult:repositorymaterialisationcontrolplane'),
+      result: binding(RESULT),
       state: binding('urn:usf:proofresultstate:successful'),
       obligation: binding(OBLIGATION),
       proof: binding('urn:usf:proof:repositorymaterialisationcontrolplane'),
@@ -44,6 +47,7 @@ function facts(overrides = {}) {
       evidence: binding('urn:usf:evidenceresult:repositorymaterialisationcontrolplane'),
     }],
     evidenceRows: [{
+      result: binding(RESULT),
       evidence: binding('urn:usf:evidenceresult:repositorymaterialisationcontrolplane'),
       admission: binding('urn:usf:evidenceadmissionstate:admitted'),
       freshness: binding('urn:usf:evidencefreshnessstate:fresh'),
@@ -52,6 +56,7 @@ function facts(overrides = {}) {
       validUntil: binding('2099-01-01T00:00:00Z'),
     }],
     algorithmRows: [{
+      result: binding(RESULT),
       algorithm: binding(ALGORITHM),
       sourceDigest: binding(SOURCE),
       currentSourceDigest: binding(SOURCE),
@@ -61,6 +66,7 @@ function facts(overrides = {}) {
       currentDependencyAlgorithm: binding(DEPENDENCY_ALGORITHM),
     }],
     bindingRows: [{
+      result: binding(RESULT),
       binding: binding('urn:usf:proofauthoritybinding:repositorymaterialisationcontrolplane'),
       rule: binding('urn:usf:authoritybindingrule:selfpublicationclosure'),
       requiresReevaluation: binding('true'),
@@ -71,6 +77,39 @@ function facts(overrides = {}) {
     }],
   };
   return { ...base, ...overrides };
+}
+
+function pluralFacts() {
+  const base = facts();
+  const secondAlgorithm = 'urn:usf:proofalgorithm:factoryproviderv3implementation';
+  const secondEvidence = 'urn:usf:evidenceresult:factoryproviderv3implementation';
+  const secondBinding = 'urn:usf:proofauthoritybinding:factoryproviderv3implementation';
+  return {
+    resultRows: [...base.resultRows, {
+      ...base.resultRows[0],
+      result: binding(SECOND_RESULT),
+      obligation: binding(SECOND_OBLIGATION),
+      proof: binding('urn:usf:proof:factoryproviderv3implementation'),
+      algorithm: binding(secondAlgorithm),
+      binding: binding(secondBinding),
+      evidence: binding(secondEvidence),
+    }],
+    evidenceRows: [...base.evidenceRows, {
+      ...base.evidenceRows[0],
+      result: binding(SECOND_RESULT),
+      evidence: binding(secondEvidence),
+    }],
+    algorithmRows: [...base.algorithmRows, {
+      ...base.algorithmRows[0],
+      result: binding(SECOND_RESULT),
+      algorithm: binding(secondAlgorithm),
+    }],
+    bindingRows: [...base.bindingRows, {
+      ...base.bindingRows[0],
+      result: binding(SECOND_RESULT),
+      binding: binding(secondBinding),
+    }],
+  };
 }
 
 const derive = (overrides, options = {}) => deriveProofCurrentness(facts(overrides), {
@@ -95,6 +134,57 @@ test('a complete agreeing chain is the only way to reach CURRENT', () => {
   assert.deepEqual([...verdict.reasons], []);
   assert.equal(verdict.stateIri, PROOF_CURRENTNESS_STATE_IRI.CURRENT);
   assert.equal(verdict.facts.proofResultState, 'urn:usf:proofresultstate:successful');
+});
+
+test('two distinct current proofs close two distinct mandatory obligations as an exact conjunction', () => {
+  const verdict = deriveProofCurrentness(pluralFacts(), {
+    mandatoryObligations: [OBLIGATION, SECOND_OBLIGATION],
+    observedAt: '2026-07-26T00:00:00Z',
+  });
+  assert.equal(verdict.state, PROOF_CURRENTNESS.current);
+  assert.deepEqual(verdict.facts.proofResults, [SECOND_RESULT, RESULT].sort());
+  assert.deepEqual(verdict.facts.mandatoryObligations, [SECOND_OBLIGATION, OBLIGATION].sort());
+  assert.equal(verdict.facts.obligationProofResults.length, 2);
+  assert.equal(verdict.facts.perProof.length, 2);
+  assert.equal('proofResult' in verdict.facts, false, 'plural currentness must not collapse to a scalar proof');
+});
+
+test('two proof results for one mandatory obligation remain ambiguous and fail closed', () => {
+  const plural = pluralFacts();
+  plural.resultRows[1].obligation = binding(OBLIGATION);
+  const verdict = deriveProofCurrentness(plural, {
+    mandatoryObligations: [OBLIGATION],
+    observedAt: '2026-07-26T00:00:00Z',
+  });
+  assert.equal(verdict.state, PROOF_CURRENTNESS.unresolved);
+  assert.ok(verdict.reasons.includes(PROOF_CURRENTNESS_CODES.currentnessAmbiguous));
+});
+
+test('missing and extra proof-obligation bindings never reach CURRENT', () => {
+  const missing = deriveProofCurrentness(facts(), {
+    mandatoryObligations: [OBLIGATION, SECOND_OBLIGATION],
+    observedAt: '2026-07-26T00:00:00Z',
+  });
+  assert.equal(missing.state, PROOF_CURRENTNESS.unresolved);
+  assert.ok(missing.reasons.includes(PROOF_CURRENTNESS_CODES.currentnessUnresolved));
+
+  const extra = deriveProofCurrentness(pluralFacts(), {
+    mandatoryObligations: [OBLIGATION],
+    observedAt: '2026-07-26T00:00:00Z',
+  });
+  assert.equal(extra.state, PROOF_CURRENTNESS.stale);
+  assert.ok(extra.reasons.includes(PROOF_CURRENTNESS_CODES.currentnessAmbiguous));
+});
+
+test('one stale member makes the complete proof conjunction stale', () => {
+  const plural = pluralFacts();
+  plural.algorithmRows[1].currentSourceDigest = binding(`sha256:${'ff'.repeat(32)}`);
+  const verdict = deriveProofCurrentness(plural, {
+    mandatoryObligations: [OBLIGATION, SECOND_OBLIGATION],
+    observedAt: '2026-07-26T00:00:00Z',
+  });
+  assert.equal(verdict.state, PROOF_CURRENTNESS.stale);
+  assert.ok(verdict.reasons.includes(PROOF_CURRENTNESS_CODES.algorithmDigestStale));
 });
 
 test('a successful result alone does not reach CURRENT', () => {
@@ -184,6 +274,7 @@ test('a pending post-publication reevaluation fails closed rather than blocking'
   // A binding that does not require reevaluation is current without one.
   const notRequired = derive({
     bindingRows: [{
+      result: binding(RESULT),
       binding: binding('urn:usf:proofauthoritybinding:repositorymaterialisationcontrolplane'),
       requiresReevaluation: binding('false'),
       bindingDependency: binding(DEPENDENCY),
