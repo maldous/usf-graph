@@ -600,6 +600,25 @@
 # Exact Factory Provider V3 implementation proof.  The proof is deliberately
 # attached only to providerconfigurationplane; it does not promote any generic
 # platform contract or future implementation generation.
+<urn:usf:proofobligation:factoryproviderv3implementation> a usf:ProofObligation;
+  usf:canonicalName "factoryproviderv3implementation";
+  usf:obligationFor <urn:usf:semanticcontract:providerconfigurationplane>;
+  usf:obligationEffect <urn:usf:obligationeffect:blocking>;
+  usf:usesAssuranceCell <urn:usf:assurancecell:behaviourliveproductionshaped>;
+  usf:requiresRung rung:behaviour;
+  usf:derivedFrom <urn:usf:semanticcontract:providerconfigurationplane>;
+  usf:requiresEvidence <urn:usf:evidencerequirement:factoryproviderv3implementationvalidation>.
+<urn:usf:evidencerequirement:factoryproviderv3implementationvalidation> a usf:EvidenceRequirement;
+  usf:canonicalName "factoryproviderv3implementationvalidation";
+  usf:obligationFor <urn:usf:semanticcontract:providerconfigurationplane>;
+  usf:obligationEffect <urn:usf:obligationeffect:blocking>;
+  usf:usesAssuranceCell <urn:usf:assurancecell:behaviourliveproductionshaped>;
+  usf:derivedFrom <urn:usf:proofobligation:factoryproviderv3implementation>;
+  usf:requiresEvidenceKind <urn:usf:evidencekind:validationevidence>;
+  usf:requiresFreshness fresh:fresh;
+  usf:requiresProviderMode pmode:liveexternal;
+  usf:requiresEnvironmentClass <urn:usf:environmentclass:productionshaped>;
+  usf:requiresEvidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:signed>, <urn:usf:evidencestage:integrityverified>.
 <urn:usf:proof:factoryproviderv3implementation> a usf:Proof;
   usf:canonicalName "factoryproviderv3implementation";
   usf:atRung rung:behaviour;
@@ -613,7 +632,7 @@
   usf:producesResult <urn:usf:proofresult:factoryproviderv3implementation>.
 <urn:usf:proofevaluation:factoryproviderv3implementation> a usf:ProofEvaluation;
   usf:canonicalName "factoryproviderv3implementation";
-  usf:evaluatesObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>;
+  usf:evaluatesObligation <urn:usf:proofobligation:factoryproviderv3implementation>;
   usf:producesProofResult <urn:usf:proofresult:factoryproviderv3implementation>.
 <urn:usf:proofresult:factoryproviderv3implementation> a usf:ProofResult;
   usf:canonicalName "factoryproviderv3implementation";
@@ -625,7 +644,7 @@
   usf:usesProviderMode pmode:liveexternal;
   usf:inEnvironment env:productionshaped;
   usf:hasProofResultState <urn:usf:proofresultstate:successful>;
-  usf:proofResultForObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>;
+  usf:proofResultForObligation <urn:usf:proofobligation:factoryproviderv3implementation>;
   usf:usesProofAlgorithm <urn:usf:proofalgorithm:providerworkforceauthority>;
   usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:providerworkforceauthority257d2d196df67927af2458aa46f5e49d0ec013843b1ccf96f249c7bac964fbdf>;
   usf:usesAdmittedEvidence
