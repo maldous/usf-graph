@@ -41,6 +41,10 @@ const PROSPECTIVE_INVENTORY = Object.freeze([
 const DEPENDENCY_SET = internals.nonPublicationDependencySetDigest(PROSPECTIVE_INVENTORY);
 const HEAD = '4'.repeat(40);
 const TREE = '5'.repeat(40);
+const FACTORY_VALIDATION_HEAD = '6'.repeat(40);
+const FACTORY_VALIDATION_TREE = '7'.repeat(40);
+const ADMISSION_HEAD = '8'.repeat(40);
+const ADMISSION_TREE = '9'.repeat(40);
 const GRAPH_PATHS = [
   'assurance/semantic-model-compilation/aggregate-compiler-proof.mjs',
   'processes/semantic-assurance/semantic-proof-v1.mjs',
@@ -121,6 +125,34 @@ function pendingPackage() {
       proofCurrentness: 'PENDING',
       resultState: 'PENDING',
       selectable: false,
+    },
+    dependentValidation: {
+      admission: {
+        iri: 'urn:usf:evidenceadmissionpath:factoryproviderv3implementation',
+        repository: 'maldous/usf-graph',
+        sourceHead: ADMISSION_HEAD,
+        sourcePaths: GRAPH_PATHS,
+        sourceScopeDigest: sourceScopeDigest(GRAPH_PATHS),
+        sourceTree: ADMISSION_TREE,
+      },
+      authorityDigest: digest('3'),
+      evaluation: 'urn:usf:validationevaluation:factoryproviderv3implementation',
+      evaluationReceiptDigest: digest('4'),
+      evidence: ['urn:usf:evidenceresult:factoryproviderv3implementation'],
+      execution: 'urn:usf:validationexecution:factoryproviderv3implementation',
+      executionReceiptDigest: digest('5'),
+      obligation: 'urn:usf:validationobligation:providerconfigurationplane',
+      producer: {
+        iri: 'urn:usf:validationproducer:factoryproviderv3implementation',
+        release: 'factory-v3-currentness-alignment-v1',
+        repository: 'maldous/usf-factory',
+        sourceHead: FACTORY_VALIDATION_HEAD,
+        sourcePaths: FACTORY_PATHS,
+        sourceScopeDigest: sourceScopeDigest(FACTORY_PATHS),
+        sourceTree: FACTORY_VALIDATION_TREE,
+      },
+      result: 'urn:usf:validationresult:factoryproviderv3implementation',
+      sourceHead: FACTORY_VALIDATION_HEAD,
     },
     evaluatedAuthorityDigest: D0,
     evaluationReceiptDigest: digest('7'),
@@ -659,10 +691,45 @@ test('stage 2 final aggregate carries every CURRENT projection fact and coherent
     `${USF}reevaluationSettledAuthorityDigest`), [D1]);
   assert.deepEqual(objects(quads, internals.FACTORY_PROVIDER_V3_BINDING,
     `${USF}reevaluationDependencySetDigest`), [DEPENDENCY_SET]);
+  const factoryValidationBinding = internals.FACTORY_PROVIDER_V3_VALIDATION_BINDING;
+  assert.deepEqual(objects(quads, internals.FACTORY_PROVIDER_V3_VALIDATION_RESULT,
+    `${USF}hasValidationSelfPublicationAuthorityBinding`), [factoryValidationBinding]);
+  assert.deepEqual(objects(quads, factoryValidationBinding,
+    `${USF}validationUsesAuthorityBindingRule`),
+  ['urn:usf:authoritybindingrule:validationcrossrepositorynonpublicationclosure']);
+  assert.deepEqual(objects(quads, factoryValidationBinding,
+    `${USF}validationBindingProducerRepository`), ['maldous/usf-factory']);
+  assert.deepEqual(objects(quads, factoryValidationBinding,
+    `${USF}validationBindingAdmissionRepository`), ['maldous/usf-graph']);
+  assert.deepEqual(objects(quads, factoryValidationBinding,
+    `${USF}validationBindingProducerSourcePath`).sort(), [...FACTORY_PATHS].sort());
+  assert.deepEqual(objects(quads, factoryValidationBinding,
+    `${USF}validationBindingAdmissionSourcePath`).sort(), [...GRAPH_PATHS].sort());
+  assert.deepEqual(objects(quads, factoryValidationBinding,
+    `${USF}validationBindingSourcePath`), []);
+  assert.deepEqual(objects(quads, factoryValidationBinding,
+    `${USF}validationBindingPostPublicationReevaluation`),
+  ['urn:usf:postpublicationreevaluation:compilersemanticenforcementaggregate']);
   const binding = 'urn:usf:validationselfpublicationbinding:compilersemanticenforcementaggregate';
   assert.deepEqual(objects(quads, binding, `${USF}validationStageOneEvaluatedAuthorityDigest`), [D0]);
   assert.deepEqual(objects(quads, binding, `${USF}validationStageOneSettledAuthorityDigest`), [D1]);
   assertReferencedTypes(quads);
+});
+
+test('dependent Factory validation rejects repository collapse and every source identity substitution', () => {
+  const cases = [
+    (value) => { value.admission.repository = 'maldous/usf-factory'; },
+    (value) => { value.sourceHead = ADMISSION_HEAD; },
+    (value) => { value.producer.sourceScopeDigest = digest('a'); },
+    (value) => { value.admission.sourceScopeDigest = digest('b'); },
+    (value) => { value.evidence[0] = 'urn:usf:evidenceresult:substituted'; },
+  ];
+  for (const mutate of cases) {
+    const input = stage2Input();
+    mutate(input.pendingPackage.dependentValidation);
+    assert.throws(() => materializeAggregateCompilerAuthorityCandidate(input),
+      (error) => error.code === 'CANDIDATE_DEPENDENT_VALIDATION_INVALID');
+  }
 });
 
 test('stage 2 references only persisted compiler and reevaluation receipt descriptors', () => {

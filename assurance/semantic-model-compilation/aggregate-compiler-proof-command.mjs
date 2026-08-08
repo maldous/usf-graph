@@ -43,7 +43,21 @@ import {
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const GIT_OBJECT = /^[0-9a-f]{40}$/;
 const RFC3339_SECOND = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+const SAFE_PATH = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/-]+$/;
 const CONTRACT = 'urn:usf:semanticcontract:compilersemanticenforcement';
+const DEPENDENT_VALIDATION_CONTRACT = 'urn:usf:semanticcontract:providerconfigurationplane';
+const DEPENDENT_VALIDATION_OBLIGATION = 'urn:usf:validationobligation:providerconfigurationplane';
+const DEPENDENT_VALIDATION_RESULT = 'urn:usf:validationresult:factoryproviderv3implementation';
+const DEPENDENT_VALIDATION_PRODUCER_REPOSITORY = 'maldous/usf-factory';
+const DEPENDENT_VALIDATION_ADMISSION_REPOSITORY = 'maldous/usf-graph';
+const DEPENDENT_PROOF_RESULTS = Object.freeze([
+  'urn:usf:proofresult:factoryproviderv3implementation',
+  'urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane',
+]);
+const DEPENDENT_PROOF_OBLIGATIONS = Object.freeze([
+  'urn:usf:proofobligation:factoryproviderv3implementation',
+  'urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f',
+]);
 export const AGGREGATE_RESULT_IRI = 'urn:usf:proofresult:compilersemanticenforcementaggregate';
 export const PROVISIONAL_AGGREGATE_RESULT_IRI =
   'urn:usf:proofresult:compilersemanticenforcementaggregateprepublication';
@@ -145,6 +159,52 @@ ORDER BY ?result ?evidence ?invalidatedAt ?supersededBy`;
 
 export const COMPONENT_FACT_COUNT_QUERY = `# aggregate-component-fact-count-v1
 SELECT (COUNT(*) AS ?count) WHERE { { ${COMPONENT_FACTS_QUERY.slice(COMPONENT_FACTS_QUERY.indexOf('WHERE {') + 7, COMPONENT_FACTS_QUERY.lastIndexOf('}\nORDER BY'))} } }`;
+
+export const DEPENDENT_VALIDATION_FACTS_QUERY = `# aggregate-dependent-validation-facts-v1
+SELECT ?result ?obligation ?resultState ?resultAuthorityDigest ?resultSourceHead
+       ?evaluation ?evaluationReceiptDigest ?execution ?executionReceiptDigest
+       ?producer ?producerRelease ?producerRepository ?producerSourceHead ?producerSourceTree
+       ?producerSourceScopeDigest ?producerSourcePath
+       ?admissionPath ?admissionProducer ?admissionRepository ?admissionSourceHead ?admissionSourceTree
+       ?admissionSourceScopeDigest ?admissionSourcePath ?validationEvidence WHERE {
+  BIND(<${DEPENDENT_VALIDATION_RESULT}> AS ?result)
+  BIND(<${DEPENDENT_VALIDATION_OBLIGATION}> AS ?obligation)
+  ?obligation a <urn:usf:ontology:ValidationObligation> ;
+              <urn:usf:ontology:validationForContract> <${DEPENDENT_VALIDATION_CONTRACT}> ;
+              <urn:usf:ontology:satisfiedByValidationResult> ?result .
+  ?result <urn:usf:ontology:resultForValidationObligation> ?obligation ;
+          <urn:usf:ontology:resultState> ?resultState ;
+          <urn:usf:ontology:validationEvaluatedAuthorityDigest> ?resultAuthorityDigest ;
+          <urn:usf:ontology:validationEvaluatedSourceHead> ?resultSourceHead ;
+          <urn:usf:ontology:validationResultOfEvaluation> ?evaluation .
+  ?evaluation a <urn:usf:ontology:ValidationEvaluation> ;
+              <urn:usf:ontology:validationEvaluationOfExecution> ?execution ;
+              <urn:usf:ontology:validationEvaluationReceiptDigest> ?evaluationReceiptDigest .
+  ?execution a <urn:usf:ontology:ValidationExecution> ;
+             <urn:usf:ontology:executesValidation> ?obligation ;
+             <urn:usf:ontology:producesValidationResult> ?result ;
+             <urn:usf:ontology:validationExecutionReceiptDigest> ?executionReceiptDigest ;
+             <urn:usf:ontology:validationExecutedByProducer> ?producer ;
+             <urn:usf:ontology:validationUsesEvidenceAdmissionPath> ?admissionPath .
+  ?validationEvidence a <urn:usf:ontology:ValidationEvidence> ;
+                      <urn:usf:ontology:validationEvidenceForExecution> ?execution ;
+                      <urn:usf:ontology:validationEvidenceAdmittedThrough> ?admissionPath .
+  ?producer a <urn:usf:ontology:ValidationProducer> ;
+            <urn:usf:ontology:validationProducerRelease> ?producerRelease ;
+            <urn:usf:ontology:validationProducerRepository> ?producerRepository ;
+            <urn:usf:ontology:validationProducerSourceHead> ?producerSourceHead ;
+            <urn:usf:ontology:validationProducerSourceTree> ?producerSourceTree ;
+            <urn:usf:ontology:validationProducerSourceScopeDigest> ?producerSourceScopeDigest ;
+            <urn:usf:ontology:validationProducerSourcePath> ?producerSourcePath .
+  ?admissionPath a <urn:usf:ontology:EvidenceAdmissionPath> ;
+                 <urn:usf:ontology:admissionPathForProducer> ?admissionProducer ;
+                 <urn:usf:ontology:admissionPathRepository> ?admissionRepository ;
+                 <urn:usf:ontology:admissionPathSourceHead> ?admissionSourceHead ;
+                 <urn:usf:ontology:admissionPathSourceTree> ?admissionSourceTree ;
+                 <urn:usf:ontology:admissionPathSourceScopeDigest> ?admissionSourceScopeDigest ;
+                 <urn:usf:ontology:admissionPathSourcePath> ?admissionSourcePath .
+}
+ORDER BY ?producerSourcePath ?admissionSourcePath ?validationEvidence`;
 
 export const CONTRACT_SELECTION_QUERY = `# aggregate-contract-selection-v1
 SELECT DISTINCT ?result WHERE {
@@ -453,6 +513,93 @@ async function queryComponentRows(client) {
   return rows;
 }
 
+function exactPathSet(rows, field, label) {
+  const values = [...new Set(rows.map((row) => binding(row, field)).filter(Boolean))].sort();
+  if (values.length === 0 || values.some((value) => typeof value !== 'string' || !SAFE_PATH.test(value))) {
+    fail('AGGREGATE_DEPENDENT_VALIDATION_INVALID', `${label} paths`);
+  }
+  return Object.freeze(values);
+}
+
+function normalizeDependentValidation(rows, casRoot) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    fail('AGGREGATE_DEPENDENT_VALIDATION_INVALID', 'absent Factory Provider V3 validation closure');
+  }
+  const result = exactScalar(rows, 'result', DEPENDENT_VALIDATION_RESULT);
+  const obligation = exactScalar(rows, 'obligation', result);
+  const evaluation = exactScalar(rows, 'evaluation', result);
+  const execution = exactScalar(rows, 'execution', result);
+  const producer = exactScalar(rows, 'producer', result);
+  const admissionPath = exactScalar(rows, 'admissionPath', result);
+  const producerSourcePaths = exactPathSet(rows, 'producerSourcePath', `${result} producer`);
+  const admissionSourcePaths = exactPathSet(rows, 'admissionSourcePath', `${result} admission`);
+  const validationEvidence = [...new Set(rows.map((row) => binding(row, 'validationEvidence')).filter(Boolean))].sort();
+  const resultAuthorityDigest = digest(exactScalar(rows, 'resultAuthorityDigest', result), `${result} authority`);
+  const executionReceiptDigest = digest(
+    exactScalar(rows, 'executionReceiptDigest', result), `${result} execution receipt`,
+  );
+  const evaluationReceiptDigest = digest(
+    exactScalar(rows, 'evaluationReceiptDigest', result), `${result} evaluation receipt`,
+  );
+  const producerSourceScopeDigest = digest(
+    exactScalar(rows, 'producerSourceScopeDigest', result), `${result} producer source scope`,
+  );
+  const admissionSourceScopeDigest = digest(
+    exactScalar(rows, 'admissionSourceScopeDigest', result), `${result} admission source scope`,
+  );
+  const producerRepository = exactScalar(rows, 'producerRepository', result);
+  const admissionRepository = exactScalar(rows, 'admissionRepository', result);
+  const resultSourceHead = exactScalar(rows, 'resultSourceHead', result);
+  const producerSourceHead = exactScalar(rows, 'producerSourceHead', result);
+  const producerSourceTree = exactScalar(rows, 'producerSourceTree', result);
+  const admissionSourceHead = exactScalar(rows, 'admissionSourceHead', result);
+  const admissionSourceTree = exactScalar(rows, 'admissionSourceTree', result);
+  if (result !== DEPENDENT_VALIDATION_RESULT || obligation !== DEPENDENT_VALIDATION_OBLIGATION
+      || exactScalar(rows, 'resultState', result) !== 'urn:usf:resultstate:passed'
+      || validationEvidence.length !== 1
+      || producerRepository !== DEPENDENT_VALIDATION_PRODUCER_REPOSITORY
+      || admissionRepository !== DEPENDENT_VALIDATION_ADMISSION_REPOSITORY
+      || producerRepository === admissionRepository
+      || exactScalar(rows, 'admissionProducer', result) !== producer
+      || resultSourceHead !== producerSourceHead
+      || !GIT_OBJECT.test(producerSourceHead || '') || !GIT_OBJECT.test(producerSourceTree || '')
+      || !GIT_OBJECT.test(admissionSourceHead || '') || !GIT_OBJECT.test(admissionSourceTree || '')
+      || producerSourceScopeDigest !== aggregateCompilerProofInternals.sourceScopeDigest(producerSourcePaths)
+      || admissionSourceScopeDigest !== aggregateCompilerProofInternals.sourceScopeDigest(admissionSourcePaths)) {
+    fail('AGGREGATE_DEPENDENT_VALIDATION_INVALID', 'identity, state or source binding');
+  }
+  readCasBytes(casRoot, executionReceiptDigest);
+  readCasBytes(casRoot, evaluationReceiptDigest);
+  return deepFreeze({
+    admission: {
+      iri: admissionPath,
+      repository: admissionRepository,
+      sourceHead: admissionSourceHead,
+      sourcePaths: admissionSourcePaths,
+      sourceScopeDigest: admissionSourceScopeDigest,
+      sourceTree: admissionSourceTree,
+    },
+    authorityDigest: resultAuthorityDigest,
+    evaluation,
+    evaluationReceiptDigest,
+    evidence: validationEvidence,
+    execution,
+    executionReceiptDigest,
+    obligation,
+    producer: {
+      iri: producer,
+      release: exactScalar(rows, 'producerRelease', result),
+      repository: producerRepository,
+      sourceHead: producerSourceHead,
+      sourcePaths: producerSourcePaths,
+      sourceScopeDigest: producerSourceScopeDigest,
+      sourceTree: producerSourceTree,
+    },
+    result,
+    sourceHead: resultSourceHead,
+  });
+}
+
 async function readTrustedTime(client) {
   const rows = await client.select(TRUSTED_TIME_QUERY);
   if (!Array.isArray(rows) || rows.length !== 1) fail('AGGREGATE_PRODUCER_TRUSTED_TIME_INVALID', 'NOW() cardinality');
@@ -594,12 +741,14 @@ function normalizeFacts(rows, casRoot, observedAt, evaluatedAt, authorityDigest,
 
 async function readFacts(dependencies, requestedAuthorityDigest) {
   return stableAuthorityRead(dependencies, requestedAuthorityDigest, async () => {
-    const [rows, evaluatedAt] = await Promise.all([
-      queryComponentRows(dependencies.client), readTrustedTime(dependencies.client),
+    const [rows, dependentValidationRows, evaluatedAt] = await Promise.all([
+      queryComponentRows(dependencies.client), dependencies.client.select(DEPENDENT_VALIDATION_FACTS_QUERY),
+      readTrustedTime(dependencies.client),
     ]);
     return Object.freeze({
       components: normalizeFacts(rows, dependencies.casRoot, evaluatedAt, evaluatedAt, requestedAuthorityDigest,
         dependencies.writeRecord),
+      dependentValidation: normalizeDependentValidation(dependentValidationRows, dependencies.casRoot),
       evaluatedAt,
     });
   });
@@ -694,7 +843,7 @@ function assembleStage2Package(casRoot, {
   const preparation = assertInitialReevaluationPreparation(stage1Preparation);
   assertSemanticProofPublicationReceipt(publicationReceipt);
   exactObjectKeys(pending, [
-    'aggregateResult', 'evaluatedAuthorityDigest', 'evaluationReceiptDigest', 'executionReceiptDigest',
+    'aggregateResult', 'dependentValidation', 'evaluatedAuthorityDigest', 'evaluationReceiptDigest', 'executionReceiptDigest',
     'ok', 'proofCurrentness', 'resultState', 'selectable', 'state',
   ], 'pending aggregate package');
   const execution = readReceiptDescriptor(
@@ -839,6 +988,53 @@ function validateFinalValidationEvidence(casRoot, rows, expectedAuthorityDigest)
   return Object.freeze({ evaluationReceiptDigest, executionReceiptDigest, evidence });
 }
 
+function validateDependentTerminalProjection(projection, requestedAuthorityDigest) {
+  const currentness = projection?.proofCurrentness;
+  const proofResults = [...(currentness?.proofResults || [])].sort();
+  const mandatoryObligations = [...(currentness?.mandatoryObligations || [])].sort();
+  const mappings = [...(currentness?.obligationProofResults || [])]
+    .map(({ obligation, proofResult }) => ({ obligation, proofResult }))
+    .sort((left, right) => left.obligation.localeCompare(right.obligation));
+  const perProof = [...(currentness?.perProof || [])]
+    .sort((left, right) => left.proofResult.localeCompare(right.proofResult));
+  const expectedMappings = DEPENDENT_PROOF_OBLIGATIONS.map((obligation, index) => ({
+    obligation,
+    proofResult: DEPENDENT_PROOF_RESULTS[index],
+  })).sort((left, right) => left.obligation.localeCompare(right.obligation));
+  const validationObligations = projection?.validationObligations || [];
+  if (projection?.contract !== DEPENDENT_VALIDATION_CONTRACT
+      || projection?.authorityDigest !== requestedAuthorityDigest
+      || projection?.actionState !== 'PROCEED'
+      || projection?.validationActionState !== 'PROCEED'
+      || projection?.validationSatisfied !== true
+      || !Array.isArray(projection?.actionStateReasons) || projection.actionStateReasons.length !== 0
+      || !Array.isArray(projection?.validationGaps) || projection.validationGaps.length !== 0
+      || currentness?.state !== 'CURRENT'
+      || !Array.isArray(currentness?.reasons) || currentness.reasons.length !== 0
+      || canonicalJson(proofResults) !== canonicalJson([...DEPENDENT_PROOF_RESULTS].sort())
+      || canonicalJson(mandatoryObligations) !== canonicalJson([...DEPENDENT_PROOF_OBLIGATIONS].sort())
+      || canonicalJson(mappings) !== canonicalJson(expectedMappings)
+      || perProof.length !== DEPENDENT_PROOF_RESULTS.length
+      || perProof.some((item) => item?.proofResultState !== 'urn:usf:proofresultstate:successful'
+        || item?.currentAuthorityDigest !== requestedAuthorityDigest
+        || !DEPENDENT_PROOF_RESULTS.includes(item?.proofResult)
+        || !DEPENDENT_PROOF_OBLIGATIONS.includes(item?.obligation)
+        || !SHA256.test(item?.algorithmSourceDigest || '')
+        || !SHA256.test(item?.implementationSourceSetDigest || '')
+        || !SHA256.test(item?.dependencySetDigest || '')
+        || !SHA256.test(item?.evidenceSetDigest || '')
+        || !SHA256.test(item?.evaluatedAuthorityDigest || '')
+        || !SHA256.test(item?.settledAuthorityDigest || '')
+        || item?.reevaluationState !== 'urn:usf:proofreevaluationstate:successful')
+      || validationObligations.length !== 1
+      || validationObligations[0]?.id !== DEPENDENT_VALIDATION_OBLIGATION
+      || validationObligations[0]?.satisfactionCurrent !== true
+      || validationObligations[0]?.recordedSatisfactionCount !== 1) {
+    fail('AGGREGATE_PRODUCER_TERMINAL_DEPENDENT_CLOSURE_INVALID',
+      'provider configuration plane is not exactly 2-obligation/2-proof CURRENT with current validation');
+  }
+}
+
 function deepFreeze(value, seen = new WeakSet()) {
   if (!value || typeof value !== 'object' || seen.has(value)) return value;
   seen.add(value);
@@ -943,7 +1139,7 @@ export function createAggregateCompilerProofProducer({
 
     async preparePending({ requestedAuthorityDigest }) {
       const aggregateSourceBinding = await operationSourceBinding(dependencies);
-      const { components, evaluatedAt } = await readFacts(dependencies, requestedAuthorityDigest);
+      const { components, dependentValidation, evaluatedAt } = await readFacts(dependencies, requestedAuthorityDigest);
       const aggregate = evaluateProof({
         authorityDigest: requestedAuthorityDigest,
         components,
@@ -974,6 +1170,7 @@ export function createAggregateCompilerProofProducer({
       });
       return deepFreeze({
         aggregateResult: aggregate,
+        dependentValidation,
         evaluatedAuthorityDigest: requestedAuthorityDigest,
         evaluationReceiptDigest: evaluationReceipt.digest,
         executionReceiptDigest: executionReceipt.digest,
@@ -1072,16 +1269,18 @@ export function createAggregateCompilerProofProducer({
         fail('AGGREGATE_PRODUCER_STAGE1_PREPARATION_INVALID', 'stage-1 publication receipt bindings');
       }
       const live = await stableAuthorityRead(dependencies, requestedAuthorityDigest, async () => {
-        const [projection, selectionRows, receiptBindingRows, validationRows, observedAt] = await Promise.all([
+        const [projection, dependentProjection, selectionRows, receiptBindingRows, validationRows, observedAt] = await Promise.all([
           contractProjector(client, CONTRACT),
+          contractProjector(client, DEPENDENT_VALIDATION_CONTRACT),
           client.select(CONTRACT_SELECTION_QUERY),
           client.select(AGGREGATE_LIVE_BINDINGS_QUERY),
           client.select(FINAL_VALIDATION_BINDINGS_QUERY),
           readTrustedTime(client),
         ]);
-        return { observedAt, projection, receiptBindingRows, selectionRows, validationRows };
+        return { dependentProjection, observedAt, projection, receiptBindingRows, selectionRows, validationRows };
       });
       validateFinalValidationEvidence(casRoot, live.validationRows, expectedStage1AuthorityDigest);
+      validateDependentTerminalProjection(live.dependentProjection, requestedAuthorityDigest);
       const selections = [...new Set(live.selectionRows.map((row) => binding(row, 'result')).filter(Boolean))];
       const liveResult = exactScalar(live.receiptBindingRows, 'result', aggregateResultIri);
       const liveEvaluatedAuthorityDigest = exactScalar(live.receiptBindingRows, 'evaluatedAuthorityDigest', aggregateResultIri);

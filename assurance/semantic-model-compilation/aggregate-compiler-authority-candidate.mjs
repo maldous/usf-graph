@@ -68,6 +68,14 @@ const FINAL_BINDING = 'urn:usf:proofauthoritybinding:compilersemanticenforcement
 const FACTORY_PROVIDER_V3_ALGORITHM = 'urn:usf:proofalgorithm:factoryproviderv3implementation';
 const FACTORY_PROVIDER_V3_RESULT = 'urn:usf:proofresult:factoryproviderv3implementation';
 const FACTORY_PROVIDER_V3_BINDING = 'urn:usf:proofauthoritybinding:factoryproviderv3implementation';
+const FACTORY_PROVIDER_V3_VALIDATION_RESULT = 'urn:usf:validationresult:factoryproviderv3implementation';
+const FACTORY_PROVIDER_V3_VALIDATION_OBLIGATION = 'urn:usf:validationobligation:providerconfigurationplane';
+const FACTORY_PROVIDER_V3_VALIDATION_EVALUATION = 'urn:usf:validationevaluation:factoryproviderv3implementation';
+const FACTORY_PROVIDER_V3_VALIDATION_EXECUTION = 'urn:usf:validationexecution:factoryproviderv3implementation';
+const FACTORY_PROVIDER_V3_VALIDATION_PRODUCER = 'urn:usf:validationproducer:factoryproviderv3implementation';
+const FACTORY_PROVIDER_V3_VALIDATION_ADMISSION = 'urn:usf:evidenceadmissionpath:factoryproviderv3implementation';
+const FACTORY_PROVIDER_V3_VALIDATION_BINDING = 'urn:usf:validationselfpublicationbinding:factoryproviderv3implementation';
+const CROSS_REPOSITORY_VALIDATION_RULE = 'urn:usf:authoritybindingrule:validationcrossrepositorynonpublicationclosure';
 const DEPENDENCY_DIGEST_ALGORITHM = 'sha256-rdfc10-nonpublication-graph-inventory-v1';
 const AGGREGATE_RUNG = 'urn:usf:proofrung:behaviour';
 const AGGREGATE_PROVIDER_MODE = 'urn:usf:providermode:liveauthoritycontrol';
@@ -129,13 +137,19 @@ const OWNER_SCOPES = Object.freeze({
 });
 const OWNER_SCOPE_KEYS = Object.freeze(Object.keys(OWNER_SCOPES).sort());
 
-const PENDING_KEYS = ['aggregateResult', 'evaluatedAuthorityDigest', 'evaluationReceiptDigest', 'executionReceiptDigest',
+const PENDING_KEYS = ['aggregateResult', 'dependentValidation', 'evaluatedAuthorityDigest', 'evaluationReceiptDigest', 'executionReceiptDigest',
   'ok', 'proofCurrentness', 'resultState', 'selectable', 'state'];
 const AGGREGATE_KEYS = ['evaluation', 'evaluationDigest', 'passed', 'proofCurrentness', 'resultState', 'selectable'];
 const EVALUATION_KEYS = ['algorithmDigest', 'algorithmVersion', 'authorityDigest', 'componentSetDigest', 'components',
   'evaluatedAt', 'evidenceSetDigest', 'phase', 'postPublicationReevaluation', 'sourceBinding', 'sourceBindingDigest'];
 const SOURCE_KEYS = ['head', 'reachableFrom', 'repository', 'sourcePaths', 'sourceScopeDigest', 'tree'];
 const COMPONENT_KEYS = ['currentness', 'dimension', 'evidenceReferences', 'historicalResult', 'obligation', 'result'];
+const DEPENDENT_VALIDATION_KEYS = ['admission', 'authorityDigest', 'evaluation', 'evaluationReceiptDigest', 'evidence',
+  'execution', 'executionReceiptDigest', 'obligation', 'producer', 'result', 'sourceHead'];
+const DEPENDENT_VALIDATION_ADMISSION_KEYS = ['iri', 'repository', 'sourceHead', 'sourcePaths', 'sourceScopeDigest',
+  'sourceTree'];
+const DEPENDENT_VALIDATION_PRODUCER_KEYS = ['iri', 'release', 'repository', 'sourceHead', 'sourcePaths',
+  'sourceScopeDigest', 'sourceTree'];
 const REEVALUATION_PACKAGE_KEYS = ['candidateDigest', 'evaluatedAuthorityDigest', 'evaluationReceiptDigest',
   'executionReceiptDigest', 'ok', 'operation', 'protocol', 'state'];
 const REEVALUATION_EXECUTION_KEYS = ['algorithmDigest', 'algorithmVersion', 'authorityAfterDigest', 'completedAt',
@@ -170,6 +184,9 @@ const ALLOWED_DEEP_KEYS = new Set([
   'projectionReceiptDigest', 'proof', 'proofAlgorithm', 'proofAlgorithmSourceDigest', 'proofAlgorithmVersion',
   'proofAlgorithmVersionIdentifier', 'proofEvaluation', 'proofExecution', 'proofState', 'resultState', 'schema',
   'snapshotDigest', 'supersededBy', 'validFrom', 'validUntil', 'dimension', 'obligation', 'result',
+  'admission', 'authorityDigest', 'evaluation', 'evaluationReceiptDigest', 'evidence', 'execution',
+  'executionReceiptDigest', 'producer',
+  'release', 'repository', 'sourceHead', 'sourcePaths', 'sourceScopeDigest', 'sourceTree',
 ]);
 
 function fail(code, detail) {
@@ -234,6 +251,44 @@ function sha256Json(value) {
   return sha256Bytes(Buffer.from(canonicalJson(value), 'utf8'));
 }
 
+function validateDependentValidation(value) {
+  exactKeys(value, DEPENDENT_VALIDATION_KEYS, 'CANDIDATE_DEPENDENT_VALIDATION_INVALID', 'dependent validation');
+  exactKeys(value.producer, DEPENDENT_VALIDATION_PRODUCER_KEYS,
+    'CANDIDATE_DEPENDENT_VALIDATION_INVALID', 'dependent validation producer');
+  exactKeys(value.admission, DEPENDENT_VALIDATION_ADMISSION_KEYS,
+    'CANDIDATE_DEPENDENT_VALIDATION_INVALID', 'dependent validation admission');
+  digest(value.authorityDigest, 'dependent validation authority');
+  digest(value.executionReceiptDigest, 'dependent validation execution receipt');
+  digest(value.evaluationReceiptDigest, 'dependent validation evaluation receipt');
+  digest(value.producer.sourceScopeDigest, 'dependent validation producer source scope');
+  digest(value.admission.sourceScopeDigest, 'dependent validation admission source scope');
+  gitObject(value.sourceHead, 'dependent validation source head');
+  gitObject(value.producer.sourceHead, 'dependent validation producer source head');
+  gitObject(value.producer.sourceTree, 'dependent validation producer source tree');
+  gitObject(value.admission.sourceHead, 'dependent validation admission source head');
+  gitObject(value.admission.sourceTree, 'dependent validation admission source tree');
+  const producerPaths = paths(value.producer.sourcePaths, 'dependent validation producer paths');
+  const admissionPaths = paths(value.admission.sourcePaths, 'dependent validation admission paths');
+  if (value.result !== FACTORY_PROVIDER_V3_VALIDATION_RESULT
+      || value.obligation !== FACTORY_PROVIDER_V3_VALIDATION_OBLIGATION
+      || value.evaluation !== FACTORY_PROVIDER_V3_VALIDATION_EVALUATION
+      || value.execution !== FACTORY_PROVIDER_V3_VALIDATION_EXECUTION
+      || value.producer.iri !== FACTORY_PROVIDER_V3_VALIDATION_PRODUCER
+      || value.admission.iri !== FACTORY_PROVIDER_V3_VALIDATION_ADMISSION
+      || value.producer.repository !== 'maldous/usf-factory'
+      || value.admission.repository !== AGGREGATE_REPOSITORY
+      || value.producer.repository === value.admission.repository
+      || value.sourceHead !== value.producer.sourceHead
+      || value.producer.sourceScopeDigest !== sourceScopeDigest(producerPaths)
+      || value.admission.sourceScopeDigest !== sourceScopeDigest(admissionPaths)
+      || typeof value.producer.release !== 'string' || value.producer.release.length === 0
+      || !Array.isArray(value.evidence) || value.evidence.length !== 1
+      || value.evidence[0] !== 'urn:usf:evidenceresult:factoryproviderv3implementation') {
+    fail('CANDIDATE_DEPENDENT_VALIDATION_INVALID', 'identity, repository or source binding');
+  }
+  return value;
+}
+
 function validatePending(pending) {
   exactKeys(pending, PENDING_KEYS, 'CANDIDATE_PENDING_SCHEMA_INVALID', 'pending package');
   rejectUnknownDeep(pending);
@@ -244,6 +299,7 @@ function validatePending(pending) {
   digest(pending.evaluatedAuthorityDigest, 'pending authority');
   digest(pending.executionReceiptDigest, 'pending execution receipt');
   digest(pending.evaluationReceiptDigest, 'pending evaluation receipt');
+  validateDependentValidation(pending.dependentValidation);
   exactKeys(pending.aggregateResult, AGGREGATE_KEYS, 'CANDIDATE_PENDING_SCHEMA_INVALID', 'aggregate result');
   const aggregate = pending.aggregateResult;
   if (aggregate.passed !== false || aggregate.selectable !== false || aggregate.proofCurrentness !== 'PENDING'
@@ -821,6 +877,64 @@ function materializeFactoryProviderV3Currentness(additions, {
   });
 }
 
+// The Factory validation execution and the Graph admission path are distinct
+// immutable source identities.  Stage 2 binds both independently and ties the
+// validation reevaluation to the canonical aggregate D1 receipt; it never
+// collapses the two repositories into one synthetic shared source.
+function materializeFactoryProviderV3ValidationCurrentness(additions, {
+  currentnessBinding, dependentValidation, pending, stage2,
+}) {
+  const owner = OWNER_SCOPES.providerconfigurationplane;
+  additions.push(type(dependentValidation.result, `${USF}ValidationResult`, GRAPH_PROOFS));
+  additions.push(type(dependentValidation.evaluation, `${USF}ValidationEvaluation`, GRAPH_PROOFS));
+  additions.push(type(dependentValidation.execution, `${USF}ValidationExecution`, GRAPH_PROOFS));
+  additions.push(type(dependentValidation.producer.iri, `${USF}ValidationProducer`, GRAPH_PROOFS));
+  additions.push(type(dependentValidation.admission.iri, `${USF}EvidenceAdmissionPath`, GRAPH_PROOFS));
+  additions.push(type(FACTORY_PROVIDER_V3_VALIDATION_BINDING,
+    `${USF}ValidationSelfPublicationBinding`, GRAPH_PROOFS));
+  add(additions, FACTORY_PROVIDER_V3_VALIDATION_BINDING, 'canonicalName',
+    literal('factoryproviderv3implementation'));
+  for (const [predicate, object] of [
+    ['authorityBindingForValidationResult', iri(dependentValidation.result)],
+    ['authorityBindingValidationProducer', iri(dependentValidation.producer.iri)],
+    ['authorityBindingEvidenceAdmissionPath', iri(dependentValidation.admission.iri)],
+    ['validationStageOneEvaluatedAuthorityDigest', literal(pending.evaluatedAuthorityDigest)],
+    ['validationNonPublicationDependencySetDigest', literal(currentnessBinding.dependencySetDigest)],
+    ['validationNonPublicationDependencyDigestAlgorithm', literal(DEPENDENCY_DIGEST_ALGORITHM)],
+    ['validationPostPublicationReevaluationState', iri('urn:usf:resultstate:passed')],
+    ['validationStageOneSettledAuthorityDigest', literal(stage2.package.evaluatedAuthorityDigest)],
+    ['validationReevaluationDependencyDigest', literal(currentnessBinding.dependencySetDigest)],
+    ['validationBindingExecutionReceiptDigest', literal(dependentValidation.executionReceiptDigest)],
+    ['validationBindingEvaluationReceiptDigest', literal(dependentValidation.evaluationReceiptDigest)],
+    ['validationBindingProducerRelease', literal(dependentValidation.producer.release)],
+    ['validationBindingProducerRepository', literal(dependentValidation.producer.repository)],
+    ['validationBindingProducerSourceHead', literal(dependentValidation.producer.sourceHead)],
+    ['validationBindingProducerSourceTree', literal(dependentValidation.producer.sourceTree)],
+    ['validationBindingProducerSourceScopeDigest', literal(dependentValidation.producer.sourceScopeDigest)],
+    ['validationBindingAdmissionRepository', literal(dependentValidation.admission.repository)],
+    ['validationBindingAdmissionSourceHead', literal(dependentValidation.admission.sourceHead)],
+    ['validationBindingAdmissionSourceTree', literal(dependentValidation.admission.sourceTree)],
+    ['validationBindingAdmissionSourceScopeDigest', literal(dependentValidation.admission.sourceScopeDigest)],
+    ['validationUsesAuthorityBindingRule', iri(CROSS_REPOSITORY_VALIDATION_RULE)],
+    ['validationRequiresPostPublicationReevaluation', typed(true, XSD_BOOLEAN)],
+    ['validationBindingPostPublicationReevaluation', iri(REEVALUATION)],
+    ['validationBindingEnvelopeVerification', iri(owner.verification)],
+    ['validationBindingExternalVerifier', iri(VERIFIER)],
+    ['validationBindingVerificationCASDescriptor', iri(owner.verificationDescriptor)],
+  ]) add(additions, FACTORY_PROVIDER_V3_VALIDATION_BINDING, predicate, object);
+  for (const path of dependentValidation.producer.sourcePaths) {
+    add(additions, FACTORY_PROVIDER_V3_VALIDATION_BINDING,
+      'validationBindingProducerSourcePath', literal(path));
+  }
+  for (const path of dependentValidation.admission.sourcePaths) {
+    add(additions, FACTORY_PROVIDER_V3_VALIDATION_BINDING,
+      'validationBindingAdmissionSourcePath', literal(path));
+  }
+  add(additions, dependentValidation.result, 'hasValidationSelfPublicationAuthorityBinding',
+    iri(FACTORY_PROVIDER_V3_VALIDATION_BINDING));
+  add(additions, REEVALUATION, 'reevaluatesValidationResult', iri(dependentValidation.result));
+}
+
 function materializeAggregateValidationInfrastructure(additions, source) {
   materializeEvidenceAdmissionPath(additions, {
     admissionPath: EVIDENCE_ADMISSION_PATH,
@@ -850,6 +964,9 @@ function stage1Patch(pending, owners, currentnessBinding, { includeDependentBind
   additions.push(type(SELF_PUBLICATION_RULE, `${USF}AuthorityBindingRule`, GRAPH_PROOFS));
   additions.push(type(VALIDATION_RULE, `${USF}AuthorityBindingRule`, GRAPH_PROOFS));
   add(additions, VALIDATION_RULE, 'canonicalName', literal('validationnonpublicationdependencyclosure'));
+  additions.push(type(CROSS_REPOSITORY_VALIDATION_RULE, `${USF}AuthorityBindingRule`, GRAPH_PROOFS));
+  add(additions, CROSS_REPOSITORY_VALIDATION_RULE, 'canonicalName',
+    literal('validationcrossrepositorynonpublicationclosure'));
   materializeAggregateProof(additions, {
     confidenceState: null, evaluation, execution: PROVISIONAL_EXECUTION, proof: PROVISIONAL_PROOF,
     proofEvaluation: PROVISIONAL_EVALUATION, result: PROVISIONAL_RESULT, source,
@@ -963,6 +1080,12 @@ function stage2Patch(pending, owners, stage2, currentnessBinding) {
     ['reevaluationExecutionReceiptDigest', literal(stage2.package.executionReceiptDigest)],
     ['reevaluationEvaluationReceiptDigest', literal(stage2.package.evaluationReceiptDigest)],
   ]) add(additions, REEVALUATION, predicate, object);
+  materializeFactoryProviderV3ValidationCurrentness(additions, {
+    currentnessBinding,
+    dependentValidation: pending.dependentValidation,
+    pending,
+    stage2,
+  });
   add(additions, CONTRACT, 'hasActivationState',
     iri('urn:usf:contractactivationstate:active'), GRAPH_CAPABILITIES);
   add(additions, CONTRACT, 'mandatoryProofObligation', iri(AGGREGATE_OBLIGATION), GRAPH_CAPABILITIES);
@@ -1104,6 +1227,8 @@ export const aggregateCompilerAuthorityCandidateInternals = Object.freeze({
   FACTORY_PROVIDER_V3_ALGORITHM,
   FACTORY_PROVIDER_V3_BINDING,
   FACTORY_PROVIDER_V3_RESULT,
+  FACTORY_PROVIDER_V3_VALIDATION_BINDING,
+  FACTORY_PROVIDER_V3_VALIDATION_RESULT,
   FINAL_BINDING,
   OWNER_SCOPES,
   PROVISIONAL_RESULT,

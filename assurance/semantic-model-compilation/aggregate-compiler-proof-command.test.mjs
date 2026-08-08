@@ -342,6 +342,92 @@ function componentRows(casRoot) {
   }));
 }
 
+function dependentValidationRows(casRoot) {
+  const producerPaths = ['src/usf_factory/provider_plane_runtime.py', 'tests/test_v3_provider_refresh_authority.py'];
+  const admissionPaths = ['processes/semantic-assurance/semantic-authority-publication.mjs',
+    'semantic-model/assurance/evidence.trig'];
+  const producerHead = '6'.repeat(40);
+  const producerTree = '7'.repeat(40);
+  const admissionHead = '8'.repeat(40);
+  const admissionTree = '9'.repeat(40);
+  const executionReceiptDigest = putCas(casRoot, Buffer.from('factory-validation-execution-receipt'));
+  const evaluationReceiptDigest = putCas(casRoot, Buffer.from('factory-validation-evaluation-receipt'));
+  return producerPaths.flatMap((producerSourcePath) => admissionPaths.map((admissionSourcePath) => ({
+    admissionPath: binding('urn:usf:evidenceadmissionpath:factoryproviderv3implementation'),
+    admissionProducer: binding('urn:usf:validationproducer:factoryproviderv3implementation'),
+    admissionRepository: binding('maldous/usf-graph'),
+    admissionSourceHead: binding(admissionHead),
+    admissionSourcePath: binding(admissionSourcePath),
+    admissionSourceScopeDigest: binding(aggregateCompilerProofInternals.sourceScopeDigest(admissionPaths)),
+    admissionSourceTree: binding(admissionTree),
+    evaluation: binding('urn:usf:validationevaluation:factoryproviderv3implementation'),
+    evaluationReceiptDigest: binding(evaluationReceiptDigest),
+    execution: binding('urn:usf:validationexecution:factoryproviderv3implementation'),
+    executionReceiptDigest: binding(executionReceiptDigest),
+    obligation: binding('urn:usf:validationobligation:providerconfigurationplane'),
+    producer: binding('urn:usf:validationproducer:factoryproviderv3implementation'),
+    producerRelease: binding('factory-v3-currentness-alignment-v1'),
+    producerRepository: binding('maldous/usf-factory'),
+    producerSourceHead: binding(producerHead),
+    producerSourcePath: binding(producerSourcePath),
+    producerSourceScopeDigest: binding(aggregateCompilerProofInternals.sourceScopeDigest(producerPaths)),
+    producerSourceTree: binding(producerTree),
+    result: binding('urn:usf:validationresult:factoryproviderv3implementation'),
+    resultAuthorityDigest: binding(HISTORICAL),
+    resultSourceHead: binding(producerHead),
+    resultState: binding('urn:usf:resultstate:passed'),
+    validationEvidence: binding('urn:usf:evidenceresult:factoryproviderv3implementation'),
+  })));
+}
+
+function dependentTerminalProjection(authorityDigest = D2, overrides = {}) {
+  const factoryResult = 'urn:usf:proofresult:factoryproviderv3implementation';
+  const workforceResult = 'urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane';
+  const factoryObligation = 'urn:usf:proofobligation:factoryproviderv3implementation';
+  const workforceObligation = 'urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f';
+  const perProof = [[factoryResult, factoryObligation], [workforceResult, workforceObligation]].map(
+    ([proofResult, obligation], index) => ({
+      algorithmSourceDigest: `sha256:${String(index + 3).repeat(64)}`,
+      currentAuthorityDigest: authorityDigest,
+      dependencySetDigest: `sha256:${String(index + 4).repeat(64)}`,
+      evaluatedAuthorityDigest: D1,
+      evidenceSetDigest: `sha256:${String(index + 5).repeat(64)}`,
+      implementationSourceSetDigest: `sha256:${String(index + 6).repeat(64)}`,
+      obligation,
+      proofResult,
+      proofResultState: 'urn:usf:proofresultstate:successful',
+      reevaluationState: 'urn:usf:proofreevaluationstate:successful',
+      settledAuthorityDigest: D1,
+    }),
+  );
+  return {
+    actionState: 'PROCEED',
+    actionStateReasons: [],
+    authorityDigest,
+    contract: 'urn:usf:semanticcontract:providerconfigurationplane',
+    proofCurrentness: {
+      mandatoryObligations: [factoryObligation, workforceObligation],
+      obligationProofResults: [
+        { obligation: factoryObligation, proofResult: factoryResult },
+        { obligation: workforceObligation, proofResult: workforceResult },
+      ],
+      perProof,
+      proofResults: [factoryResult, workforceResult],
+      reasons: [],
+      state: 'CURRENT',
+    },
+    validationActionState: 'PROCEED',
+    validationGaps: [],
+    validationObligations: [{
+      id: 'urn:usf:validationobligation:providerconfigurationplane',
+      recordedSatisfactionCount: 1,
+      satisfactionCurrent: true,
+    }],
+    validationSatisfied: true,
+    ...overrides,
+  };
+}
+
 function initialReceipt(overrides = {}) {
   return {
     action_state: 'UNRESOLVED_FAIL_CLOSED', authority_after_digest: D1, authority_before_digest: D0,
@@ -431,6 +517,9 @@ function harness(base, rows, options = {}) {
       metrics.componentQueries += 1; if (options.rejectComponents) throw new Error('stage-2 component manufacture');
       return rows;
     }
+    if (query.includes('aggregate-dependent-validation-facts-v1')) {
+      return options.dependentValidationRows || dependentValidationRows(base.casRoot);
+    }
     if (query.includes('aggregate-initial-provisional-projection-v1')) return options.provisionalRows || [{
       current: binding('false'), provisional: binding('true'), result: binding(PROVISIONAL_AGGREGATE_RESULT_IRI),
     }];
@@ -442,7 +531,9 @@ function harness(base, rows, options = {}) {
   return {
     metrics,
     producer: createAggregateCompilerProofProducer({
-      ...base, client, contractProjector: async () => projection,
+      ...base, client, contractProjector: async (_client, contract) => contract
+        === 'urn:usf:semanticcontract:providerconfigurationplane'
+        ? (options.dependentProjection || dependentTerminalProjection(authority)) : projection,
       readAuthorityWitness: witnessReader(...(options.witnesses || [authority, authority])),
     }),
   };
@@ -657,6 +748,57 @@ test('D2 verifies D1 package and validation CAS bytes without manufacturing comp
   assert.equal(terminal.authorityAfterDigest, D2);
   assert.equal(run.metrics.componentQueries, 0);
   assert.equal(run.metrics.trustedTimeQueries, 1);
+});
+
+test('pending preparation closes the exact cross-repository Factory validation identity', async () => {
+  const base = fixture();
+  const pending = await harness(base, componentRows(base.casRoot)).producer.preparePending({ requestedAuthorityDigest: D0 });
+  assert.equal(pending.dependentValidation.result,
+    'urn:usf:validationresult:factoryproviderv3implementation');
+  assert.equal(pending.dependentValidation.producer.repository, 'maldous/usf-factory');
+  assert.equal(pending.dependentValidation.admission.repository, 'maldous/usf-graph');
+  assert.notEqual(pending.dependentValidation.producer.sourceScopeDigest,
+    pending.dependentValidation.admission.sourceScopeDigest);
+
+  for (const mutate of [
+    (rows) => { for (const row of rows) row.admissionRepository = binding('maldous/usf-factory'); },
+    (rows) => { for (const row of rows) row.producerSourceScopeDigest = binding(`sha256:${'f'.repeat(64)}`); },
+    (rows) => { rows.push({ ...rows[0], validationEvidence: binding('urn:usf:validationevidence:substituted') }); },
+  ]) {
+    const invalidBase = fixture();
+    const dependentRows = dependentValidationRows(invalidBase.casRoot);
+    mutate(dependentRows);
+    await assert.rejects(() => harness(invalidBase, componentRows(invalidBase.casRoot), {
+      dependentValidationRows: dependentRows,
+    }).producer.preparePending({ requestedAuthorityDigest: D0 }),
+    (error) => error.code === 'AGGREGATE_DEPENDENT_VALIDATION_INVALID');
+  }
+});
+
+test('terminal closure rejects CURRENT proofs when dependent validation is still stale', async () => {
+  const base = fixture();
+  const preparation = await stage1(base);
+  const staleValidationProjection = dependentTerminalProjection(D2, {
+    actionState: 'BLOCK',
+    actionStateReasons: ['validation-satisfaction-not-current'],
+    validationGaps: [{ code: 'validation-satisfaction-not-current' }],
+    validationObligations: [{
+      id: 'urn:usf:validationobligation:providerconfigurationplane',
+      recordedSatisfactionCount: 1,
+      satisfactionCurrent: false,
+    }],
+    validationSatisfied: false,
+  });
+  const run = harness(base, [], {
+    authority: D2,
+    dependentProjection: staleValidationProjection,
+    receiptBinding: liveBinding(preparation),
+    rejectComponents: true,
+    validationRows: validationRows(base.casRoot),
+  });
+  await assert.rejects(() => run.producer.produceTerminal({
+    expectedStage1AuthorityDigest: D1, requestedAuthorityDigest: D2, stage1Preparation: preparation,
+  }), (error) => error.code === 'AGGREGATE_PRODUCER_TERMINAL_DEPENDENT_CLOSURE_INVALID');
 });
 
 test('rejects validation receipt substitution even when graph digest equality is preserved', async () => {
