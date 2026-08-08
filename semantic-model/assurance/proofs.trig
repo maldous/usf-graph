@@ -610,7 +610,7 @@
   usf:proofAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890>;
-  usf:currentImplementationSourceSetDigest "sha256:07749e86a0229d696a66368808757c0a29ca7f880e88fac3321debcdf01804cd";
+  usf:currentImplementationSourceSetDigest "sha256:be0f0cc829f973a18f23f9026debc5d32d4e1b87d35d0ca26438631fc5edfb5e";
   usf:requiresGraphSourceBinding true.
 <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890> a usf:ProofAlgorithmVersion;
   usf:canonicalName "factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
@@ -667,16 +667,16 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:b80d9b34ed0b56a53d5b77745c87fd66875d6970636f7f2ce11963c9b5e9f0d8";
-  usf:implementationSourceSetDigest "sha256:07749e86a0229d696a66368808757c0a29ca7f880e88fac3321debcdf01804cd";
-  usf:proofProducerCommit "5c432f9b9b6085d105a28d32a40167fef1976a6b";
-  usf:proofProducerTree "4e77cfaa616902db5a92387dd5452952921f3811";
+  usf:evidenceSetDigest "sha256:d8a56c51cb1bf695c3d1e24282b767dbcbb3dbf619a7bbf1aa84edd8f2fa461a";
+  usf:implementationSourceSetDigest "sha256:be0f0cc829f973a18f23f9026debc5d32d4e1b87d35d0ca26438631fc5edfb5e";
+  usf:proofProducerCommit "c3e9f3eac900ae9b31ddb2a477144259fea9a8c2";
+  usf:proofProducerTree "e6891949bf2fdf58204797726fa216d5f3d7dae6";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 5c432f9b9b6085d105a28d32a40167fef1976a6b, tree 4e77cfaa616902db5a92387dd5452952921f3811 and source-scope digest sha256:cb1c0fc0430beca40607e2839042d4908f6d338913fd4cb5fbacad6f9197ce5f. It closes the pre-transport production liveness boundary by deriving author and reviewer accounting receipts exclusively from exact current V3 route, profile, qualification, admission and authority rows; requiring qualification independently from strict route economics; preserving the selected role; recording missing authority closure as SCOPE_VIOLATION with exact detail; retaining a provider-refresh successor binding rather than restoring its predecessor; renewing exact Codex CLI 0.147.0 containment identity; deferring claim teardown when no exact current recovery witness exists; invalidating stale rosters only under one exact successor witness; and rebinding only an expired queue predecessor whose linked claim ID and fencing token match exactly. It does not prove successful provider transport, usage, acceptance, LEARNED, multi-provider execution, cache metrics, paid inference, Graph publication, or production BAU. Those remain post-deployment evidence obligations.";
-  usf:evaluatedAt "2026-08-08T18:53:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit c3e9f3eac900ae9b31ddb2a477144259fea9a8c2, tree e6891949bf2fdf58204797726fa216d5f3d7dae6 and source-scope digest sha256:9b6dff0c780f20d9f83255986f822a5848650653fe5bd7209691176f39bf5ec8. It closes only the observed pre-transport routing-to-accounting identity seam: queue entries remain cycle-neutral; the engine carries its exact executing cycle into scheduling and redraw decisions; the recorder accepts that cycle only when it exists and owns the current coordinator fence; and accounting retains exact packet-plus-cycle terminal-head cardinality. It does not prove provider transport, usage, acceptance, validation, LEARNED, consecutive healthy cycles, multi-provider execution, cache metrics, paid inference, Graph publication, deployment, or production BAU. Those remain post-deployment evidence obligations.";
+  usf:evaluatedAt "2026-08-08T21:56:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 
 }
