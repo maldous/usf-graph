@@ -885,11 +885,6 @@ function materializeFactoryProviderV3ValidationCurrentness(additions, {
   currentnessBinding, dependentValidation, pending, stage2,
 }) {
   const owner = OWNER_SCOPES.providerconfigurationplane;
-  additions.push(type(dependentValidation.result, `${USF}ValidationResult`, GRAPH_PROOFS));
-  additions.push(type(dependentValidation.evaluation, `${USF}ValidationEvaluation`, GRAPH_PROOFS));
-  additions.push(type(dependentValidation.execution, `${USF}ValidationExecution`, GRAPH_PROOFS));
-  additions.push(type(dependentValidation.producer.iri, `${USF}ValidationProducer`, GRAPH_PROOFS));
-  additions.push(type(dependentValidation.admission.iri, `${USF}EvidenceAdmissionPath`, GRAPH_PROOFS));
   additions.push(type(FACTORY_PROVIDER_V3_VALIDATION_BINDING,
     `${USF}ValidationSelfPublicationBinding`, GRAPH_PROOFS));
   add(additions, FACTORY_PROVIDER_V3_VALIDATION_BINDING, 'canonicalName',
