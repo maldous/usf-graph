@@ -713,6 +713,9 @@ usf:hasPostPublicationReevaluation a owl:ObjectProperty, owl:FunctionalProperty;
 usf:reevaluatesProofResult a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:PostPublicationReevaluation;
     rdfs:range usf:PrePublicationAggregateProofResult.
+usf:reevaluatesValidationResult a owl:ObjectProperty;
+    rdfs:domain usf:PostPublicationReevaluation;
+    rdfs:range usf:ValidationResult.
 usf:reevaluationProducesProofResult a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:PostPublicationReevaluation;
     rdfs:range usf:PostPublicationAggregateProofResult.
@@ -854,6 +857,39 @@ usf:validationBindingSourcePath a owl:DatatypeProperty;
 usf:validationBindingSourceScopeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:ValidationSelfPublicationBinding;
     rdfs:range xsd:string.
+usf:validationBindingProducerRepository a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingProducerSourceHead a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingProducerSourceTree a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingProducerSourcePath a owl:DatatypeProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingProducerSourceScopeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingAdmissionRepository a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingAdmissionSourceHead a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingAdmissionSourceTree a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingAdmissionSourcePath a owl:DatatypeProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingAdmissionSourceScopeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range xsd:string.
+usf:validationBindingPostPublicationReevaluation a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ValidationSelfPublicationBinding;
+    rdfs:range usf:PostPublicationReevaluation.
 usf:validationUsesAuthorityBindingRule a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:ValidationSelfPublicationBinding;
     rdfs:range usf:AuthorityBindingRule.

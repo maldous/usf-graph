@@ -218,6 +218,98 @@ function selfPublicationClosureRow(overrides = {}) {
   return { ...row, ...overrides };
 }
 
+const crossValidationClosure = Object.freeze({
+  ...validationClosure,
+  admissionRepository: 'maldous/usf-graph',
+  admissionHead: 'c'.repeat(40),
+  admissionTree: 'd'.repeat(40),
+  admissionScope: `sha256:${'ab'.repeat(32)}`,
+  producerRepository: 'maldous/usf-factory',
+  settledAuthority: `sha256:${'78'.repeat(32)}`,
+  reevaluation: 'urn:usf:postpublicationreevaluation:materialisation',
+  reevaluationExecutionReceipt: `sha256:${'12'.repeat(32)}`,
+  reevaluationEvaluationReceipt: `sha256:${'13'.repeat(32)}`,
+});
+const crossProducerPaths = Object.freeze(['src/usf_factory/provider_plane_runtime.py',
+  'tests/test_v3_provider_refresh_authority.py']);
+const crossAdmissionPaths = Object.freeze(['processes/semantic-assurance/semantic-authority-publication.mjs',
+  'semantic-model/assurance/evidence.trig']);
+
+function crossRepositorySelfPublicationClosureRow(overrides = {}) {
+  const row = {
+    ...satisfyingResultRow({
+      result: crossValidationClosure.result,
+      boundAuthority: crossValidationClosure.priorAuthority,
+      boundHead: crossValidationClosure.head,
+    }),
+    binding: binding(crossValidationClosure.binding),
+    bindingResult: binding(crossValidationClosure.result),
+    bindingRule: binding('urn:usf:authoritybindingrule:validationcrossrepositorynonpublicationclosure'),
+    reevaluationRequired: binding('true'),
+    reevaluationState: binding('urn:usf:resultstate:passed'),
+    stageOneEvaluated: binding(crossValidationClosure.evaluatedAuthority),
+    stageOneSettled: binding(crossValidationClosure.settledAuthority),
+    nonPublicationDependency: binding(crossValidationClosure.dependency),
+    dependencyAlgorithm: binding(crossValidationClosure.algorithm),
+    reevaluationDependency: binding(crossValidationClosure.dependency),
+    bindingExecutionReceipt: binding(crossValidationClosure.executionReceipt),
+    bindingEvaluationReceipt: binding(crossValidationClosure.evaluationReceipt),
+    bindingProducer: binding(crossValidationClosure.producer),
+    bindingAdmissionPath: binding(crossValidationClosure.admissionPath),
+    bindingProducerRelease: binding(crossValidationClosure.release),
+    bindingProducerRepository: binding(crossValidationClosure.producerRepository),
+    bindingProducerSourceHead: binding(crossValidationClosure.head),
+    bindingProducerSourceTree: binding(crossValidationClosure.tree),
+    bindingProducerSourceScope: binding(crossValidationClosure.scope),
+    bindingAdmissionRepository: binding(crossValidationClosure.admissionRepository),
+    bindingAdmissionSourceHead: binding(crossValidationClosure.admissionHead),
+    bindingAdmissionSourceTree: binding(crossValidationClosure.admissionTree),
+    bindingAdmissionSourceScope: binding(crossValidationClosure.admissionScope),
+    bindingReevaluation: binding(crossValidationClosure.reevaluation),
+    reevaluatesValidationResult: binding(crossValidationClosure.result),
+    reevaluationAuthority: binding(crossValidationClosure.settledAuthority),
+    reevaluationResultState: binding('urn:usf:resultstate:passed'),
+    reevaluationExecutionReceipt: binding(crossValidationClosure.reevaluationExecutionReceipt),
+    reevaluationEvaluationReceipt: binding(crossValidationClosure.reevaluationEvaluationReceipt),
+    evaluation: binding(crossValidationClosure.evaluation),
+    evaluationReceipt: binding(crossValidationClosure.evaluationReceipt),
+    execution: binding(crossValidationClosure.execution),
+    executionReceipt: binding(crossValidationClosure.executionReceipt),
+    executionProducer: binding(crossValidationClosure.producer),
+    executionAdmissionPath: binding(crossValidationClosure.admissionPath),
+    evidence: binding(crossValidationClosure.evidence),
+    evidenceExecution: binding(crossValidationClosure.execution),
+    evidenceAdmissionPath: binding(crossValidationClosure.admissionPath),
+    producerRelease: binding(crossValidationClosure.release),
+    producerRepository: binding(crossValidationClosure.producerRepository),
+    producerSourceHead: binding(crossValidationClosure.head),
+    producerSourceTree: binding(crossValidationClosure.tree),
+    producerSourceScope: binding(crossValidationClosure.scope),
+    admissionProducer: binding(crossValidationClosure.producer),
+    admissionRepository: binding(crossValidationClosure.admissionRepository),
+    admissionSourceHead: binding(crossValidationClosure.admissionHead),
+    admissionSourceTree: binding(crossValidationClosure.admissionTree),
+    admissionSourceScope: binding(crossValidationClosure.admissionScope),
+  };
+  return { ...row, ...overrides };
+}
+
+function crossRepositoryPathRows({ omit = null } = {}) {
+  const groups = [
+    ['bindingProducerSourcePath', crossProducerPaths],
+    ['producerSourcePath', crossProducerPaths],
+    ['bindingAdmissionSourcePath', crossAdmissionPaths],
+    ['admissionSourcePath', crossAdmissionPaths],
+  ];
+  return groups.flatMap(([field, paths]) => paths.map((path, index) => ({
+    field: binding(field),
+    id: binding(validationObligation),
+    path: binding(path),
+    satisfaction: binding(crossValidationClosure.result),
+    omitted: omit === `${field}:${index}`,
+  }))).filter((row) => !row.omitted).map(({ omitted, ...row }) => row);
+}
+
 // A complete, agreeing currentness chain. Every gateway test that is not about
 // currentness needs one, because PROCEED now requires the positive conclusion
 // and not merely a successful historical result.
@@ -326,6 +418,7 @@ function fakeClient({
   ruleRows = [materialisationRule()],
   applicabilityRows = defaultApplicabilityRows(),
   validationObligationRows = defaultValidationObligationRows(),
+  validationPathRows = [],
   proofGapRows = [],
   currentness = defaultCurrentness(),
   authorityNQuads = AUTHORITY_NQUADS,
@@ -346,6 +439,7 @@ function fakeClient({
       if (query.includes('SELECT DISTINCT ?g')) return [{ g: binding('urn:g') }];
       if (query.includes('?canonicalName ?lifecycle')) return contractRows;
       if (query.includes('<urn:usf:ontology:hasValidationApplicability> ?state')) return applicabilityRows;
+      if (query.includes('BIND("bindingSourcePath" AS ?field)')) return validationPathRows;
       if (query.includes('a <urn:usf:ontology:ValidationObligation>')) return validationObligationRows;
       if (query.includes('<urn:usf:ontology:mandatoryProofObligation> ?subject')) return proofGapRows;
       if (query.includes('<urn:usf:ontology:mandatoryProofObligation> ?obligation')) return currentness.mandatory;
@@ -1034,6 +1128,76 @@ test('complete validation self-publication closure is current after its authorit
   assert.equal(packet.validationSatisfied, true);
   assert.deepEqual(packet.validationGaps, []);
   assert.equal(packet.actionState, 'PROCEED');
+});
+
+test('cross-repository validation closure keeps Factory production and Graph admission identities independent', async () => {
+  const client = fakeClient({
+    validationObligationRows: [{
+      ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+      ...crossRepositorySelfPublicationClosureRow(),
+    }],
+    validationPathRows: crossRepositoryPathRows(),
+  });
+  const packet = await projectContract({ client }, { contract });
+  assert.equal(packet.validationObligations[0].satisfactionCurrent, true);
+  assert.equal(packet.validationSatisfied, true);
+  assert.deepEqual(packet.validationGaps, []);
+  assert.equal(packet.actionState, 'PROCEED');
+});
+
+test('cross-repository validation closure rejects scalar, reevaluation and exact-path-set substitutions', async () => {
+  const cases = [
+    {
+      name: 'repository identities collapsed',
+      row: { bindingAdmissionRepository: binding(crossValidationClosure.producerRepository) },
+    },
+    {
+      name: 'producer source head substituted',
+      row: { bindingProducerSourceHead: binding('f'.repeat(40)) },
+    },
+    {
+      name: 'admission scope substituted',
+      row: { bindingAdmissionSourceScope: binding(`sha256:${'ef'.repeat(32)}`) },
+    },
+    {
+      name: 'reevaluation targets another validation result',
+      row: { reevaluatesValidationResult: binding('urn:usf:validationresult:substituted') },
+    },
+    {
+      name: 'reevaluation receipt absent',
+      row: { reevaluationExecutionReceipt: undefined },
+    },
+    {
+      name: 'legacy shared binding mixed into split identity',
+      row: { bindingRepository: binding(crossValidationClosure.producerRepository) },
+    },
+    {
+      name: 'producer binding path omitted',
+      paths: { omit: 'bindingProducerSourcePath:1' },
+    },
+    {
+      name: 'admission resource path omitted',
+      paths: { omit: 'admissionSourcePath:0' },
+    },
+  ];
+  for (const item of cases) {
+    const row = crossRepositorySelfPublicationClosureRow(item.row || {});
+    if (item.row && Object.hasOwn(item.row, 'reevaluationExecutionReceipt')
+        && item.row.reevaluationExecutionReceipt === undefined) delete row.reevaluationExecutionReceipt;
+    const client = fakeClient({
+      validationObligationRows: [{
+        ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+        ...row,
+      }],
+      validationPathRows: crossRepositoryPathRows(item.paths),
+    });
+    const packet = await projectContract({ client }, { contract });
+    assert.equal(packet.validationSatisfied, false, item.name);
+    assert.equal(packet.validationObligations[0].satisfactionCurrent, false, item.name);
+    assert.equal(packet.actionState, 'BLOCK', item.name);
+    assert.deepEqual(packet.validationGaps.map((gap) => gap.code),
+      ['validation-satisfaction-not-current'], item.name);
+  }
 });
 
 test('validation non-publication closure rejects unrelated authority drift', async () => {

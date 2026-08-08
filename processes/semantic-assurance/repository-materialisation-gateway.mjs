@@ -42,6 +42,8 @@ const ACTIVATION = Object.freeze({
   blocked: 'urn:usf:validationactivationstate:blocked',
 });
 const VALIDATION_NON_PUBLICATION_CLOSURE = 'urn:usf:authoritybindingrule:validationnonpublicationdependencyclosure';
+const VALIDATION_CROSS_REPOSITORY_NON_PUBLICATION_CLOSURE =
+  'urn:usf:authoritybindingrule:validationcrossrepositorynonpublicationclosure';
 const NON_PUBLICATION_DEPENDENCY_ALGORITHM = 'sha256-rdfc10-nonpublication-graph-inventory-v1';
 const NON_PUBLICATION_EXCLUDED_GRAPHS = Object.freeze([
   'urn:usf:graph:capabilities',
@@ -563,7 +565,7 @@ export async function verifyArtifact(ctx, args = {}) {
 // explicit IRI from live authority or null, and null is never read as a
 // permission: callers map null onto UNRESOLVED_FAIL_CLOSED.
 async function validationScope(client, contract) {
-  const [applicabilityRows, obligationRows] = await Promise.all([
+  const [applicabilityRows, obligationRows, pathRows] = await Promise.all([
     client.select(`SELECT ?state ?reason ?authority ?authorityState ?condition WHERE {
       OPTIONAL { <${contract}> <urn:usf:ontology:hasValidationApplicability> ?state }
       OPTIONAL { <${contract}> <urn:usf:ontology:validationApplicabilityReason> ?reason }
@@ -577,6 +579,10 @@ async function validationScope(client, contract) {
       ?nonPublicationDependency ?dependencyAlgorithm ?reevaluationDependency
       ?bindingExecutionReceipt ?bindingEvaluationReceipt ?bindingProducer ?bindingAdmissionPath
       ?bindingProducerRelease ?bindingRepository ?bindingSourceHead ?bindingSourceTree ?bindingSourceScope
+      ?bindingProducerRepository ?bindingProducerSourceHead ?bindingProducerSourceTree ?bindingProducerSourceScope
+      ?bindingAdmissionRepository ?bindingAdmissionSourceHead ?bindingAdmissionSourceTree ?bindingAdmissionSourceScope
+      ?bindingReevaluation ?reevaluatesValidationResult ?reevaluationAuthority ?reevaluationResultState
+      ?reevaluationExecutionReceipt ?reevaluationEvaluationReceipt
       ?evaluation ?evaluationReceipt ?execution ?executionReceipt ?executionProducer ?executionAdmissionPath
       ?evidence ?evidenceExecution ?evidenceAdmissionPath
       ?producerRelease ?producerRepository ?producerSourceHead ?producerSourceTree ?producerSourceScope
@@ -662,6 +668,22 @@ async function validationScope(client, contract) {
           OPTIONAL { ?binding <urn:usf:ontology:validationBindingSourceHead> ?bindingSourceHead }
           OPTIONAL { ?binding <urn:usf:ontology:validationBindingSourceTree> ?bindingSourceTree }
           OPTIONAL { ?binding <urn:usf:ontology:validationBindingSourceScopeDigest> ?bindingSourceScope }
+          OPTIONAL { ?binding <urn:usf:ontology:validationBindingProducerRepository> ?bindingProducerRepository }
+          OPTIONAL { ?binding <urn:usf:ontology:validationBindingProducerSourceHead> ?bindingProducerSourceHead }
+          OPTIONAL { ?binding <urn:usf:ontology:validationBindingProducerSourceTree> ?bindingProducerSourceTree }
+          OPTIONAL { ?binding <urn:usf:ontology:validationBindingProducerSourceScopeDigest> ?bindingProducerSourceScope }
+          OPTIONAL { ?binding <urn:usf:ontology:validationBindingAdmissionRepository> ?bindingAdmissionRepository }
+          OPTIONAL { ?binding <urn:usf:ontology:validationBindingAdmissionSourceHead> ?bindingAdmissionSourceHead }
+          OPTIONAL { ?binding <urn:usf:ontology:validationBindingAdmissionSourceTree> ?bindingAdmissionSourceTree }
+          OPTIONAL { ?binding <urn:usf:ontology:validationBindingAdmissionSourceScopeDigest> ?bindingAdmissionSourceScope }
+          OPTIONAL {
+            ?binding <urn:usf:ontology:validationBindingPostPublicationReevaluation> ?bindingReevaluation .
+            OPTIONAL { ?bindingReevaluation <urn:usf:ontology:reevaluatesValidationResult> ?reevaluatesValidationResult }
+            OPTIONAL { ?bindingReevaluation <urn:usf:ontology:reevaluationAuthorityDigest> ?reevaluationAuthority }
+            OPTIONAL { ?bindingReevaluation <urn:usf:ontology:reevaluationResultState> ?reevaluationResultState }
+            OPTIONAL { ?bindingReevaluation <urn:usf:ontology:reevaluationExecutionReceiptDigest> ?reevaluationExecutionReceipt }
+            OPTIONAL { ?bindingReevaluation <urn:usf:ontology:reevaluationEvaluationReceiptDigest> ?reevaluationEvaluationReceipt }
+          }
         }
         OPTIONAL {
           ?satisfaction <urn:usf:ontology:validationResultOfEvaluation> ?evaluation .
@@ -699,6 +721,30 @@ async function validationScope(client, contract) {
         }
       }
     } ORDER BY ?id LIMIT 256`),
+    client.select(`SELECT ?id ?satisfaction ?field ?path WHERE {
+      ?id a <urn:usf:ontology:ValidationObligation> ;
+          <urn:usf:ontology:validationForContract> <${contract}> ;
+          <urn:usf:ontology:satisfiedByValidationResult> ?satisfaction .
+      ?satisfaction <urn:usf:ontology:hasValidationSelfPublicationAuthorityBinding> ?binding .
+      {
+        ?binding <urn:usf:ontology:validationBindingSourcePath> ?path .
+        BIND("bindingSourcePath" AS ?field)
+      } UNION {
+        ?binding <urn:usf:ontology:validationBindingProducerSourcePath> ?path .
+        BIND("bindingProducerSourcePath" AS ?field)
+      } UNION {
+        ?binding <urn:usf:ontology:validationBindingAdmissionSourcePath> ?path .
+        BIND("bindingAdmissionSourcePath" AS ?field)
+      } UNION {
+        ?binding <urn:usf:ontology:authorityBindingValidationProducer> ?producer .
+        ?producer <urn:usf:ontology:validationProducerSourcePath> ?path .
+        BIND("producerSourcePath" AS ?field)
+      } UNION {
+        ?binding <urn:usf:ontology:authorityBindingEvidenceAdmissionPath> ?admissionPath .
+        ?admissionPath <urn:usf:ontology:admissionPathSourcePath> ?path .
+        BIND("admissionSourcePath" AS ?field)
+      }
+    } ORDER BY ?id ?satisfaction ?field ?path LIMIT 1024`),
   ]);
   const head = applicabilityRows[0] || {};
   const states = new Set(applicabilityRows.map((row) => value(row, 'state')).filter(Boolean));
@@ -709,11 +755,16 @@ async function validationScope(client, contract) {
     'stageOneEvaluated', 'stageOneSettled', 'nonPublicationDependency', 'dependencyAlgorithm',
     'reevaluationDependency', 'bindingExecutionReceipt', 'bindingEvaluationReceipt', 'bindingProducer',
     'bindingAdmissionPath', 'bindingProducerRelease', 'bindingRepository', 'bindingSourceHead',
-    'bindingSourceTree', 'bindingSourceScope', 'evaluation', 'evaluationReceipt', 'execution',
+    'bindingSourceTree', 'bindingSourcePath', 'bindingSourceScope', 'bindingProducerRepository',
+    'bindingProducerSourceHead', 'bindingProducerSourceTree', 'bindingProducerSourcePath',
+    'bindingProducerSourceScope', 'bindingAdmissionRepository', 'bindingAdmissionSourceHead',
+    'bindingAdmissionSourceTree', 'bindingAdmissionSourcePath', 'bindingAdmissionSourceScope',
+    'bindingReevaluation', 'reevaluatesValidationResult', 'reevaluationAuthority', 'reevaluationResultState',
+    'reevaluationExecutionReceipt', 'reevaluationEvaluationReceipt', 'evaluation', 'evaluationReceipt', 'execution',
     'executionReceipt', 'executionProducer', 'executionAdmissionPath', 'evidence', 'evidenceExecution',
     'evidenceAdmissionPath', 'producerRelease', 'producerRepository', 'producerSourceHead',
-    'producerSourceTree', 'producerSourceScope', 'admissionProducer', 'admissionRepository',
-    'admissionSourceHead', 'admissionSourceTree', 'admissionSourceScope',
+    'producerSourceTree', 'producerSourcePath', 'producerSourceScope', 'admissionProducer', 'admissionRepository',
+    'admissionSourceHead', 'admissionSourceTree', 'admissionSourcePath', 'admissionSourceScope',
   ];
   const obligations = new Map();
   for (const row of obligationRows) {
@@ -752,6 +803,17 @@ async function validationScope(client, contract) {
       existing.satisfactionRecords.set(satisfaction, record);
     }
     obligations.set(id, existing);
+  }
+  for (const row of pathRows) {
+    const id = value(row, 'id');
+    const satisfaction = value(row, 'satisfaction');
+    const field = value(row, 'field');
+    const path = value(row, 'path');
+    const record = obligations.get(id)?.satisfactionRecords.get(satisfaction);
+    if (!record || !satisfactionFields.includes(field) || typeof path !== 'string' || path.length === 0) {
+      throw new Error('validation self-publication source path projection is inconsistent');
+    }
+    record[field].add(path);
   }
   const projectedObligations = [...obligations.values()].map(({ satisfactionRecords, definitions, activationReasons, targets, evidence, ownerPaths, ...obligation }) => ({
     ...obligation,
@@ -809,7 +871,15 @@ function validationNonPublicationDependencyDigest(inventory) {
   }));
 }
 
-function completeSelfPublicationClosure(item, authorityWitnessValue) {
+function exactTermSet(item, left, right) {
+  const leftTerms = item[left] || [];
+  const rightTerms = item[right] || [];
+  return leftTerms.length > 0
+    && leftTerms.length === rightTerms.length
+    && leftTerms.every((term, index) => term === rightTerms[index]);
+}
+
+function completeSameRepositorySelfPublicationClosure(item, authorityWitnessValue) {
   const authorityDigest = authorityWitnessValue?.digest ?? null;
   const resultAuthority = soleTerm(item, 'boundAuthority');
   const resultHead = soleTerm(item, 'boundHead');
@@ -863,6 +933,90 @@ function completeSelfPublicationClosure(item, authorityWitnessValue) {
     && sourceScope === soleTerm(item, 'producerSourceScope')
     && sourceScope === soleTerm(item, 'admissionSourceScope')
     && repository !== null;
+}
+
+function completeCrossRepositorySelfPublicationClosure(item, authorityWitnessValue) {
+  const authorityDigest = authorityWitnessValue?.digest ?? null;
+  const resultAuthority = soleTerm(item, 'boundAuthority');
+  const resultHead = soleTerm(item, 'boundHead');
+  const stageOneEvaluated = soleTerm(item, 'stageOneEvaluated');
+  const stageOneSettled = soleTerm(item, 'stageOneSettled');
+  const dependency = soleTerm(item, 'nonPublicationDependency');
+  const currentDependency = validationNonPublicationDependencyDigest(authorityWitnessValue?.inventory);
+  const execution = soleTerm(item, 'execution');
+  const executionReceipt = soleTerm(item, 'executionReceipt');
+  const evaluation = soleTerm(item, 'evaluation');
+  const evaluationReceipt = soleTerm(item, 'evaluationReceipt');
+  const producer = soleTerm(item, 'bindingProducer');
+  const admissionPath = soleTerm(item, 'bindingAdmissionPath');
+  const producerRepository = soleTerm(item, 'bindingProducerRepository');
+  const admissionRepository = soleTerm(item, 'bindingAdmissionRepository');
+  const reevaluation = soleTerm(item, 'bindingReevaluation');
+
+  return item.binding?.length === 1
+    && soleTerm(item, 'bindingResult') === item.result
+    && soleTerm(item, 'bindingRule') === VALIDATION_CROSS_REPOSITORY_NON_PUBLICATION_CLOSURE
+    && soleTerm(item, 'reevaluationRequired') === 'true'
+    && soleTerm(item, 'reevaluationState') === PASSED_RESULT
+    && resultAuthority !== null
+    && resultAuthority !== authorityDigest
+    && stageOneEvaluated !== null
+    && stageOneEvaluated !== stageOneSettled
+    && stageOneSettled !== null
+    && stageOneSettled !== authorityDigest
+    && dependency !== null
+    && dependency === currentDependency
+    && soleTerm(item, 'reevaluationDependency') === dependency
+    && soleTerm(item, 'dependencyAlgorithm') === NON_PUBLICATION_DEPENDENCY_ALGORITHM
+    && execution !== null
+    && evaluation !== null
+    && executionReceipt !== null
+    && evaluationReceipt !== null
+    && soleTerm(item, 'bindingExecutionReceipt') === executionReceipt
+    && soleTerm(item, 'bindingEvaluationReceipt') === evaluationReceipt
+    && soleTerm(item, 'executionProducer') === producer
+    && soleTerm(item, 'executionAdmissionPath') === admissionPath
+    && soleTerm(item, 'evidence') !== null
+    && soleTerm(item, 'evidenceExecution') === execution
+    && soleTerm(item, 'evidenceAdmissionPath') === admissionPath
+    && soleTerm(item, 'admissionProducer') === producer
+    && soleTerm(item, 'bindingProducerRelease') === soleTerm(item, 'producerRelease')
+    && producerRepository !== null
+    && admissionRepository !== null
+    && producerRepository !== admissionRepository
+    && producerRepository === soleTerm(item, 'producerRepository')
+    && admissionRepository === soleTerm(item, 'admissionRepository')
+    && soleTerm(item, 'bindingProducerSourceHead') === resultHead
+    && soleTerm(item, 'bindingProducerSourceHead') === soleTerm(item, 'producerSourceHead')
+    && soleTerm(item, 'bindingProducerSourceTree') === soleTerm(item, 'producerSourceTree')
+    && soleTerm(item, 'bindingProducerSourceScope') === soleTerm(item, 'producerSourceScope')
+    && soleTerm(item, 'bindingAdmissionSourceHead') === soleTerm(item, 'admissionSourceHead')
+    && soleTerm(item, 'bindingAdmissionSourceTree') === soleTerm(item, 'admissionSourceTree')
+    && soleTerm(item, 'bindingAdmissionSourceScope') === soleTerm(item, 'admissionSourceScope')
+    && exactTermSet(item, 'bindingProducerSourcePath', 'producerSourcePath')
+    && exactTermSet(item, 'bindingAdmissionSourcePath', 'admissionSourcePath')
+    && item.bindingRepository.length === 0
+    && item.bindingSourceHead.length === 0
+    && item.bindingSourceTree.length === 0
+    && item.bindingSourcePath.length === 0
+    && item.bindingSourceScope.length === 0
+    && reevaluation !== null
+    && soleTerm(item, 'reevaluatesValidationResult') === item.result
+    && soleTerm(item, 'reevaluationAuthority') === stageOneSettled
+    && soleTerm(item, 'reevaluationResultState') === PASSED_RESULT
+    && soleTerm(item, 'reevaluationExecutionReceipt') !== null
+    && soleTerm(item, 'reevaluationEvaluationReceipt') !== null;
+}
+
+function completeSelfPublicationClosure(item, authorityWitnessValue) {
+  const bindingRule = soleTerm(item, 'bindingRule');
+  if (bindingRule === VALIDATION_NON_PUBLICATION_CLOSURE) {
+    return completeSameRepositorySelfPublicationClosure(item, authorityWitnessValue);
+  }
+  if (bindingRule === VALIDATION_CROSS_REPOSITORY_NON_PUBLICATION_CLOSURE) {
+    return completeCrossRepositorySelfPublicationClosure(item, authorityWitnessValue);
+  }
+  return false;
 }
 
 // A satisfaction survives only while it stays identity-bound to this obligation
