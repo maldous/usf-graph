@@ -565,7 +565,7 @@ export async function verifyArtifact(ctx, args = {}) {
 // explicit IRI from live authority or null, and null is never read as a
 // permission: callers map null onto UNRESOLVED_FAIL_CLOSED.
 async function validationScope(client, contract) {
-  const [applicabilityRows, obligationRows, pathRows] = await Promise.all([
+  const [applicabilityRows, obligationRows, evidenceRows, pathRows] = await Promise.all([
     client.select(`SELECT ?state ?reason ?authority ?authorityState ?condition WHERE {
       OPTIONAL { <${contract}> <urn:usf:ontology:hasValidationApplicability> ?state }
       OPTIONAL { <${contract}> <urn:usf:ontology:validationApplicabilityReason> ?reason }
@@ -584,7 +584,6 @@ async function validationScope(client, contract) {
       ?bindingReevaluation ?reevaluatesValidationResult ?reevaluationAuthority ?reevaluationResultState
       ?reevaluationExecutionReceipt ?reevaluationEvaluationReceipt
       ?evaluation ?evaluationReceipt ?execution ?executionReceipt ?executionProducer ?executionAdmissionPath
-      ?evidence ?evidenceExecution ?evidenceAdmissionPath
       ?producerRelease ?producerRepository ?producerSourceHead ?producerSourceTree ?producerSourceScope
       ?admissionProducer ?admissionRepository ?admissionSourceHead ?admissionSourceTree ?admissionSourceScope WHERE {
       ?id a <urn:usf:ontology:ValidationObligation> ; <urn:usf:ontology:validationForContract> <${contract}> .
@@ -695,12 +694,6 @@ async function validationScope(client, contract) {
             OPTIONAL { ?execution <urn:usf:ontology:validationExecutionReceiptDigest> ?executionReceipt }
             OPTIONAL { ?execution <urn:usf:ontology:validationExecutedByProducer> ?executionProducer }
             OPTIONAL { ?execution <urn:usf:ontology:validationUsesEvidenceAdmissionPath> ?executionAdmissionPath }
-            OPTIONAL {
-              ?evidence a <urn:usf:ontology:ValidationEvidence> ;
-                <urn:usf:ontology:validationEvidenceForExecution> ?evidenceExecution ;
-                <urn:usf:ontology:validationEvidenceAdmittedThrough> ?evidenceAdmissionPath .
-              FILTER(?evidenceExecution = ?execution)
-            }
           }
         }
         OPTIONAL {
@@ -720,10 +713,19 @@ async function validationScope(client, contract) {
           OPTIONAL { ?bindingAdmissionPath <urn:usf:ontology:admissionPathSourceScopeDigest> ?admissionSourceScope }
         }
       }
-    } ORDER BY ?id LIMIT 256`),
+    } ORDER BY ?id ?satisfaction LIMIT 257`),
+    client.select(`SELECT ?id ?satisfaction ?evidence ?evidenceExecution ?evidenceAdmissionPath WHERE {
+      ?id <urn:usf:ontology:validationForContract> <${contract}> ;
+          <urn:usf:ontology:satisfiedByValidationResult> ?satisfaction .
+      ?satisfaction <urn:usf:ontology:validationResultOfEvaluation> ?evaluation .
+      ?evaluation <urn:usf:ontology:validationEvaluationOfExecution> ?execution .
+      ?evidence a <urn:usf:ontology:ValidationEvidence> ;
+        <urn:usf:ontology:validationEvidenceForExecution> ?evidenceExecution ;
+        <urn:usf:ontology:validationEvidenceAdmittedThrough> ?evidenceAdmissionPath .
+      FILTER(?evidenceExecution = ?execution)
+    } ORDER BY ?id ?satisfaction ?evidence LIMIT 257`),
     client.select(`SELECT ?id ?satisfaction ?field ?path WHERE {
-      ?id a <urn:usf:ontology:ValidationObligation> ;
-          <urn:usf:ontology:validationForContract> <${contract}> ;
+      ?id <urn:usf:ontology:validationForContract> <${contract}> ;
           <urn:usf:ontology:satisfiedByValidationResult> ?satisfaction .
       ?satisfaction <urn:usf:ontology:hasValidationSelfPublicationAuthorityBinding> ?binding .
       {
@@ -744,8 +746,17 @@ async function validationScope(client, contract) {
         ?admissionPath <urn:usf:ontology:admissionPathSourcePath> ?path .
         BIND("admissionSourcePath" AS ?field)
       }
-    } ORDER BY ?id ?satisfaction ?field ?path LIMIT 1024`),
+    } ORDER BY ?id ?satisfaction ?field ?path LIMIT 1025`),
   ]);
+  if (obligationRows.length > 256) {
+    throw new Error('validation obligation projection exceeds 256 rows');
+  }
+  if (evidenceRows.length > 256) {
+    throw new Error('validation evidence projection exceeds 256 rows');
+  }
+  if (pathRows.length > 1024) {
+    throw new Error('validation self-publication source path projection exceeds 1024 rows');
+  }
   const head = applicabilityRows[0] || {};
   const states = new Set(applicabilityRows.map((row) => value(row, 'state')).filter(Boolean));
   if (states.size > 1) throw new Error('contract declares more than one validation applicability state');
@@ -814,6 +825,19 @@ async function validationScope(client, contract) {
       throw new Error('validation self-publication source path projection is inconsistent');
     }
     record[field].add(path);
+  }
+  for (const row of evidenceRows) {
+    const id = value(row, 'id');
+    const satisfaction = value(row, 'satisfaction');
+    const record = obligations.get(id)?.satisfactionRecords.get(satisfaction);
+    if (!record) {
+      throw new Error('validation evidence projection is inconsistent');
+    }
+    for (const field of ['evidence', 'evidenceExecution', 'evidenceAdmissionPath']) {
+      const term = value(row, field);
+      if (term === null) throw new Error('validation evidence projection is incomplete');
+      record[field].add(term);
+    }
   }
   const projectedObligations = [...obligations.values()].map(({ satisfactionRecords, definitions, activationReasons, targets, evidence, ownerPaths, ...obligation }) => ({
     ...obligation,

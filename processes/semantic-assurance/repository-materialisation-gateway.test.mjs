@@ -418,6 +418,7 @@ function fakeClient({
   ruleRows = [materialisationRule()],
   applicabilityRows = defaultApplicabilityRows(),
   validationObligationRows = defaultValidationObligationRows(),
+  validationEvidenceRows = [],
   validationPathRows = [],
   proofGapRows = [],
   currentness = defaultCurrentness(),
@@ -440,6 +441,7 @@ function fakeClient({
       if (query.includes('?canonicalName ?lifecycle')) return contractRows;
       if (query.includes('<urn:usf:ontology:hasValidationApplicability> ?state')) return applicabilityRows;
       if (query.includes('BIND("bindingSourcePath" AS ?field)')) return validationPathRows;
+      if (query.includes('?evidence a <urn:usf:ontology:ValidationEvidence>')) return validationEvidenceRows;
       if (query.includes('a <urn:usf:ontology:ValidationObligation>')) return validationObligationRows;
       if (query.includes('<urn:usf:ontology:mandatoryProofObligation> ?subject')) return proofGapRows;
       if (query.includes('<urn:usf:ontology:mandatoryProofObligation> ?obligation')) return currentness.mandatory;
@@ -1143,6 +1145,84 @@ test('cross-repository validation closure keeps Factory production and Graph adm
   assert.equal(packet.validationSatisfied, true);
   assert.deepEqual(packet.validationGaps, []);
   assert.equal(packet.actionState, 'PROCEED');
+});
+
+test('D2 validation evidence is projected independently of the bounded scalar closure', async () => {
+  const scalar = crossRepositorySelfPublicationClosureRow();
+  const evidence = Object.fromEntries(
+    ['evidence', 'evidenceExecution', 'evidenceAdmissionPath']
+      .map((field) => [field, scalar[field]]),
+  );
+  for (const field of Object.keys(evidence)) delete scalar[field];
+  const queries = [];
+  const client = fakeClient({
+    validationObligationRows: [{
+      ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+      ...scalar,
+    }],
+    validationEvidenceRows: [{
+      id: binding(validationObligation),
+      satisfaction: binding(crossValidationClosure.result),
+      ...evidence,
+    }],
+    validationPathRows: crossRepositoryPathRows(),
+    queries,
+  });
+  const packet = await projectContract({ client }, { contract });
+  assert.equal(packet.validationSatisfied, true);
+  const scalarQuery = queries.find((query) => query.includes('?conditionMatched'));
+  const evidenceQuery = queries.find(
+    (query) => query.includes('?evidence a <urn:usf:ontology:ValidationEvidence>'),
+  );
+  assert.ok(scalarQuery);
+  assert.ok(evidenceQuery);
+  assert.equal(scalarQuery.includes('?evidence a <urn:usf:ontology:ValidationEvidence>'), false);
+  assert.ok(scalarQuery.includes('LIMIT 257'));
+  assert.ok(evidenceQuery.includes('LIMIT 257'));
+});
+
+test('D2 validation subprojections preserve their declared cardinality limits', async () => {
+  const scalar = {
+    ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+    ...crossRepositorySelfPublicationClosureRow(),
+  };
+  const path = {
+    id: binding(validationObligation),
+    satisfaction: binding(crossValidationClosure.result),
+    field: binding('bindingProducerSourcePath'),
+    path: binding(crossProducerPaths[0]),
+  };
+  for (const item of [
+    {
+      options: { validationObligationRows: Array.from({ length: 257 }, () => scalar) },
+      expected: /validation obligation projection exceeds 256 rows/,
+    },
+    {
+      options: {
+        validationObligationRows: [scalar],
+        validationEvidenceRows: Array.from({ length: 257 }, () => ({
+          id: binding(validationObligation),
+          satisfaction: binding(crossValidationClosure.result),
+          evidence: binding(crossValidationClosure.evidence),
+          evidenceExecution: binding(crossValidationClosure.execution),
+          evidenceAdmissionPath: binding(crossValidationClosure.admissionPath),
+        })),
+      },
+      expected: /validation evidence projection exceeds 256 rows/,
+    },
+    {
+      options: {
+        validationObligationRows: [scalar],
+        validationPathRows: Array.from({ length: 1025 }, () => path),
+      },
+      expected: /validation self-publication source path projection exceeds 1024 rows/,
+    },
+  ]) {
+    await assert.rejects(
+      () => projectContract({ client: fakeClient(item.options) }, { contract }),
+      item.expected,
+    );
+  }
 });
 
 test('cross-repository validation closure rejects scalar, reevaluation and exact-path-set substitutions', async () => {
