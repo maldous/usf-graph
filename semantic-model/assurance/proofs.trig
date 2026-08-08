@@ -643,7 +643,7 @@
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
   usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 0a9281845c06d053ae435eb2bf49320b53d13ad6 and tree 415fd0b2f10b234fbdcc74359ee3014d03cb7d5f. It changes exactly two dispatch boundaries and one scheduler boundary: roster witness-identity comparison is scoped to the anchoring repository while anchored-binding currentness, generation lineage and authority-digest checks stay fail-closed; a provider-refresh identity re-version is carried as the same lawful route lineage through the reader, the structural eligibility check and the recorder with an explicit identity_carryover, while a lineage with no current identity row stays non-recordable and non-executable; a recorder rejection of an already-selected route defers the packet as a retryable market blockage instead of failing the cycle; and every scheduler wake write is coordinator-leased and witness-bound at the wake instant or explicitly deferred to the next fenced decide. The proof does not warrant Graph mutation, source writes, completion, provider-contact, paid-inference, roster, qualification, admission or trust changes. Production convergence still requires exact deployment and a real validated semantic result.";
-  usf:evaluatedAt "2026-08-08T05:35:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:evaluatedAt "2026-08-08T05:55:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>.
 
 }
