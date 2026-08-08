@@ -606,7 +606,19 @@
   usf:obligationEffect <urn:usf:obligationeffect:blocking>;
   usf:usesAssuranceCell <urn:usf:assurancecell:behaviourliveproductionshaped>;
   usf:requiresRung rung:behaviour;
-  usf:derivedFrom <urn:usf:semanticcontract:providerconfigurationplane>.
+  usf:derivedFrom <urn:usf:semanticcontract:providerconfigurationplane>;
+  usf:requiresEvidence <urn:usf:evidencerequirement:factoryproviderv3implementationvalidation>.
+<urn:usf:evidencerequirement:factoryproviderv3implementationvalidation> a usf:EvidenceRequirement;
+  usf:canonicalName "factoryproviderv3implementationvalidation";
+  usf:obligationFor <urn:usf:semanticcontract:providerconfigurationplane>;
+  usf:obligationEffect <urn:usf:obligationeffect:blocking>;
+  usf:usesAssuranceCell <urn:usf:assurancecell:behaviourliveproductionshaped>;
+  usf:derivedFrom <urn:usf:proofobligation:factoryproviderv3implementation>;
+  usf:requiresEvidenceKind <urn:usf:evidencekind:validationevidence>;
+  usf:requiresFreshness fresh:fresh;
+  usf:requiresProviderMode pmode:liveexternal;
+  usf:requiresEnvironmentClass <urn:usf:environmentclass:productionshaped>;
+  usf:requiresEvidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:signed>, <urn:usf:evidencestage:integrityverified>.
 <urn:usf:proof:factoryproviderv3implementation> a usf:Proof;
   usf:canonicalName "factoryproviderv3implementation";
   usf:atRung rung:behaviour;
