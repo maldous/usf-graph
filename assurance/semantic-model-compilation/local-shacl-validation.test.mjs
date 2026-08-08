@@ -295,6 +295,27 @@ test('review and candidate authorisation guards use SHACL-SPARQL-compatible pred
   assert.equal((shapes.match(/FILTER \(\?predicate IN \(usf:establishesSemanticTruth,/gu) ?? []).length, 5);
 });
 
+test('every authored proof algorithm uses a Graph assurance path and exact current source digest', () => {
+  const store = new Store(new Parser({ format: 'application/trig' }).parse(
+    readFileSync(join(repositoryRoot, 'semantic-model/assurance/proofs.trig'), 'utf8'),
+  ));
+  const proofAlgorithm = usf('ProofAlgorithm');
+  const rdfType = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
+  const algorithms = store.getSubjects(rdfType, proofAlgorithm, null);
+  assert.ok(algorithms.length > 0);
+  for (const algorithm of algorithms) {
+    const paths = store.getObjects(algorithm, usf('proofAlgorithmSourcePath'), null);
+    assert.equal(paths.length, 1, algorithm.value);
+    assert.match(paths[0].value, /^assurance\/[A-Za-z0-9._/-]+$/u, algorithm.value);
+    const currentDigests = store.getObjects(algorithm, usf('currentAlgorithmSourceDigest'), null);
+    if (!currentDigests.length) continue;
+    assert.equal(currentDigests.length, 1, algorithm.value);
+    const observed = `sha256:${createHash('sha256')
+      .update(readFileSync(join(repositoryRoot, paths[0].value))).digest('hex')}`;
+    assert.equal(currentDigests[0].value, observed, algorithm.value);
+  }
+});
+
 test('every accepted mutable-source decision carries applicable representation authority', () => {
   const store = representationAuthorityStore();
   const decisions = [...new Set(
