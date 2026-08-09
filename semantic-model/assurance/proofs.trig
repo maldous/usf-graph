@@ -676,7 +676,7 @@
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
   usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 72534026b8345699dbcc39304260425be77d1c03, tree 148487004d69d93c6b9825fc5d616047673ae73d and source-scope digest sha256:d49347734c5288dd361aeb0f57ec57354185377861d050714cb52dd837cf1922. It proves a deterministic production-shaped two-cycle path through exact V3 queue claim and fencing, one cycle/run/claim-bound execution routing head, qualification and accounting closure, deterministic external transport, verified provider/model usage, acceptance, validation, claim release, natural LEARNED, prior-cycle reread and cycle replay; the no-claim, wrong-token, expired-claim, different-run, different-cycle and release-deferral cases fail closed. It does not prove external provider availability, production transport success, live usage, two live LEARNED cycles, multi-provider execution, cache telemetry, paid inference, deployment or BAU. Those remain post-deployment evidence obligations.";
-  usf:evaluatedAt "2026-08-09T02:10:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:evaluatedAt "2026-08-09T02:20:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 
 }
