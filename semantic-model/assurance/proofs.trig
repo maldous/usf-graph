@@ -610,7 +610,7 @@
   usf:proofAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890>;
-  usf:currentImplementationSourceSetDigest "sha256:bd5741d9f9656c32103fd4628a27668e3b32d2e306a436ad3aa819b0d6c306e1";
+  usf:currentImplementationSourceSetDigest "sha256:2b03c42891ae663d7b9865e5fc1269f4dc7849925890fd45dffb1c1b68f90a9f";
   usf:requiresGraphSourceBinding true.
 <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890> a usf:ProofAlgorithmVersion;
   usf:canonicalName "factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
@@ -667,16 +667,16 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:a2561598cf5a5819c69db1f4f1bd166d0ea5b1d39ca83c0d1ea8d3ccd035f2d4";
-  usf:implementationSourceSetDigest "sha256:bd5741d9f9656c32103fd4628a27668e3b32d2e306a436ad3aa819b0d6c306e1";
-  usf:proofProducerCommit "8e90ddc5f10f4d6ff36eb0917b2746605a7c11f7";
-  usf:proofProducerTree "ef41a87ba254e33247437ceca8f5c2b16e884c73";
+  usf:evidenceSetDigest "sha256:127451a36ccea4257b08928500fce100f010ed78928cf1b4db03ecbdb93ad25e";
+  usf:implementationSourceSetDigest "sha256:2b03c42891ae663d7b9865e5fc1269f4dc7849925890fd45dffb1c1b68f90a9f";
+  usf:proofProducerCommit "58db82d0cceb96a7853c4fb1970593587278e868";
+  usf:proofProducerTree "371faa75d2aa3b3c74f15d04eed811f70d733c6c";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 8e90ddc5f10f4d6ff36eb0917b2746605a7c11f7, tree ef41a87ba254e33247437ceca8f5c2b16e884c73 and source-scope digest sha256:2c317035f9aa6a9cc772067f70408d80d3e70f7f7e0a0565395737d8db36b92b. It proves the bounded role-gap invocation and OBSERVE queue closure: the exact point-of-use guard returns its proven authorization result, and OBSERVE reports complete packet sets without creating execution-authority packet or queue records. It does not prove external provider availability, live production usage, two production LEARNED cycles, replay, backup or BAU. Those remain post-deployment evidence obligations.";
-  usf:evaluatedAt "2026-08-09T16:03:14Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 58db82d0cceb96a7853c4fb1970593587278e868, tree 371faa75d2aa3b3c74f15d04eed811f70d733c6c and source-scope digest sha256:6eca981240df22d74654c208c224b8ef6b6a9fbcddc2f6d4d87222999cdbcf5d. It proves only the bounded production V3 abandoned-cycle recovery scope: a later authority generation cannot select or rewrite a superseded-authority nonterminal cycle, while a current-authority abandoned cycle remains recoverable and projection/record disagreement fails closed. It does not prove provider availability, live usage, two production LEARNED cycles, replay, backup or BAU; those remain post-deployment evidence obligations.";
+  usf:evaluatedAt "2026-08-09T18:43:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 
 }
