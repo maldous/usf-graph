@@ -676,7 +676,7 @@
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
   usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 609299639f81cfe9a2036879e0c967076fc8fb22, tree e65f5a5be17724577ef49ff023dac0771df6daac and source-scope digest sha256:7a36bc9cf7e3533b03e6c04491355f83f60ae3bdc7e4edbd8d19ee7f9a85f27a. It proves that a V3 restart-state-change wake uses the canonical persist-wake path as the single owner of exactly one coordinator lease and fence, current authority/repository and authorization bindings, one atomic strict schedule/event persistence transaction and exact cleanup, eliminating the observed nested SQLite BEGIN before packet claim or provider contact. It does not prove external provider availability, production transport success, live usage, two live LEARNED cycles, replay, backup or BAU. Those remain post-deployment evidence obligations.";
-  usf:evaluatedAt "2026-08-09T05:55:34Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:evaluatedAt "2026-08-09T06:29:02Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 
 }
