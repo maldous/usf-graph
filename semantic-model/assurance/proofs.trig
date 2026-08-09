@@ -676,7 +676,7 @@
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
   usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 5470eb56cf402a923a34e0ad68c1ee9bd54ff465, tree 65ff39b683fc12535bc83eef401820ba1adfe8a2 and source-scope digest sha256:9a45560f7c87792c7d838ad4596d009d80478a7a6fd36c691fa58e755bb7abeb. It proves only the bounded production V3 policy-lineage and repository-category correction: compatible policy rollover preserves immutable qualification provenance through admission and route identity, while semantic snapshot observations carry their exact Graph repository category. It does not prove provider availability, live usage, two production LEARNED cycles, replay, backup or BAU; those remain post-deployment evidence obligations.";
-  usf:evaluatedAt "2026-08-09T21:32:55Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:evaluatedAt "2026-08-09T21:35:38Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 
 }
