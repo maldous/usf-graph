@@ -610,7 +610,7 @@
   usf:proofAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890>;
-  usf:currentImplementationSourceSetDigest "sha256:cdf132c6c122ee8dbc5f8127c25bbef2e9daffce8ee5a9fa90fc1f488479d775";
+  usf:currentImplementationSourceSetDigest "sha256:ff89613776d0d4b5e13e3fe3610c92cc56629a6c21eb46deb1ce431efac0e417";
   usf:requiresGraphSourceBinding true.
 <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890> a usf:ProofAlgorithmVersion;
   usf:canonicalName "factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
@@ -667,16 +667,16 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:4cec3a73f53a60f5355f6db589c2130df3312b9a5437c35aee2a42fdf81eb853";
-  usf:implementationSourceSetDigest "sha256:cdf132c6c122ee8dbc5f8127c25bbef2e9daffce8ee5a9fa90fc1f488479d775";
-  usf:proofProducerCommit "72534026b8345699dbcc39304260425be77d1c03";
-  usf:proofProducerTree "148487004d69d93c6b9825fc5d616047673ae73d";
+  usf:evidenceSetDigest "sha256:2bcacadecad2d290f52749fc626bf3824e27d550665718946238a19ff27d16e7";
+  usf:implementationSourceSetDigest "sha256:ff89613776d0d4b5e13e3fe3610c92cc56629a6c21eb46deb1ce431efac0e417";
+  usf:proofProducerCommit "609299639f81cfe9a2036879e0c967076fc8fb22";
+  usf:proofProducerTree "e65f5a5be17724577ef49ff023dac0771df6daac";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 72534026b8345699dbcc39304260425be77d1c03, tree 148487004d69d93c6b9825fc5d616047673ae73d and source-scope digest sha256:d49347734c5288dd361aeb0f57ec57354185377861d050714cb52dd837cf1922. It proves a deterministic production-shaped two-cycle path through exact V3 queue claim and fencing, one cycle/run/claim-bound execution routing head, qualification and accounting closure, deterministic external transport, verified provider/model usage, acceptance, validation, claim release, natural LEARNED, prior-cycle reread and cycle replay; the no-claim, wrong-token, expired-claim, different-run, different-cycle and release-deferral cases fail closed. It does not prove external provider availability, production transport success, live usage, two live LEARNED cycles, multi-provider execution, cache telemetry, paid inference, deployment or BAU. Those remain post-deployment evidence obligations.";
-  usf:evaluatedAt "2026-08-09T02:19:30Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 609299639f81cfe9a2036879e0c967076fc8fb22, tree e65f5a5be17724577ef49ff023dac0771df6daac and source-scope digest sha256:7a36bc9cf7e3533b03e6c04491355f83f60ae3bdc7e4edbd8d19ee7f9a85f27a. It proves that a V3 restart-state-change wake uses the canonical persist-wake path as the single owner of exactly one coordinator lease and fence, current authority/repository and authorization bindings, one atomic strict schedule/event persistence transaction and exact cleanup, eliminating the observed nested SQLite BEGIN before packet claim or provider contact. It does not prove external provider availability, production transport success, live usage, two live LEARNED cycles, replay, backup or BAU. Those remain post-deployment evidence obligations.";
+  usf:evaluatedAt "2026-08-09T05:55:34Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 
 }
