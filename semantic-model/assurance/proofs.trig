@@ -610,7 +610,7 @@
   usf:proofAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890>;
-  usf:currentImplementationSourceSetDigest "sha256:e98f5bce97872c3fbb84c144158248d57ebee76421ec14fceac39d64e36703b8";
+  usf:currentImplementationSourceSetDigest "sha256:bd5741d9f9656c32103fd4628a27668e3b32d2e306a436ad3aa819b0d6c306e1";
   usf:requiresGraphSourceBinding true.
 <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890> a usf:ProofAlgorithmVersion;
   usf:canonicalName "factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
@@ -667,16 +667,16 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:e544252d496fc8fa04e187921dea27a0de4753889365ec6cb4dc7e25b4b63355";
-  usf:implementationSourceSetDigest "sha256:e98f5bce97872c3fbb84c144158248d57ebee76421ec14fceac39d64e36703b8";
-  usf:proofProducerCommit "8a35f36ebfd9f6806bdf54d4981efcc12522622a";
-  usf:proofProducerTree "4bd27631736e5f3d5b14ff20bc899399958156dc";
+  usf:evidenceSetDigest "sha256:a2561598cf5a5819c69db1f4f1bd166d0ea5b1d39ca83c0d1ea8d3ccd035f2d4";
+  usf:implementationSourceSetDigest "sha256:bd5741d9f9656c32103fd4628a27668e3b32d2e306a436ad3aa819b0d6c306e1";
+  usf:proofProducerCommit "8e90ddc5f10f4d6ff36eb0917b2746605a7c11f7";
+  usf:proofProducerTree "ef41a87ba254e33247437ceca8f5c2b16e884c73";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 8a35f36ebfd9f6806bdf54d4981efcc12522622a, tree 4bd27631736e5f3d5b14ff20bc899399958156dc and source-scope digest sha256:2c317035f9aa6a9cc772067f70408d80d3e70f7f7e0a0565395737d8db36b92b. It proves the bounded runtime role-gap assessment closure: ordinary startup retains evidence-first zero-contact reuse, while an execution-time gap already established by the packet hard gates evaluates the exact selected due candidate once through the existing guarded bootstrap path. It does not prove external provider availability, live production usage, two live production LEARNED cycles, replay, backup or BAU. Those remain post-deployment evidence obligations.";
-  usf:evaluatedAt "2026-08-09T12:31:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 8e90ddc5f10f4d6ff36eb0917b2746605a7c11f7, tree ef41a87ba254e33247437ceca8f5c2b16e884c73 and source-scope digest sha256:2c317035f9aa6a9cc772067f70408d80d3e70f7f7e0a0565395737d8db36b92b. It proves the bounded role-gap invocation and OBSERVE queue closure: the exact point-of-use guard returns its proven authorization result, and OBSERVE reports complete packet sets without creating execution-authority packet or queue records. It does not prove external provider availability, live production usage, two production LEARNED cycles, replay, backup or BAU. Those remain post-deployment evidence obligations.";
+  usf:evaluatedAt "2026-08-09T16:03:14Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 
 }
