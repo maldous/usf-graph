@@ -2491,7 +2491,7 @@ sc:notificationdeliveryandpreferencesandchannels usf:hasActivationState contract
     usf:mandatoryProofObligation <urn:usf:proofobligation:p1874b31e72692fcb908b9d1c13a86f9ca955777ba0b338339d6b5f0adb5c65af>;
     usf:permittedRealisationType usf:Implementation.
 sc:providerconfigurationplane usf:hasActivationState contractstate:active;
-    usf:activationReason "Current admitted evidence and successful proof results separately establish deterministic workforce behaviour and the exact production-shaped Factory Provider V3 implementation, including the bounded role-gap invocation guard and non-executing OBSERVE queue closure, while the terminal projection composes each mandatory obligation and proof result independently.";
+    usf:activationReason "Current admitted evidence and successful proof results separately establish deterministic workforce behavior and the exact production-shaped Factory Provider V3 implementation, now including current-authority-scoped abandoned-cycle recovery that preserves immutable superseded history, while the terminal projection composes each mandatory obligation and proof result independently.";
     usf:requiresRealisationOptionEvaluation true;
     usf:mandatoryProofObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>, <urn:usf:proofobligation:factoryproviderv3implementation>;
     usf:reliesOnProofResult <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane>, <urn:usf:proofresult:factoryproviderv3implementation>;
@@ -4950,7 +4950,7 @@ sc:writeonlysecretsettings usf:hasValidationApplicability vas:unresolved;
   usf:canonicalName "providerworkforceboundedimplementationauthority".
 <urn:usf:claim:factoryproviderv3boundedproductionauthority> a usf:Claim;
   usf:canonicalName "factoryproviderv3boundedproductionauthority";
-  usf:definition "Authorises only Factory commit 8e90ddc5f10f4d6ff36eb0917b2746605a7c11f7, tree ef41a87ba254e33247437ceca8f5c2b16e884c73 and source-scope digest sha256:2c317035f9aa6a9cc772067f70408d80d3e70f7f7e0a0565395737d8db36b92b. A role-gap provider call may proceed only after the existing exact run-authorization and coordinator-fencing guard returns true. OBSERVE retains authoritative planning reports but creates no operational packet or V3 queue entry. Qualification, admission, currentness, routing, claims, accounting, provider identity, zero-paid, immutable-history, CAS and replay checks remain mandatory. This grants no provider success, live usage, LEARNED, completion or BAU claim.".
+  usf:definition "Authorises only Factory commit 58db82d0cceb96a7853c4fb1970593587278e868, tree 371faa75d2aa3b3c74f15d04eed811f70d733c6c and source-scope digest sha256:6eca981240df22d74654c208c224b8ef6b6a9fbcddc2f6d4d87222999cdbcf5d. Production V3 abandoned-cycle recovery may close only a nonterminal projection under the exact current authority/repository witness; superseded-authority cycle history remains immutable, and projection/record mismatch fails closed. Qualification, admission, currentness, routing, claims, accounting, provider identity, zero-paid, immutable-history, CAS and replay checks remain mandatory. This grants no provider success, live usage, LEARNED, completion or BAU claim.".
 <urn:usf:nonclaim:providercredentialsauthority> a usf:NonClaim;
   usf:canonicalName "providercredentialsauthority".
 <urn:usf:nonclaim:providerresearchprovesavailability> a usf:NonClaim;
