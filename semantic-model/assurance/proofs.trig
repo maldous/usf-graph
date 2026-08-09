@@ -610,7 +610,7 @@
   usf:proofAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890>;
-  usf:currentImplementationSourceSetDigest "sha256:de8ff7c99431f957b89f32cab9d543f9a328680cec64f6f511be13bba1712e62";
+  usf:currentImplementationSourceSetDigest "sha256:e98f5bce97872c3fbb84c144158248d57ebee76421ec14fceac39d64e36703b8";
   usf:requiresGraphSourceBinding true.
 <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890> a usf:ProofAlgorithmVersion;
   usf:canonicalName "factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
@@ -667,16 +667,16 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:63e3db87c3ea0ec29fa2d50a9052f7fe4680c4aed69fb9babc0af82977931466";
-  usf:implementationSourceSetDigest "sha256:de8ff7c99431f957b89f32cab9d543f9a328680cec64f6f511be13bba1712e62";
-  usf:proofProducerCommit "745af1e9de398d1a462ce867476c7c19a79f6169";
-  usf:proofProducerTree "ad9af617cc9c82aa719e2814e09e709e68f8b82a";
+  usf:evidenceSetDigest "sha256:e544252d496fc8fa04e187921dea27a0de4753889365ec6cb4dc7e25b4b63355";
+  usf:implementationSourceSetDigest "sha256:e98f5bce97872c3fbb84c144158248d57ebee76421ec14fceac39d64e36703b8";
+  usf:proofProducerCommit "8a35f36ebfd9f6806bdf54d4981efcc12522622a";
+  usf:proofProducerTree "4bd27631736e5f3d5b14ff20bc899399958156dc";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 745af1e9de398d1a462ce867476c7c19a79f6169, tree ad9af617cc9c82aa719e2814e09e709e68f8b82a and unchanged source-scope digest sha256:7a36bc9cf7e3533b03e6c04491355f83f60ae3bdc7e4edbd8d19ee7f9a85f27a. It proves the bounded policy-rollover accounting closure: immutable qualification, admission and route-identity policy evidence must agree, the active roster-generation route must separately attest exact current-policy compatibility, and strict inference accounting binds both before transport. The production-shaped regression proves two consecutive LEARNED cycles with verified deterministic-edge usage and exact claim closure, plus fail-closed stale-policy activation. It does not prove external provider availability, live production usage, two live production LEARNED cycles, replay, backup or BAU. Those remain post-deployment evidence obligations.";
-  usf:evaluatedAt "2026-08-09T09:20:20Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit 8a35f36ebfd9f6806bdf54d4981efcc12522622a, tree 4bd27631736e5f3d5b14ff20bc899399958156dc and source-scope digest sha256:2c317035f9aa6a9cc772067f70408d80d3e70f7f7e0a0565395737d8db36b92b. It proves the bounded runtime role-gap assessment closure: ordinary startup retains evidence-first zero-contact reuse, while an execution-time gap already established by the packet hard gates evaluates the exact selected due candidate once through the existing guarded bootstrap path. It does not prove external provider availability, live production usage, two live production LEARNED cycles, replay, backup or BAU. Those remain post-deployment evidence obligations.";
+  usf:evaluatedAt "2026-08-09T12:31:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 
 }
