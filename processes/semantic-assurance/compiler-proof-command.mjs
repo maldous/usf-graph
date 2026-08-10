@@ -66,6 +66,8 @@ export const compilerProofSourcePaths = Object.freeze([
   'processes/semantic-assurance/semantic-authority-publication.test.mjs',
   'processes/semantic-assurance/semantic-proof-v1.mjs',
   'processes/semantic-assurance/semantic-proof-v1.test.mjs',
+  'processes/semantic-assurance/semantic-proof-v2.mjs',
+  'processes/semantic-assurance/semantic-proof-v2.test.mjs',
   'processes/semantic-assurance/sparql-guard.mjs',
   'assurance/semantic-model-compilation/aggregate-compiler-proof.mjs',
   'assurance/semantic-model-compilation/aggregate-compiler-proof.test.mjs',

@@ -1404,3 +1404,17 @@ export {
   PUBLICATION_RECEIPT_SCHEMA_VERSION as HISTORICAL_PUBLICATION_RECEIPT_SCHEMA_VERSION,
   assertSupportedPublicationReceipt as assertHistoricalPublicationReceipt,
 } from './publication-receipt.mjs';
+
+// V2 is exported through the canonical publisher but remains inactive until a
+// governed V1→V2 activation receipt selects it.  Its Graph coordinator never
+// writes Factory successors; it verifies the Factory-owned closure receipt.
+export {
+  advanceSemanticProofV2Publication,
+  assertFactoryClosureReceiptV2,
+  assertProspectivePublicationPlanV2,
+  factoryClosureReceiptDigestV2,
+  graphPublicationReceiptDigestV2,
+  HermeticSemanticProofV2Journal,
+  prospectivePublicationPlanDigestV2,
+  SemanticProofV2JournalState,
+} from './semantic-proof-v2.mjs';
