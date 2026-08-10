@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import {
   assertAcceptedCompilerResult,
@@ -28,7 +28,7 @@ import {
   sha256,
 } from './semantic-proof-v1.mjs';
 
-test('canonical CAS persistence is immutable and repairs exact pre-existing private modes', () => {
+test('canonical CAS persistence is immutable and repairs exact pre-existing private object and directory modes', () => {
   const root = mkdtempSync(join(tmpdir(), 'semantic-publisher-cas-'));
   try {
     const store = createCasEvidenceStore(root);
@@ -36,9 +36,13 @@ test('canonical CAS persistence is immutable and repairs exact pre-existing priv
     const first = store.persist(bytes);
     assert.equal(statSync(first.path).mode & 0o777, 0o444);
     chmodSync(first.path, 0o600);
+    chmodSync(dirname(first.path), 0o700);
+    chmodSync(dirname(dirname(first.path)), 0o700);
     const second = store.persist(bytes);
     assert.equal(second.digest, first.digest);
     assert.equal(second.path, first.path);
+    assert.equal(statSync(dirname(dirname(second.path))).mode & 0o777, 0o755);
+    assert.equal(statSync(dirname(second.path)).mode & 0o777, 0o755);
     assert.equal(statSync(second.path).mode & 0o777, 0o444);
     assert.deepEqual(store.read(first.digest), bytes);
   } finally {
