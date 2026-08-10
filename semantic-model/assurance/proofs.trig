@@ -610,7 +610,7 @@
   usf:proofAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890>;
-  usf:currentImplementationSourceSetDigest "sha256:5729915716860ce9da25ab92c6e797b9dbe1a7da369ea90a63f0a818cf96fc16";
+  usf:currentImplementationSourceSetDigest "sha256:4658413847c7bd1ff2dd68a6dbbf0904ac3af796ff8e1eb3a019171d686499ad";
   usf:requiresGraphSourceBinding true.
 <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890> a usf:ProofAlgorithmVersion;
   usf:canonicalName "factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
@@ -667,16 +667,16 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:f64c66bb1c3a561d2979e066b49966d8454e583b76af6afc31f6ab7a58272be2";
-  usf:implementationSourceSetDigest "sha256:5729915716860ce9da25ab92c6e797b9dbe1a7da369ea90a63f0a818cf96fc16";
-  usf:proofProducerCommit "d2fdca5cde663fdf59217a9de426ba30af2f1eeb";
-  usf:proofProducerTree "c24849c46e8e5a9d7f9b80ada496e72bf8a152da";
+  usf:evidenceSetDigest "sha256:48d790235ee6d6815fe543812837bb83982a73b3f211be76e904bd214ed5c99c";
+  usf:implementationSourceSetDigest "sha256:4658413847c7bd1ff2dd68a6dbbf0904ac3af796ff8e1eb3a019171d686499ad";
+  usf:proofProducerCommit "f14e2d0d937fe3c21219ca58b8d80d021d5fa942";
+  usf:proofProducerTree "b698922a0bab32a33a8732b10f79f36b6a5dac7c";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "The proof warrants only owner-signed Factory commit d2fdca5cde663fdf59217a9de426ba30af2f1eeb, tree c24849c46e8e5a9d7f9b80ada496e72bf8a152da and unchanged source-scope digest sha256:9a45560f7c87792c7d838ad4596d009d80478a7a6fd36c691fa58e755bb7abeb. It proves only the bounded predecessor repair: an admission must retain the exact immutable qualification policy lineage, compatible unexpired qualification evidence may be reused with zero provider contact to mint a current-authorization admission, and V3 roster eligibility rejects any misbound chain. It does not prove provider availability, live usage, two production LEARNED cycles, replay, backup or BAU; those remain post-deployment evidence obligations.";
-  usf:evaluatedAt "2026-08-10T00:09:26Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "The proof warrants only Factory protected-main commit f14e2d0d937fe3c21219ca58b8d80d021d5fa942, tree b698922a0bab32a33a8732b10f79f36b6a5dac7c and source-scope digest sha256:c19bf3ad2b7a2ae120cfb1c5623f48c3526dbd29b798fe51f42a429150e33a60. It proves the bounded V2 semantic-identity, receipt-DAG, prospective-plan, seven-consumer closure and explicit-authorization machinery plus immutable event-backed roster projection identity. It does not activate V2, authorize the preserved validation-lifecycle semantic change, publish Graph authority, deploy Factory, contact a provider, establish usage, LEARNED, replay, backup, P2 or BAU; those remain separate governed obligations.";
+  usf:evaluatedAt "2026-08-10T10:42:11Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 
 }
