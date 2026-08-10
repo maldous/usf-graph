@@ -3,6 +3,8 @@ import { mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from '
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { createCasEvidenceStore } from '../../processes/semantic-assurance/semantic-authority-publication.mjs';
+
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 function requiredArgument(name) {
   const prefix = `--${name}=`;
@@ -39,18 +41,11 @@ const signingKeyStat = statSync(signingKeyPath);
 if (!signingKeyStat.isFile() || (signingKeyStat.mode & 0o077) !== 0) throw new Error('signing key must be a private regular file');
 const privateKey = createPrivateKey({ key: readFileSync(signingKeyPath), format: 'der', type: 'pkcs8' });
 const casRoot = realpathSync(requiredArgument('cas-root'));
+const casEvidenceStore = createCasEvidenceStore(casRoot);
 
 function writeCas(bytes) {
-  const digest = sha256(bytes);
-  const hex = digest.slice(7);
-  const directory = join(casRoot, 'sha256', hex.slice(0, 2));
-  const path = join(directory, hex);
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
-  try { writeFileSync(path, bytes, { mode: 0o600, flag: 'wx' }); } catch (error) {
-    if (error.code !== 'EEXIST' || sha256(readFileSync(path)) !== digest) throw error;
-  }
-  if (sha256(readFileSync(path)) !== digest) throw new Error(`CAS round-trip failed for ${digest}`);
-  return { digest, path, byteSize: bytes.length };
+  const persisted = casEvidenceStore.persist(bytes);
+  return { digest: persisted.digest, path: persisted.path, byteSize: persisted.size };
 }
 
 const criteria = [

@@ -1,8 +1,10 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { createCasEvidenceStore } from '../../processes/semantic-assurance/semantic-authority-publication.mjs';
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const utf8Compare = (left, right) => Buffer.compare(Buffer.from(String(left)), Buffer.from(String(right)));
@@ -40,18 +42,11 @@ if (Date.parse(validUntil) <= Date.parse(collectedAt)) throw new Error('valid-un
 if (!/^\d+(?:\.\d+){1,3}(?:[-+][0-9A-Za-z.-]+)?$/.test(stardogVersion)) throw new Error('Stardog version must be exact');
 if (!stardogEdition.trim() || !stardogLicenceType.trim()) throw new Error('Stardog edition and licence type are required');
 const casRoot = realpathSync(requiredArgument('cas-root'));
+const casEvidenceStore = createCasEvidenceStore(casRoot);
 
 function writeCas(bytes) {
-  const digest = sha256(bytes);
-  const hexadecimal = digest.slice(7);
-  const directory = join(casRoot, 'sha256', hexadecimal.slice(0, 2));
-  const path = join(directory, hexadecimal);
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
-  try { writeFileSync(path, bytes, { flag: 'wx', mode: 0o600 }); } catch (error) {
-    if (error.code !== 'EEXIST' || sha256(readFileSync(path)) !== digest) throw error;
-  }
-  if (sha256(readFileSync(path)) !== digest) throw new Error(`CAS round-trip failed for ${digest}`);
-  return { digest, path, byteSize: bytes.length };
+  const persisted = casEvidenceStore.persist(bytes);
+  return { digest: persisted.digest, path: persisted.path, byteSize: persisted.size };
 }
 
 function exactRegularFile(path) {
