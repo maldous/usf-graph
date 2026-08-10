@@ -1418,6 +1418,7 @@ export {
 // governed V1→V2 activation receipt selects it.  Its Graph coordinator never
 // writes Factory successors; it verifies the Factory-owned closure receipt.
 export {
+  advanceDurableSemanticProofV2Publication,
   advanceSemanticProofV2Publication,
   assertFactoryClosureReceiptV2,
   assertProspectivePublicationPlanV2,

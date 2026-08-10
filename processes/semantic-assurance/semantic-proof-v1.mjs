@@ -389,7 +389,7 @@ function writeFsyncLedger(path, contents) {
   }
 }
 
-const REAL_JOURNAL_IO = Object.freeze({
+export const REAL_JOURNAL_IO = Object.freeze({
   ensureDirectory: (path) => mkdirSync(path, { recursive: true, mode: 0o755 }),
   read: (path) => readFileSync(path, 'utf8'),
   withLock: withLedgerLock,

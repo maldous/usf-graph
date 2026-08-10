@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
+import { chmodSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import {
+  advanceDurableSemanticProofV2Publication,
   advanceSemanticProofV2Publication,
   canonicalDigestV2,
   closureTransactionIdV2,
@@ -296,6 +300,47 @@ test('V2 publication recovers exactly from every durable journal boundary', asyn
   }
 });
 
+test('V2 durable journal atomically resumes through canonical publisher boundaries', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'usf-semantic-proof-v2-'));
+  try {
+    const journalPath = join(root, 'journal', 'publication.json');
+    const { closure, plan } = fixture();
+    const graphAdapter = adapter(plan);
+    let result;
+    const values = inputs(plan, new HermeticSemanticProofV2Journal(), graphAdapter, closure);
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      result = await advanceDurableSemanticProofV2Publication(values, { journalPath });
+      if (result.terminal) break;
+    }
+    assert.equal(result.state, SemanticProofV2JournalState.CONSUMED);
+    assert.match(result.journalDigest, /^sha256:[0-9a-f]{64}$/);
+    assert.equal(graphAdapter.state.d1CommitCount, 1);
+    assert.equal(graphAdapter.state.d2CommitCount, 1);
+    assert.equal(graphAdapter.state.terminalCount, 1);
+    assert.equal(graphAdapter.state.consumeCount, 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('V2 durable journal rejects a broadened persisted mode', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'usf-semantic-proof-v2-mode-'));
+  try {
+    const journalPath = join(root, 'journal', 'publication.json');
+    const { closure, plan } = fixture();
+    const graphAdapter = adapter(plan);
+    const values = inputs(plan, new HermeticSemanticProofV2Journal(), graphAdapter, closure);
+    await advanceDurableSemanticProofV2Publication(values, { journalPath });
+    chmodSync(journalPath, 0o644);
+    await assert.rejects(
+      advanceDurableSemanticProofV2Publication(values, { journalPath }),
+      /owner-only regular file/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 for (const boundary of ['D1', 'D2']) {
   test(`V2 recovery observes exact physical ${boundary} after interruption`, async () => {
     const { closure, plan } = fixture();
@@ -390,5 +435,9 @@ test('V2 journal recovery rejects unknown fields and terminal-receipt substituti
 test('canonical Graph publisher exports the separately versioned V2 coordinator', async () => {
   const publisher = await import('./semantic-authority-publication.mjs');
   assert.equal(publisher.advanceSemanticProofV2Publication, advanceSemanticProofV2Publication);
+  assert.equal(
+    publisher.advanceDurableSemanticProofV2Publication,
+    advanceDurableSemanticProofV2Publication,
+  );
   assert.equal(publisher.HermeticSemanticProofV2Journal, HermeticSemanticProofV2Journal);
 });

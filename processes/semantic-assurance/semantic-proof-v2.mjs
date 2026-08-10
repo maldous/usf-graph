@@ -1,4 +1,17 @@
 import { createHash } from 'node:crypto';
+import {
+  chmodSync,
+  closeSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  unlinkSync,
+} from 'node:fs';
+import { dirname, isAbsolute } from 'node:path';
+
+import { REAL_JOURNAL_IO } from './semantic-proof-v1.mjs';
 
 export const SEMANTIC_PROOF_V2 = 'semantic-proof-v2';
 export const PROSPECTIVE_PUBLICATION_PLAN_V2 = 'usf-prospective-publication-plan-v2';
@@ -414,6 +427,57 @@ export class HermeticSemanticProofV2Journal {
     });
     this.entries.push(entry);
     return entry;
+  }
+}
+
+function readDurableSemanticProofV2Journal(journalPath) {
+  if (!existsSync(journalPath)) return new HermeticSemanticProofV2Journal();
+  const stat = lstatSync(journalPath);
+  if (!stat.isFile() || stat.isSymbolicLink() || (stat.mode & 0o777) !== 0o600) {
+    throw new Error('V2 publication journal must be an owner-only regular file');
+  }
+  return new HermeticSemanticProofV2Journal(readFileSync(journalPath));
+}
+
+export async function advanceDurableSemanticProofV2Publication(inputs, {
+  journalPath,
+  journalIo = REAL_JOURNAL_IO,
+} = {}) {
+  if (typeof journalPath !== 'string' || !isAbsolute(journalPath)) {
+    throw new Error('V2 publication journal path must be exact and absolute');
+  }
+  const journalDirectory = dirname(journalPath);
+  mkdirSync(journalDirectory, { recursive: true, mode: 0o700 });
+  const directoryStat = lstatSync(journalDirectory);
+  if (!directoryStat.isDirectory() || directoryStat.isSymbolicLink()) {
+    throw new Error('V2 publication journal directory is unsafe');
+  }
+  chmodSync(journalDirectory, 0o700);
+  const lockPath = `${journalPath}.lock`;
+  let lockDescriptor;
+  try {
+    lockDescriptor = openSync(lockPath, 'wx', 0o600);
+    const journal = readDurableSemanticProofV2Journal(journalPath);
+    const result = await advanceSemanticProofV2Publication({ ...inputs, journal });
+    journalIo.write(journalPath, journal.snapshotBytes());
+    chmodSync(journalPath, 0o600);
+    const observed = readDurableSemanticProofV2Journal(journalPath);
+    if (canonicalJsonV2(JSON.parse(observed.snapshotBytes().toString('utf8')))
+        !== canonicalJsonV2(JSON.parse(journal.snapshotBytes().toString('utf8')))) {
+      throw new Error('V2 publication journal atomic read-back differs');
+    }
+    return Object.freeze({
+      ...result,
+      journalDigest: sha256V2(journal.snapshotBytes()),
+      journalPath,
+    });
+  } finally {
+    if (lockDescriptor !== undefined) {
+      closeSync(lockDescriptor);
+      try { unlinkSync(lockPath); } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+    }
   }
 }
 
