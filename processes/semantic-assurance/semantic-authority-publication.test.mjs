@@ -1,11 +1,21 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtempSync, readFileSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  rmdirSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import {
   assertAcceptedCompilerResult,
+  createCasEvidenceStore,
   DEFAULT_PROTOCOL_JOURNAL,
   runPublication,
 } from './semantic-authority-publication.mjs';
@@ -17,6 +27,40 @@ import {
   publicationReceiptDigest,
   sha256,
 } from './semantic-proof-v1.mjs';
+
+test('canonical CAS persistence is immutable and repairs exact pre-existing private object and directory modes', () => {
+  const root = mkdtempSync(join(tmpdir(), 'semantic-publisher-cas-'));
+  try {
+    const store = createCasEvidenceStore(root);
+    const bytes = Buffer.from('exact evidence bytes');
+    const first = store.persist(bytes);
+    assert.equal(statSync(first.path).mode & 0o777, 0o444);
+    chmodSync(first.path, 0o600);
+    chmodSync(dirname(first.path), 0o700);
+    chmodSync(dirname(dirname(first.path)), 0o700);
+    const second = store.persist(bytes);
+    assert.equal(second.digest, first.digest);
+    assert.equal(second.path, first.path);
+    assert.equal(statSync(dirname(dirname(second.path))).mode & 0o777, 0o755);
+    assert.equal(statSync(dirname(second.path)).mode & 0o777, 0o755);
+    assert.equal(statSync(second.path).mode & 0o777, 0o444);
+    assert.deepEqual(store.read(first.digest), bytes);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('option acquisition and evaluation collectors use the one canonical CAS store', () => {
+  for (const path of [
+    'assurance/semantic-model-compilation/realisation-option-acquisition.mjs',
+    'assurance/semantic-model-compilation/realisation-option-evaluation-evidence.mjs',
+  ]) {
+    const source = readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+    assert.match(source, /createCasEvidenceStore\(casRoot\)/u);
+    assert.match(source, /casEvidenceStore\.persist\(bytes\)/u);
+    assert.doesNotMatch(source, /mode:\s*0o600/u);
+  }
+});
 
 const PRE = `sha256:${'1'.repeat(64)}`;
 const INITIAL_BYTES = Buffer.from('# semantic-proof-v1 canonical-rdf-patch-v1 stage1\nD <urn:test:s> <urn:test:p> "old" <urn:test:graph> .\nA <urn:test:s> <urn:test:p> "new" <urn:test:graph> .\n');

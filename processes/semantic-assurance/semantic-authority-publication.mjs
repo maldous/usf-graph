@@ -183,6 +183,14 @@ export function createCasEvidenceStore(casRoot = '/var/lib/usf-cas') {
   const canonicalRoot = realpathSync(casRoot);
   const rootStat = lstatSync(canonicalRoot);
   if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) throw new Error('evidence CAS root must be a canonical directory');
+  const ensureDirectory = (path) => {
+    mkdirSync(path, { recursive: true, mode: 0o755 });
+    const stat = lstatSync(path);
+    if (!stat.isDirectory() || stat.isSymbolicLink() || realpathSync(path) !== path) {
+      throw new Error('evidence CAS directory is unsafe');
+    }
+    chmodSync(path, 0o755);
+  };
   const pathFor = (contentDigest) => {
     assertExpectedDigest(contentDigest, 'evidence digest');
     const hexadecimal = contentDigest.slice(7);
@@ -201,7 +209,8 @@ export function createCasEvidenceStore(casRoot = '/var/lib/usf-cas') {
       if (!Buffer.isBuffer(bytes) || bytes.length === 0) throw new Error('evidence CAS requires non-empty bytes');
       const contentDigest = sha256(bytes);
       const path = pathFor(contentDigest);
-      mkdirSync(dirname(path), { recursive: true, mode: 0o755 });
+      ensureDirectory(`${canonicalRoot}/sha256`);
+      ensureDirectory(dirname(path));
       try { writeFileSync(path, bytes, { flag: 'wx', mode: 0o444 }); } catch (error) {
         if (error.code !== 'EEXIST' || !read(contentDigest).equals(bytes)) throw error;
       }
@@ -1404,3 +1413,17 @@ export {
   PUBLICATION_RECEIPT_SCHEMA_VERSION as HISTORICAL_PUBLICATION_RECEIPT_SCHEMA_VERSION,
   assertSupportedPublicationReceipt as assertHistoricalPublicationReceipt,
 } from './publication-receipt.mjs';
+
+// V2 is exported through the canonical publisher but remains inactive until a
+// governed V1→V2 activation receipt selects it.  Its Graph coordinator never
+// writes Factory successors; it verifies the Factory-owned closure receipt.
+export {
+  advanceSemanticProofV2Publication,
+  assertFactoryClosureReceiptV2,
+  assertProspectivePublicationPlanV2,
+  factoryClosureReceiptDigestV2,
+  graphPublicationReceiptDigestV2,
+  HermeticSemanticProofV2Journal,
+  prospectivePublicationPlanDigestV2,
+  SemanticProofV2JournalState,
+} from './semantic-proof-v2.mjs';
