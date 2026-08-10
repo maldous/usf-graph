@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { chmodSync, mkdtempSync, rmSync } from 'node:fs';
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -28,6 +28,18 @@ const KINDS = Object.freeze([
   'validation_currentness_binding',
   'workforce_policy_compatibility_binding',
 ]);
+
+// Node's permission model deliberately disables fsync even for a permitted
+// writable directory.  V1 owns and separately tests the real fsync+rename
+// implementation; these coordinator tests inject only the byte sink so the
+// hermetic semantic gate exercises the V2 state/receipt composition rather
+// than an API that its runner explicitly forbids.
+const HERMETIC_DURABLE_JOURNAL_IO = Object.freeze({
+  write(path, contents) {
+    writeFileSync(path, contents, { mode: 0o600 });
+    chmodSync(path, 0o600);
+  },
+});
 
 function fixture() {
   const releaseSubject = digest('1');
@@ -309,7 +321,10 @@ test('V2 durable journal atomically resumes through canonical publisher boundari
     let result;
     const values = inputs(plan, new HermeticSemanticProofV2Journal(), graphAdapter, closure);
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      result = await advanceDurableSemanticProofV2Publication(values, { journalPath });
+      result = await advanceDurableSemanticProofV2Publication(values, {
+        journalPath,
+        journalIo: HERMETIC_DURABLE_JOURNAL_IO,
+      });
       if (result.terminal) break;
     }
     assert.equal(result.state, SemanticProofV2JournalState.CONSUMED);
@@ -330,10 +345,16 @@ test('V2 durable journal rejects a broadened persisted mode', async () => {
     const { closure, plan } = fixture();
     const graphAdapter = adapter(plan);
     const values = inputs(plan, new HermeticSemanticProofV2Journal(), graphAdapter, closure);
-    await advanceDurableSemanticProofV2Publication(values, { journalPath });
+    await advanceDurableSemanticProofV2Publication(values, {
+      journalPath,
+      journalIo: HERMETIC_DURABLE_JOURNAL_IO,
+    });
     chmodSync(journalPath, 0o644);
     await assert.rejects(
-      advanceDurableSemanticProofV2Publication(values, { journalPath }),
+      advanceDurableSemanticProofV2Publication(values, {
+        journalPath,
+        journalIo: HERMETIC_DURABLE_JOURNAL_IO,
+      }),
       /owner-only regular file/,
     );
   } finally {
