@@ -801,6 +801,12 @@ test('applicability admits only the exact dormant checkpoint condition and no ex
     model.getObjects(condition, namedNode(`${ONT}conditionRequiredValue`), null).map(({ value }) => value),
     ['urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning'],
   );
+  const pendingDecision = namedNode('urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning');
+  assert.deepEqual(model.getObjects(pendingDecision, namedNode(RDF_TYPE), null), []);
+  assert.deepEqual(
+    model.getObjects(pendingDecision, namedNode(`${ONT}definition`), null).map(({ value }) => value),
+    ['Reserved condition-value identity only. This publication does not type, select or make this resource effective as a RealisationDecision and grants no production pruning authority.'],
+  );
   assert.deepEqual(model.getObjects(backup, namedNode(`${ONT}requiredValidation`), null), []);
   assert.deepEqual(
     model.getObjects(backup, namedNode(`${ONT}hasActivationState`), null).map(({ value }) => value),

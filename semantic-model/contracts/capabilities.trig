@@ -4840,6 +4840,8 @@ sc:backupandrestore usf:hasValidationApplicability vas:conditional;
     usf:conditionSubject sc:backupandrestore;
     usf:conditionPredicate usf:effectiveRealisationDecision;
     usf:conditionRequiredValue <urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning>.
+<urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning>
+    usf:definition "Reserved condition-value identity only. This publication does not type, select or make this resource effective as a RealisationDecision and grants no production pruning authority.".
 sc:brandingandtheming usf:hasValidationApplicability vas:unresolved;
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
 sc:codequalityandsecretanddependencyscanning usf:hasValidationApplicability vas:unresolved;
