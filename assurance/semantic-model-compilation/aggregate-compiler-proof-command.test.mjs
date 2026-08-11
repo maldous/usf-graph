@@ -16,6 +16,7 @@ import {
   assertEventHistoryCheckpointWorktreeBinding,
   createAggregateCompilerProofProducer,
   eventHistoryCheckpointEvidenceCore,
+  eventHistoryCheckpointGpgHome,
   eventHistoryCheckpointImplementationScopeDigest,
   eventHistoryCheckpointPythonPath,
 } from './aggregate-compiler-proof-command.mjs';
@@ -201,7 +202,7 @@ test('event-history checkpoint evidence is deterministic, closed and never vacuo
   );
 });
 
-test('event-history checkpoint evidence rejects a clean runtime sourced from another checkout', () => {
+test('event-history checkpoint evidence binds the exact signed candidate and its verifier environment', () => {
   const candidateCommit = 'a'.repeat(40);
   const protectedCommit = 'b'.repeat(40);
   const expectedTree = 'c'.repeat(40);
@@ -212,7 +213,7 @@ test('event-history checkpoint evidence rejects a clean runtime sourced from ano
     protectedCommit,
     protectedTree: expectedTree,
     status: '',
-    worktreeHead: protectedCommit,
+    worktreeHead: candidateCommit,
   };
   assert.equal(assertEventHistoryCheckpointWorktreeBinding(exact), true);
   assert.throws(
@@ -236,6 +237,16 @@ test('event-history checkpoint evidence rejects a clean runtime sourced from ano
   assert.throws(
     () => eventHistoryCheckpointPythonPath('/factory-reviewed', '/factory-deployed/.venv/bin/python'),
     { code: 'EVENT_HISTORY_CHECKPOINT_PYTHON_SOURCE_MISMATCH' },
+  );
+  const environmentRoot = mkdtempSync(join(tmpdir(), 'checkpoint-gpg-home-'));
+  roots.push(environmentRoot);
+  const gpgHome = join(environmentRoot, '.gnupg');
+  mkdirSync(gpgHome);
+  assert.equal(eventHistoryCheckpointGpgHome({ HOME: environmentRoot }), gpgHome);
+  assert.equal(eventHistoryCheckpointGpgHome({ GNUPGHOME: gpgHome }), gpgHome);
+  assert.throws(
+    () => eventHistoryCheckpointGpgHome({ HOME: join(environmentRoot, 'missing') }),
+    { code: 'EVENT_HISTORY_CHECKPOINT_GPG_HOME_INVALID' },
   );
 });
 
