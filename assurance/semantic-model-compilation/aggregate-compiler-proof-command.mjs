@@ -501,6 +501,17 @@ export function eventHistoryCheckpointGpgHome(env = process.env) {
   return realpathSync(value);
 }
 
+export function eventHistoryCheckpointFactoryEnvironment(factoryRepository, python, env = process.env) {
+  const exactPython = eventHistoryCheckpointPythonPath(factoryRepository, python);
+  const nodeDirectory = dirname(realpathSync(process.execPath));
+  return Object.freeze({
+    ...env,
+    PATH: `${dirname(exactPython)}:${nodeDirectory}:/usr/bin:/bin`,
+    PYTHONPATH: join(factoryRepository, 'src'),
+    TZ: 'UTC',
+  });
+}
+
 export function eventHistoryCheckpointEvidenceCore(input) {
   const expectedKeys = [
     'authorityDigest', 'candidateCommit', 'commands', 'dependencyRecords', 'evaluatedAt',
@@ -703,6 +714,9 @@ export function runEventHistoryCheckpointEvidence(args, env = process.env) {
   });
   const implementationRecords = records(EVENT_HISTORY_CHECKPOINT_IMPLEMENTATION_PATHS);
   const dependencyRecords = records(EVENT_HISTORY_CHECKPOINT_DEPENDENCY_PATHS);
+  const sourceBoundEnvironment = eventHistoryCheckpointFactoryEnvironment(
+    factoryRepository, python, env,
+  );
   const hermeticEnvironment = Object.freeze({
     GNUPGHOME: eventHistoryCheckpointGpgHome(env), HOME: '/nonexistent',
     LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', PATH: '/usr/bin:/bin',
@@ -712,10 +726,11 @@ export function runEventHistoryCheckpointEvidence(args, env = process.env) {
     ['-m', 'pytest', '-q', 'tests/test_v3_event_store.py', 'tests/test_v3_maintenance.py'],
     { cwd: factoryRepository, env: hermeticEnvironment, timeout: 900_000 });
   eventHistoryCheckpointCommand(commands, outputRoot, 'admission-critical', '/usr/bin/bash',
-    ['scripts/admission-critical.sh'], { cwd: factoryRepository, env: { ...env, TZ: 'UTC' }, timeout: 900_000 });
+    ['scripts/admission-critical.sh'],
+    { cwd: factoryRepository, env: sourceBoundEnvironment, timeout: 900_000 });
   eventHistoryCheckpointCommand(commands, outputRoot, 'complete-owner-service-gate', '/usr/bin/bash',
     ['scripts/verify.sh', '--fresh', '--attest'],
-    { cwd: factoryRepository, env: { ...env, TZ: 'UTC' }, timeout: 1_800_000 });
+    { cwd: factoryRepository, env: sourceBoundEnvironment, timeout: 1_800_000 });
   const proofAlgorithmSourceDigest = sha256Bytes(readFileSync(fileURLToPath(import.meta.url)));
   const core = eventHistoryCheckpointEvidenceCore({
     authorityDigest, candidateCommit, commands, dependencyRecords, evaluatedAt, factoryTree: expectedTree,

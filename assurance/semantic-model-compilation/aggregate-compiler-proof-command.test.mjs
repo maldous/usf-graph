@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
 
@@ -16,6 +16,7 @@ import {
   assertEventHistoryCheckpointWorktreeBinding,
   createAggregateCompilerProofProducer,
   eventHistoryCheckpointEvidenceCore,
+  eventHistoryCheckpointFactoryEnvironment,
   eventHistoryCheckpointGpgHome,
   eventHistoryCheckpointImplementationScopeDigest,
   eventHistoryCheckpointPythonPath,
@@ -248,6 +249,18 @@ test('event-history checkpoint evidence binds the exact signed candidate and its
     () => eventHistoryCheckpointGpgHome({ HOME: join(environmentRoot, 'missing') }),
     { code: 'EVENT_HISTORY_CHECKPOINT_GPG_HOME_INVALID' },
   );
+  const sourceBoundEnvironment = eventHistoryCheckpointFactoryEnvironment(
+    '/factory-reviewed',
+    '/factory-reviewed/.venv/bin/python',
+    { HOME: '/operator', PATH: '/foreign/bin', PYTHONPATH: '/foreign/src' },
+  );
+  assert.equal(sourceBoundEnvironment.HOME, '/operator');
+  assert.equal(
+    sourceBoundEnvironment.PATH,
+    `/factory-reviewed/.venv/bin:${dirname(process.execPath)}:/usr/bin:/bin`,
+  );
+  assert.equal(sourceBoundEnvironment.PYTHONPATH, '/factory-reviewed/src');
+  assert.equal(sourceBoundEnvironment.TZ, 'UTC');
 });
 
 test.after(() => roots.forEach((root) => rmSync(root, { recursive: true, force: true })));
