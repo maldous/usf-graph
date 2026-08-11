@@ -1153,6 +1153,7 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
   const transactions = new Map();
   let transactionIndex = 0;
   const cloneDataset = (dataset) => new Map([...dataset].map(([graph, store]) => [graph, new Store(store.getQuads(null, null, null, null))]));
+  const trackedSource = cloneDataset(live);
   const serialize = async (store, format = 'Turtle') => new Promise((resolveText, reject) => {
     const writer = new Writer({ format });
     writer.addQuads(store.getQuads(null, null, null, null));
@@ -1213,7 +1214,11 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
   };
   const sourceCompiler = async ({ client: sourceClient }) => {
     const tx = await sourceClient.begin();
-    await sourceClient.addData(tx, '<urn:usf:semanticproofprotocol:v1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:SemanticProofProtocol> .\n', 'text/turtle', authorityGraph);
+    await sourceClient.clearGraphs(tx, graphs);
+    for (const [graph, store] of trackedSource) {
+      const content = await serialize(store);
+      if (content) await sourceClient.addData(tx, content, 'text/turtle', graph);
+    }
     const derived = await sourceClient.validateInTransactionWithReceipt(tx, []);
     await sourceClient.rollback(tx);
     return { ok: true, liveValidation: { derived, receiptDigest: derived.receiptDigest } };
@@ -1306,6 +1311,63 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
       }).producer.produceTerminal(input);
     },
   };
+  const pendingForExternalDelta = await producer.preparePending({ requestedAuthorityDigest: d0 });
+  const expectedSource = pendingForExternalDelta.aggregateResult.evaluation.sourceBinding;
+  const conflict = 'urn:usf:authorityconflict:correction';
+  const resolution = 'urn:usf:semanticcorrectiondecision:correction';
+  const review = 'urn:usf:semanticadequacyreview:correction';
+  const proofResult = 'urn:usf:proofresult:correction';
+  const proof = 'urn:usf:proof:correction';
+  const owner = 'urn:usf:ownerassignment:semanticmodelcompilation';
+  const correctionCandidateDigest = `sha256:${'9'.repeat(64)}`;
+  const externalRoots = ['external-review', 'external-proof', 'external-owner']
+    .map((content) => putCas(base.casRoot, Buffer.from(content)));
+  const literal = (value) => JSON.stringify(value);
+  const externalQuads = [
+    `<${conflict}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:AssuranceFinding> <${proofsGraph}> .`,
+    `<${conflict}> <urn:usf:ontology:conflictAuthorityDigest> ${literal(d0)} <${proofsGraph}> .`,
+    `<${conflict}> <urn:usf:ontology:conflictCandidateDigest> ${literal(correctionCandidateDigest)} <${proofsGraph}> .`,
+    `<${conflict}> <urn:usf:ontology:conflictPredecessorSourceHead> ${literal(expectedSource.head)} <${proofsGraph}> .`,
+    `<${conflict}> <urn:usf:ontology:conflictPredecessorSourceTree> ${literal(expectedSource.tree)} <${proofsGraph}> .`,
+    `<${conflict}> <urn:usf:ontology:conflictRepository> ${literal(expectedSource.repository)} <${proofsGraph}> .`,
+    `<${review}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:SemanticAdequacyReview> <${proofsGraph}> .`,
+    `<${review}> <urn:usf:ontology:hasSemanticAdequacyReviewState> <urn:usf:semanticadequacyreviewstate:accepted> <${proofsGraph}> .`,
+    `<${review}> <urn:usf:ontology:reviewedAuthorityDigest> ${literal(d0)} <${proofsGraph}> .`,
+    `<${review}> <urn:usf:ontology:reviewedInventoryDigest> ${literal(correctionCandidateDigest)} <${proofsGraph}> .`,
+    `<${proofResult}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:ProofResult> <${proofsGraph}> .`,
+    `<${proofResult}> <urn:usf:ontology:hasProofResultState> <urn:usf:proofresultstate:successful> <${proofsGraph}> .`,
+    `<${proofResult}> <urn:usf:ontology:resultForProof> <${proof}> <${proofsGraph}> .`,
+    `<${proof}> <urn:usf:ontology:provesSubject> <${conflict}> <${proofsGraph}> .`,
+    `<${resolution}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:SemanticCorrectionDecision> <${proofsGraph}> .`,
+    `<${resolution}> <urn:usf:ontology:authorityConflictResolutionOwnerAssignment> <${owner}> <${proofsGraph}> .`,
+    `<${resolution}> <urn:usf:ontology:decisionBasedOnSemanticAdequacyReview> <${review}> <${proofsGraph}> .`,
+    `<${resolution}> <urn:usf:ontology:resolvesAuthorityConflict> <${conflict}> <${proofsGraph}> .`,
+    `<${resolution}> <urn:usf:ontology:semanticCorrectionDecisionState> <urn:usf:semanticcorrectiondecisionstate:accepted> <${proofsGraph}> .`,
+    `<${resolution}> <urn:usf:ontology:warrantedBySemanticAdequacyProof> <${proofResult}> <${proofsGraph}> .`,
+    ...externalRoots.map((root, index) => `<urn:usf:externalpayloaddescriptor:correction${index}> <urn:usf:ontology:descriptorDigest> ${literal(root)} <${proofsGraph}> .`),
+  ].sort();
+  const externalBytes = Buffer.from([
+    '# semantic-proof-v1 canonical-rdf-patch-v1 base',
+    ...externalQuads.map((item) => `A ${item}`),
+    '',
+  ].join('\n'));
+  const externalAuthorityDelta = Object.freeze({
+    authorityDigest: d0,
+    casRootDigests: externalRoots.sort(),
+    conflictIri: conflict,
+    correctionCandidateDigest,
+    ownerAssignmentIri: owner,
+    patchBytesBase64: externalBytes.toString('base64'),
+    patchDigest: sha256(externalBytes),
+    permittedOperations: externalQuads.map((item) => `A ${item}`).sort(),
+    predecessorSourceHead: expectedSource.head,
+    predecessorSourceTree: expectedSource.tree,
+    proofResultIri: proofResult,
+    repository: expectedSource.repository,
+    resolutionIri: resolution,
+    reviewIri: review,
+    schema: 'usf-external-authority-conflict-resolution-delta-v1',
+  });
   const trustAnchor = {
     algorithm: 'openpgp', approvalThreshold: 1,
     authorityScopes: [
@@ -1337,7 +1399,8 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
   writeFileSync(ledgerPath, '{"nonces":{},"protocol":"semantic-proof-v1"}\n', { mode: 0o600 });
   let nonce = 0;
   const result = await publisherModule.runAggregateCompilerProductionLifecycle({
-    expectedAuthorityDigest: d0, ownerAssignments, trustAnchor, producer, command, readAuthorityWitness,
+    expectedAuthorityDigest: d0, externalAuthorityDelta, ownerAssignments, trustAnchor, producer,
+    command, readAuthorityWitness,
     trustedTime: async () => '2026-08-01T00:05:00Z',
     evidenceStore: publisherModule.createCasEvidenceStore(base.casRoot),
     claimProvider: async ({ authorityDigest: pre, canonicalCandidateBytes, candidateDigest }) => {
@@ -1365,9 +1428,20 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
     },
   });
   assert.equal(result.terminal.current_proof_results, 1);
+  assert.equal(result.externalAuthorityDelta.patchDigest, externalAuthorityDelta.patchDigest);
   assert.equal(result.terminal.proof_currentness, 'CURRENT');
   assert.equal(result.terminal.action_state, 'PROCEED');
   assert.equal(phase, 2);
+  assert.equal(live.get(proofsGraph).has(
+    DataFactory.namedNode(resolution),
+    DataFactory.namedNode('urn:usf:ontology:resolvesAuthorityConflict'),
+    DataFactory.namedNode(conflict),
+    null,
+  ), true);
+  assert.equal(
+    result.stage2.candidate.bytes.toString('utf8').includes(`D <${resolution}> <urn:usf:ontology:resolvesAuthorityConflict>`),
+    false,
+  );
   assert.equal(live.get(proofsGraph).has(null, rdfType, DataFactory.namedNode('urn:usf:ontology:PostPublicationAggregateProofResult'), null), true);
   assert.equal(live.get(proofsGraph).has(
     DataFactory.namedNode('urn:usf:validationselfpublicationbinding:factoryproviderv3implementation'),

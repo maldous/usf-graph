@@ -1037,7 +1037,14 @@ function canonicalAuthorityInventory(witness) {
   return Object.freeze(records);
 }
 
-async function stabilizedCandidate({ stage, input, command, expectedAuthorityDigest, initialInventory }) {
+async function stabilizedCandidate({
+  stage,
+  input,
+  command,
+  expectedAuthorityDigest,
+  initialInventory,
+  preservedAuthorityDelta = null,
+}) {
   const materialize = (inventory) => materializeAggregateCompilerAuthorityCandidate({
     ...input,
     currentnessBinding: { prospectiveAuthorityInventory: inventory },
@@ -1048,6 +1055,7 @@ async function stabilizedCandidate({ stage, input, command, expectedAuthorityDig
     const composed = await command.composeCandidate({
       generatedCandidateBytes: generated.bytes,
       expectedAuthorityDigest,
+      preservedAuthorityDelta,
     });
     return Object.freeze({
       ...generated,
@@ -1077,6 +1085,7 @@ async function stabilizedCandidate({ stage, input, command, expectedAuthorityDig
 
 export async function runAggregateCompilerProductionLifecycle({
   expectedAuthorityDigest,
+  externalAuthorityDelta = null,
   ownerAssignments,
   trustAnchor,
   claimProvider,
@@ -1097,7 +1106,12 @@ export async function runAggregateCompilerProductionLifecycle({
   const d0 = await readAuthorityWitness();
   if (d0.digest !== expectedAuthorityDigest) throw new Error('aggregate lifecycle D0 authority digest drifted');
   const pendingPackage = await producer.preparePending({ requestedAuthorityDigest: expectedAuthorityDigest });
-  const base = await command.prepareSourceDelta({ expectedAuthorityDigest });
+  const base = await command.prepareSourceDelta({
+    expectedAuthorityDigest,
+    evidenceStore,
+    expectedSource: pendingPackage.aggregateResult.evaluation.sourceBinding,
+    externalAuthorityDelta,
+  });
   const baseValidation = admitValidationEvidence({ validationEvidence: base.validationEvidence }, evidenceStoreAdapter(evidenceStore));
   if (baseValidation.digest !== base.baseSemanticDelta.validationReceiptDigest) {
     throw new Error('base source-delta validation receipt was not admitted exactly');
@@ -1178,6 +1192,7 @@ export async function runAggregateCompilerProductionLifecycle({
     command,
     expectedAuthorityDigest: d1.digest,
     initialInventory: canonicalAuthorityInventory(d1),
+    preservedAuthorityDelta: base.preservedAuthorityDelta,
   });
   const stage2Claims = await claimProvider(Object.freeze({
     authorityDigest: d1.digest,
@@ -1217,6 +1232,7 @@ export async function runAggregateCompilerProductionLifecycle({
   }
   return Object.freeze({
     baseSemanticDelta: base.baseSemanticDelta,
+    externalAuthorityDelta: base.externalAuthorityDelta,
     initial,
     ownerAuthority,
     pendingPackage,
@@ -1321,8 +1337,12 @@ export async function main({
         publicationGrant: readEnvelope(requiredArgument(argv, 'stage2-publication-grant')),
       }),
     });
+    const externalAuthorityDeltaPath = optionalArgument(argv, 'external-authority-delta');
     const result = await runAggregateCompilerProductionLifecycle({
       expectedAuthorityDigest,
+      externalAuthorityDelta: externalAuthorityDeltaPath === undefined
+        ? null
+        : JSON.parse(readFileSync(externalAuthorityDeltaPath, 'utf8')),
       ownerAssignments,
       trustAnchor: readTrustAnchor(requiredArgument(argv, 'trust-anchor')),
       claimProvider: async ({ authorityDigest, candidateDigest, stage }) => {
