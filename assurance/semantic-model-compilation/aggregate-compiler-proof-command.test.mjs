@@ -10,8 +10,14 @@ import {
   AGGREGATE_RESULT_IRI,
   AGGREGATE_REVIEWED_SOURCE_PATHS,
   DEFAULT_AGGREGATE_REACHABLE_REF,
+  EVENT_HISTORY_CHECKPOINT_DEPENDENCY_PATHS,
+  EVENT_HISTORY_CHECKPOINT_IMPLEMENTATION_PATHS,
   PROVISIONAL_AGGREGATE_RESULT_IRI,
+  assertEventHistoryCheckpointWorktreeBinding,
   createAggregateCompilerProofProducer,
+  eventHistoryCheckpointEvidenceCore,
+  eventHistoryCheckpointImplementationScopeDigest,
+  eventHistoryCheckpointPythonPath,
 } from './aggregate-compiler-proof-command.mjs';
 import {
   COMPONENT_PROOFS,
@@ -93,6 +99,145 @@ const EXPECTED_REVIEWED_SOURCE_PATHS = Object.freeze([
   'semantic-model/shapes/assurance.ttl',
   'semantic-model/vocabulary.ttl',
 ]);
+
+const EXPECTED_EVENT_HISTORY_CHECKPOINT_PATHS = Object.freeze([
+  'src/usf_factory/cli.py',
+  'src/usf_factory/event_store.py',
+  'src/usf_factory/maintenance.py',
+  'src/usf_factory/v3_events.py',
+  'tests/test_v3_event_store.py',
+  'tests/test_v3_maintenance.py',
+]);
+
+const checkpointRecord = (path) => Object.freeze({
+  byteSize: path.length,
+  digest: sha256(Buffer.from(`${path}\n`)),
+  path,
+});
+const checkpointCommand = (id, exitStatus = 0) => Object.freeze({
+  arguments: [],
+  executable: '/usr/bin/true',
+  exitStatus,
+  id,
+  signal: null,
+  stderrDigest: sha256(Buffer.alloc(0)),
+  stdoutDigest: sha256(Buffer.alloc(0)),
+});
+const checkpointEvidenceInput = (overrides = {}) => ({
+  authorityDigest: D0,
+  candidateCommit: 'a'.repeat(40),
+  commands: [
+    checkpointCommand('focused-checkpoint-pruning'),
+    checkpointCommand('admission-critical'),
+    checkpointCommand('complete-owner-service-gate'),
+  ],
+  dependencyRecords: EVENT_HISTORY_CHECKPOINT_DEPENDENCY_PATHS.map(checkpointRecord),
+  evaluatedAt: '2026-08-11T00:00:00Z',
+  factoryTree: 'b'.repeat(40),
+  implementationRecords: EVENT_HISTORY_CHECKPOINT_IMPLEMENTATION_PATHS.map(checkpointRecord),
+  proofAlgorithmSourceDigest: `sha256:${'f'.repeat(64)}`,
+  protectedCommit: 'c'.repeat(40),
+  validUntil: '2026-08-12T00:00:00Z',
+  ...overrides,
+});
+
+test('event-history checkpoint evidence has an exact bounded Factory source scope', () => {
+  assert.deepEqual(EVENT_HISTORY_CHECKPOINT_IMPLEMENTATION_PATHS, EXPECTED_EVENT_HISTORY_CHECKPOINT_PATHS);
+  assert.equal(
+    eventHistoryCheckpointImplementationScopeDigest(),
+    'sha256:a0edf0a8cb3f6fbb3805aac5b98083603d56b63a838eda88424181a3e60783a4',
+  );
+  for (const prohibited of [
+    'src/usf_factory/activation.py',
+    'src/usf_factory/checkpoint_replay.py',
+    'src/usf_factory/pruning_policy.py',
+    'processes/semantic-assurance/semantic-proof-v2.mjs',
+  ]) {
+    assert.equal(EVENT_HISTORY_CHECKPOINT_IMPLEMENTATION_PATHS.includes(prohibited), false, prohibited);
+    assert.equal(EVENT_HISTORY_CHECKPOINT_DEPENDENCY_PATHS.includes(prohibited), false, prohibited);
+  }
+  assert.equal(
+    EVENT_HISTORY_CHECKPOINT_IMPLEMENTATION_PATHS.some(
+      (path) => EVENT_HISTORY_CHECKPOINT_DEPENDENCY_PATHS.includes(path),
+    ),
+    false,
+  );
+  const collectorSource = readFileSync(new URL('./aggregate-compiler-proof-command.mjs', import.meta.url), 'utf8');
+  assert.match(collectorSource, /createCasEvidenceStore\(casRoot\)/u);
+});
+
+test('event-history checkpoint evidence is deterministic, closed and never vacuously eligible', () => {
+  const input = checkpointEvidenceInput();
+  const first = eventHistoryCheckpointEvidenceCore(input);
+  const second = eventHistoryCheckpointEvidenceCore(structuredClone(input));
+  assert.deepEqual(second, first);
+  assert.equal(first.passed, true);
+  assert.equal(first.eligibleForAdmission, true);
+  assert.equal(first.productionWrites, 0);
+  assert.equal(first.providerContacts, 0);
+
+  const failed = eventHistoryCheckpointEvidenceCore(checkpointEvidenceInput({
+    commands: [
+      checkpointCommand('focused-checkpoint-pruning'),
+      checkpointCommand('admission-critical', 1),
+      checkpointCommand('complete-owner-service-gate'),
+    ],
+  }));
+  assert.equal(failed.passed, false);
+  assert.equal(failed.eligibleForAdmission, false);
+  assert.throws(
+    () => eventHistoryCheckpointEvidenceCore({ ...checkpointEvidenceInput(), undeclared: true }),
+    { code: 'EVENT_HISTORY_CHECKPOINT_EVIDENCE_INPUT_NOT_CLOSED' },
+  );
+  assert.throws(
+    () => eventHistoryCheckpointEvidenceCore(checkpointEvidenceInput({ commands: [] })),
+    { code: 'EVENT_HISTORY_CHECKPOINT_EVIDENCE_COMMAND_SET_INVALID' },
+  );
+  assert.throws(
+    () => eventHistoryCheckpointImplementationScopeDigest(
+      EVENT_HISTORY_CHECKPOINT_IMPLEMENTATION_PATHS.slice(1),
+    ),
+    { code: 'EVENT_HISTORY_CHECKPOINT_SOURCE_SCOPE_NOT_EXACT' },
+  );
+});
+
+test('event-history checkpoint evidence rejects a clean runtime sourced from another checkout', () => {
+  const candidateCommit = 'a'.repeat(40);
+  const protectedCommit = 'b'.repeat(40);
+  const expectedTree = 'c'.repeat(40);
+  const exact = {
+    candidateCommit,
+    candidateTree: expectedTree,
+    expectedTree,
+    protectedCommit,
+    protectedTree: expectedTree,
+    status: '',
+    worktreeHead: protectedCommit,
+  };
+  assert.equal(assertEventHistoryCheckpointWorktreeBinding(exact), true);
+  assert.throws(
+    () => assertEventHistoryCheckpointWorktreeBinding({
+      ...exact,
+      worktreeHead: 'd'.repeat(40),
+    }),
+    { code: 'EVENT_HISTORY_CHECKPOINT_FACTORY_WORKTREE_HEAD_MISMATCH' },
+  );
+  assert.throws(
+    () => assertEventHistoryCheckpointWorktreeBinding({
+      ...exact,
+      protectedTree: 'e'.repeat(40),
+    }),
+    { code: 'EVENT_HISTORY_CHECKPOINT_FACTORY_TREE_IDENTITY_MISMATCH' },
+  );
+  assert.equal(
+    eventHistoryCheckpointPythonPath('/factory-reviewed', '/factory-reviewed/.venv/bin/python'),
+    '/factory-reviewed/.venv/bin/python',
+  );
+  assert.throws(
+    () => eventHistoryCheckpointPythonPath('/factory-reviewed', '/factory-deployed/.venv/bin/python'),
+    { code: 'EVENT_HISTORY_CHECKPOINT_PYTHON_SOURCE_MISMATCH' },
+  );
+});
 
 test.after(() => roots.forEach((root) => rmSync(root, { recursive: true, force: true })));
 

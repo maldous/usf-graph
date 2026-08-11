@@ -1,5 +1,7 @@
 import { spawnSync } from 'node:child_process';
-import { createHash, randomUUID } from 'node:crypto';
+import {
+  createHash, createPrivateKey, createPublicKey, randomUUID, sign, verify,
+} from 'node:crypto';
 import {
   chmodSync,
   closeSync,
@@ -11,6 +13,7 @@ import {
   readFileSync,
   realpathSync,
   renameSync,
+  rmSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -21,6 +24,7 @@ import { loadConfig } from '../../configuration/semantic-assurance/stardog-conne
 import { createClient } from '../../provider-bindings/stardog/stardog-read-gateway.mjs';
 import { authorityWitness } from '../../processes/semantic-assurance/semantic-bootstrap-packet.mjs';
 import { projectContract } from '../../processes/semantic-assurance/repository-materialisation-gateway.mjs';
+import { createCasEvidenceStore } from '../../processes/semantic-assurance/semantic-authority-publication.mjs';
 import {
   assertInitialProjectionObservation,
   assertInitialReevaluationPreparation,
@@ -95,6 +99,31 @@ export const AGGREGATE_REVIEWED_SOURCE_PATHS = Object.freeze([
   'semantic-model/rules/evidence.rq',
   'semantic-model/shapes/assurance.ttl',
   'semantic-model/vocabulary.ttl',
+]);
+
+// A separate Factory subject from the Release/Signing V2 integration scope.
+// This admits checkpoint/archive/hot-store machinery only and never authorizes
+// a production pruning transaction.
+export const EVENT_HISTORY_CHECKPOINT_IMPLEMENTATION_PATHS = Object.freeze([
+  'src/usf_factory/cli.py',
+  'src/usf_factory/event_store.py',
+  'src/usf_factory/maintenance.py',
+  'src/usf_factory/v3_events.py',
+  'tests/test_v3_event_store.py',
+  'tests/test_v3_maintenance.py',
+]);
+export const EVENT_HISTORY_CHECKPOINT_DEPENDENCY_PATHS = Object.freeze([
+  'pyproject.toml',
+  'requirements.lock',
+  'scripts/admission-critical.sh',
+  'scripts/verify-ci.sh',
+  'scripts/verify.sh',
+  'src/usf_factory/migrations.py',
+  'src/usf_factory/sql_migrations/0001_event_authority_and_projections.sql',
+  'src/usf_factory/sql_migrations/0002_provider_programme_and_execution.sql',
+  'src/usf_factory/sql_migrations/0003_cas_retention_and_backups.sql',
+  'src/usf_factory/sql_migrations/0004_provider_refresh_epochs.sql',
+  'src/usf_factory/sql_migrations/0005_execution_routing_claim_identity.sql',
 ]);
 
 const AUTHORITY_SOURCE_PATH = 'semantic-model/authority.ttl';
@@ -404,6 +433,319 @@ function writeCasBytes(casRoot, bytes, syncDescriptor = fsyncSync) {
 
 function writeCanonicalRecord(casRoot, value, syncDescriptor) {
   return writeCasBytes(casRoot, Buffer.from(canonicalJson(value), 'utf8'), syncDescriptor);
+}
+
+export function eventHistoryCheckpointImplementationScopeDigest(
+  paths = EVENT_HISTORY_CHECKPOINT_IMPLEMENTATION_PATHS,
+) {
+  const actual = [...paths].sort();
+  if (new Set(actual).size !== EVENT_HISTORY_CHECKPOINT_IMPLEMENTATION_PATHS.length
+      || canonicalJson(actual) !== canonicalJson(EVENT_HISTORY_CHECKPOINT_IMPLEMENTATION_PATHS)) {
+    fail('EVENT_HISTORY_CHECKPOINT_SOURCE_SCOPE_NOT_EXACT', actual.join(','));
+  }
+  return aggregateCompilerProofInternals.sourceScopeDigest(actual);
+}
+
+export function assertEventHistoryCheckpointWorktreeBinding(input) {
+  const expectedKeys = [
+    'candidateCommit', 'candidateTree', 'expectedTree', 'protectedCommit', 'protectedTree',
+    'status', 'worktreeHead',
+  ];
+  if (canonicalJson(Object.keys(input || {}).sort()) !== canonicalJson(expectedKeys)) {
+    fail('EVENT_HISTORY_CHECKPOINT_SOURCE_BINDING_NOT_CLOSED', Object.keys(input || {}).sort().join(','));
+  }
+  for (const [name, value] of Object.entries(input).filter(([name]) => name !== 'status')) {
+    if (!GIT_OBJECT.test(value || '')) {
+      fail('EVENT_HISTORY_CHECKPOINT_SOURCE_IDENTITY_INVALID', name);
+    }
+  }
+  if (input.worktreeHead !== input.protectedCommit) {
+    fail('EVENT_HISTORY_CHECKPOINT_FACTORY_WORKTREE_HEAD_MISMATCH', input.worktreeHead);
+  }
+  if (input.candidateTree !== input.expectedTree || input.protectedTree !== input.expectedTree) {
+    fail(
+      'EVENT_HISTORY_CHECKPOINT_FACTORY_TREE_IDENTITY_MISMATCH',
+      `${input.candidateTree}/${input.protectedTree}`,
+    );
+  }
+  if (input.status !== '') fail('EVENT_HISTORY_CHECKPOINT_FACTORY_WORKTREE_NOT_CLEAN', input.status);
+  return true;
+}
+
+export function eventHistoryCheckpointPythonPath(factoryRepository, value) {
+  const expected = join(factoryRepository, '.venv', 'bin', 'python');
+  if (!isAbsolute(value || '') || resolve(value) !== expected) {
+    fail('EVENT_HISTORY_CHECKPOINT_PYTHON_SOURCE_MISMATCH', value || 'absent');
+  }
+  return expected;
+}
+
+export function eventHistoryCheckpointEvidenceCore(input) {
+  const expectedKeys = [
+    'authorityDigest', 'candidateCommit', 'commands', 'dependencyRecords', 'evaluatedAt',
+    'factoryTree', 'implementationRecords', 'proofAlgorithmSourceDigest', 'protectedCommit',
+    'validUntil',
+  ];
+  const actualKeys = Object.keys(input || {}).sort();
+  if (canonicalJson(actualKeys) !== canonicalJson(expectedKeys)) {
+    fail('EVENT_HISTORY_CHECKPOINT_EVIDENCE_INPUT_NOT_CLOSED', actualKeys.join(','));
+  }
+  if (!SHA256.test(input.authorityDigest || '')
+      || !SHA256.test(input.proofAlgorithmSourceDigest || '')
+      || !GIT_OBJECT.test(input.candidateCommit || '')
+      || !GIT_OBJECT.test(input.protectedCommit || '')
+      || !GIT_OBJECT.test(input.factoryTree || '')
+      || !RFC3339_SECOND.test(input.evaluatedAt || '')
+      || !RFC3339_SECOND.test(input.validUntil || '')
+      || Date.parse(input.validUntil) <= Date.parse(input.evaluatedAt)) {
+    fail('EVENT_HISTORY_CHECKPOINT_EVIDENCE_IDENTITY_INVALID', 'digest, source or time');
+  }
+  const validateRecords = (records, paths, label) => {
+    if (!Array.isArray(records)
+        || canonicalJson(records.map(({ path }) => path)) !== canonicalJson(paths)) {
+      fail('EVENT_HISTORY_CHECKPOINT_EVIDENCE_SOURCE_SET_INVALID', label);
+    }
+    for (const record of records) {
+      if (canonicalJson(Object.keys(record).sort()) !== canonicalJson(['byteSize', 'digest', 'path'])
+          || !paths.includes(record.path) || !SHA256.test(record.digest || '')
+          || !Number.isSafeInteger(record.byteSize) || record.byteSize < 1) {
+        fail('EVENT_HISTORY_CHECKPOINT_EVIDENCE_SOURCE_SET_INVALID', `${label}:${record.path || ''}`);
+      }
+    }
+  };
+  validateRecords(input.implementationRecords, EVENT_HISTORY_CHECKPOINT_IMPLEMENTATION_PATHS, 'implementation');
+  validateRecords(input.dependencyRecords, EVENT_HISTORY_CHECKPOINT_DEPENDENCY_PATHS, 'dependency');
+  const requiredValidationCommands = new Set([
+    'focused-checkpoint-pruning', 'admission-critical', 'complete-owner-service-gate',
+  ]);
+  if (!Array.isArray(input.commands) || input.commands.length === 0) {
+    fail('EVENT_HISTORY_CHECKPOINT_EVIDENCE_COMMAND_SET_INVALID', 'absent');
+  }
+  const commandIds = new Set();
+  for (const command of input.commands) {
+    if (canonicalJson(Object.keys(command || {}).sort())
+          !== canonicalJson(['arguments', 'executable', 'exitStatus', 'id', 'signal', 'stderrDigest', 'stdoutDigest'])
+        || typeof command.id !== 'string' || !/^[a-z0-9-]+$/u.test(command.id)
+        || commandIds.has(command.id) || !isAbsolute(command.executable || '')
+        || !Array.isArray(command.arguments) || command.arguments.some((value) => typeof value !== 'string')
+        || !(command.exitStatus === null || Number.isSafeInteger(command.exitStatus))
+        || !(command.signal === null || typeof command.signal === 'string')
+        || !SHA256.test(command.stdoutDigest || '') || !SHA256.test(command.stderrDigest || '')) {
+      fail('EVENT_HISTORY_CHECKPOINT_EVIDENCE_COMMAND_SET_INVALID', command?.id || 'record');
+    }
+    commandIds.add(command.id);
+  }
+  if ([...requiredValidationCommands].some((id) => !commandIds.has(id))) {
+    fail('EVENT_HISTORY_CHECKPOINT_EVIDENCE_COMMAND_SET_INVALID', 'required validation command');
+  }
+  const passed = input.commands.every(({ exitStatus }) => exitStatus === 0);
+  return Object.freeze({
+    schemaVersion: 1,
+    recordKind: 'USF_FACTORY_EVENT_HISTORY_CHECKPOINT_PRUNING_EVIDENCE_CANDIDATE',
+    passed,
+    eligibleForAdmission: passed,
+    evaluatedAt: input.evaluatedAt,
+    validUntil: input.validUntil,
+    evaluatedAuthorityDigest: input.authorityDigest,
+    factoryCandidateCommit: input.candidateCommit,
+    factoryProtectedCommit: input.protectedCommit,
+    factoryTree: input.factoryTree,
+    sourceScopeDigest: eventHistoryCheckpointImplementationScopeDigest(),
+    implementationSourceSetDigest: sha256Bytes(Buffer.from(canonicalJson(input.implementationRecords))),
+    implementationSources: input.implementationRecords,
+    dependencySetDigest: sha256Bytes(Buffer.from(canonicalJson(input.dependencyRecords))),
+    dependencies: input.dependencyRecords,
+    proofAlgorithmSourceDigest: input.proofAlgorithmSourceDigest,
+    environmentClass: 'urn:usf:environmentclass:hermetic',
+    providerMode: 'urn:usf:providermode:deterministictestsubstitute',
+    commands: input.commands,
+    authorityClaims: [
+      'event verification is ordered and bounded-memory',
+      'authority bindings are resolved from one immutable timeline',
+      'stream heads are resolved by one bounded scan',
+      'signed cold archives preserve exact canonical event bytes and order',
+      'authenticated checkpoints bind frontier history, projections, CAS, schema, migrations, and sources',
+      'checkpoint plus verified tail projection replay equals the current authenticated state',
+      'archive plus tail restore preserves full genesis verification',
+      'hot-store installation is journaled, fork-rejecting, and same-device preflighted before mutation',
+      'tail-event and post-checkpoint projection corruption fail closed',
+    ],
+    nonclaims: [
+      'This evidence admits machinery only and does not authorize production pruning.',
+      'No live Factory database, Graph authority, CAS object, checkpoint, archive, or projection was mutated by this proof.',
+      'No provider was contacted and no provider output or usage evidence was created.',
+      'V2 remains inactive and no V2 grant or publication is issued by this proof.',
+      'BAU, P2, live checkpoint equivalence, live backup, and live restore remain separate operational obligations.',
+    ],
+    productionWrites: 0,
+    providerContacts: 0,
+  });
+}
+
+function eventHistoryCheckpointCommand(commandLog, outputRoot, id, executable, args, options = {}) {
+  const result = spawnSync(executable, args, {
+    cwd: options.cwd,
+    env: options.env ?? process.env,
+    encoding: null,
+    maxBuffer: 64 * 1024 * 1024,
+    timeout: options.timeout ?? 900_000,
+  });
+  const stdout = Buffer.isBuffer(result.stdout) ? result.stdout : Buffer.from(result.stdout || '');
+  const stderr = Buffer.isBuffer(result.stderr) ? result.stderr : Buffer.from(result.stderr || '');
+  commandLog.push(Object.freeze({
+    id, executable, arguments: [...args],
+    exitStatus: Number.isInteger(result.status) ? result.status : null,
+    signal: result.signal || null,
+    stdoutDigest: sha256Bytes(stdout), stderrDigest: sha256Bytes(stderr),
+  }));
+  const directory = join(outputRoot, 'commands');
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  writeFileSync(join(directory, `${id}.stdout`), stdout, { mode: 0o600 });
+  writeFileSync(join(directory, `${id}.stderr`), stderr, { mode: 0o600 });
+  if (result.error || result.signal || result.status !== 0) {
+    fail('EVENT_HISTORY_CHECKPOINT_COMMAND_FAILED', id);
+  }
+  return stdout;
+}
+
+function eventHistoryCheckpointSigningKey(path) {
+  if (!isAbsolute(path)) fail('EVENT_HISTORY_CHECKPOINT_SIGNING_KEY_INVALID', 'path');
+  const info = lstatSync(path);
+  if (info.isSymbolicLink() || !info.isFile() || (info.mode & 0o777) !== 0o600) {
+    fail('EVENT_HISTORY_CHECKPOINT_SIGNING_KEY_INVALID', 'type or mode');
+  }
+  const key = createPrivateKey({ key: readFileSync(path), format: 'der', type: 'pkcs8' });
+  if (key.asymmetricKeyType !== 'ed25519') {
+    fail('EVENT_HISTORY_CHECKPOINT_SIGNING_KEY_INVALID', 'algorithm');
+  }
+  return key;
+}
+
+export function runEventHistoryCheckpointEvidence(args, env = process.env) {
+  const required = [
+    'authority-digest', 'candidate-commit', 'cas-root', 'evaluated-at', 'factory-repository',
+    'factory-tree', 'output-root', 'protected-commit', 'python', 'signing-key', 'valid-until',
+  ];
+  if (canonicalJson(Object.keys(args).sort()) !== canonicalJson(required)) {
+    fail('EVENT_HISTORY_CHECKPOINT_ARGUMENTS_INVALID', Object.keys(args).sort().join(','));
+  }
+  const root = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '../..'));
+  const factoryRepository = realpathSync(args['factory-repository']);
+  if (lstatSync(args['factory-repository']).isSymbolicLink()
+      || !lstatSync(factoryRepository).isDirectory()) {
+    fail('EVENT_HISTORY_CHECKPOINT_FACTORY_REPOSITORY_INVALID', args['factory-repository']);
+  }
+  const python = eventHistoryCheckpointPythonPath(factoryRepository, args.python);
+  if (!existsSync(python)) fail('EVENT_HISTORY_CHECKPOINT_PYTHON_SOURCE_MISMATCH', 'missing');
+  const casRoot = canonicalCasRoot(args['cas-root']);
+  const outputRoot = resolve(args['output-root']);
+  const sessionRoot = resolve(root, '.work');
+  if (!outputRoot.startsWith(`${sessionRoot}${sep}`) || outputRoot === sessionRoot) {
+    fail('EVENT_HISTORY_CHECKPOINT_OUTPUT_ROOT_INVALID', outputRoot);
+  }
+  rmSync(outputRoot, { recursive: true, force: true });
+  mkdirSync(outputRoot, { recursive: true, mode: 0o700 });
+  const authorityDigest = digest(args['authority-digest'], 'event-history authority');
+  const privateKey = eventHistoryCheckpointSigningKey(args['signing-key']);
+  const publicKey = createPublicKey(privateKey);
+  const evidenceStore = createCasEvidenceStore(casRoot);
+  const candidateCommit = args['candidate-commit'];
+  const protectedCommit = args['protected-commit'];
+  const expectedTree = args['factory-tree'];
+  if (!GIT_OBJECT.test(candidateCommit) || !GIT_OBJECT.test(protectedCommit)
+      || !GIT_OBJECT.test(expectedTree)) {
+    fail('EVENT_HISTORY_CHECKPOINT_SOURCE_IDENTITY_INVALID', 'commit or tree');
+  }
+  const evaluatedAt = timestamp(args['evaluated-at'], 'event-history evaluated-at');
+  const validUntil = timestamp(args['valid-until'], 'event-history valid-until');
+  if (Date.parse(validUntil) <= Date.parse(evaluatedAt)) {
+    fail('EVENT_HISTORY_CHECKPOINT_TIME_INVALID', 'valid-until');
+  }
+  const commands = [];
+  const runGit = (id, gitArgs) => eventHistoryCheckpointCommand(
+    commands, outputRoot, id, '/usr/bin/git', gitArgs, { cwd: factoryRepository },
+  );
+  runGit('candidate-signature', ['verify-commit', candidateCommit]);
+  runGit('protected-signature', ['verify-commit', protectedCommit]);
+  runGit('candidate-ancestry', ['merge-base', '--is-ancestor', candidateCommit, protectedCommit]);
+  const worktreeHead = runGit('factory-worktree-head', ['rev-parse', 'HEAD']).toString().trim();
+  const candidateTree = runGit('candidate-tree', ['rev-parse', `${candidateCommit}^{tree}`]).toString().trim();
+  const protectedTree = runGit('protected-tree', ['rev-parse', `${protectedCommit}^{tree}`]).toString().trim();
+  runGit('reviewed-tree-preserved', ['diff', '--exit-code', `${candidateCommit}^{tree}`, `${protectedCommit}^{tree}`]);
+  const status = runGit('factory-worktree-status', ['status', '--porcelain=v1', '--untracked-files=all']).toString();
+  assertEventHistoryCheckpointWorktreeBinding({
+    candidateCommit, candidateTree, expectedTree, protectedCommit, protectedTree, status, worktreeHead,
+  });
+  const records = (paths) => paths.map((path) => {
+    const bytes = runGit(`source-${sha256Bytes(Buffer.from(path)).slice(7, 19)}`, ['show', `${protectedCommit}:${path}`]);
+    return Object.freeze({ path, digest: sha256Bytes(bytes), byteSize: bytes.length });
+  });
+  const implementationRecords = records(EVENT_HISTORY_CHECKPOINT_IMPLEMENTATION_PATHS);
+  const dependencyRecords = records(EVENT_HISTORY_CHECKPOINT_DEPENDENCY_PATHS);
+  const hermeticEnvironment = Object.freeze({
+    HOME: '/nonexistent', LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', PATH: '/usr/bin:/bin',
+    PYTHONPATH: join(factoryRepository, 'src'), TZ: 'UTC',
+  });
+  eventHistoryCheckpointCommand(commands, outputRoot, 'focused-checkpoint-pruning', python,
+    ['-m', 'pytest', '-q', 'tests/test_v3_event_store.py', 'tests/test_v3_maintenance.py'],
+    { cwd: factoryRepository, env: hermeticEnvironment, timeout: 900_000 });
+  eventHistoryCheckpointCommand(commands, outputRoot, 'admission-critical', '/usr/bin/bash',
+    ['scripts/admission-critical.sh'], { cwd: factoryRepository, env: { ...env, TZ: 'UTC' }, timeout: 900_000 });
+  eventHistoryCheckpointCommand(commands, outputRoot, 'complete-owner-service-gate', '/usr/bin/bash',
+    ['scripts/verify.sh', '--fresh', '--attest'],
+    { cwd: factoryRepository, env: { ...env, TZ: 'UTC' }, timeout: 1_800_000 });
+  const proofAlgorithmSourceDigest = sha256Bytes(readFileSync(fileURLToPath(import.meta.url)));
+  const core = eventHistoryCheckpointEvidenceCore({
+    authorityDigest, candidateCommit, commands, dependencyRecords, evaluatedAt, factoryTree: expectedTree,
+    implementationRecords, proofAlgorithmSourceDigest, protectedCommit, validUntil,
+  });
+  const exactEvidenceSetDigest = sha256Bytes(Buffer.from(canonicalJson(core)));
+  const evidence = Object.freeze({ ...core, exactEvidenceSetDigest });
+  const evidenceRecord = evidenceStore.persist(Buffer.from(canonicalJson(evidence)));
+  const statement = Object.freeze({
+    _type: 'https://in-toto.io/Statement/v1',
+    subject: [{ name: 'factory-event-history-checkpoint-pruning-evidence', digest: { sha256: evidenceRecord.digest.slice(7) } }],
+    predicateType: 'https://in-toto.io/attestation/test-result/v0.1',
+    predicate: {
+      evaluatedAuthorityDigest: authorityDigest, exactEvidenceSetDigest,
+      implementationSourceSetDigest: core.implementationSourceSetDigest,
+      dependencySetDigest: core.dependencySetDigest, proofAlgorithmSourceDigest, result: 'passed',
+    },
+  });
+  const payloadType = 'application/vnd.in-toto+json';
+  const statementBytes = Buffer.from(canonicalJson(statement));
+  const pae = Buffer.concat([
+    Buffer.from(`DSSEv1 ${Buffer.byteLength(payloadType)} ${payloadType} ${statementBytes.length} `), statementBytes,
+  ]);
+  const signature = sign(null, pae, privateKey);
+  if (!verify(null, pae, publicKey, signature)) {
+    fail('EVENT_HISTORY_CHECKPOINT_ATTESTATION_SIGNATURE_FAILED', 'self-verification');
+  }
+  const signingKeyFingerprint = sha256Bytes(publicKey.export({ type: 'spki', format: 'der' }));
+  const envelope = Object.freeze({
+    payloadType, payload: statementBytes.toString('base64'),
+    signatures: [{ keyid: signingKeyFingerprint.slice(7), sig: signature.toString('base64') }],
+  });
+  const attestationRecord = evidenceStore.persist(Buffer.from(canonicalJson(envelope)));
+  writeFileSync(join(outputRoot, 'evidence-manifest.json'), Buffer.from(canonicalJson(evidence)), { mode: 0o600 });
+  writeFileSync(join(outputRoot, 'proof-attestation.dsse.json'), Buffer.from(canonicalJson(envelope)), { mode: 0o600 });
+  return Object.freeze({
+    schemaVersion: 1, recordKind: 'USF_FACTORY_EVENT_HISTORY_CHECKPOINT_PRUNING_EVIDENCE_RECEIPT',
+    ok: true, eligibleForAdmission: true, evaluatedAuthorityDigest: authorityDigest,
+    evaluatedAt, validUntil, factoryCandidateCommit: candidateCommit, factoryProtectedCommit: protectedCommit,
+    factoryTree: expectedTree, sourceScopeDigest: core.sourceScopeDigest,
+    implementationSourceSetDigest: core.implementationSourceSetDigest,
+    dependencySetDigest: core.dependencySetDigest, proofAlgorithmSourceDigest, exactEvidenceSetDigest,
+    evidenceManifest: {
+      digest: evidenceRecord.digest, byteSize: evidenceRecord.size,
+      mediaType: 'application/json', locator: `cas://sha256/${evidenceRecord.digest.slice(7)}`,
+    },
+    proofAttestation: {
+      digest: attestationRecord.digest, byteSize: attestationRecord.size,
+      mediaType: payloadType, locator: `cas://sha256/${attestationRecord.digest.slice(7)}`,
+    },
+    signingKeyFingerprint, productionWrites: 0, providerContacts: 0, outputRoot,
+  });
 }
 
 function git(repositoryPath, args) {
@@ -1363,6 +1705,12 @@ function argumentsFrom(argv) {
 
 export async function runAggregateCompilerProofCommand(argv = process.argv.slice(2), env = process.env) {
   const args = argumentsFrom(argv);
+  if (args.phase === 'event-history-checkpoint-pruning') {
+    return runEventHistoryCheckpointEvidence(
+      Object.fromEntries(Object.entries(args).filter(([key]) => key !== 'phase')),
+      env,
+    );
+  }
   const dependencies = createLiveAggregateCompilerProofDependencies({
     casRoot: args['cas-root'], env, reachableFrom: args['reachable-ref'], repositoryPath: args['repository-root'],
   });
@@ -1384,7 +1732,10 @@ export async function runAggregateCompilerProofCommand(argv = process.argv.slice
       requestedAuthorityDigest: args['authority-digest'], stage1Preparation,
     });
   }
-  fail('AGGREGATE_PRODUCER_ARGUMENT_INVALID', 'phase must be pending, initial or terminal');
+  fail(
+    'AGGREGATE_PRODUCER_ARGUMENT_INVALID',
+    'phase must be event-history-checkpoint-pruning, pending, initial or terminal',
+  );
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
