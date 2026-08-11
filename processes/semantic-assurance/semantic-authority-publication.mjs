@@ -1037,7 +1037,14 @@ function canonicalAuthorityInventory(witness) {
   return Object.freeze(records);
 }
 
-async function stabilizedCandidate({ stage, input, command, expectedAuthorityDigest, initialInventory }) {
+async function stabilizedCandidate({
+  stage,
+  input,
+  command,
+  expectedAuthorityDigest,
+  initialInventory,
+  preservedAuthorityDelta = null,
+}) {
   const materialize = (inventory) => materializeAggregateCompilerAuthorityCandidate({
     ...input,
     currentnessBinding: { prospectiveAuthorityInventory: inventory },
@@ -1048,6 +1055,7 @@ async function stabilizedCandidate({ stage, input, command, expectedAuthorityDig
     const composed = await command.composeCandidate({
       generatedCandidateBytes: generated.bytes,
       expectedAuthorityDigest,
+      preservedAuthorityDelta,
     });
     return Object.freeze({
       ...generated,
@@ -1184,6 +1192,7 @@ export async function runAggregateCompilerProductionLifecycle({
     command,
     expectedAuthorityDigest: d1.digest,
     initialInventory: canonicalAuthorityInventory(d1),
+    preservedAuthorityDelta: base.preservedAuthorityDelta,
   });
   const stage2Claims = await claimProvider(Object.freeze({
     authorityDigest: d1.digest,

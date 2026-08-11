@@ -143,7 +143,8 @@ function assertExternalAuthorityDelta({
   exactObjectKeys(value, [
     'authorityDigest', 'casRootDigests', 'conflictIri', 'correctionCandidateDigest',
     'ownerAssignmentIri', 'patchBytesBase64', 'patchDigest', 'predecessorSourceHead',
-    'predecessorSourceTree', 'proofResultIri', 'repository', 'resolutionIri', 'reviewIri', 'schema',
+    'predecessorSourceTree', 'proofResultIri', 'repository', 'resolutionIri', 'reviewIri',
+    'schema', 'permittedOperations',
   ], 'external authority delta');
   if (value.schema !== EXTERNAL_AUTHORITY_DELTA_SCHEMA || value.authorityDigest !== expectedAuthorityDigest
       || !expectedSource || value.repository !== expectedSource.repository
@@ -183,6 +184,17 @@ function assertExternalAuthorityDelta({
   const patch = parseCanonicalPatch(bytes, value.patchDigest, allowedGraphs, new Set(['base']));
   if (patch.deletions.length !== 0) {
     throw new CompilerError('external authority delta must be additive', { phase: 'candidate:external-authority-delta' });
+  }
+  const permittedOperations = exactSortedUniqueStrings(
+    value.permittedOperations,
+    /^[AD] .+$/,
+    'external authority delta permitted operations',
+  );
+  const observedOperations = patch.operations.map(({ action, line }) => `${action} ${line}`).sort();
+  if (canonicalJson(permittedOperations) !== canonicalJson(observedOperations)) {
+    throw new CompilerError('external authority delta exceeds its exact permitted operation set', {
+      phase: 'candidate:external-authority-delta',
+    });
   }
   const roots = exactSortedUniqueStrings(value.casRootDigests, SHA256, 'external authority delta CAS roots', { minimum: 3 });
   if (!evidenceStore || typeof evidenceStore.verify !== 'function') {
@@ -326,7 +338,15 @@ function canonicalCombinedPatch(stage, before, after) {
   ].join('\n'), 'utf8');
 }
 
-async function composeSourceCandidate({ client, manifest, generatedPatch = null, authorityWitness, compileFunction, stage }) {
+async function composeSourceCandidate({
+  client,
+  manifest,
+  generatedPatch = null,
+  preservedPatch = null,
+  authorityWitness,
+  compileFunction,
+  stage,
+}) {
   const graphs = [...managedGraphs(manifest)].sort();
   let beforeDataset;
   let targetDataset;
@@ -339,6 +359,7 @@ async function composeSourceCandidate({ client, manifest, generatedPatch = null,
     },
     async validateInTransactionWithReceipt(transaction, shapes) {
       if (!generatedApplied) {
+        if (preservedPatch) await applyDesiredPatch(client, transaction, preservedPatch);
         if (generatedPatch) await applyDesiredPatch(client, transaction, generatedPatch);
         generatedApplied = true;
       }
@@ -377,7 +398,7 @@ async function composeSourceCandidate({ client, manifest, generatedPatch = null,
   const combined = candidateStage === 'base'
     ? Object.freeze({ bytes, digest: sha256(bytes) })
     : parseCanonicalPatch(bytes, undefined, new Set(graphs));
-  for (const operation of generatedPatch?.operations || []) {
+  for (const operation of [...(preservedPatch?.operations || []), ...(generatedPatch?.operations || [])]) {
     const targetStore = targetDataset.stores.get(operation.value.graph.value);
     const present = targetStore?.has(
       operation.value.subject, operation.value.predicate, operation.value.object, null,
@@ -649,11 +670,15 @@ export function createSemanticModelCompilationCommand({
           resolutionIri: external.resolutionIri,
           reviewIri: external.reviewIri,
         }),
+        preservedAuthorityDelta: external === null ? null : Object.freeze({
+          bytesBase64: external.patch.bytes.toString('base64'),
+          digest: external.patch.digest,
+        }),
         validationEvidence: validation,
       });
     },
 
-    async composeCandidate({ generatedCandidateBytes, expectedAuthorityDigest }) {
+    async composeCandidate({ generatedCandidateBytes, expectedAuthorityDigest, preservedAuthorityDelta = null }) {
       if (!SHA256.test(expectedAuthorityDigest || '')) throw new CompilerError('expected authority digest is required', { phase: 'authority:configuration' });
       const beforeWitness = await readAuthorityWitness(client);
       const before = digest(beforeWitness);
@@ -664,9 +689,31 @@ export function createSemanticModelCompilationCommand({
       }
       const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
       checkLocalFunction(manifest);
-      const generatedPatch = parseCanonicalPatch(generatedCandidateBytes, undefined, new Set(managedGraphs(manifest)));
+      const allowedGraphs = new Set(managedGraphs(manifest));
+      const generatedPatch = parseCanonicalPatch(generatedCandidateBytes, undefined, allowedGraphs);
+      let preservedPatch = null;
+      if (preservedAuthorityDelta !== null) {
+        exactObjectKeys(preservedAuthorityDelta, ['bytesBase64', 'digest'], 'preserved authority delta');
+        const preservedBytes = Buffer.from(preservedAuthorityDelta.bytesBase64, 'base64');
+        if (preservedBytes.toString('base64') !== preservedAuthorityDelta.bytesBase64) {
+          throw new CompilerError('preserved authority delta bytes are not canonical base64', {
+            phase: 'candidate:external-authority-delta',
+          });
+        }
+        preservedPatch = parseCanonicalPatch(
+          preservedBytes,
+          preservedAuthorityDelta.digest,
+          allowedGraphs,
+          new Set(['base']),
+        );
+        if (preservedPatch.deletions.length !== 0) {
+          throw new CompilerError('preserved authority delta must remain additive', {
+            phase: 'candidate:external-authority-delta',
+          });
+        }
+      }
       const combined = await composeSourceCandidate({
-        client, manifest, generatedPatch, authorityWitness: beforeWitness, compileFunction,
+        client, manifest, generatedPatch, preservedPatch, authorityWitness: beforeWitness, compileFunction,
       });
       const after = digest(await readAuthorityWitness(client));
       if (after !== before) throw new CompilerError('source candidate composition changed semantic authority', { phase: 'authority:validate-drift' });

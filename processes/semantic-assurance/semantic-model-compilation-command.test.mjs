@@ -130,6 +130,7 @@ test('admits only an exact additive authority-bound conflict-resolution delta wi
     ownerAssignmentIri: owner,
     patchBytesBase64: bytes.toString('base64'),
     patchDigest: `sha256:${createHash('sha256').update(bytes).digest('hex')}`,
+    permittedOperations: quads.map((quad) => `A ${quad}`).sort(),
     predecessorSourceHead: source.head,
     predecessorSourceTree: source.tree,
     proofResultIri: proofResult,
@@ -166,8 +167,26 @@ test('admits only an exact additive authority-bound conflict-resolution delta wi
       ...packageValue,
       patchBytesBase64: missingConflictBytes.toString('base64'),
       patchDigest: `sha256:${createHash('sha256').update(missingConflictBytes).digest('hex')}`,
+      permittedOperations: quads
+        .filter((item) => !item.includes('conflictAuthorityDigest'))
+        .map((quad) => `A ${quad}`)
+        .sort(),
     },
   }), /missing exact authority digest/);
+  const unrelatedQuad = `<urn:usf:semanticcontract:compilersemanticenforcement> <http://www.w3.org/2000/01/rdf-schema#comment> "UNRELATED AUTHORITY ADDITION" <${graph}> .`;
+  const unrelatedBytes = Buffer.from([
+    '# semantic-proof-v1 canonical-rdf-patch-v1 base',
+    ...[...quads, unrelatedQuad].sort().map((quad) => `A ${quad}`),
+    '',
+  ].join('\n'));
+  assert.throws(() => semanticModelCompilationCommandInternals.assertExternalAuthorityDelta({
+    ...options,
+    value: {
+      ...packageValue,
+      patchBytesBase64: unrelatedBytes.toString('base64'),
+      patchDigest: `sha256:${createHash('sha256').update(unrelatedBytes).digest('hex')}`,
+    },
+  }), /exceeds its exact permitted operation set/);
 });
 
 test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated deltas', async () => {
