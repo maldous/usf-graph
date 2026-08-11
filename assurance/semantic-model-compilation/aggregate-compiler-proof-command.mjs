@@ -459,7 +459,11 @@ export function assertEventHistoryCheckpointWorktreeBinding(input) {
       fail('EVENT_HISTORY_CHECKPOINT_SOURCE_IDENTITY_INVALID', name);
     }
   }
-  if (input.worktreeHead !== input.protectedCommit) {
+  // Execute the owner/service gate from the exact owner-signed candidate.  A
+  // protected merge commit may lawfully preserve the reviewed tree while
+  // carrying only GitHub provenance; binding the runtime to that commit would
+  // make Factory's owner-signature checks attest the wrong source identity.
+  if (input.worktreeHead !== input.candidateCommit) {
     fail('EVENT_HISTORY_CHECKPOINT_FACTORY_WORKTREE_HEAD_MISMATCH', input.worktreeHead);
   }
   if (input.candidateTree !== input.expectedTree || input.protectedTree !== input.expectedTree) {
@@ -478,6 +482,23 @@ export function eventHistoryCheckpointPythonPath(factoryRepository, value) {
     fail('EVENT_HISTORY_CHECKPOINT_PYTHON_SOURCE_MISMATCH', value || 'absent');
   }
   return expected;
+}
+
+export function eventHistoryCheckpointGpgHome(env = process.env) {
+  const value = env.GNUPGHOME || (env.HOME ? join(env.HOME, '.gnupg') : '');
+  if (!isAbsolute(value)) {
+    fail('EVENT_HISTORY_CHECKPOINT_GPG_HOME_INVALID', value || 'absent');
+  }
+  let info;
+  try {
+    info = lstatSync(value);
+  } catch {
+    fail('EVENT_HISTORY_CHECKPOINT_GPG_HOME_INVALID', 'missing');
+  }
+  if (info.isSymbolicLink() || !info.isDirectory()) {
+    fail('EVENT_HISTORY_CHECKPOINT_GPG_HOME_INVALID', 'type');
+  }
+  return realpathSync(value);
 }
 
 export function eventHistoryCheckpointEvidenceCore(input) {
@@ -683,7 +704,8 @@ export function runEventHistoryCheckpointEvidence(args, env = process.env) {
   const implementationRecords = records(EVENT_HISTORY_CHECKPOINT_IMPLEMENTATION_PATHS);
   const dependencyRecords = records(EVENT_HISTORY_CHECKPOINT_DEPENDENCY_PATHS);
   const hermeticEnvironment = Object.freeze({
-    HOME: '/nonexistent', LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', PATH: '/usr/bin:/bin',
+    GNUPGHOME: eventHistoryCheckpointGpgHome(env), HOME: '/nonexistent',
+    LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', PATH: '/usr/bin:/bin',
     PYTHONPATH: join(factoryRepository, 'src'), TZ: 'UTC',
   });
   eventHistoryCheckpointCommand(commands, outputRoot, 'focused-checkpoint-pruning', python,
