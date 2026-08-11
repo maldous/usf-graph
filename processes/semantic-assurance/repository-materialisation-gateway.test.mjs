@@ -2378,7 +2378,10 @@ test('direct lifecycle mutation is always refused at the agent MCP boundary', ()
   assert.throws(() => refuseLifecycleMutation('usf.evidence.admit'), /compiler.*single transaction/);
 });
 
-function exactAuthorityConflictFixture() {
+function exactAuthorityConflictFixture({
+  conflictAuthorityDigest = witnessDigest,
+  consumptionAuthorityDigest = witnessDigest,
+} = {}) {
   const candidateDigest = `sha256:${'a1'.repeat(32)}`;
   const sourcePaths = Object.freeze([
     'semantic-model/assurance/evidence.trig',
@@ -2399,8 +2402,10 @@ function exactAuthorityConflictFixture() {
     sourceDigest: `sha256:${'b2'.repeat(32)}`,
   });
   const bindingValue = materialisationInternals.normaliseAuthorityConflictBinding({
-    schemaVersion: 1,
+    schemaVersion: 2,
     candidateDigest,
+    conflictAuthorityDigest,
+    consumptionAuthorityDigest,
     ownerAuthorityDomain: 'urn:usf:capabilityowner:semanticmodelcompilation',
     predecessorSourceHead: 'c'.repeat(40),
     predecessorSourceTree: 'd'.repeat(40),
@@ -2421,7 +2426,7 @@ function exactAuthorityConflictFixture() {
     resolutionState: 'urn:usf:semanticcorrectiondecisionstate:accepted',
     decisionState: 'urn:usf:semanticcorrectiondecisionstate:accepted',
     reviewState: 'urn:usf:semanticadequacyreviewstate:accepted',
-    reviewAuthorityDigest: witnessDigest,
+    reviewAuthorityDigest: conflictAuthorityDigest,
     reviewInventoryDigest: candidateDigest,
     proofState: 'urn:usf:proofresultstate:successful',
     proofSubject: conflict,
@@ -2430,7 +2435,7 @@ function exactAuthorityConflictFixture() {
     ownerRepository: bindingValue.repository,
     ownerEnvelopeState: 'urn:usf:resultstate:passed',
     ownerSourcePaths: sourcePaths,
-    authorityDigest: witnessDigest,
+    authorityDigest: conflictAuthorityDigest,
     repository: bindingValue.repository,
     operationDigest: bindingValue.operationDigest,
     candidateDigest,
@@ -2447,7 +2452,7 @@ function exactAuthorityConflictFixture() {
     validationObligations: obligations,
   });
   return {
-    authorityDigest: witnessDigest,
+    authorityDigest: consumptionAuthorityDigest,
     targetContract: contract,
     baseActionState: ACTION_STATES.block,
     baseActionStateReasons: obligations.map(() => 'missing-current-passing-validation'),
@@ -2515,11 +2520,18 @@ test('authority-conflict resolution is exact, fail-closed and non-replayable', (
     candidate.resolutions = [{ ...candidate.resolutions[0], ...changes }];
     return candidate;
   };
+  const mutateBinding = (changes) => {
+    const candidate = exactAuthorityConflictFixture();
+    candidate.binding = { ...candidate.binding, ...changes };
+    return candidate;
+  };
   const adversaries = [
     mutateResolution({ contracts: [contract] }),
     mutateResolution({ contracts: [compilerContract, contract, 'urn:usf:semanticcontract:unrelated'].sort() }),
     mutateResolution({ authorityDigest: `sha256:${'01'.repeat(32)}` }),
     mutateResolution({ reviewAuthorityDigest: `sha256:${'02'.repeat(32)}` }),
+    mutateBinding({ conflictAuthorityDigest: `sha256:${'06'.repeat(32)}` }),
+    mutateBinding({ consumptionAuthorityDigest: `sha256:${'07'.repeat(32)}` }),
     mutateResolution({ candidateDigest: `sha256:${'03'.repeat(32)}` }),
     mutateResolution({ successorSourceTree: '1'.repeat(40) }),
     mutateResolution({ sourceScopeDigest: `sha256:${'04'.repeat(32)}` }),
@@ -2543,8 +2555,10 @@ test('authority-conflict resolution is exact, fail-closed and non-replayable', (
 
   const replayOperation = structuredClone(control.binding);
   assert.throws(() => materialisationInternals.normaliseAuthorityConflictBinding({
-    schemaVersion: 1,
+    schemaVersion: 2,
     candidateDigest: replayOperation.candidateDigest,
+    conflictAuthorityDigest: replayOperation.conflictAuthorityDigest,
+    consumptionAuthorityDigest: replayOperation.consumptionAuthorityDigest,
     ownerAuthorityDomain: replayOperation.ownerAuthorityDomain,
     predecessorSourceHead: replayOperation.predecessorSourceHead,
     predecessorSourceTree: replayOperation.predecessorSourceTree,
@@ -2559,6 +2573,31 @@ test('authority-conflict resolution is exact, fail-closed and non-replayable', (
     contentDigest: digest('exact correction\n'), contentEncoding: 'utf8', index: 0,
     path: 'semantic-model/ontology.ttl', pathRole: role, representationFormat: format,
   }]), /source preimage/);
+});
+
+test('an exact D0 resolution remains consumable after its governed D1/D2 admission', () => {
+  const d0 = `sha256:${'11'.repeat(32)}`;
+  const d2 = `sha256:${'22'.repeat(32)}`;
+  const admitted = exactAuthorityConflictFixture({
+    conflictAuthorityDigest: d0,
+    consumptionAuthorityDigest: d2,
+  });
+  assert.equal(admitted.resolutions[0].authorityDigest, d0);
+  assert.equal(admitted.resolutions[0].reviewAuthorityDigest, d0);
+  assert.equal(admitted.authorityDigest, d2);
+  assert.equal(
+    materialisationInternals.evaluateAuthorityConflictResolution(admitted).actionState,
+    ACTION_STATES.proceed,
+  );
+
+  const stalePlan = {
+    ...admitted,
+    authorityDigest: `sha256:${'33'.repeat(32)}`,
+  };
+  assert.equal(
+    materialisationInternals.evaluateAuthorityConflictResolution(stalePlan).actionState,
+    ACTION_STATES.block,
+  );
 });
 
 test('the canonical gateway consumes one exact live conflict resolution and no implicit precedence', async () => {
@@ -2586,8 +2625,10 @@ test('the canonical gateway consumes one exact live conflict resolution and no i
   ];
   const validationObligations = durableFamilyValidations.map((item) => item.id).sort();
   const rawBinding = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     candidateDigest: `sha256:${'a1'.repeat(32)}`,
+    conflictAuthorityDigest: witnessDigest,
+    consumptionAuthorityDigest: witnessDigest,
     ownerAuthorityDomain: 'urn:usf:capabilityowner:semanticmodelcompilation',
     predecessorSourceHead: predecessor.head, predecessorSourceTree: predecessor.tree,
     repository: 'maldous/usf-graph',
@@ -2635,8 +2676,10 @@ test('an exact directory-only authority-conflict resolution cannot report replay
     'semantic-model/realisation/bindings.trig',
   ];
   const rawBinding = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     candidateDigest: `sha256:${'a1'.repeat(32)}`,
+    conflictAuthorityDigest: witnessDigest,
+    consumptionAuthorityDigest: witnessDigest,
     ownerAuthorityDomain: 'urn:usf:capabilityowner:semanticmodelcompilation',
     predecessorSourceHead: predecessor.head,
     predecessorSourceTree: predecessor.tree,
