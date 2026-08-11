@@ -1105,18 +1105,19 @@ export async function runAggregateCompilerProductionLifecycle({
   }
   const d0 = await readAuthorityWitness();
   if (d0.digest !== expectedAuthorityDigest) throw new Error('aggregate lifecycle D0 authority digest drifted');
+  const verificationTime = await trustedInstant(trustedTime);
   const pendingPackage = await producer.preparePending({ requestedAuthorityDigest: expectedAuthorityDigest });
   const base = await command.prepareSourceDelta({
     expectedAuthorityDigest,
     evidenceStore,
     expectedSource: pendingPackage.aggregateResult.evaluation.sourceBinding,
     externalAuthorityDelta,
+    trustedNow: verificationTime.date,
   });
   const baseValidation = admitValidationEvidence({ validationEvidence: base.validationEvidence }, evidenceStoreAdapter(evidenceStore));
   if (baseValidation.digest !== base.baseSemanticDelta.validationReceiptDigest) {
     throw new Error('base source-delta validation receipt was not admitted exactly');
   }
-  const verificationTime = await trustedInstant(trustedTime);
   const ownerAuthority = verifyAndDeriveOwnerAuthority({
     ownerAssignments,
     pendingPackage,
@@ -1286,7 +1287,11 @@ async function configureLiveDependencies(expectedAuthorityDigest, env) {
   return {
     aggregateProducer,
     command: createSemanticModelCompilationCommand({
-      client, readAuthorityWitness: readSemanticAuthorityWitness, repositoryRoot: root,
+      client,
+      readAuthorityWitness: readSemanticAuthorityWitness,
+      repositoryRoot: root,
+      trustedNow: async () => new Date(await trustedTime()),
+      verifyExternalAuthorityProofApproval: verifyEnvelope,
     }),
     readAuthorityWitness: () => readSemanticAuthorityWitness(client),
     trustedTime,
