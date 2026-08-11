@@ -4833,8 +4833,13 @@ sc:authenticationplatform usf:hasValidationApplicability vas:unresolved;
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
 sc:backgroundworkersjobrunner usf:hasValidationApplicability vas:unresolved;
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
-sc:backupandrestore usf:hasValidationApplicability vas:unresolved;
-    usf:validationApplicabilityReason "An exact standalone machinery-validation chain is admitted, but no contract-required validation/currentness or exemption decision has been authored. Applicability therefore remains unresolved and fail-closed; the standalone result does not authorize production pruning or contract activation.".
+sc:backupandrestore usf:hasValidationApplicability vas:conditional;
+    usf:validationApplicabilityCondition <urn:usf:validationapplicabilitycondition:backupandrestoreeventhistorycheckpointpruningbecomeseffective>;
+    usf:validationApplicabilityReason "The exact dormant checkpoint/archive/hot-tail machinery validation becomes applicable only when the backup-and-restore contract explicitly selects urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning as its effective decision. That condition is not present in this publication, so the proof-blocked contract remains non-actionable and no production safe frontier or pruning transaction is authorized.".
+<urn:usf:validationapplicabilitycondition:backupandrestoreeventhistorycheckpointpruningbecomeseffective> a usf:ValidationApplicabilityCondition;
+    usf:conditionSubject sc:backupandrestore;
+    usf:conditionPredicate usf:effectiveRealisationDecision;
+    usf:conditionRequiredValue <urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning>.
 sc:brandingandtheming usf:hasValidationApplicability vas:unresolved;
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
 sc:codequalityandsecretanddependencyscanning usf:hasValidationApplicability vas:unresolved;

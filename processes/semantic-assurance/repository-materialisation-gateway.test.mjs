@@ -767,7 +767,7 @@ test('every authored semantic contract declares exactly one applicability state 
   }
 });
 
-test('the applicability migration promoted no contract to an exemption or an unearned conclusion', () => {
+test('applicability admits only the exact dormant checkpoint condition and no exemption or unearned conclusion', () => {
   const model = authoredModel();
   const contracts = [...new Set(model
     .getSubjects(namedNode(RDF_TYPE), namedNode(`${ONT}SemanticContract`), null)
@@ -777,11 +777,36 @@ test('the applicability migration promoted no contract to an exemption or an une
     const [state] = model.getObjects(namedNode(contract), namedNode(`${ONT}hasValidationApplicability`), null).map(({ value }) => value);
     byState.set(state, [...(byState.get(state) || []), contract]);
   }
-  // Nothing may be migrated to exemption, and nothing may claim a conditional
-  // or reserved determination that no authored condition supports.
+  // Nothing may be migrated to exemption or reservation. The sole conditional
+  // is the checkpoint validation: it stays non-actionable until the exact
+  // pruning decision is explicitly selected as the contract's effective
+  // decision.
   assert.deepEqual(byState.get(`${VAS}notrequired`), undefined);
-  assert.deepEqual(byState.get(`${VAS}conditional`), undefined);
   assert.deepEqual(byState.get(`${VAS}reserved`), undefined);
+  assert.deepEqual(byState.get(`${VAS}conditional`), ['urn:usf:semanticcontract:backupandrestore']);
+
+  const backup = namedNode('urn:usf:semanticcontract:backupandrestore');
+  const condition = namedNode('urn:usf:validationapplicabilitycondition:backupandrestoreeventhistorycheckpointpruningbecomeseffective');
+  assert.deepEqual(
+    model.getObjects(backup, namedNode(`${ONT}validationApplicabilityCondition`), null).map(({ value }) => value),
+    [condition.value],
+  );
+  assert.equal(model.has(condition, namedNode(RDF_TYPE), namedNode(`${ONT}ValidationApplicabilityCondition`), null), true);
+  assert.deepEqual(model.getObjects(condition, namedNode(`${ONT}conditionSubject`), null).map(({ value }) => value), [backup.value]);
+  assert.deepEqual(
+    model.getObjects(condition, namedNode(`${ONT}conditionPredicate`), null).map(({ value }) => value),
+    [`${ONT}effectiveRealisationDecision`],
+  );
+  assert.deepEqual(
+    model.getObjects(condition, namedNode(`${ONT}conditionRequiredValue`), null).map(({ value }) => value),
+    ['urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning'],
+  );
+  assert.deepEqual(model.getObjects(backup, namedNode(`${ONT}requiredValidation`), null), []);
+  assert.deepEqual(
+    model.getObjects(backup, namedNode(`${ONT}hasActivationState`), null).map(({ value }) => value),
+    ['urn:usf:contractactivationstate:proofblocked'],
+  );
+  assert.deepEqual(model.getObjects(backup, namedNode(`${ONT}effectiveRealisationDecision`), null), []);
 
   for (const contract of byState.get(`${VAS}unresolved`) || []) {
     const node = namedNode(contract);
@@ -802,7 +827,7 @@ test('the applicability migration promoted no contract to an exemption or an une
     );
   }
   assert.equal((byState.get(`${VAS}required`) || []).length, 6);
-  assert.equal((byState.get(`${VAS}unresolved`) || []).length, contracts.length - 6);
+  assert.equal((byState.get(`${VAS}unresolved`) || []).length, contracts.length - 7);
 });
 
 // usf:SemanticContract is a superclass of several descriptive classes, so under
