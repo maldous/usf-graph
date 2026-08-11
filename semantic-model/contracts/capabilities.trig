@@ -2530,7 +2530,7 @@ sc:authenticationplatform usf:hasActivationState contractstate:proofblocked;
     usf:mandatoryProofObligation <urn:usf:proofobligation:p14383dcadafb8a07b8e28ffb5ef05729512eaa352424d72c862e502a06128b2f>;
     usf:permittedRealisationType usf:Implementation.
 sc:backupandrestore usf:hasActivationState contractstate:proofblocked;
-    usf:activationReason "The prior local hermetic-mock reference implementation and its source-unbound evidence, proof and validation do not warrant repository-local development, deterministic test or production-shaped staging delivery; the contract is proof-blocked pending independently derived semantics and implementation.";
+    usf:activationReason "Exact owner-signed checkpoint/archive/hot-tail machinery evidence, a standalone validation result and a historical proof result are admitted only as non-actionable inputs to a later self-publication/currentness closure. This contract does not rely on that proof result, require that validation or select an effective decision, and no production safe-frontier, pruning transaction or activation authority exists.";
     usf:mandatoryProofObligation <urn:usf:proofobligation:pac1a6022137958d19ef9d029d179fb8d46d67ebac60985f3d9a072f3624aae9c>;
     usf:permittedRealisationType usf:Implementation.
 sc:brandingandtheming usf:hasActivationState contractstate:proofblocked;
@@ -4834,7 +4834,7 @@ sc:authenticationplatform usf:hasValidationApplicability vas:unresolved;
 sc:backgroundworkersjobrunner usf:hasValidationApplicability vas:unresolved;
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
 sc:backupandrestore usf:hasValidationApplicability vas:unresolved;
-    usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
+    usf:validationApplicabilityReason "An exact standalone machinery-validation chain is admitted, but no contract-required validation/currentness or exemption decision has been authored. Applicability therefore remains unresolved and fail-closed; the standalone result does not authorize production pruning or contract activation.".
 sc:brandingandtheming usf:hasValidationApplicability vas:unresolved;
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
 sc:codequalityandsecretanddependencyscanning usf:hasValidationApplicability vas:unresolved;
@@ -4961,6 +4961,12 @@ sc:writeonlysecretsettings usf:hasValidationApplicability vas:unresolved;
   usf:validationActivationReason "The exact Factory V3 validation producer, governed evidence-admission path, signed implementation evidence, independent evaluation and bounded activation decision are current and admitted.";
   usf:satisfiedByValidationResult <urn:usf:validationresult:factoryproviderv3implementation>;
   usf:validationForContract sc:providerconfigurationplane.
+<urn:usf:validationobligation:backupandrestoreeventhistorycheckpointpruning> a usf:ValidationObligation;
+  usf:canonicalName "backupandrestoreeventhistorycheckpointpruning";
+  usf:hasValidationActivationState <urn:usf:validationactivationstate:activated>;
+  usf:validationActivationReason "The exact owner-signed six-path Factory source and signed hermetic evidence are admitted only as dormant machinery validation; the contract remains proof-blocked and no production pruning transaction is authorized.";
+  usf:satisfiedByValidationResult <urn:usf:validationresult:eventhistorycheckpointpruning>;
+  usf:validationForContract sc:backupandrestore.
 <urn:usf:validationobligation:providerenvironmentclassification> a usf:ValidationObligation;
   usf:canonicalName "providerenvironmentclassification";
   usf:hasValidationActivationState <urn:usf:validationactivationstate:reserved>;
