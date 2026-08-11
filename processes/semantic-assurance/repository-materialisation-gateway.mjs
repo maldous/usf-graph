@@ -223,7 +223,7 @@ export const jcs = canonicalJson;
 export const digest = planDigestOf;
 export const sourceDigest = planSourceDigest;
 
-const AUTHORITY_CONFLICT_BINDING_SCHEMA = 1;
+const AUTHORITY_CONFLICT_BINDING_SCHEMA = 2;
 const SEMANTIC_CORRECTION_ACCEPTED = 'urn:usf:semanticcorrectiondecisionstate:accepted';
 const AUTHORITY_CONFLICT_RESOLUTION_ACCEPTED = SEMANTIC_CORRECTION_ACCEPTED;
 const SEMANTIC_ADEQUACY_REVIEW_ACCEPTED = 'urn:usf:semanticadequacyreviewstate:accepted';
@@ -260,9 +260,10 @@ function operationSet(operations, key) {
 
 function normaliseAuthorityConflictBinding(binding, operations) {
   exactKeys(binding, [
-    'candidateDigest', 'ownerAuthorityDomain', 'predecessorSourceHead',
-    'predecessorSourceTree', 'repository', 'requestedEffects', 'schemaVersion',
-    'sourcePaths', 'sourceScopeDigest', 'successorSourceTree', 'validationObligations',
+    'candidateDigest', 'conflictAuthorityDigest', 'consumptionAuthorityDigest',
+    'ownerAuthorityDomain', 'predecessorSourceHead', 'predecessorSourceTree',
+    'repository', 'requestedEffects', 'schemaVersion', 'sourcePaths',
+    'sourceScopeDigest', 'successorSourceTree', 'validationObligations',
   ], 'authority-conflict binding');
   if (binding.schemaVersion !== AUTHORITY_CONFLICT_BINDING_SCHEMA) {
     throw new Error('authority-conflict binding schema is unsupported');
@@ -270,7 +271,10 @@ function normaliseAuthorityConflictBinding(binding, operations) {
   if (!Array.isArray(operations) || operations.length === 0 || operations.length > MAX_OPERATIONS) {
     throw new Error('authority-conflict binding requires bounded operations');
   }
-  if (!SHA256.test(binding.candidateDigest || '') || !SHA256.test(binding.sourceScopeDigest || '')) {
+  if (!SHA256.test(binding.candidateDigest || '')
+      || !SHA256.test(binding.conflictAuthorityDigest || '')
+      || !SHA256.test(binding.consumptionAuthorityDigest || '')
+      || !SHA256.test(binding.sourceScopeDigest || '')) {
     throw new Error('authority-conflict binding digest is invalid');
   }
   if (![binding.predecessorSourceHead, binding.predecessorSourceTree, binding.successorSourceTree]
@@ -308,6 +312,8 @@ function normaliseAuthorityConflictBinding(binding, operations) {
   return Object.freeze({
     schemaVersion: AUTHORITY_CONFLICT_BINDING_SCHEMA,
     candidateDigest: binding.candidateDigest,
+    conflictAuthorityDigest: binding.conflictAuthorityDigest,
+    consumptionAuthorityDigest: binding.consumptionAuthorityDigest,
     ownerAuthorityDomain: binding.ownerAuthorityDomain,
     predecessorSourceHead: binding.predecessorSourceHead,
     predecessorSourceTree: binding.predecessorSourceTree,
@@ -359,7 +365,14 @@ function evaluateAuthorityConflictResolution({
     .map((gap) => gap.subject))].sort();
   const exact = (observed, expected, code) => { if (observed !== expected) failures.push({ code }); };
   const exactSet = (observed, expected, code) => { if (!sameSet(observed, expected)) failures.push({ code }); };
-  exact(resolution.authorityDigest, authorityDigest, 'authority-conflict-resolution-authority');
+  // The decision and its independent review are authored against the exact
+  // conflict generation. Their governed D0→D1→D2 admission necessarily moves
+  // the live authority before the decision can be consumed. Keep that semantic
+  // subject distinct from the current consumption boundary: the enclosing
+  // materialisation plan is still bound to the latter and apply rechecks it
+  // immediately before and after the filesystem transaction.
+  exact(binding.consumptionAuthorityDigest, authorityDigest, 'authority-conflict-resolution-consumption-authority');
+  exact(resolution.authorityDigest, binding.conflictAuthorityDigest, 'authority-conflict-resolution-authority');
   exact(resolution.candidateDigest, binding.candidateDigest, 'authority-conflict-resolution-candidate');
   exact(resolution.operationDigest, binding.operationDigest, 'authority-conflict-resolution-operation');
   exact(resolution.repository, binding.repository, 'authority-conflict-resolution-repository');
@@ -377,7 +390,7 @@ function evaluateAuthorityConflictResolution({
   exactSet(binding.validationObligations, expectedObligations, 'authority-conflict-binding-validation-obligations');
   exact(resolution.decisionState, SEMANTIC_CORRECTION_ACCEPTED, 'authority-conflict-resolution-decision');
   exact(resolution.reviewState, SEMANTIC_ADEQUACY_REVIEW_ACCEPTED, 'authority-conflict-resolution-review');
-  exact(resolution.reviewAuthorityDigest, authorityDigest, 'authority-conflict-resolution-review-authority');
+  exact(resolution.reviewAuthorityDigest, binding.conflictAuthorityDigest, 'authority-conflict-resolution-review-authority');
   exact(resolution.reviewInventoryDigest, binding.candidateDigest, 'authority-conflict-resolution-review-subject');
   exact(resolution.proofState, SUCCESSFUL, 'authority-conflict-resolution-proof');
   exact(resolution.proofSubject, resolution.conflict, 'authority-conflict-resolution-proof-subject');
