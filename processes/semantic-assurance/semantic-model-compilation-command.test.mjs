@@ -9,6 +9,7 @@ import { DataFactory, Parser, Writer } from 'n3';
 import {
   SEMANTIC_MODEL_PATH,
   createSemanticModelCompilationCommand,
+  semanticModelCompilationCommandInternals,
 } from './semantic-model-compilation-command.mjs';
 
 const authorityDigest = `sha256:${'a'.repeat(64)}`;
@@ -77,6 +78,96 @@ test('requires an explicit digest and the canonical non-symlink path', async () 
     compileFunction: async () => ({ ok: true }),
   });
   await assert.rejects(() => command.execute({}), /expected authority digest/);
+});
+
+test('admits only an exact additive authority-bound conflict-resolution delta with closed CAS roots', () => {
+  const graph = 'urn:usf:graph:assurance';
+  const conflict = 'urn:usf:authorityconflict:correction';
+  const resolution = 'urn:usf:semanticcorrectiondecision:correction';
+  const review = 'urn:usf:semanticadequacyreview:correction';
+  const proofResult = 'urn:usf:proofresult:correction';
+  const proof = 'urn:usf:proof:correction';
+  const owner = 'urn:usf:ownerassignment:semanticmodelcompilation';
+  const correctionCandidateDigest = `sha256:${'b'.repeat(64)}`;
+  const source = Object.freeze({
+    head: 'c'.repeat(40), repository: 'maldous/usf-graph', tree: 'd'.repeat(40),
+  });
+  const roots = ['1', '2', '3'].map((value) => `sha256:${value.repeat(64)}`);
+  const literal = (value) => JSON.stringify(value);
+  const quads = [
+    `<${conflict}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:AssuranceFinding> <${graph}> .`,
+    `<${conflict}> <urn:usf:ontology:conflictAuthorityDigest> ${literal(authorityDigest)} <${graph}> .`,
+    `<${conflict}> <urn:usf:ontology:conflictCandidateDigest> ${literal(correctionCandidateDigest)} <${graph}> .`,
+    `<${conflict}> <urn:usf:ontology:conflictPredecessorSourceHead> ${literal(source.head)} <${graph}> .`,
+    `<${conflict}> <urn:usf:ontology:conflictPredecessorSourceTree> ${literal(source.tree)} <${graph}> .`,
+    `<${conflict}> <urn:usf:ontology:conflictRepository> ${literal(source.repository)} <${graph}> .`,
+    `<${review}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:SemanticAdequacyReview> <${graph}> .`,
+    `<${review}> <urn:usf:ontology:hasSemanticAdequacyReviewState> <urn:usf:semanticadequacyreviewstate:accepted> <${graph}> .`,
+    `<${review}> <urn:usf:ontology:reviewedAuthorityDigest> ${literal(authorityDigest)} <${graph}> .`,
+    `<${review}> <urn:usf:ontology:reviewedInventoryDigest> ${literal(correctionCandidateDigest)} <${graph}> .`,
+    `<${proofResult}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:ProofResult> <${graph}> .`,
+    `<${proofResult}> <urn:usf:ontology:hasProofResultState> <urn:usf:proofresultstate:successful> <${graph}> .`,
+    `<${proofResult}> <urn:usf:ontology:resultForProof> <${proof}> <${graph}> .`,
+    `<${proof}> <urn:usf:ontology:provesSubject> <${conflict}> <${graph}> .`,
+    `<${resolution}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:SemanticCorrectionDecision> <${graph}> .`,
+    `<${resolution}> <urn:usf:ontology:authorityConflictResolutionOwnerAssignment> <${owner}> <${graph}> .`,
+    `<${resolution}> <urn:usf:ontology:decisionBasedOnSemanticAdequacyReview> <${review}> <${graph}> .`,
+    `<${resolution}> <urn:usf:ontology:resolvesAuthorityConflict> <${conflict}> <${graph}> .`,
+    `<${resolution}> <urn:usf:ontology:semanticCorrectionDecisionState> <urn:usf:semanticcorrectiondecisionstate:accepted> <${graph}> .`,
+    `<${resolution}> <urn:usf:ontology:warrantedBySemanticAdequacyProof> <${proofResult}> <${graph}> .`,
+    ...roots.map((root, index) => `<urn:usf:externalpayloaddescriptor:correction${index}> <urn:usf:ontology:descriptorDigest> ${literal(root)} <${graph}> .`),
+  ].sort();
+  const bytes = Buffer.from([
+    '# semantic-proof-v1 canonical-rdf-patch-v1 base',
+    ...quads.map((quad) => `A ${quad}`),
+    '',
+  ].join('\n'));
+  const packageValue = Object.freeze({
+    authorityDigest,
+    casRootDigests: roots,
+    conflictIri: conflict,
+    correctionCandidateDigest,
+    ownerAssignmentIri: owner,
+    patchBytesBase64: bytes.toString('base64'),
+    patchDigest: `sha256:${createHash('sha256').update(bytes).digest('hex')}`,
+    predecessorSourceHead: source.head,
+    predecessorSourceTree: source.tree,
+    proofResultIri: proofResult,
+    repository: source.repository,
+    resolutionIri: resolution,
+    reviewIri: review,
+    schema: 'usf-external-authority-conflict-resolution-delta-v1',
+  });
+  const verified = [];
+  const options = {
+    value: packageValue,
+    expectedAuthorityDigest: authorityDigest,
+    expectedSource: source,
+    evidenceStore: { verify: (digest) => verified.push(digest) },
+    allowedGraphs: new Set([graph]),
+  };
+  const accepted = semanticModelCompilationCommandInternals.assertExternalAuthorityDelta(options);
+  assert.equal(accepted.patchDigest, packageValue.patchDigest);
+  assert.deepEqual(verified, roots);
+  assert.throws(() => semanticModelCompilationCommandInternals.assertExternalAuthorityDelta({
+    ...options, expectedAuthorityDigest: `sha256:${'e'.repeat(64)}`,
+  }), /exact authority and source predecessor/);
+  assert.throws(() => semanticModelCompilationCommandInternals.assertExternalAuthorityDelta({
+    ...options, value: { ...packageValue, casRootDigests: roots.slice(1) },
+  }), /exact sorted unique set/);
+  const missingConflictBytes = Buffer.from([
+    '# semantic-proof-v1 canonical-rdf-patch-v1 base',
+    ...quads.filter((item) => !item.includes('conflictAuthorityDigest')).map((quad) => `A ${quad}`),
+    '',
+  ].join('\n'));
+  assert.throws(() => semanticModelCompilationCommandInternals.assertExternalAuthorityDelta({
+    ...options,
+    value: {
+      ...packageValue,
+      patchBytesBase64: missingConflictBytes.toString('base64'),
+      patchDigest: `sha256:${createHash('sha256').update(missingConflictBytes).digest('hex')}`,
+    },
+  }), /missing exact authority digest/);
 });
 
 test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated deltas', async () => {

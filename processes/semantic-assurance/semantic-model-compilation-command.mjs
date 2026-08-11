@@ -20,7 +20,9 @@ import {
 
 export const SEMANTIC_MODEL_PATH = 'semantic-model';
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
-const PATCH_HEADER = /^# semantic-proof-v1 canonical-rdf-patch-v1 (stage1|stage2)$/;
+const GIT_OBJECT = /^[0-9a-f]{40}$/;
+const PATCH_HEADER = /^# semantic-proof-v1 canonical-rdf-patch-v1 (base|stage1|stage2)$/;
+const EXTERNAL_AUTHORITY_DELTA_SCHEMA = 'usf-external-authority-conflict-resolution-delta-v1';
 const NQUADS = 'application/n-quads';
 const NTRIPLES = 'application/n-triples';
 const TURTLE = 'text/turtle';
@@ -50,7 +52,12 @@ function exactCandidateBytes(value, expectedDigest) {
   return Object.freeze({ bytes: Buffer.from(value), digest: observedDigest });
 }
 
-function parseCanonicalPatch(value, expectedDigest, allowedGraphs) {
+function parseCanonicalPatch(
+  value,
+  expectedDigest,
+  allowedGraphs,
+  allowedStages = new Set(['stage1', 'stage2']),
+) {
   const candidate = exactCandidateBytes(value, expectedDigest);
   const text = candidate.bytes.toString('utf8');
   if (!candidate.bytes.equals(Buffer.from(text, 'utf8')) || text.includes('\r') || !text.endsWith('\n')) {
@@ -58,7 +65,8 @@ function parseCanonicalPatch(value, expectedDigest, allowedGraphs) {
   }
   const lines = text.split('\n');
   const header = lines.shift();
-  if (!PATCH_HEADER.test(header || '') || lines.pop() !== '' || lines.length === 0) {
+  const patchHeader = PATCH_HEADER.exec(header || '');
+  if (!patchHeader || !allowedStages.has(patchHeader[1]) || lines.pop() !== '' || lines.length === 0) {
     throw new CompilerError('candidate does not use canonical-rdf-patch-v1', { phase: 'candidate:parse' });
   }
   const operations = lines.map((line) => {
@@ -92,6 +100,141 @@ function parseCanonicalPatch(value, expectedDigest, allowedGraphs) {
     throw new CompilerError('candidate RDF Patch is not canonical, unique and contradiction-free', { phase: 'candidate:canonicality' });
   }
   return Object.freeze({ ...candidate, additions, deletions, operations });
+}
+
+function exactObjectKeys(value, expected, label) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+      || canonicalJson(Object.keys(value).sort()) !== canonicalJson([...expected].sort())) {
+    throw new CompilerError(`${label} has an invalid closed schema`, { phase: 'candidate:external-authority-delta' });
+  }
+}
+
+function exactSortedUniqueStrings(value, pattern, label, { minimum = 1 } = {}) {
+  if (!Array.isArray(value) || value.length < minimum || value.some((item) => typeof item !== 'string' || !pattern.test(item))
+      || canonicalJson(value) !== canonicalJson([...new Set(value)].sort())) {
+    throw new CompilerError(`${label} must be an exact sorted unique set`, { phase: 'candidate:external-authority-delta' });
+  }
+  return Object.freeze([...value]);
+}
+
+const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
+const USF = 'urn:usf:ontology:';
+
+function patchHas(patch, subject, predicate, object) {
+  return patch.additions.some(({ value }) => value.subject.value === subject
+    && value.predicate.value === predicate && value.object.value === object);
+}
+
+function requirePatchTriple(patch, subject, predicate, object, label) {
+  if (!patchHas(patch, subject, predicate, object)) {
+    throw new CompilerError(`external authority delta is missing exact ${label}`, {
+      phase: 'candidate:external-authority-delta', subject, predicate, object,
+    });
+  }
+}
+
+function assertExternalAuthorityDelta({
+  value,
+  expectedAuthorityDigest,
+  expectedSource,
+  evidenceStore,
+  allowedGraphs,
+}) {
+  exactObjectKeys(value, [
+    'authorityDigest', 'casRootDigests', 'conflictIri', 'correctionCandidateDigest',
+    'ownerAssignmentIri', 'patchBytesBase64', 'patchDigest', 'predecessorSourceHead',
+    'predecessorSourceTree', 'proofResultIri', 'repository', 'resolutionIri', 'reviewIri', 'schema',
+  ], 'external authority delta');
+  if (value.schema !== EXTERNAL_AUTHORITY_DELTA_SCHEMA || value.authorityDigest !== expectedAuthorityDigest
+      || !expectedSource || value.repository !== expectedSource.repository
+      || value.predecessorSourceHead !== expectedSource.head
+      || value.predecessorSourceTree !== expectedSource.tree
+      || !GIT_OBJECT.test(value.predecessorSourceHead || '') || !GIT_OBJECT.test(value.predecessorSourceTree || '')
+      || !SHA256.test(value.correctionCandidateDigest || '')
+      || !SHA256.test(value.patchDigest || '')) {
+    throw new CompilerError('external authority delta does not bind the exact authority and source predecessor', {
+      phase: 'candidate:external-authority-delta',
+    });
+  }
+  for (const [name, iri] of Object.entries({
+    conflict: value.conflictIri,
+    owner: value.ownerAssignmentIri,
+    proof: value.proofResultIri,
+    resolution: value.resolutionIri,
+    review: value.reviewIri,
+  })) {
+    if (typeof iri !== 'string' || !/^urn:usf:[a-z0-9]+:[a-z0-9]+$/.test(iri)) {
+      throw new CompilerError(`external authority delta ${name} IRI is invalid`, {
+        phase: 'candidate:external-authority-delta',
+      });
+    }
+  }
+  let bytes;
+  try {
+    bytes = Buffer.from(value.patchBytesBase64, 'base64');
+  } catch {
+    throw new CompilerError('external authority delta patch is not base64', { phase: 'candidate:external-authority-delta' });
+  }
+  if (bytes.toString('base64') !== value.patchBytesBase64 || sha256(bytes) !== value.patchDigest) {
+    throw new CompilerError('external authority delta patch bytes or digest are not canonical', {
+      phase: 'candidate:external-authority-delta',
+    });
+  }
+  const patch = parseCanonicalPatch(bytes, value.patchDigest, allowedGraphs, new Set(['base']));
+  if (patch.deletions.length !== 0) {
+    throw new CompilerError('external authority delta must be additive', { phase: 'candidate:external-authority-delta' });
+  }
+  const roots = exactSortedUniqueStrings(value.casRootDigests, SHA256, 'external authority delta CAS roots', { minimum: 3 });
+  if (!evidenceStore || typeof evidenceStore.verify !== 'function') {
+    throw new CompilerError('external authority delta requires the canonical CAS verifier', {
+      phase: 'candidate:external-authority-delta',
+    });
+  }
+  for (const root of roots) evidenceStore.verify(root);
+  const descriptorRoots = [...new Set(patch.additions
+    .filter(({ value: item }) => item.predicate.value === `${USF}descriptorDigest` && SHA256.test(item.object.value))
+    .map(({ value: item }) => item.object.value))].sort();
+  if (canonicalJson(descriptorRoots) !== canonicalJson(roots)) {
+    throw new CompilerError('external authority delta CAS roots do not equal its descriptor closure', {
+      phase: 'candidate:external-authority-delta',
+    });
+  }
+
+  requirePatchTriple(patch, value.conflictIri, RDF_TYPE, `${USF}AssuranceFinding`, 'authority-conflict type');
+  requirePatchTriple(patch, value.conflictIri, `${USF}conflictAuthorityDigest`, expectedAuthorityDigest, 'authority digest');
+  requirePatchTriple(patch, value.conflictIri, `${USF}conflictCandidateDigest`, value.correctionCandidateDigest, 'correction candidate digest');
+  requirePatchTriple(patch, value.conflictIri, `${USF}conflictRepository`, value.repository, 'repository');
+  requirePatchTriple(patch, value.conflictIri, `${USF}conflictPredecessorSourceHead`, expectedSource.head, 'predecessor head');
+  requirePatchTriple(patch, value.conflictIri, `${USF}conflictPredecessorSourceTree`, expectedSource.tree, 'predecessor tree');
+  requirePatchTriple(patch, value.reviewIri, RDF_TYPE, `${USF}SemanticAdequacyReview`, 'review type');
+  requirePatchTriple(patch, value.reviewIri, `${USF}hasSemanticAdequacyReviewState`, 'urn:usf:semanticadequacyreviewstate:accepted', 'accepted review');
+  requirePatchTriple(patch, value.reviewIri, `${USF}reviewedAuthorityDigest`, expectedAuthorityDigest, 'review authority');
+  requirePatchTriple(patch, value.reviewIri, `${USF}reviewedInventoryDigest`, value.correctionCandidateDigest, 'review candidate');
+  requirePatchTriple(patch, value.proofResultIri, RDF_TYPE, `${USF}ProofResult`, 'proof-result type');
+  requirePatchTriple(patch, value.proofResultIri, `${USF}hasProofResultState`, 'urn:usf:proofresultstate:successful', 'successful proof');
+  const proofIri = patch.additions.find(({ value: item }) => item.subject.value === value.proofResultIri
+    && item.predicate.value === `${USF}resultForProof`)?.value.object.value;
+  if (!proofIri || !patchHas(patch, proofIri, `${USF}provesSubject`, value.conflictIri)) {
+    throw new CompilerError('external authority delta proof does not prove the exact conflict', {
+      phase: 'candidate:external-authority-delta',
+    });
+  }
+  requirePatchTriple(patch, value.resolutionIri, RDF_TYPE, `${USF}SemanticCorrectionDecision`, 'resolution type');
+  requirePatchTriple(patch, value.resolutionIri, `${USF}resolvesAuthorityConflict`, value.conflictIri, 'resolved conflict');
+  requirePatchTriple(patch, value.resolutionIri, `${USF}semanticCorrectionDecisionState`, 'urn:usf:semanticcorrectiondecisionstate:accepted', 'accepted resolution');
+  requirePatchTriple(patch, value.resolutionIri, `${USF}decisionBasedOnSemanticAdequacyReview`, value.reviewIri, 'resolution review');
+  requirePatchTriple(patch, value.resolutionIri, `${USF}warrantedBySemanticAdequacyProof`, value.proofResultIri, 'resolution proof');
+  requirePatchTriple(patch, value.resolutionIri, `${USF}authorityConflictResolutionOwnerAssignment`, value.ownerAssignmentIri, 'resolution owner');
+  return Object.freeze({
+    casRootDigests: roots,
+    conflictIri: value.conflictIri,
+    correctionCandidateDigest: value.correctionCandidateDigest,
+    patch,
+    patchDigest: value.patchDigest,
+    resolutionIri: value.resolutionIri,
+    reviewIri: value.reviewIri,
+    proofResultIri: value.proofResultIri,
+  });
 }
 
 function triple(item) {
@@ -410,15 +553,78 @@ export function createSemanticModelCompilationCommand({
   return Object.freeze({
     requiresCandidateBytes: true,
 
-    async prepareSourceDelta({ expectedAuthorityDigest }) {
+    async validateExternalAuthorityDelta({
+      expectedAuthorityDigest,
+      evidenceStore,
+      expectedSource,
+      externalAuthorityDelta,
+    }) {
+      if (!SHA256.test(expectedAuthorityDigest || '')) {
+        throw new CompilerError('expected authority digest is required', { phase: 'authority:configuration' });
+      }
+      const before = digest(await readAuthorityWitness(client));
+      if (before !== expectedAuthorityDigest) {
+        throw new CompilerError('semantic authority drifted before external delta validation', { phase: 'authority:drift' });
+      }
+      const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
+      checkLocalFunction(manifest);
+      const external = assertExternalAuthorityDelta({
+        value: externalAuthorityDelta,
+        expectedAuthorityDigest,
+        expectedSource,
+        evidenceStore,
+        allowedGraphs: new Set(managedGraphs(manifest)),
+      });
+      if (await inspectPatchState(client, external.patch) !== 'pre') {
+        throw new CompilerError('external authority delta is not an unused exact live pre-state', {
+          phase: 'candidate:external-authority-delta-replay',
+        });
+      }
+      if (digest(await readAuthorityWitness(client)) !== before) {
+        throw new CompilerError('external delta validation changed semantic authority', { phase: 'authority:validate-drift' });
+      }
+      return Object.freeze({
+        casRootDigests: external.casRootDigests,
+        conflictIri: external.conflictIri,
+        correctionCandidateDigest: external.correctionCandidateDigest,
+        patchDigest: external.patchDigest,
+        proofResultIri: external.proofResultIri,
+        resolutionIri: external.resolutionIri,
+        reviewIri: external.reviewIri,
+      });
+    },
+
+    async prepareSourceDelta({
+      expectedAuthorityDigest,
+      evidenceStore = null,
+      expectedSource = null,
+      externalAuthorityDelta = null,
+    }) {
       if (!SHA256.test(expectedAuthorityDigest || '')) throw new CompilerError('expected authority digest is required', { phase: 'authority:configuration' });
       const beforeWitness = await readAuthorityWitness(client);
       const before = digest(beforeWitness);
       if (before !== expectedAuthorityDigest) throw new CompilerError('semantic authority drifted before base source preparation', { phase: 'authority:drift' });
       const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
       checkLocalFunction(manifest);
+      const external = externalAuthorityDelta === null ? null : assertExternalAuthorityDelta({
+        value: externalAuthorityDelta,
+        expectedAuthorityDigest,
+        expectedSource,
+        evidenceStore,
+        allowedGraphs: new Set(managedGraphs(manifest)),
+      });
+      if (external !== null && await inspectPatchState(client, external.patch) !== 'pre') {
+        throw new CompilerError('external authority delta is not an unused exact live pre-state', {
+          phase: 'candidate:external-authority-delta-replay',
+        });
+      }
       const prepared = await composeSourceCandidate({
-        client, manifest, authorityWitness: beforeWitness, compileFunction, stage: 'base',
+        client,
+        manifest,
+        generatedPatch: external?.patch || null,
+        authorityWitness: beforeWitness,
+        compileFunction,
+        stage: 'base',
       });
       if (digest(await readAuthorityWitness(client)) !== before) {
         throw new CompilerError('base source preparation changed semantic authority', { phase: 'authority:validate-drift' });
@@ -433,6 +639,15 @@ export function createSemanticModelCompilationCommand({
           mediaType: 'application/rdf-patch',
           state: 'VALIDATED_ROLLBACK',
           validationReceiptDigest: validation.digest,
+        }),
+        externalAuthorityDelta: external === null ? null : Object.freeze({
+          casRootDigests: external.casRootDigests,
+          conflictIri: external.conflictIri,
+          correctionCandidateDigest: external.correctionCandidateDigest,
+          patchDigest: external.patchDigest,
+          proofResultIri: external.proofResultIri,
+          resolutionIri: external.resolutionIri,
+          reviewIri: external.reviewIri,
         }),
         validationEvidence: validation,
       });
@@ -546,6 +761,7 @@ export function createSemanticModelCompilationCommand({
 }
 
 export const semanticModelCompilationCommandInternals = Object.freeze({
+  assertExternalAuthorityDelta,
   digest,
   exactCandidateBytes,
   canonicalCombinedPatch,

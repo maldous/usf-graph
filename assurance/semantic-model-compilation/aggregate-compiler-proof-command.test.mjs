@@ -1223,6 +1223,15 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
     loadManifestFunction: () => manifest, readAuthorityWitness,
     repositoryRoot: join(import.meta.dirname, '../..'),
   });
+  const externalAuthorityDelta = Object.freeze({ marker: 'exact-external-authority-delta' });
+  let observedExternalAuthorityDelta = null;
+  const lifecycleCommand = Object.freeze({
+    ...command,
+    async prepareSourceDelta(args) {
+      observedExternalAuthorityDelta = args.externalAuthorityDelta;
+      return command.prepareSourceDelta({ ...args, externalAuthorityDelta: null });
+    },
+  });
   const base = fixture();
   let finalPackage;
   const refreshedProducerPaths = [
@@ -1337,7 +1346,8 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
   writeFileSync(ledgerPath, '{"nonces":{},"protocol":"semantic-proof-v1"}\n', { mode: 0o600 });
   let nonce = 0;
   const result = await publisherModule.runAggregateCompilerProductionLifecycle({
-    expectedAuthorityDigest: d0, ownerAssignments, trustAnchor, producer, command, readAuthorityWitness,
+    expectedAuthorityDigest: d0, externalAuthorityDelta, ownerAssignments, trustAnchor, producer,
+    command: lifecycleCommand, readAuthorityWitness,
     trustedTime: async () => '2026-08-01T00:05:00Z',
     evidenceStore: publisherModule.createCasEvidenceStore(base.casRoot),
     claimProvider: async ({ authorityDigest: pre, canonicalCandidateBytes, candidateDigest }) => {
@@ -1365,6 +1375,7 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
     },
   });
   assert.equal(result.terminal.current_proof_results, 1);
+  assert.equal(observedExternalAuthorityDelta, externalAuthorityDelta);
   assert.equal(result.terminal.proof_currentness, 'CURRENT');
   assert.equal(result.terminal.action_state, 'PROCEED');
   assert.equal(phase, 2);
