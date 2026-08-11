@@ -32,6 +32,39 @@ const roots = [];
 test.after(() => roots.forEach((root) => rmSync(root, { recursive: true, force: true })));
 
 function binding(value) { return { value }; }
+async function git(root, args, options = {}) {
+  const { execFileSync } = await import('node:child_process');
+  return execFileSync('git', ['-C', root, ...args], {
+    encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...options,
+  }).trim();
+}
+
+async function initialiseRepository(root) {
+  await git(root, ['init', '-q']);
+  await git(root, ['config', 'user.name', 'USF Test']);
+  await git(root, ['config', 'user.email', 'usf-test@example.invalid']);
+  writeFileSync(join(root, 'README.md'), 'authority-conflict predecessor\n');
+  await git(root, ['add', 'README.md']);
+  await git(root, ['commit', '-q', '-m', 'predecessor']);
+  return { head: await git(root, ['rev-parse', 'HEAD']), tree: await git(root, ['rev-parse', 'HEAD^{tree}']) };
+}
+
+async function successorTreeForWrite(root, path, content) {
+  const temporary = mkdtempSync(join(tmpdir(), 'usf-test-index-'));
+  const indexPath = join(temporary, 'index');
+  const target = join(root, path);
+  const env = { ...process.env, GIT_INDEX_FILE: indexPath };
+  try {
+    mkdirSync(join(target, '..'), { recursive: true });
+    writeFileSync(target, content);
+    await git(root, ['read-tree', 'HEAD'], { env });
+    await git(root, ['add', '-A', '--', '.'], { env });
+    return await git(root, ['write-tree'], { env });
+  } finally {
+    rmSync(join(root, path.split('/')[0]), { recursive: true, force: true });
+    rmSync(temporary, { recursive: true, force: true });
+  }
+}
 function materialisationRule(representationFormat = format) {
   return {
     family: binding(family),
@@ -423,6 +456,9 @@ function fakeClient({
   proofGapRows = [],
   currentness = defaultCurrentness(),
   authorityNQuads = AUTHORITY_NQUADS,
+  authorityConflictSurfaceRows = [],
+  authorityConflictResolutionRows = [],
+  authorityConflictSetRows = [],
   queries = [],
 } = {}) {
   return {
@@ -430,6 +466,9 @@ function fakeClient({
     construct: async () => authorityNQuads,
     select: async (query) => {
       queries.push(query);
+      if (query.includes('SELECT DISTINCT ?surfaceContract ?authorisedPath ?authorisedFormat')) return authorityConflictSurfaceRows;
+      if (query.includes('SELECT ?resolution ?conflict ?resolutionState ?decisionState')) return authorityConflictResolutionRows;
+      if (query.includes('SELECT ?resolution ?kind ?item')) return authorityConflictSetRows;
       if (query.includes(`<${decisionFormatPredicate}>`)) {
         if (query.includes('COUNT(DISTINCT ?format) AS ?count')) {
           return decisionFormatCountRows ?? [{ count: binding(String(decisionFormatRows.length)) }];
@@ -2337,6 +2376,290 @@ test('operator-local CAS verification checks Stardog digest and byte size', asyn
 
 test('direct lifecycle mutation is always refused at the agent MCP boundary', () => {
   assert.throws(() => refuseLifecycleMutation('usf.evidence.admit'), /compiler.*single transaction/);
+});
+
+function exactAuthorityConflictFixture() {
+  const candidateDigest = `sha256:${'a1'.repeat(32)}`;
+  const sourcePaths = Object.freeze([
+    'semantic-model/assurance/evidence.trig',
+    'semantic-model/assurance/proofs.trig',
+    'semantic-model/realisation/bindings.trig',
+  ]);
+  const obligations = Object.freeze(durableFamilyValidations.map((item) => item.id).sort());
+  const operation = Object.freeze({
+    action: 'write-file',
+    artefactFamily: family,
+    content: 'exact correction\n',
+    contentDigest: digest('exact correction\n'),
+    contentEncoding: 'utf8',
+    index: 0,
+    path: 'semantic-model/ontology.ttl',
+    pathRole: role,
+    representationFormat: format,
+    sourceDigest: `sha256:${'b2'.repeat(32)}`,
+  });
+  const bindingValue = materialisationInternals.normaliseAuthorityConflictBinding({
+    schemaVersion: 1,
+    candidateDigest,
+    ownerAuthorityDomain: 'urn:usf:capabilityowner:semanticmodelcompilation',
+    predecessorSourceHead: 'c'.repeat(40),
+    predecessorSourceTree: 'd'.repeat(40),
+    repository: 'maldous/usf-graph',
+    requestedEffects: [
+      'urn:usf:obligationeffect:repositorymutation',
+      'urn:usf:obligationeffect:validationproducersourceauthorisation',
+    ],
+    sourcePaths,
+    sourceScopeDigest: digest(JSON.stringify(sourcePaths)),
+    successorSourceTree: 'e'.repeat(40),
+    validationObligations: obligations,
+  }, [operation]);
+  const conflict = 'urn:usf:authorityconflict:exactsemanticcorrection';
+  const resolution = Object.freeze({
+    id: 'urn:usf:authorityconflictresolution:exactsemanticcorrection',
+    conflict,
+    resolutionState: 'urn:usf:semanticcorrectiondecisionstate:accepted',
+    decisionState: 'urn:usf:semanticcorrectiondecisionstate:accepted',
+    reviewState: 'urn:usf:semanticadequacyreviewstate:accepted',
+    reviewAuthorityDigest: witnessDigest,
+    reviewInventoryDigest: candidateDigest,
+    proofState: 'urn:usf:proofresultstate:successful',
+    proofSubject: conflict,
+    ownerState: 'active',
+    ownerAuthorityDomain: bindingValue.ownerAuthorityDomain,
+    ownerRepository: bindingValue.repository,
+    ownerEnvelopeState: 'urn:usf:resultstate:passed',
+    ownerSourcePaths: sourcePaths,
+    authorityDigest: witnessDigest,
+    repository: bindingValue.repository,
+    operationDigest: bindingValue.operationDigest,
+    candidateDigest,
+    predecessorSourceHead: bindingValue.predecessorSourceHead,
+    predecessorSourceTree: bindingValue.predecessorSourceTree,
+    successorSourceTree: bindingValue.successorSourceTree,
+    sourceScopeDigest: bindingValue.sourceScopeDigest,
+    sourcePaths,
+    contracts: [compilerContract, contract].sort(),
+    requestedActions: bindingValue.requestedActions,
+    requestedPaths: bindingValue.requestedPaths,
+    requestedFormats: bindingValue.requestedFormats,
+    requestedEffects: bindingValue.requestedEffects,
+    validationObligations: obligations,
+  });
+  return {
+    authorityDigest: witnessDigest,
+    targetContract: contract,
+    baseActionState: ACTION_STATES.block,
+    baseActionStateReasons: obligations.map(() => 'missing-current-passing-validation'),
+    baseValidationGaps: obligations.map((subject) => ({ code: 'missing-current-passing-validation', subject })),
+    applicableContracts: [compilerContract],
+    authoritySurfaces: [{ contract: compilerContract, authorisedPaths: ['semantic-model'], authorisedFormats: [format] }],
+    binding: bindingValue,
+    resolutions: [resolution],
+  };
+}
+
+function authorityConflictClient(normalised, ownerSourcePaths) {
+  const resolution = 'urn:usf:authorityconflictresolution:exactsemanticcorrection';
+  const conflict = 'urn:usf:authorityconflict:exactsemanticcorrection';
+  const scalar = {
+    resolution, conflict,
+    resolutionState: 'urn:usf:semanticcorrectiondecisionstate:accepted',
+    decisionState: 'urn:usf:semanticcorrectiondecisionstate:accepted',
+    review: 'urn:usf:semanticadequacyreview:exactsemanticcorrection',
+    reviewState: 'urn:usf:semanticadequacyreviewstate:accepted',
+    reviewAuthorityDigest: witnessDigest,
+    reviewInventoryDigest: normalised.candidateDigest,
+    proofResult: 'urn:usf:proofresult:exactsemanticcorrection',
+    proofState: 'urn:usf:proofresultstate:successful', proofSubject: conflict,
+    ownerAssignment: 'urn:usf:ownerassignment:semanticmodelcompilation:matthewaldous',
+    ownerState: 'active', ownerAuthorityDomain: normalised.ownerAuthorityDomain,
+    ownerRepository: normalised.repository, ownerEnvelopeState: 'urn:usf:resultstate:passed',
+    authorityDigest: witnessDigest, repository: normalised.repository,
+    operationDigest: normalised.operationDigest, candidateDigest: normalised.candidateDigest,
+    predecessorSourceHead: normalised.predecessorSourceHead,
+    predecessorSourceTree: normalised.predecessorSourceTree,
+    successorSourceTree: normalised.successorSourceTree,
+    sourceScopeDigest: normalised.sourceScopeDigest,
+  };
+  const scalarRows = [Object.fromEntries(Object.entries(scalar).map(([key, item]) => [key, binding(item)]))];
+  const setRows = [
+    ...[compilerContract, contract].map((item) => ['contract', item]),
+    ...normalised.requestedActions.map((item) => ['action', item]),
+    ...normalised.requestedPaths.map((item) => ['path', item]),
+    ...normalised.requestedFormats.map((item) => ['format', item]),
+    ...normalised.requestedEffects.map((item) => ['effect', item]),
+    ...normalised.sourcePaths.map((item) => ['sourcePath', item]),
+    ...normalised.validationObligations.map((item) => ['validationObligation', item]),
+    ...ownerSourcePaths.map((item) => ['ownerSourcePath', item]),
+  ].map(([kind, item]) => ({ resolution: binding(resolution), kind: binding(kind), item: binding(item) }));
+  return fakeClient({
+    validationObligationRows: durableFamilyValidationRows(),
+    authorityConflictSurfaceRows: [{
+      surfaceContract: binding(compilerContract),
+      authorisedPath: binding('capabilities/semantic-model-compilation'),
+      authorisedFormat: binding(format),
+    }],
+    authorityConflictResolutionRows: scalarRows,
+    authorityConflictSetRows: setRows,
+  });
+}
+
+test('authority-conflict resolution is exact, fail-closed and non-replayable', () => {
+  const evaluate = materialisationInternals.evaluateAuthorityConflictResolution;
+  const control = exactAuthorityConflictFixture();
+  assert.equal(evaluate(control).actionState, ACTION_STATES.proceed);
+
+  const mutateResolution = (changes) => {
+    const candidate = exactAuthorityConflictFixture();
+    candidate.resolutions = [{ ...candidate.resolutions[0], ...changes }];
+    return candidate;
+  };
+  const adversaries = [
+    mutateResolution({ contracts: [contract] }),
+    mutateResolution({ contracts: [compilerContract, contract, 'urn:usf:semanticcontract:unrelated'].sort() }),
+    mutateResolution({ authorityDigest: `sha256:${'01'.repeat(32)}` }),
+    mutateResolution({ reviewAuthorityDigest: `sha256:${'02'.repeat(32)}` }),
+    mutateResolution({ candidateDigest: `sha256:${'03'.repeat(32)}` }),
+    mutateResolution({ successorSourceTree: '1'.repeat(40) }),
+    mutateResolution({ sourceScopeDigest: `sha256:${'04'.repeat(32)}` }),
+    mutateResolution({ requestedPaths: ['semantic-model', ...control.binding.requestedPaths] }),
+    mutateResolution({ requestedEffects: [...control.binding.requestedEffects, 'urn:usf:obligationeffect:providercontact'] }),
+    mutateResolution({ reviewState: null }),
+    mutateResolution({ reviewState: 'urn:usf:semanticadequacyreviewstate:rejected' }),
+    mutateResolution({ proofState: null }),
+    mutateResolution({ proofState: 'urn:usf:proofresultstate:failed' }),
+    mutateResolution({ proofSubject: 'urn:usf:authorityconflict:other' }),
+    mutateResolution({ ownerAuthorityDomain: 'urn:usf:capabilityowner:providerconfigurationplane' }),
+    mutateResolution({ ownerEnvelopeState: 'urn:usf:resultstate:failed' }),
+    mutateResolution({ resolutionState: 'urn:usf:semanticcorrectiondecisionstate:superseded' }),
+    mutateResolution({ operationDigest: `sha256:${'05'.repeat(32)}` }),
+    { ...exactAuthorityConflictFixture(), baseActionState: ACTION_STATES.proceed, baseActionStateReasons: [] },
+    mutateResolution({ resolutionState: 'urn:usf:semanticcorrectiondecisionstate:unknown' }),
+  ];
+  for (const [index, adversary] of adversaries.entries()) {
+    assert.equal(evaluate(adversary).actionState, ACTION_STATES.block, `adversary ${index + 1}`);
+  }
+
+  const replayOperation = structuredClone(control.binding);
+  assert.throws(() => materialisationInternals.normaliseAuthorityConflictBinding({
+    schemaVersion: 1,
+    candidateDigest: replayOperation.candidateDigest,
+    ownerAuthorityDomain: replayOperation.ownerAuthorityDomain,
+    predecessorSourceHead: replayOperation.predecessorSourceHead,
+    predecessorSourceTree: replayOperation.predecessorSourceTree,
+    repository: replayOperation.repository,
+    requestedEffects: replayOperation.requestedEffects,
+    sourcePaths: replayOperation.sourcePaths,
+    sourceScopeDigest: replayOperation.sourceScopeDigest,
+    successorSourceTree: replayOperation.successorSourceTree,
+    validationObligations: replayOperation.validationObligations,
+  }, [{
+    action: 'write-file', artefactFamily: family, content: 'exact correction\n',
+    contentDigest: digest('exact correction\n'), contentEncoding: 'utf8', index: 0,
+    path: 'semantic-model/ontology.ttl', pathRole: role, representationFormat: format,
+  }]), /source preimage/);
+});
+
+test('the canonical gateway consumes one exact live conflict resolution and no implicit precedence', async () => {
+  // The semantic-assurance profile intentionally proves that read-only
+  // validation loads without child-process authority. The full hermetic profile
+  // grants that authority and exercises the coordinator's real Git boundary.
+  if (process.env.USF_EXPECTED_CHILD_PROCESS_PERMISSION === 'denied') {
+    assert.equal(process.env.USF_HERMETIC_TEST_MODE, '1');
+    return;
+  }
+  const root = mkdtempSync(join(tmpdir(), 'usf-authority-conflict-apply-'));
+  roots.push(root);
+  const predecessor = await initialiseRepository(root);
+  const content = 'exact correction\n';
+  const operation = {
+    action: 'write-file', artefactFamily: family, content,
+    contentDigest: digest(content), contentEncoding: 'utf8', index: 0,
+    path: 'capabilities/semantic-model-compilation/value.mjs', pathRole: role,
+    representationFormat: format, sourceDigest: `sha256:${'b2'.repeat(32)}`,
+  };
+  const sourcePaths = [
+    'semantic-model/assurance/evidence.trig',
+    'semantic-model/assurance/proofs.trig',
+    'semantic-model/realisation/bindings.trig',
+  ];
+  const validationObligations = durableFamilyValidations.map((item) => item.id).sort();
+  const rawBinding = {
+    schemaVersion: 1,
+    candidateDigest: `sha256:${'a1'.repeat(32)}`,
+    ownerAuthorityDomain: 'urn:usf:capabilityowner:semanticmodelcompilation',
+    predecessorSourceHead: predecessor.head, predecessorSourceTree: predecessor.tree,
+    repository: 'maldous/usf-graph',
+    requestedEffects: [
+      'urn:usf:obligationeffect:repositorymutation',
+      'urn:usf:obligationeffect:validationproducersourceauthorisation',
+    ],
+    sourcePaths, sourceScopeDigest: digest(JSON.stringify(sourcePaths)),
+    successorSourceTree: await successorTreeForWrite(root, operation.path, content), validationObligations,
+  };
+  const normalised = materialisationInternals.normaliseAuthorityConflictBinding(rawBinding, [operation]);
+  const client = authorityConflictClient(normalised, sourcePaths);
+  await assert.rejects(
+    () => createLayoutPlan({ client }, { contract, operations: [operation] }),
+    /plan-realisation-blocked/,
+  );
+  const plan = await createLayoutPlan({ client }, {
+    contract, operations: [operation], authorityConflictBinding: rawBinding,
+  });
+  assert.equal(plan.authorityConflictBinding.candidateDigest, normalised.candidateDigest);
+  assert.equal((await validateLayoutPlan({ client }, plan)).ok, true);
+  assert.equal((await applyLayoutPlan({ client, coordinator: true, repositoryRoot: root }, { plan, apply: true })).applied, true);
+  await assert.rejects(
+    () => applyLayoutPlan({ client, coordinator: true, repositoryRoot: root }, { plan, apply: true }),
+    /authority-conflict predecessor worktree is not exact and clean|authority-conflict resolution is single-use/,
+  );
+});
+
+test('an exact directory-only authority-conflict resolution cannot report replay success', async () => {
+  if (process.env.USF_EXPECTED_CHILD_PROCESS_PERMISSION === 'denied') {
+    assert.equal(process.env.USF_HERMETIC_TEST_MODE, '1');
+    return;
+  }
+  const root = mkdtempSync(join(tmpdir(), 'usf-authority-conflict-directory-'));
+  roots.push(root);
+  const predecessor = await initialiseRepository(root);
+  const operation = {
+    action: 'create-directory', artefactFamily: family, index: 0,
+    path: 'capabilities/semantic-model-compilation', pathRole: role,
+    representationFormat: format,
+  };
+  const sourcePaths = [
+    'semantic-model/assurance/evidence.trig',
+    'semantic-model/assurance/proofs.trig',
+    'semantic-model/realisation/bindings.trig',
+  ];
+  const rawBinding = {
+    schemaVersion: 1,
+    candidateDigest: `sha256:${'a1'.repeat(32)}`,
+    ownerAuthorityDomain: 'urn:usf:capabilityowner:semanticmodelcompilation',
+    predecessorSourceHead: predecessor.head,
+    predecessorSourceTree: predecessor.tree,
+    repository: 'maldous/usf-graph',
+    requestedEffects: [
+      'urn:usf:obligationeffect:repositorymutation',
+      'urn:usf:obligationeffect:validationproducersourceauthorisation',
+    ],
+    sourcePaths,
+    sourceScopeDigest: digest(JSON.stringify(sourcePaths)),
+    successorSourceTree: predecessor.tree,
+    validationObligations: durableFamilyValidations.map((item) => item.id).sort(),
+  };
+  const normalised = materialisationInternals.normaliseAuthorityConflictBinding(rawBinding, [operation]);
+  const client = authorityConflictClient(normalised, sourcePaths);
+  const plan = await createLayoutPlan({ client }, {
+    contract, operations: [operation], authorityConflictBinding: rawBinding,
+  });
+  assert.equal((await applyLayoutPlan({ client, coordinator: true, repositoryRoot: root }, { plan, apply: true })).applied, true);
+  await assert.rejects(
+    () => applyLayoutPlan({ client, coordinator: true, repositoryRoot: root }, { plan, apply: true }),
+    /authority-conflict resolution is single-use/,
+  );
 });
 
 test('source digests distinguish exact file and deterministic tree state', () => {

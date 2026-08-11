@@ -309,6 +309,29 @@ SELECT DISTINCT ?violation ?subject WHERE {
       usf:semanticAdequacyDisposition <urn:usf:semanticadequacydisposition:unresolvedexternaldecision> .
     BIND("acceptedcorrectionhasunresolvedexternalitem" AS ?violation)
   } UNION {
+    # Resolution is an exact warranted exception, never a state label that can
+    # outrun its accepted semantic-correction decision, review, proof or owner.
+    ?subject a usf:SemanticCorrectionDecision ;
+      usf:semanticCorrectionDecisionState <urn:usf:semanticcorrectiondecisionstate:accepted> ;
+      usf:resolvesAuthorityConflict ?conflict .
+    FILTER(
+      NOT EXISTS { ?subject usf:semanticCorrectionDecisionState <urn:usf:semanticcorrectiondecisionstate:accepted> } ||
+      NOT EXISTS { ?subject usf:decisionBasedOnSemanticAdequacyReview/usf:hasSemanticAdequacyReviewState <urn:usf:semanticadequacyreviewstate:accepted> } ||
+      NOT EXISTS { ?subject usf:warrantedBySemanticAdequacyProof/usf:hasProofResultState <urn:usf:proofresultstate:successful> } ||
+      NOT EXISTS { ?subject usf:authorityConflictResolutionOwnerAssignment/usf:assignmentState "active" }
+    )
+    BIND("authorityconflictresolutionunwarranted" AS ?violation)
+  } UNION {
+    # Accepted one-shot authority may never be ambiguous for one conflict.
+    ?subject a usf:SemanticCorrectionDecision ;
+      usf:semanticCorrectionDecisionState <urn:usf:semanticcorrectiondecisionstate:accepted> ;
+      usf:resolvesAuthorityConflict ?conflict .
+    ?other a usf:SemanticCorrectionDecision ;
+      usf:semanticCorrectionDecisionState <urn:usf:semanticcorrectiondecisionstate:accepted> ;
+      usf:resolvesAuthorityConflict ?conflict .
+    FILTER(STR(?subject) < STR(?other))
+    BIND("authorityconflictresolutionambiguous" AS ?violation)
+  } UNION {
     # Accepted realisation decisions are not authority by state alone. Their
     # candidate set, structured assessments, evidence and selected option must
     # close before the decision can authorise implementation.

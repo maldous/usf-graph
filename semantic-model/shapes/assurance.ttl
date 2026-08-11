@@ -338,6 +338,65 @@ _:b32_b32_n3-178 sh:prefixes usf:prefixes;
     sh:message "accepted semantic correction requires an accepted review and successful exact proof";
     sh:select "SELECT $this WHERE {\n        $this usf:semanticCorrectionDecisionState <urn:usf:semanticcorrectiondecisionstate:accepted> ;\n              usf:decisionBasedOnSemanticAdequacyReview ?review .\n        FILTER(\n          NOT EXISTS { ?review usf:hasSemanticAdequacyReviewState <urn:usf:semanticadequacyreviewstate:accepted> } ||\n          NOT EXISTS { $this usf:warrantedBySemanticAdequacyProof/usf:hasProofResultState <urn:usf:proofresultstate:successful> }\n        )\n      }".
 shp:SemanticCorrectionDecisionShape sh:sparql _:b32_b32_n3-178.
+
+shp:AuthorityConflictShape a sh:NodeShape;
+    usf:canonicalName "authorityconflictshape";
+    sh:targetSubjectsOf usf:conflictAuthorityDigest;
+    sh:targetObjectsOf usf:resolvesAuthorityConflict;
+    sh:property [ sh:path usf:canonicalName; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:minLength 1 ];
+    sh:property [ sh:path usf:conflictAuthorityDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$" ];
+    sh:property [ sh:path usf:conflictingAuthority; sh:minCount 2; sh:class usf:SemanticContract ];
+    sh:property [ sh:path usf:conflictRepository; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:minLength 1 ];
+    sh:property [ sh:path usf:conflictOperationDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$" ];
+    sh:property [ sh:path usf:conflictCandidateDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$" ];
+    sh:property [ sh:path usf:conflictPredecessorSourceHead; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^[0-9a-f]{40}$" ];
+    sh:property [ sh:path usf:conflictPredecessorSourceTree; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^[0-9a-f]{40}$" ];
+    sh:property [ sh:path usf:conflictSuccessorSourceTree; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^[0-9a-f]{40}$" ];
+    sh:property [ sh:path usf:conflictSourceScopeDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$" ];
+    sh:property [ sh:path usf:conflictSourcePath; sh:minCount 1; sh:datatype xsd:string; sh:minLength 1 ];
+    sh:property [ sh:path usf:conflictRequestedAction; sh:minCount 1; sh:datatype xsd:string; sh:in ( "create-directory" "write-file" "move-path" "delete-path" ) ];
+    sh:property [ sh:path usf:conflictRequestedPath; sh:minCount 1; sh:datatype xsd:string; sh:minLength 1 ];
+    sh:property [ sh:path usf:conflictRequestedRepresentationFormat; sh:minCount 1; sh:class usf:RepresentationFormat ];
+    sh:property [ sh:path usf:conflictRequestedEffect; sh:minCount 1; sh:class usf:ObligationEffect ];
+    sh:property [ sh:path usf:conflictBlockedByValidationObligation; sh:minCount 1; sh:class usf:ValidationObligation ].
+
+shp:AuthorityConflictResolutionShape a sh:NodeShape;
+    usf:canonicalName "authorityconflictresolutionshape";
+    sh:targetSubjectsOf usf:resolvesAuthorityConflict;
+    sh:property [ sh:path usf:canonicalName; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:minLength 1 ];
+    sh:property [ sh:path usf:resolvesAuthorityConflict; sh:minCount 1; sh:maxCount 1; sh:class usf:AssuranceFinding ];
+    sh:property [ sh:path usf:authorityConflictResolutionOwnerAssignment; sh:minCount 1; sh:maxCount 1; sh:class usf:OwnerAssignment ];
+    sh:property [ sh:path usf:semanticCorrectionDecisionState; sh:minCount 1; sh:maxCount 1; sh:class usf:SemanticCorrectionDecisionState ];
+    sh:property [ sh:path usf:decisionBasedOnSemanticAdequacyReview; sh:minCount 1; sh:maxCount 1; sh:class usf:SemanticAdequacyReview ];
+    sh:property [ sh:path usf:warrantedBySemanticAdequacyProof; sh:minCount 1; sh:maxCount 1; sh:class usf:ProofResult ];
+    sh:sparql [
+      sh:prefixes usf:prefixes;
+      sh:message "accepted authority-conflict resolution requires exact current review, exact successful proof subject and admitted active owner envelope";
+      sh:select """SELECT $this WHERE {
+        $this usf:semanticCorrectionDecisionState <urn:usf:semanticcorrectiondecisionstate:accepted> ;
+              usf:resolvesAuthorityConflict ?conflict ;
+              usf:semanticCorrectionDecisionState ?decisionState ;
+              usf:decisionBasedOnSemanticAdequacyReview ?review ;
+              usf:warrantedBySemanticAdequacyProof ?result ;
+              usf:authorityConflictResolutionOwnerAssignment ?owner .
+        ?conflict usf:conflictAuthorityDigest ?authority ; usf:conflictCandidateDigest ?candidate ; usf:conflictRepository ?repository .
+        FILTER(
+          ?decisionState != <urn:usf:semanticcorrectiondecisionstate:accepted> ||
+          NOT EXISTS { ?review usf:hasSemanticAdequacyReviewState <urn:usf:semanticadequacyreviewstate:accepted> ; usf:reviewedAuthorityDigest ?authority ; usf:reviewedInventoryDigest ?candidate } ||
+          NOT EXISTS { ?result usf:hasProofResultState <urn:usf:proofresultstate:successful> ; usf:resultForProof/usf:provesSubject ?conflict } ||
+          NOT EXISTS { ?owner usf:assignmentState \"active\" ; usf:authorityRepository ?repository ; usf:hasAdmittedEnvelopeVerification/usf:envelopeVerificationState <urn:usf:resultstate:passed> }
+        )
+      }"""
+    ];
+    sh:sparql [
+      sh:prefixes usf:prefixes;
+      sh:message "one authority conflict may have at most one accepted resolution";
+      sh:select """SELECT $this WHERE {
+        $this usf:semanticCorrectionDecisionState <urn:usf:semanticcorrectiondecisionstate:accepted> ; usf:resolvesAuthorityConflict ?conflict .
+        ?other usf:semanticCorrectionDecisionState <urn:usf:semanticcorrectiondecisionstate:accepted> ; usf:resolvesAuthorityConflict ?conflict .
+        FILTER(?other != $this)
+      }"""
+    ].
 shp:ControlShape a sh:NodeShape;
     usf:canonicalName "controlshape";
     sh:targetClass usf:Control.

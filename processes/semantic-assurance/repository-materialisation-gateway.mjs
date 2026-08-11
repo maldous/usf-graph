@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
-import { createReadStream, existsSync, lstatSync, realpathSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { createReadStream, existsSync, lstatSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 
 import { authorityWitness, validContractRef } from './semantic-bootstrap-packet.mjs';
 import {
@@ -204,6 +205,7 @@ import {
   assertNoSymlinkSegments,
   canonicalJson,
   containedBy,
+  decisionAuthorisesPath,
   executePlanOperations,
   sha256 as planDigestOf,
   sourceDigest as planSourceDigest,
@@ -220,6 +222,234 @@ export const stable = stableInput;
 export const jcs = canonicalJson;
 export const digest = planDigestOf;
 export const sourceDigest = planSourceDigest;
+
+const AUTHORITY_CONFLICT_BINDING_SCHEMA = 1;
+const SEMANTIC_CORRECTION_ACCEPTED = 'urn:usf:semanticcorrectiondecisionstate:accepted';
+const AUTHORITY_CONFLICT_RESOLUTION_ACCEPTED = SEMANTIC_CORRECTION_ACCEPTED;
+const SEMANTIC_ADEQUACY_REVIEW_ACCEPTED = 'urn:usf:semanticadequacyreviewstate:accepted';
+const OWNER_ASSIGNMENT_ACTIVE = 'active';
+const OWNER_ENVELOPE_VERIFIED = 'urn:usf:resultstate:passed';
+const GIT_OBJECT = /^[0-9a-f]{40}$/;
+const REPOSITORY_ID = /^[A-Za-z0-9._/-]{1,256}$/;
+const AUTHORITY_IRI = /^urn:usf:[a-z0-9]+:[a-z0-9]+$/;
+const CONFLICT_EFFECT_IRI = /^urn:usf:obligationeffect:[a-z0-9]+$/;
+
+function exactKeys(valueToCheck, expected, label) {
+  if (!valueToCheck || typeof valueToCheck !== 'object' || Array.isArray(valueToCheck)) {
+    throw new Error(`${label} must be an object`);
+  }
+  const actual = Object.keys(valueToCheck).sort();
+  const wanted = [...expected].sort();
+  if (jcs(actual) !== jcs(wanted)) throw new Error(`${label} has an unknown or missing field`);
+}
+
+function exactSortedSet(items, label, predicate = (item) => typeof item === 'string' && item.length > 0) {
+  if (!Array.isArray(items) || items.length === 0 || items.some((item) => !predicate(item))) {
+    throw new Error(`${label} must be a non-empty canonical string set`);
+  }
+  const canonical = [...new Set(items)].sort();
+  if (canonical.length !== items.length || jcs(canonical) !== jcs(items)) {
+    throw new Error(`${label} must be sorted and unique`);
+  }
+  return Object.freeze(canonical);
+}
+
+function operationSet(operations, key) {
+  return Object.freeze([...new Set(operations.map((operation) => operation?.[key]).filter(Boolean))].sort());
+}
+
+function normaliseAuthorityConflictBinding(binding, operations) {
+  exactKeys(binding, [
+    'candidateDigest', 'ownerAuthorityDomain', 'predecessorSourceHead',
+    'predecessorSourceTree', 'repository', 'requestedEffects', 'schemaVersion',
+    'sourcePaths', 'sourceScopeDigest', 'successorSourceTree', 'validationObligations',
+  ], 'authority-conflict binding');
+  if (binding.schemaVersion !== AUTHORITY_CONFLICT_BINDING_SCHEMA) {
+    throw new Error('authority-conflict binding schema is unsupported');
+  }
+  if (!Array.isArray(operations) || operations.length === 0 || operations.length > MAX_OPERATIONS) {
+    throw new Error('authority-conflict binding requires bounded operations');
+  }
+  if (!SHA256.test(binding.candidateDigest || '') || !SHA256.test(binding.sourceScopeDigest || '')) {
+    throw new Error('authority-conflict binding digest is invalid');
+  }
+  if (![binding.predecessorSourceHead, binding.predecessorSourceTree, binding.successorSourceTree]
+    .every((item) => GIT_OBJECT.test(item || ''))) {
+    throw new Error('authority-conflict binding Git identity is invalid');
+  }
+  if (!REPOSITORY_ID.test(binding.repository || '')) throw new Error('authority-conflict binding repository is invalid');
+  if (!AUTHORITY_IRI.test(binding.ownerAuthorityDomain || '')) throw new Error('authority-conflict owner domain is invalid');
+  const sourcePaths = exactSortedSet(binding.sourcePaths, 'authority-conflict source paths');
+  if (digest(jcs(sourcePaths)) !== binding.sourceScopeDigest) {
+    throw new Error('authority-conflict source scope digest mismatch');
+  }
+  const requestedEffects = exactSortedSet(
+    binding.requestedEffects,
+    'authority-conflict requested effects',
+    (item) => typeof item === 'string' && CONFLICT_EFFECT_IRI.test(item),
+  );
+  const validationObligations = exactSortedSet(
+    binding.validationObligations,
+    'authority-conflict validation obligations',
+    (item) => typeof item === 'string' && item.startsWith('urn:usf:validationobligation:'),
+  );
+  // Every existing-file write carries its exact preimage. This makes the
+  // accepted resolution non-replayable even before its authority generation is
+  // superseded: the first application destroys the signed precondition.
+  if (operations.some((operation) => ['write-file', 'move-path', 'delete-path'].includes(operation?.action)
+      && !SHA256.test(operation?.sourceDigest || ''))) {
+    throw new Error('authority-conflict operation requires an exact source preimage');
+  }
+  const operationCore = Object.freeze({
+    operations: stable(operations),
+    repository: binding.repository,
+    schemaVersion: 1,
+  });
+  return Object.freeze({
+    schemaVersion: AUTHORITY_CONFLICT_BINDING_SCHEMA,
+    candidateDigest: binding.candidateDigest,
+    ownerAuthorityDomain: binding.ownerAuthorityDomain,
+    predecessorSourceHead: binding.predecessorSourceHead,
+    predecessorSourceTree: binding.predecessorSourceTree,
+    repository: binding.repository,
+    requestedActions: operationSet(operations, 'action'),
+    requestedEffects,
+    requestedFormats: operationSet(operations, 'representationFormat'),
+    requestedPaths: operationSet(operations, 'path'),
+    operationDigest: digest(jcs(operationCore)),
+    sourcePaths,
+    sourceScopeDigest: binding.sourceScopeDigest,
+    successorSourceTree: binding.successorSourceTree,
+    validationObligations,
+  });
+}
+
+function sameSet(left, right) {
+  return jcs([...new Set(left || [])].sort()) === jcs([...new Set(right || [])].sort());
+}
+
+function evaluateAuthorityConflictResolution({
+  authorityDigest,
+  targetContract,
+  baseActionState,
+  baseActionStateReasons,
+  baseValidationGaps,
+  applicableContracts,
+  authoritySurfaces = [],
+  binding,
+  resolutions,
+}) {
+  const failures = [];
+  const accepted = (resolutions || []).filter((item) => item.resolutionState === AUTHORITY_CONFLICT_RESOLUTION_ACCEPTED);
+  if (baseActionState !== ACTION_STATES.block
+      || !Array.isArray(baseActionStateReasons)
+      || baseActionStateReasons.length === 0) {
+    failures.push({ code: 'authority-conflict-no-longer-exists' });
+  }
+  if (!baseActionStateReasons.every((code) => code === 'missing-current-passing-validation')) {
+    failures.push({ code: 'authority-conflict-unresolved-base-reason' });
+  }
+  if (accepted.length !== 1) failures.push({ code: accepted.length === 0 ? 'authority-conflict-resolution-absent' : 'authority-conflict-resolution-ambiguous' });
+  const resolution = accepted.length === 1 ? accepted[0] : null;
+  if (!resolution) return Object.freeze({ actionState: ACTION_STATES.block, failures: Object.freeze(failures), resolution: null });
+
+  const expectedContracts = [...new Set([targetContract, ...(applicableContracts || [])])].sort();
+  const expectedObligations = [...new Set((baseValidationGaps || [])
+    .filter((gap) => gap.code === 'missing-current-passing-validation')
+    .map((gap) => gap.subject))].sort();
+  const exact = (observed, expected, code) => { if (observed !== expected) failures.push({ code }); };
+  const exactSet = (observed, expected, code) => { if (!sameSet(observed, expected)) failures.push({ code }); };
+  exact(resolution.authorityDigest, authorityDigest, 'authority-conflict-resolution-authority');
+  exact(resolution.candidateDigest, binding.candidateDigest, 'authority-conflict-resolution-candidate');
+  exact(resolution.operationDigest, binding.operationDigest, 'authority-conflict-resolution-operation');
+  exact(resolution.repository, binding.repository, 'authority-conflict-resolution-repository');
+  exact(resolution.predecessorSourceHead, binding.predecessorSourceHead, 'authority-conflict-resolution-predecessor-head');
+  exact(resolution.predecessorSourceTree, binding.predecessorSourceTree, 'authority-conflict-resolution-predecessor-tree');
+  exact(resolution.successorSourceTree, binding.successorSourceTree, 'authority-conflict-resolution-successor-tree');
+  exact(resolution.sourceScopeDigest, binding.sourceScopeDigest, 'authority-conflict-resolution-source-scope');
+  exactSet(resolution.sourcePaths, binding.sourcePaths, 'authority-conflict-resolution-source-paths');
+  exactSet(resolution.contracts, expectedContracts, 'authority-conflict-resolution-conflicting-authorities');
+  exactSet(resolution.requestedActions, binding.requestedActions, 'authority-conflict-resolution-actions');
+  exactSet(resolution.requestedPaths, binding.requestedPaths, 'authority-conflict-resolution-paths');
+  exactSet(resolution.requestedFormats, binding.requestedFormats, 'authority-conflict-resolution-formats');
+  exactSet(resolution.requestedEffects, binding.requestedEffects, 'authority-conflict-resolution-effects');
+  exactSet(resolution.validationObligations, expectedObligations, 'authority-conflict-resolution-validation-obligations');
+  exactSet(binding.validationObligations, expectedObligations, 'authority-conflict-binding-validation-obligations');
+  exact(resolution.decisionState, SEMANTIC_CORRECTION_ACCEPTED, 'authority-conflict-resolution-decision');
+  exact(resolution.reviewState, SEMANTIC_ADEQUACY_REVIEW_ACCEPTED, 'authority-conflict-resolution-review');
+  exact(resolution.reviewAuthorityDigest, authorityDigest, 'authority-conflict-resolution-review-authority');
+  exact(resolution.reviewInventoryDigest, binding.candidateDigest, 'authority-conflict-resolution-review-subject');
+  exact(resolution.proofState, SUCCESSFUL, 'authority-conflict-resolution-proof');
+  exact(resolution.proofSubject, resolution.conflict, 'authority-conflict-resolution-proof-subject');
+  exact(resolution.ownerState, OWNER_ASSIGNMENT_ACTIVE, 'authority-conflict-resolution-owner-state');
+  exact(resolution.ownerAuthorityDomain, binding.ownerAuthorityDomain, 'authority-conflict-resolution-owner');
+  exact(resolution.ownerRepository, binding.repository, 'authority-conflict-resolution-owner-repository');
+  exact(resolution.ownerEnvelopeState, OWNER_ENVELOPE_VERIFIED, 'authority-conflict-resolution-owner-signature');
+  for (const surface of authoritySurfaces) {
+    if (!binding.requestedPaths.every((path) => decisionAuthorisesPath(path, surface.authorisedPaths || []))
+        || !binding.requestedFormats.every((format) => (surface.authorisedFormats || []).includes(format))) {
+      failures.push({ code: 'authority-conflict-positive-surface-incomplete', contract: surface.contract });
+    }
+  }
+  if (resolution.ownerSourcePaths && ![
+    'semantic-model/assurance/evidence.trig',
+    'semantic-model/assurance/proofs.trig',
+    'semantic-model/realisation/bindings.trig',
+  ].every((path) => resolution.ownerSourcePaths.includes(path))) {
+    failures.push({ code: 'authority-conflict-resolution-owner-source-scope' });
+  }
+  return Object.freeze({
+    actionState: failures.length === 0 ? ACTION_STATES.proceed : ACTION_STATES.block,
+    failures: Object.freeze(failures),
+    resolution: failures.length === 0 ? Object.freeze({ ...resolution }) : null,
+  });
+}
+
+async function gitOutput(repositoryRoot, args, options = {}) {
+  try {
+    // The semantic-assurance profile deliberately denies child processes. Load
+    // the Git execution capability only at the coordinator mutation boundary so
+    // read-only projection/validation remains executable in that profile. The
+    // complete coordinator path is exercised by the child-permitted full gate.
+    const { execFileSync } = await import('node:child_process');
+    return execFileSync('git', ['-C', repositoryRoot, ...args], {
+      encoding: 'utf8',
+      maxBuffer: 16 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      ...options,
+    }).trim();
+  } catch (error) {
+    const diagnostic = error?.stderr?.toString?.().trim();
+    throw new Error(`authority-conflict Git identity check failed${diagnostic ? `: ${diagnostic}` : ''}`, { cause: error });
+  }
+}
+
+async function assertAuthorityConflictPredecessor(repositoryRoot, binding) {
+  const head = await gitOutput(repositoryRoot, ['rev-parse', '--verify', 'HEAD']);
+  const tree = await gitOutput(repositoryRoot, ['rev-parse', '--verify', 'HEAD^{tree}']);
+  if (head !== binding.predecessorSourceHead) {
+    throw new Error(`authority-conflict predecessor head mismatch: expected ${binding.predecessorSourceHead}, observed ${head}`);
+  }
+  if (tree !== binding.predecessorSourceTree) {
+    throw new Error(`authority-conflict predecessor tree mismatch: expected ${binding.predecessorSourceTree}, observed ${tree}`);
+  }
+  if (await gitOutput(repositoryRoot, ['status', '--porcelain=v1', '--untracked-files=all']) !== '') {
+    throw new Error('authority-conflict predecessor worktree is not exact and clean');
+  }
+}
+
+async function stagedWorktreeTree(repositoryRoot) {
+  const temporary = mkdtempSync(join(tmpdir(), 'usf-authority-conflict-index-'));
+  const indexPath = join(temporary, 'index');
+  const env = { ...process.env, GIT_INDEX_FILE: indexPath };
+  try {
+    await gitOutput(repositoryRoot, ['read-tree', 'HEAD'], { env });
+    await gitOutput(repositoryRoot, ['add', '-A', '--', '.'], { env });
+    return await gitOutput(repositoryRoot, ['write-tree'], { env });
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
+}
 
 function bounded(valueToMeasure, maximum, label) {
   const bytes = Buffer.byteLength(jcs(valueToMeasure));
@@ -440,9 +670,17 @@ function withAuthority(semantics, witness, ctx) {
 // here rather than assumed.
 export async function validateLayoutPlan(ctx, plan, verdict = null) {
   bounded(plan, MAX_PLAN_BYTES, 'materialisation plan');
-  const resolved = verdict || await realisationVerdict(ctx, { contract: plan?.contract });
+  const resolved = verdict || await realisationVerdict(ctx, {
+    contract: plan?.contract,
+    authorityConflictBinding: plan?.authorityConflictBinding,
+    operations: plan?.operations,
+  });
   const { context } = resolved;
   const failures = [];
+  const expectedKeys = plan?.authorityConflictBinding
+    ? ['authorityConflictBinding', 'authorityDigest', 'contract', 'operations', 'planDigest', 'schemaVersion']
+    : ['authorityDigest', 'contract', 'operations', 'planDigest', 'schemaVersion'];
+  if (!plan || jcs(Object.keys(plan).sort()) !== jcs(expectedKeys.sort())) failures.push({ code: 'plan-field-closure' });
   if (plan?.schemaVersion !== 1) failures.push({ code: 'plan-schema-version' });
   if (plan?.authorityDigest !== context.authorityDigest) failures.push({ code: 'plan-authority-digest' });
   // One stable code per non-PROCEED realisation state, carrying the verdict's own
@@ -476,14 +714,26 @@ export async function validateLayoutPlan(ctx, plan, verdict = null) {
 
 export async function createLayoutPlan(ctx, args = {}) {
   if (!Array.isArray(args.operations)) throw new Error('operations must be an array');
-  const verdict = await realisationVerdict(ctx, { contract: args.contract || CONTRACT });
+  const verdict = await realisationVerdict(ctx, {
+    contract: args.contract || CONTRACT,
+    authorityConflictBinding: args.authorityConflictBinding,
+    operations: args.operations,
+  });
   // Refuse before a plan exists. A plan is an authorisation artefact, so it must
   // not be constructible from a contract that does not authorise realisation.
   if (verdict.actionState !== ACTION_STATES.proceed) {
     throw new Error(`${verdict.stateFailureCode}: realisation action state is ${verdict.actionState} (${verdict.actionStateReasons.join(',') || 'no reasons'})`);
   }
   const { context } = verdict;
-  const plan = { schemaVersion: 1, authorityDigest: context.authorityDigest, contract: context.contract.id, operations: args.operations };
+  const plan = {
+    schemaVersion: 1,
+    authorityDigest: context.authorityDigest,
+    contract: context.contract.id,
+    operations: args.operations,
+    ...(verdict.authorityConflictBinding
+      ? { authorityConflictBinding: stable(args.authorityConflictBinding) }
+      : {}),
+  };
   plan.planDigest = digest(jcs(plan));
   const result = await validateLayoutPlan(ctx, plan, verdict);
   if (!result.ok) throw new Error(`invalid materialisation plan: ${result.failures.map((item) => `${item.index ?? '-'}:${item.code}`).join(',')}`);
@@ -495,7 +745,11 @@ export async function applyLayoutPlan(ctx, args = {}) {
   const plan = args.plan;
   // Apply judges the same verdict as creation and validation, so a plan minted
   // under PROCEED cannot be applied after the state has moved.
-  const verdict = await realisationVerdict(ctx, { contract: plan?.contract });
+  const verdict = await realisationVerdict(ctx, {
+    contract: plan?.contract,
+    authorityConflictBinding: plan?.authorityConflictBinding,
+    operations: plan?.operations,
+  });
   const validation = await validateLayoutPlan(ctx, plan, verdict);
   if (!validation.ok) {
     return { applied: false, realisationActionState: verdict.actionState, stateFailureCode: verdict.stateFailureCode, validation };
@@ -511,6 +765,9 @@ export async function applyLayoutPlan(ctx, args = {}) {
   if (plan.authorityDigest !== preApply.digest) {
     throw new Error(`${AUTHORITY_MOVED_CODE}: plan authority ${plan.authorityDigest} does not match live authority ${preApply.digest} at apply time`);
   }
+  if (plan.authorityConflictBinding) {
+    await assertAuthorityConflictPredecessor(ctx.repositoryRoot, verdict.authorityConflictBinding);
+  }
   // The filesystem apply, CAS resolution, idempotence and rollback are the pure
   // module's, not a second copy: this call returns the still-open rollback stack
   // so the post-apply authority check below can undo the complete run through
@@ -520,6 +777,21 @@ export async function applyLayoutPlan(ctx, args = {}) {
     repositoryRoot: ctx.repositoryRoot,
     casRoot: ctx.casRoot,
   });
+  if (plan.authorityConflictBinding) {
+    try {
+      if (execution.operations.some((operation) => operation.state === 'already-applied')) {
+        throw new Error('authority-conflict resolution is single-use and has already been applied');
+      }
+      const observedTree = await stagedWorktreeTree(ctx.repositoryRoot);
+      if (observedTree !== verdict.authorityConflictBinding.successorSourceTree) {
+        throw new Error(
+          `authority-conflict successor tree mismatch: expected ${verdict.authorityConflictBinding.successorSourceTree}, observed ${observedTree}`,
+        );
+      }
+    } catch (error) {
+      execution.rollbackAndThrow(error);
+    }
+  }
   // After every operation but before reporting success: if authority moved while
   // the filesystem was being changed, the plan was authorised against a state that
   // no longer exists. Run the complete rollback stack and fail closed; rollback
@@ -1210,6 +1482,154 @@ function validationVerdict(contract, scope, authorityWitnessValue) {
   };
 }
 
+async function readAuthorityConflictState(client, binding, authorityDigest) {
+  const escapedRepository = binding.repository.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+  const [surfaceRows, resolutionRows, setRows] = await Promise.all([
+    client.select(`SELECT DISTINCT ?surfaceContract ?authorisedPath ?authorisedFormat WHERE {
+      ?surfaceContract a <urn:usf:ontology:SemanticContract> ;
+        <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active> ;
+        <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+        <urn:usf:ontology:reliesOnProofResult> ?surfaceProof ;
+        <urn:usf:ontology:effectiveRealisationDecision> ?surfaceDecision .
+      ?surfaceProof <urn:usf:ontology:hasProofResultState> <urn:usf:proofresultstate:successful> ;
+        <urn:usf:ontology:hasAuthorityBinding> ?surfaceBinding .
+      ?surfaceBinding <urn:usf:ontology:reevaluationSettledAuthorityDigest> "${authorityDigest}" ;
+        <urn:usf:ontology:hasPostPublicationReevaluationState> <urn:usf:proofreevaluationstate:successful> .
+      ?surfaceDecision <urn:usf:ontology:decisionState> <urn:usf:decisionstate:accepted> ;
+        <urn:usf:ontology:authorisesRepository> "${escapedRepository}" ;
+        <urn:usf:ontology:authorisesSourcePath> ?authorisedPath ;
+        <urn:usf:ontology:authorisesRepresentationFormat> ?authorisedFormat .
+    } ORDER BY ?surfaceContract ?authorisedPath ?authorisedFormat LIMIT 257`),
+    client.select(`SELECT ?resolution ?conflict ?resolutionState ?decisionState ?review ?reviewState
+        ?reviewAuthorityDigest ?reviewInventoryDigest ?proofResult ?proofState ?proofSubject
+        ?ownerAssignment ?ownerState ?ownerAuthorityDomain ?ownerRepository ?ownerEnvelopeState
+        ?authorityDigest ?repository ?operationDigest ?candidateDigest ?predecessorSourceHead
+        ?predecessorSourceTree ?successorSourceTree ?sourceScopeDigest WHERE {
+      ?resolution a <urn:usf:ontology:SemanticCorrectionDecision> ;
+        <urn:usf:ontology:resolvesAuthorityConflict> ?conflict .
+      ?conflict <urn:usf:ontology:conflictRepository> "${escapedRepository}" .
+      OPTIONAL { ?resolution <urn:usf:ontology:semanticCorrectionDecisionState> ?resolutionState }
+      OPTIONAL { ?resolution <urn:usf:ontology:semanticCorrectionDecisionState> ?decisionState }
+      OPTIONAL {
+        ?resolution <urn:usf:ontology:decisionBasedOnSemanticAdequacyReview> ?review .
+        OPTIONAL { ?review <urn:usf:ontology:hasSemanticAdequacyReviewState> ?reviewState }
+        OPTIONAL { ?review <urn:usf:ontology:reviewedAuthorityDigest> ?reviewAuthorityDigest }
+        OPTIONAL { ?review <urn:usf:ontology:reviewedInventoryDigest> ?reviewInventoryDigest }
+      }
+      OPTIONAL {
+        ?resolution <urn:usf:ontology:warrantedBySemanticAdequacyProof> ?proofResult .
+        OPTIONAL { ?proofResult <urn:usf:ontology:hasProofResultState> ?proofState }
+        OPTIONAL { ?proofResult <urn:usf:ontology:resultForProof>/<urn:usf:ontology:provesSubject> ?proofSubject }
+      }
+      OPTIONAL {
+        ?resolution <urn:usf:ontology:authorityConflictResolutionOwnerAssignment> ?ownerAssignment .
+        OPTIONAL { ?ownerAssignment <urn:usf:ontology:assignmentState> ?ownerState }
+        OPTIONAL { ?ownerAssignment <urn:usf:ontology:authorityDomain> ?ownerAuthorityDomain }
+        OPTIONAL { ?ownerAssignment <urn:usf:ontology:authorityRepository> ?ownerRepository }
+        OPTIONAL { ?ownerAssignment <urn:usf:ontology:hasAdmittedEnvelopeVerification>/<urn:usf:ontology:envelopeVerificationState> ?ownerEnvelopeState }
+      }
+      OPTIONAL { ?conflict <urn:usf:ontology:conflictAuthorityDigest> ?authorityDigest }
+      OPTIONAL { ?conflict <urn:usf:ontology:conflictRepository> ?repository }
+      OPTIONAL { ?conflict <urn:usf:ontology:conflictOperationDigest> ?operationDigest }
+      OPTIONAL { ?conflict <urn:usf:ontology:conflictCandidateDigest> ?candidateDigest }
+      OPTIONAL { ?conflict <urn:usf:ontology:conflictPredecessorSourceHead> ?predecessorSourceHead }
+      OPTIONAL { ?conflict <urn:usf:ontology:conflictPredecessorSourceTree> ?predecessorSourceTree }
+      OPTIONAL { ?conflict <urn:usf:ontology:conflictSuccessorSourceTree> ?successorSourceTree }
+      OPTIONAL { ?conflict <urn:usf:ontology:conflictSourceScopeDigest> ?sourceScopeDigest }
+    } ORDER BY ?resolution LIMIT 257`),
+    client.select(`SELECT ?resolution ?kind ?item WHERE {
+      ?resolution a <urn:usf:ontology:SemanticCorrectionDecision> ;
+        <urn:usf:ontology:resolvesAuthorityConflict> ?conflict .
+      ?conflict <urn:usf:ontology:conflictRepository> "${escapedRepository}" .
+      {
+        ?conflict <urn:usf:ontology:conflictingAuthority> ?item . BIND("contract" AS ?kind)
+      } UNION {
+        ?conflict <urn:usf:ontology:conflictRequestedAction> ?item . BIND("action" AS ?kind)
+      } UNION {
+        ?conflict <urn:usf:ontology:conflictRequestedPath> ?item . BIND("path" AS ?kind)
+      } UNION {
+        ?conflict <urn:usf:ontology:conflictRequestedRepresentationFormat> ?item . BIND("format" AS ?kind)
+      } UNION {
+        ?conflict <urn:usf:ontology:conflictRequestedEffect> ?item . BIND("effect" AS ?kind)
+      } UNION {
+        ?conflict <urn:usf:ontology:conflictSourcePath> ?item . BIND("sourcePath" AS ?kind)
+      } UNION {
+        ?conflict <urn:usf:ontology:conflictBlockedByValidationObligation> ?item . BIND("validationObligation" AS ?kind)
+      } UNION {
+        ?resolution <urn:usf:ontology:authorityConflictResolutionOwnerAssignment>/<urn:usf:ontology:ownerAssignmentSourcePath> ?item . BIND("ownerSourcePath" AS ?kind)
+      }
+    } ORDER BY ?resolution ?kind ?item LIMIT 2049`),
+  ]);
+  if (surfaceRows.length >= 257 || resolutionRows.length >= 257 || setRows.length >= 2049) {
+    throw new Error('authority-conflict projection exceeds its bounded cardinality');
+  }
+  const surfaces = new Map();
+  for (const row of surfaceRows) {
+    const contract = value(row, 'surfaceContract');
+    if (!contract) throw new Error('authority-conflict surface projection is incomplete');
+    const current = surfaces.get(contract) || { contract, authorisedPaths: new Set(), authorisedFormats: new Set() };
+    const path = value(row, 'authorisedPath');
+    const format = value(row, 'authorisedFormat');
+    if (path) current.authorisedPaths.add(path);
+    if (format) current.authorisedFormats.add(format);
+    surfaces.set(contract, current);
+  }
+  const applicableSurfaces = [...surfaces.values()]
+    .filter((surface) => binding.requestedPaths.some((path) => decisionAuthorisesPath(path, [...surface.authorisedPaths])))
+    .map((surface) => Object.freeze({
+      contract: surface.contract,
+      authorisedPaths: Object.freeze([...surface.authorisedPaths].sort()),
+      authorisedFormats: Object.freeze([...surface.authorisedFormats].sort()),
+    }))
+    .sort((left, right) => left.contract.localeCompare(right.contract));
+
+  const grouped = new Map();
+  for (const row of resolutionRows) {
+    const id = value(row, 'resolution');
+    if (!id) throw new Error('authority-conflict resolution identity is absent');
+    const current = grouped.get(id) || { id, scalarRows: [], sets: new Map() };
+    current.scalarRows.push(row);
+    grouped.set(id, current);
+  }
+  for (const row of setRows) {
+    const id = value(row, 'resolution');
+    const kind = value(row, 'kind');
+    const item = value(row, 'item');
+    const current = grouped.get(id);
+    if (!current || !kind || !item) throw new Error('authority-conflict set projection is incomplete');
+    const items = current.sets.get(kind) || new Set();
+    items.add(item);
+    current.sets.set(kind, items);
+  }
+  const scalarKeys = [
+    'conflict', 'resolutionState', 'decisionState', 'review', 'reviewState',
+    'reviewAuthorityDigest', 'reviewInventoryDigest', 'proofResult', 'proofState',
+    'proofSubject', 'ownerAssignment', 'ownerState', 'ownerAuthorityDomain',
+    'ownerRepository', 'ownerEnvelopeState', 'authorityDigest', 'repository',
+    'operationDigest', 'candidateDigest', 'predecessorSourceHead',
+    'predecessorSourceTree', 'successorSourceTree', 'sourceScopeDigest',
+  ];
+  const resolutions = [...grouped.values()].map((group) => {
+    const parsed = { id: group.id };
+    for (const key of scalarKeys) {
+      const values = [...new Set(group.scalarRows.map((row) => value(row, key)).filter(Boolean))];
+      if (values.length > 1) throw new Error(`authority-conflict resolution has ambiguous ${key}`);
+      parsed[key] = values[0] ?? null;
+    }
+    for (const [kind, target] of [
+      ['contract', 'contracts'], ['action', 'requestedActions'], ['path', 'requestedPaths'],
+      ['format', 'requestedFormats'], ['effect', 'requestedEffects'], ['sourcePath', 'sourcePaths'],
+      ['validationObligation', 'validationObligations'], ['ownerSourcePath', 'ownerSourcePaths'],
+    ]) parsed[target] = [...(group.sets.get(kind) || [])].sort();
+    return Object.freeze(parsed);
+  }).sort((left, right) => left.id.localeCompare(right.id));
+  return Object.freeze({
+    applicableContracts: Object.freeze(applicableSurfaces.map((surface) => surface.contract)),
+    authoritySurfaces: Object.freeze(applicableSurfaces),
+    resolutions: Object.freeze(resolutions),
+  });
+}
+
 // The single authoritative realisation verdict. Every surface that can create,
 // validate or apply a materialisation plan consumes this, so a plan tool cannot
 // reach a conclusion the projection would refuse. Duplicating the state logic is
@@ -1226,6 +1646,9 @@ export const REALISATION_STATE_FAILURE_CODES = Object.freeze({
 });
 
 export async function realisationVerdict(ctx, args = {}) {
+  const authorityConflictBinding = args.authorityConflictBinding
+    ? normaliseAuthorityConflictBinding(args.authorityConflictBinding, args.operations)
+    : null;
   // One bracket over the COMPLETE semantic read: contract, lifecycle, activation,
   // proof, decision, authorisations, materialisation rules and the whole
   // validation scope. Previously the witness was read concurrently with the
@@ -1234,11 +1657,14 @@ export async function realisationVerdict(ctx, args = {}) {
   const { witness, value } = await stableAuthorityRead(
     ctx.client,
     'realisation verdict read',
-    async () => {
+    async (openingWitness) => {
       const semantics = await readLayoutSemantics(ctx, { contract: args.contract || CONTRACT });
-      const [validationScopeValue, mandatoryRows] = await Promise.all([
+      const [validationScopeValue, mandatoryRows, conflictState] = await Promise.all([
         validationScope(ctx.client, semantics.contract.id),
         ctx.client.select(`SELECT ?obligation WHERE { <${semantics.contract.id}> <urn:usf:ontology:mandatoryProofObligation> ?obligation } ORDER BY ?obligation LIMIT 64`),
+        authorityConflictBinding
+          ? readAuthorityConflictState(ctx.client, authorityConflictBinding, openingWitness.digest)
+          : Promise.resolve(null),
       ]);
       // Currentness is read inside the SAME bracket as the contract and
       // validation state, so the verdict is one conclusion about one authority.
@@ -1249,7 +1675,7 @@ export async function realisationVerdict(ctx, args = {}) {
         mandatoryObligations: mandatoryRows.map((row) => row.obligation?.value).filter(Boolean),
         observedAt: ctx.observedAt ?? null,
       });
-      return { semantics, scope: validationScopeValue, currentness };
+      return { semantics, scope: validationScopeValue, currentness, conflictState };
     },
   );
   const context = withAuthority(value.semantics, witness, ctx);
@@ -1289,15 +1715,55 @@ export async function realisationVerdict(ctx, args = {}) {
   // an accepted decision and a successful proof already granted.
   for (const gap of validation.realisationBlocking) reasons.push({ code: gap.code, state: resolveDisposition(gap.code) });
 
-  const actionState = reasons.length === 0 ? ACTION_STATES.proceed : strongestState(reasons.map((item) => item.state));
+  const baseActionState = reasons.length === 0 ? ACTION_STATES.proceed : strongestState(reasons.map((item) => item.state));
+  let actionState = baseActionState;
+  let actionStateReasons = reasons.map((item) => item.code).sort();
+  let conflictResolution = null;
+  let effectiveContext = context;
+  if (authorityConflictBinding) {
+    const resolutionVerdict = evaluateAuthorityConflictResolution({
+      authorityDigest: context.authorityDigest,
+      targetContract: context.contract.id,
+      baseActionState,
+      baseActionStateReasons: actionStateReasons,
+      baseValidationGaps: validation.gaps,
+      applicableContracts: value.conflictState?.applicableContracts ?? [],
+      authoritySurfaces: value.conflictState?.authoritySurfaces ?? [],
+      binding: authorityConflictBinding,
+      resolutions: value.conflictState?.resolutions ?? [],
+    });
+    if (resolutionVerdict.actionState === ACTION_STATES.proceed) {
+      actionState = ACTION_STATES.proceed;
+      actionStateReasons = [];
+      conflictResolution = resolutionVerdict.resolution;
+      effectiveContext = Object.freeze({
+        ...context,
+        authorisedFormats: authorityConflictBinding.requestedFormats,
+        authorisedPaths: authorityConflictBinding.requestedPaths,
+        authorisedRepositories: Object.freeze([authorityConflictBinding.repository]),
+        contract: Object.freeze({
+          ...context.contract,
+          authorisedRepository: authorityConflictBinding.repository,
+        }),
+      });
+    } else {
+      actionState = ACTION_STATES.block;
+      actionStateReasons = [...new Set([
+        ...actionStateReasons,
+        ...resolutionVerdict.failures.map((item) => item.code),
+      ])].sort();
+    }
+  }
   return Object.freeze({
-    context,
+    context: effectiveContext,
     scope,
     validation,
     currentness,
     actionState,
-    actionStateReasons: reasons.map((item) => item.code).sort(),
+    actionStateReasons,
     stateFailureCode: REALISATION_STATE_FAILURE_CODES[actionState] ?? null,
+    authorityConflictBinding,
+    conflictResolution,
     // The bracketing witness. Any later read that claims to describe the same
     // authority must still equal this exactly.
     witness,
@@ -1630,6 +2096,8 @@ export const materialisationConstants = Object.freeze({ CONTRACT, MAX_PLAN_BYTES
 export const materialisationInternals = Object.freeze({
   assertNoSymlinkSegments,
   containedBy,
+  evaluateAuthorityConflictResolution,
+  normaliseAuthorityConflictBinding,
   rethrowWithRollback,
   validationNonPublicationDependencyDigest,
 });

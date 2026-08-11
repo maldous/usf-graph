@@ -1119,6 +1119,10 @@ action:cancelled a usf:ActionStatus;
     usf:canonicalName "accepted".
 <urn:usf:semanticcorrectiondecisionstate:superseded> a usf:SemanticCorrectionDecisionState;
     usf:canonicalName "superseded".
+<urn:usf:obligationeffect:repositorymutation> a usf:ObligationEffect;
+    usf:canonicalName "repositorymutation".
+<urn:usf:obligationeffect:validationproducersourceauthorisation> a usf:ObligationEffect;
+    usf:canonicalName "validationproducersourceauthorisation".
 evk:semanticreviewevidence a usf:EvidenceKind;
     usf:canonicalName "semanticreviewevidence".
 <urn:usf:termusagestate:reservedfuturescope> a usf:TermUsageState;

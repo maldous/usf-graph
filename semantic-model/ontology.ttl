@@ -1763,6 +1763,57 @@ usf:decisionBasedOnSemanticAdequacyReview a owl:ObjectProperty, owl:FunctionalPr
 usf:warrantedBySemanticAdequacyProof a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:SemanticCorrectionDecision;
     rdfs:range usf:ProofResult.
+usf:conflictAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:AssuranceFinding;
+    rdfs:range xsd:string.
+usf:conflictingAuthority a owl:ObjectProperty;
+    rdfs:domain usf:AssuranceFinding;
+    rdfs:range usf:SemanticContract.
+usf:conflictRepository a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:AssuranceFinding;
+    rdfs:range xsd:string.
+usf:conflictOperationDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:AssuranceFinding;
+    rdfs:range xsd:string.
+usf:conflictCandidateDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:AssuranceFinding;
+    rdfs:range xsd:string.
+usf:conflictPredecessorSourceHead a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:AssuranceFinding;
+    rdfs:range xsd:string.
+usf:conflictPredecessorSourceTree a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:AssuranceFinding;
+    rdfs:range xsd:string.
+usf:conflictSuccessorSourceTree a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:AssuranceFinding;
+    rdfs:range xsd:string.
+usf:conflictSourceScopeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:AssuranceFinding;
+    rdfs:range xsd:string.
+usf:conflictSourcePath a owl:DatatypeProperty;
+    rdfs:domain usf:AssuranceFinding;
+    rdfs:range xsd:string.
+usf:conflictRequestedAction a owl:DatatypeProperty;
+    rdfs:domain usf:AssuranceFinding;
+    rdfs:range xsd:string.
+usf:conflictRequestedPath a owl:DatatypeProperty;
+    rdfs:domain usf:AssuranceFinding;
+    rdfs:range xsd:string.
+usf:conflictRequestedRepresentationFormat a owl:ObjectProperty;
+    rdfs:domain usf:AssuranceFinding;
+    rdfs:range usf:RepresentationFormat.
+usf:conflictRequestedEffect a owl:ObjectProperty;
+    rdfs:domain usf:AssuranceFinding;
+    rdfs:range usf:ObligationEffect.
+usf:conflictBlockedByValidationObligation a owl:ObjectProperty;
+    rdfs:domain usf:AssuranceFinding;
+    rdfs:range usf:ValidationObligation.
+usf:resolvesAuthorityConflict a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticCorrectionDecision;
+    rdfs:range usf:AssuranceFinding.
+usf:authorityConflictResolutionOwnerAssignment a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:SemanticCorrectionDecision;
+    rdfs:range usf:OwnerAssignment.
 usf:Entity a owl:Class;
     rdfs:label "Entity";
     rdfs:comment "Root of every authored USF concept.".
