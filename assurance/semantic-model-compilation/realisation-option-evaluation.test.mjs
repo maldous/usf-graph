@@ -202,7 +202,7 @@ test('current candidate closes every required zero counter deterministically', (
   assert.equal(firstRun.ok, true, JSON.stringify(firstRun.findings));
   assert.deepEqual(Object.keys(firstRun.gateCounters).sort(), [...GATE_COUNTER_NAMES].sort());
   assert.ok(Object.values(firstRun.gateCounters).every((value) => value === 0));
-  assert.equal(firstRun.acceptedDecisionCount, 6);
+  assert.equal(firstRun.acceptedDecisionCount, 7);
   assert.equal(firstRun.criterionCount, 31);
   const focusRoots = realisationOptionShaclFocusRoots(baseline);
   assert.equal(new Set(focusRoots).size, focusRoots.length);

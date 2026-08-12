@@ -445,7 +445,7 @@ sc:compilersemanticenforcement
     usf:canonicalName "semanticmodelcompilationrealisation";
     usf:recordsDecision <urn:usf:realisationdecision:semanticmodelcompilationrealisation>.
 
-<urn:usf:realisationoption:authenticatedcheckpointcoldarchiveboundedhottail> a usf:RealisationOption;
+<urn:usf:realisationoption:authenticatedcheckpointcoldarchiveboundedhottail> a usf:RealisationOption, usf:ComposedRealisationOption;
     usf:canonicalName "authenticatedcheckpointcoldarchiveboundedhottail";
     usf:definition "Authenticated event-history checkpoint plus immutable signed cold archive and a bounded verified hot tail, preserving exact archive and genesis restoration.".
 <urn:usf:realisationoption:genesisreplayhotstoreonly> a usf:RealisationOption;
