@@ -34,6 +34,8 @@ const alternative = iri('urn:usf:realisationoption:javardfsemanticmodelcompiler'
 const authorityDecision = iri('urn:usf:realisationdecision:semanticauthoritycontrolselection');
 const authorityEvaluation = iri('urn:usf:decisionevaluation:semanticauthoritycontrolselection');
 const authoritySelected = iri('urn:usf:realisationoption:livestardogwithverifiedreadonlyexport');
+const checkpointDecision = iri('urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning');
+const checkpointSelected = iri('urn:usf:realisationoption:authenticatedcheckpointcoldarchiveboundedhottail');
 const expectedWitness = {
   authorityDigest: objects(baseline, evaluation, term('evaluationAuthorityDigest'))[0]?.value,
   signerFingerprint: objects(baseline, iri('urn:usf:signingidentity:realisationoptionevaluationintegrity'), term('signingKeyFingerprint'))[0]?.value,
@@ -213,6 +215,20 @@ test('current candidate closes every required zero counter deterministically', (
     assert.ok(focusRoots.includes(component.value));
     for (const identity of objects(baseline, component, term('componentIdentity'))) assert.ok(focusRoots.includes(identity.value));
   }
+});
+
+test('checkpoint selection has complete bounded composition and deferred realisation closure', () => {
+  const evaluations = objects(baseline, checkpointDecision, term('hasDecisionEvaluation'));
+  assert.equal(evaluations.length, 1);
+  const permutation = first(baseline, checkpointSelected, term('hasCompositionPermutationAssessment'));
+  assert.ok(permutation);
+  assert.equal(first(baseline, permutation, term('usesPermutationRuleSet'))?.value,
+    'urn:usf:permutationruleset:repositorymaterialisation');
+  assert.equal(first(baseline, permutation, term('permutationCaseCount'))?.value, '144');
+  const realisation = iri('urn:usf:realisation:eventhistorycheckpointpruning');
+  assert.equal(first(baseline, realisation, term('authorisedByDecision'))?.value, checkpointDecision.value);
+  assert.equal(first(baseline, realisation, term('realisesOption'))?.value, checkpointSelected.value);
+  assert.equal(first(baseline, realisation, term('realisationState'))?.value, 'urn:usf:realisationstate:deferred');
 });
 
 test('raw acquisition and composite scope contracts reject exact structural defects', () => {

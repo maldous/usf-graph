@@ -659,6 +659,7 @@ for (const ruleSet of Object.values(permutationRuleSets)) {
   ruleSet.ruleSetDigest = sha256(canonicalJson({ dimensions: ruleSet.dimensions, rules: ruleSet.rules }));
 }
 const decisionRuleSet = {
+  backupandrestoreeventhistorycheckpointpruning: 'repositorymaterialisation',
   repositoryarchitectureandnaming: 'repositorymaterialisation',
   semanticmodelcompilationrealisation: 'semanticassurance',
   semanticauthoritycontrolselection: 'semanticassurance',
