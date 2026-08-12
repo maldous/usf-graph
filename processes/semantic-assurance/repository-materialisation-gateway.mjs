@@ -1440,10 +1440,9 @@ function validationGaps(contract, scope, authorityWitnessValue) {
     if (!satisfactionCurrent(obligation, authorityWitnessValue)) {
       const code = obligation.satisfactions.length > 0 ? 'validation-satisfaction-not-current' : 'missing-current-passing-validation';
       const workItem = durableFamilyValidationWorkItem(obligation, contract);
-      // A family condition that no longer matches remains an unsatisfied
-      // validation fact, but it is not remediation work. This preserves the
-      // lifecycle record without reopening corrected findings.
-      if (DURABLE_FAMILY_VALIDATION_OBLIGATIONS[obligation.id] && !workItem) continue;
+      // Correcting the source condition ends remediation scheduling, but it
+      // cannot satisfy the durable validation obligation. The obligation
+      // remains fail-closed until its own exact current passing result exists.
       gaps.push({
         code,
         subject: obligation.id,

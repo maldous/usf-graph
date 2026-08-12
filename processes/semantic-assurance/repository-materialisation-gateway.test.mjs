@@ -7,6 +7,7 @@ import test from 'node:test';
 import { DataFactory, Parser, Store } from 'n3';
 
 import { canonicalInventoryGraphDigest } from '../../capabilities/semantic-model-compilation/compiler.mjs';
+import { censusFamilies, familyRegistry } from '../../assurance/permutation-closure/family-census.mjs';
 
 import {
   ACTION_STATES, applyLayoutPlan, AUTHORITY_MOVED_CODE, createLayoutPlan, digest, GAP_DISPOSITIONS,
@@ -457,7 +458,6 @@ function fakeClient({
   currentness = defaultCurrentness(),
   authorityNQuads = AUTHORITY_NQUADS,
   authorityConflictSurfaceRows = [],
-  rejectSyntheticSettledSurface = false,
   authorityConflictResolutionRows = [],
   authorityConflictSetRows = [],
   queries = [],
@@ -467,10 +467,7 @@ function fakeClient({
     construct: async () => authorityNQuads,
     select: async (query) => {
       queries.push(query);
-      if (query.includes('SELECT DISTINCT ?surfaceContract ?authorisedPath ?authorisedFormat')) {
-        if (rejectSyntheticSettledSurface && query.includes('reevaluationSettledAuthorityDigest')) return [];
-        return authorityConflictSurfaceRows;
-      }
+      if (query.includes('SELECT DISTINCT ?surfaceContract ?authorisedPath ?authorisedFormat')) return authorityConflictSurfaceRows;
       if (query.includes('SELECT ?resolution ?conflict ?resolutionState ?decisionState')) return authorityConflictResolutionRows;
       if (query.includes('SELECT ?resolution ?kind ?item')) return authorityConflictSetRows;
       if (query.includes(`<${decisionFormatPredicate}>`)) {
@@ -1107,12 +1104,15 @@ test('exact live family defects produce exactly three bounded read-only work row
   }
 });
 
-test('removing every faulty live triple pattern suppresses all three work rows', async () => {
+test('corrected source conditions stop remediation scheduling but remain blocked without current results', async () => {
   const plan = await planWork({ client: fakeClient({
     validationObligationRows: durableFamilyValidationRows({ conditionMatched: false }),
   }) }, { contract });
-  assert.equal(plan.gapCount, 0);
-  assert.deepEqual(plan.gaps, []);
+  assert.equal(plan.actionState, 'BLOCK');
+  assert.equal(plan.validationSatisfied, false);
+  assert.equal(plan.gapCount, 3);
+  assert.ok(plan.gaps.every((item) => item.type === 'missing-current-passing-validation'));
+  assert.ok(plan.gaps.every((item) => item.remediationKind === undefined));
 });
 
 test('a minimal corrected family with a current passing result produces no work row', async () => {
@@ -1124,16 +1124,29 @@ test('a minimal corrected family with a current passing result produces no work 
   assert.equal(plan.validationSatisfied, true);
 });
 
-test('reintroducing exact faulty triples makes all three obligations schedulable again', async () => {
+test('reintroducing exact faulty triples adds bounded remediation metadata without changing fail-closed satisfaction', async () => {
   const corrected = await planWork({ client: fakeClient({
     validationObligationRows: durableFamilyValidationRows({ conditionMatched: false }),
   }) }, { contract });
   const reintroduced = await planWork({ client: fakeClient({
     validationObligationRows: durableFamilyValidationRows(),
   }) }, { contract });
-  assert.equal(corrected.gapCount, 0);
+  assert.equal(corrected.gapCount, 3);
+  assert.ok(corrected.gaps.every((item) => item.remediationKind === undefined));
   assert.equal(reintroduced.gapCount, 3);
+  assert.ok(reintroduced.gaps.every((item) => item.remediationKind === 'ANALYSIS_ONLY'));
   assert.ok(reintroduced.gaps.every((item) => item.disposition === 'BLOCK'));
+});
+
+test('a corrected source condition with stale satisfaction remains blocked', async () => {
+  const stale = satisfyingResultRow({ boundAuthority: `sha256:${'44'.repeat(32)}` });
+  const plan = await planWork({ client: fakeClient({
+    validationObligationRows: durableFamilyValidationRows({ conditionMatched: false, satisfaction: stale }),
+  }) }, { contract });
+  assert.equal(plan.actionState, 'BLOCK');
+  assert.equal(plan.gapCount, 3);
+  assert.ok(plan.gaps.every((item) => item.type === 'validation-satisfaction-not-current'));
+  assert.ok(plan.gaps.every((item) => item.remediationKind === undefined));
 });
 
 test('stale passing results do not satisfy durable family obligations at changed authority', async () => {
@@ -2503,7 +2516,6 @@ function authorityConflictClient(normalised, ownerSourcePaths) {
     ...ownerSourcePaths.map((item) => ['ownerSourcePath', item]),
   ].map(([kind, item]) => ({ resolution: binding(resolution), kind: binding(kind), item: binding(item) }));
   return fakeClient({
-    rejectSyntheticSettledSurface: true,
     validationObligationRows: durableFamilyValidationRows(),
     authorityConflictSurfaceRows: [{
       surfaceContract: binding(compilerContract),
@@ -2709,6 +2721,34 @@ test('an exact directory-only authority-conflict resolution cannot report replay
     () => applyLayoutPlan({ client, coordinator: true, repositoryRoot: root }, { plan, apply: true }),
     /authority-conflict resolution is single-use/,
   );
+});
+
+test('bounded authority capture is complete for the exact canonical family registry', () => {
+  const scope = JSON.parse(readFileSync(new URL(
+    '../../assurance/permutation-closure/authority-capture-scope.json',
+    import.meta.url,
+  ), 'utf8'));
+  const projectedClasses = new Set(scope.projectedClassIris);
+  const projectedPredicates = new Set(scope.projectedPredicateIris);
+  const requiredClasses = new Set();
+  const requiredPredicates = new Set();
+  for (const closure of familyRegistry.classClosures.values()) {
+    for (const classIri of closure.memberClassIris) requiredClasses.add(classIri);
+  }
+  for (const selector of familyRegistry.selectors.values()) {
+    requiredClasses.add(selector.subjectClassIri);
+    requiredClasses.add(selector.terminalClassIri);
+    for (const step of selector.steps) requiredPredicates.add(step.predicateIri);
+  }
+  for (const familyRecord of censusFamilies) requiredClasses.add(familyRecord.subjectClassIri);
+  const missingClasses = [...requiredClasses].filter((iri) => !projectedClasses.has(iri)).sort();
+  const missingPredicates = [...requiredPredicates].filter((iri) => !projectedPredicates.has(iri)).sort();
+  assert.deepEqual(missingClasses, []);
+  assert.deepEqual(missingPredicates, []);
+  assert.equal(scope.projectedClassIris.length, 376);
+  assert.equal(scope.projectedPredicateIris.length, 221);
+  assert.deepEqual(scope.projectedClassIris, [...projectedClasses].sort());
+  assert.deepEqual(scope.projectedPredicateIris, [...projectedPredicates].sort());
 });
 
 test('source digests distinguish exact file and deterministic tree state', () => {

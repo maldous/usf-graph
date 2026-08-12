@@ -155,9 +155,21 @@ pselector:processinterfaces a usf:PermutationSignalSelector; usf:canonicalName "
 pstep:processinterfaces1 a usf:PermutationSignalPathStep; usf:canonicalName "processinterfaces1"; usf:signalPathStepIndex "1"^^xsd:integer; usf:signalPathStepPredicate usf:processProvidesInterface; usf:signalPathStepDirection ppd:outbound.
 pselector:processlifecycleobligations a usf:PermutationSignalSelector; usf:canonicalName "processlifecycleobligations"; usf:selectorSubjectClass usf:DeployableProcess; usf:selectorPathStep pstep:processlifecycleobligations1; usf:selectorTerminalClass usf:LifecycleObligationKind; usf:selectorAggregation psa:distinctvalues; usf:selectorDigest "sha256:dcb87864d1ea97829c83ba5f508dd83914dadecaf5b03b3c07dda395607f1472".
 pstep:processlifecycleobligations1 a usf:PermutationSignalPathStep; usf:canonicalName "processlifecycleobligations1"; usf:signalPathStepIndex "1"^^xsd:integer; usf:signalPathStepPredicate usf:processLifecycleObligation; usf:signalPathStepDirection ppd:outbound.
-pselector:workflows a usf:PermutationSignalSelector; usf:canonicalName "workflows"; usf:selectorSubjectClass usf:Capability; usf:selectorPathStep pstep:workflows1, pstep:workflows2; usf:selectorTerminalClass usf:Workflow; usf:selectorAggregation psa:countdistinct; usf:selectorDigest "sha256:8095b2a96a74313f888bc07807d5f59e117f3043da144762e209384127e33942".
-pstep:workflows1 a usf:PermutationSignalPathStep; usf:canonicalName "workflows1"; usf:signalPathStepIndex "1"^^xsd:integer; usf:signalPathStepPredicate usf:hasContract; usf:signalPathStepDirection ppd:outbound.
-pstep:workflows2 a usf:PermutationSignalPathStep; usf:canonicalName "workflows2"; usf:signalPathStepIndex "2"^^xsd:integer; usf:signalPathStepPredicate usf:workflowForContract; usf:signalPathStepDirection ppd:inbound.
+pselector:resourceclassesgateways a usf:PermutationSignalSelector; usf:canonicalName "resourceclassesgateways"; usf:selectorSubjectClass usf:Capability; usf:selectorPathStep pstep:resourceclassesgateways1, pstep:resourceclassesgateways2, pstep:resourceclassesgateways3; usf:selectorTerminalClass <http://www.w3.org/2002/07/owl#Class>; usf:selectorAggregation psa:countdistinct; usf:selectorDigest "sha256:87e5a3a9fa2571639d0f1f334ea6c3982e3fb4f93e99aa485c13292ca64c4a78".
+pstep:resourceclassesgateways1 a usf:PermutationSignalPathStep; usf:canonicalName "resourceclassesgateways1"; usf:signalPathStepIndex "1"^^xsd:integer; usf:signalPathStepPredicate usf:gatewayOperationForCapability; usf:signalPathStepDirection ppd:inbound.
+pstep:resourceclassesgateways2 a usf:PermutationSignalPathStep; usf:canonicalName "resourceclassesgateways2"; usf:signalPathStepIndex "2"^^xsd:integer; usf:signalPathStepPredicate usf:requiresPermission; usf:signalPathStepDirection ppd:outbound.
+pstep:resourceclassesgateways3 a usf:PermutationSignalPathStep; usf:canonicalName "resourceclassesgateways3"; usf:signalPathStepIndex "3"^^xsd:integer; usf:signalPathStepPredicate usf:atomResourceClass; usf:signalPathStepDirection ppd:outbound.
+pselector:resourceclassesinterfaces a usf:PermutationSignalSelector; usf:canonicalName "resourceclassesinterfaces"; usf:selectorSubjectClass usf:Capability; usf:selectorPathStep pstep:resourceclassesinterfaces1, pstep:resourceclassesinterfaces2, pstep:resourceclassesinterfaces3, pstep:resourceclassesinterfaces4, pstep:resourceclassesinterfaces5; usf:selectorTerminalClass <http://www.w3.org/2002/07/owl#Class>; usf:selectorAggregation psa:countdistinct; usf:selectorDigest "sha256:aba4069de112622a09f747ddfdecb3cc7a01e1e108ffdab662e796bae1552560".
+pstep:resourceclassesinterfaces1 a usf:PermutationSignalPathStep; usf:canonicalName "resourceclassesinterfaces1"; usf:signalPathStepIndex "1"^^xsd:integer; usf:signalPathStepPredicate usf:hasContract; usf:signalPathStepDirection ppd:outbound.
+pstep:resourceclassesinterfaces2 a usf:PermutationSignalPathStep; usf:canonicalName "resourceclassesinterfaces2"; usf:signalPathStepIndex "2"^^xsd:integer; usf:signalPathStepPredicate usf:interfaceForContract; usf:signalPathStepDirection ppd:inbound.
+pstep:resourceclassesinterfaces3 a usf:PermutationSignalPathStep; usf:canonicalName "resourceclassesinterfaces3"; usf:signalPathStepIndex "3"^^xsd:integer; usf:signalPathStepPredicate usf:hasOperation; usf:signalPathStepDirection ppd:outbound.
+pstep:resourceclassesinterfaces4 a usf:PermutationSignalPathStep; usf:canonicalName "resourceclassesinterfaces4"; usf:signalPathStepIndex "4"^^xsd:integer; usf:signalPathStepPredicate usf:requiresPermission; usf:signalPathStepDirection ppd:outbound.
+pstep:resourceclassesinterfaces5 a usf:PermutationSignalPathStep; usf:canonicalName "resourceclassesinterfaces5"; usf:signalPathStepIndex "5"^^xsd:integer; usf:signalPathStepPredicate usf:atomResourceClass; usf:signalPathStepDirection ppd:outbound.
+pselector:scheduledjobs a usf:PermutationSignalSelector; usf:canonicalName "scheduledjobs"; usf:selectorSubjectClass usf:Capability; usf:selectorPathStep pstep:scheduledjobs1, pstep:scheduledjobs2, pstep:scheduledjobs3, pstep:scheduledjobs4; usf:selectorTerminalClass usf:ScheduleTriggerKind; usf:selectorAggregation psa:countdistinct; usf:selectorDigest "sha256:5ac0968f95bb95d21c105ce854ae9a20735053d18295baa296fdb23f1ad8b701".
+pstep:scheduledjobs1 a usf:PermutationSignalPathStep; usf:canonicalName "scheduledjobs1"; usf:signalPathStepIndex "1"^^xsd:integer; usf:signalPathStepPredicate usf:hasContract; usf:signalPathStepDirection ppd:outbound.
+pstep:scheduledjobs2 a usf:PermutationSignalPathStep; usf:canonicalName "scheduledjobs2"; usf:signalPathStepIndex "2"^^xsd:integer; usf:signalPathStepPredicate usf:workflowForContract; usf:signalPathStepDirection ppd:inbound.
+pstep:scheduledjobs3 a usf:PermutationSignalPathStep; usf:canonicalName "scheduledjobs3"; usf:signalPathStepIndex "3"^^xsd:integer; usf:signalPathStepPredicate usf:workflowExecutionPolicy; usf:signalPathStepDirection ppd:outbound.
+pstep:scheduledjobs4 a usf:PermutationSignalPathStep; usf:canonicalName "scheduledjobs4"; usf:signalPathStepIndex "4"^^xsd:integer; usf:signalPathStepPredicate usf:scheduleTriggerKind; usf:signalPathStepDirection ppd:outbound.
 pselector:states a usf:PermutationSignalSelector; usf:canonicalName "states"; usf:selectorSubjectClass usf:Capability; usf:selectorPathStep pstep:states1, pstep:states2, pstep:states3; usf:selectorTerminalClass usf:State; usf:selectorAggregation psa:countdistinct; usf:selectorDigest "sha256:47d3505193252c98a615c726315bdc27dd36a1ba05d76202c34d745fd854e458".
 pstep:states1 a usf:PermutationSignalPathStep; usf:canonicalName "states1"; usf:signalPathStepIndex "1"^^xsd:integer; usf:signalPathStepPredicate usf:hasContract; usf:signalPathStepDirection ppd:outbound.
 pstep:states2 a usf:PermutationSignalPathStep; usf:canonicalName "states2"; usf:signalPathStepIndex "2"^^xsd:integer; usf:signalPathStepPredicate usf:workflowForContract; usf:signalPathStepDirection ppd:inbound.
@@ -200,7 +212,9 @@ pclause:gatewayoperations a usf:PermutationApplicabilityClause; usf:canonicalNam
 pclause:operations a usf:PermutationApplicabilityClause; usf:canonicalName "operations"; usf:applicabilityClauseOperator pao:countatleast; usf:applicabilitySignalSelector pselector:operations; usf:applicabilityThreshold 1.
 pclause:ports a usf:PermutationApplicabilityClause; usf:canonicalName "ports"; usf:applicabilityClauseOperator pao:countatleast; usf:applicabilitySignalSelector pselector:ports; usf:applicabilityThreshold 1.
 pclause:externaldependencies a usf:PermutationApplicabilityClause; usf:canonicalName "externaldependencies"; usf:applicabilityClauseOperator pao:countatleast; usf:applicabilitySignalSelector pselector:externaldependencies; usf:applicabilityThreshold 1.
-pclause:workflows a usf:PermutationApplicabilityClause; usf:canonicalName "workflows"; usf:applicabilityClauseOperator pao:countatleast; usf:applicabilitySignalSelector pselector:workflows; usf:applicabilityThreshold 1.
+pclause:resourceclassesgateways a usf:PermutationApplicabilityClause; usf:canonicalName "resourceclassesgateways"; usf:applicabilityClauseOperator pao:countatleast; usf:applicabilitySignalSelector pselector:resourceclassesgateways; usf:applicabilityThreshold 1.
+pclause:resourceclassesinterfaces a usf:PermutationApplicabilityClause; usf:canonicalName "resourceclassesinterfaces"; usf:applicabilityClauseOperator pao:countatleast; usf:applicabilitySignalSelector pselector:resourceclassesinterfaces; usf:applicabilityThreshold 1.
+pclause:scheduledjobs a usf:PermutationApplicabilityClause; usf:canonicalName "scheduledjobs"; usf:applicabilityClauseOperator pao:countatleast; usf:applicabilitySignalSelector pselector:scheduledjobs; usf:applicabilityThreshold 1.
 pclause:states a usf:PermutationApplicabilityClause; usf:canonicalName "states"; usf:applicabilityClauseOperator pao:countatleast; usf:applicabilitySignalSelector pselector:states; usf:applicabilityThreshold 1.
 pclause:transitions a usf:PermutationApplicabilityClause; usf:canonicalName "transitions"; usf:applicabilityClauseOperator pao:countatleast; usf:applicabilitySignalSelector pselector:transitions; usf:applicabilityThreshold 1.
 pclause:datamodelbacks a usf:PermutationApplicabilityClause; usf:canonicalName "datamodelbacks"; usf:applicabilityClauseOperator pao:countatleast; usf:applicabilitySignalSelector pselector:datamodelbacks; usf:applicabilityThreshold 1.
@@ -225,6 +239,10 @@ poperand:allstatestransitions2 a usf:PermutationApplicabilityOperand; usf:canoni
 pclause:anydatamodels a usf:PermutationApplicabilityClause; usf:canonicalName "anydatamodels"; usf:applicabilityClauseOperator pao:anyof; usf:applicabilityClauseOperand poperand:anydatamodels1, poperand:anydatamodels2.
 poperand:anydatamodels1 a usf:PermutationApplicabilityOperand; usf:canonicalName "anydatamodels1"; usf:applicabilityOperandIndex "1"^^xsd:integer; usf:applicabilityOperandClause pclause:datamodelbacks.
 poperand:anydatamodels2 a usf:PermutationApplicabilityOperand; usf:canonicalName "anydatamodels2"; usf:applicabilityOperandIndex "2"^^xsd:integer; usf:applicabilityOperandClause pclause:datamodelowns.
+pclause:anyresources a usf:PermutationApplicabilityClause; usf:canonicalName "anyresources"; usf:applicabilityClauseOperator pao:anyof; usf:applicabilityClauseOperand poperand:anyresources1, poperand:anyresources2, poperand:anyresources3.
+poperand:anyresources1 a usf:PermutationApplicabilityOperand; usf:canonicalName "anyresources1"; usf:applicabilityOperandIndex "1"^^xsd:integer; usf:applicabilityOperandClause pclause:anydatamodels.
+poperand:anyresources2 a usf:PermutationApplicabilityOperand; usf:canonicalName "anyresources2"; usf:applicabilityOperandIndex "2"^^xsd:integer; usf:applicabilityOperandClause pclause:resourceclassesgateways.
+poperand:anyresources3 a usf:PermutationApplicabilityOperand; usf:canonicalName "anyresources3"; usf:applicabilityOperandIndex "3"^^xsd:integer; usf:applicabilityOperandClause pclause:resourceclassesinterfaces.
 pclause:anyuisurfacesroutes a usf:PermutationApplicabilityClause; usf:canonicalName "anyuisurfacesroutes"; usf:applicabilityClauseOperator pao:anyof; usf:applicabilityClauseOperand poperand:anyuisurfacesroutes1, poperand:anyuisurfacesroutes2.
 poperand:anyuisurfacesroutes1 a usf:PermutationApplicabilityOperand; usf:canonicalName "anyuisurfacesroutes1"; usf:applicabilityOperandIndex "1"^^xsd:integer; usf:applicabilityOperandClause pclause:uisurfaces.
 poperand:anyuisurfacesroutes2 a usf:PermutationApplicabilityOperand; usf:canonicalName "anyuisurfacesroutes2"; usf:applicabilityOperandIndex "2"^^xsd:integer; usf:applicabilityOperandClause pclause:uiroutes.
@@ -245,11 +263,14 @@ prule:statesandtransitionsfortransition a usf:PermutationApplicabilityRule; usf:
 prule:ports a usf:PermutationApplicabilityRule; usf:canonicalName "ports"; usf:applicabilityRootClause pclause:ports; usf:applicabilitySatisfiedDisposition frd:matrixrequired; usf:applicabilityUnsatisfiedDisposition frd:matrixnotapplicable; usf:applicabilityUnsatisfiedReason par:noportsdeclared; usf:applicabilityRuleDigest "sha256:e65f552c278cd73eb829d8661e3ddfff399155fff44383b84c1875ce5cbaed9e".
 prule:externaldependencies a usf:PermutationApplicabilityRule; usf:canonicalName "externaldependencies"; usf:applicabilityRootClause pclause:externaldependencies; usf:applicabilitySatisfiedDisposition frd:matrixrequired; usf:applicabilityUnsatisfiedDisposition frd:matrixnotapplicable; usf:applicabilityUnsatisfiedReason par:noexternaldependenciesdeclared; usf:applicabilityRuleDigest "sha256:e83db2b30661e13e5ca2430af0b6e9f0a0737b5d21b10b8052dfeb7727282ec9".
 prule:datamodels a usf:PermutationApplicabilityRule; usf:canonicalName "datamodels"; usf:applicabilityRootClause pclause:anydatamodels; usf:applicabilitySatisfiedDisposition frd:matrixrequired; usf:applicabilityUnsatisfiedDisposition frd:matrixnotapplicable; usf:applicabilityUnsatisfiedReason par:nodatamodelsdeclared; usf:applicabilityRuleDigest "sha256:8a23c31fc82a29c09525623e297c61d1e293b1388a80385a50edf217a064dc5b".
+par:noresourcesdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "noresourcesdeclared".
+prule:resources a usf:PermutationApplicabilityRule; usf:canonicalName "resources"; usf:applicabilityRootClause pclause:anyresources; usf:applicabilitySatisfiedDisposition frd:matrixrequired; usf:applicabilityUnsatisfiedDisposition frd:matrixnotapplicable; usf:applicabilityUnsatisfiedReason par:noresourcesdeclared; usf:applicabilityRuleDigest "sha256:96208a8f9d0bdd56dcc894516387039e076a6a4bb8d069df732a92c0e3fec756".
 prule:configurationkeys a usf:PermutationApplicabilityRule; usf:canonicalName "configurationkeys"; usf:applicabilityRootClause pclause:configurationkeys; usf:applicabilitySatisfiedDisposition frd:matrixrequired; usf:applicabilityUnsatisfiedDisposition frd:matrixnotapplicable; usf:applicabilityUnsatisfiedReason par:noconfigurationkeysdeclared; usf:applicabilityRuleDigest "sha256:b169ad81ebb6683c98cca2126d314d17b3d5eafa351d88f3a4764a3647b29578".
 prule:secretconfigurationkeys a usf:PermutationApplicabilityRule; usf:canonicalName "secretconfigurationkeys"; usf:applicabilityRootClause pclause:secretclassifications; usf:applicabilitySatisfiedDisposition frd:matrixrequired; usf:applicabilityUnsatisfiedDisposition frd:matrixnotapplicable; usf:applicabilityUnsatisfiedReason par:nosecretconfigurationkeysdeclared; usf:applicabilityRuleDigest "sha256:c509ac00a14d9ffa146d020b18198ed8c7d182f507380c09dc3653e9f552c126".
 prule:uisurfacesorroutes a usf:PermutationApplicabilityRule; usf:canonicalName "uisurfacesorroutes"; usf:applicabilityRootClause pclause:anyuisurfacesroutes; usf:applicabilitySatisfiedDisposition frd:matrixrequired; usf:applicabilityUnsatisfiedDisposition frd:matrixnotapplicable; usf:applicabilityUnsatisfiedReason par:nouisurfacesdeclared; usf:applicabilityRuleDigest "sha256:c97a3f4287f9b85994572a55ee391ee8e201dd4d90f02735b8778f2317f25764".
 prule:formsorviewmodels a usf:PermutationApplicabilityRule; usf:canonicalName "formsorviewmodels"; usf:applicabilityRootClause pclause:anyformsviews; usf:applicabilitySatisfiedDisposition frd:matrixrequired; usf:applicabilityUnsatisfiedDisposition frd:matrixnotapplicable; usf:applicabilityUnsatisfiedReason par:noformsdeclared; usf:applicabilityRuleDigest "sha256:218bf09bf8c088c7d8005b97218fed4bcdf15070892b753d39131fe2321026eb".
-prule:workflows a usf:PermutationApplicabilityRule; usf:canonicalName "workflows"; usf:applicabilityRootClause pclause:workflows; usf:applicabilitySatisfiedDisposition frd:matrixrequired; usf:applicabilityUnsatisfiedDisposition frd:matrixnotapplicable; usf:applicabilityUnsatisfiedReason par:noworkflowsdeclared; usf:applicabilityRuleDigest "sha256:7bd556995ae05d9d3f410d64931f5152b5ea76cf89b7b72b61a9e70ef891bba6".
+par:noscheduledjobsdeclared a usf:PermutationApplicabilityReason; usf:canonicalName "noscheduledjobsdeclared".
+prule:scheduledjobs a usf:PermutationApplicabilityRule; usf:canonicalName "scheduledjobs"; usf:applicabilityRootClause pclause:scheduledjobs; usf:applicabilitySatisfiedDisposition frd:matrixrequired; usf:applicabilityUnsatisfiedDisposition frd:matrixnotapplicable; usf:applicabilityUnsatisfiedReason par:noscheduledjobsdeclared; usf:applicabilityRuleDigest "sha256:d7de6d697cfff1cace5da1f5b67f47fab8823420046ebb8ae54e1b6901028f86".
 prule:interfacesorroutes a usf:PermutationApplicabilityRule; usf:canonicalName "interfacesorroutes"; usf:applicabilityRootClause pclause:anyinterfacesroutes; usf:applicabilitySatisfiedDisposition frd:matrixrequired; usf:applicabilityUnsatisfiedDisposition frd:matrixnotapplicable; usf:applicabilityUnsatisfiedReason par:noprotocolsurfacesdeclared; usf:applicabilityRuleDigest "sha256:5b0ff1982324d12d13d394c08095896c38343022184ac60c09622aefbe826c4c".
 
 <urn:usf:permutationcoveragerule:operationdoesnotrequirepermission> a usf:PermutationCoverageRule;
@@ -1292,7 +1313,7 @@ dvs:environmentclass a usf:DimensionValueSource;
 dvs:errorclass a usf:DimensionValueSource;
     usf:canonicalName "errorclass";
     usf:valueSourceKind "classinstances";
-    usf:valueSourceClassIri "urn:usf:ontology:ValidationFailureCode"^^xsd:anyURI.
+    usf:valueSourceClassIri "urn:usf:ontology:ErrorClass"^^xsd:anyURI.
 dvs:expectedoutcome a usf:DimensionValueSource;
     usf:canonicalName "expectedoutcome";
     usf:valueSourceKind "controlledlist".
@@ -1778,11 +1799,11 @@ pf:operationexpectedoutcomeerrorclass usf:familySubjectRegistration psr:capabili
 pf:operationauditeventauditoutcome usf:familySubjectRegistration psr:operationruntime; usf:familyApplicabilityRule prule:operationauditevents.
 pf:capabilityprovidermodeproofrungenvironmentclass usf:familySubjectRegistration psr:capabilityassurance; usf:familyApplicabilityRule prule:always.
 pf:serviceprocesscapabilityinterfacelifecycleobligation usf:familySubjectRegistration psr:deployableprocessruntime; usf:familyApplicabilityRule prule:always.
-pf:scheduledjobactionroleserviceidentityenvironmentclass usf:familySubjectRegistration psr:capabilityruntime; usf:familyApplicabilityRule prule:workflows.
+pf:scheduledjobactionroleserviceidentityenvironmentclass usf:familySubjectRegistration psr:capabilityruntime; usf:familyApplicabilityRule prule:scheduledjobs.
 pf:apicommandratelimitpolicypermissionatomtenantboundary usf:familySubjectRegistration psr:capabilityruntime; usf:familyApplicabilityRule prule:operationsorgateway.
 pf:capabilityexternaldependencyproviderfailuremoderecoveryaction usf:familySubjectRegistration psr:capabilityruntime; usf:familyApplicabilityRule prule:externaldependencies.
 pf:apiprotocolsurfaceactionauthenticationmode usf:familySubjectRegistration psr:capabilityruntime; usf:familyApplicabilityRule prule:interfacesorroutes.
-pf:resourceactionretentionstatelegalholdstate usf:familySubjectRegistration psr:capabilityruntime; usf:familyApplicabilityRule prule:datamodels.
+pf:resourceactionretentionstatelegalholdstate usf:familySubjectRegistration psr:capabilityruntime; usf:familyApplicabilityRule prule:resources.
 pf:permissionatomdelegationmodeauthenticationstrength usf:familySubjectRegistration psr:capabilityruntime; usf:familyApplicabilityRule prule:operationsorgatewaypermissions.
 pf:operationratelimitclassquotastateoutcome usf:familySubjectRegistration psr:capabilityruntime; usf:familyApplicabilityRule prule:operationsorgateway.
 
@@ -2215,9 +2236,14 @@ pvo:datamodelsback a usf:PermutationValueDerivationOperand; usf:canonicalName "d
     usf:valueDerivationOperandIndex "1"^^xsd:integer; usf:valueDerivationOperandExpression pvd:datamodelsback.
 pvo:datamodelsowned a usf:PermutationValueDerivationOperand; usf:canonicalName "datamodelsowned";
     usf:valueDerivationOperandIndex "2"^^xsd:integer; usf:valueDerivationOperandExpression pvd:datamodelsowned.
-pvd:datamodels a usf:PermutationValueDerivation; usf:canonicalName "datamodels";
+pvd:datamodelsraw a usf:PermutationValueDerivation; usf:canonicalName "datamodelsraw";
     usf:valueDerivationOperator pvdo:union; usf:valueDerivationOperand pvo:datamodelsback, pvo:datamodelsowned;
     usf:valueDerivationInputScope pvdi:all.
+pvo:datamodelstyped a usf:PermutationValueDerivationOperand; usf:canonicalName "datamodelstyped";
+    usf:valueDerivationOperandIndex "1"^^xsd:integer; usf:valueDerivationOperandExpression pvd:datamodelsraw.
+pvd:datamodels a usf:PermutationValueDerivation; usf:canonicalName "datamodels";
+    usf:valueDerivationOperator pvdo:filtertypeany; usf:valueDerivationOperand pvo:datamodelstyped;
+    usf:valueDerivationClass usf:DataModel; usf:valueDerivationInputScope pvdi:all.
 pvo:uimodelssubject a usf:PermutationValueDerivationOperand; usf:canonicalName "uimodelssubject";
     usf:valueDerivationOperandIndex "1"^^xsd:integer; usf:valueDerivationOperandExpression pvd:subject.
 pvd:uimodels a usf:PermutationValueDerivation; usf:canonicalName "uimodels";
@@ -2333,7 +2359,7 @@ pvd:externaldependencyfailuremode usf:valueDerivationDigest "sha256:c12c465cc7a6
 pvd:externaldependencyrecoveryaction usf:valueDerivationDigest "sha256:4ea3c6d2b570b1894e61fdd1ea84ff37384fc4a79e312f4d9ec2d15adf87c9ac".
 pvd:formview usf:valueDerivationDigest "sha256:84453272dc31505fc23946f9e49ae8e398307e08b24225d157fdc573bc602f25".
 pvd:operations usf:valueDerivationDigest "sha256:6c41f847bbeb73e0bc7c088a9546377d5d411768661634ea1d9d943a769f4918".
-pvd:resource usf:valueDerivationDigest "sha256:3835fe292779299ae9d9f5ab9c4788da6e0e189a8da3fc1f4a579f0802e0801e".
+pvd:resource usf:valueDerivationDigest "sha256:6850777b86626a3f8fd6cfd84a39a8979b6b9e9988bc9157ec10b56807f8e19e".
 pvd:roleserviceidentity usf:valueDerivationDigest "sha256:3e06b501fb308728842e6ed7277aac90ce75ee9b670e8b1d383ed6f36a806e39".
 pvd:scheduledjob usf:valueDerivationDigest "sha256:16454bce41d381ad52fb9a0ac1f5f65237f1575cb1e9c0a76bec3a027c950553".
 pvd:subject usf:valueDerivationDigest "sha256:178cb11148dab33fb21b1970861315053a1a34802e4e86d9f5509ef92680fedb".
@@ -2348,7 +2374,7 @@ dvs:externaldependencyfailuremode usf:valueSourceDigest "sha256:5c8daaa782becb82
 dvs:externaldependencyrecoveryaction usf:valueSourceDigest "sha256:a610beab6b758b9bf43cdcd9f674e7c6cf85dc56187ff4f79e3e5dce14c07ebe".
 dvs:formview usf:valueSourceDigest "sha256:455c9cbd7e6406c56538ed46b2b1d6612236181044431387370aae2be5029be8".
 dvs:operation usf:valueSourceDigest "sha256:46037864a68a6385a84ce13830fa80f3b237a4d9330952f27d435d78c2831ddd".
-dvs:resource usf:valueSourceDigest "sha256:e2dea7b4369bd2ca3422d1f4cf059055e4527961a7647c962d320e59f3cff40a".
+dvs:resource usf:valueSourceDigest "sha256:0c6508ee400a0b779dc2ef84c7ae6cbcd108ca1dac0c7cc822e423013890b33e".
 dvs:roleserviceidentity usf:valueSourceDigest "sha256:c9c4b9a465db66cc24474bac76719f75c4dd27963cc9e9546927e9dbe8874eda".
 dvs:scheduledjob usf:valueSourceDigest "sha256:79311fc87de63fc60da02e6420729d8898cab3978fce7983ed3492bd16ce67e3".
 dvs:trigger usf:valueSourceDigest "sha256:22fcce981019e0a1a7ec29abf12679791e9625de94eb5590a4bbbc947dc40f25".
@@ -2526,7 +2552,7 @@ pselector:proofresultobligations a usf:PermutationSignalSelector;
     usf:selectorPathStep pstep:proofresultobligations1;
     usf:selectorTerminalClass usf:ProofObligation;
     usf:selectorAggregation psa:distinctvalues;
-    usf:selectorDigest "sha256:e748562d6d39bdc0607cf5a6c5e64ad778d397a31430b5a886b3c36600d02052".
+    usf:selectorDigest "sha256:20deee7e540e4f7415e7c635147ef3f773f1fc231afd205405aae723853c8125".
 pstep:proofresultobligations1 a usf:PermutationSignalPathStep;
     usf:canonicalName "proofresultobligations1";
     usf:signalPathStepIndex "1"^^xsd:integer;
@@ -2833,9 +2859,9 @@ pstep:evidencerequirementenvironmentclasses1 a usf:PermutationSignalPathStep; us
 pselector:evidencerequirementstages a usf:PermutationSignalSelector; usf:canonicalName "evidencerequirementstages"; usf:selectorSubjectClass usf:EvidenceRequirement; usf:selectorPathStep pstep:evidencerequirementstages1; usf:selectorTerminalClass usf:EvidenceStage; usf:selectorAggregation psa:distinctvalues; usf:selectorDigest "sha256:d793f35b847b806a7cb0dc7ed534def8d2468b02a843fb9a5f13f0050fbc27b0".
 pstep:evidencerequirementstages1 a usf:PermutationSignalPathStep; usf:canonicalName "evidencerequirementstages1"; usf:signalPathStepIndex "1"^^xsd:integer; usf:signalPathStepPredicate usf:requiresEvidenceStage; usf:signalPathStepDirection ppd:outbound.
 
-pselector:proofobligationrungs a usf:PermutationSignalSelector; usf:canonicalName "proofobligationrungs"; usf:selectorSubjectClass usf:ProofObligation; usf:selectorPathStep pstep:proofobligationrungs1; usf:selectorTerminalClass usf:ProofRung; usf:selectorAggregation psa:distinctvalues; usf:selectorDigest "sha256:ef9749e27d26b19088cf9052b998bf485a9a3f735e543b378e9723b05dd5cef4".
+pselector:proofobligationrungs a usf:PermutationSignalSelector; usf:canonicalName "proofobligationrungs"; usf:selectorSubjectClass usf:ProofObligation; usf:selectorPathStep pstep:proofobligationrungs1; usf:selectorTerminalClass usf:ProofRung; usf:selectorAggregation psa:distinctvalues; usf:selectorDigest "sha256:fdd1916950c5f54ffbfb332212ee2f37748d6830dfe5a797da8208342246ca1f".
 pstep:proofobligationrungs1 a usf:PermutationSignalPathStep; usf:canonicalName "proofobligationrungs1"; usf:signalPathStepIndex "1"^^xsd:integer; usf:signalPathStepPredicate usf:requiresRung; usf:signalPathStepDirection ppd:outbound.
-pselector:proofobligationevidencerequirements a usf:PermutationSignalSelector; usf:canonicalName "proofobligationevidencerequirements"; usf:selectorSubjectClass usf:ProofObligation; usf:selectorPathStep pstep:proofobligationevidencerequirements1; usf:selectorTerminalClass usf:EvidenceRequirement; usf:selectorAggregation psa:distinctvalues; usf:selectorDigest "sha256:fd19a97cb1e5db18ee44a8c2d2c75c2f8024e7685b87d32405ff9e28c7a1f9cf".
+pselector:proofobligationevidencerequirements a usf:PermutationSignalSelector; usf:canonicalName "proofobligationevidencerequirements"; usf:selectorSubjectClass usf:ProofObligation; usf:selectorPathStep pstep:proofobligationevidencerequirements1; usf:selectorTerminalClass usf:EvidenceRequirement; usf:selectorAggregation psa:distinctvalues; usf:selectorDigest "sha256:3b3fcee7e73d461da3ff6786809c6ea00f757a2c51abd7f64a647f9e6970070e".
 pstep:proofobligationevidencerequirements1 a usf:PermutationSignalPathStep; usf:canonicalName "proofobligationevidencerequirements1"; usf:signalPathStepIndex "1"^^xsd:integer; usf:signalPathStepPredicate usf:requiresEvidence; usf:signalPathStepDirection ppd:outbound.
 
 dvs:formfieldkind a usf:DimensionValueSource; usf:canonicalName "formfieldkind"; usf:valueSourceKind "derivedselector"; usf:valueSourceScope dvss:registeredsubjectrelationship; usf:valueSourceSelector pselector:formfieldkinds; usf:valueSourceDerivationPredicate usf:fieldKind.
@@ -3682,7 +3708,7 @@ pselector:foundationpermutationtests a usf:PermutationSignalSelector; usf:canoni
 pstep:foundationpermutationtests1 a usf:PermutationSignalPathStep; usf:canonicalName "foundationpermutationtests1"; usf:signalPathStepIndex "1"^^xsd:integer; usf:signalPathStepPredicate usf:foundationPermutationTestObligation; usf:signalPathStepDirection ppd:outbound.
 pselector:foundationpermutationevidence a usf:PermutationSignalSelector; usf:canonicalName "foundationpermutationevidence"; usf:selectorSubjectClass usf:FoundationRequiredPermutationWitness; usf:selectorPathStep pstep:foundationpermutationevidence1; usf:selectorTerminalClass usf:EvidenceRequirement; usf:selectorAggregation psa:distinctvalues; usf:selectorDigest "sha256:43c20a034b6c0016fffcb13ccf6345cd8df7918e2af31c7b3e947f5e734d44c9".
 pstep:foundationpermutationevidence1 a usf:PermutationSignalPathStep; usf:canonicalName "foundationpermutationevidence1"; usf:signalPathStepIndex "1"^^xsd:integer; usf:signalPathStepPredicate usf:foundationPermutationEvidenceRequirement; usf:signalPathStepDirection ppd:outbound.
-pselector:foundationpermutationproofs a usf:PermutationSignalSelector; usf:canonicalName "foundationpermutationproofs"; usf:selectorSubjectClass usf:FoundationRequiredPermutationWitness; usf:selectorPathStep pstep:foundationpermutationproofs1; usf:selectorTerminalClass usf:ProofObligation; usf:selectorAggregation psa:distinctvalues; usf:selectorDigest "sha256:89aed207deeb32821d7d6ebd5bd13441165847645a9eaf1ab6d4db4e2fc92add".
+pselector:foundationpermutationproofs a usf:PermutationSignalSelector; usf:canonicalName "foundationpermutationproofs"; usf:selectorSubjectClass usf:FoundationRequiredPermutationWitness; usf:selectorPathStep pstep:foundationpermutationproofs1; usf:selectorTerminalClass usf:ProofObligation; usf:selectorAggregation psa:distinctvalues; usf:selectorDigest "sha256:1497b22fa29fb61e25e74caf15917d3447da6ccd22154522d69b1677a9c8a8ab".
 pstep:foundationpermutationproofs1 a usf:PermutationSignalPathStep; usf:canonicalName "foundationpermutationproofs1"; usf:signalPathStepIndex "1"^^xsd:integer; usf:signalPathStepPredicate usf:foundationPermutationProofObligation; usf:signalPathStepDirection ppd:outbound.
 
 dvs:eventacknowledgepermission a usf:DimensionValueSource; usf:canonicalName "eventacknowledgepermission"; usf:valueSourceKind "derivedselector"; usf:valueSourceScope dvss:registeredsubjectrelationship; usf:valueSourceSelector pselector:eventacknowledgepermissions; usf:valueSourceDerivationPredicate usf:requiredAcknowledgePermission.
@@ -4252,6 +4278,14 @@ pfdb:eventconsumerentity1consumerentity a usf:PermutationFamilyDimensionBinding;
     usf:classClosureMemberSetDigest "sha256:681886f389aba28f0af530806f04044f57b7276ded055b874626169916fe37ed";
     usf:classClosureEdgeSetDigest "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945";
     usf:classClosureDigest "sha256:e6d275fa59156e331d2eaeee5a8753b5b32e432250387147e8a9a0d3d7af16f4".
+<urn:usf:permutationclassclosure:errorclass> a usf:PermutationClassClosure;
+    usf:canonicalName "errorclass";
+    usf:classClosureRootClass <urn:usf:ontology:ErrorClass>;
+    usf:classClosurePolicy <urn:usf:classclosurepolicy:declaredtransitivesubclass>;
+    usf:classClosureMemberClass <urn:usf:ontology:ErrorClass>, <urn:usf:ontology:ValidationFailureCode>;
+    usf:classClosureMemberSetDigest "sha256:009841b68ee0de044882ab94b45dd12c550125a4cafbe219424d1582ee3b2663";
+    usf:classClosureEdgeSetDigest "sha256:5443a37ccba107c25c25ed58e6139e5e519759730573c11d4bb21a2cc204ddc2";
+    usf:classClosureDigest "sha256:0c00e71bd2d964128f6d747accea692b97c6c4a0555d49aa979a2ed8bb6139a5".
 <urn:usf:permutationclassclosure:compatibilitycontract> a usf:PermutationClassClosure;
     usf:canonicalName "compatibilitycontract";
     usf:classClosureRootClass <urn:usf:ontology:CompatibilityContract>;
@@ -4920,11 +4954,11 @@ pfdb:eventconsumerentity1consumerentity a usf:PermutationFamilyDimensionBinding;
 <urn:usf:permutationclassclosure:proofobligation> a usf:PermutationClassClosure;
     usf:canonicalName "proofobligation";
     usf:classClosureRootClass <urn:usf:ontology:ProofObligation>;
-    usf:classClosurePolicy <urn:usf:classclosurepolicy:exactdeclaredclass>;
-    usf:classClosureMemberClass <urn:usf:ontology:ProofObligation>;
-    usf:classClosureMemberSetDigest "sha256:a836e2b6f35e22484e6cc92e11d02d2470f8719563989c928c863d2f1aaa4f1b";
-    usf:classClosureEdgeSetDigest "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945";
-    usf:classClosureDigest "sha256:a17f573b09cba91b9f7db7066a95fd97f81585ed059be1f889450a81c4922167".
+    usf:classClosurePolicy <urn:usf:classclosurepolicy:declaredtransitivesubclass>;
+    usf:classClosureMemberClass <urn:usf:ontology:AggregateProofObligation>, <urn:usf:ontology:ProofObligation>;
+    usf:classClosureMemberSetDigest "sha256:d0dc4b05b6e86aacaafe0d28d78e12c7f576b4d65699f1ec84d8eada989a1a9f";
+    usf:classClosureEdgeSetDigest "sha256:e9e71fc0815c12deb1857ea2d1ed545617bf48248c5fe7e57cfb5dac66c016bd";
+    usf:classClosureDigest "sha256:e105f7eb5576701d97f77bf91199302e23788a4ba3b1577ff644a012d6ae195b".
 <urn:usf:permutationclassclosure:proofofpossessionrequirement> a usf:PermutationClassClosure;
     usf:canonicalName "proofofpossessionrequirement";
     usf:classClosureRootClass <urn:usf:ontology:ProofOfPossessionRequirement>;
@@ -5325,14 +5359,14 @@ pfdb:eventconsumerentity1consumerentity a usf:PermutationFamilyDimensionBinding;
     usf:classClosureMemberSetDigest "sha256:e07411f30c9cc880bb67bca83030064b6b4d850aee87af94d6ee896b88939ab0";
     usf:classClosureEdgeSetDigest "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945";
     usf:classClosureDigest "sha256:04ae387a98e348a936049509a6e1121d9da5ff1eb37f87ca8045349839449cd7".
-<urn:usf:permutationclassclosure:validationfailurecode> a usf:PermutationClassClosure;
-    usf:canonicalName "validationfailurecode";
-    usf:classClosureRootClass <urn:usf:ontology:ValidationFailureCode>;
+<urn:usf:permutationclassclosure:scheduletriggerkind> a usf:PermutationClassClosure;
+    usf:canonicalName "scheduletriggerkind";
+    usf:classClosureRootClass <urn:usf:ontology:ScheduleTriggerKind>;
     usf:classClosurePolicy <urn:usf:classclosurepolicy:exactdeclaredclass>;
-    usf:classClosureMemberClass <urn:usf:ontology:ValidationFailureCode>;
-    usf:classClosureMemberSetDigest "sha256:6b374a92914b0697a67aa120df48853cf481bb861fd763b8a686559cb8571d26";
+    usf:classClosureMemberClass <urn:usf:ontology:ScheduleTriggerKind>;
+    usf:classClosureMemberSetDigest "sha256:fad079dd905c1066207322a39c23a9f7b9fbf432332afcd37b28d0a434fc49f1";
     usf:classClosureEdgeSetDigest "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945";
-    usf:classClosureDigest "sha256:3e1a4894d4c475757d9212c8a4dae1b61bf5ecd34283c381e20daac769392ffa".
+    usf:classClosureDigest "sha256:aff18e5e676669e436bf93796c65d05fa2284d9c75adb132a25b20657f743a4f".
 <urn:usf:permutationclassclosure:validationtiming> a usf:PermutationClassClosure;
     usf:canonicalName "validationtiming";
     usf:classClosureRootClass <urn:usf:ontology:ValidationTiming>;
@@ -5596,6 +5630,9 @@ pfdb:eventconsumerentity1consumerentity a usf:PermutationFamilyDimensionBinding;
 <urn:usf:permutationsignalselector:selectedoptionmappingoptions> usf:selectorSubjectClassClosure <urn:usf:permutationclassclosure:selectedoptionrealisationmapping>; usf:selectorTerminalClassClosure <urn:usf:permutationclassclosure:realisationoption>.
 <urn:usf:permutationsignalselector:selectedoptionmappingrealisations> usf:selectorSubjectClassClosure <urn:usf:permutationclassclosure:selectedoptionrealisationmapping>; usf:selectorTerminalClassClosure <urn:usf:permutationclassclosure:realisation>.
 <urn:usf:permutationsignalselector:selectedoptionmappingstates> usf:selectorSubjectClassClosure <urn:usf:permutationclassclosure:selectedoptionrealisationmapping>; usf:selectorTerminalClassClosure <urn:usf:permutationclassclosure:mappingstate>.
+<urn:usf:permutationsignalselector:resourceclassesgateways> usf:selectorSubjectClassClosure <urn:usf:permutationclassclosure:capability>; usf:selectorTerminalClassClosure <urn:usf:permutationclassclosure:class>.
+<urn:usf:permutationsignalselector:resourceclassesinterfaces> usf:selectorSubjectClassClosure <urn:usf:permutationclassclosure:capability>; usf:selectorTerminalClassClosure <urn:usf:permutationclassclosure:class>.
+<urn:usf:permutationsignalselector:scheduledjobs> usf:selectorSubjectClassClosure <urn:usf:permutationclassclosure:capability>; usf:selectorTerminalClassClosure <urn:usf:permutationclassclosure:scheduletriggerkind>.
 <urn:usf:permutationsignalselector:serviceidentitycapabilities> usf:selectorSubjectClassClosure <urn:usf:permutationclassclosure:serviceidentity>; usf:selectorTerminalClassClosure <urn:usf:permutationclassclosure:capability>.
 <urn:usf:permutationsignalselector:serviceidentityenvironmentclasses> usf:selectorSubjectClassClosure <urn:usf:permutationclassclosure:serviceidentity>; usf:selectorTerminalClassClosure <urn:usf:permutationclassclosure:environmentclass>.
 <urn:usf:permutationsignalselector:serviceidentityprincipalkinds> usf:selectorSubjectClassClosure <urn:usf:permutationclassclosure:serviceidentity>; usf:selectorTerminalClassClosure <urn:usf:permutationclassclosure:principalkind>.
@@ -5627,7 +5664,6 @@ pfdb:eventconsumerentity1consumerentity a usf:PermutationFamilyDimensionBinding;
 <urn:usf:permutationsignalselector:viewmodelinterfaces> usf:selectorSubjectClassClosure <urn:usf:permutationclassclosure:viewmodel>; usf:selectorTerminalClassClosure <urn:usf:permutationclassclosure:interface>.
 <urn:usf:permutationsignalselector:viewmodels> usf:selectorSubjectClassClosure <urn:usf:permutationclassclosure:capability>; usf:selectorTerminalClassClosure <urn:usf:permutationclassclosure:viewmodel>.
 <urn:usf:permutationsignalselector:viewmodelstates> usf:selectorSubjectClassClosure <urn:usf:permutationclassclosure:viewmodel>; usf:selectorTerminalClassClosure <urn:usf:permutationclassclosure:state>.
-<urn:usf:permutationsignalselector:workflows> usf:selectorSubjectClassClosure <urn:usf:permutationclassclosure:capability>; usf:selectorTerminalClassClosure <urn:usf:permutationclassclosure:workflow>.
 <urn:usf:permutationfamilydimensionbinding:accessibilityprofilerequirementkind1accessibilityrequirement> usf:dimensionAxisClassClosure <urn:usf:permutationclassclosure:accessibilityrequirement>.
 <urn:usf:permutationfamilydimensionbinding:accessibilityprofilerequirementkind2accessibilityrequirementkind> usf:dimensionAxisClassClosure <urn:usf:permutationclassclosure:accessibilityrequirementkind>.
 <urn:usf:permutationfamilydimensionbinding:actionreachabilitycapabilityoperationstate1capability> usf:dimensionAxisClassClosure <urn:usf:permutationclassclosure:capability>.
@@ -5796,7 +5832,7 @@ pfdb:eventconsumerentity1consumerentity a usf:PermutationFamilyDimensionBinding;
 <urn:usf:permutationfamilydimensionbinding:operationauditeventauditoutcome2auditoutcome> usf:dimensionAxisClassClosure <urn:usf:permutationclassclosure:permutationdimensionvalue>.
 <urn:usf:permutationfamilydimensionbinding:operationexpectedoutcomeerrorclass1operation> usf:dimensionAxisClassClosure <urn:usf:permutationclassclosure:operation>.
 <urn:usf:permutationfamilydimensionbinding:operationexpectedoutcomeerrorclass2expectedoutcome> usf:dimensionAxisClassClosure <urn:usf:permutationclassclosure:permutationdimensionvalue>.
-<urn:usf:permutationfamilydimensionbinding:operationexpectedoutcomeerrorclass3errorclass> usf:dimensionAxisClassClosure <urn:usf:permutationclassclosure:validationfailurecode>.
+<urn:usf:permutationfamilydimensionbinding:operationexpectedoutcomeerrorclass3errorclass> usf:dimensionAxisClassClosure <urn:usf:permutationclassclosure:errorclass>.
 <urn:usf:permutationfamilydimensionbinding:operationobservabilitysignalsignalkind1observabilitysignal> usf:dimensionAxisClassClosure <urn:usf:permutationclassclosure:observabilitysignal>.
 <urn:usf:permutationfamilydimensionbinding:operationobservabilitysignalsignalkind2signalkind> usf:dimensionAxisClassClosure <urn:usf:permutationclassclosure:signalkind>.
 <urn:usf:permutationfamilydimensionbinding:operationpermissionatom1operation> usf:dimensionAxisClassClosure <urn:usf:permutationclassclosure:operation>.
@@ -5929,6 +5965,7 @@ pfdb:eventconsumerentity1consumerentity a usf:PermutationFamilyDimensionBinding;
 <urn:usf:permutationfamilydimensionbinding:viewmodelinterfacebinding1interface> usf:dimensionAxisClassClosure <urn:usf:permutationclassclosure:interface>.
 <urn:usf:permutationfamilydimensionbinding:viewmodelstatebinding1state> usf:dimensionAxisClassClosure <urn:usf:permutationclassclosure:state>.
 <urn:usf:permutationvaluederivation:formtypedsurfaces> usf:valueDerivationClassClosure <urn:usf:permutationclassclosure:form>.
+<urn:usf:permutationvaluederivation:datamodels> usf:valueDerivationClassClosure <urn:usf:permutationclassclosure:datamodel>.
 <urn:usf:permutationvaluederivation:roles> usf:valueDerivationClassClosure <urn:usf:permutationclassclosure:role>.
 # END GENERATED EXPLICIT CLASS CLOSURES
 

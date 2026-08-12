@@ -67,6 +67,7 @@ export const PROVISIONAL_AGGREGATE_RESULT_IRI =
   'urn:usf:proofresult:compilersemanticenforcementaggregateprepublication';
 export const DEFAULT_AGGREGATE_REACHABLE_REF = 'refs/remotes/origin/main';
 export const AGGREGATE_REVIEWED_SOURCE_PATHS = Object.freeze([
+  'assurance/permutation-closure/authority-capture-scope.json',
   'assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.mjs',
   'assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.test.mjs',
   'assurance/semantic-model-compilation/aggregate-compiler-proof-command.mjs',
@@ -86,12 +87,11 @@ export const AGGREGATE_REVIEWED_SOURCE_PATHS = Object.freeze([
   'processes/semantic-assurance/semantic-model-compilation-command.test.mjs',
   'processes/semantic-assurance/semantic-proof-v1.mjs',
   'processes/semantic-assurance/semantic-proof-v1.test.mjs',
-  'processes/semantic-assurance/semantic-proof-v2.mjs',
-  'processes/semantic-assurance/semantic-proof-v2.test.mjs',
   'semantic-model/assurance/evidence.trig',
   'semantic-model/assurance/proofs.trig',
   'semantic-model/authority.ttl',
   'semantic-model/contracts/capabilities.trig',
+  'semantic-model/contracts/materialisation.trig',
   'semantic-model/manifest.yaml',
   'semantic-model/ontology.ttl',
   'semantic-model/permutation/families.trig',

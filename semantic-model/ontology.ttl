@@ -205,8 +205,11 @@ usf:DependencyBinding a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Dependency binding";
     rdfs:comment "A digest-bound mapping from one selected component identity to its exact acquired dependency representation.".
-usf:ValidationFailureCode a owl:Class;
+usf:ErrorClass a owl:Class;
     rdfs:subClassOf usf:ControlledValue;
+    rdfs:label "Error class".
+usf:ValidationFailureCode a owl:Class;
+    rdfs:subClassOf usf:ControlledValue, usf:ErrorClass;
     rdfs:label "Validation failure code".
 usf:ValidationLayer a owl:Class;
     rdfs:subClassOf usf:ControlledValue;
