@@ -2529,9 +2529,13 @@ sc:authenticationplatform usf:hasActivationState contractstate:proofblocked;
     usf:activationReason "The prior local hermetic-mock reference implementation and its source-unbound evidence, proof and validation do not warrant repository-local development, deterministic test or production-shaped staging delivery; the contract is proof-blocked pending independently derived semantics and implementation.";
     usf:mandatoryProofObligation <urn:usf:proofobligation:p14383dcadafb8a07b8e28ffb5ef05729512eaa352424d72c862e502a06128b2f>;
     usf:permittedRealisationType usf:Implementation.
-sc:backupandrestore usf:hasActivationState contractstate:proofblocked;
-    usf:activationReason "Exact owner-signed checkpoint/archive/hot-tail machinery evidence, a standalone validation result and a historical proof result are admitted only as non-actionable inputs to a later self-publication/currentness closure. This contract does not rely on that proof result, require that validation or select an effective decision, and no production safe-frontier, pruning transaction or activation authority exists.";
+sc:backupandrestore usf:hasActivationState contractstate:active;
+    usf:activationReason "Current owner-signed Factory source, admitted hermetic evidence, successful publication-relative proof and required current validation warrant only the exact six-path authenticated-checkpoint, immutable-cold-archive, bounded-hot-tail, recovery and backup/restore machinery. Production pruning remains fail-closed until the exact live safe frontier, checkpoint, replay equivalence, archive restore, pre-prune backup and transactional mutation boundary are independently verified.";
+    usf:requiresRealisationOptionEvaluation true;
     usf:mandatoryProofObligation <urn:usf:proofobligation:pac1a6022137958d19ef9d029d179fb8d46d67ebac60985f3d9a072f3624aae9c>;
+    usf:reliesOnProofResult <urn:usf:proofresult:eventhistorycheckpointpruning>;
+    usf:effectiveRealisationDecision <urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning>;
+    usf:requiredValidation <urn:usf:validationobligation:backupandrestoreeventhistorycheckpointpruning>;
     usf:permittedRealisationType usf:Implementation.
 sc:brandingandtheming usf:hasActivationState contractstate:proofblocked;
     usf:activationReason "The prior local hermetic-mock reference implementation and its source-unbound evidence, proof and validation do not warrant repository-local development, deterministic test or production-shaped staging delivery; the contract is proof-blocked pending independently derived semantics and implementation.";
@@ -4833,15 +4837,8 @@ sc:authenticationplatform usf:hasValidationApplicability vas:unresolved;
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
 sc:backgroundworkersjobrunner usf:hasValidationApplicability vas:unresolved;
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
-sc:backupandrestore usf:hasValidationApplicability vas:conditional;
-    usf:validationApplicabilityCondition <urn:usf:validationapplicabilitycondition:backupandrestoreeventhistorycheckpointpruningbecomeseffective>;
-    usf:validationApplicabilityReason "The exact dormant checkpoint/archive/hot-tail machinery validation becomes applicable only when the backup-and-restore contract explicitly selects urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning as its effective decision. That condition is not present in this publication, so the proof-blocked contract remains non-actionable and no production safe frontier or pruning transaction is authorized.".
-<urn:usf:validationapplicabilitycondition:backupandrestoreeventhistorycheckpointpruningbecomeseffective> a usf:ValidationApplicabilityCondition;
-    usf:conditionSubject sc:backupandrestore;
-    usf:conditionPredicate usf:effectiveRealisationDecision;
-    usf:conditionRequiredValue <urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning>.
-<urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning>
-    usf:definition "Reserved condition-value identity only. This publication does not type, select or make this resource effective as a RealisationDecision and grants no production pruning authority.".
+sc:backupandrestore usf:hasValidationApplicability vas:required;
+    usf:validationApplicabilityReason "Validation is required because the exact six-path checkpoint/archive/hot-tail machinery is admitted only through its owner-signed Factory source, hermetic evidence lifecycle and post-publication currentness closure. Requiredness does not itself authorize a production pruning transaction.".
 sc:brandingandtheming usf:hasValidationApplicability vas:unresolved;
     usf:validationApplicabilityReason "Validation applicability is unresolved: this contract is proof-blocked and no validation-evidence producer, admission path or exemption proof exists, so no current fact justifies required, notRequired, conditional or reserved. Unresolved is recorded deliberately, fails closed, and is not an exemption, a satisfaction or a completion claim.".
 sc:codequalityandsecretanddependencyscanning usf:hasValidationApplicability vas:unresolved;

@@ -217,7 +217,7 @@ test('current candidate closes every required zero counter deterministically', (
   }
 });
 
-test('checkpoint selection has complete bounded composition and deferred realisation closure', () => {
+test('checkpoint selection has complete bounded composition and implementable realisation closure', () => {
   const evaluations = objects(baseline, checkpointDecision, term('hasDecisionEvaluation'));
   assert.equal(evaluations.length, 1);
   const permutation = first(baseline, checkpointSelected, term('hasCompositionPermutationAssessment'));
@@ -228,7 +228,7 @@ test('checkpoint selection has complete bounded composition and deferred realisa
   const realisation = iri('urn:usf:realisation:eventhistorycheckpointpruning');
   assert.equal(first(baseline, realisation, term('authorisedByDecision'))?.value, checkpointDecision.value);
   assert.equal(first(baseline, realisation, term('realisesOption'))?.value, checkpointSelected.value);
-  assert.equal(first(baseline, realisation, term('realisationState'))?.value, 'urn:usf:realisationstate:deferred');
+  assert.equal(first(baseline, realisation, term('realisationState'))?.value, 'urn:usf:realisationstate:implementable');
   const component = objects(baseline, checkpointSelected, term('hasOptionComponent'))
     .find((item) => first(baseline, item, term('componentIdentity'))?.value === 'urn:usf:componentidentity:eventhistorycheckpointpruning');
   assert.equal(first(baseline, component, term('componentRole'))?.value, 'urn:usf:componentrole:backupmechanism');

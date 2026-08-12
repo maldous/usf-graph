@@ -78,6 +78,8 @@ const EXPECTED_REVIEWED_SOURCE_PATHS = Object.freeze([
   'assurance/semantic-model-compilation/aggregate-compiler-proof-command.test.mjs',
   'assurance/semantic-model-compilation/aggregate-compiler-proof.mjs',
   'assurance/semantic-model-compilation/aggregate-compiler-proof.test.mjs',
+  'assurance/semantic-model-compilation/realisation-option-evaluation-evidence.mjs',
+  'assurance/semantic-model-compilation/realisation-option-evaluation.test.mjs',
   'package-lock.json',
   'package.json',
   'processes/semantic-assurance/compiler-proof-command.mjs',

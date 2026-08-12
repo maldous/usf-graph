@@ -807,7 +807,7 @@ test('every authored semantic contract declares exactly one applicability state 
   }
 });
 
-test('applicability admits only the exact dormant checkpoint condition and no exemption or unearned conclusion', () => {
+test('applicability admits the exact current checkpoint validation and no exemption or unearned conclusion', () => {
   const model = authoredModel();
   const contracts = [...new Set(model
     .getSubjects(namedNode(RDF_TYPE), namedNode(`${ONT}SemanticContract`), null)
@@ -817,42 +817,33 @@ test('applicability admits only the exact dormant checkpoint condition and no ex
     const [state] = model.getObjects(namedNode(contract), namedNode(`${ONT}hasValidationApplicability`), null).map(({ value }) => value);
     byState.set(state, [...(byState.get(state) || []), contract]);
   }
-  // Nothing may be migrated to exemption or reservation. The sole conditional
-  // is the checkpoint validation: it stays non-actionable until the exact
-  // pruning decision is explicitly selected as the contract's effective
-  // decision.
+  // Nothing may be migrated to exemption, reservation or an unresolved
+  // conditional. The checkpoint validation is required only after its exact
+  // decision, proof and validation have been made effective together.
   assert.deepEqual(byState.get(`${VAS}notrequired`), undefined);
   assert.deepEqual(byState.get(`${VAS}reserved`), undefined);
-  assert.deepEqual(byState.get(`${VAS}conditional`), ['urn:usf:semanticcontract:backupandrestore']);
+  assert.deepEqual(byState.get(`${VAS}conditional`), undefined);
 
   const backup = namedNode('urn:usf:semanticcontract:backupandrestore');
   const condition = namedNode('urn:usf:validationapplicabilitycondition:backupandrestoreeventhistorycheckpointpruningbecomeseffective');
+  assert.deepEqual(model.getObjects(backup, namedNode(`${ONT}validationApplicabilityCondition`), null), []);
+  assert.deepEqual(model.getObjects(condition, namedNode(RDF_TYPE), null), []);
   assert.deepEqual(
-    model.getObjects(backup, namedNode(`${ONT}validationApplicabilityCondition`), null).map(({ value }) => value),
-    [condition.value],
+    model.getObjects(backup, namedNode(`${ONT}requiredValidation`), null).map(({ value }) => value),
+    ['urn:usf:validationobligation:backupandrestoreeventhistorycheckpointpruning'],
   );
-  assert.equal(model.has(condition, namedNode(RDF_TYPE), namedNode(`${ONT}ValidationApplicabilityCondition`), null), true);
-  assert.deepEqual(model.getObjects(condition, namedNode(`${ONT}conditionSubject`), null).map(({ value }) => value), [backup.value]);
-  assert.deepEqual(
-    model.getObjects(condition, namedNode(`${ONT}conditionPredicate`), null).map(({ value }) => value),
-    [`${ONT}effectiveRealisationDecision`],
-  );
-  assert.deepEqual(
-    model.getObjects(condition, namedNode(`${ONT}conditionRequiredValue`), null).map(({ value }) => value),
-    ['urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning'],
-  );
-  const pendingDecision = namedNode('urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning');
-  assert.deepEqual(model.getObjects(pendingDecision, namedNode(RDF_TYPE), null), []);
-  assert.deepEqual(
-    model.getObjects(pendingDecision, namedNode(`${ONT}definition`), null).map(({ value }) => value),
-    ['Reserved condition-value identity only. This publication does not type, select or make this resource effective as a RealisationDecision and grants no production pruning authority.'],
-  );
-  assert.deepEqual(model.getObjects(backup, namedNode(`${ONT}requiredValidation`), null), []);
   assert.deepEqual(
     model.getObjects(backup, namedNode(`${ONT}hasActivationState`), null).map(({ value }) => value),
-    ['urn:usf:contractactivationstate:proofblocked'],
+    ['urn:usf:contractactivationstate:active'],
   );
-  assert.deepEqual(model.getObjects(backup, namedNode(`${ONT}effectiveRealisationDecision`), null), []);
+  assert.deepEqual(
+    model.getObjects(backup, namedNode(`${ONT}effectiveRealisationDecision`), null).map(({ value }) => value),
+    ['urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning'],
+  );
+  assert.deepEqual(
+    model.getObjects(backup, namedNode(`${ONT}reliesOnProofResult`), null).map(({ value }) => value),
+    ['urn:usf:proofresult:eventhistorycheckpointpruning'],
+  );
 
   for (const contract of byState.get(`${VAS}unresolved`) || []) {
     const node = namedNode(contract);
@@ -872,7 +863,7 @@ test('applicability admits only the exact dormant checkpoint condition and no ex
       `${contract} declares required applicability so it must bind an obligation`,
     );
   }
-  assert.equal((byState.get(`${VAS}required`) || []).length, 6);
+  assert.equal((byState.get(`${VAS}required`) || []).length, 7);
   assert.equal((byState.get(`${VAS}unresolved`) || []).length, contracts.length - 7);
 });
 
