@@ -151,10 +151,9 @@ const selectedComponentDefinitions = {
       ['localdev', 'hermetic', 'productionshaped']],
   ],
 };
-const compositionUsesSemanticAuthorityPort = (name) => ![
-  'backupandrestoreeventhistorycheckpointpruning',
-  'repositoryarchitectureandnaming',
-].includes(name);
+const compositionPortIris = (name) => name === 'backupandrestoreeventhistorycheckpointpruning'
+  ? [iri('port', 'backuprestoreprovider')]
+  : name === 'repositoryarchitectureandnaming' ? [] : [iri('port', 'semanticauthoritycontrol')];
 
 const sourcePaths = [
   '.github/workflows/validate-spec.yml',
@@ -484,7 +483,7 @@ for (const decision of decisions) {
   const requirementIris = [
     ...['lifecycle', 'statemodel', 'permissions', 'contracts', 'validation', 'errormodel', 'auditmodel', 'readinessmodel', 'proof', 'uisemantics']
       .map((suffix) => iri('contractfacet', `${decision.contract}${suffix}`)),
-    ...(compositionUsesSemanticAuthorityPort(decision.name) ? [iri('port', 'semanticauthoritycontrol')] : []),
+    ...compositionPortIris(decision.name),
   ];
   for (const [componentIndex, [name]] of selectedEntries.entries()) {
     const component = `${decision.selected}${name}`;
@@ -729,7 +728,7 @@ function compositionProjection(decision) {
   }).sort((left, right) => utf8Compare(left.id, right.id));
   const facets = ['lifecycle', 'statemodel', 'permissions', 'contracts', 'validation', 'errormodel', 'auditmodel', 'readinessmodel', 'proof', 'uisemantics']
     .map((suffix) => iri('contractfacet', `${decision.contract}${suffix}`));
-  const ports = compositionUsesSemanticAuthorityPort(decision.name) ? [iri('port', 'semanticauthoritycontrol')] : [];
+  const ports = compositionPortIris(decision.name);
   const requirements = [...facets, ...ports];
   const responsibilities = requirements.map((requirement, index) => ({
     id: iri('componentresponsibility', `${decision.name}${index + 1}`),
@@ -759,8 +758,8 @@ function compositionProjection(decision) {
 }
 const compositionProofs = Object.fromEntries(composedDecisions.map(({ name, contract, selected }) => [name, {
   option: selected, contract, requiredFacetCount: 10, coveredFacetCount: 10,
-  requiredPortCount: compositionUsesSemanticAuthorityPort(name) ? 1 : 0,
-  implementedPortCount: compositionUsesSemanticAuthorityPort(name) ? 1 : 0,
+  requiredPortCount: compositionPortIris(name).length,
+  implementedPortCount: compositionPortIris(name).length,
   orphanResponsibilityCount: 0, duplicateResponsibilityCount: 0, invalidDependencyCount: 0,
   incompatibleInterfaceCount: 0, incompatibleComponentVersionCount: 0,
   unusedComponentCount: 0, unclassifiedPermutationCount: permutations[name].unclassified,
@@ -1165,7 +1164,7 @@ for (const decision of composedDecisions) {
   const componentIris = selectedOptionComponents.get(option);
   const facetBase = decision.contract;
   const requirements = Array.from({ length: 10 }, (_, index) => ['lifecycle', 'statemodel', 'permissions', 'contracts', 'validation', 'errormodel', 'auditmodel', 'readinessmodel', 'proof', 'uisemantics'][index]).map((suffix) => iri('contractfacet', `${facetBase}${suffix}`));
-  if (compositionUsesSemanticAuthorityPort(decision.name)) requirements.push(iri('port', 'semanticauthoritycontrol'));
+  requirements.push(...compositionPortIris(decision.name));
   const responsibilityIris = requirements.map((requirement, index) => {
     const name = `${decision.name}${index + 1}`;
     const resource = iri('componentresponsibility', name);
