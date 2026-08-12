@@ -685,13 +685,13 @@
 <urn:usf:proofalgorithm:eventhistorycheckpointpruning> a usf:ProofAlgorithm;
   usf:canonicalName "eventhistorycheckpointpruning";
   usf:proofAlgorithmSourcePath "assurance/semantic-model-compilation/aggregate-compiler-proof-command.mjs";
-  usf:proofAlgorithmSourceDigest "sha256:15028e203e5f6e65b7b1e5f6a4f3c986fef957234aca58d409be78ede586ca45";
-  usf:currentAlgorithmSourceDigest "sha256:15028e203e5f6e65b7b1e5f6a4f3c986fef957234aca58d409be78ede586ca45";
-  usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:eventhistorycheckpointpruning15028e203e5f6e65b7b1e5f6a4f3c986fef957234aca58d409be78ede586ca45>;
+  usf:proofAlgorithmSourceDigest "sha256:3ce6eea5176b885ac0f5ed853e56ff028b5dcdc4f9acc2265bfabbcb7ec5fc61";
+  usf:currentAlgorithmSourceDigest "sha256:3ce6eea5176b885ac0f5ed853e56ff028b5dcdc4f9acc2265bfabbcb7ec5fc61";
+  usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:eventhistorycheckpointpruning3ce6eea5176b885ac0f5ed853e56ff028b5dcdc4f9acc2265bfabbcb7ec5fc61>;
   usf:currentImplementationSourceSetDigest "sha256:0691a126d0acf334e37fffe098a87c4f5247fb55dc59123c58b933dce310bdf4";
   usf:requiresGraphSourceBinding true.
-<urn:usf:proofalgorithmversion:eventhistorycheckpointpruning15028e203e5f6e65b7b1e5f6a4f3c986fef957234aca58d409be78ede586ca45> a usf:ProofAlgorithmVersion;
-  usf:canonicalName "eventhistorycheckpointpruning15028e203e5f6e65b7b1e5f6a4f3c986fef957234aca58d409be78ede586ca45";
+<urn:usf:proofalgorithmversion:eventhistorycheckpointpruning3ce6eea5176b885ac0f5ed853e56ff028b5dcdc4f9acc2265bfabbcb7ec5fc61> a usf:ProofAlgorithmVersion;
+  usf:canonicalName "eventhistorycheckpointpruning3ce6eea5176b885ac0f5ed853e56ff028b5dcdc4f9acc2265bfabbcb7ec5fc61";
   usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:eventhistorycheckpointpruning>;
   usf:proofAlgorithmVersionIdentifier "1.0.0".
 <urn:usf:proof:eventhistorycheckpointpruning> a usf:Proof;
@@ -721,9 +721,9 @@
   usf:hasProofResultState <urn:usf:proofresultstate:successful>;
   usf:proofResultForObligation <urn:usf:proofobligation:pac1a6022137958d19ef9d029d179fb8d46d67ebac60985f3d9a072f3624aae9c>;
   usf:usesProofAlgorithm <urn:usf:proofalgorithm:eventhistorycheckpointpruning>;
-  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:eventhistorycheckpointpruning15028e203e5f6e65b7b1e5f6a4f3c986fef957234aca58d409be78ede586ca45>;
+  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:eventhistorycheckpointpruning3ce6eea5176b885ac0f5ed853e56ff028b5dcdc4f9acc2265bfabbcb7ec5fc61>;
   usf:usesAdmittedEvidence <urn:usf:evidenceresult:eventhistorycheckpointpruning>;
-  usf:evidenceSetDigest "sha256:6100081108e5619a1fe1fa0a94ec3cf0c843ed809b51b6ef5a893fc85c3f7921";
+  usf:evidenceSetDigest "sha256:926082a8d14f4811a0f07445a44639170474a15303cada3028de9fef61c62f4d";
   usf:implementationSourceSetDigest "sha256:0691a126d0acf334e37fffe098a87c4f5247fb55dc59123c58b933dce310bdf4";
   usf:proofProducerCommit "65bff7cb5df245f63510ad20bb1a7bed774e73e5";
   usf:proofProducerTree "dbd06df2e9cfc7273c5c562c2e13adcbdedef751";
@@ -732,7 +732,7 @@
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:eventhistorycheckpointpruning>;
   usf:uncertaintyStatement "This historical proof warrants only the exact six-path signed Factory checkpoint, immutable cold-archive, authenticated-tail, same-device recovery and backup/restore machinery. It lacks publication-relative currentness and neither authorizes a production pruning transaction nor establishes live safe-frontier, checkpoint equivalence, backup, restore, P2, BAU or V2 activation.";
-  usf:evaluatedAt "2026-08-11T06:14:19Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:evaluatedAt "2026-08-12T12:48:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 
 }

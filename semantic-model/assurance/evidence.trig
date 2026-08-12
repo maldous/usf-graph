@@ -2109,39 +2109,39 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
 # Dormant checkpoint/archive machinery evidence. This validation chain is an
 # admitted historical input only: backupandrestore stays proof-blocked and no
 # production pruning transaction is authorized by these facts.
-<urn:usf:externalpayloaddescriptor:eventhistorycheckpointpruningevidencef87e9ca17a15a87adbe4d67bdbcd508e47fdd7fdb881fa3fbe18a50be2b114b2> a usf:ExternalPayloadDescriptor;
-  usf:canonicalName "eventhistorycheckpointpruningevidencef87e9ca17a15a87adbe4d67bdbcd508e47fdd7fdb881fa3fbe18a50be2b114b2";
+<urn:usf:externalpayloaddescriptor:eventhistorycheckpointpruningevidencec0fa67fd6c31d094f811e8c622083f88a53c610514900a8b51b394831207bd9f> a usf:ExternalPayloadDescriptor;
+  usf:canonicalName "eventhistorycheckpointpruningevidencec0fa67fd6c31d094f811e8c622083f88a53c610514900a8b51b394831207bd9f";
   usf:descriptorArtefactFamily <urn:usf:artefactfamily:evidencepayload>;
   usf:descriptorRepresentationFormat format:jsondata8259;
   usf:descriptorMediaType "application/json";
-  usf:descriptorDigest "sha256:f87e9ca17a15a87adbe4d67bdbcd508e47fdd7fdb881fa3fbe18a50be2b114b2";
+  usf:descriptorDigest "sha256:c0fa67fd6c31d094f811e8c622083f88a53c610514900a8b51b394831207bd9f";
   usf:descriptorByteSize 14966;
-  usf:descriptorLocator "cas://sha256/f87e9ca17a15a87adbe4d67bdbcd508e47fdd7fdb881fa3fbe18a50be2b114b2"^^xsd:anyURI;
+  usf:descriptorLocator "cas://sha256/c0fa67fd6c31d094f811e8c622083f88a53c610514900a8b51b394831207bd9f"^^xsd:anyURI;
   usf:descriptorArtefactType "urn:usf:artefacttype:eventhistorycheckpointpruningevidence"^^xsd:anyURI;
   usf:descriptorStorageClass <urn:usf:storageclass:contentaddressedobjectstorage>.
-<urn:usf:externalpayloaddescriptor:eventhistorycheckpointpruningattestation67077fe88775a44475137589d3de8ddac7de411b49ebcf33740883ee74899dc3> a usf:ExternalPayloadDescriptor;
-  usf:canonicalName "eventhistorycheckpointpruningattestation67077fe88775a44475137589d3de8ddac7de411b49ebcf33740883ee74899dc3";
+<urn:usf:externalpayloaddescriptor:eventhistorycheckpointpruningattestation4b9592692a4d95001741271ff3dc7fbd4d1c37bf37a7bbcf6b74e0aff405e00e> a usf:ExternalPayloadDescriptor;
+  usf:canonicalName "eventhistorycheckpointpruningattestation4b9592692a4d95001741271ff3dc7fbd4d1c37bf37a7bbcf6b74e0aff405e00e";
   usf:descriptorArtefactFamily <urn:usf:artefactfamily:proofexecutionattestation>;
   usf:descriptorRepresentationFormat format:intotostatementjson;
   usf:descriptorMediaType "application/vnd.in-toto+json";
-  usf:descriptorDigest "sha256:67077fe88775a44475137589d3de8ddac7de411b49ebcf33740883ee74899dc3";
+  usf:descriptorDigest "sha256:4b9592692a4d95001741271ff3dc7fbd4d1c37bf37a7bbcf6b74e0aff405e00e";
   usf:descriptorByteSize 1324;
-  usf:descriptorLocator "cas://sha256/67077fe88775a44475137589d3de8ddac7de411b49ebcf33740883ee74899dc3"^^xsd:anyURI;
+  usf:descriptorLocator "cas://sha256/4b9592692a4d95001741271ff3dc7fbd4d1c37bf37a7bbcf6b74e0aff405e00e"^^xsd:anyURI;
   usf:descriptorArtefactType "urn:usf:artefacttype:eventhistorycheckpointpruningattestation"^^xsd:anyURI;
   usf:descriptorStorageClass <urn:usf:storageclass:contentaddressedobjectstorage>.
 <urn:usf:signature:eventhistorycheckpointpruningattestation> a usf:Signature;
   usf:canonicalName "eventhistorycheckpointpruningattestation";
   usf:artefactKind <urn:usf:artefactkind:signature>;
-  usf:canonicalPath "cas://sha256/67077fe88775a44475137589d3de8ddac7de411b49ebcf33740883ee74899dc3#signature";
+  usf:canonicalPath "cas://sha256/4b9592692a4d95001741271ff3dc7fbd4d1c37bf37a7bbcf6b74e0aff405e00e#signature";
   usf:governedByPathRule <urn:usf:pathrule:contentaddressedsignature>;
   usf:signatureMethod <urn:usf:signaturemethod:enveloped>;
   usf:signingPolicy <urn:usf:policy:hermeticevidenceattestation>;
   usf:signedBy <urn:usf:signingidentity:realisationoptionevaluationintegrity>;
-  usf:signatureValue "lm3nSJu1FPuUvwP0LvThIJJBrU/rNkQexwrVHb6SplZATvQP+KqFKl2EZP6EHYD5tln6tGtPr0OmbSNOB84+Cg==".
+  usf:signatureValue "Ekqma/dbJb0s5feYIiMuxwieQ+LevECLCg/UidRnf984F4syfSteFjw4u8rm20A8YJGg5Wsu2AMJHNkUK1GwDg==".
 <urn:usf:checksum:eventhistorycheckpointpruningevidence> a usf:Checksum;
   usf:canonicalName "eventhistorycheckpointpruningevidence";
   usf:checksumAlgorithm <urn:usf:checksumalgorithm:sha256>;
-  usf:checksumValue "f87e9ca17a15a87adbe4d67bdbcd508e47fdd7fdb881fa3fbe18a50be2b114b2".
+  usf:checksumValue "c0fa67fd6c31d094f811e8c622083f88a53c610514900a8b51b394831207bd9f".
 <urn:usf:validatorrule:validateeventhistorycheckpointpruning> a usf:ValidatorRule;
   usf:canonicalName "validateeventhistorycheckpointpruning";
   usf:resultCode "eventhistorycheckpointpruningclosure";
@@ -2161,8 +2161,8 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
   usf:canonicalName "eventhistorycheckpointpruning";
   usf:admissionPathForProducer <urn:usf:validationproducer:eventhistorycheckpointpruning>;
   usf:admissionPathRepository "maldous/usf-graph";
-  usf:admissionPathSourceHead "3e3c090194278ea2b12a085607dfa391affb01a2";
-  usf:admissionPathSourceTree "8067f97abec8fc80690529229654cce1d134254a";
+  usf:admissionPathSourceHead "d76d0826a76a323c1f22d5958538ced5d9839af6";
+  usf:admissionPathSourceTree "0a6b44ac9d6784fd125f527c74fa0b13707aaa52";
   usf:admissionPathSourceScopeDigest "sha256:afd48a95a34861742dd55809e3f754a946911076602d3546e8117bb73a982e8e";
   usf:admissionPathSourcePath
     "assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.mjs",
@@ -2181,16 +2181,16 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
   usf:hasFreshness fresh:fresh;
   usf:evidenceForContract sc:backupandrestore;
   usf:evidenceFor sc:backupandrestore;
-  usf:contentDigest "sha256:f87e9ca17a15a87adbe4d67bdbcd508e47fdd7fdb881fa3fbe18a50be2b114b2";
-  usf:evaluatedAuthorityDigest "sha256:64690a9b894afcebd449ffe01063107940be823d343c18a33bf197c7edde000e";
-  usf:evidenceProducerDigest "sha256:15028e203e5f6e65b7b1e5f6a4f3c986fef957234aca58d409be78ede586ca45";
+  usf:contentDigest "sha256:c0fa67fd6c31d094f811e8c622083f88a53c610514900a8b51b394831207bd9f";
+  usf:evaluatedAuthorityDigest "sha256:a3eeab8d23d1d6803c657cecb09dab8d6c27ebdc1734d15a7c1cbfe5ae21f116";
+  usf:evidenceProducerDigest "sha256:3ce6eea5176b885ac0f5ed853e56ff028b5dcdc4f9acc2265bfabbcb7ec5fc61";
   usf:mediaType "application/json";
   usf:byteSize 14966;
-  usf:storageLocator "cas://sha256/f87e9ca17a15a87adbe4d67bdbcd508e47fdd7fdb881fa3fbe18a50be2b114b2"^^xsd:anyURI;
+  usf:storageLocator "cas://sha256/c0fa67fd6c31d094f811e8c622083f88a53c610514900a8b51b394831207bd9f"^^xsd:anyURI;
   usf:wasProducedBy <urn:usf:validatorrule:validateeventhistorycheckpointpruning>;
-  usf:collectedAt "2026-08-11T06:11:24Z"^^xsd:dateTime;
-  usf:evaluatedAt "2026-08-11T06:11:24Z"^^xsd:dateTime;
-  usf:validUntil "2026-08-12T06:11:24Z"^^xsd:dateTime;
+  usf:collectedAt "2026-08-12T12:48:00Z"^^xsd:dateTime;
+  usf:evaluatedAt "2026-08-12T12:48:00Z"^^xsd:dateTime;
+  usf:validUntil "2026-08-13T12:48:00Z"^^xsd:dateTime;
   usf:hasFreshnessPolicy <urn:usf:evidencefreshnesspolicy:eventhistorycheckpointpruningoneday>;
   usf:hasAdmissionState admission:admitted;
   usf:hasFreshnessState freshnessstate:fresh;
@@ -2216,8 +2216,8 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
   usf:canonicalName "eventhistorycheckpointpruning";
   usf:collectedEvidence <urn:usf:evidenceresult:eventhistorycheckpointpruning>;
   usf:collectsEvidence <urn:usf:evidenceresult:eventhistorycheckpointpruning>;
-  usf:collectedOn "2026-08-11T06:11:24Z"^^xsd:dateTime;
-  usf:sourceDigest "sha256:f87e9ca17a15a87adbe4d67bdbcd508e47fdd7fdb881fa3fbe18a50be2b114b2";
+  usf:collectedOn "2026-08-12T12:48:00Z"^^xsd:dateTime;
+  usf:sourceDigest "sha256:c0fa67fd6c31d094f811e8c622083f88a53c610514900a8b51b394831207bd9f";
   usf:collectionForRequirement <urn:usf:evidencerequirement:e1e1a0fc28b30c3d7ee09fd37fb264c3318f7ae3b61b38ca9b4c65d54677de61e>.
 <urn:usf:evidencenormalisation:eventhistorycheckpointpruning> a usf:EvidenceNormalisation;
   usf:canonicalName "eventhistorycheckpointpruning";
@@ -2235,18 +2235,18 @@ evr:providerworkforcedecisionevaluation a usf:EvidenceResult, usf:CompositeEvide
   usf:validationEnvironment <urn:usf:validationenvironment:eventhistorycheckpointpruninghermetic>;
   usf:validationExecutedByProducer <urn:usf:validationproducer:eventhistorycheckpointpruning>;
   usf:validationUsesEvidenceAdmissionPath <urn:usf:evidenceadmissionpath:eventhistorycheckpointpruning>;
-  usf:validationExecutionReceiptDigest "sha256:f87e9ca17a15a87adbe4d67bdbcd508e47fdd7fdb881fa3fbe18a50be2b114b2";
+  usf:validationExecutionReceiptDigest "sha256:c0fa67fd6c31d094f811e8c622083f88a53c610514900a8b51b394831207bd9f";
   usf:producesValidationResult <urn:usf:validationresult:eventhistorycheckpointpruning>.
 <urn:usf:validationevaluation:eventhistorycheckpointpruning> a usf:ValidationEvaluation;
   usf:canonicalName "eventhistorycheckpointpruning";
   usf:validationEvaluationOfExecution <urn:usf:validationexecution:eventhistorycheckpointpruning>;
-  usf:validationEvaluationReceiptDigest "sha256:67077fe88775a44475137589d3de8ddac7de411b49ebcf33740883ee74899dc3".
+  usf:validationEvaluationReceiptDigest "sha256:4b9592692a4d95001741271ff3dc7fbd4d1c37bf37a7bbcf6b74e0aff405e00e".
 <urn:usf:validationresult:eventhistorycheckpointpruning> a usf:ValidationResult;
   usf:canonicalName "eventhistorycheckpointpruning";
   usf:resultState <urn:usf:resultstate:passed>;
   usf:resultForValidationObligation <urn:usf:validationobligation:backupandrestoreeventhistorycheckpointpruning>;
   usf:usesAdmittedValidationEvidence <urn:usf:evidenceresult:eventhistorycheckpointpruning>;
-  usf:validationEvaluatedAuthorityDigest "sha256:64690a9b894afcebd449ffe01063107940be823d343c18a33bf197c7edde000e";
+  usf:validationEvaluatedAuthorityDigest "sha256:a3eeab8d23d1d6803c657cecb09dab8d6c27ebdc1734d15a7c1cbfe5ae21f116";
   usf:validationEvaluatedSourceHead "65bff7cb5df245f63510ad20bb1a7bed774e73e5";
   usf:validationResultOfEvaluation <urn:usf:validationevaluation:eventhistorycheckpointpruning>;
   usf:entersEvidenceLifecycleAs <urn:usf:evidenceresult:eventhistorycheckpointpruning>.
