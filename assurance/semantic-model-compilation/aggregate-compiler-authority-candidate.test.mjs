@@ -23,6 +23,7 @@ import {
 import {
   aggregateCompilerAuthorityCandidateInternals as internals,
   materializeAggregateCompilerAuthorityCandidate,
+  materializeAggregateOwnerAuthorityValidationContext,
 } from './aggregate-compiler-authority-candidate.mjs';
 
 const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
@@ -415,6 +416,31 @@ function rawPatch(bytes) {
   }
   return operations;
 }
+
+test('owner validation context anchors only the aggregate proof identities needed before Stage 1', () => {
+  const context = parsePatch(materializeAggregateOwnerAuthorityValidationContext({
+    ownerAuthority: ownerAuthority(),
+    pendingPackage: pendingPackage(),
+  }).bytes).additions;
+  const identities = new Map([
+    ['urn:usf:proofobligation:compilersemanticenforcementaggregate', 'compilersemanticenforcementaggregate'],
+    [AGGREGATE_ALGORITHM, 'compilersemanticenforcementaggregate'],
+    [AGGREGATE_VERSION, 'compilersemanticenforcementaggregatev210'],
+  ]);
+  for (const [subject, canonicalName] of identities) {
+    const triples = context.filter((quad) => quad.subject.value === subject);
+    assert.equal(triples.length, 1);
+    assert.equal(triples[0].predicate.value, `${USF}canonicalName`);
+    assert.equal(triples[0].object.value, canonicalName);
+    assert.equal(triples[0].graph.value, 'urn:usf:graph:proofs');
+    assert.equal(triples.some((quad) => quad.predicate.value === RDF_TYPE), false);
+  }
+
+  const stage1 = parsePatch(materializeAggregateCompilerAuthorityCandidate(stage1Input()).bytes).additions;
+  for (const subject of identities.keys()) {
+    assert.equal(stage1.some((quad) => quad.subject.value === subject && quad.predicate.value === RDF_TYPE), true);
+  }
+});
 
 function initialD0State() {
   return new Set([

@@ -726,6 +726,13 @@ export function materializeAggregateOwnerAuthorityValidationContext({ ownerAutho
   const additions = OWNER_SCOPE_KEYS.flatMap((key, index) => ownerTriples(
     owners[key], OWNER_SCOPES[key], { includeVerifier: index === 0 },
   ));
+  // The external proof package is validated before Stage 1 materialises the
+  // aggregate foundation. Define only the stable identities it references in
+  // this rollback-only validation view; aggregateFoundation remains the sole
+  // source of their typed, authoritative records in the candidate.
+  add(additions, AGGREGATE_OBLIGATION, 'canonicalName', literal('compilersemanticenforcementaggregate'), GRAPH_PROOFS);
+  add(additions, AGGREGATE_ALGORITHM, 'canonicalName', literal('compilersemanticenforcementaggregate'), GRAPH_PROOFS);
+  add(additions, AGGREGATE_VERSION, 'canonicalName', literal('compilersemanticenforcementaggregatev210'), GRAPH_PROOFS);
   const bytes = canonicalPatch('base', [], additions);
   return Object.freeze({ bytes, digest: sha256Bytes(bytes) });
 }
