@@ -857,7 +857,7 @@ shp:PostPublicationReevaluationShape a sh:NodeShape;
     usf:canonicalName "postpublicationreevaluationshape";
     sh:targetClass usf:PostPublicationReevaluation;
     sh:property [ sh:path usf:reevaluatesProofResult; sh:minCount 1; sh:maxCount 1; sh:class usf:PrePublicationAggregateProofResult ];
-    sh:property [ sh:path usf:reevaluatesValidationResult; sh:maxCount 1; sh:class usf:ValidationResult ];
+    sh:property [ sh:path usf:reevaluatesValidationResult; sh:class usf:ValidationResult ];
     sh:property [ sh:path usf:reevaluationProducesProofResult; sh:minCount 1; sh:maxCount 1; sh:class usf:PostPublicationAggregateProofResult ];
     sh:property [ sh:path usf:reevaluationAuthorityDigest; sh:minCount 1; sh:maxCount 1; sh:pattern "^sha256:[0-9a-f]{64}$" ];
     sh:property [ sh:path usf:reevaluationSourceHead; sh:minCount 1; sh:maxCount 1; sh:pattern "^[0-9a-f]{40}$" ];
@@ -871,6 +871,11 @@ shp:PostPublicationReevaluationShape a sh:NodeShape;
       sh:prefixes usf:prefixes;
       sh:message "postpublicationreevaluation: authority digest must change while source, algorithm and exact component set remain bound";
       sh:select "SELECT $this WHERE { $this usf:reevaluatesProofResult ?before ; usf:reevaluationProducesProofResult ?after ; usf:reevaluationAuthorityDigest ?newAuthority ; usf:reevaluationSourceHead ?source ; usf:reevaluationAlgorithmDigest ?algorithm ; usf:reevaluationComponentSetDigest ?components . ?before usf:aggregateAuthorityDigest ?oldAuthority ; usf:aggregateSourceHead ?source ; usf:aggregateAlgorithmDigest ?algorithm ; usf:componentSetDigest ?components . FILTER(?before = ?after || ?oldAuthority = ?newAuthority) }"
+    ];
+    sh:sparql [
+      sh:prefixes usf:prefixes;
+      sh:message "postpublicationreevaluation: every validation result must be reverse-bound by an exact passing self-publication binding";
+      sh:select "SELECT $this WHERE { $this usf:reevaluatesValidationResult ?result . FILTER NOT EXISTS { ?binding a usf:ValidationSelfPublicationBinding ; usf:authorityBindingForValidationResult ?result ; usf:validationBindingPostPublicationReevaluation $this ; usf:validationPostPublicationReevaluationState <urn:usf:resultstate:passed> . } }"
     ].
 
 shp:AggregateContractDirectBindingShape a sh:NodeShape;

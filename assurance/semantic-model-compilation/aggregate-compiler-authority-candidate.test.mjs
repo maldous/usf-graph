@@ -624,15 +624,48 @@ test('base source closes every validation-publication term before the generated 
   }
 
   const shapeSource = sourceQuads('semantic-model/shapes/assurance.ttl', 'text/turtle');
-  assert.equal(shapeSource.some((quad) =>
-    quad.predicate.value === 'http://www.w3.org/ns/shacl#path'
-      && quad.object.value === `${USF}reevaluatesValidationResult`), true,
-  'validation reevaluation must be a structural source usage, not only generated D2 data or SPARQL text');
+  const shacl = 'http://www.w3.org/ns/shacl#';
+  const reevaluationShape = 'urn:usf:shacl:PostPublicationReevaluationShape';
+  const validationResultPropertyShapes = shapeSource
+    .filter((quad) => quad.subject.value === reevaluationShape
+      && quad.predicate.value === `${shacl}property`)
+    .map((quad) => quad.object)
+    .filter((propertyShape) => shapeSource.some((quad) => quad.subject.equals(propertyShape)
+      && quad.predicate.value === `${shacl}path`
+      && quad.object.value === `${USF}reevaluatesValidationResult`));
+  assert.equal(validationResultPropertyShapes.length, 1,
+    'validation reevaluation must be a structural source usage, not only generated D2 data or SPARQL text');
+  assert.equal(shapeSource.some((quad) => quad.subject.equals(validationResultPropertyShapes[0])
+    && quad.predicate.value === `${shacl}maxCount`), false,
+  'one publication reevaluation may close multiple independently bound validation results');
+  assert.equal(shapeSource.some((quad) => quad.subject.equals(validationResultPropertyShapes[0])
+    && quad.predicate.value === `${shacl}class`
+    && quad.object.value === `${USF}ValidationResult`), true);
+
+  const reevaluationQueries = shapeSource
+    .filter((quad) => quad.subject.value === reevaluationShape
+      && quad.predicate.value === `${shacl}sparql`)
+    .flatMap((quad) => shapeSource.filter((item) => item.subject.equals(quad.object)
+      && item.predicate.value === `${shacl}select`).map((item) => item.object.value));
+  const validationClosureQueries = reevaluationQueries.filter((query) =>
+    query.includes('$this usf:reevaluatesValidationResult ?result'));
+  assert.equal(validationClosureQueries.length, 1);
+  for (const required of [
+    'FILTER NOT EXISTS',
+    '?binding a usf:ValidationSelfPublicationBinding',
+    'usf:authorityBindingForValidationResult ?result',
+    'usf:validationBindingPostPublicationReevaluation $this',
+    'usf:validationPostPublicationReevaluationState <urn:usf:resultstate:passed>',
+  ]) assert.equal(validationClosureQueries[0].includes(required), true,
+    `validation reevaluation must reject an unbound result: ${required}`);
 
   const generated = parsePatch(materializeAggregateCompilerAuthorityCandidate(stage2Input()).bytes).additions;
-  assert.equal(generated.some((quad) =>
-    quad.predicate.value === `${USF}reevaluatesValidationResult`), true,
-  'stage 2 must retain the validation reevaluation relation closed by the base source');
+  assert.deepEqual(objects(generated,
+    'urn:usf:postpublicationreevaluation:compilersemanticenforcementaggregate',
+    `${USF}reevaluatesValidationResult`).sort(), [
+    'urn:usf:validationresult:eventhistorycheckpointpruning',
+    internals.FACTORY_PROVIDER_V3_VALIDATION_RESULT,
+  ].sort(), 'stage 2 must close both exact dependent validations under the shared publication reevaluation');
 });
 
 test('generated overlays reference but never redeclare source-owned Factory validation resources', () => {
