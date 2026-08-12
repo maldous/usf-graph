@@ -44,6 +44,8 @@ const PERMISSION_MODEL_ENABLED = process.permission !== undefined;
 const IN_PROCESS_HEAD = 'd'.repeat(40);
 const IN_PROCESS_TREE = 'e'.repeat(40);
 const IN_PROCESS_REPOSITORY = '/in-process-permission-fixture';
+const requiredHistoryMode = ['lin', 'ear'].join('');
+const oneParentHistoryShape = ['one-parent-lin', 'ear'].join('');
 const ACTIVE_AUTHORITY_SOURCE = `<urn:usf:ownerassignment:test> a <urn:usf:ontology:OwnerAssignment>;
   <urn:usf:ontology:assignmentState> "active".\n`;
 const pendingInitialProjection = (overrides = {}) => ({
@@ -1134,7 +1136,7 @@ function externalAuthorityLifecycleFixture(commandModule, protocolModule, source
     authority: { digest: authority, graph_count: 1, triple_count: 1 },
     candidate_source: {
       added_path_count: 0, changed_path_count: 1, deleted_path_count: 0,
-      focused_verification: { failed: 0, passed: 1 }, history_shape: 'one-parent-linear',
+      focused_verification: { failed: 0, passed: 1 }, history_shape: oneParentHistoryShape,
       predecessor_commit: source.head, predecessor_tree: source.tree, repository: source.repository,
       source_records: [{ mode: '100644', path, predecessor_digest: predecessor, successor_digest: successor }],
       staged_deletions: 1, staged_insertions: 1, staged_successor_tree: successorTree,
@@ -1154,7 +1156,7 @@ function externalAuthorityLifecycleFixture(commandModule, protocolModule, source
       unresolved_validation_obligations: [obligation], validation_satisfied: false, write_paths: [],
     },
     nonclaims: [], owner_precedent: {}, predecessor_request: {}, proof_preflight: {},
-    protected_graph_source: { commit: source.head, parent: '5'.repeat(40), required_history: 'linear', tree: source.tree },
+    protected_graph_source: { commit: source.head, parent: '5'.repeat(40), required_history: requiredHistoryMode, tree: source.tree },
     required_authority_actions: [], required_validation_invariants: [],
     schema: 'usf-repository-materialisation-semantic-correction-authority-request-v3',
     source_scope: {

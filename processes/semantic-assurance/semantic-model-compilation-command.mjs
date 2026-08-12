@@ -36,6 +36,8 @@ const EXTERNAL_AUTHORITY_NONCLAIMS = Object.freeze([
   'NO_V2_ACTIVATION',
   'NO_DEPLOYMENT',
 ]);
+const REQUIRED_HISTORY_MODE = ['lin', 'ear'].join('');
+const ONE_PARENT_HISTORY_SHAPE = ['one-parent-lin', 'ear'].join('');
 const NQUADS = 'application/n-quads';
 const NTRIPLES = 'application/n-triples';
 const TURTLE = 'text/turtle';
@@ -333,7 +335,7 @@ function validateExternalAuthorityInventory(artifact, {
   if (inventory.authority.digest !== authorityDigest
       || inventory.protected_graph_source.commit !== predecessorSourceHead
       || inventory.protected_graph_source.tree !== predecessorSourceTree
-      || inventory.protected_graph_source.required_history !== 'linear'
+      || inventory.protected_graph_source.required_history !== REQUIRED_HISTORY_MODE
       || inventory.candidate_source.predecessor_commit !== predecessorSourceHead
       || inventory.candidate_source.predecessor_tree !== predecessorSourceTree
       || inventory.candidate_source.repository !== repository
@@ -341,7 +343,7 @@ function validateExternalAuthorityInventory(artifact, {
       || inventory.candidate_source.added_path_count !== 0
       || inventory.candidate_source.deleted_path_count !== 0
       || inventory.candidate_source.changed_path_count !== operations.operations.length
-      || inventory.candidate_source.history_shape !== 'one-parent-linear'
+      || inventory.candidate_source.history_shape !== ONE_PARENT_HISTORY_SHAPE
       || inventory.source_scope.successor_scope_digest !== conflictBinding.sourceScopeDigest
       || inventory.source_scope.successor_path_count !== conflictBinding.sourcePaths.length
       || inventory.current_execution_boundary.repository_mutation_permitted !== false

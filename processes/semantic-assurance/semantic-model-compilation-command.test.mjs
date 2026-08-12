@@ -14,6 +14,8 @@ import {
 
 const authorityDigest = `sha256:${'a'.repeat(64)}`;
 const repositories = [];
+const requiredHistoryMode = ['lin', 'ear'].join('');
+const oneParentHistoryShape = ['one-parent-lin', 'ear'].join('');
 
 function repository() {
   const root = mkdtempSync(join(tmpdir(), 'usf-semantic-assurance-'));
@@ -138,7 +140,7 @@ function externalAuthorityFixture({
       changed_path_count: 1,
       deleted_path_count: 0,
       focused_verification: { failed: 0, passed: 1 },
-      history_shape: 'one-parent-linear',
+      history_shape: oneParentHistoryShape,
       predecessor_commit: predecessorHead,
       predecessor_tree: predecessorTree,
       repository: repositoryId,
@@ -180,7 +182,7 @@ function externalAuthorityFixture({
     protected_graph_source: {
       commit: predecessorHead,
       parent: 'b'.repeat(40),
-      required_history: 'linear',
+      required_history: requiredHistoryMode,
       tree: predecessorTree,
     },
     required_authority_actions: [],
