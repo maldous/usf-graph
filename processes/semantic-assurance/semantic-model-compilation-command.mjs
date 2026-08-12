@@ -214,7 +214,7 @@ function exactArtifactDescriptor(value, observed, label) {
   }
 }
 
-function validateExternalAuthorityOperations(artifact, repository) {
+function validateExternalAuthorityOperations(artifact, repository, contentStore = null) {
   const operations = artifact.value;
   if (!Array.isArray(operations) || operations.length < 1 || operations.length > 256) {
     throw new CompilerError('external authority operations must be a bounded canonical array', {
@@ -223,20 +223,36 @@ function validateExternalAuthorityOperations(artifact, repository) {
   }
   const paths = [];
   for (const [index, operation] of operations.entries()) {
-    exactObjectKeys(operation, [
+    const inline = Object.hasOwn(operation, 'content') || Object.hasOwn(operation, 'contentEncoding');
+    const located = Object.hasOwn(operation, 'contentLocator');
+    exactObjectKeys(operation, inline && !located ? [
       'action', 'artefactFamily', 'content', 'contentDigest', 'contentEncoding', 'index',
       'path', 'pathRole', 'representationFormat', 'sourceDigest',
-    ], 'external authority write operation');
+    ] : !inline && located ? [
+      'action', 'artefactFamily', 'contentDigest', 'contentLocator', 'index',
+      'path', 'pathRole', 'representationFormat', 'sourceDigest',
+    ] : [], 'external authority write operation');
+    let contentBytes;
+    if (inline && !located && operation.contentEncoding === 'utf8'
+        && typeof operation.content === 'string' && operation.content.length > 0) {
+      contentBytes = Buffer.from(operation.content, 'utf8');
+    } else if (!inline && located && SHA256.test(operation.contentDigest || '')
+        && operation.contentLocator === `cas://sha256/${operation.contentDigest.slice(7)}`
+        && contentStore && typeof contentStore.read === 'function' && typeof contentStore.verify === 'function') {
+      const receipt = contentStore.verify(operation.contentDigest);
+      const read = contentStore.read(operation.contentDigest);
+      if (receipt?.digest === operation.contentDigest && Number.isSafeInteger(receipt.size)
+          && Buffer.isBuffer(read) && read.length > 0 && read.length === receipt.size
+          && sha256(read) === operation.contentDigest) contentBytes = read;
+    }
     if (operation.action !== 'write-file' || operation.index !== index
-        || operation.contentEncoding !== 'utf8'
-        || typeof operation.content !== 'string'
-        || operation.content.length === 0
+        || !Buffer.isBuffer(contentBytes)
         || typeof operation.path !== 'string'
         || !/^[A-Za-z0-9._/-]+$/.test(operation.path)
         || operation.path.startsWith('/')
         || operation.path.split('/').some((part) => part === '' || part === '.' || part === '..')
         || !SHA256.test(operation.sourceDigest || '')
-        || sha256(Buffer.from(operation.content, 'utf8')) !== operation.contentDigest
+        || sha256(contentBytes) !== operation.contentDigest
         || !/^urn:usf:artefactfamily:[a-z0-9]+$/.test(operation.artefactFamily || '')
         || !/^urn:usf:pathrole:[a-z0-9]+$/.test(operation.pathRole || '')
         || !/^urn:usf:representationformat:[a-z0-9]+$/.test(operation.representationFormat || '')) {
@@ -517,6 +533,7 @@ function validateExternalAuthorityArtifacts({
   predecessorSourceTree,
   proofApprovalEnvelope,
   repository,
+  operationContentStore = null,
   trustAnchor,
   verifyProofApprovalEnvelope = missingExternalAuthorityProofVerifier,
 }) {
@@ -529,7 +546,7 @@ function validateExternalAuthorityArtifacts({
   const parsed = new Map([...artifacts].map(([role, bytes]) => [
     role, parseCanonicalJsonArtifact(bytes, `external authority ${role} artifact`),
   ]));
-  const operations = validateExternalAuthorityOperations(parsed.get('operations'), repository);
+  const operations = validateExternalAuthorityOperations(parsed.get('operations'), repository, operationContentStore);
   if (operations.operationDigest !== conflictBinding.operationDigest
       || canonicalJson(operations.requestedActions) !== canonicalJson(conflictBinding.requestedActions)
       || canonicalJson(operations.requestedFormats) !== canonicalJson(conflictBinding.requestedFormats)
@@ -1190,6 +1207,7 @@ function assertExternalAuthorityDelta({
     predecessorSourceTree: expectedSource.tree,
     proofApprovalEnvelope: value.proofApprovalEnvelope,
     repository: expectedSource.repository,
+    operationContentStore: evidenceStore,
     trustAnchor,
     verifyProofApprovalEnvelope,
   });
@@ -1255,6 +1273,7 @@ function createExternalAuthorityDeltaPackage({
   predecessorSourceTree,
   proofApprovalEnvelope,
   repository,
+  operationContentStore = null,
   trustAnchor,
   verifyProofApprovalEnvelope = missingExternalAuthorityProofVerifier,
 }) {
@@ -1345,6 +1364,7 @@ function createExternalAuthorityDeltaPackage({
     predecessorSourceTree,
     proofApprovalEnvelope,
     repository,
+    operationContentStore,
     trustAnchor,
     verifyProofApprovalEnvelope,
   });

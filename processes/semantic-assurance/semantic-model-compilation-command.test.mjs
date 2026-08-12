@@ -101,6 +101,7 @@ const contentDigest = (bytes) => `sha256:${createHash('sha256').update(bytes).di
 const jcsDigest = (value) => contentDigest(Buffer.from(stableJson(value)));
 
 function externalAuthorityFixture({
+  contentLocator = false,
   decisionState = 'ACCEPTED',
   proofState = 'PASSED',
   reviewVerdict = 'ACCEPTED',
@@ -114,12 +115,16 @@ function externalAuthorityFixture({
   const scopeDigest = contentDigest(Buffer.from(stableJson(sourcePaths)));
   const sourceBytes = Buffer.from('predecessor\n');
   const successor = 'successor\n';
+  const operationContentDigest = contentDigest(Buffer.from(successor));
   const operationsValue = [{
     action: 'write-file',
     artefactFamily: 'urn:usf:artefactfamily:processsource',
-    content: successor,
-    contentDigest: contentDigest(Buffer.from(successor)),
-    contentEncoding: 'utf8',
+    ...(contentLocator ? {} : { content: successor }),
+    contentDigest: operationContentDigest,
+    ...(contentLocator
+      ? { contentLocator: contentLocator === true
+        ? `cas://sha256/${operationContentDigest.slice(7)}` : contentLocator }
+      : { contentEncoding: 'utf8' }),
     index: 0,
     path: sourcePaths[0],
     pathRole: 'urn:usf:pathrole:processsource',
@@ -365,6 +370,11 @@ function externalAuthorityFixture({
     ['proof', proofBytes],
     ['review', reviewBytes],
   ]);
+  const operationContentStore = {
+    read: (digest) => digest === operationContentDigest ? Buffer.from(successor) : undefined,
+    verify: (digest) => digest === operationContentDigest
+      ? { digest, size: Buffer.byteLength(successor) } : undefined,
+  };
   const packageValue = semanticModelCompilationCommandInternals.createExternalAuthorityDeltaPackage({
     artifacts: [...artifactBytes].map(([role, bytes]) => ({ bytes, role })),
     authorityDigest,
@@ -374,13 +384,17 @@ function externalAuthorityFixture({
     ownerAssignmentIri,
     predecessorSourceHead: predecessorHead,
     predecessorSourceTree: predecessorTree,
+    operationContentStore,
     proofApprovalEnvelope,
     repository: repositoryId,
     verifyProofApprovalEnvelope: verifiedApproval,
   });
   const evidenceStore = {
-    read: (digest) => Buffer.from([...artifactBytes.values()].find((bytes) => contentDigest(bytes) === digest)),
+    read: (digest) => digest === operationContentDigest
+      ? Buffer.from(successor)
+      : Buffer.from([...artifactBytes.values()].find((bytes) => contentDigest(bytes) === digest)),
     verify: (digest) => {
+      if (digest === operationContentDigest) return { digest, size: Buffer.byteLength(successor) };
       const bytes = [...artifactBytes.values()].find((item) => contentDigest(item) === digest);
       return { digest, size: bytes.length };
     },
@@ -390,6 +404,7 @@ function externalAuthorityFixture({
     conflictBinding,
     evidenceStore,
     inventoryDigest,
+    operationContentDigest,
     ownerAssignmentIri,
     packageValue,
     proofApprovalEnvelope,
@@ -507,6 +522,33 @@ test('admits only canonical owner-approved evidence-backed conflict resolution',
       permittedOperations,
     },
   }), /contains an unrelated semantic operation/);
+});
+
+test('external authority operations accept exact immutable CAS content and reject locator substitution', () => {
+  const fixture = externalAuthorityFixture({ contentLocator: true });
+  const options = {
+    allowedGraphs: new Set(['urn:usf:graph:evidence', 'urn:usf:graph:proofs']),
+    evidenceStore: fixture.evidenceStore,
+    expectedAuthorityDigest: authorityDigest,
+    expectedSource: fixture.source,
+    now: new Date('2026-08-11T00:00:01Z'),
+    value: fixture.packageValue,
+    verifyProofApprovalEnvelope: fixture.verifiedApproval,
+  };
+  assert.equal(
+    semanticModelCompilationCommandInternals.assertExternalAuthorityDelta(options).patchDigest,
+    fixture.packageValue.patchDigest,
+  );
+  assert.throws(() => externalAuthorityFixture({ contentLocator: 'substituted' }),
+    /external authority write operation is not exact and preimage-bound/);
+  assert.throws(() => semanticModelCompilationCommandInternals.assertExternalAuthorityDelta({
+    ...options,
+    evidenceStore: {
+      ...fixture.evidenceStore,
+      read: (digest) => digest === fixture.operationContentDigest
+        ? Buffer.from('substituted') : fixture.evidenceStore.read(digest),
+    },
+  }), /external authority write operation is not exact and preimage-bound/);
 });
 test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated deltas', async () => {
   const root = repository();
