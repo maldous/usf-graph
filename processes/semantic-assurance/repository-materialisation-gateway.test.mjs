@@ -457,6 +457,7 @@ function fakeClient({
   currentness = defaultCurrentness(),
   authorityNQuads = AUTHORITY_NQUADS,
   authorityConflictSurfaceRows = [],
+  rejectSyntheticSettledSurface = false,
   authorityConflictResolutionRows = [],
   authorityConflictSetRows = [],
   queries = [],
@@ -466,7 +467,10 @@ function fakeClient({
     construct: async () => authorityNQuads,
     select: async (query) => {
       queries.push(query);
-      if (query.includes('SELECT DISTINCT ?surfaceContract ?authorisedPath ?authorisedFormat')) return authorityConflictSurfaceRows;
+      if (query.includes('SELECT DISTINCT ?surfaceContract ?authorisedPath ?authorisedFormat')) {
+        if (rejectSyntheticSettledSurface && query.includes('reevaluationSettledAuthorityDigest')) return [];
+        return authorityConflictSurfaceRows;
+      }
       if (query.includes('SELECT ?resolution ?conflict ?resolutionState ?decisionState')) return authorityConflictResolutionRows;
       if (query.includes('SELECT ?resolution ?kind ?item')) return authorityConflictSetRows;
       if (query.includes(`<${decisionFormatPredicate}>`)) {
@@ -2499,6 +2503,7 @@ function authorityConflictClient(normalised, ownerSourcePaths) {
     ...ownerSourcePaths.map((item) => ['ownerSourcePath', item]),
   ].map(([kind, item]) => ({ resolution: binding(resolution), kind: binding(kind), item: binding(item) }));
   return fakeClient({
+    rejectSyntheticSettledSurface: true,
     validationObligationRows: durableFamilyValidationRows(),
     authorityConflictSurfaceRows: [{
       surfaceContract: binding(compilerContract),

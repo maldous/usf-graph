@@ -1504,10 +1504,7 @@ async function readAuthorityConflictState(client, binding, authorityDigest) {
         <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
         <urn:usf:ontology:reliesOnProofResult> ?surfaceProof ;
         <urn:usf:ontology:effectiveRealisationDecision> ?surfaceDecision .
-      ?surfaceProof <urn:usf:ontology:hasProofResultState> <urn:usf:proofresultstate:successful> ;
-        <urn:usf:ontology:hasAuthorityBinding> ?surfaceBinding .
-      ?surfaceBinding <urn:usf:ontology:reevaluationSettledAuthorityDigest> "${authorityDigest}" ;
-        <urn:usf:ontology:hasPostPublicationReevaluationState> <urn:usf:proofreevaluationstate:successful> .
+      ?surfaceProof <urn:usf:ontology:hasProofResultState> <urn:usf:proofresultstate:successful> .
       ?surfaceDecision <urn:usf:ontology:decisionState> <urn:usf:decisionstate:accepted> ;
         <urn:usf:ontology:authorisesRepository> "${escapedRepository}" ;
         <urn:usf:ontology:authorisesSourcePath> ?authorisedPath ;
@@ -1587,14 +1584,22 @@ async function readAuthorityConflictState(client, binding, authorityDigest) {
     if (format) current.authorisedFormats.add(format);
     surfaces.set(contract, current);
   }
-  const applicableSurfaces = [...surfaces.values()]
-    .filter((surface) => binding.requestedPaths.some((path) => decisionAuthorisesPath(path, [...surface.authorisedPaths])))
-    .map((surface) => Object.freeze({
+  const applicableSurfaces = [];
+  for (const surface of [...surfaces.values()]
+    .filter((item) => binding.requestedPaths.some((path) => decisionAuthorisesPath(path, [...item.authorisedPaths])))) {
+    // Authority bindings are schema-specific: the aggregate proof uses the
+    // canonical non-publication dependency closure rather than a synthetic
+    // settled-authority literal. Reuse the one proof-currentness resolver that
+    // governs contract projection instead of inventing a second binding shape.
+    const currentness = await proofCurrentnessVerdict(client, surface.contract);
+    if (currentness.state !== PROOF_CURRENTNESS.current) continue;
+    applicableSurfaces.push(Object.freeze({
       contract: surface.contract,
       authorisedPaths: Object.freeze([...surface.authorisedPaths].sort()),
       authorisedFormats: Object.freeze([...surface.authorisedFormats].sort()),
-    }))
-    .sort((left, right) => left.contract.localeCompare(right.contract));
+    }));
+  }
+  applicableSurfaces.sort((left, right) => left.contract.localeCompare(right.contract));
 
   const grouped = new Map();
   for (const row of resolutionRows) {
