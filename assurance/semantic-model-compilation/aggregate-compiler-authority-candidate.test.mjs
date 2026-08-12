@@ -74,6 +74,41 @@ function sourceQuads(path, format) {
   return new Parser({ format }).parse(readFileSync(join(REPOSITORY_ROOT, path), 'utf8'));
 }
 
+test('meta-class terminal selectors use the exact external-standard SHACL exception', () => {
+  const owlClass = 'http://www.w3.org/2002/07/owl#Class';
+  const families = sourceQuads('semantic-model/permutation/families.trig', 'application/trig');
+  for (const selector of ['resourceclassesgateways', 'resourceclassesinterfaces']) {
+    assert.equal(families.some((quad) =>
+      quad.subject.value === `urn:usf:permutationsignalselector:${selector}`
+        && quad.predicate.value === `${USF}selectorTerminalClass`
+        && quad.object.value === owlClass), true, selector);
+  }
+
+  const shapes = readFileSync(join(REPOSITORY_ROOT, 'semantic-model/shapes/permutation.ttl'), 'utf8');
+  assert.equal(shapes.includes(
+    'sh:or ( [ sh:class <http://www.w3.org/2002/07/owl#Class> ] [ sh:hasValue <http://www.w3.org/2002/07/owl#Class> ] );'
+  ), true);
+  const ontology = sourceQuads('semantic-model/ontology.ttl', 'text/turtle');
+  assert.equal(ontology.some((quad) =>
+    quad.subject.value === owlClass
+      && quad.predicate.value === RDF_TYPE
+      && quad.object.value === owlClass), false);
+});
+
+test('scheduled-job validation obligation references only the current applicability rule', () => {
+  const materialisation = sourceQuads('semantic-model/contracts/materialisation.trig', 'application/trig');
+  const obligation = 'urn:usf:validationobligation:scheduledjobactionroleserviceidentityenvironmentclass';
+  const derivedFrom = `${USF}derivedFrom`;
+  assert.equal(materialisation.some((quad) =>
+    quad.subject.value === obligation
+      && quad.predicate.value === derivedFrom
+      && quad.object.value === 'urn:usf:permutationapplicabilityrule:scheduledjobs'), true);
+  assert.equal(materialisation.some((quad) =>
+    quad.subject.value === obligation
+      && quad.predicate.value === derivedFrom
+      && quad.object.value === 'urn:usf:permutationapplicabilityrule:workflows'), false);
+});
+
 function pendingPackage() {
   const components = COMPONENT_PROOFS.map((component, index) => ({
     currentness: {

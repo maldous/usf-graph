@@ -184,7 +184,8 @@ shp:PermutationSignalSelectorShape a sh:NodeShape;
 _:pss_subject sh:path usf:selectorSubjectClass; sh:minCount 1; sh:maxCount 1; sh:class <http://www.w3.org/2002/07/owl#Class>;
     sh:message "SIGNAL_SELECTOR_SUBJECT_CLASS_MISSING: selector requires one declared subject class".
 shp:PermutationSignalSelectorShape sh:property _:pss_subject.
-_:pss_terminal sh:path usf:selectorTerminalClass; sh:minCount 1; sh:maxCount 1; sh:class <http://www.w3.org/2002/07/owl#Class>;
+_:pss_terminal sh:path usf:selectorTerminalClass; sh:minCount 1; sh:maxCount 1;
+    sh:or ( [ sh:class <http://www.w3.org/2002/07/owl#Class> ] [ sh:hasValue <http://www.w3.org/2002/07/owl#Class> ] );
     sh:message "SIGNAL_SELECTOR_TERMINAL_CLASS_MISSING: selector requires one declared terminal class".
 shp:PermutationSignalSelectorShape sh:property _:pss_terminal.
 _:pss_path sh:path usf:selectorPathStep; sh:minCount 1; sh:class usf:PermutationSignalPathStep;

@@ -159,7 +159,7 @@ cf:repositoryexternalartefactmaterialisationuisemantics a usf:ContractFacet;
     usf:hasValidationActivationState <urn:usf:validationactivationstate:activated>;
     usf:validationActivationReason "The scheduledjobactionroleserviceidentityenvironmentclass family uses the workflows applicability rule although its scheduledjob dimension filters workflows through the scheduled execution-policy and trigger path.";
     usf:obligationFor <urn:usf:permutationfamily:scheduledjobactionroleserviceidentityenvironmentclass>;
-    usf:derivedFrom <urn:usf:permutationfamily:scheduledjobactionroleserviceidentityenvironmentclass>, <urn:usf:permutationapplicabilityrule:workflows>, <urn:usf:permutationdimension:closurescheduledjob>, <urn:usf:dimensionvaluesource:scheduledjob>, <urn:usf:permutationvaluederivation:scheduledjob>, <urn:usf:artefact:permutationfamilysource>;
+    usf:derivedFrom <urn:usf:permutationfamily:scheduledjobactionroleserviceidentityenvironmentclass>, <urn:usf:permutationapplicabilityrule:scheduledjobs>, <urn:usf:permutationdimension:closurescheduledjob>, <urn:usf:dimensionvaluesource:scheduledjob>, <urn:usf:permutationvaluederivation:scheduledjob>, <urn:usf:artefact:permutationfamilysource>;
     usf:validationNonclaim <urn:usf:nonclaim:controlplanereceiptdoesnotsatisfyvalidation>, <urn:usf:nonclaim:validationanalysisdoesnotauthorisemutation>;
     usf:validationForContract <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation>.
 <urn:usf:nonclaim:controlplanereceiptdoesnotsatisfyvalidation> a usf:NonClaim;
