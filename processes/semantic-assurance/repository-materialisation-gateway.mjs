@@ -1310,7 +1310,11 @@ function completeCrossRepositorySelfPublicationClosure(item, authorityWitnessVal
     && item.bindingSourcePath.length === 0
     && item.bindingSourceScope.length === 0
     && reevaluation !== null
-    && soleTerm(item, 'reevaluatesValidationResult') === item.result
+    // A single publication reevaluation may close several independently bound
+    // validations.  This binding is current only when the shared reevaluation
+    // explicitly includes this exact result; requiring the whole plural set to
+    // have scalar cardinality rejects an otherwise complete D2 closure.
+    && item.reevaluatesValidationResult.includes(item.result)
     && soleTerm(item, 'reevaluationAuthority') === stageOneSettled
     && soleTerm(item, 'reevaluationResultState') === PASSED_RESULT
     && soleTerm(item, 'reevaluationExecutionReceipt') !== null

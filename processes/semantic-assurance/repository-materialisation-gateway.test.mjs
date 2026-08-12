@@ -1234,6 +1234,28 @@ test('cross-repository validation closure keeps Factory production and Graph adm
   assert.equal(packet.actionState, 'PROCEED');
 });
 
+test('cross-repository validation closure accepts its exact result in a shared plural reevaluation', async () => {
+  const client = fakeClient({
+    validationObligationRows: [{
+      ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+      ...crossRepositorySelfPublicationClosureRow({
+        reevaluatesValidationResult: binding(crossValidationClosure.result),
+      }),
+    }, {
+      ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+      ...crossRepositorySelfPublicationClosureRow({
+        reevaluatesValidationResult: binding('urn:usf:validationresult:eventhistorycheckpointpruning'),
+      }),
+    }],
+    validationPathRows: crossRepositoryPathRows(),
+  });
+  const packet = await projectContract({ client }, { contract });
+  assert.equal(packet.validationObligations[0].satisfactionCurrent, true);
+  assert.equal(packet.validationSatisfied, true);
+  assert.deepEqual(packet.validationGaps, []);
+  assert.equal(packet.actionState, 'PROCEED');
+});
+
 test('D2 validation evidence is projected independently of the bounded scalar closure', async () => {
   const scalar = crossRepositorySelfPublicationClosureRow();
   const evidence = Object.fromEntries(
