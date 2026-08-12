@@ -445,6 +445,31 @@ sc:compilersemanticenforcement
     usf:canonicalName "semanticmodelcompilationrealisation";
     usf:recordsDecision <urn:usf:realisationdecision:semanticmodelcompilationrealisation>.
 
+<urn:usf:realisationoption:authenticatedcheckpointcoldarchiveboundedhottail> a usf:RealisationOption;
+    usf:canonicalName "authenticatedcheckpointcoldarchiveboundedhottail";
+    usf:definition "Authenticated event-history checkpoint plus immutable signed cold archive and a bounded verified hot tail, preserving exact archive and genesis restoration.".
+<urn:usf:realisationoption:genesisreplayhotstoreonly> a usf:RealisationOption;
+    usf:canonicalName "genesisreplayhotstoreonly";
+    usf:definition "Retain the complete immutable event history in the hot operational store and verify by replay from genesis without checkpoint activation or prefix archiving.".
+<urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning> a usf:RealisationDecision;
+    usf:canonicalName "backupandrestoreeventhistorycheckpointpruning";
+    usf:decisionState <urn:usf:decisionstate:accepted>;
+    usf:decisionForContract sc:backupandrestore;
+    usf:considersOption <urn:usf:realisationoption:authenticatedcheckpointcoldarchiveboundedhottail>, <urn:usf:realisationoption:genesisreplayhotstoreonly>;
+    usf:selectsOption <urn:usf:realisationoption:authenticatedcheckpointcoldarchiveboundedhottail>;
+    usf:hasDecisionEvaluation <urn:usf:decisionevaluation:backupandrestoreeventhistorycheckpointpruning>;
+    usf:decisionRationale "The authenticated-checkpoint option bounds routine verification cost while preserving exact signed cold history, genesis restoration, checkpoint-plus-tail projection equivalence and fail-closed activation; the hot-store-only option preserves truth but retains the demonstrated unbounded operational cost.";
+    usf:authorisesRepository "maldous/usf-factory";
+    usf:authorisesSourcePath
+      "src/usf_factory/cli.py",
+      "src/usf_factory/event_store.py",
+      "src/usf_factory/maintenance.py",
+      "src/usf_factory/v3_events.py",
+      "tests/test_v3_event_store.py",
+      "tests/test_v3_maintenance.py";
+    usf:authorisesRealisationType usf:Implementation;
+    usf:authorisesRepresentationFormat <urn:usf:representationformat:pythonsource311>.
+
 <urn:usf:provider:factoryprovidercataloguecache> a usf:Provider; usf:canonicalName "factoryprovidercataloguecache"; usf:repositoryName "factory-provider-catalogue-cache"; usf:definition "Repository-local bounded cache provider for provider catalogue metadata; it excludes credentials, mutable live quota state, model responses and runtime assessment transcripts."; usf:hasProviderMode <urn:usf:providermode:repositorylocalservice>; usf:fulfilsPort <urn:usf:port:cacheprovider> .
 <urn:usf:adapter:factoryprovidercataloguecache> a usf:Adapter; usf:canonicalName "factoryprovidercataloguecache"; usf:repositoryName "factory-provider-catalogue-cache"; usf:definition "Factory adapter implementing only the service-catalog cache boundary through the bounded repository-local catalogue cache provider."; usf:implementsPort <urn:usf:port:cacheprovider>; usf:bindsProvider <urn:usf:provider:factoryprovidercataloguecache> .
 <urn:usf:realisationoption:boundedfactoryproviderconfigurationplane> a usf:RealisationOption; usf:canonicalName "boundedfactoryproviderconfigurationplane"; usf:definition "One bounded provider configuration, policy, activation and accounting plane in maldous/usf-factory with external credentials and authorization-bound provider contact." .

@@ -58,6 +58,14 @@ const FACTORY_PATHS = [
   'src/usf_factory/provider_catalog.py',
   'src/usf_factory/semantic_factory.py',
 ];
+const CHECKPOINT_PATHS = [
+  'src/usf_factory/cli.py',
+  'src/usf_factory/event_store.py',
+  'src/usf_factory/maintenance.py',
+  'src/usf_factory/v3_events.py',
+  'tests/test_v3_event_store.py',
+  'tests/test_v3_maintenance.py',
+];
 const SOURCE_SCOPE = sourceScopeDigest(GRAPH_PATHS);
 const SOURCE_BINDING = {
   head: HEAD,
@@ -210,6 +218,37 @@ function pendingPackage() {
   };
 }
 
+function checkpointValidation() {
+  return {
+    admission: {
+      iri: 'urn:usf:evidenceadmissionpath:eventhistorycheckpointpruning',
+      repository: 'maldous/usf-graph',
+      sourceHead: ADMISSION_HEAD,
+      sourcePaths: GRAPH_PATHS,
+      sourceScopeDigest: sourceScopeDigest(GRAPH_PATHS),
+      sourceTree: ADMISSION_TREE,
+    },
+    authorityDigest: D1,
+    evaluation: 'urn:usf:validationevaluation:eventhistorycheckpointpruning',
+    evaluationReceiptDigest: digest('4'),
+    evidence: ['urn:usf:evidenceresult:eventhistorycheckpointpruning'],
+    execution: 'urn:usf:validationexecution:eventhistorycheckpointpruning',
+    executionReceiptDigest: digest('5'),
+    obligation: 'urn:usf:validationobligation:backupandrestoreeventhistorycheckpointpruning',
+    producer: {
+      iri: 'urn:usf:validationproducer:eventhistorycheckpointpruning',
+      release: 'factory-event-history-checkpoint-pruning-v1',
+      repository: 'maldous/usf-factory',
+      sourceHead: FACTORY_VALIDATION_HEAD,
+      sourcePaths: CHECKPOINT_PATHS,
+      sourceScopeDigest: sourceScopeDigest(CHECKPOINT_PATHS),
+      sourceTree: FACTORY_VALIDATION_TREE,
+    },
+    result: 'urn:usf:validationresult:eventhistorycheckpointpruning',
+    sourceHead: FACTORY_VALIDATION_HEAD,
+  };
+}
+
 const SHARED_VERIFIER = Object.freeze({
   identityDigest: digest('a'),
   implementationRelease: 'semantic-proof-v1.0.0',
@@ -255,7 +294,7 @@ function ownerAuthority() {
       domain: 'urn:usf:capabilityowner:factoryproviderdurablecontrolplane',
       envelope: 'e',
       repository: 'maldous/usf-factory',
-      sourcePaths: FACTORY_PATHS,
+      sourcePaths: CHECKPOINT_PATHS,
       verification: 'b',
     }),
     providerconfigurationplane: ownerAuthorityFor({
@@ -426,7 +465,7 @@ const stage2Input = () => {
   return {
     currentnessBinding: { prospectiveAuthorityInventory: PROSPECTIVE_INVENTORY.map((record) => ({ ...record })) },
     ownerAuthority: ownerAuthority(),
-    pendingPackage: pendingPackage(),
+    pendingPackage: { ...pendingPackage(), checkpointValidation: checkpointValidation() },
     stage: 'stage2',
     stage2Package: stage2Package(stage1CandidateDigest),
   };

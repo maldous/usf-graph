@@ -54,6 +54,20 @@ const DEPENDENT_VALIDATION_OBLIGATION = 'urn:usf:validationobligation:providerco
 const DEPENDENT_VALIDATION_RESULT = 'urn:usf:validationresult:factoryproviderv3implementation';
 const DEPENDENT_VALIDATION_PRODUCER_REPOSITORY = 'maldous/usf-factory';
 const DEPENDENT_VALIDATION_ADMISSION_REPOSITORY = 'maldous/usf-graph';
+const CHECKPOINT_VALIDATION_CONTRACT = 'urn:usf:semanticcontract:backupandrestore';
+const CHECKPOINT_VALIDATION_OBLIGATION =
+  'urn:usf:validationobligation:backupandrestoreeventhistorycheckpointpruning';
+const CHECKPOINT_VALIDATION_RESULT = 'urn:usf:validationresult:eventhistorycheckpointpruning';
+const CHECKPOINT_VALIDATION_PRODUCER_REPOSITORY = 'maldous/usf-factory';
+const CHECKPOINT_VALIDATION_ADMISSION_REPOSITORY = 'maldous/usf-graph';
+const CHECKPOINT_PRODUCER_SOURCE_PATHS = Object.freeze([
+  'src/usf_factory/cli.py',
+  'src/usf_factory/event_store.py',
+  'src/usf_factory/maintenance.py',
+  'src/usf_factory/v3_events.py',
+  'tests/test_v3_event_store.py',
+  'tests/test_v3_maintenance.py',
+]);
 const DEPENDENT_PROOF_RESULTS = Object.freeze([
   'urn:usf:proofresult:factoryproviderv3implementation',
   'urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane',
@@ -236,6 +250,12 @@ SELECT ?result ?obligation ?resultState ?resultAuthorityDigest ?resultSourceHead
                  <urn:usf:ontology:admissionPathSourcePath> ?admissionSourcePath .
 }
 ORDER BY ?producerSourcePath ?admissionSourcePath ?validationEvidence`;
+
+export const CHECKPOINT_VALIDATION_FACTS_QUERY = DEPENDENT_VALIDATION_FACTS_QUERY
+  .replace('aggregate-dependent-validation-facts-v1', 'aggregate-checkpoint-validation-facts-v1')
+  .replace(DEPENDENT_VALIDATION_RESULT, CHECKPOINT_VALIDATION_RESULT)
+  .replace(DEPENDENT_VALIDATION_OBLIGATION, CHECKPOINT_VALIDATION_OBLIGATION)
+  .replace(DEPENDENT_VALIDATION_CONTRACT, CHECKPOINT_VALIDATION_CONTRACT);
 
 export const CONTRACT_SELECTION_QUERY = `# aggregate-contract-selection-v1
 SELECT DISTINCT ?result WHERE {
@@ -902,11 +922,18 @@ function exactPathSet(rows, field, label) {
   return Object.freeze(values);
 }
 
-function normalizeDependentValidation(rows, casRoot) {
+function normalizeDependentValidation(rows, casRoot, config = Object.freeze({
+  admissionRepository: DEPENDENT_VALIDATION_ADMISSION_REPOSITORY,
+  expectedProducerPaths: null,
+  label: 'Factory Provider V3',
+  obligation: DEPENDENT_VALIDATION_OBLIGATION,
+  producerRepository: DEPENDENT_VALIDATION_PRODUCER_REPOSITORY,
+  result: DEPENDENT_VALIDATION_RESULT,
+})) {
   if (!Array.isArray(rows) || rows.length === 0) {
-    fail('AGGREGATE_DEPENDENT_VALIDATION_INVALID', 'absent Factory Provider V3 validation closure');
+    fail('AGGREGATE_DEPENDENT_VALIDATION_INVALID', `absent ${config.label} validation closure`);
   }
-  const result = exactScalar(rows, 'result', DEPENDENT_VALIDATION_RESULT);
+  const result = exactScalar(rows, 'result', config.result);
   const obligation = exactScalar(rows, 'obligation', result);
   const evaluation = exactScalar(rows, 'evaluation', result);
   const execution = exactScalar(rows, 'execution', result);
@@ -935,18 +962,20 @@ function normalizeDependentValidation(rows, casRoot) {
   const producerSourceTree = exactScalar(rows, 'producerSourceTree', result);
   const admissionSourceHead = exactScalar(rows, 'admissionSourceHead', result);
   const admissionSourceTree = exactScalar(rows, 'admissionSourceTree', result);
-  if (result !== DEPENDENT_VALIDATION_RESULT || obligation !== DEPENDENT_VALIDATION_OBLIGATION
+  if (result !== config.result || obligation !== config.obligation
       || exactScalar(rows, 'resultState', result) !== 'urn:usf:resultstate:passed'
       || validationEvidence.length !== 1
-      || producerRepository !== DEPENDENT_VALIDATION_PRODUCER_REPOSITORY
-      || admissionRepository !== DEPENDENT_VALIDATION_ADMISSION_REPOSITORY
+      || producerRepository !== config.producerRepository
+      || admissionRepository !== config.admissionRepository
       || producerRepository === admissionRepository
       || exactScalar(rows, 'admissionProducer', result) !== producer
       || resultSourceHead !== producerSourceHead
       || !GIT_OBJECT.test(producerSourceHead || '') || !GIT_OBJECT.test(producerSourceTree || '')
       || !GIT_OBJECT.test(admissionSourceHead || '') || !GIT_OBJECT.test(admissionSourceTree || '')
       || producerSourceScopeDigest !== aggregateCompilerProofInternals.sourceScopeDigest(producerSourcePaths)
-      || admissionSourceScopeDigest !== aggregateCompilerProofInternals.sourceScopeDigest(admissionSourcePaths)) {
+      || admissionSourceScopeDigest !== aggregateCompilerProofInternals.sourceScopeDigest(admissionSourcePaths)
+      || (config.expectedProducerPaths !== null
+        && canonicalJson(producerSourcePaths) !== canonicalJson(config.expectedProducerPaths))) {
     fail('AGGREGATE_DEPENDENT_VALIDATION_INVALID', 'identity, state or source binding');
   }
   readCasBytes(casRoot, executionReceiptDigest);
@@ -1136,10 +1165,23 @@ async function readFacts(dependencies, requestedAuthorityDigest) {
 }
 
 async function readDependentValidation(dependencies, requestedAuthorityDigest) {
-  return stableAuthorityRead(dependencies, requestedAuthorityDigest, async () => normalizeDependentValidation(
-    await dependencies.client.select(DEPENDENT_VALIDATION_FACTS_QUERY),
-    dependencies.casRoot,
-  ));
+  return stableAuthorityRead(dependencies, requestedAuthorityDigest, async () => {
+    const [dependentRows, checkpointRows] = await Promise.all([
+      dependencies.client.select(DEPENDENT_VALIDATION_FACTS_QUERY),
+      dependencies.client.select(CHECKPOINT_VALIDATION_FACTS_QUERY),
+    ]);
+    return Object.freeze({
+      checkpointValidation: normalizeDependentValidation(checkpointRows, dependencies.casRoot, {
+        admissionRepository: CHECKPOINT_VALIDATION_ADMISSION_REPOSITORY,
+        expectedProducerPaths: CHECKPOINT_PRODUCER_SOURCE_PATHS,
+        label: 'event-history checkpoint pruning',
+        obligation: CHECKPOINT_VALIDATION_OBLIGATION,
+        producerRepository: CHECKPOINT_VALIDATION_PRODUCER_REPOSITORY,
+        result: CHECKPOINT_VALIDATION_RESULT,
+      }),
+      dependentValidation: normalizeDependentValidation(dependentRows, dependencies.casRoot),
+    });
+  });
 }
 
 function reevaluationBindings(components, binding) {
@@ -1231,7 +1273,8 @@ function assembleStage2Package(casRoot, {
   const preparation = assertInitialReevaluationPreparation(stage1Preparation);
   assertSemanticProofPublicationReceipt(publicationReceipt);
   exactObjectKeys(pending, [
-    'aggregateResult', 'dependentValidation', 'evaluatedAuthorityDigest', 'evaluationReceiptDigest', 'executionReceiptDigest',
+    'aggregateResult', 'checkpointValidation', 'dependentValidation', 'evaluatedAuthorityDigest',
+    'evaluationReceiptDigest', 'executionReceiptDigest',
     'ok', 'proofCurrentness', 'resultState', 'selectable', 'state',
   ], 'pending aggregate package');
   const execution = readReceiptDescriptor(

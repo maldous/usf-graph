@@ -1181,12 +1181,13 @@ export async function runAggregateCompilerProductionLifecycle({
   }
   const d1 = await readAuthorityWitness();
   if (d1.digest !== initial.authority_after_digest) throw new Error('aggregate lifecycle D1 authority digest drifted');
-  const refreshedDependentValidation = await producer.refreshDependentValidation({
+  const refreshedDependentValidations = await producer.refreshDependentValidation({
     requestedAuthorityDigest: d1.digest,
   });
   const refreshedPendingPackage = Object.freeze({
     ...pendingPackage,
-    dependentValidation: refreshedDependentValidation,
+    checkpointValidation: refreshedDependentValidations.checkpointValidation,
+    dependentValidation: refreshedDependentValidations.dependentValidation,
   });
   const stage2Package = await producer.prepareFinalPackage({
     compilerValidation: initial.compilerValidation,

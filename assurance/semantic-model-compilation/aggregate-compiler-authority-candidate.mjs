@@ -76,6 +76,26 @@ const FACTORY_PROVIDER_V3_VALIDATION_EXECUTION = 'urn:usf:validationexecution:fa
 const FACTORY_PROVIDER_V3_VALIDATION_PRODUCER = 'urn:usf:validationproducer:factoryproviderv3implementation';
 const FACTORY_PROVIDER_V3_VALIDATION_ADMISSION = 'urn:usf:evidenceadmissionpath:factoryproviderv3implementation';
 const FACTORY_PROVIDER_V3_VALIDATION_BINDING = 'urn:usf:validationselfpublicationbinding:factoryproviderv3implementation';
+const CHECKPOINT_ALGORITHM = 'urn:usf:proofalgorithm:eventhistorycheckpointpruning';
+const CHECKPOINT_RESULT = 'urn:usf:proofresult:eventhistorycheckpointpruning';
+const CHECKPOINT_BINDING = 'urn:usf:proofauthoritybinding:eventhistorycheckpointpruning';
+const CHECKPOINT_VALIDATION_RESULT = 'urn:usf:validationresult:eventhistorycheckpointpruning';
+const CHECKPOINT_VALIDATION_OBLIGATION =
+  'urn:usf:validationobligation:backupandrestoreeventhistorycheckpointpruning';
+const CHECKPOINT_VALIDATION_EVALUATION = 'urn:usf:validationevaluation:eventhistorycheckpointpruning';
+const CHECKPOINT_VALIDATION_EXECUTION = 'urn:usf:validationexecution:eventhistorycheckpointpruning';
+const CHECKPOINT_VALIDATION_PRODUCER = 'urn:usf:validationproducer:eventhistorycheckpointpruning';
+const CHECKPOINT_VALIDATION_ADMISSION = 'urn:usf:evidenceadmissionpath:eventhistorycheckpointpruning';
+const CHECKPOINT_VALIDATION_BINDING =
+  'urn:usf:validationselfpublicationbinding:eventhistorycheckpointpruning';
+const CHECKPOINT_PRODUCER_SOURCE_PATHS = Object.freeze([
+  'src/usf_factory/cli.py',
+  'src/usf_factory/event_store.py',
+  'src/usf_factory/maintenance.py',
+  'src/usf_factory/v3_events.py',
+  'tests/test_v3_event_store.py',
+  'tests/test_v3_maintenance.py',
+]);
 const CROSS_REPOSITORY_VALIDATION_RULE = 'urn:usf:authoritybindingrule:validationcrossrepositorynonpublicationclosure';
 const DEPENDENCY_DIGEST_ALGORITHM = 'sha256-rdfc10-nonpublication-graph-inventory-v1';
 const DURABLE_FAMILY_VALIDATIONS = Object.freeze([
@@ -154,6 +174,7 @@ const OWNER_SCOPE_KEYS = Object.freeze(Object.keys(OWNER_SCOPES).sort());
 
 const PENDING_KEYS = ['aggregateResult', 'dependentValidation', 'evaluatedAuthorityDigest', 'evaluationReceiptDigest', 'executionReceiptDigest',
   'ok', 'proofCurrentness', 'resultState', 'selectable', 'state'];
+const TERMINAL_PENDING_KEYS = [...PENDING_KEYS, 'checkpointValidation'];
 const AGGREGATE_KEYS = ['evaluation', 'evaluationDigest', 'passed', 'proofCurrentness', 'resultState', 'selectable'];
 const EVALUATION_KEYS = ['algorithmDigest', 'algorithmVersion', 'authorityDigest', 'componentSetDigest', 'components',
   'evaluatedAt', 'evidenceSetDigest', 'phase', 'postPublicationReevaluation', 'sourceBinding', 'sourceBindingDigest'];
@@ -193,7 +214,7 @@ const STAGE2_KEYS = ['compilerValidation', 'evaluationReceipt', 'evaluationRecei
   'executionReceiptDescriptor', 'package', 'publicationReceipt'];
 
 const ALLOWED_DEEP_KEYS = new Set([
-  ...PENDING_KEYS, ...AGGREGATE_KEYS, ...EVALUATION_KEYS, ...SOURCE_KEYS, ...COMPONENT_KEYS,
+  ...TERMINAL_PENDING_KEYS, ...AGGREGATE_KEYS, ...EVALUATION_KEYS, ...SOURCE_KEYS, ...COMPONENT_KEYS,
   'admittedEvidence', 'authorityBindingDigest', 'authorityDigest', 'bytesBase64', 'component', 'digest',
   'evaluatedAt', 'evidenceSet', 'historicalResultDigest', 'invalidated', 'iri', 'observedAt',
   'projectionReceiptDigest', 'proof', 'proofAlgorithm', 'proofAlgorithmSourceDigest', 'proofAlgorithmVersion',
@@ -266,7 +287,16 @@ function sha256Json(value) {
   return sha256Bytes(Buffer.from(canonicalJson(value), 'utf8'));
 }
 
-function validateDependentValidation(value) {
+function validateDependentValidation(value, expected = Object.freeze({
+  admission: FACTORY_PROVIDER_V3_VALIDATION_ADMISSION,
+  evaluation: FACTORY_PROVIDER_V3_VALIDATION_EVALUATION,
+  evidence: 'urn:usf:evidenceresult:factoryproviderv3implementation',
+  execution: FACTORY_PROVIDER_V3_VALIDATION_EXECUTION,
+  expectedProducerPaths: null,
+  obligation: FACTORY_PROVIDER_V3_VALIDATION_OBLIGATION,
+  producer: FACTORY_PROVIDER_V3_VALIDATION_PRODUCER,
+  result: FACTORY_PROVIDER_V3_VALIDATION_RESULT,
+})) {
   exactKeys(value, DEPENDENT_VALIDATION_KEYS, 'CANDIDATE_DEPENDENT_VALIDATION_INVALID', 'dependent validation');
   exactKeys(value.producer, DEPENDENT_VALIDATION_PRODUCER_KEYS,
     'CANDIDATE_DEPENDENT_VALIDATION_INVALID', 'dependent validation producer');
@@ -284,12 +314,12 @@ function validateDependentValidation(value) {
   gitObject(value.admission.sourceTree, 'dependent validation admission source tree');
   const producerPaths = paths(value.producer.sourcePaths, 'dependent validation producer paths');
   const admissionPaths = paths(value.admission.sourcePaths, 'dependent validation admission paths');
-  if (value.result !== FACTORY_PROVIDER_V3_VALIDATION_RESULT
-      || value.obligation !== FACTORY_PROVIDER_V3_VALIDATION_OBLIGATION
-      || value.evaluation !== FACTORY_PROVIDER_V3_VALIDATION_EVALUATION
-      || value.execution !== FACTORY_PROVIDER_V3_VALIDATION_EXECUTION
-      || value.producer.iri !== FACTORY_PROVIDER_V3_VALIDATION_PRODUCER
-      || value.admission.iri !== FACTORY_PROVIDER_V3_VALIDATION_ADMISSION
+  if (value.result !== expected.result
+      || value.obligation !== expected.obligation
+      || value.evaluation !== expected.evaluation
+      || value.execution !== expected.execution
+      || value.producer.iri !== expected.producer
+      || value.admission.iri !== expected.admission
       || value.producer.repository !== 'maldous/usf-factory'
       || value.admission.repository !== AGGREGATE_REPOSITORY
       || value.producer.repository === value.admission.repository
@@ -298,14 +328,17 @@ function validateDependentValidation(value) {
       || value.admission.sourceScopeDigest !== sourceScopeDigest(admissionPaths)
       || typeof value.producer.release !== 'string' || value.producer.release.length === 0
       || !Array.isArray(value.evidence) || value.evidence.length !== 1
-      || value.evidence[0] !== 'urn:usf:evidenceresult:factoryproviderv3implementation') {
+      || value.evidence[0] !== expected.evidence
+      || (expected.expectedProducerPaths !== null
+        && canonicalJson(producerPaths) !== canonicalJson(expected.expectedProducerPaths))) {
     fail('CANDIDATE_DEPENDENT_VALIDATION_INVALID', 'identity, repository or source binding');
   }
   return value;
 }
 
-function validatePending(pending) {
-  exactKeys(pending, PENDING_KEYS, 'CANDIDATE_PENDING_SCHEMA_INVALID', 'pending package');
+function validatePending(pending, { requireCheckpoint = false } = {}) {
+  exactKeys(pending, requireCheckpoint ? TERMINAL_PENDING_KEYS : PENDING_KEYS,
+    'CANDIDATE_PENDING_SCHEMA_INVALID', 'pending package');
   rejectUnknownDeep(pending);
   if (pending.ok !== true || pending.state !== 'PENDING_PREPARATION' || pending.proofCurrentness !== 'PENDING'
       || pending.resultState !== 'PENDING' || pending.selectable !== false) {
@@ -315,6 +348,18 @@ function validatePending(pending) {
   digest(pending.executionReceiptDigest, 'pending execution receipt');
   digest(pending.evaluationReceiptDigest, 'pending evaluation receipt');
   validateDependentValidation(pending.dependentValidation);
+  if (requireCheckpoint) {
+    validateDependentValidation(pending.checkpointValidation, {
+      admission: CHECKPOINT_VALIDATION_ADMISSION,
+      evaluation: CHECKPOINT_VALIDATION_EVALUATION,
+      evidence: 'urn:usf:evidenceresult:eventhistorycheckpointpruning',
+      execution: CHECKPOINT_VALIDATION_EXECUTION,
+      expectedProducerPaths: CHECKPOINT_PRODUCER_SOURCE_PATHS,
+      obligation: CHECKPOINT_VALIDATION_OBLIGATION,
+      producer: CHECKPOINT_VALIDATION_PRODUCER,
+      result: CHECKPOINT_VALIDATION_RESULT,
+    });
+  }
   exactKeys(pending.aggregateResult, AGGREGATE_KEYS, 'CANDIDATE_PENDING_SCHEMA_INVALID', 'aggregate result');
   const aggregate = pending.aggregateResult;
   if (aggregate.passed !== false || aggregate.selectable !== false || aggregate.proofCurrentness !== 'PENDING'
@@ -416,6 +461,12 @@ function validateOwners(owners, pending) {
   unique((owner) => owner.verification.receiptDigest, 'verification receipts');
   unique((owner) => owner.admission.receiptDigest, 'admission receipts');
   unique((owner) => owner.descriptor.digest, 'verification descriptors');
+  if (pending.checkpointValidation) {
+    const durableOwnerPaths = new Set(validated.factoryproviderdurablecontrolplane.assignment.sourcePaths);
+    if (CHECKPOINT_PRODUCER_SOURCE_PATHS.some((path) => !durableOwnerPaths.has(path))) {
+      fail('CANDIDATE_OWNER_BINDING_INVALID', 'checkpoint producer scope exceeds durable-control-plane owner authority');
+    }
+  }
   return validated;
 }
 
@@ -909,18 +960,45 @@ function materializeFactoryProviderV3Currentness(additions, {
   });
 }
 
+// The checkpoint proof is independently produced from the exact six-file
+// Factory source scope. Only its publication-relative dependency and authority
+// binding are generated here; the immutable evidence and proof facts remain
+// authored inputs to this publication.
+function materializeCheckpointCurrentness(additions, {
+  authorityBindingEvidenceDigest, currentnessBinding, evaluatedAuthorityDigest, reevaluationState,
+}) {
+  add(additions, CHECKPOINT_ALGORITHM, 'currentDependencySetDigest',
+    literal(currentnessBinding.dependencySetDigest));
+  add(additions, CHECKPOINT_ALGORITHM, 'currentDependencyDigestAlgorithm',
+    literal(DEPENDENCY_DIGEST_ALGORITHM));
+  add(additions, CHECKPOINT_RESULT, 'dependencySetDigest',
+    literal(currentnessBinding.dependencySetDigest));
+  add(additions, CHECKPOINT_RESULT, 'dependencyDigestAlgorithm',
+    literal(DEPENDENCY_DIGEST_ALGORITHM));
+  materializeProofAuthorityBinding(additions, {
+    authorityBindingEvidenceDigest,
+    binding: CHECKPOINT_BINDING,
+    canonicalName: 'eventhistorycheckpointpruning',
+    dependencySetDigest: currentnessBinding.dependencySetDigest,
+    evaluatedAuthorityDigest,
+    reevaluationState,
+    result: CHECKPOINT_RESULT,
+    settledAuthorityDigest: reevaluationState === 'successful' ? evaluatedAuthorityDigest : null,
+  });
+}
+
 // The Factory validation execution and the Graph admission path are distinct
 // immutable source identities.  Stage 2 binds both independently and ties the
 // validation reevaluation to the canonical aggregate D1 receipt; it never
 // collapses the two repositories into one synthetic shared source.
-function materializeFactoryProviderV3ValidationCurrentness(additions, {
-  currentnessBinding, dependentValidation, pending, stage2,
+function materializeDependentValidationCurrentness(additions, {
+  bindingIri, canonicalName, currentnessBinding, dependentValidation, ownerScopeKey, pending, stage2,
 }) {
-  const owner = OWNER_SCOPES.providerconfigurationplane;
-  additions.push(type(FACTORY_PROVIDER_V3_VALIDATION_BINDING,
+  const owner = OWNER_SCOPES[ownerScopeKey];
+  if (!owner) fail('CANDIDATE_DEPENDENT_VALIDATION_INVALID', `unknown owner scope ${ownerScopeKey}`);
+  additions.push(type(bindingIri,
     `${USF}ValidationSelfPublicationBinding`, GRAPH_PROOFS));
-  add(additions, FACTORY_PROVIDER_V3_VALIDATION_BINDING, 'canonicalName',
-    literal('factoryproviderv3implementation'));
+  add(additions, bindingIri, 'canonicalName', literal(canonicalName));
   for (const [predicate, object] of [
     ['authorityBindingForValidationResult', iri(dependentValidation.result)],
     ['authorityBindingValidationProducer', iri(dependentValidation.producer.iri)],
@@ -948,17 +1026,17 @@ function materializeFactoryProviderV3ValidationCurrentness(additions, {
     ['validationBindingEnvelopeVerification', iri(owner.verification)],
     ['validationBindingExternalVerifier', iri(VERIFIER)],
     ['validationBindingVerificationCASDescriptor', iri(owner.verificationDescriptor)],
-  ]) add(additions, FACTORY_PROVIDER_V3_VALIDATION_BINDING, predicate, object);
+  ]) add(additions, bindingIri, predicate, object);
   for (const path of dependentValidation.producer.sourcePaths) {
-    add(additions, FACTORY_PROVIDER_V3_VALIDATION_BINDING,
+    add(additions, bindingIri,
       'validationBindingProducerSourcePath', literal(path));
   }
   for (const path of dependentValidation.admission.sourcePaths) {
-    add(additions, FACTORY_PROVIDER_V3_VALIDATION_BINDING,
+    add(additions, bindingIri,
       'validationBindingAdmissionSourcePath', literal(path));
   }
   add(additions, dependentValidation.result, 'hasValidationSelfPublicationAuthorityBinding',
-    iri(FACTORY_PROVIDER_V3_VALIDATION_BINDING));
+    iri(bindingIri));
   add(additions, REEVALUATION, 'reevaluatesValidationResult', iri(dependentValidation.result));
 }
 
@@ -1019,6 +1097,12 @@ function stage1Patch(pending, owners, currentnessBinding, { includeDependentBind
   });
   if (includeDependentBindings) {
     materializeFactoryProviderV3Currentness(additions, {
+      authorityBindingEvidenceDigest: pending.executionReceiptDigest,
+      currentnessBinding,
+      evaluatedAuthorityDigest: evaluation.authorityDigest,
+      reevaluationState: 'pending',
+    });
+    materializeCheckpointCurrentness(additions, {
       authorityBindingEvidenceDigest: pending.executionReceiptDigest,
       currentnessBinding,
       evaluatedAuthorityDigest: evaluation.authorityDigest,
@@ -1095,6 +1179,12 @@ function stage2Patch(pending, owners, stage2, currentnessBinding) {
     evaluatedAuthorityDigest: stage2.package.evaluatedAuthorityDigest,
     reevaluationState: 'successful',
   });
+  materializeCheckpointCurrentness(additions, {
+    authorityBindingEvidenceDigest: stage2.package.evaluationReceiptDigest,
+    currentnessBinding,
+    evaluatedAuthorityDigest: stage2.package.evaluatedAuthorityDigest,
+    reevaluationState: 'successful',
+  });
   additions.push(type(REEVALUATION, `${USF}PostPublicationReevaluation`, GRAPH_PROOFS));
   add(additions, REEVALUATION, 'canonicalName', literal('compilersemanticenforcementaggregate'));
   for (const [predicate, object] of [
@@ -1107,9 +1197,21 @@ function stage2Patch(pending, owners, stage2, currentnessBinding) {
     ['reevaluationExecutionReceiptDigest', literal(stage2.package.executionReceiptDigest)],
     ['reevaluationEvaluationReceiptDigest', literal(stage2.package.evaluationReceiptDigest)],
   ]) add(additions, REEVALUATION, predicate, object);
-  materializeFactoryProviderV3ValidationCurrentness(additions, {
+  materializeDependentValidationCurrentness(additions, {
+    bindingIri: FACTORY_PROVIDER_V3_VALIDATION_BINDING,
+    canonicalName: 'factoryproviderv3implementation',
     currentnessBinding,
     dependentValidation: pending.dependentValidation,
+    ownerScopeKey: 'providerconfigurationplane',
+    pending,
+    stage2,
+  });
+  materializeDependentValidationCurrentness(additions, {
+    bindingIri: CHECKPOINT_VALIDATION_BINDING,
+    canonicalName: 'eventhistorycheckpointpruning',
+    currentnessBinding,
+    dependentValidation: pending.checkpointValidation,
+    ownerScopeKey: 'factoryproviderdurablecontrolplane',
     pending,
     stage2,
   });
@@ -1306,7 +1408,7 @@ export function materializeAggregateCompilerAuthorityCandidate(input) {
     : ['currentnessBinding', 'ownerAuthority', 'pendingPackage', 'stage', 'stage2Package'],
   'CANDIDATE_INPUT_SCHEMA_INVALID', 'input');
   if (input.stage !== 'stage1' && input.stage !== 'stage2') fail('CANDIDATE_STAGE_INVALID', String(input.stage));
-  const pending = validatePending(input.pendingPackage);
+  const pending = validatePending(input.pendingPackage, { requireCheckpoint: input.stage === 'stage2' });
   const owners = validateOwners(input.ownerAuthority, pending);
   const currentnessBinding = validateCurrentnessBinding(input.currentnessBinding);
   let patch;

@@ -112,6 +112,13 @@ const decisions = [
     credible: ['boundedfactoryproviderintegrationmodel', 'separateproviderintegrationrepositories'],
     notApplicable: architectureNotApplicable,
   },
+  {
+    name: 'backupandrestoreeventhistorycheckpointpruning', contract: 'backupandrestore',
+    selected: 'authenticatedcheckpointcoldarchiveboundedhottail',
+    options: ['authenticatedcheckpointcoldarchiveboundedhottail', 'genesisreplayhotstoreonly'],
+    credible: ['authenticatedcheckpointcoldarchiveboundedhottail', 'genesisreplayhotstoreonly'],
+    notApplicable: architectureNotApplicable,
+  },
 ];
 const selectedComponentDefinitions = {
   repositoryarchitectureandnaming: [
@@ -138,6 +145,11 @@ const selectedComponentDefinitions = {
   providerconfigurationplanefactoryworkforce: [],
   providerenvironmentclassificationfactoryworkforce: [],
   servicecatalogandproviderintegrationmodelfactoryworkforce: [],
+  backupandrestoreeventhistorycheckpointpruning: [
+    ['eventhistorycheckpointpruning', 'repositorylocalcomponent', 'persistence',
+      'Verify, checkpoint and archive exact immutable Factory event history while retaining forensic restoration',
+      ['hermetic', 'productionshaped']],
+  ],
 };
 
 const sourcePaths = [
@@ -1174,10 +1186,13 @@ const concreteRealisations = {
   providerconfigurationplanefactoryworkforce: iri('realisation', 'providerconfigurationplanefactoryworkforce'),
   providerenvironmentclassificationfactoryworkforce: iri('realisation', 'providerenvironmentclassificationfactoryworkforce'),
   servicecatalogandproviderintegrationmodelfactoryworkforce: iri('realisation', 'servicecatalogandproviderintegrationmodelfactoryworkforce'),
+  backupandrestoreeventhistorycheckpointpruning: iri('realisation', 'eventhistorycheckpointpruning'),
 };
 graph.push(`<${iri('implementation', 'capabilitycontainment')}> a usf:Implementation; usf:canonicalName "capabilitycontainment"; usf:implementsContract <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> .`);
 graph.push(`<${iri('implementation', 'processassembly')}> a usf:Implementation; usf:canonicalName "processassembly"; usf:implementsContract <urn:usf:semanticcontract:repositoryexternalartefactmaterialisation> .`);
 graph.push(`<${iri('implementation', 'verifiedauthorityexport')}> a usf:Implementation; usf:canonicalName "verifiedauthorityexport"; usf:implementsContract <urn:usf:semanticcontract:compilersemanticenforcement> .`);
+graph.push(`<${iri('implementation', 'eventhistorycheckpointpruning')}> a usf:Implementation; usf:canonicalName "eventhistorycheckpointpruning"; usf:implementsContract <urn:usf:semanticcontract:backupandrestore> .`);
+graph.push(`<${iri('realisation', 'eventhistorycheckpointpruning')}> a usf:Realisation; usf:canonicalName "eventhistorycheckpointpruning"; usf:realisesContract <urn:usf:semanticcontract:backupandrestore>; usf:authorisedByDecision <urn:usf:realisationdecision:backupandrestoreeventhistorycheckpointpruning>; usf:authorisedSourcePath "src/usf_factory/cli.py", "src/usf_factory/event_store.py", "src/usf_factory/maintenance.py", "src/usf_factory/v3_events.py", "tests/test_v3_event_store.py", "tests/test_v3_maintenance.py"; usf:realisesOption <urn:usf:realisationoption:authenticatedcheckpointcoldarchiveboundedhottail>; usf:realisingImplementation <${iri('implementation', 'eventhistorycheckpointpruning')}>; usf:realisationState <urn:usf:realisationstate:deferred> .`);
 graph.push(`<${iri('realisation', 'semanticauthoritycontrol')}> a usf:Realisation; usf:canonicalName "semanticauthoritycontrol"; usf:realisesContract <urn:usf:semanticcontract:compilersemanticenforcement>; usf:authorisedByDecision <urn:usf:realisationdecision:semanticauthoritycontrolselection>; usf:authorisedSourcePath "configuration/semantic-assurance", "processes/semantic-assurance", "provider-bindings/stardog", "semantic-model", "assurance"; usf:realisesOption <urn:usf:realisationoption:livestardogwithverifiedreadonlyexport>; usf:realisingImplementation <${iri('implementation', 'verifiedauthorityexport')}>; usf:viaAdapter <urn:usf:adapter:stardogsemanticauthority>; usf:realisationState <urn:usf:realisationstate:implementable> .`);
 for (const decision of decisions) {
   const option = decision.selected;

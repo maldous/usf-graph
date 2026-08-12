@@ -529,34 +529,40 @@ function dependentValidationRows(casRoot, {
     'tests/test_v3_provider_refresh_authority.py',
   ],
   producerTree = '7'.repeat(40),
+  checkpoint = false,
 } = {}) {
-  const executionReceiptDigest = putCas(casRoot, Buffer.from('factory-validation-execution-receipt'));
-  const evaluationReceiptDigest = putCas(casRoot, Buffer.from('factory-validation-evaluation-receipt'));
+  const suffix = checkpoint ? 'eventhistorycheckpointpruning' : 'factoryproviderv3implementation';
+  const executionReceiptDigest = putCas(casRoot, Buffer.from(`${suffix}-execution-receipt`));
+  const evaluationReceiptDigest = putCas(casRoot, Buffer.from(`${suffix}-evaluation-receipt`));
+  const obligation = checkpoint
+    ? 'urn:usf:validationobligation:backupandrestoreeventhistorycheckpointpruning'
+    : 'urn:usf:validationobligation:providerconfigurationplane';
   return producerPaths.flatMap((producerSourcePath) => admissionPaths.map((admissionSourcePath) => ({
-    admissionPath: binding('urn:usf:evidenceadmissionpath:factoryproviderv3implementation'),
-    admissionProducer: binding('urn:usf:validationproducer:factoryproviderv3implementation'),
+    admissionPath: binding(`urn:usf:evidenceadmissionpath:${suffix}`),
+    admissionProducer: binding(`urn:usf:validationproducer:${suffix}`),
     admissionRepository: binding('maldous/usf-graph'),
     admissionSourceHead: binding(admissionHead),
     admissionSourcePath: binding(admissionSourcePath),
     admissionSourceScopeDigest: binding(aggregateCompilerProofInternals.sourceScopeDigest(admissionPaths)),
     admissionSourceTree: binding(admissionTree),
-    evaluation: binding('urn:usf:validationevaluation:factoryproviderv3implementation'),
+    evaluation: binding(`urn:usf:validationevaluation:${suffix}`),
     evaluationReceiptDigest: binding(evaluationReceiptDigest),
-    execution: binding('urn:usf:validationexecution:factoryproviderv3implementation'),
+    execution: binding(`urn:usf:validationexecution:${suffix}`),
     executionReceiptDigest: binding(executionReceiptDigest),
-    obligation: binding('urn:usf:validationobligation:providerconfigurationplane'),
-    producer: binding('urn:usf:validationproducer:factoryproviderv3implementation'),
-    producerRelease: binding('factory-v3-currentness-alignment-v1'),
+    obligation: binding(obligation),
+    producer: binding(`urn:usf:validationproducer:${suffix}`),
+    producerRelease: binding(checkpoint
+      ? 'factory-event-history-checkpoint-pruning-v1' : 'factory-v3-currentness-alignment-v1'),
     producerRepository: binding('maldous/usf-factory'),
     producerSourceHead: binding(producerHead),
     producerSourcePath: binding(producerSourcePath),
     producerSourceScopeDigest: binding(aggregateCompilerProofInternals.sourceScopeDigest(producerPaths)),
     producerSourceTree: binding(producerTree),
-    result: binding('urn:usf:validationresult:factoryproviderv3implementation'),
+    result: binding(`urn:usf:validationresult:${suffix}`),
     resultAuthorityDigest: binding(HISTORICAL),
     resultSourceHead: binding(producerHead),
     resultState: binding('urn:usf:resultstate:passed'),
-    validationEvidence: binding('urn:usf:evidenceresult:factoryproviderv3implementation'),
+    validationEvidence: binding(`urn:usf:evidenceresult:${suffix}`),
   })));
 }
 
@@ -700,6 +706,19 @@ function harness(base, rows, options = {}) {
     if (query.includes('aggregate-dependent-validation-facts-v1')) {
       return options.dependentValidationRows || dependentValidationRows(base.casRoot);
     }
+    if (query.includes('aggregate-checkpoint-validation-facts-v1')) {
+      return options.checkpointValidationRows || dependentValidationRows(base.casRoot, {
+        checkpoint: true,
+        producerPaths: [
+          'src/usf_factory/cli.py',
+          'src/usf_factory/event_store.py',
+          'src/usf_factory/maintenance.py',
+          'src/usf_factory/v3_events.py',
+          'tests/test_v3_event_store.py',
+          'tests/test_v3_maintenance.py',
+        ],
+      });
+    }
     if (query.includes('aggregate-initial-provisional-projection-v1')) return options.provisionalRows || [{
       current: binding('false'), provisional: binding('true'), result: binding(PROVISIONAL_AGGREGATE_RESULT_IRI),
     }];
@@ -727,6 +746,8 @@ async function stage1(base) {
 
 async function finalPackageFixture(base) {
   const pending = await harness(base, componentRows(base.casRoot)).producer.preparePending({ requestedAuthorityDigest: D0 });
+  const refreshed = await harness(base, componentRows(base.casRoot), { authority: D1 })
+    .producer.refreshDependentValidation({ requestedAuthorityDigest: D1 });
   const preparation = await stage1(base);
   const executionReceipt = JSON.parse(readFileSync(casPath(base.casRoot, preparation.executionReceiptDigest), 'utf8'));
   const evaluationReceipt = JSON.parse(readFileSync(casPath(base.casRoot, preparation.evaluationReceiptDigest), 'utf8'));
@@ -753,7 +774,7 @@ async function finalPackageFixture(base) {
         'urn:usf:validationevidence:compilersemanticenforcementaggregateevaluation', evaluationReceipt),
       executionReceiptDescriptor: receiptDescriptor(base.casRoot,
         'urn:usf:validationevidence:compilersemanticenforcementaggregateexecution', executionReceipt),
-      pending,
+      pending: { ...pending, ...refreshed },
       publicationReceipt: initialReceipt(),
       stage1Preparation: preparation,
     },
@@ -931,13 +952,15 @@ test('D2 refreshes the dependent Factory validation closure from exact D1 author
     authority: D1,
     dependentValidationRows: rows,
   }).producer.refreshDependentValidation({ requestedAuthorityDigest: D1 });
-  assert.equal(refreshed.authorityDigest, HISTORICAL);
-  assert.equal(refreshed.admission.sourceHead, 'c'.repeat(40));
-  assert.equal(refreshed.admission.sourceTree, 'd'.repeat(40));
-  assert.deepEqual(refreshed.admission.sourcePaths, admissionPaths);
-  assert.equal(refreshed.producer.sourceHead, 'a'.repeat(40));
-  assert.equal(refreshed.producer.sourceTree, 'b'.repeat(40));
-  assert.deepEqual(refreshed.producer.sourcePaths, producerPaths);
+  assert.equal(refreshed.dependentValidation.authorityDigest, HISTORICAL);
+  assert.equal(refreshed.dependentValidation.admission.sourceHead, 'c'.repeat(40));
+  assert.equal(refreshed.dependentValidation.admission.sourceTree, 'd'.repeat(40));
+  assert.deepEqual(refreshed.dependentValidation.admission.sourcePaths, admissionPaths);
+  assert.equal(refreshed.dependentValidation.producer.sourceHead, 'a'.repeat(40));
+  assert.equal(refreshed.dependentValidation.producer.sourceTree, 'b'.repeat(40));
+  assert.deepEqual(refreshed.dependentValidation.producer.sourcePaths, producerPaths);
+  assert.equal(refreshed.checkpointValidation.result,
+    'urn:usf:validationresult:eventhistorycheckpointpruning');
 });
 
 test('final package fails closed when a lifecycle receipt CAS object is missing', async () => {
@@ -968,6 +991,8 @@ test('pending preparation closes the exact cross-repository Factory validation i
   const pending = await harness(base, componentRows(base.casRoot)).producer.preparePending({ requestedAuthorityDigest: D0 });
   assert.equal(pending.dependentValidation.result,
     'urn:usf:validationresult:factoryproviderv3implementation');
+  assert.equal(Object.hasOwn(pending, 'checkpointValidation'), false,
+    'D0 preparation must not require the checkpoint validation that Publication A is admitting');
   assert.equal(pending.dependentValidation.producer.repository, 'maldous/usf-factory');
   assert.equal(pending.dependentValidation.admission.repository, 'maldous/usf-graph');
   assert.notEqual(pending.dependentValidation.producer.sourceScopeDigest,
@@ -1500,7 +1525,14 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
   };
   const graphPaths = AGGREGATE_REVIEWED_SOURCE_PATHS;
   const providerPaths = ['src/usf_factory/provider_catalog.py'];
-  const durableProviderPaths = ['src/usf_factory/v3_events.py'];
+  const durableProviderPaths = [
+    'src/usf_factory/cli.py',
+    'src/usf_factory/event_store.py',
+    'src/usf_factory/maintenance.py',
+    'src/usf_factory/v3_events.py',
+    'tests/test_v3_event_store.py',
+    'tests/test_v3_maintenance.py',
+  ];
   const ownerAssignments = [
     { authorityDomain: 'urn:usf:capabilityowner:semanticmodelcompilation', repository: 'maldous/usf-graph', sourcePaths: graphPaths, envelope: { payload: { authority_pre_digest: d0 }, signature: 'fixture' } },
     { authorityDomain: 'urn:usf:capabilityowner:providerconfigurationplane', repository: 'maldous/usf-factory', sourcePaths: providerPaths, envelope: { payload: { authority_pre_digest: d0 }, signature: 'fixture' } },
