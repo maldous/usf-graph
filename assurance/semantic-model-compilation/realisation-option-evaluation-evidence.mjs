@@ -146,7 +146,7 @@ const selectedComponentDefinitions = {
   providerenvironmentclassificationfactoryworkforce: [],
   servicecatalogandproviderintegrationmodelfactoryworkforce: [],
   backupandrestoreeventhistorycheckpointpruning: [
-    ['eventhistorycheckpointpruning', 'repositorylocalcomponent', 'persistence',
+    ['eventhistorycheckpointpruning', 'repositorylocalcomponent', 'backupmechanism',
       'Verify, checkpoint and archive exact immutable Factory event history while retaining forensic restoration',
       ['localdev', 'hermetic', 'productionshaped']],
   ],

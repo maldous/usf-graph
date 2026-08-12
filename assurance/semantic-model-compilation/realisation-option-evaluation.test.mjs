@@ -229,6 +229,9 @@ test('checkpoint selection has complete bounded composition and deferred realisa
   assert.equal(first(baseline, realisation, term('authorisedByDecision'))?.value, checkpointDecision.value);
   assert.equal(first(baseline, realisation, term('realisesOption'))?.value, checkpointSelected.value);
   assert.equal(first(baseline, realisation, term('realisationState'))?.value, 'urn:usf:realisationstate:deferred');
+  const component = objects(baseline, checkpointSelected, term('hasOptionComponent'))
+    .find((item) => first(baseline, item, term('componentIdentity'))?.value === 'urn:usf:componentidentity:eventhistorycheckpointpruning');
+  assert.equal(first(baseline, component, term('componentRole'))?.value, 'urn:usf:componentrole:backupmechanism');
 });
 
 test('raw acquisition and composite scope contracts reject exact structural defects', () => {
