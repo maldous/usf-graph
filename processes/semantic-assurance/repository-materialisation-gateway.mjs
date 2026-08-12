@@ -1498,10 +1498,11 @@ function validationVerdict(contract, scope, authorityWitnessValue) {
 async function readAuthorityConflictState(client, binding, authorityDigest) {
   const escapedRepository = binding.repository.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
   const [surfaceRows, resolutionRows, setRows] = await Promise.all([
-    client.select(`SELECT DISTINCT ?surfaceContract ?authorisedPath ?authorisedFormat WHERE {
+    client.select(`SELECT DISTINCT ?surfaceContract ?authorisedPath ?authorisedFormat ?surfaceObligation WHERE {
       ?surfaceContract a <urn:usf:ontology:SemanticContract> ;
         <urn:usf:ontology:semanticLifecycleState> <urn:usf:semanticlifecyclestate:active> ;
         <urn:usf:ontology:hasActivationState> <urn:usf:contractactivationstate:active> ;
+        <urn:usf:ontology:mandatoryProofObligation> ?surfaceObligation ;
         <urn:usf:ontology:reliesOnProofResult> ?surfaceProof ;
         <urn:usf:ontology:effectiveRealisationDecision> ?surfaceDecision .
       ?surfaceProof <urn:usf:ontology:hasProofResultState> <urn:usf:proofresultstate:successful> .
@@ -1577,11 +1578,16 @@ async function readAuthorityConflictState(client, binding, authorityDigest) {
   for (const row of surfaceRows) {
     const contract = value(row, 'surfaceContract');
     if (!contract) throw new Error('authority-conflict surface projection is incomplete');
-    const current = surfaces.get(contract) || { contract, authorisedPaths: new Set(), authorisedFormats: new Set() };
+    const current = surfaces.get(contract) || {
+      contract, authorisedPaths: new Set(), authorisedFormats: new Set(), mandatoryObligations: new Set(),
+    };
     const path = value(row, 'authorisedPath');
     const format = value(row, 'authorisedFormat');
+    const obligation = value(row, 'surfaceObligation');
+    if (!obligation) throw new Error('authority-conflict surface obligation projection is incomplete');
     if (path) current.authorisedPaths.add(path);
     if (format) current.authorisedFormats.add(format);
+    current.mandatoryObligations.add(obligation);
     surfaces.set(contract, current);
   }
   const applicableSurfaces = [];
@@ -1591,7 +1597,9 @@ async function readAuthorityConflictState(client, binding, authorityDigest) {
     // canonical non-publication dependency closure rather than a synthetic
     // settled-authority literal. Reuse the one proof-currentness resolver that
     // governs contract projection instead of inventing a second binding shape.
-    const currentness = await proofCurrentnessVerdict(client, surface.contract);
+    const currentness = await proofCurrentnessVerdict(client, surface.contract, {
+      mandatoryObligations: [...surface.mandatoryObligations].sort(),
+    });
     if (currentness.state !== PROOF_CURRENTNESS.current) continue;
     applicableSurfaces.push(Object.freeze({
       contract: surface.contract,

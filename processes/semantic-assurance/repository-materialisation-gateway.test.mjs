@@ -2509,6 +2509,7 @@ function authorityConflictClient(normalised, ownerSourcePaths) {
       surfaceContract: binding(compilerContract),
       authorisedPath: binding('capabilities/semantic-model-compilation'),
       authorisedFormat: binding(format),
+      surfaceObligation: binding('urn:usf:proofobligation:repositoryexternalartefactmaterialisation'),
     }],
     authorityConflictResolutionRows: scalarRows,
     authorityConflictSetRows: setRows,
