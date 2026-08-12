@@ -401,7 +401,7 @@ function addComponentObservation(name, core) {
   observation.observationDigest = sha256(canonicalJson(observation));
   componentObservations[identity] = observation;
 }
-for (const name of ['capabilitycontainment', 'processassembly', 'semanticmodelcompiler', 'stardogauthorityadapter', 'compilerfocusedtestsubstitute', 'verifiedauthorityexport']) {
+for (const name of ['capabilitycontainment', 'processassembly', 'semanticmodelcompiler', 'stardogauthorityadapter', 'compilerfocusedtestsubstitute', 'verifiedauthorityexport', 'eventhistorycheckpointpruning']) {
   addComponentObservation(name, {
     kind: 'RepositoryLocalComponent', version: 'source-digest-bound', integrity: implementationSourceDigest,
     sourceDigest: implementationSourceDigest, toolchainDigest, lockDigest: packageLockDigest,
