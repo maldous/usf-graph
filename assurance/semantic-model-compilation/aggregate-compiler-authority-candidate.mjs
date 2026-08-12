@@ -39,6 +39,7 @@ const GRAPH_BINDINGS = 'urn:usf:graph:bindings';
 const GRAPH_CAPABILITIES = 'urn:usf:graph:capabilities';
 const GRAPH_PROOFS = 'urn:usf:graph:proofs';
 const CONTRACT = 'urn:usf:semanticcontract:compilersemanticenforcement';
+const MATERIALISATION_CONTRACT = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation';
 const PROTOCOL_IRI = 'urn:usf:semanticproofprotocol:v1';
 const PROVISIONAL_RESULT = 'urn:usf:proofresult:compilersemanticenforcementaggregateprepublication';
 const AGGREGATE_OBLIGATION = 'urn:usf:proofobligation:compilersemanticenforcementaggregate';
@@ -77,6 +78,20 @@ const FACTORY_PROVIDER_V3_VALIDATION_ADMISSION = 'urn:usf:evidenceadmissionpath:
 const FACTORY_PROVIDER_V3_VALIDATION_BINDING = 'urn:usf:validationselfpublicationbinding:factoryproviderv3implementation';
 const CROSS_REPOSITORY_VALIDATION_RULE = 'urn:usf:authoritybindingrule:validationcrossrepositorynonpublicationclosure';
 const DEPENDENCY_DIGEST_ALGORITHM = 'sha256-rdfc10-nonpublication-graph-inventory-v1';
+const DURABLE_FAMILY_VALIDATIONS = Object.freeze([
+  Object.freeze({
+    obligation: 'urn:usf:validationobligation:operationexpectedoutcomeerrorclass',
+    slug: 'operationexpectedoutcomeerrorclass',
+  }),
+  Object.freeze({
+    obligation: 'urn:usf:validationobligation:resourceactionretentionstatelegalholdstate',
+    slug: 'resourceactionretentionstatelegalholdstate',
+  }),
+  Object.freeze({
+    obligation: 'urn:usf:validationobligation:scheduledjobactionroleserviceidentityenvironmentclass',
+    slug: 'scheduledjobactionroleserviceidentityenvironmentclass',
+  }),
+]);
 const AGGREGATE_RUNG = 'urn:usf:proofrung:behaviour';
 const AGGREGATE_PROVIDER_MODE = 'urn:usf:providermode:liveauthoritycontrol';
 const AGGREGATE_ENVIRONMENT = 'urn:usf:environment:authoritycontrol';
@@ -1189,6 +1204,86 @@ function stage2Patch(pending, owners, stage2, currentnessBinding) {
     ['validationBindingVerificationCASDescriptor', iri(OWNER_SCOPES.semanticmodelcompilation.verificationDescriptor)],
   ]) add(additions, VALIDATION_BINDING, predicate, object);
   for (const path of source.sourcePaths) add(additions, VALIDATION_BINDING, 'validationBindingSourcePath', literal(path));
+  for (const validation of DURABLE_FAMILY_VALIDATIONS) {
+    const execution = `urn:usf:validationexecution:${validation.slug}`;
+    const evaluation = `urn:usf:validationevaluation:${validation.slug}`;
+    const result = `urn:usf:validationresult:${validation.slug}`;
+    const evidence = `urn:usf:validationevidence:${validation.slug}`;
+    const binding = `urn:usf:validationselfpublicationbinding:${validation.slug}`;
+
+    additions.push(type(execution, `${USF}ValidationExecution`, GRAPH_PROOFS));
+    add(additions, execution, 'canonicalName', literal(validation.slug));
+    add(additions, execution, 'executesValidation', iri(validation.obligation));
+    add(additions, execution, 'producesValidationResult', iri(result));
+    add(additions, execution, 'validationExecutedByProducer', iri(VALIDATION_PRODUCER));
+    add(additions, execution, 'validationUsesEvidenceAdmissionPath', iri(EVIDENCE_ADMISSION_PATH));
+    add(additions, execution, 'validationExecutionReceiptDigest', literal(compilerValidation.executionReceiptDigest));
+
+    additions.push(type(evaluation, `${USF}ValidationEvaluation`, GRAPH_PROOFS));
+    add(additions, evaluation, 'canonicalName', literal(validation.slug));
+    add(additions, evaluation, 'validationEvaluationOfExecution', iri(execution));
+    add(additions, evaluation, 'validationEvaluationReceiptDigest', literal(compilerValidation.evaluationReceiptDigest));
+
+    additions.push(type(evidence, `${USF}EvidenceResult`, GRAPH_PROOFS));
+    additions.push(type(evidence, `${USF}ValidationEvidence`, GRAPH_PROOFS));
+    add(additions, evidence, 'canonicalName', literal(validation.slug));
+    add(additions, evidence, 'evidenceKind', iri('urn:usf:evidencekind:validationevidence'));
+    add(additions, evidence, 'hasFreshness', iri('urn:usf:freshness:fresh'));
+    add(additions, evidence, 'evidenceForContract', iri(MATERIALISATION_CONTRACT));
+    add(additions, evidence, 'evidenceFor', iri(MATERIALISATION_CONTRACT));
+    add(additions, evidence, 'usesProviderMode', iri(AGGREGATE_PROVIDER_MODE));
+    add(additions, evidence, 'inEnvironment', iri(AGGREGATE_ENVIRONMENT));
+    add(additions, evidence, 'hasAdmissionState', iri('urn:usf:evidenceadmissionstate:admitted'));
+    add(additions, evidence, 'hasFreshnessState', iri('urn:usf:evidencefreshnessstate:fresh'));
+    add(additions, evidence, 'hasIntegrityState', iri('urn:usf:evidenceintegritystate:valid'));
+    add(additions, evidence, 'withinValidityScope', typed(true, XSD_BOOLEAN));
+    add(additions, evidence, 'wasProducedBy', iri(execution));
+    add(additions, evidence, 'contentDigest', literal(stage2.validatedDescriptors.compiler.digest));
+    add(additions, evidence, 'validationEvidencePersistenceReceiptDigest',
+      literal(stage2.validatedDescriptors.compiler.persistenceReceiptDigest));
+    add(additions, evidence, 'validationEvidenceForExecution', iri(execution));
+    add(additions, evidence, 'validationEvidenceAdmittedThrough', iri(EVIDENCE_ADMISSION_PATH));
+
+    additions.push(type(result, `${USF}ValidationResult`, GRAPH_PROOFS));
+    add(additions, result, 'canonicalName', literal(validation.slug));
+    add(additions, result, 'resultState', iri('urn:usf:resultstate:passed'));
+    add(additions, result, 'hasFreshness', iri('urn:usf:freshness:fresh'));
+    add(additions, result, 'resultForValidationObligation', iri(validation.obligation));
+    add(additions, result, 'validationEvaluatedAuthorityDigest', literal(compilerValidation.authorityAfterDigest));
+    add(additions, result, 'validationEvaluatedSourceHead', literal(source.head));
+    add(additions, result, 'validationResultOfEvaluation', iri(evaluation));
+    add(additions, result, 'hasValidationSelfPublicationAuthorityBinding', iri(binding));
+    add(additions, result, 'entersEvidenceLifecycleAs', iri(evidence));
+    add(additions, result, 'usesAdmittedValidationEvidence', iri(evidence));
+    add(additions, validation.obligation, 'satisfiedByValidationResult', iri(result));
+
+    additions.push(type(binding, `${USF}ValidationSelfPublicationBinding`, GRAPH_PROOFS));
+    add(additions, binding, 'canonicalName', literal(validation.slug));
+    for (const [predicate, object] of [
+      ['authorityBindingForValidationResult', iri(result)],
+      ['authorityBindingValidationProducer', iri(VALIDATION_PRODUCER)],
+      ['authorityBindingEvidenceAdmissionPath', iri(EVIDENCE_ADMISSION_PATH)],
+      ['validationStageOneEvaluatedAuthorityDigest', literal(stage2.publicationReceipt.authority_before_digest)],
+      ['validationNonPublicationDependencySetDigest', literal(currentnessBinding.dependencySetDigest)],
+      ['validationNonPublicationDependencyDigestAlgorithm', literal(DEPENDENCY_DIGEST_ALGORITHM)],
+      ['validationPostPublicationReevaluationState', iri('urn:usf:resultstate:passed')],
+      ['validationStageOneSettledAuthorityDigest', literal(stage2.publicationReceipt.authority_after_digest)],
+      ['validationReevaluationDependencyDigest', literal(currentnessBinding.dependencySetDigest)],
+      ['validationBindingExecutionReceiptDigest', literal(compilerValidation.executionReceiptDigest)],
+      ['validationBindingEvaluationReceiptDigest', literal(compilerValidation.evaluationReceiptDigest)],
+      ['validationBindingProducerRelease', literal(AGGREGATE_ALGORITHM_VERSION)],
+      ['validationBindingRepository', literal(AGGREGATE_REPOSITORY)],
+      ['validationBindingSourceHead', literal(source.head)],
+      ['validationBindingSourceTree', literal(source.tree)],
+      ['validationBindingSourceScopeDigest', literal(source.sourceScopeDigest)],
+      ['validationUsesAuthorityBindingRule', iri(VALIDATION_RULE)],
+      ['validationRequiresPostPublicationReevaluation', typed(true, XSD_BOOLEAN)],
+      ['validationBindingEnvelopeVerification', iri(OWNER_SCOPES.semanticmodelcompilation.verification)],
+      ['validationBindingExternalVerifier', iri(VERIFIER)],
+      ['validationBindingVerificationCASDescriptor', iri(OWNER_SCOPES.semanticmodelcompilation.verificationDescriptor)],
+    ]) add(additions, binding, predicate, object);
+    for (const path of source.sourcePaths) add(additions, binding, 'validationBindingSourcePath', literal(path));
+  }
   return { additions, deletions };
 }
 
@@ -1236,6 +1331,7 @@ export function materializeAggregateCompilerAuthorityCandidate(input) {
 export const aggregateCompilerAuthorityCandidateInternals = Object.freeze({
   AGGREGATE_OBLIGATION,
   ASSIGNMENT: OWNER_SCOPES.semanticmodelcompilation.assignment,
+  DURABLE_FAMILY_VALIDATIONS,
   FACTORY_PROVIDER_V3_ALGORITHM,
   FACTORY_PROVIDER_V3_BINDING,
   FACTORY_PROVIDER_V3_RESULT,

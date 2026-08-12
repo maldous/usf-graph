@@ -833,6 +833,48 @@ test('stage 2 final aggregate carries every CURRENT projection fact and coherent
   const binding = 'urn:usf:validationselfpublicationbinding:compilersemanticenforcementaggregate';
   assert.deepEqual(objects(quads, binding, `${USF}validationStageOneEvaluatedAuthorityDigest`), [D0]);
   assert.deepEqual(objects(quads, binding, `${USF}validationStageOneSettledAuthorityDigest`), [D1]);
+  const durableEvidence = [];
+  for (const validation of internals.DURABLE_FAMILY_VALIDATIONS) {
+    const execution = `urn:usf:validationexecution:${validation.slug}`;
+    const evaluation = `urn:usf:validationevaluation:${validation.slug}`;
+    const result = `urn:usf:validationresult:${validation.slug}`;
+    const evidence = `urn:usf:validationevidence:${validation.slug}`;
+    const resultBinding = `urn:usf:validationselfpublicationbinding:${validation.slug}`;
+    durableEvidence.push(evidence);
+    assert.deepEqual(objects(quads, validation.obligation, `${USF}satisfiedByValidationResult`), [result]);
+    assert.deepEqual(objects(quads, execution, `${USF}executesValidation`), [validation.obligation]);
+    assert.deepEqual(objects(quads, execution, `${USF}producesValidationResult`), [result]);
+    assert.deepEqual(objects(quads, execution, `${USF}validationExecutedByProducer`),
+      ['urn:usf:validationproducer:compilersemanticenforcementaggregate']);
+    assert.deepEqual(objects(quads, execution, `${USF}validationUsesEvidenceAdmissionPath`),
+      [AGGREGATE_ADMISSION_PATH]);
+    assert.deepEqual(objects(quads, evaluation, `${USF}validationEvaluationOfExecution`), [execution]);
+    assert.deepEqual(objects(quads, result, `${USF}resultForValidationObligation`), [validation.obligation]);
+    assert.deepEqual(objects(quads, result, `${USF}resultState`), ['urn:usf:resultstate:passed']);
+    assert.deepEqual(objects(quads, result, `${USF}validationEvaluatedAuthorityDigest`), [D1]);
+    assert.deepEqual(objects(quads, result, `${USF}validationEvaluatedSourceHead`), [HEAD]);
+    assert.deepEqual(objects(quads, result, `${USF}validationResultOfEvaluation`), [evaluation]);
+    assert.deepEqual(objects(quads, result, `${USF}usesAdmittedValidationEvidence`), [evidence]);
+    assert.deepEqual(objects(quads, result, `${USF}entersEvidenceLifecycleAs`), [evidence]);
+    assert.equal(typedAs(quads, evidence, `${USF}EvidenceResult`), true);
+    assert.equal(typedAs(quads, evidence, `${USF}ValidationEvidence`), true);
+    assert.deepEqual(objects(quads, evidence, `${USF}evidenceForContract`),
+      ['urn:usf:semanticcontract:repositoryexternalartefactmaterialisation']);
+    assert.deepEqual(objects(quads, evidence, `${USF}validationEvidenceForExecution`), [execution]);
+    assert.deepEqual(objects(quads, evidence, `${USF}validationEvidenceAdmittedThrough`),
+      [AGGREGATE_ADMISSION_PATH]);
+    assert.deepEqual(objects(quads, result, `${USF}hasValidationSelfPublicationAuthorityBinding`), [resultBinding]);
+    assert.deepEqual(objects(quads, resultBinding, `${USF}authorityBindingForValidationResult`), [result]);
+    assert.deepEqual(objects(quads, resultBinding, `${USF}validationUsesAuthorityBindingRule`),
+      [VALIDATION_RULE]);
+    assert.deepEqual(objects(quads, resultBinding, `${USF}validationStageOneEvaluatedAuthorityDigest`), [D0]);
+    assert.deepEqual(objects(quads, resultBinding, `${USF}validationStageOneSettledAuthorityDigest`), [D1]);
+    assert.deepEqual(objects(quads, resultBinding, `${USF}validationNonPublicationDependencySetDigest`),
+      [DEPENDENCY_SET]);
+    assert.deepEqual(objects(quads, resultBinding, `${USF}validationBindingSourcePath`).sort(),
+      [...GRAPH_PATHS].sort());
+  }
+  assert.equal(new Set(durableEvidence).size, internals.DURABLE_FAMILY_VALIDATIONS.length);
   assertReferencedTypes([
     ...quads,
     ...sourceQuads('semantic-model/assurance/evidence.trig', 'application/trig'),
