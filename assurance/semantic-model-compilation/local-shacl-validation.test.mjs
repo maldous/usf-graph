@@ -323,7 +323,7 @@ test('every accepted mutable-source decision carries applicable representation a
       .filter((decision) => store.has(decision, usf('decisionState'), ACCEPTED, null))
       .map(({ value }) => value),
   )].sort();
-  assert.equal(decisions.length, 6);
+  assert.equal(decisions.length, 7);
   for (const value of decisions) {
     const record = decisionRepresentationRecord(store, namedNode(value));
     assert.ok(record.paths.length > 0, value);
