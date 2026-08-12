@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   aggregateCompilerAuthorityCandidateInternals,
   materializeAggregateCompilerAuthorityCandidate,
+  materializeAggregateOwnerAuthorityValidationContext,
 } from '../../assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.mjs';
 
 import {
@@ -1107,17 +1108,6 @@ export async function runAggregateCompilerProductionLifecycle({
   if (d0.digest !== expectedAuthorityDigest) throw new Error('aggregate lifecycle D0 authority digest drifted');
   const verificationTime = await trustedInstant(trustedTime);
   const pendingPackage = await producer.preparePending({ requestedAuthorityDigest: expectedAuthorityDigest });
-  const base = await command.prepareSourceDelta({
-    expectedAuthorityDigest,
-    evidenceStore,
-    expectedSource: pendingPackage.aggregateResult.evaluation.sourceBinding,
-    externalAuthorityDelta,
-    trustedNow: verificationTime.date,
-  });
-  const baseValidation = admitValidationEvidence({ validationEvidence: base.validationEvidence }, evidenceStoreAdapter(evidenceStore));
-  if (baseValidation.digest !== base.baseSemanticDelta.validationReceiptDigest) {
-    throw new Error('base source-delta validation receipt was not admitted exactly');
-  }
   const ownerAuthority = verifyAndDeriveOwnerAuthority({
     ownerAssignments,
     pendingPackage,
@@ -1126,6 +1116,25 @@ export async function runAggregateCompilerProductionLifecycle({
     now: verificationTime.date,
     verifyOwnerAssignment: publicationOptions.verifyOwnerAssignment || verifyEnvelope,
   });
+  const ownerValidationContext = materializeAggregateOwnerAuthorityValidationContext({
+    ownerAuthority,
+    pendingPackage,
+  });
+  const base = await command.prepareSourceDelta({
+    expectedAuthorityDigest,
+    evidenceStore,
+    expectedSource: pendingPackage.aggregateResult.evaluation.sourceBinding,
+    externalAuthorityDelta,
+    validationAuthorityContext: Object.freeze({
+      bytesBase64: ownerValidationContext.bytes.toString('base64'),
+      digest: ownerValidationContext.digest,
+    }),
+    trustedNow: verificationTime.date,
+  });
+  const baseValidation = admitValidationEvidence({ validationEvidence: base.validationEvidence }, evidenceStoreAdapter(evidenceStore));
+  if (baseValidation.digest !== base.baseSemanticDelta.validationReceiptDigest) {
+    throw new Error('base source-delta validation receipt was not admitted exactly');
+  }
   const graphSourcePaths = pendingPackage.aggregateResult.evaluation.sourceBinding.sourcePaths;
   const stage1 = await stabilizedCandidate({
     stage: 'stage1',

@@ -675,7 +675,7 @@ const EXTERNAL_AUTHORITY_ROLE_PREDICATES = Object.freeze({
   ]),
   evidence: new Set([
     RDF_TYPE, `${USF}canonicalName`, `${USF}evidenceKind`, `${USF}usesProviderMode`,
-    `${USF}inEnvironment`, `${USF}hasFreshness`, `${USF}evidenceForContract`,
+    `${USF}inEnvironment`, `${USF}hasFreshness`, `${USF}evidenceFor`, `${USF}evidenceForContract`,
     `${USF}contentDigest`, `${USF}mediaType`, `${USF}byteSize`,
     `${USF}storageLocator`, `${USF}wasProducedBy`, `${USF}collectedAt`, `${USF}validUntil`,
     `${USF}hasFreshnessPolicy`, `${USF}hasAdmissionState`, `${USF}hasFreshnessState`,
@@ -968,6 +968,7 @@ function assertExternalAuthorityClosedShape(patch, value, verifiedArtifacts, art
       [`${USF}usesProviderMode`, 'urn:usf:providermode:deterministictestsubstitute', 'evidence provider mode'],
       [`${USF}inEnvironment`, 'urn:usf:environment:hermetic', 'evidence environment'],
       [`${USF}hasFreshness`, 'urn:usf:freshness:fresh', 'evidence freshness'],
+      [`${USF}evidenceFor`, value.conflictIri, 'evidence subject'],
       [`${USF}evidenceForContract`, 'urn:usf:semanticcontract:compilersemanticenforcement', 'evidence contract'],
       [`${USF}mediaType`, 'application/json', 'evidence media type'],
       [`${USF}wasProducedBy`, 'urn:usf:validatorrule:validateassuranceconformance', 'evidence validator'],
@@ -1469,6 +1470,7 @@ function createExternalAuthorityDeltaPackage({
     add(evidence, `${USF}usesProviderMode`, iri('urn:usf:providermode:deterministictestsubstitute'), evidenceGraph);
     add(evidence, `${USF}inEnvironment`, iri('urn:usf:environment:hermetic'), evidenceGraph);
     add(evidence, `${USF}hasFreshness`, iri('urn:usf:freshness:fresh'), evidenceGraph);
+    add(evidence, `${USF}evidenceFor`, iri(conflictIri), evidenceGraph);
     add(evidence, `${USF}evidenceForContract`, iri('urn:usf:semanticcontract:compilersemanticenforcement'), evidenceGraph);
     add(evidence, `${USF}contentDigest`, literal(artifact.digest), evidenceGraph);
     add(evidence, `${USF}mediaType`, literal('application/json'), evidenceGraph);
@@ -1668,6 +1670,7 @@ async function composeSourceCandidate({
   manifest,
   generatedPatch = null,
   preservedPatch = null,
+  validationContextPatch = null,
   authorityWitness,
   compileFunction,
   stage,
@@ -1676,6 +1679,7 @@ async function composeSourceCandidate({
   let beforeDataset;
   let targetDataset;
   let generatedApplied = false;
+  let validationContextBaseline = null;
   const overrides = {
     async begin() {
       const transaction = await client.begin();
@@ -1686,12 +1690,19 @@ async function composeSourceCandidate({
       if (!generatedApplied) {
         if (preservedPatch) await applyDesiredPatch(client, transaction, preservedPatch);
         if (generatedPatch) await applyDesiredPatch(client, transaction, generatedPatch);
+        if (validationContextPatch) {
+          validationContextBaseline = await readAffectedStores(client, transaction, validationContextPatch);
+          await applyDesiredPatch(client, transaction, validationContextPatch);
+        }
         generatedApplied = true;
       }
       return client.validateInTransactionWithReceipt(transaction, shapes);
     },
     async rollback(transaction) {
-      if (generatedApplied && !targetDataset) targetDataset = await readCanonicalStores(client, transaction, graphs);
+      if (generatedApplied && !targetDataset) {
+        if (validationContextBaseline) await replaceStores(client, transaction, validationContextBaseline);
+        targetDataset = await readCanonicalStores(client, transaction, graphs);
+      }
       return client.rollback(transaction);
     },
     async commit() {
@@ -1954,6 +1965,7 @@ export function createSemanticModelCompilationCommand({
       evidenceStore = null,
       expectedSource = null,
       externalAuthorityDelta = null,
+      validationAuthorityContext = null,
       trustedNow: operationTrustedNow = null,
     }) {
       if (!SHA256.test(expectedAuthorityDigest || '')) throw new CompilerError('expected authority digest is required', { phase: 'authority:configuration' });
@@ -1980,10 +1992,29 @@ export function createSemanticModelCompilationCommand({
           phase: 'candidate:external-authority-delta-replay',
         });
       }
+      let validationContextPatch = null;
+      if (validationAuthorityContext !== null) {
+        exactObjectKeys(validationAuthorityContext, ['bytesBase64', 'digest'], 'validation authority context');
+        const contextBytes = Buffer.from(validationAuthorityContext.bytesBase64, 'base64');
+        if (contextBytes.toString('base64') !== validationAuthorityContext.bytesBase64) {
+          throw new CompilerError('validation authority context bytes are not canonical base64', {
+            phase: 'candidate:source-delta',
+          });
+        }
+        validationContextPatch = parseCanonicalPatch(
+          contextBytes, validationAuthorityContext.digest, new Set(managedGraphs(manifest)), new Set(['base']),
+        );
+        if (validationContextPatch.deletions.length !== 0) {
+          throw new CompilerError('validation authority context must remain additive', {
+            phase: 'candidate:source-delta',
+          });
+        }
+      }
       const prepared = await composeSourceCandidate({
         client,
         manifest,
         generatedPatch: external?.patch || null,
+        validationContextPatch,
         authorityWitness: beforeWitness,
         compileFunction,
         stage: 'base',

@@ -412,6 +412,27 @@ test('admits only canonical owner-approved evidence-backed conflict resolution',
   const accepted = semanticModelCompilationCommandInternals.assertExternalAuthorityDelta(options);
   assert.equal(accepted.patchDigest, fixture.packageValue.patchDigest);
   assert.equal(accepted.correctionCandidateDigest, fixture.inventoryDigest);
+  const patchText = Buffer.from(fixture.packageValue.patchBytesBase64, 'base64').toString('utf8');
+  assert.match(patchText, /semanticadequacyoperations/);
+  assert.match(patchText, /<urn:usf:ontology:evidenceFor> <urn:usf:authorityconflict:/);
+  const mutatePatch = (mutator) => {
+    const lines = patchText.trimEnd().split('\n');
+    const header = lines.shift();
+    const permittedOperations = mutator(lines).sort();
+    const bytes = Buffer.from([header, ...permittedOperations, ''].join('\n'));
+    return {
+      ...fixture.packageValue,
+      patchBytesBase64: bytes.toString('base64'),
+      patchDigest: contentDigest(bytes),
+      permittedOperations,
+    };
+  };
+  assert.throws(() => semanticModelCompilationCommandInternals.assertExternalAuthorityDelta({
+    ...options,
+    value: mutatePatch((lines) => lines.map((line) => line.includes('<urn:usf:ontology:evidenceFor>')
+      ? line.replace(`<${fixture.packageValue.conflictIri}>`, '<urn:usf:authorityconflict:substituted>')
+      : line)),
+  }), /evidence subject is not exact|missing exact evidence subject/);
 
   assert.throws(() => semanticModelCompilationCommandInternals.assertExternalAuthorityDelta({
     ...options,

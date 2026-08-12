@@ -183,8 +183,8 @@ _:evidence_result_composite_branch sh:property [
 ].
 shp:EvidenceResultShape sh:or _:b32_b32_n3-150.
 _:b32_b32_n3-157 sh:prefixes usf:prefixes;
-    sh:message "semantic-review evidence must bind a descriptor selected by the reviewed semantic subject";
-    sh:select "SELECT $this WHERE {\n        $this usf:evidenceKind <urn:usf:evidencekind:semanticreviewevidence> ;\n              usf:concernsSemanticSubject ?review ; usf:contentDigest ?digest .\n        FILTER NOT EXISTS {\n          ?review a usf:SemanticAdequacyReview ;\n                  (usf:usesDispositionInventoryDescriptor|usf:usesIndependentReviewDescriptor|usf:usesSemanticAdequacyProofDescriptor) ?descriptor .\n          ?descriptor usf:descriptorDigest ?digest .\n        }\n      }".
+    sh:message "semantic-review evidence must bind a review-selected descriptor or the exact operations input of its warranted proof";
+    sh:select "SELECT $this WHERE {\n        $this usf:evidenceKind <urn:usf:evidencekind:semanticreviewevidence> ;\n              usf:concernsSemanticSubject ?review ; usf:contentDigest ?digest .\n        FILTER NOT EXISTS {\n          {\n            ?review a usf:SemanticAdequacyReview ;\n                    (usf:usesDispositionInventoryDescriptor|usf:usesIndependentReviewDescriptor|usf:usesSemanticAdequacyProofDescriptor) ?descriptor .\n            ?descriptor usf:descriptorDigest ?digest .\n          } UNION {\n            ?decision a usf:SemanticCorrectionDecision ;\n                      usf:decisionBasedOnSemanticAdequacyReview ?review ;\n                      usf:warrantedBySemanticAdequacyProof ?result .\n            ?result usf:usesAdmittedEvidence $this .\n            ?descriptor usf:descriptorDigest ?digest ;\n                        usf:descriptorArtefactType \"urn:usf:artefacttype:semanticadequacyoperations\"^^xsd:anyURI .\n          }\n        }\n      }".
 shp:EvidenceResultShape sh:sparql _:b32_b32_n3-157.
 
 shp:CompositeEvidenceResultShape a sh:NodeShape;

@@ -720,6 +720,16 @@ function ownerTriples(owner, scope, { includeVerifier }) {
   return additions;
 }
 
+export function materializeAggregateOwnerAuthorityValidationContext({ ownerAuthority, pendingPackage }) {
+  const pending = validatePending(pendingPackage);
+  const owners = validateOwners(ownerAuthority, pending);
+  const additions = OWNER_SCOPE_KEYS.flatMap((key, index) => ownerTriples(
+    owners[key], OWNER_SCOPES[key], { includeVerifier: index === 0 },
+  ));
+  const bytes = canonicalPatch('base', [], additions);
+  return Object.freeze({ bytes, digest: sha256Bytes(bytes) });
+}
+
 function aggregateFoundation(additions, pending, currentnessBinding) {
   const evaluation = pending.aggregateResult.evaluation;
   const source = evaluation.sourceBinding;
