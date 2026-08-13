@@ -1078,6 +1078,11 @@ for (const decision of composedDecisions) {
   }
 }
 
+// The selected checkpoint implementation is the exact repository-local
+// provider for the backup/restore port.  This keeps the active contract's
+// port coverage explicit without introducing an adapter or external provider.
+graph.push(`<urn:usf:componentidentity:eventhistorycheckpointpruning> a usf:Provider; usf:hasProviderMode <urn:usf:providermode:repositorylocalservice>; usf:fulfilsPort <urn:usf:port:backuprestoreprovider> .`);
+
 const licencePolicyIri = iri('licencecompatibilitypolicy', 'internaloperation');
 graph.push(`<${licencePolicyIri}> a usf:LicenceCompatibilityPolicy; usf:canonicalName "internaloperation"; usf:licencePolicyDigest ${q(licencePolicy.policyDigest)}; usf:licencePolicyRule ${licencePolicy.compatibleLicenceRules.map(q).join(', ')}; usf:licencePolicyInvalidationCondition ${q(licencePolicy.invalidationCondition)} .`);
 

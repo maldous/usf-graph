@@ -232,6 +232,9 @@ test('checkpoint selection has complete bounded composition and implementable re
   const component = objects(baseline, checkpointSelected, term('hasOptionComponent'))
     .find((item) => first(baseline, item, term('componentIdentity'))?.value === 'urn:usf:componentidentity:eventhistorycheckpointpruning');
   assert.equal(first(baseline, component, term('componentRole'))?.value, 'urn:usf:componentrole:backupmechanism');
+  const provider = iri('urn:usf:componentidentity:eventhistorycheckpointpruning');
+  assert.equal(first(baseline, provider, term('hasProviderMode'))?.value, 'urn:usf:providermode:repositorylocalservice');
+  assert.equal(first(baseline, provider, term('fulfilsPort'))?.value, 'urn:usf:port:backuprestoreprovider');
 });
 
 test('raw acquisition and composite scope contracts reject exact structural defects', () => {
