@@ -6,7 +6,10 @@ import {
   AUTHORITY_FINGERPRINT,
   AUTHORITY_PRINCIPAL,
   AUTHORITY_SIGNING_IDENTITY,
+  FINAL_V1_GOVERNED_AUTHORITY_SCOPES,
+  GOVERNED_AUTHORITY_SCOPES,
   GPGV_EXECUTABLE,
+  REPOSITORY_EXTERNAL_ARTEFACT_MATERIALISATION_SCOPE,
   assertSemanticProofPublicationReceipt,
   canonicalJson,
   consumeGrantNonce,
@@ -233,6 +236,24 @@ test('external trust anchor preserves the base pairs and rejects ungoverned or u
       }],
     },
   }), /unapproved authority domain or repository pair/);
+});
+
+test('governed trust anchors admit only the current three-scope or exact final four-scope registry version', () => {
+  for (const authorityScopes of [GOVERNED_AUTHORITY_SCOPES, FINAL_V1_GOVERNED_AUTHORITY_SCOPES]) {
+    assert.equal(semanticProofV1Internals.assertApprovedTrustAnchorScopeSet(authorityScopes), true);
+  }
+  assert.equal(semanticProofV1Internals.assertApprovedTrustAnchorScopeSet(APPROVED_AUTHORITY_SCOPES), false);
+  assert.deepEqual(FINAL_V1_GOVERNED_AUTHORITY_SCOPES, [
+    GOVERNED_AUTHORITY_SCOPES[0],
+    GOVERNED_AUTHORITY_SCOPES[1],
+    REPOSITORY_EXTERNAL_ARTEFACT_MATERIALISATION_SCOPE,
+    GOVERNED_AUTHORITY_SCOPES[2],
+  ]);
+  assert.throws(() => semanticProofV1Internals.assertApprovedTrustAnchorScopeSet(
+    FINAL_V1_GOVERNED_AUTHORITY_SCOPES.map((scope, index) => index === 2
+      ? { ...scope, repository: 'maldous/unapproved' }
+      : scope),
+  ), /unapproved authority domain or repository pair/);
 });
 
 test('real OpenPGP detached verification accepts the ephemeral signer and rejects tampering and a wrong key', () => {
