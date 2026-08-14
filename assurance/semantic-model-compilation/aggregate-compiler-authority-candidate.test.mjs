@@ -66,6 +66,11 @@ const CHECKPOINT_PATHS = [
   'tests/test_v3_event_store.py',
   'tests/test_v3_maintenance.py',
 ];
+const REPOSITORY_EXTERNAL_PATHS = [
+  'assurance/semantic-model-compilation/aggregate-compiler-proof-command.mjs',
+  'processes/semantic-assurance/semantic-authority-publication.mjs',
+  'processes/semantic-assurance/semantic-proof-v1.mjs',
+];
 const SOURCE_SCOPE = sourceScopeDigest(GRAPH_PATHS);
 const SOURCE_BINDING = {
   head: HEAD,
@@ -306,6 +311,16 @@ function ownerAuthority() {
       repository: 'maldous/usf-factory',
       sourcePaths: FACTORY_PATHS,
       verification: 'f',
+    }),
+    repositoryexternalartefactmaterialisation: ownerAuthorityFor({
+      admission: '8',
+      descriptor: '9',
+      descriptorReceipt: '3',
+      domain: 'urn:usf:capabilityowner:repositoryexternalartefactmaterialisation',
+      envelope: '1',
+      repository: 'maldous/usf-graph',
+      sourcePaths: REPOSITORY_EXTERNAL_PATHS,
+      verification: '2',
     }),
     semanticmodelcompilation: ownerAuthorityFor({
       admission: 'b',
@@ -749,6 +764,7 @@ test('stage 1 materializes all independently scoped owner assignments and every 
   const expectations = [
     ['factoryproviderdurablecontrolplane', 'maldous/usf-factory'],
     ['providerconfigurationplane', 'maldous/usf-factory'],
+    ['repositoryexternalartefactmaterialisation', 'maldous/usf-graph'],
     ['semanticmodelcompilation', 'maldous/usf-graph'],
   ];
   for (const [key, repository] of expectations) {
@@ -1049,6 +1065,22 @@ test('rejects omitted, cross-scoped or substituted owner assignments', () => {
     = envelope.ownerAuthority.semanticmodelcompilation.assignment.envelopeDigest;
   assert.throws(() => materializeAggregateCompilerAuthorityCandidate(envelope),
     { code: 'CANDIDATE_OWNER_BINDING_INVALID' });
+});
+
+test('accepts only the exact current predecessor or final V1 owner scope set', () => {
+  const current = stage1Input();
+  delete current.ownerAuthority.repositoryexternalartefactmaterialisation;
+  assert.equal(materializeAggregateCompilerAuthorityCandidate(current).stage, 'stage1');
+
+  const partial = stage1Input();
+  delete partial.ownerAuthority.providerconfigurationplane;
+  assert.throws(() => materializeAggregateCompilerAuthorityCandidate(partial),
+    { code: 'CANDIDATE_OWNER_SCHEMA_INVALID' });
+
+  const unrelated = stage1Input();
+  unrelated.ownerAuthority.unrelated = unrelated.ownerAuthority.repositoryexternalartefactmaterialisation;
+  assert.throws(() => materializeAggregateCompilerAuthorityCandidate(unrelated),
+    { code: 'CANDIDATE_OWNER_SCHEMA_INVALID' });
 });
 
 test('reuses active owner assignments without rewriting their historical issuance baseline', () => {

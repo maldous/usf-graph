@@ -159,6 +159,16 @@ const OWNER_SCOPES = Object.freeze({
     verificationAdmission: 'urn:usf:semanticproofverificationadmission:ownerassignment:providerconfigurationplane:matthewaldous',
     verificationDescriptor: 'urn:usf:semanticproofcasdescriptor:ownerassignment:providerconfigurationplane:matthewaldous',
   }),
+  repositoryexternalartefactmaterialisation: Object.freeze({
+    assignment: 'urn:usf:ownerassignment:repositoryexternalartefactmaterialisation:matthewaldous',
+    domain: 'urn:usf:capabilityowner:repositoryexternalartefactmaterialisation',
+    evidenceAdmissionPath: 'urn:usf:evidenceadmissionpath:ownerassignment:repositoryexternalartefactmaterialisation:matthewaldous',
+    repository: AGGREGATE_REPOSITORY,
+    validationProducer: 'urn:usf:validationproducer:ownerassignment:repositoryexternalartefactmaterialisation:matthewaldous',
+    verification: 'urn:usf:semanticproofverification:ownerassignment:repositoryexternalartefactmaterialisation:matthewaldous',
+    verificationAdmission: 'urn:usf:semanticproofverificationadmission:ownerassignment:repositoryexternalartefactmaterialisation:matthewaldous',
+    verificationDescriptor: 'urn:usf:semanticproofcasdescriptor:ownerassignment:repositoryexternalartefactmaterialisation:matthewaldous',
+  }),
   semanticmodelcompilation: Object.freeze({
     assignment: 'urn:usf:ownerassignment:semanticmodelcompilation:matthewaldous',
     domain: 'urn:usf:capabilityowner:semanticmodelcompilation',
@@ -170,7 +180,19 @@ const OWNER_SCOPES = Object.freeze({
     verificationDescriptor: 'urn:usf:semanticproofcasdescriptor:ownerassignment:semanticmodelcompilation:matthewaldous',
   }),
 });
-const OWNER_SCOPE_KEYS = Object.freeze(Object.keys(OWNER_SCOPES).sort());
+const FINAL_V1_OWNER_SCOPE_KEYS = Object.freeze(Object.keys(OWNER_SCOPES).sort());
+const CURRENT_OWNER_SCOPE_KEYS = Object.freeze(FINAL_V1_OWNER_SCOPE_KEYS
+  .filter((key) => key !== 'repositoryexternalartefactmaterialisation'));
+
+function ownerScopeKeysFor(owners) {
+  if (!owners || typeof owners !== 'object' || Array.isArray(owners)) {
+    fail('CANDIDATE_OWNER_SCHEMA_INVALID', 'owner authority scopes');
+  }
+  const observed = Object.keys(owners).sort();
+  if (canonicalJson(observed) === canonicalJson(CURRENT_OWNER_SCOPE_KEYS)) return CURRENT_OWNER_SCOPE_KEYS;
+  if (canonicalJson(observed) === canonicalJson(FINAL_V1_OWNER_SCOPE_KEYS)) return FINAL_V1_OWNER_SCOPE_KEYS;
+  fail('CANDIDATE_OWNER_SCHEMA_INVALID', 'owner authority scopes');
+}
 
 const PENDING_KEYS = ['aggregateResult', 'dependentValidation', 'evaluatedAuthorityDigest', 'evaluationReceiptDigest', 'executionReceiptDigest',
   'ok', 'proofCurrentness', 'resultState', 'selectable', 'state'];
@@ -420,7 +442,7 @@ function validateOwner(owner, pending, scope) {
         authorityDomain: scope.domain, principal: AUTHORITY_PRINCIPAL, repository: scope.repository,
         sourcePaths: assignmentPaths,
       })) fail('CANDIDATE_OWNER_BINDING_INVALID', 'assignment scope, authority or candidate');
-  if (scope.repository === AGGREGATE_REPOSITORY
+  if (scope.domain === 'urn:usf:capabilityowner:semanticmodelcompilation'
       && owner.assignment.sourceScopeDigest !== pending.aggregateResult.evaluation.sourceBinding.sourceScopeDigest) {
     fail('CANDIDATE_OWNER_BINDING_INVALID', 'semantic compilation assignment must cover the evaluated graph source scope');
   }
@@ -446,14 +468,16 @@ function validateOwner(owner, pending, scope) {
 }
 
 function validateOwners(owners, pending) {
-  exactKeys(owners, OWNER_SCOPE_KEYS, 'CANDIDATE_OWNER_SCHEMA_INVALID', 'owner authority scopes');
-  const validated = Object.fromEntries(OWNER_SCOPE_KEYS.map((key) => [key, validateOwner(owners[key], pending, OWNER_SCOPES[key])]));
-  const verifier = canonicalJson(validated[OWNER_SCOPE_KEYS[0]].verifier);
-  if (OWNER_SCOPE_KEYS.some((key) => canonicalJson(validated[key].verifier) !== verifier)) {
+  const ownerScopeKeys = ownerScopeKeysFor(owners);
+  exactKeys(owners, ownerScopeKeys, 'CANDIDATE_OWNER_SCHEMA_INVALID', 'owner authority scopes');
+  const validated = Object.fromEntries(ownerScopeKeys
+    .map((key) => [key, validateOwner(owners[key], pending, OWNER_SCOPES[key])]));
+  const verifier = canonicalJson(validated[ownerScopeKeys[0]].verifier);
+  if (ownerScopeKeys.some((key) => canonicalJson(validated[key].verifier) !== verifier)) {
     fail('CANDIDATE_OWNER_BINDING_INVALID', 'all owner assignments must use the same canonical external verifier');
   }
   const unique = (selector, label) => {
-    const values = OWNER_SCOPE_KEYS.map((key) => selector(validated[key]));
+    const values = ownerScopeKeys.map((key) => selector(validated[key]));
     if (new Set(values).size !== values.length) fail('CANDIDATE_OWNER_BINDING_INVALID', `${label} must be independently scoped`);
   };
   unique((owner) => owner.assignment.candidateDigest, 'assignment candidates');
@@ -789,7 +813,7 @@ function ownerTriples(owner, scope, { includeVerifier }) {
 export function materializeAggregateOwnerAuthorityValidationContext({ ownerAuthority, pendingPackage }) {
   const pending = validatePending(pendingPackage);
   const owners = validateOwners(ownerAuthority, pending);
-  const additions = OWNER_SCOPE_KEYS.flatMap((key, index) => ownerTriples(
+  const additions = ownerScopeKeysFor(owners).flatMap((key, index) => ownerTriples(
     owners[key], OWNER_SCOPES[key], { includeVerifier: index === 0 },
   ));
   // The external proof package is validated before Stage 1 materialises the
@@ -1061,7 +1085,7 @@ function stage1Patch(pending, owners, currentnessBinding, { includeDependentBind
     ...TRANSITIONAL_REALISATIONS.map((realisation) =>
       q(realisation, `${USF}realisationState`, iri('urn:usf:realisationstate:implementable'), GRAPH_BINDINGS)),
   ];
-  const additions = OWNER_SCOPE_KEYS.flatMap((key, index) => ownerTriples(owners[key], OWNER_SCOPES[key], {
+  const additions = ownerScopeKeysFor(owners).flatMap((key, index) => ownerTriples(owners[key], OWNER_SCOPES[key], {
     includeVerifier: index === 0,
   }));
   const { evaluation, source } = aggregateFoundation(additions, pending, currentnessBinding);

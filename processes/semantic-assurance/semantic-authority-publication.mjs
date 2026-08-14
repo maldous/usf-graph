@@ -45,12 +45,19 @@ const POST_PUBLICATION_JOURNAL_STATES = new Set([
 ]);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const GRAPH_DOMAIN = 'urn:usf:capabilityowner:semanticmodelcompilation';
+const REPOSITORY_EXTERNAL_DOMAIN = 'urn:usf:capabilityowner:repositoryexternalartefactmaterialisation';
 const FACTORY_DOMAIN = 'urn:usf:capabilityowner:providerconfigurationplane';
 const FACTORY_DURABLE_DOMAIN = 'urn:usf:capabilityowner:factoryproviderdurablecontrolplane';
-const OWNER_SCOPES = Object.freeze([
+const CURRENT_OWNER_SCOPES = Object.freeze([
   Object.freeze({ authorityDomain: GRAPH_DOMAIN, repository: 'maldous/usf-graph' }),
   Object.freeze({ authorityDomain: FACTORY_DOMAIN, repository: 'maldous/usf-factory' }),
   Object.freeze({ authorityDomain: FACTORY_DURABLE_DOMAIN, repository: 'maldous/usf-factory' }),
+]);
+const FINAL_V1_OWNER_SCOPES = Object.freeze([
+  CURRENT_OWNER_SCOPES[0],
+  Object.freeze({ authorityDomain: REPOSITORY_EXTERNAL_DOMAIN, repository: 'maldous/usf-graph' }),
+  CURRENT_OWNER_SCOPES[1],
+  CURRENT_OWNER_SCOPES[2],
 ]);
 const COMPILER_VALIDATION_EVIDENCE_IRI =
   'urn:usf:validationevidence:compilersemanticenforcementcompilervalidation';
@@ -275,7 +282,24 @@ function descriptorForExistingCas(evidenceStore, iri, contentDigest) {
   return persistenceDescriptor(evidenceStore, iri, bytes);
 }
 
+function ownerScopesFor(assignments) {
+  if (!Array.isArray(assignments)) throw new Error('owner assignments must be an array');
+  const observed = assignments
+    .map(({ authorityDomain, repository }) => `${authorityDomain}\u0000${repository}`)
+    .sort()
+    .join('\n');
+  for (const scopes of [CURRENT_OWNER_SCOPES, FINAL_V1_OWNER_SCOPES]) {
+    const expected = scopes
+      .map(({ authorityDomain, repository }) => `${authorityDomain}\u0000${repository}`)
+      .sort()
+      .join('\n');
+    if (observed === expected && assignments.length === scopes.length) return scopes;
+  }
+  throw new Error('owner assignments must be the exact current or final V1 governed scope set');
+}
+
 function ownerAuthorityFromVerification({ assignments, pendingPackage, trustAnchor, evidenceStore }) {
+  const ownerScopes = ownerScopesFor(assignments);
   const source = pendingPackage?.aggregateResult?.evaluation?.sourceBinding;
   if (!source || !Array.isArray(source.sourcePaths)) throw new Error('verified owner authority requires the exact pending source binding');
   const verifier = Object.freeze({
@@ -336,12 +360,12 @@ function ownerAuthorityFromVerification({ assignments, pendingPackage, trustAnch
     })];
   });
   const authority = Object.freeze(Object.fromEntries(values));
-  const expectedOwnerKeys = OWNER_SCOPES
+  const expectedOwnerKeys = ownerScopes
     .map(({ authorityDomain }) => authorityDomain.slice(authorityDomain.lastIndexOf(':') + 1))
     .sort()
     .join(',');
   if (Object.keys(authority).sort().join(',') !== expectedOwnerKeys) {
-    throw new Error(`verified owner authority did not produce the exact ${OWNER_SCOPES.length} owner domains`);
+    throw new Error(`verified owner authority did not produce the exact ${ownerScopes.length} owner domains`);
   }
   return authority;
 }
@@ -443,10 +467,8 @@ function verifyReevaluationEvidence(preparation, evidenceStore) {
 }
 
 function ownerAssignmentSet(ownerAssignments) {
-  if (!Array.isArray(ownerAssignments) || ownerAssignments.length !== OWNER_SCOPES.length) {
-    throw new Error(`exactly ${OWNER_SCOPES.length} independently scoped owner assignments are required`);
-  }
-  return Object.freeze(OWNER_SCOPES.map((scope) => {
+  const ownerScopes = ownerScopesFor(ownerAssignments);
+  return Object.freeze(ownerScopes.map((scope) => {
     const matches = ownerAssignments.filter((entry) => entry?.authorityDomain === scope.authorityDomain
       && entry?.repository === scope.repository);
     if (matches.length !== 1 || !Array.isArray(matches[0].sourcePaths) || !matches[0].envelope) {
@@ -454,6 +476,45 @@ function ownerAssignmentSet(ownerAssignments) {
     }
     return Object.freeze({ ...scope, sourcePaths: matches[0].sourcePaths, envelope: matches[0].envelope });
   }));
+}
+
+function ownerAssignmentsFromArgv(argv) {
+  const assignments = [
+    {
+      authorityDomain: GRAPH_DOMAIN,
+      repository: 'maldous/usf-graph',
+      sourcePaths: repeatedArgument(argv, 'source-path'),
+      envelope: readEnvelope(requiredArgument(argv, 'owner-assignment-semanticmodelcompilation')),
+    },
+    {
+      authorityDomain: FACTORY_DOMAIN,
+      repository: 'maldous/usf-factory',
+      sourcePaths: repeatedArgument(argv, 'provider-source-path'),
+      envelope: readEnvelope(requiredArgument(argv, 'owner-assignment-providerconfigurationplane')),
+    },
+    {
+      authorityDomain: FACTORY_DURABLE_DOMAIN,
+      repository: 'maldous/usf-factory',
+      sourcePaths: repeatedArgument(argv, 'provider-v3-source-path'),
+      envelope: readEnvelope(requiredArgument(argv, 'owner-assignment-factoryproviderdurablecontrolplane')),
+    },
+  ];
+  const repositoryExternalEnvelope = optionalArgument(
+    argv, 'owner-assignment-repositoryexternalartefactmaterialisation',
+  );
+  const repositoryExternalPaths = repeatedArgument(argv, 'repositoryexternal-source-path');
+  if ((repositoryExternalEnvelope === undefined) !== (repositoryExternalPaths.length === 0)) {
+    throw new Error('repository external owner assignment and source paths must be supplied together');
+  }
+  if (repositoryExternalEnvelope !== undefined) {
+    assignments.splice(1, 0, {
+      authorityDomain: REPOSITORY_EXTERNAL_DOMAIN,
+      repository: 'maldous/usf-graph',
+      sourcePaths: repositoryExternalPaths,
+      envelope: readEnvelope(repositoryExternalEnvelope),
+    });
+  }
+  return Object.freeze(assignments);
 }
 
 function verifyOwnerAssignmentSet({ ownerAssignments, trustAnchor, now, verifyOwnerAssignment }) {
@@ -1322,26 +1383,7 @@ export async function main({
   const live = await configureLiveDependencies(expectedAuthorityDigest, env);
   if (mode === 'lifecycle') {
     if (publicationPhase !== 'aggregate') throw new Error('lifecycle mode requires --publication-phase=aggregate');
-    const ownerAssignments = [
-      {
-        authorityDomain: GRAPH_DOMAIN,
-        repository: 'maldous/usf-graph',
-        sourcePaths: repeatedArgument(argv, 'source-path'),
-        envelope: readEnvelope(requiredArgument(argv, 'owner-assignment-semanticmodelcompilation')),
-      },
-      {
-        authorityDomain: FACTORY_DOMAIN,
-        repository: 'maldous/usf-factory',
-        sourcePaths: repeatedArgument(argv, 'provider-source-path'),
-        envelope: readEnvelope(requiredArgument(argv, 'owner-assignment-providerconfigurationplane')),
-      },
-      {
-        authorityDomain: FACTORY_DURABLE_DOMAIN,
-        repository: 'maldous/usf-factory',
-        sourcePaths: repeatedArgument(argv, 'provider-v3-source-path'),
-        envelope: readEnvelope(requiredArgument(argv, 'owner-assignment-factoryproviderdurablecontrolplane')),
-      },
-    ];
+    const ownerAssignments = ownerAssignmentsFromArgv(argv);
     const claims = Object.freeze({
       stage1: Object.freeze({
         candidateApproval: readEnvelope(requiredArgument(argv, 'stage1-candidate-approval')),
@@ -1402,26 +1444,7 @@ export async function main({
     const outputPath = optionalArgument(argv, 'canonical-candidate-output');
     if (outputPath) writeFileSync(outputPath, Buffer.from(result.canonicalCandidateBytes, 'base64'), { flag: 'wx', mode: 0o444 });
   } else {
-    const ownerAssignments = [
-      {
-        authorityDomain: GRAPH_DOMAIN,
-        repository: 'maldous/usf-graph',
-        sourcePaths: repeatedArgument(argv, 'source-path'),
-        envelope: readEnvelope(requiredArgument(argv, 'owner-assignment-semanticmodelcompilation')),
-      },
-      {
-        authorityDomain: FACTORY_DOMAIN,
-        repository: 'maldous/usf-factory',
-        sourcePaths: repeatedArgument(argv, 'provider-source-path'),
-        envelope: readEnvelope(requiredArgument(argv, 'owner-assignment-providerconfigurationplane')),
-      },
-      {
-        authorityDomain: FACTORY_DURABLE_DOMAIN,
-        repository: 'maldous/usf-factory',
-        sourcePaths: repeatedArgument(argv, 'provider-v3-source-path'),
-        envelope: readEnvelope(requiredArgument(argv, 'owner-assignment-factoryproviderdurablecontrolplane')),
-      },
-    ];
+    const ownerAssignments = ownerAssignmentsFromArgv(argv);
     result = await runPublication({
       ...common,
       expectedCandidateDigest: requiredArgument(argv, 'candidate-digest'),

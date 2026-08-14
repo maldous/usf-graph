@@ -78,6 +78,11 @@ const DOMAIN = 'urn:usf:capabilityowner:semanticmodelcompilation';
 const REPOSITORY = 'maldous/usf-graph';
 const PATHS = ['processes/semantic-assurance/semantic-proof-v1.mjs'];
 const PROVIDER_PATHS = ['usf_factory/provider_catalogue.py'];
+const REPOSITORY_EXTERNAL_PATHS = [
+  'assurance/semantic-model-compilation/aggregate-compiler-proof-command.mjs',
+  'processes/semantic-assurance/semantic-authority-publication.mjs',
+  'processes/semantic-assurance/semantic-proof-v1.mjs',
+];
 const PROVIDER_V3_PATHS = ['src/usf_factory/v3_events.py'];
 const INITIAL_NONCE = '00000000-0000-4000-8000-000000000001';
 const REEVALUATION_NONCE = '00000000-0000-4000-8000-000000000002';
@@ -154,6 +159,11 @@ function memoryEvidenceStore() {
 
 const ownerAssignments = Object.freeze([
   Object.freeze({ authorityDomain: DOMAIN, repository: REPOSITORY, sourcePaths: PATHS, envelope: ownerAssignment }),
+  Object.freeze({
+    authorityDomain: 'urn:usf:capabilityowner:repositoryexternalartefactmaterialisation',
+    repository: 'maldous/usf-graph', sourcePaths: REPOSITORY_EXTERNAL_PATHS,
+    envelope: { payload: { claim: 'repository-external-owner' }, signature: 'repository-external-owner' },
+  }),
   Object.freeze({
     authorityDomain: 'urn:usf:capabilityowner:providerconfigurationplane',
     repository: 'maldous/usf-factory', sourcePaths: PROVIDER_PATHS,
@@ -427,10 +437,31 @@ test('all independently scoped owner assignments are verified before validation 
   }));
   assert.deepEqual(calls, [
     [DOMAIN, REPOSITORY],
+    ['urn:usf:capabilityowner:repositoryexternalartefactmaterialisation', 'maldous/usf-graph'],
     ['urn:usf:capabilityowner:providerconfigurationplane', 'maldous/usf-factory'],
     ['urn:usf:capabilityowner:factoryproviderdurablecontrolplane', 'maldous/usf-factory'],
   ]);
   assert.equal(sha256(store.read(result.validationEvidence.digest)), result.validationEvidence.digest);
+});
+
+test('current predecessor owner scope remains admissible only as the exact three-domain set', async () => {
+  const currentOwnerAssignments = ownerAssignments.filter((assignment) =>
+    assignment.authorityDomain !== 'urn:usf:capabilityowner:repositoryexternalartefactmaterialisation');
+  const calls = [];
+  await runPublication(invocation({
+    mode: 'validate',
+    ownerAssignments: currentOwnerAssignments,
+    verifyOwnerAssignment: (_envelope, options) => { calls.push(options.authorityDomain); return {}; },
+  }));
+  assert.deepEqual(calls.sort(), [
+    DOMAIN,
+    'urn:usf:capabilityowner:providerconfigurationplane',
+    'urn:usf:capabilityowner:factoryproviderdurablecontrolplane',
+  ].sort());
+  await assert.rejects(runPublication(invocation({
+    mode: 'validate',
+    ownerAssignments: ownerAssignments.slice(0, 3),
+  })), /exact current or final V1 governed scope set/);
 });
 
 test('actual RDF Patch compiler adapter validates and commits the identical canonical bytes', async () => {
