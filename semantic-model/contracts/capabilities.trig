@@ -2491,7 +2491,7 @@ sc:notificationdeliveryandpreferencesandchannels usf:hasActivationState contract
     usf:mandatoryProofObligation <urn:usf:proofobligation:p1874b31e72692fcb908b9d1c13a86f9ca955777ba0b338339d6b5f0adb5c65af>;
     usf:permittedRealisationType usf:Implementation.
 sc:providerconfigurationplane usf:hasActivationState contractstate:active;
-    usf:activationReason "Current admitted evidence and successful proof results separately establish the deterministic workforce surface and the exact production-shaped Factory Provider V3 implementation, now including the bounded Release/Signing V2 machinery and the event-backed derived-identity closure, while V2 remains non-actionable until a separately governed bootstrap and exact semantic authorization complete.";
+    usf:activationReason "Current owner-signed Factory Provider V3 implementation evidence now binds the exact read-only V2 production-observation and seven-consumer closure machinery while preserving the already-admitted current-only runtime, source scope, coordinator fencing and provider lifecycle. Deployment and natural execution remain blocked until terminal Graph V2 acceptance.";
     usf:requiresRealisationOptionEvaluation true;
     usf:mandatoryProofObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>, <urn:usf:proofobligation:factoryproviderv3implementation>;
     usf:reliesOnProofResult <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane>, <urn:usf:proofresult:factoryproviderv3implementation>;
@@ -4954,7 +4954,7 @@ sc:writeonlysecretsettings usf:hasValidationApplicability vas:unresolved;
   usf:canonicalName "providerworkforceboundedimplementationauthority".
 <urn:usf:claim:factoryproviderv3boundedproductionauthority> a usf:Claim;
   usf:canonicalName "factoryproviderv3boundedproductionauthority";
-  usf:definition "Authorises only exact Factory protected-main commit dbb2bdc19369b41a65e7761aefe2a5a0b3a0d0a0, tree 0e91d944940b278bcade4e39c8aa65c7247ca072 and 173-path source-scope digest sha256:d1473ce7cabbe40ab0edcb2ea853704339e97bea8e6742cb74464e1c15824167. Current schemas are the only executable runtime representation; retired providers, models, rosters, schedules, execution scopes, accounting, programme and event shapes fail closed, while immutable historical evidence remains non-executable. The previously admitted Provider V3 invariants remain mandatory where exact source bytes are unchanged. This grants no deployment, Supervisor restart, second pruning pass, V2 activation, provider success, usage, LEARNED, completion or BAU claim.".
+  usf:definition "The exact owner-signed Factory Provider V3 implementation at commit 1739de23648e1f106e5e0009b47e8d259163a2f0 and tree be36669e077d02d45034526370bf0a7db46f046f provides read-only production observation, deterministic prospective V2 publication planning and atomic verification of all seven mandatory derived consumers within the unchanged admitted source scope; this claim does not authorize deployment, provider contact, publication, pruning or BAU by itself.".
 <urn:usf:nonclaim:providercredentialsauthority> a usf:NonClaim;
   usf:canonicalName "providercredentialsauthority".
 <urn:usf:nonclaim:providerresearchprovesavailability> a usf:NonClaim;
