@@ -610,7 +610,7 @@
   usf:proofAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890>;
-  usf:currentImplementationSourceSetDigest "sha256:4658413847c7bd1ff2dd68a6dbbf0904ac3af796ff8e1eb3a019171d686499ad";
+  usf:currentImplementationSourceSetDigest "sha256:e17de25c46dbef6e60d0a7574768d215dadb98e899758755e6ffeae61216c773";
   usf:requiresGraphSourceBinding true.
 <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890> a usf:ProofAlgorithmVersion;
   usf:canonicalName "factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
@@ -667,16 +667,16 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:48d790235ee6d6815fe543812837bb83982a73b3f211be76e904bd214ed5c99c";
-  usf:implementationSourceSetDigest "sha256:4658413847c7bd1ff2dd68a6dbbf0904ac3af796ff8e1eb3a019171d686499ad";
-  usf:proofProducerCommit "f14e2d0d937fe3c21219ca58b8d80d021d5fa942";
-  usf:proofProducerTree "b698922a0bab32a33a8732b10f79f36b6a5dac7c";
+  usf:evidenceSetDigest "sha256:8e81c04a9998eb284cbac76720dd245977590bee925174f3dfc719b17543fa72";
+  usf:implementationSourceSetDigest "sha256:e17de25c46dbef6e60d0a7574768d215dadb98e899758755e6ffeae61216c773";
+  usf:proofProducerCommit "dbb2bdc19369b41a65e7761aefe2a5a0b3a0d0a0";
+  usf:proofProducerTree "0e91d944940b278bcade4e39c8aa65c7247ca072";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "The proof warrants only Factory protected-main commit f14e2d0d937fe3c21219ca58b8d80d021d5fa942, tree b698922a0bab32a33a8732b10f79f36b6a5dac7c and source-scope digest sha256:c19bf3ad2b7a2ae120cfb1c5623f48c3526dbd29b798fe51f42a429150e33a60. It proves the bounded V2 semantic-identity, receipt-DAG, prospective-plan, seven-consumer closure and explicit-authorization machinery plus immutable event-backed roster projection identity. It does not activate V2, authorize the preserved validation-lifecycle semantic change, publish Graph authority, deploy Factory, contact a provider, establish usage, LEARNED, replay, backup, P2 or BAU; those remain separate governed obligations.";
-  usf:evaluatedAt "2026-08-10T10:42:11Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "The proof warrants only the exact current-only Factory protected-main commit dbb2bdc19369b41a65e7761aefe2a5a0b3a0d0a0, tree 0e91d944940b278bcade4e39c8aa65c7247ca072 and 173-path source-scope digest sha256:d1473ce7cabbe40ab0edcb2ea853704339e97bea8e6742cb74464e1c15824167, inheriting the previously admitted Provider V3 baseline only where exact source bytes remain unchanged. It proves that current schemas are the sole executable runtime input, retired runtime shapes fail closed, and immutable historical forms remain behind proof-only or migration-only barriers. It does not deploy Factory, restart Supervisor, authorize a second pruning pass or V2 activation, contact a provider, establish usage, LEARNED, replay, backup, restore or BAU; those remain separate governed obligations.";
+  usf:evaluatedAt "2026-08-14T06:58:30Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 
 # Historical checkpoint machinery proof. Publication A deliberately omits
@@ -685,13 +685,13 @@
 <urn:usf:proofalgorithm:eventhistorycheckpointpruning> a usf:ProofAlgorithm;
   usf:canonicalName "eventhistorycheckpointpruning";
   usf:proofAlgorithmSourcePath "assurance/semantic-model-compilation/aggregate-compiler-proof-command.mjs";
-  usf:proofAlgorithmSourceDigest "sha256:57b9a05e3ef8f9f397444bf6830712f5327bcfb12f4de33eab42d277ff788665";
-  usf:currentAlgorithmSourceDigest "sha256:57b9a05e3ef8f9f397444bf6830712f5327bcfb12f4de33eab42d277ff788665";
-  usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:eventhistorycheckpointpruning57b9a05e3ef8f9f397444bf6830712f5327bcfb12f4de33eab42d277ff788665>;
-  usf:currentImplementationSourceSetDigest "sha256:43143412c300def55dfcd80b499ec6949863548839e42fc6f67009b42a1b01fb";
+  usf:proofAlgorithmSourceDigest "sha256:2c01ae756d5b8e646547a8a7c272c6b9e8f3fd048dfd61e6dbb6712066293bec";
+  usf:currentAlgorithmSourceDigest "sha256:2c01ae756d5b8e646547a8a7c272c6b9e8f3fd048dfd61e6dbb6712066293bec";
+  usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:eventhistorycheckpointpruning2c01ae756d5b8e646547a8a7c272c6b9e8f3fd048dfd61e6dbb6712066293bec>;
+  usf:currentImplementationSourceSetDigest "sha256:bceb036d432c8a4cf5492904ec0df4d7127665a3060b06d92e3d793e20cabb69";
   usf:requiresGraphSourceBinding true.
-<urn:usf:proofalgorithmversion:eventhistorycheckpointpruning57b9a05e3ef8f9f397444bf6830712f5327bcfb12f4de33eab42d277ff788665> a usf:ProofAlgorithmVersion;
-  usf:canonicalName "eventhistorycheckpointpruning57b9a05e3ef8f9f397444bf6830712f5327bcfb12f4de33eab42d277ff788665";
+<urn:usf:proofalgorithmversion:eventhistorycheckpointpruning2c01ae756d5b8e646547a8a7c272c6b9e8f3fd048dfd61e6dbb6712066293bec> a usf:ProofAlgorithmVersion;
+  usf:canonicalName "eventhistorycheckpointpruning2c01ae756d5b8e646547a8a7c272c6b9e8f3fd048dfd61e6dbb6712066293bec";
   usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:eventhistorycheckpointpruning>;
   usf:proofAlgorithmVersionIdentifier "1.0.0".
 <urn:usf:proof:eventhistorycheckpointpruning> a usf:Proof;
@@ -721,18 +721,18 @@
   usf:hasProofResultState <urn:usf:proofresultstate:successful>;
   usf:proofResultForObligation <urn:usf:proofobligation:pac1a6022137958d19ef9d029d179fb8d46d67ebac60985f3d9a072f3624aae9c>;
   usf:usesProofAlgorithm <urn:usf:proofalgorithm:eventhistorycheckpointpruning>;
-  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:eventhistorycheckpointpruning57b9a05e3ef8f9f397444bf6830712f5327bcfb12f4de33eab42d277ff788665>;
+  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:eventhistorycheckpointpruning2c01ae756d5b8e646547a8a7c272c6b9e8f3fd048dfd61e6dbb6712066293bec>;
   usf:usesAdmittedEvidence <urn:usf:evidenceresult:eventhistorycheckpointpruning>;
-  usf:evidenceSetDigest "sha256:2385fc7efda895759c3065461468aed1410a2d89827bdcf7d031425e49638a44";
-  usf:implementationSourceSetDigest "sha256:43143412c300def55dfcd80b499ec6949863548839e42fc6f67009b42a1b01fb";
-  usf:proofProducerCommit "9bb03a46cdd2db654acffece7b5175057cb0d5fe";
-  usf:proofProducerTree "c9f6917e12d8f1479736a14d4ed5a22597b17582";
+  usf:evidenceSetDigest "sha256:21c14e5a7c67498b1f1b8ace18790d25a8421c031a2889155c2a69448b780bc6";
+  usf:implementationSourceSetDigest "sha256:bceb036d432c8a4cf5492904ec0df4d7127665a3060b06d92e3d793e20cabb69";
+  usf:proofProducerCommit "dbb2bdc19369b41a65e7761aefe2a5a0b3a0d0a0";
+  usf:proofProducerTree "0e91d944940b278bcade4e39c8aa65c7247ca072";
   usf:evaluatedByValidator <urn:usf:validatorrule:validateeventhistorycheckpointpruning>;
   usf:proofExecutionEnvironment env:hermetic;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:eventhistorycheckpointpruning>;
   usf:uncertaintyStatement "This historical proof warrants only the exact six-path signed Factory checkpoint, immutable cold-archive, authenticated-tail, same-device recovery and backup/restore machinery. It lacks publication-relative currentness and neither authorizes a production pruning transaction nor establishes live safe-frontier, checkpoint equivalence, backup, restore, P2, BAU or V2 activation.";
-  usf:evaluatedAt "2026-08-13T17:49:19Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:evaluatedAt "2026-08-14T07:41:09Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 
 }

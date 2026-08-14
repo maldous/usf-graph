@@ -82,6 +82,8 @@ export const PROVISIONAL_AGGREGATE_RESULT_IRI =
 export const DEFAULT_AGGREGATE_REACHABLE_REF = 'refs/remotes/origin/main';
 export const AGGREGATE_REVIEWED_SOURCE_PATHS = Object.freeze([
   'assurance/permutation-closure/authority-capture-scope.json',
+  'assurance/permutation-closure/foundation-domain-closure.test.mjs',
+  'assurance/permutation-closure/foundation-gap-remediation.mjs',
   'assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.mjs',
   'assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.test.mjs',
   'assurance/semantic-model-compilation/aggregate-compiler-proof-command.mjs',
@@ -90,6 +92,10 @@ export const AGGREGATE_REVIEWED_SOURCE_PATHS = Object.freeze([
   'assurance/semantic-model-compilation/aggregate-compiler-proof.test.mjs',
   'assurance/semantic-model-compilation/realisation-option-evaluation-evidence.mjs',
   'assurance/semantic-model-compilation/realisation-option-evaluation.test.mjs',
+  'capabilities/repository-external-artefact-materialisation/generated-command-execution.test.mjs',
+  'capabilities/semantic-model-compilation/compiler.mjs',
+  'capabilities/semantic-model-compilation/programme-authority-binding.test.mjs',
+  'operations/programme/update-checkpoint.mjs',
   'package-lock.json',
   'package.json',
   'processes/semantic-assurance/compiler-proof-command.mjs',

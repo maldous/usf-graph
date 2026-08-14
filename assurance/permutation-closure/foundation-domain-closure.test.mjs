@@ -19,7 +19,6 @@ import {
 import { proveFoundationDomainClosureAssessment } from './universe-proof.mjs';
 import {
   buildCurrentFoundationGapRemediationInventory,
-  buildFoundationGapRemediationInventory,
   foundationGapRemediationInternals,
 } from './foundation-gap-remediation.mjs';
 
@@ -408,21 +407,6 @@ test('universal fixture is non-authorising, digest-bound and exercises every reg
       sourcePlane: 'LEGACY_EMPTY',
     };
   });
-  const remediation = buildFoundationGapRemediationInventory({
-    foundationAssessment: assessment,
-    legacyManifest: {
-      gaps: syntheticGaps,
-      recordKind: 'USF_PERMUTATION_CELL_UNIVERSE_MANIFEST',
-      universeDigest: `sha256:${'1'.repeat(64)}`,
-    },
-  });
-  assert.equal(remediation.findingCount, keys.length);
-  assert.equal(remediation.findings.every(({ foundationCauseResolved, resultingFoundationValueCount }) => (
-    foundationCauseResolved && resultingFoundationValueCount > 0
-  )), true);
-  assert.equal(remediation.programmePermutationClosureVerdict, 'PERMUTATION_CLOSURE_INCOMPLETE');
-  assert.match(remediation.inventoryDigest, /^sha256:[0-9a-f]{64}$/);
-
   const currentGaps = syntheticGaps.filter(({ dimensionKey }) => [
     'actionreachability', 'consumer', 'lifecycleobligation',
   ].includes(dimensionKey)).map((gap) => ({
@@ -447,7 +431,20 @@ test('universal fixture is non-authorising, digest-bound and exercises every reg
     DOWNSTREAM_DOMAIN_REQUIRING_FOUNDATION_VOCABULARY: 1,
   });
   assert.equal(current.findingCount, 3);
+  assert.equal(current.findings.every(({ foundationCauseResolved, resultingFoundationValueCount }) => (
+    foundationCauseResolved && resultingFoundationValueCount > 0
+  )), true);
   assert.equal(current.programmePermutationClosureVerdict, 'PERMUTATION_CLOSURE_INCOMPLETE');
+  assert.throws(
+    () => buildCurrentFoundationGapRemediationInventory({
+      foundationAssessment: assessment,
+      gapReport: {
+        gaps: currentGaps,
+        recordKind: 'USF_PERMUTATION_CELL_UNIVERSE_MANIFEST',
+      },
+    }),
+    /CURRENT_FOUNDATION_GAP_SOURCE_INVALID/,
+  );
 });
 
 test('foundation primary capability selection rejects missing, multiple and untyped values with one exact code', () => {

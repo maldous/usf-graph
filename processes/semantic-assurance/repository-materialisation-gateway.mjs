@@ -1888,10 +1888,11 @@ export async function projectContract(ctx, args = {}) {
     }),
   };
   const scopePair = proofCurrentness.obligationProofResults[0];
-  // Execution-scope schema v1 carries one proof anchor for compatibility with
-  // deployed consumers. This canonical member is not a proof selection: the
-  // complete exact obligation/result bijection above has already gated CURRENT
-  // and remains present in proofCurrentness for consumer-side conjunction.
+  // The current execution-scope schema's single proof anchor is its canonical
+  // content identity, not a translation or alternate reader. This member is
+  // not a proof selection: the complete exact obligation/result bijection
+  // above has already gated CURRENT and remains present in proofCurrentness for
+  // consumer-side conjunction.
   const scopeProof = scopePair
     ? proofCurrentness.perProof.find((item) => item.proofResult === scopePair.proofResult) ?? null
     : null;

@@ -27,7 +27,6 @@ import {
 const repositoryRoot = process.cwd();
 const stateRoot = join(repositoryRoot, '.work', 'programme');
 const checkpointPath = join(stateRoot, 'checkpoint.json');
-const legacyCheckpointPath = join(repositoryRoot, '.work', 'materialisation', 'goal', 'goal-state.json');
 
 function sha256(bytes) {
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
@@ -207,9 +206,7 @@ if (suppliedRecordedAt !== null && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d
 const recordedAt = suppliedRecordedAt ?? new Date().toISOString();
 const priorCheckpointBytes = existsSync(checkpointPath)
   ? readFileSync(checkpointPath)
-  : existsSync(legacyCheckpointPath)
-    ? readFileSync(legacyCheckpointPath)
-    : null;
+  : null;
 const priorCheckpointDigest = priorCheckpointBytes ? sha256(priorCheckpointBytes) : null;
 if (existsSync(checkpointPath) && priorCheckpointBytes) {
   atomicWrite(join(stateRoot, 'history', `${priorCheckpointDigest.slice(7)}.json`), priorCheckpointBytes);

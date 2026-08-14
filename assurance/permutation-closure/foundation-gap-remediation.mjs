@@ -111,11 +111,8 @@ const remediationRules = Object.freeze({
   },
 });
 
-export function buildFoundationGapRemediationInventory({ foundationAssessment, legacyManifest }) {
-  if (legacyManifest?.recordKind !== 'USF_PERMUTATION_CELL_UNIVERSE_MANIFEST'
-    || !Array.isArray(legacyManifest.gaps)) {
-    throw new TypeError('FOUNDATION_GAP_SOURCE_INVALID');
-  }
+function buildFoundationGapFindings({ foundationAssessment, gaps }) {
+  if (!Array.isArray(gaps)) throw new TypeError('FOUNDATION_GAP_SOURCE_INVALID');
   if (foundationAssessment?.recordKind !== 'USF_FOUNDATION_DOMAIN_CLOSURE_ASSESSMENT'
     || foundationAssessment.foundationDomainClosureComplete !== true) {
     throw new TypeError('FOUNDATION_ASSESSMENT_NOT_CLOSED');
@@ -126,7 +123,7 @@ export function buildFoundationGapRemediationInventory({ foundationAssessment, l
       domains.set(`${family.family}\0${dimension.key}`, dimension);
     }
   }
-  const findings = legacyManifest.gaps.map((gap) => {
+  return gaps.map((gap) => {
     const rule = remediationRules[gap.dimensionKey];
     if (!rule) throw new TypeError(`FOUNDATION_GAP_RULE_ABSENT:${gap.dimensionKey}`);
     const domain = domains.get(`${gap.family}\0${rule.replacementDimensionKey ?? gap.dimensionKey}`);
@@ -160,22 +157,6 @@ export function buildFoundationGapRemediationInventory({ foundationAssessment, l
     };
     return { ...core, findingDigest: digest(core) };
   }).sort((left, right) => compareCodeUnits(canonicalJson(left), canonicalJson(right)));
-  const rootCauseCounts = Object.fromEntries([...new Set(findings.map(({ rootCauseGroup }) => rootCauseGroup))]
-    .sort(compareCodeUnits)
-    .map((group) => [group, findings.filter(({ rootCauseGroup }) => rootCauseGroup === group).length]));
-  const core = {
-    foundationAssessmentDigest: foundationAssessment.assessmentDigest,
-    foundationVerdict: foundationAssessment.foundationVerdict,
-    findingCount: findings.length,
-    findings,
-    legacyGapSetDigest: digest(legacyManifest.gaps),
-    legacyManifestDigest: legacyManifest.universeDigest,
-    programmePermutationClosureVerdict: 'PERMUTATION_CLOSURE_INCOMPLETE',
-    recordKind: 'USF_FOUNDATION_GAP_REMEDIATION_INVENTORY',
-    rootCauseCounts,
-    schemaVersion: 1,
-  };
-  return { ...core, inventoryDigest: digest(core) };
 }
 
 export function buildCurrentFoundationGapRemediationInventory({ foundationAssessment, gapReport }) {
@@ -185,13 +166,9 @@ export function buildCurrentFoundationGapRemediationInventory({ foundationAssess
       .sort((left, right) => compareCodeUnits(canonicalJson(left), canonicalJson(right))))) {
     throw new TypeError('CURRENT_FOUNDATION_GAP_SOURCE_INVALID');
   }
-  const baseline = buildFoundationGapRemediationInventory({
+  const baselineFindings = buildFoundationGapFindings({
     foundationAssessment,
-    legacyManifest: {
-      gaps: gapReport.gaps,
-      recordKind: 'USF_PERMUTATION_CELL_UNIVERSE_MANIFEST',
-      universeDigest: gapReport.planDigest,
-    },
+    gaps: gapReport.gaps,
   });
   const currentCause = (finding) => {
     const sourcePlane = gapReport.gaps.find((gap) => gap.family === finding.family
@@ -205,7 +182,7 @@ export function buildCurrentFoundationGapRemediationInventory({ foundationAssess
     }
     return 'CAPABILITY_SPECIFIC_SEMANTIC_MODELLING';
   };
-  const findings = baseline.findings.map((finding) => {
+  const findings = baselineFindings.map((finding) => {
     const rootCauseGroup = currentCause(finding);
     const core = {
       ...finding,
@@ -249,35 +226,27 @@ if (process.argv[1]?.endsWith('foundation-gap-remediation.mjs')) {
     throw new TypeError('FOUNDATION_ASSESSMENT_FILE_DIGEST_MISMATCH');
   }
   const assessment = JSON.parse(assessmentBytes.toString('utf8'));
-  if (process.argv.some((argument) => argument.startsWith('--gap-report='))) {
-    const gapReportBytes = readFileSync(exactArgument('gap-report'));
-    if (sha256(gapReportBytes) !== exactArgument('gap-report-digest')) {
-      throw new TypeError('FOUNDATION_GAP_REPORT_FILE_DIGEST_MISMATCH');
-    }
-    const gapReport = JSON.parse(gapReportBytes.toString('utf8'));
-    const inventory = buildCurrentFoundationGapRemediationInventory({
-      foundationAssessment: assessment,
-      gapReport,
-    });
-    const content = `${canonicalJson(inventory)}\n`;
-    const fileDigest = sha256(content);
-    const outputPath = join('.work', 'generated', `current-foundation-gap-remediation-inventory-${fileDigest.slice('sha256:'.length)}.json`);
-    mkdirSync(dirname(outputPath), { recursive: true });
-    writeFileSync(outputPath, content);
-    process.stdout.write(`${canonicalJson({
-      findingCount: inventory.findingCount,
-      inventoryDigest: inventory.inventoryDigest,
-      outputPath,
-      rootCauseCounts: inventory.rootCauseCounts,
-      verdict: inventory.programmePermutationClosureVerdict,
-    })}\n`);
-  } else {
-    const manifest = JSON.parse(readFileSync(exactArgument('legacy-manifest'), 'utf8'));
-    process.stdout.write(`${canonicalJson(buildFoundationGapRemediationInventory({
-      foundationAssessment: assessment,
-      legacyManifest: manifest,
-    }))}\n`);
+  const gapReportBytes = readFileSync(exactArgument('gap-report'));
+  if (sha256(gapReportBytes) !== exactArgument('gap-report-digest')) {
+    throw new TypeError('FOUNDATION_GAP_REPORT_FILE_DIGEST_MISMATCH');
   }
+  const gapReport = JSON.parse(gapReportBytes.toString('utf8'));
+  const inventory = buildCurrentFoundationGapRemediationInventory({
+    foundationAssessment: assessment,
+    gapReport,
+  });
+  const content = `${canonicalJson(inventory)}\n`;
+  const fileDigest = sha256(content);
+  const outputPath = join('.work', 'generated', `current-foundation-gap-remediation-inventory-${fileDigest.slice('sha256:'.length)}.json`);
+  mkdirSync(dirname(outputPath), { recursive: true });
+  writeFileSync(outputPath, content);
+  process.stdout.write(`${canonicalJson({
+    findingCount: inventory.findingCount,
+    inventoryDigest: inventory.inventoryDigest,
+    outputPath,
+    rootCauseCounts: inventory.rootCauseCounts,
+    verdict: inventory.programmePermutationClosureVerdict,
+  })}\n`);
 }
 
 export const foundationGapRemediationInternals = Object.freeze({ remediationRules });

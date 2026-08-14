@@ -492,6 +492,27 @@ test('the generator renders through the shared boundary and defines no private s
   );
 });
 
+test('the current checkpoint generator refuses the retired goal-state path', () => {
+  const source = readFileSync(join(repositoryRoot, 'operations/programme/update-checkpoint.mjs'), 'utf8');
+  assert.equal(source.includes('legacyCheckpointPath'), false);
+  assert.equal(source.includes('.work/materialisation/goal/goal-state.json'), false);
+  assert.equal(source.includes("'materialisation', 'goal', 'goal-state.json'"), false);
+  assert.match(source, /const checkpointPath = join\(stateRoot, 'checkpoint\.json'\)/u);
+});
+
+test('the compiler verification report exposes only its current exact count fields', () => {
+  const source = readFileSync(
+    join(repositoryRoot, 'capabilities/semantic-model-compilation/compiler.mjs'),
+    'utf8',
+  );
+  assert.equal(source.includes('result.graphCount ='), false);
+  assert.equal(source.includes('result.tripleCount ='), false);
+  assert.match(source, /databaseGraphCount: 0/u);
+  assert.match(source, /databaseTripleCount: 0/u);
+  assert.match(source, /registeredGraphCount: 0/u);
+  assert.match(source, /registeredTripleCount: 0/u);
+});
+
 test('dotted authority field paths resolve, and absent paths read as undefined', () => {
   const record = { authorityBinding: { authorityDigest: DIGEST_A } };
   assert.equal(readAuthorityField(record, 'authorityBinding.authorityDigest'), DIGEST_A);

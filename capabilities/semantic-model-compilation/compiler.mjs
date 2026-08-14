@@ -1025,11 +1025,6 @@ export async function verify({ manifest, client }) {
     databaseTripleCount: 0,
     registeredGraphCount: 0,
     registeredTripleCount: 0,
-    // Compatibility aliases for the read-only database report. These retain
-    // their historical whole-database meaning; signed attestations project
-    // explicitly registered-USF-scoped totals instead.
-    graphCount: 0,
-    tripleCount: 0,
     registeredGraphs,
     missingGraphs: [],
     unexpectedGraphs: [],
@@ -1041,7 +1036,6 @@ export async function verify({ manifest, client }) {
 
   try {
     result.databaseTripleCount = await client.size();
-    result.tripleCount = result.databaseTripleCount;
     result.reachable = true;
   } catch {
     return result; // unreachable: report what we know, leave checks null
@@ -1052,7 +1046,6 @@ export async function verify({ manifest, client }) {
   );
   const present = new Map(graphRows.map((r) => [r.g.value, Number(r.c.value)]));
   result.databaseGraphCount = present.size;
-  result.graphCount = result.databaseGraphCount;
   result.registeredGraphCount = registeredGraphs.filter((graph) => (present.get(graph) ?? 0) > 0).length;
   result.registeredTripleCount = registeredGraphs.reduce((sum, graph) => sum + (present.get(graph) ?? 0), 0);
   result.missingGraphs = registeredGraphs.filter((g) => !present.has(g) || present.get(g) === 0);
