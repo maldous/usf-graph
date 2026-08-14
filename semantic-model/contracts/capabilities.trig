@@ -4954,7 +4954,7 @@ sc:writeonlysecretsettings usf:hasValidationApplicability vas:unresolved;
   usf:canonicalName "providerworkforceboundedimplementationauthority".
 <urn:usf:claim:factoryproviderv3boundedproductionauthority> a usf:Claim;
   usf:canonicalName "factoryproviderv3boundedproductionauthority";
-  usf:definition "The exact owner-signed Factory Provider V3 implementation at commit 1739de23648e1f106e5e0009b47e8d259163a2f0 and tree be36669e077d02d45034526370bf0a7db46f046f provides read-only production observation, deterministic prospective V2 publication planning and atomic verification of all seven mandatory derived consumers within the unchanged admitted source scope; this claim does not authorize deployment, provider contact, publication, pruning or BAU by itself.".
+  usf:definition "The exact owner-signed Factory Provider V3 implementation at commit ac48e3327356ae487b5ea4b1f055ba990802777b and tree 483a9211a0ee8b4cb029cb5a2001acaf06d79f4e provides read-only production observation, deterministic prospective V2 publication planning and atomic verification of all seven mandatory derived consumers within the unchanged admitted source scope; this claim does not authorize deployment, provider contact, publication, pruning or BAU by itself.".
 <urn:usf:nonclaim:providercredentialsauthority> a usf:NonClaim;
   usf:canonicalName "providercredentialsauthority".
 <urn:usf:nonclaim:providerresearchprovesavailability> a usf:NonClaim;

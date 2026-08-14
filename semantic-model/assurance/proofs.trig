@@ -610,7 +610,7 @@
   usf:proofAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890>;
-  usf:currentImplementationSourceSetDigest "sha256:be60125a69765b37c5b1f2651970c0774e4ffd1aaa8fec3047306885ae0e26eb";
+  usf:currentImplementationSourceSetDigest "sha256:9a03adfecd7038977054befb42dce2d8ce8d64fe37b825c5571c2702680642b5";
   usf:requiresGraphSourceBinding true.
 <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890> a usf:ProofAlgorithmVersion;
   usf:canonicalName "factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
@@ -667,16 +667,16 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:fa04049ce183cfb1014754ed6cef65184cfb3f1a481fe33c5aedc2823df2fabc";
-  usf:implementationSourceSetDigest "sha256:be60125a69765b37c5b1f2651970c0774e4ffd1aaa8fec3047306885ae0e26eb";
-  usf:proofProducerCommit "1739de23648e1f106e5e0009b47e8d259163a2f0";
-  usf:proofProducerTree "be36669e077d02d45034526370bf0a7db46f046f";
+  usf:evidenceSetDigest "sha256:3019ff7a9ee32072c9f359282b97fd4c5219dcc63e3ef84b2ff9353191eea04d";
+  usf:implementationSourceSetDigest "sha256:9a03adfecd7038977054befb42dce2d8ce8d64fe37b825c5571c2702680642b5";
+  usf:proofProducerCommit "ac48e3327356ae487b5ea4b1f055ba990802777b";
+  usf:proofProducerTree "483a9211a0ee8b4cb029cb5a2001acaf06d79f4e";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "This proof warrants only the exact Factory Provider V3 source at commit 1739de23648e1f106e5e0009b47e8d259163a2f0, tree be36669e077d02d45034526370bf0a7db46f046f and unchanged source scope sha256:d1473ce7cabbe40ab0edcb2ea853704339e97bea8e6742cb74464e1c15824167. It proves bounded read-only production observation and deterministic seven-consumer closure machinery tests, not V2 authorization, terminal publication, deployment, provider use, natural LEARNED cycles, another pruning pass or BAU.";
-  usf:evaluatedAt "2026-08-14T14:34:11Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "This proof warrants only the exact Factory Provider V3 source at commit ac48e3327356ae487b5ea4b1f055ba990802777b, tree 483a9211a0ee8b4cb029cb5a2001acaf06d79f4e and unchanged source scope sha256:d1473ce7cabbe40ab0edcb2ea853704339e97bea8e6742cb74464e1c15824167. It proves bounded read-only production observation and deterministic seven-consumer closure machinery tests, not V2 authorization, terminal publication, deployment, provider use, natural LEARNED cycles, another pruning pass or BAU.";
+  usf:evaluatedAt "2026-08-14T15:19:58Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 
 # Historical checkpoint machinery proof. Publication A deliberately omits
