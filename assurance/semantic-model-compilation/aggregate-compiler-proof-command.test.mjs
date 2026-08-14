@@ -99,6 +99,8 @@ const EXPECTED_REVIEWED_SOURCE_PATHS = Object.freeze([
   'processes/semantic-assurance/semantic-model-compilation-command.test.mjs',
   'processes/semantic-assurance/semantic-proof-v1.mjs',
   'processes/semantic-assurance/semantic-proof-v1.test.mjs',
+  'processes/semantic-assurance/semantic-proof-v2.mjs',
+  'processes/semantic-assurance/semantic-proof-v2.test.mjs',
   'semantic-model/assurance/evidence.trig',
   'semantic-model/assurance/proofs.trig',
   'semantic-model/authority.ttl',
