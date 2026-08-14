@@ -2491,7 +2491,7 @@ sc:notificationdeliveryandpreferencesandchannels usf:hasActivationState contract
     usf:mandatoryProofObligation <urn:usf:proofobligation:p1874b31e72692fcb908b9d1c13a86f9ca955777ba0b338339d6b5f0adb5c65af>;
     usf:permittedRealisationType usf:Implementation.
 sc:providerconfigurationplane usf:hasActivationState contractstate:active;
-    usf:activationReason "Current owner-signed Factory Provider V3 implementation evidence now binds the exact read-only V2 production-observation and seven-consumer closure machinery while preserving the already-admitted current-only runtime, source scope, coordinator fencing and provider lifecycle. Deployment and natural execution remain blocked until terminal Graph V2 acceptance.";
+    usf:activationReason "Current owner-signed Factory Provider V3 implementation evidence binds the exact current-only V2 A0 claim boundary while preserving the admitted source scope, coordinator fencing and provider lifecycle. Deployment and natural execution remain blocked until terminal Graph V2 acceptance.";
     usf:requiresRealisationOptionEvaluation true;
     usf:mandatoryProofObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>, <urn:usf:proofobligation:factoryproviderv3implementation>;
     usf:reliesOnProofResult <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane>, <urn:usf:proofresult:factoryproviderv3implementation>;
@@ -4954,7 +4954,7 @@ sc:writeonlysecretsettings usf:hasValidationApplicability vas:unresolved;
   usf:canonicalName "providerworkforceboundedimplementationauthority".
 <urn:usf:claim:factoryproviderv3boundedproductionauthority> a usf:Claim;
   usf:canonicalName "factoryproviderv3boundedproductionauthority";
-  usf:definition "The exact owner-signed Factory Provider V3 implementation at commit ac48e3327356ae487b5ea4b1f055ba990802777b and tree 483a9211a0ee8b4cb029cb5a2001acaf06d79f4e provides read-only production observation, deterministic prospective V2 publication planning and atomic verification of all seven mandatory derived consumers within the unchanged admitted source scope; this claim does not authorize deployment, provider contact, publication, pruning or BAU by itself.".
+  usf:definition "The exact owner-signed Factory Provider V3 implementation at commit 53f90ee88cbf2447d01be0846fb1ff6c1e37c0bc and tree 0ec83ea430dd571b09693e1306b3f5a419c51ac3 uses the current task_claims projection as the sole executable claim source for the V2 A0 production boundary within the unchanged admitted source scope; retired packet_claims rows cannot influence A0, routing, authorization, publication, deployment or BAU decisions.".
 <urn:usf:nonclaim:providercredentialsauthority> a usf:NonClaim;
   usf:canonicalName "providercredentialsauthority".
 <urn:usf:nonclaim:providerresearchprovesavailability> a usf:NonClaim;
