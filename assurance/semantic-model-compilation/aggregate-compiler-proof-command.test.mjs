@@ -20,6 +20,7 @@ import {
   eventHistoryCheckpointGpgHome,
   eventHistoryCheckpointImplementationScopeDigest,
   eventHistoryCheckpointPythonPath,
+  prepareAggregateCompilerAuthorityCandidatesV2,
 } from './aggregate-compiler-proof-command.mjs';
 import {
   COMPONENT_PROOFS,
@@ -1625,4 +1626,139 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
     DataFactory.literal('c'.repeat(40)),
     null,
   ), true);
+});
+
+function v2FrozenCandidateInputs() {
+  const releaseSubject = `sha256:${'3'.repeat(64)}`;
+  return {
+    protocol: 'semantic-proof-v2',
+    release_subject_digest: releaseSubject,
+    d0_authority_digest: `sha256:${'4'.repeat(64)}`,
+    source_identities: [
+      {
+        authored_tree: 'a'.repeat(40), repository: 'maldous/usf-factory',
+        source_scope_digest: `sha256:${'5'.repeat(64)}`,
+      },
+      {
+        authored_tree: 'b'.repeat(40), repository: 'maldous/usf-graph',
+        source_scope_digest: `sha256:${'6'.repeat(64)}`,
+      },
+    ],
+    external_attestation_identities: [
+      {
+        attestation_digest: `sha256:${'7'.repeat(64)}`, attestation_type: 'implementation_evidence',
+        release_subject_digest: releaseSubject,
+      },
+      {
+        attestation_digest: `sha256:${'8'.repeat(64)}`, attestation_type: 'option_evaluation',
+        release_subject_digest: releaseSubject,
+      },
+      {
+        attestation_digest: `sha256:${'9'.repeat(64)}`, attestation_type: 'owner_approval',
+        release_subject_digest: releaseSubject,
+      },
+      {
+        attestation_digest: `sha256:${'a'.repeat(64)}`, attestation_type: 'proof',
+        release_subject_digest: releaseSubject,
+      },
+    ],
+    evidence_dependency_digests: [`sha256:${'b'.repeat(64)}`, `sha256:${'c'.repeat(64)}`],
+    compiler_identity: {
+      algorithm_digest: `sha256:${'d'.repeat(64)}`,
+      algorithm_version: 'aggregate-compiler-v2.0.0',
+      command_digest: `sha256:${'e'.repeat(64)}`,
+      implementation_source_digest: `sha256:${'f'.repeat(64)}`,
+    },
+  };
+}
+
+test('pure V2 preparation produces repeatable C1/C2 with exact D1 dependency binding and zero side effects', () => {
+  const input = {
+    frozen_inputs: v2FrozenCandidateInputs(),
+    d1_observation: {
+      authority_digest: `sha256:${'5'.repeat(64)}`,
+      dependency_identity_digests: [`sha256:${'1'.repeat(64)}`, `sha256:${'2'.repeat(64)}`],
+    },
+  };
+  const first = prepareAggregateCompilerAuthorityCandidatesV2(structuredClone(input));
+  const second = prepareAggregateCompilerAuthorityCandidatesV2(structuredClone(input));
+  assert.deepEqual(first.c1.bytes, second.c1.bytes);
+  assert.deepEqual(first.c2.bytes, second.c2.bytes);
+  assert.equal(first.c1.candidateDigest, second.c1.candidateDigest);
+  assert.equal(first.c2.candidateDigest, second.c2.candidateDigest);
+  assert.equal(first.c1.candidateDigest,
+    'sha256:21888d23187b048bad5769eb9966e676b71d51c4063785a94578f04bdd252f20');
+  assert.equal(first.c1.identityDigest,
+    'sha256:edad2746fb94e7db4b259b1d29294bb867617035dae98a86efa785fbda4c3161');
+  assert.equal(first.c2.candidateDigest,
+    'sha256:95412edc7d2ea76098ae6734050181e397e87e223e33ed4cd20b984cc5a1cae0');
+  assert.equal(first.c2.identityDigest,
+    'sha256:8f8ff3c1d0a7fc7726e0361b638aac4ccc5092587eaf90474654eccc38edea2c');
+  assert.equal(first.d1_dependency_set_digest,
+    'sha256:7bd3781d4d18bb5ffe4a8c6397118af4e893784e0f8bb39ec8d43b5bb3f76940');
+  assert.equal(first.d1_authority_digest, input.d1_observation.authority_digest);
+  assert.deepEqual(first.d1_dependency_identity_digests,
+    input.d1_observation.dependency_identity_digests);
+  assert.equal(first.external_attestation_set_root_digest,
+    'sha256:7e63e0e4047afc861ee109caa3fff25b8dca6b7b2da7600f02051ef80b3a05b0');
+  assert.equal(first.candidate_generator_implementation_digest,
+    input.frozen_inputs.compiler_identity.implementation_source_digest);
+  assert.equal(first.candidate_command_digest,
+    input.frozen_inputs.compiler_identity.command_digest);
+  const c2Core = JSON.parse(first.c2.identityBytes.toString('utf8'));
+  assert.equal(c2Core.d1_binding.authority_digest, input.d1_observation.authority_digest);
+  assert.equal(c2Core.d1_binding.c1_candidate_digest, first.c1.candidateDigest);
+  assert.deepEqual(c2Core.d1_binding.dependency_identity_digests,
+    input.d1_observation.dependency_identity_digests);
+  assert.equal(first.production_cas_write_operations, 0);
+  assert.equal(first.production_journal_write_operations, 0);
+  assert.equal(first.production_stardog_write_operations, 0);
+  assert.equal(first.authorization_issued, 0);
+  assert.equal(first.publication_performed, 0);
+});
+
+test('V2 C1 is independent of D1 while C2 changes with exact D1 dependencies', () => {
+  const base = {
+    frozen_inputs: v2FrozenCandidateInputs(),
+    d1_observation: {
+      authority_digest: `sha256:${'5'.repeat(64)}`,
+      dependency_identity_digests: [`sha256:${'1'.repeat(64)}`, `sha256:${'2'.repeat(64)}`],
+    },
+  };
+  const first = prepareAggregateCompilerAuthorityCandidatesV2(structuredClone(base));
+  const changedInput = structuredClone(base);
+  changedInput.d1_observation.dependency_identity_digests[1] = `sha256:${'3'.repeat(64)}`;
+  const changed = prepareAggregateCompilerAuthorityCandidatesV2(changedInput);
+  assert.equal(first.c1.candidateDigest, changed.c1.candidateDigest);
+  assert.notEqual(first.c2.candidateDigest, changed.c2.candidateDigest);
+});
+
+test('V2 preparation excludes all publication volatility and rejects attempts to inject it', () => {
+  const base = {
+    frozen_inputs: v2FrozenCandidateInputs(),
+    d1_observation: {
+      authority_digest: `sha256:${'5'.repeat(64)}`,
+      dependency_identity_digests: [`sha256:${'1'.repeat(64)}`, `sha256:${'2'.repeat(64)}`],
+    },
+  };
+  const prepared = prepareAggregateCompilerAuthorityCandidatesV2(structuredClone(base));
+  const bytes = Buffer.concat([
+    prepared.c1.identityBytes, prepared.c1.bytes, prepared.c2.identityBytes, prepared.c2.bytes,
+  ]).toString('utf8');
+  for (const forbidden of [
+    'candidate_approval', 'explicit_authorization_grant', 'grant_nonce', 'journal',
+    'publication_grant', 'published_at', 'signature', 'trusted_at',
+  ]) assert.doesNotMatch(bytes, new RegExp(forbidden, 'i'));
+  for (const [container, field, value] of [
+    ['root', 'publication_grant', { nonce: 'volatile' }],
+    ['root', 'journal', { state: 'PLANNED' }],
+    ['frozen', 'explicit_authorization_grant', `sha256:${'6'.repeat(64)}`],
+    ['frozen', 'published_at', '2026-08-10T00:00:00Z'],
+  ]) {
+    const invalid = structuredClone(base);
+    if (container === 'root') invalid[field] = value;
+    else invalid.frozen_inputs[field] = value;
+    assert.throws(() => prepareAggregateCompilerAuthorityCandidatesV2(invalid),
+      (error) => error.code === 'AGGREGATE_V2_CANDIDATE_INPUT_INVALID');
+  }
 });

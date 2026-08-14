@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   chmodSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -16,10 +17,14 @@ import { dirname, join } from 'node:path';
 import {
   assertAcceptedCompilerResult,
   createCasEvidenceStore,
+  createReadOnlyStardogShadowClientV2,
   DEFAULT_PROTOCOL_JOURNAL,
   runPublication,
 } from './semantic-authority-publication.mjs';
-import { createSemanticModelCompilationCommand } from './semantic-model-compilation-command.mjs';
+import {
+  createSemanticModelCompilationCommand,
+  SEMANTIC_MODEL_PATH,
+} from './semantic-model-compilation-command.mjs';
 import {
   consumeGrantNonce,
   canonicalJson,
@@ -27,6 +32,91 @@ import {
   publicationReceiptDigest,
   sha256,
 } from './semantic-proof-v1.mjs';
+
+test('V2 Graph production shadow exposes reads and rollback while refusing every write surface', async () => {
+  const calls = [];
+  const client = Object.fromEntries([
+    'begin',
+    'rollback',
+    'connectivity',
+    'construct',
+    'select',
+    'constructInTransaction',
+    'selectInTransaction',
+  ].map((operation) => [operation, async (...args) => {
+    calls.push([operation, ...args]);
+    return operation === 'begin' ? 'tx-1' : [];
+  }]));
+  client.expectedAuthorityDigest = `sha256:${'a'.repeat(64)}`;
+  const shadow = createReadOnlyStardogShadowClientV2(client);
+  assert.equal(await shadow.begin(), 'tx-1');
+  await shadow.select('SELECT * WHERE {}');
+  await shadow.rollback('tx-1');
+  assert.deepEqual(calls.map(([operation]) => operation), ['begin', 'select', 'rollback']);
+  for (const operation of [
+    'commit', 'clearGraphs', 'addData', 'validateInTransaction',
+    'validateInTransactionWithReceipt',
+  ]) {
+    await assert.rejects(shadow[operation](), /V2_GRAPH_PRODUCTION_WRITES_DISABLED/);
+  }
+});
+
+test('canonical source candidate generation cannot cross the strict no-write production shadow', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'usf-graph-shadow-source-'));
+  try {
+    mkdirSync(join(root, SEMANTIC_MODEL_PATH));
+    const graph = 'urn:test:graph';
+    const observedWrites = { add: 0, clear: 0, commit: 0 };
+    const raw = {
+      expectedAuthorityDigest: `sha256:${'a'.repeat(64)}`,
+      async connectivity() { return 1; },
+      async begin() { return 'tx-1'; },
+      async rollback() {},
+      async construct() { return '<urn:test:s> <urn:test:p> "d0" .\n'; },
+      async select() { return []; },
+      async constructInTransaction() { return '<urn:test:s> <urn:test:p> "d0" .\n'; },
+      async selectInTransaction() { return []; },
+      async clearGraphs() { observedWrites.clear += 1; },
+      async addData() { observedWrites.add += 1; },
+      async commit() { observedWrites.commit += 1; },
+    };
+    const shadow = createReadOnlyStardogShadowClientV2(raw);
+    const command = createSemanticModelCompilationCommand({
+      client: shadow,
+      repositoryRoot: root,
+      readAuthorityWitness: async () => ({ digest: raw.expectedAuthorityDigest }),
+      checkLocalFunction: () => {},
+      loadManifestFunction: () => ({
+        authored: [],
+        definitions: [{ file: 'authority.ttl', graph }],
+        derived: [],
+        reviews: [],
+        rules: [],
+        shapes: [{
+          file: 'shapes.ttl',
+          graph: 'urn:usf:graph:shapes',
+          liveValidation: true,
+          path: join(root, SEMANTIC_MODEL_PATH, 'shapes.ttl'),
+        }],
+        publicationBudget: { maximumProjectedStatementCount: 100 },
+      }),
+      compileFunction: async ({ client }) => {
+        const transaction = await client.begin();
+        await client.clearGraphs(transaction, [graph]);
+        await client.addData(transaction, '<urn:test:s> <urn:test:p> "source" .\n', 'text/turtle', graph);
+        await client.rollback(transaction);
+        return { ok: true };
+      },
+    });
+    await assert.rejects(
+      command.prepareSourceDelta({ expectedAuthorityDigest: raw.expectedAuthorityDigest }),
+      /V2_GRAPH_PRODUCTION_WRITES_DISABLED/,
+    );
+    assert.deepEqual(observedWrites, { add: 0, clear: 0, commit: 0 });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('canonical CAS persistence is immutable and repairs exact pre-existing private object and directory modes', () => {
   const root = mkdtempSync(join(tmpdir(), 'semantic-publisher-cas-'));

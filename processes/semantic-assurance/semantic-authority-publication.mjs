@@ -65,6 +65,29 @@ const AGGREGATE_EXECUTION_EVIDENCE_IRI =
   'urn:usf:validationevidence:compilersemanticenforcementaggregateexecution';
 const AGGREGATE_EVALUATION_EVIDENCE_IRI =
   'urn:usf:validationevidence:compilersemanticenforcementaggregateevaluation';
+const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
+const USF_ONTOLOGY = 'urn:usf:ontology:';
+const GRAPH_OWNER_RESOURCES_V2 = Object.freeze({
+  assignment: 'urn:usf:ownerassignment:semanticmodelcompilation:matthewaldous',
+  verification: 'urn:usf:semanticproofverification:ownerassignment:semanticmodelcompilation:matthewaldous',
+  descriptor: 'urn:usf:semanticproofcasdescriptor:ownerassignment:semanticmodelcompilation:matthewaldous',
+  admission: 'urn:usf:semanticproofverificationadmission:ownerassignment:semanticmodelcompilation:matthewaldous',
+  evidenceAdmission: 'urn:usf:evidenceadmissionpath:ownerassignment:semanticmodelcompilation:matthewaldous',
+  producer: 'urn:usf:validationproducer:ownerassignment:semanticmodelcompilation:matthewaldous',
+});
+const GRAPH_VALIDATION_RESOURCES_V2 = Object.freeze({
+  binding: 'urn:usf:validationselfpublicationbinding:compilersemanticenforcementaggregate',
+  result: 'urn:usf:validationresult:compilersemanticenforcementaggregate',
+  evaluation: 'urn:usf:validationevaluation:compilersemanticenforcementaggregate',
+  execution: 'urn:usf:validationexecution:compilersemanticenforcementaggregate',
+  proofResult: 'urn:usf:proofresult:compilersemanticenforcementaggregate',
+  producer: 'urn:usf:validationproducer:compilersemanticenforcementaggregate',
+  evidenceAdmission: 'urn:usf:evidenceadmissionpath:compilersemanticenforcementaggregate',
+});
+const GRAPH_OWNED_CONSUMER_IRIS_V2 = Object.freeze({
+  owner: 'urn:usf:derivedconsumer:v2:owner-envelope-successor',
+  validation: 'urn:usf:derivedconsumer:v2:validation-currentness-binding',
+});
 
 export const DEFAULT_PROTOCOL_JOURNAL = Object.freeze({
   assertReevaluationPredecessor,
@@ -1370,6 +1393,405 @@ async function configureLiveDependencies(expectedAuthorityDigest, env) {
   };
 }
 
+export function createReadOnlyStardogShadowClientV2(client) {
+  const readOperations = [
+    'begin',
+    'rollback',
+    'connectivity',
+    'construct',
+    'select',
+    'constructInTransaction',
+    'selectInTransaction',
+  ];
+  if (!client || readOperations.some((operation) => typeof client[operation] !== 'function')) {
+    throw new Error('V2 Graph production shadow requires the complete read/rollback Stardog surface');
+  }
+  const refuse = async () => {
+    throw new Error('V2_GRAPH_PRODUCTION_WRITES_DISABLED');
+  };
+  return Object.freeze({
+    expectedAuthorityDigest: client.expectedAuthorityDigest,
+    ...Object.fromEntries(readOperations.map((operation) => [
+      operation,
+      (...args) => client[operation](...args),
+    ])),
+    commit: refuse,
+    clearGraphs: refuse,
+    addData: refuse,
+    validateInTransaction: refuse,
+    validateInTransactionWithReceipt: refuse,
+  });
+}
+
+function canonicalSparqlTermV2(term) {
+  if (!term || !['uri', 'literal'].includes(term.type)
+      || typeof term.value !== 'string' || term.value.length === 0) {
+    throw new Error('V2_GRAPH_CONSUMER_UNKNOWN_RDF_TERM');
+  }
+  return Object.freeze({
+    term_type: term.type,
+    value: term.value,
+    datatype: term.datatype || null,
+    language: term.lang || term['xml:lang'] || null,
+  });
+}
+
+async function readExactResourceStatementsV2(client, resourceIris) {
+  if (!Array.isArray(resourceIris) || resourceIris.length === 0
+      || new Set(resourceIris).size !== resourceIris.length
+      || resourceIris.some((iri) => typeof iri !== 'string' || !iri.startsWith('urn:usf:'))) {
+    throw new Error('V2 Graph consumer resource set is not exact');
+  }
+  const values = resourceIris.slice().sort().map((iri) => `<${iri}>`).join(' ');
+  const rows = await client.select(`SELECT ?subject ?predicate ?object WHERE {
+    VALUES ?subject { ${values} }
+    ?subject ?predicate ?object .
+  } ORDER BY ?subject ?predicate ?object`);
+  const statements = rows.map((row) => Object.freeze({
+    subject: row.subject?.value,
+    predicate: row.predicate?.value,
+    object: canonicalSparqlTermV2(row.object),
+  })).sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+  if (statements.some((statement) => !resourceIris.includes(statement.subject)
+      || typeof statement.predicate !== 'string')
+      || new Set(statements.map((statement) => JSON.stringify(statement))).size !== statements.length) {
+    throw new Error('V2 Graph consumer materialisation is non-canonical');
+  }
+  for (const iri of resourceIris) {
+    if (!statements.some((statement) => statement.subject === iri)) {
+      throw new Error(`V2_GRAPH_CONSUMER_CARDINALITY:0:${iri}`);
+    }
+  }
+  return Object.freeze(statements);
+}
+
+const statementsForV2 = (statements, subject, predicate) => statements.filter(
+  (statement) => statement.subject === subject && statement.predicate === predicate,
+);
+
+function soleObjectV2(statements, subject, predicate, { termType, value } = {}) {
+  const matches = statementsForV2(statements, subject, predicate);
+  if (matches.length !== 1) {
+    throw new Error(`V2_GRAPH_CONSUMER_CARDINALITY:${matches.length}:${subject}:${predicate}`);
+  }
+  const object = matches[0].object;
+  if ((termType && object.term_type !== termType) || (value && object.value !== value)) {
+    throw new Error(`V2_GRAPH_CONSUMER_SCHEMA_MISMATCH:${subject}:${predicate}`);
+  }
+  return object.value;
+}
+
+function manyObjectsV2(statements, subject, predicate, { exactCount, termType } = {}) {
+  const values = statementsForV2(statements, subject, predicate).map((statement) => {
+    if (termType && statement.object.term_type !== termType) {
+      throw new Error(`V2_GRAPH_CONSUMER_SCHEMA_MISMATCH:${subject}:${predicate}`);
+    }
+    return statement.object.value;
+  }).sort();
+  if ((exactCount !== undefined && values.length !== exactCount)
+      || values.length === 0 || new Set(values).size !== values.length) {
+    throw new Error(`V2_GRAPH_CONSUMER_CARDINALITY:${values.length}:${subject}:${predicate}`);
+  }
+  return Object.freeze(values);
+}
+
+function requireTypesV2(statements, subject, expectedTypes) {
+  const types = manyObjectsV2(statements, subject, RDF_TYPE, {
+    exactCount: expectedTypes.length, termType: 'uri',
+  });
+  if (JSON.stringify(types) !== JSON.stringify(expectedTypes.slice().sort())) {
+    throw new Error(`V2_GRAPH_CONSUMER_UNKNOWN_SCHEMA:${subject}`);
+  }
+}
+
+function exactSha256ValueV2(value, label) {
+  if (!SHA256.test(value || '')) throw new Error(`${label} is not an exact sha256 identity`);
+  return value;
+}
+
+function readOwnerConsumerFactsV2(statements) {
+  const r = GRAPH_OWNER_RESOURCES_V2;
+  requireTypesV2(statements, r.assignment, [`${USF_ONTOLOGY}OwnerAssignment`]);
+  requireTypesV2(statements, r.verification, [`${USF_ONTOLOGY}SemanticProofEnvelopeVerification`]);
+  requireTypesV2(statements, r.descriptor, [`${USF_ONTOLOGY}SemanticProofVerificationCASDescriptor`]);
+  requireTypesV2(statements, r.admission, [`${USF_ONTOLOGY}SemanticProofEnvelopeVerificationAdmission`]);
+  requireTypesV2(statements, r.evidenceAdmission, [`${USF_ONTOLOGY}EvidenceAdmissionPath`]);
+  requireTypesV2(statements, r.producer, [`${USF_ONTOLOGY}ValidationProducer`]);
+  const one = (subject, predicate, options) => soleObjectV2(
+    statements, subject, `${USF_ONTOLOGY}${predicate}`, options,
+  );
+  const assignment = Object.freeze({
+    principal: one(r.assignment, 'authorityPrincipal', { termType: 'uri' }),
+    signing_identity: one(r.assignment, 'authoritySigningIdentity', { termType: 'uri' }),
+    authority_domain: one(r.assignment, 'authorityDomain', { termType: 'uri' }),
+    repository: one(r.assignment, 'authorityRepository', { termType: 'literal' }),
+    source_scope_digest: exactSha256ValueV2(one(r.assignment, 'sourceScopeDigest'), 'owner source scope'),
+    source_paths: manyObjectsV2(statements, r.assignment,
+      `${USF_ONTOLOGY}ownerAssignmentSourcePath`, { termType: 'literal' }),
+  });
+  const assignmentCandidate = exactSha256ValueV2(
+    one(r.assignment, 'assignmentCandidateDigest'), 'owner assignment candidate',
+  );
+  const authorityPre = exactSha256ValueV2(
+    one(r.assignment, 'assignmentAuthorityPreDigest'), 'owner assignment authority pre-digest',
+  );
+  const envelope = exactSha256ValueV2(one(r.assignment, 'signedEnvelopeDigest'), 'owner envelope');
+  one(r.assignment, 'assignmentState', { value: 'active' });
+  one(r.assignment, 'hasAdmittedEnvelopeVerification', { termType: 'uri', value: r.verification });
+  one(r.verification, 'verificationForOwnerAssignment', { termType: 'uri', value: r.assignment });
+  one(r.verification, 'verifiedAuthorityPrincipal', { termType: 'uri', value: assignment.principal });
+  one(r.verification, 'verifiedAuthoritySigningIdentity', { termType: 'uri', value: assignment.signing_identity });
+  one(r.verification, 'verifiedAuthorityDomain', { termType: 'uri', value: assignment.authority_domain });
+  one(r.verification, 'verifiedAuthorityRepository', { value: assignment.repository });
+  one(r.verification, 'verifiedSourceScopeDigest', { value: assignment.source_scope_digest });
+  one(r.verification, 'verifiedAssignmentCandidateDigest', { value: assignmentCandidate });
+  one(r.verification, 'verifiedAssignmentAuthorityPreDigest', { value: authorityPre });
+  one(r.verification, 'verifiedEnvelopeDigest', { value: envelope });
+  one(r.verification, 'envelopeVerificationState', {
+    termType: 'uri', value: 'urn:usf:resultstate:passed',
+  });
+  one(r.verification, 'verificationCASDescriptor', { termType: 'uri', value: r.descriptor });
+  one(r.verification, 'hasEnvelopeVerificationAdmission', { termType: 'uri', value: r.admission });
+  const verifiedPaths = manyObjectsV2(statements, r.verification,
+    `${USF_ONTOLOGY}verifiedOwnerAssignmentSourcePath`, { termType: 'literal' });
+  if (JSON.stringify(verifiedPaths) !== JSON.stringify(assignment.source_paths)) {
+    throw new Error('V2 owner-envelope verification source scope drifted');
+  }
+  one(r.descriptor, 'semanticProofCASVerificationState', {
+    termType: 'uri', value: 'urn:usf:resultstate:passed',
+  });
+  exactSha256ValueV2(one(r.descriptor, 'semanticProofCASDigest'), 'owner verification CAS');
+  one(r.admission, 'admitsEnvelopeVerification', { termType: 'uri', value: r.verification });
+  one(r.admission, 'admittedVerificationCASDescriptor', { termType: 'uri', value: r.descriptor });
+  one(r.admission, 'verificationAdmissionUsesEvidencePath', {
+    termType: 'uri', value: r.evidenceAdmission,
+  });
+  one(r.admission, 'verificationAdmissionState', {
+    termType: 'uri', value: 'urn:usf:resultstate:passed',
+  });
+  return Object.freeze({
+    consumer_kind: 'owner_envelope_successor',
+    consumer_iri: GRAPH_OWNED_CONSUMER_IRIS_V2.owner,
+    predecessor_record_iri: r.assignment,
+    semantic_scope: assignment,
+    materialisation: statements,
+    validation_input_authority_digest: null,
+    validation_input_identity_digests: Object.freeze([]),
+  });
+}
+
+function readValidationConsumerFactsV2(statements) {
+  const r = GRAPH_VALIDATION_RESOURCES_V2;
+  requireTypesV2(statements, r.binding, [`${USF_ONTOLOGY}ValidationSelfPublicationBinding`]);
+  requireTypesV2(statements, r.result, [`${USF_ONTOLOGY}ValidationResult`]);
+  requireTypesV2(statements, r.evaluation, [`${USF_ONTOLOGY}ValidationEvaluation`]);
+  requireTypesV2(statements, r.execution, [`${USF_ONTOLOGY}ValidationExecution`]);
+  requireTypesV2(statements, r.proofResult, [
+    `${USF_ONTOLOGY}PostPublicationAggregateProofResult`, `${USF_ONTOLOGY}ProofResult`,
+  ]);
+  requireTypesV2(statements, r.producer, [`${USF_ONTOLOGY}ValidationProducer`]);
+  requireTypesV2(statements, r.evidenceAdmission, [`${USF_ONTOLOGY}EvidenceAdmissionPath`]);
+  const one = (subject, predicate, options) => soleObjectV2(
+    statements, subject, `${USF_ONTOLOGY}${predicate}`, options,
+  );
+  const bindingResult = one(r.binding, 'authorityBindingForValidationResult', {
+    termType: 'uri', value: r.result,
+  });
+  const producer = one(r.binding, 'authorityBindingValidationProducer', {
+    termType: 'uri', value: r.producer,
+  });
+  const admission = one(r.binding, 'authorityBindingEvidenceAdmissionPath', {
+    termType: 'uri', value: r.evidenceAdmission,
+  });
+  const d0 = exactSha256ValueV2(
+    one(r.binding, 'validationStageOneEvaluatedAuthorityDigest'), 'validation D0 authority',
+  );
+  const d1 = exactSha256ValueV2(
+    one(r.binding, 'validationStageOneSettledAuthorityDigest'), 'validation D1 authority',
+  );
+  const dependency = exactSha256ValueV2(
+    one(r.binding, 'validationNonPublicationDependencySetDigest'), 'validation dependency set',
+  );
+  one(r.binding, 'validationReevaluationDependencyDigest', { value: dependency });
+  one(r.binding, 'validationPostPublicationReevaluationState', {
+    termType: 'uri', value: 'urn:usf:resultstate:passed',
+  });
+  one(r.binding, 'validationRequiresPostPublicationReevaluation', { value: 'true' });
+  const executionReceipt = exactSha256ValueV2(
+    one(r.binding, 'validationBindingExecutionReceiptDigest'), 'validation execution receipt',
+  );
+  const evaluationReceipt = exactSha256ValueV2(
+    one(r.binding, 'validationBindingEvaluationReceiptDigest'), 'validation evaluation receipt',
+  );
+  const sourceScope = exactSha256ValueV2(
+    one(r.binding, 'validationBindingSourceScopeDigest'), 'validation source scope',
+  );
+  const sourceHead = one(r.binding, 'validationBindingSourceHead');
+  const sourceTree = one(r.binding, 'validationBindingSourceTree');
+  one(r.result, 'hasValidationSelfPublicationAuthorityBinding', {
+    termType: 'uri', value: r.binding,
+  });
+  one(r.result, 'resultState', { termType: 'uri', value: 'urn:usf:resultstate:passed' });
+  one(r.result, 'hasFreshness', { termType: 'uri', value: 'urn:usf:freshness:fresh' });
+  one(r.result, 'validationEvaluatedAuthorityDigest', { value: d1 });
+  one(r.result, 'validationEvaluatedSourceHead', { value: sourceHead });
+  one(r.result, 'validationResultOfEvaluation', { termType: 'uri', value: r.evaluation });
+  one(r.evaluation, 'validationEvaluationOfExecution', { termType: 'uri', value: r.execution });
+  one(r.evaluation, 'validationEvaluationReceiptDigest', { value: evaluationReceipt });
+  one(r.execution, 'producesValidationResult', { termType: 'uri', value: r.result });
+  one(r.execution, 'validationExecutedByProducer', { termType: 'uri', value: producer });
+  one(r.execution, 'validationUsesEvidenceAdmissionPath', { termType: 'uri', value: admission });
+  one(r.execution, 'validationExecutionReceiptDigest', { value: executionReceipt });
+  one(r.proofResult, 'aggregateAuthorityDigest', { value: d1 });
+  one(r.proofResult, 'aggregateSourceHead', { value: sourceHead });
+  one(r.proofResult, 'dependencySetDigest', { value: dependency });
+  one(r.proofResult, 'hasProofResultState', {
+    termType: 'uri', value: 'urn:usf:proofresultstate:successful',
+  });
+  one(r.proofResult, 'resultState', { termType: 'uri', value: 'urn:usf:resultstate:passed' });
+  one(r.proofResult, 'hasFreshness', { termType: 'uri', value: 'urn:usf:freshness:fresh' });
+  one(r.proofResult, 'evaluatedAt'); // exact resource, never selected by recency
+  const evidenceIris = manyObjectsV2(statements, r.result,
+    `${USF_ONTOLOGY}usesAdmittedValidationEvidence`, { exactCount: 3, termType: 'uri' });
+  const evidenceDigests = evidenceIris.map((evidenceIri) => {
+    requireTypesV2(statements, evidenceIri, evidenceIri === COMPILER_VALIDATION_EVIDENCE_IRI
+      ? [`${USF_ONTOLOGY}EvidenceResult`, `${USF_ONTOLOGY}ValidationEvidence`]
+      : [`${USF_ONTOLOGY}EvidenceResult`]);
+    soleObjectV2(statements, evidenceIri, `${USF_ONTOLOGY}hasAdmissionState`, {
+      termType: 'uri', value: 'urn:usf:evidenceadmissionstate:admitted',
+    });
+    soleObjectV2(statements, evidenceIri, `${USF_ONTOLOGY}hasFreshnessState`, {
+      termType: 'uri', value: 'urn:usf:evidencefreshnessstate:fresh',
+    });
+    soleObjectV2(statements, evidenceIri, `${USF_ONTOLOGY}hasIntegrityState`, {
+      termType: 'uri', value: 'urn:usf:evidenceintegritystate:valid',
+    });
+    soleObjectV2(statements, evidenceIri, `${USF_ONTOLOGY}withinValidityScope`, { value: 'true' });
+    return exactSha256ValueV2(
+      soleObjectV2(statements, evidenceIri, `${USF_ONTOLOGY}contentDigest`),
+      `validation evidence ${evidenceIri}`,
+    );
+  });
+  const validationInputIdentities = [
+    dependency, evaluationReceipt, executionReceipt, sourceScope, ...evidenceDigests,
+  ].sort();
+  if (new Set(validationInputIdentities).size !== validationInputIdentities.length) {
+    throw new Error('V2 validation D0 input identities are not unique');
+  }
+  return Object.freeze({
+    consumer_kind: 'validation_currentness_binding',
+    consumer_iri: GRAPH_OWNED_CONSUMER_IRIS_V2.validation,
+    predecessor_record_iri: bindingResult === r.result ? r.binding : null,
+    semantic_scope: Object.freeze({
+      authority_binding_rule: one(r.binding, 'validationUsesAuthorityBindingRule', { termType: 'uri' }),
+      evidence_admission_path: admission,
+      producer,
+      repository: one(r.binding, 'validationBindingRepository'),
+      requires_postpublication_reevaluation: true,
+      source_paths: manyObjectsV2(statements, r.binding,
+        `${USF_ONTOLOGY}validationBindingSourcePath`, { termType: 'literal' }),
+      source_scope_digest: sourceScope,
+      validation_obligation: one(r.result, 'resultForValidationObligation', { termType: 'uri' }),
+    }),
+    materialisation: statements,
+    validation_input_authority_digest: d0,
+    validation_input_identity_digests: Object.freeze(validationInputIdentities),
+    source_tree: sourceTree,
+  });
+}
+
+export async function readGraphOwnedProductionConsumersV2(client, { authorityDigest } = {}) {
+  assertExpectedDigest(authorityDigest, 'V2 Graph-owned consumer authority');
+  if (!client || typeof client.select !== 'function') {
+    throw new Error('V2 Graph-owned consumer observation requires read-only Stardog');
+  }
+  const ownerIris = Object.values(GRAPH_OWNER_RESOURCES_V2);
+  const validationBaseIris = Object.values(GRAPH_VALIDATION_RESOURCES_V2);
+  const ownerStatements = await readExactResourceStatementsV2(client, ownerIris);
+  const validationBase = await readExactResourceStatementsV2(client, validationBaseIris);
+  const evidenceIris = manyObjectsV2(validationBase, GRAPH_VALIDATION_RESOURCES_V2.result,
+    `${USF_ONTOLOGY}usesAdmittedValidationEvidence`, { exactCount: 3, termType: 'uri' });
+  const evidenceStatements = await readExactResourceStatementsV2(client, evidenceIris);
+  const validationStatements = Object.freeze([...validationBase, ...evidenceStatements]
+    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))));
+  return Object.freeze([
+    readOwnerConsumerFactsV2(ownerStatements),
+    readValidationConsumerFactsV2(validationStatements),
+  ]);
+}
+
+export async function configureLiveGraphProductionShadowV2(expectedAuthorityDigest, env = process.env) {
+  assertExpectedDigest(expectedAuthorityDigest, 'V2 Graph production shadow D0 authority');
+  try { await fetch('http://127.0.0.1:1/', { signal: AbortSignal.timeout(20) }); } catch { /* initialise dispatcher */ }
+  const dispatcherSymbol = Symbol.for('undici.globalDispatcher.1');
+  const currentDispatcher = globalThis[dispatcherSymbol];
+  if (!currentDispatcher) {
+    throw new Error('global fetch dispatcher unavailable; cannot extend validation timeout');
+  }
+  globalThis[dispatcherSymbol] = new currentDispatcher.constructor({
+    headersTimeout: 0,
+    bodyTimeout: 0,
+  });
+  const [
+    { default: stardog },
+    { createStardogSemanticAuthorityClient },
+    { validateSemanticAuthorityConfiguration },
+    { readSemanticAuthorityWitness },
+    { createSemanticModelCompilationCommand },
+    { createReadOnlyGraphProductionAdapterV2 },
+  ] = await Promise.all([
+    import('stardog'),
+    import('../../provider-bindings/stardog/semantic-authority.mjs'),
+    import('../../configuration/semantic-assurance/semantic-authority.mjs'),
+    import('./semantic-authority-gateway.mjs'),
+    import('./semantic-model-compilation-command.mjs'),
+    import('./semantic-proof-v2.mjs'),
+  ]);
+  const { STARDOG_SERVER, STARDOG_DATABASE, STARDOG_TOKEN } = env;
+  if (!STARDOG_SERVER || !STARDOG_DATABASE || !STARDOG_TOKEN) {
+    throw new Error('STARDOG_SERVER, STARDOG_DATABASE and STARDOG_TOKEN are required');
+  }
+  const client = createStardogSemanticAuthorityClient({
+    sdk: stardog,
+    configuration: validateSemanticAuthorityConfiguration({
+      accessMode: 'live',
+      expectedAuthorityDigest,
+      endpoint: STARDOG_SERVER,
+      database: STARDOG_DATABASE,
+      authentication: { mode: 'token', tokenReference: 'secret://semantic-authority/token' },
+    }),
+    resolveSecret: (reference) => {
+      if (reference !== 'secret://semantic-authority/token') {
+        throw new Error('unexpected secret reference');
+      }
+      return STARDOG_TOKEN;
+    },
+  });
+  const shadowClient = createReadOnlyStardogShadowClientV2(client);
+  const command = createSemanticModelCompilationCommand({
+    client: shadowClient,
+    readAuthorityWitness: readSemanticAuthorityWitness,
+    repositoryRoot: root,
+  });
+  const readAuthorityWitness = () => readSemanticAuthorityWitness(shadowClient);
+  return Object.freeze({
+    adapter: createReadOnlyGraphProductionAdapterV2({
+      command,
+      readAuthorityWitness,
+      readGraphOwnedConsumers: ({ authorityDigest }) => readGraphOwnedProductionConsumersV2(
+        shadowClient, { authorityDigest },
+      ),
+    }),
+    previewV2PublicationFromFrozenInputs: (frozenInputs) => (
+      command.previewV2PublicationFromFrozenInputs({
+        frozenInputs,
+        expectedD0AuthorityDigest: expectedAuthorityDigest,
+      })
+    ),
+    readAuthorityWitness,
+  });
+}
+
 export async function main({
   argv = process.argv.slice(2),
   env = process.env,
@@ -1479,8 +1901,18 @@ export {
   advanceDurableSemanticProofV2Publication,
   advanceSemanticProofV2Publication,
   assertFactoryClosureReceiptV2,
+  assertGraphProductionShadowPlanBindingV2,
   assertProspectivePublicationPlanV2,
+  canonicalGraphOwnedConsumerObservationBytesV2,
+  canonicalGraphOwnedConsumerRecordBytesV2,
+  canonicalGraphProductionShadowReceiptBytesV2,
+  captureGraphOwnedConsumerObservationV2,
+  captureGraphProductionShadowV2,
+  createReadOnlyGraphProductionAdapterV2,
   factoryClosureReceiptDigestV2,
+  graphOwnedConsumerObservationDigestV2,
+  graphOwnedConsumerRecordDigestV2,
+  graphProductionShadowReceiptDigestV2,
   graphPublicationReceiptDigestV2,
   HermeticSemanticProofV2Journal,
   prospectivePublicationPlanDigestV2,

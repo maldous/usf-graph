@@ -17,10 +17,20 @@ import {
   loadManifest,
   managedGraphs,
 } from '../../capabilities/semantic-model-compilation/manifest.mjs';
+import {
+  materializeAggregateCompilerAuthorityCandidateV2,
+  parseAggregateCompilerAuthorityCandidateV2IdentityBytes,
+} from '../../assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.mjs';
+import {
+  prepareAggregateCompilerAuthorityCandidatesV2,
+} from '../../assurance/semantic-model-compilation/aggregate-compiler-proof-command.mjs';
+import { semanticAuthorityInventoryDigest } from './semantic-authority-gateway.mjs';
+
 export const SEMANTIC_MODEL_PATH = 'semantic-model';
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const GIT_OBJECT = /^[0-9a-f]{40}$/;
-const PATCH_HEADER = /^# semantic-proof-v1 canonical-rdf-patch-v1 (base|stage1|stage2)$/;
+const V1_PATCH_HEADER = /^# (semantic-proof-v1) canonical-rdf-patch-v1 (base|stage1|stage2)$/;
+const V2_PATCH_HEADER = /^# (semantic-proof-v2) canonical-rdf-patch-v1 (C1|C2)$/;
 const EXTERNAL_AUTHORITY_DELTA_SCHEMA = 'usf-external-authority-conflict-resolution-delta-v1';
 const EXTERNAL_AUTHORITY_PROOF_SCHEMA = 'usf-authority-conflict-proof-decision-v1';
 const EXTERNAL_AUTHORITY_DOMAIN = 'urn:usf:capabilityowner:semanticmodelcompilation';
@@ -41,6 +51,20 @@ const ONE_PARENT_HISTORY_SHAPE = ['one-parent-lin', 'ear'].join('');
 const NQUADS = 'application/n-quads';
 const NTRIPLES = 'application/n-triples';
 const TURTLE = 'text/turtle';
+const USF_ONTOLOGY = 'urn:usf:ontology:';
+const V2_D1_VALIDATION_BINDING =
+  'urn:usf:validationselfpublicationbinding:compilersemanticenforcementaggregate';
+const V2_D1_VALIDATION_EVIDENCE = Object.freeze([
+  'urn:usf:validationevidence:compilersemanticenforcementaggregateevaluation',
+  'urn:usf:validationevidence:compilersemanticenforcementaggregateexecution',
+  'urn:usf:validationevidence:compilersemanticenforcementcompilervalidation',
+]);
+const V2_D1_BINDING_DEPENDENCY_PREDICATES = Object.freeze([
+  'validationBindingEvaluationReceiptDigest',
+  'validationBindingExecutionReceiptDigest',
+  'validationBindingSourceScopeDigest',
+  'validationNonPublicationDependencySetDigest',
+]);
 const { defaultGraph, namedNode, quad } = DataFactory;
 
 const stable = (value) => Array.isArray(value)
@@ -71,7 +95,7 @@ function parseCanonicalPatch(
   value,
   expectedDigest,
   allowedGraphs,
-  allowedStages = new Set(['stage1', 'stage2']),
+  allowedStages = new Set(['base', 'stage1', 'stage2', 'C1', 'C2']),
 ) {
   const candidate = exactCandidateBytes(value, expectedDigest);
   const text = candidate.bytes.toString('utf8');
@@ -80,8 +104,9 @@ function parseCanonicalPatch(
   }
   const lines = text.split('\n');
   const header = lines.shift();
-  const patchHeader = PATCH_HEADER.exec(header || '');
-  if (!patchHeader || !allowedStages.has(patchHeader[1]) || lines.pop() !== '' || lines.length === 0) {
+  const headerMatch = V1_PATCH_HEADER.exec(header || '') || V2_PATCH_HEADER.exec(header || '');
+  if (!headerMatch || !allowedStages.has(headerMatch[2])
+      || lines.pop() !== '' || lines.length === 0) {
     throw new CompilerError('candidate does not use canonical-rdf-patch-v1', { phase: 'candidate:parse' });
   }
   const operations = lines.map((line) => {
@@ -114,7 +139,70 @@ function parseCanonicalPatch(
       || deletions.some(({ line }) => additions.some((entry) => entry.line === line))) {
     throw new CompilerError('candidate RDF Patch is not canonical, unique and contradiction-free', { phase: 'candidate:canonicality' });
   }
-  return Object.freeze({ ...candidate, additions, deletions, operations });
+  return Object.freeze({
+    ...candidate,
+    additions,
+    deletions,
+    operations,
+    protocol: headerMatch[1],
+    stage: headerMatch[2],
+  });
+}
+
+function v2CandidateInputFromCore(core) {
+  return {
+    protocol: core.protocol,
+    stage: core.stage,
+    release_subject_digest: core.release_subject_digest,
+    d0_authority_digest: core.d0_authority_digest,
+    source_identities: core.source_identities,
+    external_attestation_identities: core.external_attestation_identities,
+    evidence_dependency_digests: core.evidence_dependency_digests,
+    compiler_identity: core.compiler_identity,
+    d1_binding: core.d1_binding === null ? null : {
+      authority_digest: core.d1_binding.authority_digest,
+      c1_candidate_digest: core.d1_binding.c1_candidate_digest,
+      dependency_identity_digests: core.d1_binding.dependency_identity_digests,
+    },
+  };
+}
+
+function exactV2CandidateCoreBinding(patch, identityBytes, expectedStage) {
+  if (!Buffer.isBuffer(identityBytes) || identityBytes.length === 0) {
+    throw new CompilerError('V2 candidate identity bytes are required', {
+      phase: 'candidate:v2-identity',
+    });
+  }
+  let core;
+  try {
+    core = parseAggregateCompilerAuthorityCandidateV2IdentityBytes(identityBytes);
+  } catch (error) {
+    throw new CompilerError(error.message, { phase: 'candidate:v2-identity' });
+  }
+  const regenerated = materializeAggregateCompilerAuthorityCandidateV2(
+    v2CandidateInputFromCore(core),
+  );
+  if (core.stage !== expectedStage
+      || regenerated.candidateDigest !== patch.digest
+      || !regenerated.bytes.equals(patch.bytes)
+      || !regenerated.identityBytes.equals(identityBytes)) {
+    throw new CompilerError('V2 candidate descriptor/core binding is not exact', {
+      phase: 'candidate:v2-identity',
+    });
+  }
+  return core;
+}
+
+function frozenV2CandidateCore(core) {
+  return {
+    release_subject_digest: core.release_subject_digest,
+    d0_authority_digest: core.d0_authority_digest,
+    source_identities: core.source_identities,
+    external_attestation_identities: core.external_attestation_identities,
+    external_attestation_set_root_digest: core.external_attestation_set_root_digest,
+    evidence_dependency_digests: core.evidence_dependency_digests,
+    compiler_identity: core.compiler_identity,
+  };
 }
 
 function exactObjectKeys(value, expected, label) {
@@ -1749,7 +1837,8 @@ async function composeSourceCandidate({
   if (!beforeDataset || !targetDataset || generatedApplied !== true || sourceValidation?.ok !== true) {
     throw new CompilerError('full source candidate could not be constructed and validated', { phase: 'candidate:source-delta' });
   }
-  const candidateStage = stage || PATCH_HEADER.exec(generatedPatch?.bytes.toString('utf8').split('\n', 1)[0])?.[1];
+  const candidateStage = stage
+    || V1_PATCH_HEADER.exec(generatedPatch?.bytes.toString('utf8').split('\n', 1)[0])?.[2];
   const bytes = canonicalCombinedPatch(candidateStage, beforeDataset.canonical, targetDataset.canonical);
   const combined = candidateStage === 'base'
     ? Object.freeze({ bytes, digest: sha256(bytes) })
@@ -1780,6 +1869,83 @@ function patchState(stores, patch) {
   const pre = patch.deletions.every(present) && patch.additions.every((entry) => !present(entry));
   const post = patch.deletions.every((entry) => !present(entry)) && patch.additions.every(present);
   return pre && !post ? 'pre' : post && !pre ? 'post' : 'mixed';
+}
+
+function applyPatchToStores(stores, patch, label) {
+  if (patchState(stores, patch) !== 'pre') {
+    throw new CompilerError(`${label} candidate does not match its exact prospective pre-state`, {
+      phase: 'candidate:precondition',
+    });
+  }
+  for (const { value } of patch.deletions) stores.get(value.graph.value).removeQuad(triple(value));
+  for (const { value } of patch.additions) stores.get(value.graph.value).addQuad(triple(value));
+  if (patchState(stores, patch) !== 'post') {
+    throw new CompilerError(`${label} candidate could not construct its exact prospective state`, {
+      phase: 'candidate:postcondition',
+    });
+  }
+}
+
+async function prospectiveInventory(stores) {
+  const inventory = [];
+  for (const [graph, store] of [...stores.entries()].sort(([left], [right]) => left.localeCompare(right))) {
+    const record = await canonicalInventoryGraphDigest(graph, await graphText(store));
+    // Match readSemanticAuthorityWitness exactly: Stardog's graph inventory
+    // contains only named graphs with at least one triple.
+    if (record.triples > 0) {
+      inventory.push(Object.freeze({ graph, sha256: `sha256:${record.sha256}`, triples: record.triples }));
+    }
+  }
+  const triples = inventory.reduce((total, record) => total + record.triples, 0);
+  return Object.freeze({
+    authorityDigest: semanticAuthorityInventoryDigest(inventory, triples),
+    inventory: Object.freeze(inventory),
+    triples,
+  });
+}
+
+function exactProspectiveDigest(stores, subjectIri, predicateIri, label) {
+  const matches = [...stores.entries()].flatMap(([graph, store]) => store
+    .getQuads(namedNode(subjectIri), namedNode(predicateIri), null, null)
+    .map((item) => Object.freeze({ graph, object: item.object })));
+  if (matches.length !== 1
+      || matches[0].object.termType !== 'Literal'
+      || !SHA256.test(matches[0].object.value)) {
+    throw new CompilerError(`prospective D1 ${label} is not one exact digest`, {
+      phase: 'candidate:d1-dependencies',
+      cardinality: matches.length,
+      subject: subjectIri,
+      predicate: predicateIri,
+    });
+  }
+  return matches[0].object.value;
+}
+
+function prospectiveD1DependencyIdentityDigests(stores) {
+  const bindingDigests = V2_D1_BINDING_DEPENDENCY_PREDICATES.map((predicate) => (
+    exactProspectiveDigest(
+      stores,
+      V2_D1_VALIDATION_BINDING,
+      `${USF_ONTOLOGY}${predicate}`,
+      predicate,
+    )
+  ));
+  const evidenceDigests = V2_D1_VALIDATION_EVIDENCE.map((evidenceIri) => (
+    exactProspectiveDigest(
+      stores,
+      evidenceIri,
+      `${USF_ONTOLOGY}contentDigest`,
+      `validation evidence ${evidenceIri}`,
+    )
+  ));
+  const identities = [...bindingDigests, ...evidenceDigests].sort();
+  if (identities.length !== 7 || new Set(identities).size !== identities.length) {
+    throw new CompilerError('prospective D1 dependency identity set is not exact and unique', {
+      phase: 'candidate:d1-dependencies',
+      cardinality: identities.length,
+    });
+  }
+  return Object.freeze(identities);
 }
 
 async function inspectPatchState(client, patch) {
@@ -2083,6 +2249,11 @@ export function createSemanticModelCompilationCommand({
       checkLocalFunction(manifest);
       const allowedGraphs = new Set(managedGraphs(manifest));
       const generatedPatch = parseCanonicalPatch(generatedCandidateBytes, undefined, allowedGraphs);
+      if (generatedPatch.protocol !== 'semantic-proof-v1') {
+        throw new CompilerError('V2 candidate cannot enter the V1 source-composition path', {
+          phase: 'candidate:protocol',
+        });
+      }
       let preservedPatch = null;
       if (preservedAuthorityDelta !== null) {
         exactObjectKeys(preservedAuthorityDelta, ['bytesBase64', 'digest'], 'preserved authority delta');
@@ -2145,6 +2316,278 @@ export function createSemanticModelCompilationCommand({
       }
     },
 
+    // Generate and preview the V2 publication in its only lawful order. C1 is
+    // first materialised from frozen pre-D1 identities, then applied only to
+    // the transaction-local canonical stores.  The exact D1 authority and
+    // validation dependency set observed from that state generate C2.  D2 is
+    // derived in the same transaction and the transaction is always rolled
+    // back.  No publication claim, grant, clock, CAS writer or commit surface
+    // is available to this coordinator.
+    async previewV2PublicationFromFrozenInputs({
+      frozenInputs,
+      expectedD0AuthorityDigest,
+    }) {
+      if (!SHA256.test(expectedD0AuthorityDigest || '')
+          || frozenInputs?.protocol !== 'semantic-proof-v2'
+          || frozenInputs?.d0_authority_digest !== expectedD0AuthorityDigest) {
+        throw new CompilerError('V2 frozen publication input does not bind exact D0', {
+          phase: 'candidate:configuration',
+        });
+      }
+      const before = digest(await readAuthorityWitness(client));
+      if (before !== expectedD0AuthorityDigest) {
+        throw new CompilerError('semantic authority drifted before V2 publication shadow', {
+          phase: 'authority:drift',
+          expectedAuthorityDigest: expectedD0AuthorityDigest,
+          observedAuthorityDigest: before,
+        });
+      }
+      const preliminaryC1 = materializeAggregateCompilerAuthorityCandidateV2({
+        ...frozenInputs,
+        d1_binding: null,
+        stage: 'C1',
+      });
+      const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
+      checkLocalFunction(manifest);
+      const allowedGraphs = new Set(managedGraphs(manifest));
+      const c1Patch = parseCanonicalPatch(
+        preliminaryC1.bytes,
+        preliminaryC1.candidateDigest,
+        allowedGraphs,
+      );
+      exactV2CandidateCoreBinding(c1Patch, preliminaryC1.identityBytes, 'C1');
+      let transaction;
+      try {
+        transaction = await client.begin();
+        const current = await readCanonicalStores(
+          client,
+          transaction,
+          managedGraphs(manifest),
+        );
+        applyPatchToStores(current.stores, c1Patch, 'D1');
+        const d1 = await prospectiveInventory(current.stores);
+        const dependencyIdentityDigests = prospectiveD1DependencyIdentityDigests(
+          current.stores,
+        );
+        const candidates = prepareAggregateCompilerAuthorityCandidatesV2({
+          frozen_inputs: frozenInputs,
+          d1_observation: {
+            authority_digest: d1.authorityDigest,
+            dependency_identity_digests: dependencyIdentityDigests,
+          },
+        });
+        if (!candidates.c1.bytes.equals(preliminaryC1.bytes)
+            || !candidates.c1.identityBytes.equals(preliminaryC1.identityBytes)
+            || candidates.c1.candidateDigest !== preliminaryC1.candidateDigest) {
+          throw new CompilerError('canonical V2 producer regenerated a different C1', {
+            phase: 'candidate:v2-identity',
+          });
+        }
+        const c2Patch = parseCanonicalPatch(
+          candidates.c2.bytes,
+          candidates.c2.candidateDigest,
+          allowedGraphs,
+        );
+        const c2Core = exactV2CandidateCoreBinding(
+          c2Patch,
+          candidates.c2.identityBytes,
+          'C2',
+        );
+        if (c2Core.d1_binding?.authority_digest !== d1.authorityDigest
+            || c2Core.d1_binding?.c1_candidate_digest !== c1Patch.digest
+            || canonicalJson(c2Core.d1_binding?.dependency_identity_digests)
+              !== canonicalJson(dependencyIdentityDigests)) {
+          throw new CompilerError('V2 C2 does not bind the exact observed D1 closure', {
+            phase: 'candidate:d1-binding',
+          });
+        }
+        applyPatchToStores(current.stores, c2Patch, 'D2');
+        const d2 = await prospectiveInventory(current.stores);
+        await client.rollback(transaction);
+        transaction = null;
+        const after = digest(await readAuthorityWitness(client));
+        if (after !== before) {
+          throw new CompilerError('V2 publication shadow changed semantic authority', {
+            phase: 'authority:validate-drift',
+            beforeAuthorityDigest: before,
+            afterAuthorityDigest: after,
+          });
+        }
+        return Object.freeze({
+          schema: 'usf-v2-two-step-production-shadow-v1',
+          protocol: 'semantic-proof-v2',
+          d0AuthorityDigest: before,
+          d1: Object.freeze({
+            ...d1,
+            candidateDigest: candidates.c1.candidateDigest,
+            dependencyIdentityDigests,
+            dependencySetDigest: candidates.d1_dependency_set_digest,
+          }),
+          d2: Object.freeze({
+            ...d2,
+            candidateDigest: candidates.c2.candidateDigest,
+            evaluationInputAuthorityDigest: d1.authorityDigest,
+          }),
+          candidates,
+          candidateBindings: Object.freeze({
+            releaseSubjectDigest: candidates.release_subject_digest,
+            externalAttestationSetRootDigest:
+              candidates.external_attestation_set_root_digest,
+            candidateGeneratorImplementationDigest:
+              candidates.candidate_generator_implementation_digest,
+            candidateCommandDigest: candidates.candidate_command_digest,
+            c2D1AuthorityDigest: candidates.d1_authority_digest,
+            c2D1DependencyIdentityDigests:
+              candidates.d1_dependency_identity_digests,
+            c2D1DependencySetDigest: candidates.d1_dependency_set_digest,
+          }),
+          productionWriteOperations: 0,
+          productionCasWriteOperations: 0,
+          productionJournalWriteOperations: 0,
+          authorizationIssued: 0,
+          publicationPerformed: 0,
+          transactionBeginCount: 1,
+          transactionRollbackCount: 1,
+        });
+      } finally {
+        if (transaction) await client.rollback(transaction);
+      }
+    },
+
+    // Predict both publication authorities without ever applying a database
+    // mutation.  D2 is evaluated against the exact in-memory D1 state in the
+    // same rolled-back transaction; it is never previewed against live D0 and
+    // never selected by time or "latest" ordering.
+    async previewPublicationSequence({
+      d1CandidateBytes,
+      d1CandidateDigest,
+      d1CandidateIdentityBytes,
+      d2CandidateBytes,
+      d2CandidateDigest,
+      d2CandidateIdentityBytes,
+      expectedD0AuthorityDigest,
+    }) {
+      if (!SHA256.test(expectedD0AuthorityDigest || '')) {
+        throw new CompilerError('expected D0 authority digest is required', {
+          phase: 'authority:configuration',
+        });
+      }
+      const before = digest(await readAuthorityWitness(client));
+      if (before !== expectedD0AuthorityDigest) {
+        throw new CompilerError('semantic authority drifted before publication shadow', {
+          phase: 'authority:drift',
+          expectedAuthorityDigest: expectedD0AuthorityDigest,
+          observedAuthorityDigest: before,
+        });
+      }
+      const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
+      checkLocalFunction(manifest);
+      const allowedGraphs = new Set(managedGraphs(manifest));
+      const d1Patch = parseCanonicalPatch(d1CandidateBytes, d1CandidateDigest, allowedGraphs);
+      const d2Patch = parseCanonicalPatch(d2CandidateBytes, d2CandidateDigest, allowedGraphs);
+      const exactSequence = (
+        d1Patch.protocol === 'semantic-proof-v1'
+        && d1Patch.stage === 'stage1'
+        && d2Patch.protocol === 'semantic-proof-v1'
+        && d2Patch.stage === 'stage2'
+      ) || (
+        d1Patch.protocol === 'semantic-proof-v2'
+        && d1Patch.stage === 'C1'
+        && d2Patch.protocol === 'semantic-proof-v2'
+        && d2Patch.stage === 'C2'
+      );
+      if (!exactSequence) {
+        throw new CompilerError('publication shadow requires exact V1 stage1/stage2 or V2 C1/C2 candidates', {
+          phase: 'candidate:sequence',
+        });
+      }
+      let v2CandidateCores = null;
+      if (d1Patch.protocol === 'semantic-proof-v2') {
+        const c1 = exactV2CandidateCoreBinding(d1Patch, d1CandidateIdentityBytes, 'C1');
+        const c2 = exactV2CandidateCoreBinding(d2Patch, d2CandidateIdentityBytes, 'C2');
+        if (canonicalJson(frozenV2CandidateCore(c1))
+              !== canonicalJson(frozenV2CandidateCore(c2))
+            || c1.d0_authority_digest !== expectedD0AuthorityDigest
+            || c2.d1_binding?.c1_candidate_digest !== d1Patch.digest) {
+          throw new CompilerError('V2 C1/C2 frozen identity binding differs', {
+            phase: 'candidate:v2-identity',
+          });
+        }
+        v2CandidateCores = Object.freeze({ c1, c2 });
+      } else if (d1CandidateIdentityBytes !== undefined
+          || d2CandidateIdentityBytes !== undefined) {
+        throw new CompilerError('V2 identity bytes cannot enter the V1 publication preview', {
+          phase: 'candidate:protocol',
+        });
+      }
+      let transaction;
+      try {
+        transaction = await client.begin();
+        const current = await readCanonicalStores(client, transaction, managedGraphs(manifest));
+        applyPatchToStores(current.stores, d1Patch, 'D1');
+        const d1 = await prospectiveInventory(current.stores);
+        if (v2CandidateCores) {
+          const dependencyIdentityDigests = prospectiveD1DependencyIdentityDigests(
+            current.stores,
+          );
+          if (v2CandidateCores.c2.d1_binding.authority_digest !== d1.authorityDigest
+              || canonicalJson(
+                v2CandidateCores.c2.d1_binding.dependency_identity_digests,
+              ) !== canonicalJson(dependencyIdentityDigests)) {
+            throw new CompilerError(
+              'V2 C2 does not bind the exact C1-produced D1 authority and dependencies',
+              {
+                phase: 'candidate:d1-binding',
+                actualD1AuthorityDigest: d1.authorityDigest,
+                c2D1AuthorityDigest: v2CandidateCores.c2.d1_binding.authority_digest,
+              },
+            );
+          }
+        }
+        applyPatchToStores(current.stores, d2Patch, 'D2');
+        const d2 = await prospectiveInventory(current.stores);
+        await client.rollback(transaction);
+        transaction = null;
+        const after = digest(await readAuthorityWitness(client));
+        if (after !== before) {
+          throw new CompilerError('publication shadow changed semantic authority', {
+            phase: 'authority:validate-drift',
+            beforeAuthorityDigest: before,
+            afterAuthorityDigest: after,
+          });
+        }
+        return Object.freeze({
+          d0AuthorityDigest: before,
+          d1: Object.freeze({
+            ...d1,
+            candidateDigest: d1Patch.digest,
+          }),
+          d2: Object.freeze({
+            ...d2,
+            candidateDigest: d2Patch.digest,
+            evaluationInputAuthorityDigest: d1.authorityDigest,
+          }),
+          candidateBindings: v2CandidateCores ? Object.freeze({
+            releaseSubjectDigest: v2CandidateCores.c1.release_subject_digest,
+            externalAttestationSetRootDigest:
+              v2CandidateCores.c1.external_attestation_set_root_digest,
+            candidateGeneratorImplementationDigest:
+              v2CandidateCores.c1.compiler_identity.implementation_source_digest,
+            candidateCommandDigest: v2CandidateCores.c1.compiler_identity.command_digest,
+            c2D1AuthorityDigest: v2CandidateCores.c2.d1_binding.authority_digest,
+            c2D1DependencyIdentityDigests: Object.freeze([
+              ...v2CandidateCores.c2.d1_binding.dependency_identity_digests,
+            ]),
+          }) : null,
+          productionWriteOperations: 0,
+          transactionBeginCount: 1,
+          transactionRollbackCount: 1,
+        });
+      } finally {
+        if (transaction) await client.rollback(transaction);
+      }
+    },
+
     async inspectCandidateState({ candidateBytes, candidateDigest }) {
       const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
       checkLocalFunction(manifest);
@@ -2167,6 +2610,11 @@ export function createSemanticModelCompilationCommand({
       if (candidateBytes !== undefined || candidateDigest !== undefined) {
         checkLocalFunction(manifest);
         const patch = parseCanonicalPatch(candidateBytes, candidateDigest, new Set(managedGraphs(manifest)));
+        if (patch.protocol !== 'semantic-proof-v1') {
+          throw new CompilerError('V2 production candidate commits remain disabled', {
+            phase: 'candidate:protocol',
+          });
+        }
         const result = await compilePatch({ client, manifest, patch, publicationMode });
         if (publicationMode === 'validate') {
           const after = digest(await readAuthorityWitness(client));

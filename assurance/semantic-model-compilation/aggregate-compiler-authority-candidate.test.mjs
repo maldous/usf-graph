@@ -24,6 +24,8 @@ import {
   aggregateCompilerAuthorityCandidateInternals as internals,
   materializeAggregateCompilerAuthorityCandidate,
   materializeAggregateOwnerAuthorityValidationContext,
+  materializeAggregateCompilerAuthorityCandidateV2,
+  parseAggregateCompilerAuthorityCandidateV2IdentityBytes,
 } from './aggregate-compiler-authority-candidate.mjs';
 
 const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
@@ -82,6 +84,57 @@ const SOURCE_BINDING = {
 };
 const SOURCE_BINDING_DIGEST = aggregateCompilerProofInternals.sourceBindingDigest(SOURCE_BINDING);
 const REPOSITORY_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+const V2_FROZEN_INPUT = Object.freeze({
+  protocol: 'semantic-proof-v2',
+  release_subject_digest: digest('1'),
+  d0_authority_digest: digest('2'),
+  source_identities: Object.freeze([
+    Object.freeze({
+      authored_tree: 'a'.repeat(40),
+      repository: 'maldous/usf-factory',
+      source_scope_digest: digest('3'),
+    }),
+    Object.freeze({
+      authored_tree: 'b'.repeat(40),
+      repository: 'maldous/usf-graph',
+      source_scope_digest: digest('4'),
+    }),
+  ]),
+  external_attestation_identities: Object.freeze([
+    Object.freeze({
+      attestation_digest: digest('5'), attestation_type: 'implementation_evidence', release_subject_digest: digest('1'),
+    }),
+    Object.freeze({
+      attestation_digest: digest('6'), attestation_type: 'option_evaluation', release_subject_digest: digest('1'),
+    }),
+    Object.freeze({
+      attestation_digest: digest('7'), attestation_type: 'owner_approval', release_subject_digest: digest('1'),
+    }),
+    Object.freeze({
+      attestation_digest: digest('8'), attestation_type: 'proof', release_subject_digest: digest('1'),
+    }),
+  ]),
+  evidence_dependency_digests: Object.freeze([digest('9'), digest('a')]),
+  compiler_identity: Object.freeze({
+    algorithm_digest: digest('b'),
+    algorithm_version: 'aggregate-compiler-v2.0.0',
+    command_digest: digest('c'),
+    implementation_source_digest: digest('d'),
+  }),
+});
+
+const v2CandidateInput = (stage = 'C1') => ({
+  ...structuredClone(V2_FROZEN_INPUT),
+  d1_binding: stage === 'C1' ? null : {
+    authority_digest: digest('e'),
+    c1_candidate_digest: materializeAggregateCompilerAuthorityCandidateV2(
+      v2CandidateInput('C1'),
+    ).candidateDigest,
+    dependency_identity_digests: [digest('a'), digest('f')],
+  },
+  stage,
+});
 
 function sourceQuads(path, format) {
   return new Parser({ format }).parse(readFileSync(join(REPOSITORY_ROOT, path), 'utf8'));
@@ -1166,4 +1219,126 @@ test('canonical bytes contain only the approved authority principal and protocol
   assert.doesNotMatch(text, /integrityonly|foundationrelease|unsigned/i);
   assert.equal(canonicalJson({ algorithm: 'openpgp', fingerprint: 'B6CBC89C7978AF26F53C33A197E5F20D2A340E5D' }),
     '{"algorithm":"openpgp","fingerprint":"B6CBC89C7978AF26F53C33A197E5F20D2A340E5D"}');
+});
+
+test('V2 C1 is a deterministic external-attestation descriptor over only frozen identities', () => {
+  const first = materializeAggregateCompilerAuthorityCandidateV2(v2CandidateInput('C1'));
+  const second = materializeAggregateCompilerAuthorityCandidateV2(v2CandidateInput('C1'));
+  assert.equal(first.protocol, 'semantic-proof-v2');
+  assert.equal(first.stage, 'C1');
+  assert.equal(first.candidateDigest, second.candidateDigest);
+  assert.deepEqual(first.bytes, second.bytes);
+  assert.deepEqual(first.identityBytes, second.identityBytes);
+  assert.equal(first.identityDigest, internals.sha256Bytes(first.identityBytes));
+  assert.equal(first.candidateDigest, internals.sha256Bytes(first.bytes));
+  const core = JSON.parse(first.identityBytes.toString('utf8'));
+  assert.deepEqual(parseAggregateCompilerAuthorityCandidateV2IdentityBytes(first.identityBytes), core);
+  assert.equal(core.schema, internals.V2_CANDIDATE_CORE_SCHEMA);
+  assert.equal(core.d1_binding, null);
+  assert.equal(core.release_subject_digest, V2_FROZEN_INPUT.release_subject_digest);
+  assert.equal(first.externalAttestationSetRootDigest, internals.sha256Json({
+    schema: 'usf-external-attestation-identity-set-v2',
+    external_attestation_identities: core.external_attestation_identities,
+  }));
+  assert.equal(first.candidateGeneratorImplementationDigest,
+    V2_FROZEN_INPUT.compiler_identity.implementation_source_digest);
+  assert.equal(first.candidateCommandDigest, V2_FROZEN_INPUT.compiler_identity.command_digest);
+  const quads = parsePatch(first.bytes).additions;
+  assert.equal(typedAs(quads, first.descriptorIri, `${USF}ExternalPayloadDescriptor`), true);
+  assert.deepEqual(objects(quads, first.descriptorIri, `${USF}descriptorDigest`), [first.identityDigest]);
+  assert.deepEqual(objects(quads, first.descriptorIri, `${USF}descriptorLocator`),
+    [`cas://sha256/${first.identityDigest.slice(7)}`]);
+  const text = `${first.bytes.toString('utf8')}\n${first.identityBytes.toString('utf8')}`;
+  for (const forbidden of [
+    'candidate_approval', 'explicit_authorization_grant', 'grant_nonce', 'journal',
+    'publication_grant', 'published_at', 'signature', 'trusted_at',
+  ]) assert.doesNotMatch(text, new RegExp(forbidden, 'i'));
+});
+
+test('V2 identity parser rejects arbitrary core fields and caller-asserted derived identities', () => {
+  const candidate = materializeAggregateCompilerAuthorityCandidateV2(v2CandidateInput('C1'));
+  const unknown = JSON.parse(candidate.identityBytes.toString('utf8'));
+  unknown.publication_timestamp = '2026-08-10T00:00:00Z';
+  assert.throws(
+    () => parseAggregateCompilerAuthorityCandidateV2IdentityBytes(
+      Buffer.from(JSON.stringify(unknown)),
+    ),
+    (error) => error.code === 'V2_CANDIDATE_IDENTITY_BYTES_INVALID',
+  );
+  const substituted = JSON.parse(candidate.identityBytes.toString('utf8'));
+  substituted.external_attestation_set_root_digest = digest('f');
+  assert.throws(
+    () => parseAggregateCompilerAuthorityCandidateV2IdentityBytes(
+      Buffer.from(JSON.stringify(substituted)),
+    ),
+    (error) => error.code === 'V2_CANDIDATE_IDENTITY_BYTES_INVALID',
+  );
+});
+
+test('V2 C2 binds the exact C1 candidate and exact D1 dependency identity set', () => {
+  const c1 = materializeAggregateCompilerAuthorityCandidateV2(v2CandidateInput('C1'));
+  const c2 = materializeAggregateCompilerAuthorityCandidateV2(v2CandidateInput('C2'));
+  const core = JSON.parse(c2.identityBytes.toString('utf8'));
+  assert.equal(core.d1_binding.authority_digest, digest('e'));
+  assert.equal(core.d1_binding.c1_candidate_digest, c1.candidateDigest);
+  assert.deepEqual(core.d1_binding.dependency_identity_digests, [digest('a'), digest('f')]);
+  assert.equal(core.d1_binding.dependency_set_digest, internals.sha256Json({
+    schema: 'usf-d1-dependency-identity-set-v2',
+    authority_digest: digest('e'),
+    dependency_identity_digests: [digest('a'), digest('f')],
+  }));
+  const changed = v2CandidateInput('C2');
+  changed.d1_binding.dependency_identity_digests = [digest('b'), digest('f')];
+  assert.notEqual(materializeAggregateCompilerAuthorityCandidateV2(changed).candidateDigest,
+    c2.candidateDigest);
+});
+
+test('V2 semantic identity changes alter C1 while publication volatility is not an input', () => {
+  const baseline = materializeAggregateCompilerAuthorityCandidateV2(v2CandidateInput('C1'));
+  const mutations = [
+    (value) => {
+      value.release_subject_digest = digest('f');
+      value.external_attestation_identities.forEach((identity) => { identity.release_subject_digest = digest('f'); });
+    },
+    (value) => { value.source_identities[0].authored_tree = 'c'.repeat(40); },
+    (value) => { value.external_attestation_identities[0].attestation_digest = digest('f'); },
+    (value) => { value.evidence_dependency_digests[0] = digest('8'); },
+    (value) => { value.compiler_identity.command_digest = digest('f'); },
+  ];
+  for (const mutate of mutations) {
+    const changed = v2CandidateInput('C1');
+    mutate(changed);
+    assert.notEqual(materializeAggregateCompilerAuthorityCandidateV2(changed).candidateDigest,
+      baseline.candidateDigest);
+  }
+  for (const [field, value] of [
+    ['publication_grant', { nonce: 'volatile' }],
+    ['published_at', '2026-08-10T00:00:00Z'],
+    ['journal', { state: 'RESERVED' }],
+    ['explicit_authorization_grant', digest('f')],
+  ]) {
+    const invalid = v2CandidateInput('C1');
+    invalid[field] = value;
+    assert.throws(() => materializeAggregateCompilerAuthorityCandidateV2(invalid),
+      (error) => error.code === 'V2_CANDIDATE_INPUT_SCHEMA_INVALID');
+  }
+});
+
+test('V2 candidate closes repository categories and exact external attestation byte identities', () => {
+  const missingFactory = v2CandidateInput('C1');
+  missingFactory.source_identities.shift();
+  assert.throws(() => materializeAggregateCompilerAuthorityCandidateV2(missingFactory),
+    (error) => error.code === 'V2_CANDIDATE_SOURCE_IDENTITY_INVALID');
+  const crossed = v2CandidateInput('C1');
+  crossed.source_identities[0].repository = 'maldous/usf-graph';
+  assert.throws(() => materializeAggregateCompilerAuthorityCandidateV2(crossed),
+    (error) => error.code === 'V2_CANDIDATE_SOURCE_IDENTITY_INVALID');
+  const mismatchedSubject = v2CandidateInput('C1');
+  mismatchedSubject.external_attestation_identities[0].release_subject_digest = digest('f');
+  assert.throws(() => materializeAggregateCompilerAuthorityCandidateV2(mismatchedSubject),
+    (error) => error.code === 'V2_CANDIDATE_ATTESTATION_IDENTITY_INVALID');
+  const publicationGrant = v2CandidateInput('C1');
+  publicationGrant.external_attestation_identities[0].attestation_type = 'publication_grant';
+  assert.throws(() => materializeAggregateCompilerAuthorityCandidateV2(publicationGrant),
+    (error) => error.code === 'V2_CANDIDATE_ATTESTATION_IDENTITY_INVALID');
 });

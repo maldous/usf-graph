@@ -43,6 +43,9 @@ import {
   aggregateCompilerProofInternals,
   evaluateAggregateCompilerProof,
 } from './aggregate-compiler-proof.mjs';
+import {
+  materializeAggregateCompilerAuthorityCandidateV2,
+} from './aggregate-compiler-authority-candidate.mjs';
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const GIT_OBJECT = /^[0-9a-f]{40}$/;
@@ -1510,6 +1513,78 @@ function isPendingInitialProjection(projection, selectedResult) {
     && new Set(reasons).size === 2
     && reasons.includes('proof-currentness-ambiguous')
     && reasons.includes('proof-currentness-unresolved');
+}
+
+function exactV2Keys(value, keys, label) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+      || canonicalJson(Object.keys(value).sort()) !== canonicalJson([...keys].sort())) {
+    fail('AGGREGATE_V2_CANDIDATE_INPUT_INVALID', `${label} is not the closed protocol shape`);
+  }
+}
+
+/**
+ * Build the exact C1/C2 candidate pair for a prospective V2 publication.
+ *
+ * This is deliberately a pure coordination core: D1 is supplied by the
+ * canonical no-write publication preview and C2 binds that exact authority
+ * plus its exact dependency identity set.  No CAS, journal, claim, grant,
+ * signature, nonce or clock service is available to this function.
+ */
+export function prepareAggregateCompilerAuthorityCandidatesV2(input) {
+  exactV2Keys(input, ['d1_observation', 'frozen_inputs'], 'V2 candidate preparation');
+  exactV2Keys(input.frozen_inputs, [
+    'compiler_identity',
+    'd0_authority_digest',
+    'evidence_dependency_digests',
+    'external_attestation_identities',
+    'protocol',
+    'release_subject_digest',
+    'source_identities',
+  ], 'V2 frozen candidate inputs');
+  exactV2Keys(input.d1_observation,
+    ['authority_digest', 'dependency_identity_digests'], 'V2 D1 observation');
+  const c1 = materializeAggregateCompilerAuthorityCandidateV2({
+    ...input.frozen_inputs,
+    d1_binding: null,
+    stage: 'C1',
+  });
+  const c2 = materializeAggregateCompilerAuthorityCandidateV2({
+    ...input.frozen_inputs,
+    d1_binding: {
+      authority_digest: input.d1_observation.authority_digest,
+      c1_candidate_digest: c1.candidateDigest,
+      dependency_identity_digests: input.d1_observation.dependency_identity_digests,
+    },
+    stage: 'C2',
+  });
+  const c2Core = JSON.parse(c2.identityBytes.toString('utf8'));
+  if (c1.externalAttestationSetRootDigest !== c2.externalAttestationSetRootDigest
+      || c1.candidateGeneratorImplementationDigest
+        !== c2.candidateGeneratorImplementationDigest
+      || c1.candidateCommandDigest !== c2.candidateCommandDigest) {
+    fail('AGGREGATE_V2_CANDIDATE_INPUT_INVALID', 'C1/C2 frozen candidate identities differ');
+  }
+  return Object.freeze({
+    schema: 'usf-aggregate-compiler-prospective-candidates-v2',
+    protocol: 'semantic-proof-v2',
+    release_subject_digest: input.frozen_inputs.release_subject_digest,
+    d0_authority_digest: input.frozen_inputs.d0_authority_digest,
+    d1_authority_digest: input.d1_observation.authority_digest,
+    d1_dependency_identity_digests: Object.freeze([
+      ...input.d1_observation.dependency_identity_digests,
+    ]),
+    d1_dependency_set_digest: c2Core.d1_binding.dependency_set_digest,
+    external_attestation_set_root_digest: c1.externalAttestationSetRootDigest,
+    candidate_generator_implementation_digest: c1.candidateGeneratorImplementationDigest,
+    candidate_command_digest: c1.candidateCommandDigest,
+    c1,
+    c2,
+    production_cas_write_operations: 0,
+    production_journal_write_operations: 0,
+    production_stardog_write_operations: 0,
+    authorization_issued: 0,
+    publication_performed: 0,
+  });
 }
 
 export function createAggregateCompilerProofProducer({

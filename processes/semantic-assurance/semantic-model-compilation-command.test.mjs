@@ -11,6 +11,10 @@ import {
   createSemanticModelCompilationCommand,
   semanticModelCompilationCommandInternals,
 } from './semantic-model-compilation-command.mjs';
+import {
+  materializeAggregateCompilerAuthorityCandidateV2,
+} from '../../assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.mjs';
+import { semanticAuthorityInventoryDigest } from './semantic-authority-gateway.mjs';
 
 const authorityDigest = `sha256:${'a'.repeat(64)}`;
 const repositories = [];
@@ -553,9 +557,36 @@ test('external authority operations accept exact immutable CAS content and rejec
 test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated deltas', async () => {
   const root = repository();
   const graph = 'urn:test:graph';
+  const proofsGraph = 'urn:usf:graph:proofs';
+  const bindingsGraph = 'urn:usf:graph:bindings';
+  const evidenceGraph = 'urn:usf:graph:evidence';
+  const dependencyDigests = [
+    '1', '2', '3', '4', '5', '6', '7',
+  ].map((character) => `sha256:${character.repeat(64)}`).sort();
+  const binding = 'urn:usf:validationselfpublicationbinding:compilersemanticenforcementaggregate';
+  const bindingPredicates = [
+    'validationBindingEvaluationReceiptDigest',
+    'validationBindingExecutionReceiptDigest',
+    'validationBindingSourceScopeDigest',
+    'validationNonPublicationDependencySetDigest',
+  ];
+  const bindingFacts = bindingPredicates.map((predicate, index) => (
+    `<${binding}> <urn:usf:ontology:${predicate}> "${dependencyDigests[index]}" .`
+  )).join('\n') + '\n';
+  const evidenceFacts = [
+    'compilersemanticenforcementaggregateevaluation',
+    'compilersemanticenforcementaggregateexecution',
+    'compilersemanticenforcementcompilervalidation',
+  ].map((name, index) => (
+    `<urn:usf:validationevidence:${name}> <urn:usf:ontology:contentDigest> "${dependencyDigests[index + 4]}" .`
+  )).join('\n') + '\n';
   const shapesPath = join(root, SEMANTIC_MODEL_PATH, 'shapes.ttl');
   writeFileSync(shapesPath, '@prefix sh: <http://www.w3.org/ns/shacl#> .\n');
-  let live = new Map([[graph, '<urn:test:s> <urn:test:p> "d0" .\n']]);
+  let live = new Map([
+    [graph, '<urn:test:s> <urn:test:p> "d0" .\n'],
+    [bindingsGraph, bindingFacts],
+    [evidenceGraph, evidenceFacts],
+  ]);
   let authority = `sha256:${'d'.repeat(64)}`;
   const snapshots = new Map();
   const addedPayloads = [];
@@ -593,7 +624,12 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
     async selectInTransaction() { return []; },
   };
   const manifest = {
-    authored: [], definitions: [{ file: 'authority.ttl', graph }], derived: [], reviews: [], rules: [],
+    authored: [], definitions: [
+      { file: 'authority.ttl', graph },
+      { file: 'proofs.ttl', graph: proofsGraph },
+      { file: 'bindings.ttl', graph: bindingsGraph },
+      { file: 'evidence.ttl', graph: evidenceGraph },
+    ], derived: [], reviews: [], rules: [],
     shapes: [{ file: 'shapes.ttl', graph: 'urn:usf:graph:shapes', liveValidation: true, path: shapesPath }],
     publicationBudget: { maximumProjectedStatementCount: 999999 },
   };
@@ -642,6 +678,216 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
   assert.match(rewritten.content, / "true"\^\^<http:\/\/www\.w3\.org\/2001\/XMLSchema#boolean> \.\n/);
   assert.doesNotMatch(rewritten.content, / true\.\n/);
   assert.equal((await command.inspectCandidateState({ candidateBytes: stage1.bytes, candidateDigest: stage1.digest })).state, 'pre');
+  const shadowStage2Bytes = generated('stage2', 'd1', 'final');
+  const shadowStage2Digest = `sha256:${createHash('sha256').update(shadowStage2Bytes).digest('hex')}`;
+  const shadow = await command.previewPublicationSequence({
+    d1CandidateBytes: stage1.bytes,
+    d1CandidateDigest: stage1.digest,
+    d2CandidateBytes: shadowStage2Bytes,
+    d2CandidateDigest: shadowStage2Digest,
+    expectedD0AuthorityDigest: authority,
+  });
+  assert.equal(shadow.d0AuthorityDigest, authority);
+  assert.equal(shadow.d1.candidateDigest, stage1.digest);
+  assert.equal(shadow.d2.candidateDigest, shadowStage2Digest);
+  assert.equal(shadow.d2.evaluationInputAuthorityDigest, shadow.d1.authorityDigest);
+  assert.notEqual(shadow.d1.authorityDigest, shadow.d2.authorityDigest);
+  assert.equal(shadow.productionWriteOperations, 0);
+  assert.equal(shadow.transactionBeginCount, 1);
+  assert.equal(shadow.transactionRollbackCount, 1);
+  assert.match(live.get(graph), /"d0"/);
+  const releaseSubjectDigest = `sha256:${'1'.repeat(64)}`;
+  const frozenV2Input = {
+    protocol: 'semantic-proof-v2',
+    release_subject_digest: releaseSubjectDigest,
+    d0_authority_digest: authority,
+    source_identities: [
+      {
+        authored_tree: '1'.repeat(40),
+        repository: 'maldous/usf-factory',
+        source_scope_digest: `sha256:${'2'.repeat(64)}`,
+      },
+      {
+        authored_tree: '2'.repeat(40),
+        repository: 'maldous/usf-graph',
+        source_scope_digest: `sha256:${'3'.repeat(64)}`,
+      },
+    ],
+    external_attestation_identities: [
+      ['implementation_evidence', '4'],
+      ['option_evaluation', '5'],
+      ['owner_approval', '6'],
+      ['proof', '7'],
+    ].map(([attestation_type, character]) => ({
+      attestation_digest: `sha256:${character.repeat(64)}`,
+      attestation_type,
+      release_subject_digest: releaseSubjectDigest,
+    })),
+    evidence_dependency_digests: [`sha256:${'8'.repeat(64)}`],
+    compiler_identity: {
+      algorithm_digest: `sha256:${'9'.repeat(64)}`,
+      algorithm_version: 'aggregate-compiler-v2.0.0',
+      command_digest: `sha256:${'a'.repeat(64)}`,
+      implementation_source_digest: `sha256:${'b'.repeat(64)}`,
+    },
+  };
+  const writesBeforeTwoStep = addedPayloads.length;
+  const firstTwoStep = await command.previewV2PublicationFromFrozenInputs({
+    frozenInputs: frozenV2Input,
+    expectedD0AuthorityDigest: authority,
+  });
+  const secondTwoStep = await command.previewV2PublicationFromFrozenInputs({
+    frozenInputs: structuredClone(frozenV2Input),
+    expectedD0AuthorityDigest: authority,
+  });
+  assert.deepEqual(firstTwoStep, secondTwoStep);
+  for (const candidate of [firstTwoStep.candidates.c1, firstTwoStep.candidates.c2]) {
+    assert.ok(Buffer.isBuffer(candidate.bytes));
+    assert.ok(Buffer.isBuffer(candidate.identityBytes));
+    assert.equal(candidate.candidateDigest,
+      `sha256:${createHash('sha256').update(candidate.bytes).digest('hex')}`);
+  }
+  assert.equal(firstTwoStep.candidateBindings.releaseSubjectDigest,
+    frozenV2Input.release_subject_digest);
+  assert.equal(firstTwoStep.candidateBindings.externalAttestationSetRootDigest,
+    firstTwoStep.candidates.external_attestation_set_root_digest);
+  assert.equal(firstTwoStep.candidateBindings.candidateGeneratorImplementationDigest,
+    frozenV2Input.compiler_identity.implementation_source_digest);
+  assert.equal(firstTwoStep.candidateBindings.candidateCommandDigest,
+    frozenV2Input.compiler_identity.command_digest);
+  assert.deepEqual(firstTwoStep.d1.dependencyIdentityDigests, dependencyDigests);
+  assert.deepEqual(
+    firstTwoStep.candidateBindings.c2D1DependencyIdentityDigests,
+    dependencyDigests,
+  );
+  assert.equal(firstTwoStep.candidateBindings.c2D1AuthorityDigest,
+    firstTwoStep.d1.authorityDigest);
+  assert.equal(firstTwoStep.d2.evaluationInputAuthorityDigest,
+    firstTwoStep.d1.authorityDigest);
+  assert.equal(firstTwoStep.productionWriteOperations, 0);
+  assert.equal(firstTwoStep.productionCasWriteOperations, 0);
+  assert.equal(firstTwoStep.productionJournalWriteOperations, 0);
+  assert.equal(firstTwoStep.authorizationIssued, 0);
+  assert.equal(firstTwoStep.publicationPerformed, 0);
+  assert.equal(firstTwoStep.transactionBeginCount, 1);
+  assert.equal(firstTwoStep.transactionRollbackCount, 1);
+  assert.equal(addedPayloads.length, writesBeforeTwoStep);
+  assert.match(live.get(graph), /"d0"/);
+  let driftingShadowWitnessReads = 0;
+  const driftingShadowCommand = createSemanticModelCompilationCommand({
+    checkLocalFunction: () => {},
+    client: Object.freeze(fakeClient),
+    compileFunction: sourceCompiler,
+    loadManifestFunction: () => manifest,
+    readAuthorityWitness: async () => ({
+      digest: driftingShadowWitnessReads++ === 0
+        ? authority
+        : `sha256:${'f'.repeat(64)}`,
+      inventory: [],
+      triples: 1,
+    }),
+    repositoryRoot: root,
+  });
+  await assert.rejects(driftingShadowCommand.previewV2PublicationFromFrozenInputs({
+    frozenInputs: structuredClone(frozenV2Input),
+    expectedD0AuthorityDigest: authority,
+  }), /V2 publication shadow changed semantic authority/);
+  assert.equal(addedPayloads.length, writesBeforeTwoStep);
+  assert.match(live.get(graph), /"d0"/);
+  const v2c1 = materializeAggregateCompilerAuthorityCandidateV2({
+    ...frozenV2Input,
+    d1_binding: null,
+    stage: 'C1',
+  });
+  const d1Inventory = await command.previewCandidateInventory({
+    candidateBytes: v2c1.bytes,
+    candidateDigest: v2c1.candidateDigest,
+    expectedAuthorityDigest: authority,
+  });
+  const nonemptyD1Inventory = d1Inventory.inventory.filter((item) => item.triples > 0);
+  const predictedD1 = semanticAuthorityInventoryDigest(
+    nonemptyD1Inventory,
+    nonemptyD1Inventory.reduce((sum, item) => sum + item.triples, 0),
+  );
+  const v2c2 = materializeAggregateCompilerAuthorityCandidateV2({
+    ...frozenV2Input,
+    d1_binding: {
+      authority_digest: predictedD1,
+      c1_candidate_digest: v2c1.candidateDigest,
+      dependency_identity_digests: dependencyDigests,
+    },
+    stage: 'C2',
+  });
+  const v2Shadow = await command.previewPublicationSequence({
+    d1CandidateBytes: v2c1.bytes,
+    d1CandidateDigest: v2c1.candidateDigest,
+    d1CandidateIdentityBytes: v2c1.identityBytes,
+    d2CandidateBytes: v2c2.bytes,
+    d2CandidateDigest: v2c2.candidateDigest,
+    d2CandidateIdentityBytes: v2c2.identityBytes,
+    expectedD0AuthorityDigest: authority,
+  });
+  assert.equal(v2Shadow.d2.evaluationInputAuthorityDigest, v2Shadow.d1.authorityDigest);
+  assert.equal(v2Shadow.candidateBindings.c2D1AuthorityDigest, v2Shadow.d1.authorityDigest);
+  assert.equal(v2Shadow.candidateBindings.externalAttestationSetRootDigest,
+    v2c1.externalAttestationSetRootDigest);
+  assert.match(live.get(graph), /"d0"/);
+  const staleD1C2 = materializeAggregateCompilerAuthorityCandidateV2({
+    ...frozenV2Input,
+    d1_binding: {
+      authority_digest: `sha256:${'f'.repeat(64)}`,
+      c1_candidate_digest: v2c1.candidateDigest,
+      dependency_identity_digests: dependencyDigests,
+    },
+    stage: 'C2',
+  });
+  await assert.rejects(command.previewPublicationSequence({
+    d1CandidateBytes: v2c1.bytes,
+    d1CandidateDigest: v2c1.candidateDigest,
+    d1CandidateIdentityBytes: v2c1.identityBytes,
+    d2CandidateBytes: staleD1C2.bytes,
+    d2CandidateDigest: staleD1C2.candidateDigest,
+    d2CandidateIdentityBytes: staleD1C2.identityBytes,
+    expectedD0AuthorityDigest: authority,
+  }), /does not bind the exact C1-produced D1 authority and dependencies/);
+  const substitutedDependenciesC2 = materializeAggregateCompilerAuthorityCandidateV2({
+    ...frozenV2Input,
+    d1_binding: {
+      authority_digest: predictedD1,
+      c1_candidate_digest: v2c1.candidateDigest,
+      dependency_identity_digests: [
+        ...dependencyDigests.slice(0, -1),
+        `sha256:${'f'.repeat(64)}`,
+      ].sort(),
+    },
+    stage: 'C2',
+  });
+  await assert.rejects(command.previewPublicationSequence({
+    d1CandidateBytes: v2c1.bytes,
+    d1CandidateDigest: v2c1.candidateDigest,
+    d1CandidateIdentityBytes: v2c1.identityBytes,
+    d2CandidateBytes: substitutedDependenciesC2.bytes,
+    d2CandidateDigest: substitutedDependenciesC2.candidateDigest,
+    d2CandidateIdentityBytes: substitutedDependenciesC2.identityBytes,
+    expectedD0AuthorityDigest: authority,
+  }), /does not bind the exact C1-produced D1 authority and dependencies/);
+  await assert.rejects(command.execute({
+    candidateBytes: v2c1.bytes,
+    candidateDigest: v2c1.candidateDigest,
+    expectedAuthorityDigest: authority,
+    publicationMode: 'commit',
+  }), /V2 production candidate commits remain disabled/);
+  await assert.rejects(command.composeCandidate({
+    generatedCandidateBytes: v2c1.bytes,
+    expectedAuthorityDigest: authority,
+  }), /V2 candidate cannot enter the V1 source-composition path/);
+  await assert.rejects(command.previewPublicationSequence({
+    d1CandidateBytes: shadowStage2Bytes,
+    d1CandidateDigest: shadowStage2Digest,
+    d2CandidateBytes: stage1.bytes,
+    d2CandidateDigest: stage1.digest,
+    expectedD0AuthorityDigest: authority,
+  }), /V1 stage1\/stage2 or V2 C1\/C2/);
   await command.execute({ candidateBytes: stage1.bytes, candidateDigest: stage1.digest, expectedAuthorityDigest: authority, publicationMode: 'commit' });
   assert.match(live.get(graph), /"d1"/);
   const d1 = authority;

@@ -12,12 +12,19 @@ import {
 import { dirname, isAbsolute } from 'node:path';
 
 import { REAL_JOURNAL_IO } from './semantic-proof-v1.mjs';
+import { semanticAuthorityInventoryDigest } from './semantic-authority-gateway.mjs';
 
 export const SEMANTIC_PROOF_V2 = 'semantic-proof-v2';
 export const PROSPECTIVE_PUBLICATION_PLAN_V2 = 'usf-prospective-publication-plan-v2';
 export const DERIVED_CLOSURE_RECEIPT_V2 = 'usf-derived-consumer-closure-receipt-v2';
 export const GRAPH_PUBLICATION_RECEIPT_V2 = 'usf-semantic-publication-receipt-v2';
 export const GRAPH_PUBLICATION_JOURNAL_V2 = 'usf-semantic-publication-journal-v2';
+export const GRAPH_PRODUCTION_SHADOW_RECEIPT_V2 =
+  'usf-graph-production-shadow-receipt-v2';
+export const GRAPH_OWNED_CONSUMER_RECORD_V2 =
+  'usf-graph-owned-derived-consumer-record-v2';
+export const GRAPH_OWNED_CONSUMER_OBSERVATION_V2 =
+  'usf-graph-owned-derived-consumer-observation-v2';
 export const DERIVED_CONSUMER_REGISTRY_V2_DIGEST =
   'sha256:de62d7097cd1b2a6eb5954bd0859eb4759188bf37d0175b288e5d0b8225d4231';
 export const IDENTITY_DEPENDENCY_GRAPH_V2_DIGEST =
@@ -39,6 +46,114 @@ const SUCCESSOR_DECISIONS = new Set([
   'COMPATIBLE_SUCCESSOR',
   'EXPLICITLY_AUTHORIZED_SUCCESSOR',
 ]);
+const GRAPH_PRODUCTION_SHADOW_FIELDS = Object.freeze([
+  'authorization_issued',
+  'authority_after',
+  'authority_before',
+  'boundary_observation_digest',
+  'd0_authority_digest',
+  'd1_candidate_digest',
+  'd2_candidate_digest',
+  'd2_evaluation_input_authority_digest',
+  'external_attestation_set_root_digest',
+  'candidate_command_digest',
+  'candidate_generator_implementation_digest',
+  'graph_commit',
+  'graph_owned_consumers',
+  'graph_tree',
+  'predicted_d1_authority_digest',
+  'predicted_d2_authority_digest',
+  'production_cas_write_operations',
+  'production_journal_write_operations',
+  'production_stardog_write_operations',
+  'protocol',
+  'publication_performed',
+  'release_subject_digest',
+  'schema',
+].sort());
+const GRAPH_OWNED_CONSUMER_RECORD_FIELDS = Object.freeze([
+  'authority_digest',
+  'consumer_iri',
+  'consumer_kind',
+  'materialisation',
+  'materialisation_digest',
+  'predecessor_record_iri',
+  'schema',
+  'semantic_scope',
+  'semantic_scope_digest',
+  'validation_input_authority_digest',
+  'validation_input_identity_digests',
+].sort());
+const GRAPH_OWNED_CONSUMER_OBSERVATION_FIELDS = Object.freeze([
+  'authority_after',
+  'authority_before',
+  'consumers',
+  'observation_digest',
+  'production_write_operations',
+  'protocol',
+  'schema',
+].sort());
+const PROSPECTIVE_PUBLICATION_PLAN_FIELDS = Object.freeze([
+  'candidate_command_digest',
+  'candidate_generator_implementation_digest',
+  'd0_authority_digest',
+  'd1_dependency_identity_digests',
+  'd2_evaluation_input_authority_digest',
+  'derived_consumer_registry_digest',
+  'derived_consumers',
+  'external_attestation_set_root_digest',
+  'factory_deployment_tree',
+  'graph_d1_candidate_digest',
+  'graph_d2_candidate_digest',
+  'graph_production_shadow_receipt_digest',
+  'graph_protected_tree',
+  'identity_dependency_graph_digest',
+  'outcome',
+  'predicted_d1_authority_digest',
+  'predicted_d2_authority_digest',
+  'release_subject_digest',
+  'required_cas_object_digests',
+  'schema',
+].sort());
+const PLANNED_DERIVED_CONSUMER_FIELDS = Object.freeze([
+  'block_reason',
+  'consumer_iri',
+  'consumer_kind',
+  'current_materialisation_digest',
+  'current_semantic_scope_digest',
+  'decision',
+  'expected_successor',
+  'expected_successor_digest',
+  'mandatory',
+  'predecessor_identity_digest',
+  'predecessor_record_digest',
+  'predicted_d1_authority_digest',
+  'predicted_d2_authority_digest',
+  'prospective_materialisation_digest',
+  'prospective_semantic_scope_digest',
+].sort());
+const DERIVED_CONSUMER_SUCCESSOR_FIELDS = Object.freeze([
+  'authority_digest',
+  'consumer_iri',
+  'consumer_kind',
+  'consumer_schema_version',
+  'current_policy_compatibility_digest',
+  'historical_policy_identity_digest',
+  'materialisation_digest',
+  'predecessor_identity_digest',
+  'producer_iri',
+  'record_iri',
+  'registry_digest',
+  'release_subject_digest',
+  'repository_category',
+  'schema',
+  'semantic_scope_digest',
+  'transition_cause',
+  'validation_input_authority_digest',
+  'validation_input_identity_digests',
+  'verification_algorithm_iri',
+  'verification_algorithm_version',
+].sort());
 
 export const SemanticProofV2JournalState = Object.freeze({
   PLANNED: 'PLANNED',
@@ -84,6 +199,413 @@ const stable = (value) => Array.isArray(value)
 export const canonicalJsonV2 = (value) => JSON.stringify(stable(value));
 export const sha256V2 = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
 export const canonicalDigestV2 = (value) => sha256V2(canonicalJsonV2(value));
+
+function canonicalGraphWitnessV2(witness) {
+  if (!witness || !Array.isArray(witness.inventory) || witness.inventory.length === 0
+      || !Number.isSafeInteger(witness.triples) || witness.triples < 0) {
+    throw new Error('Graph production shadow requires one complete authority inventory witness');
+  }
+  const inventory = witness.inventory.map((record) => Object.freeze({
+    graph: record.graph,
+    sha256: /^[0-9a-f]{64}$/.test(record.sha256 || '')
+      ? `sha256:${record.sha256}` : record.sha256,
+    triples: record.triples,
+  })).sort((left, right) => left.graph.localeCompare(right.graph));
+  if (inventory.some((record) => typeof record.graph !== 'string'
+      || !SHA256.test(record.sha256 || '')
+      || !Number.isSafeInteger(record.triples) || record.triples < 0)
+      || new Set(inventory.map((record) => record.graph)).size !== inventory.length
+      || inventory.reduce((total, record) => total + record.triples, 0) !== witness.triples) {
+    throw new Error('Graph production shadow authority inventory is not canonical');
+  }
+  const digest = semanticAuthorityInventoryDigest(inventory, witness.triples);
+  if (digest !== witness.digest) {
+    throw new Error('Graph production shadow authority digest does not match its inventory');
+  }
+  const value = Object.freeze({ digest, inventory: Object.freeze(inventory), triples: witness.triples });
+  return Object.freeze({ ...value, observationDigest: canonicalDigestV2(value) });
+}
+
+function exactClosedFields(value, fields, label) {
+  if (!value || canonicalJsonV2(Object.keys(value).sort()) !== canonicalJsonV2(fields)) {
+    throw new Error(`${label} fields are not the closed protocol shape`);
+  }
+}
+
+function exactGraphOwnedConsumerRecordV2(input, authorityDigest) {
+  if (!input || !['owner_envelope_successor', 'validation_currentness_binding']
+    .includes(input.consumer_kind)) {
+    throw new Error('Graph-owned consumer kind is not registered');
+  }
+  exactDigest(authorityDigest, 'Graph-owned consumer authority');
+  if (typeof input.consumer_iri !== 'string' || !input.consumer_iri.startsWith('urn:usf:derivedconsumer:v2:')
+      || typeof input.predecessor_record_iri !== 'string' || !input.predecessor_record_iri.startsWith('urn:usf:')) {
+    throw new Error('Graph-owned consumer identities are not exact IRIs');
+  }
+  if (!input.semantic_scope || typeof input.semantic_scope !== 'object'
+      || Array.isArray(input.semantic_scope)
+      || !Array.isArray(input.materialisation) || input.materialisation.length === 0) {
+    throw new Error('Graph-owned consumer semantic scope/materialisation is incomplete');
+  }
+  const materialisation = Object.freeze(input.materialisation.map((statement) => Object.freeze({
+    subject: statement.subject,
+    predicate: statement.predicate,
+    object: Object.freeze({ ...statement.object }),
+  })));
+  const semanticScope = Object.freeze(stable(input.semantic_scope));
+  const validationInputAuthorityDigest = input.consumer_kind === 'validation_currentness_binding'
+    ? exactDigest(input.validation_input_authority_digest, 'validation D0 input authority')
+    : null;
+  const validationInputIdentityDigests = input.consumer_kind === 'validation_currentness_binding'
+    ? sortedUniqueDigests(input.validation_input_identity_digests,
+      'validation D0 input identities', { nonempty: true })
+    : Object.freeze([]);
+  const record = Object.freeze({
+    schema: GRAPH_OWNED_CONSUMER_RECORD_V2,
+    consumer_kind: input.consumer_kind,
+    consumer_iri: input.consumer_iri,
+    predecessor_record_iri: input.predecessor_record_iri,
+    authority_digest: authorityDigest,
+    semantic_scope: semanticScope,
+    semantic_scope_digest: canonicalDigestV2({
+      schema: 'usf-graph-owned-consumer-semantic-scope-v2',
+      consumer_kind: input.consumer_kind,
+      semantic_scope: semanticScope,
+    }),
+    materialisation,
+    materialisation_digest: canonicalDigestV2({
+      schema: 'usf-graph-owned-consumer-materialisation-v2',
+      consumer_kind: input.consumer_kind,
+      materialisation,
+    }),
+    validation_input_authority_digest: validationInputAuthorityDigest,
+    validation_input_identity_digests: validationInputIdentityDigests,
+  });
+  exactClosedFields(record, GRAPH_OWNED_CONSUMER_RECORD_FIELDS, 'Graph-owned consumer record');
+  return record;
+}
+
+export function graphOwnedConsumerRecordDigestV2(record) {
+  exactClosedFields(record, GRAPH_OWNED_CONSUMER_RECORD_FIELDS, 'Graph-owned consumer record');
+  if (record.schema !== GRAPH_OWNED_CONSUMER_RECORD_V2) {
+    throw new Error('Graph-owned consumer record schema is unknown');
+  }
+  return canonicalDigestV2(record);
+}
+
+export function canonicalGraphOwnedConsumerRecordBytesV2(record) {
+  graphOwnedConsumerRecordDigestV2(record);
+  return Buffer.from(canonicalJsonV2(record), 'utf8');
+}
+
+function canonicalGraphOwnedConsumersV2(inputs, authorityDigest) {
+  if (!Array.isArray(inputs) || inputs.length !== 2) {
+    throw new Error('Graph production shadow requires exactly two Graph-owned consumers');
+  }
+  const consumers = inputs.map((input) => exactGraphOwnedConsumerRecordV2(input, authorityDigest))
+    .sort((left, right) => left.consumer_kind.localeCompare(right.consumer_kind));
+  const expectedKinds = ['owner_envelope_successor', 'validation_currentness_binding'];
+  if (canonicalJsonV2(consumers.map((record) => record.consumer_kind))
+      !== canonicalJsonV2(expectedKinds)) {
+    throw new Error('Graph-owned consumer cardinality is not exact');
+  }
+  return Object.freeze(consumers);
+}
+
+export function createReadOnlyGraphProductionAdapterV2({
+  command, readAuthorityWitness, readGraphOwnedConsumers,
+} = {}) {
+  if (!command || typeof command.previewPublicationSequence !== 'function') {
+    throw new Error('Graph production shadow requires the canonical sequence preview command');
+  }
+  if (typeof readAuthorityWitness !== 'function') {
+    throw new Error('Graph production shadow requires the canonical authority witness reader');
+  }
+  if (typeof readGraphOwnedConsumers !== 'function') {
+    throw new Error('Graph production shadow requires the canonical Graph-owned consumer reader');
+  }
+  const refuse = async () => {
+    throw new Error('V2_GRAPH_PRODUCTION_WRITES_DISABLED');
+  };
+  return Object.freeze({
+    mode: 'production-shadow-read-only-v2',
+    observe: async () => canonicalGraphWitnessV2(await readAuthorityWitness()),
+    readGraphOwnedConsumers: async (authorityDigest) => canonicalGraphOwnedConsumersV2(
+      await readGraphOwnedConsumers({ authorityDigest }), authorityDigest,
+    ),
+    previewPublication: (input) => command.previewPublicationSequence(input),
+    reserveGrant: refuse,
+    commitD1: refuse,
+    observeD1: refuse,
+    commitD2: refuse,
+    persistTerminalReceipt: refuse,
+    consumeGrant: refuse,
+  });
+}
+
+export async function captureGraphOwnedConsumerObservationV2({
+  adapter, expectedAuthorityDigest,
+} = {}) {
+  if (!adapter || adapter.mode !== 'production-shadow-read-only-v2'
+      || typeof adapter.observe !== 'function'
+      || typeof adapter.readGraphOwnedConsumers !== 'function') {
+    throw new Error('Graph-owned consumer observation requires the complete production adapter');
+  }
+  exactDigest(expectedAuthorityDigest, 'expected Graph-owned consumer authority');
+  const before = await adapter.observe();
+  if (before.digest !== expectedAuthorityDigest) {
+    throw new Error('Graph-owned consumer authority drifted before observation');
+  }
+  const consumers = await adapter.readGraphOwnedConsumers(before.digest);
+  const after = await adapter.observe();
+  if (after.observationDigest !== before.observationDigest) {
+    throw new Error('Graph-owned consumer authority changed during observation');
+  }
+  const authorityBefore = Object.freeze({
+    digest: before.digest, inventory: before.inventory, triples: before.triples,
+  });
+  const authorityAfter = Object.freeze({
+    digest: after.digest, inventory: after.inventory, triples: after.triples,
+  });
+  const observationCore = Object.freeze({
+    schema: GRAPH_OWNED_CONSUMER_OBSERVATION_V2,
+    protocol: SEMANTIC_PROOF_V2,
+    authority_before: authorityBefore,
+    authority_after: authorityAfter,
+    consumers,
+    production_write_operations: 0,
+  });
+  return Object.freeze({
+    ...observationCore,
+    observation_digest: canonicalDigestV2(observationCore),
+  });
+}
+
+export function graphOwnedConsumerObservationDigestV2(observation) {
+  exactClosedFields(observation, GRAPH_OWNED_CONSUMER_OBSERVATION_FIELDS,
+    'Graph-owned consumer observation');
+  if (observation.schema !== GRAPH_OWNED_CONSUMER_OBSERVATION_V2
+      || observation.protocol !== SEMANTIC_PROOF_V2
+      || observation.production_write_operations !== 0) {
+    throw new Error('Graph-owned consumer observation is not exact and read-only');
+  }
+  const before = canonicalGraphWitnessV2(observation.authority_before);
+  const after = canonicalGraphWitnessV2(observation.authority_after);
+  const consumers = canonicalGraphOwnedConsumersV2(observation.consumers, before.digest);
+  if (before.observationDigest !== after.observationDigest
+      || canonicalJsonV2(consumers) !== canonicalJsonV2(observation.consumers)) {
+    throw new Error('Graph-owned consumer observation drifted');
+  }
+  const { observation_digest: observedDigest, ...core } = observation;
+  const expectedDigest = canonicalDigestV2(core);
+  if (observedDigest !== expectedDigest) {
+    throw new Error('Graph-owned consumer observation digest drifted');
+  }
+  return expectedDigest;
+}
+
+export function canonicalGraphOwnedConsumerObservationBytesV2(observation) {
+  graphOwnedConsumerObservationDigestV2(observation);
+  return Buffer.from(canonicalJsonV2(observation), 'utf8');
+}
+
+export async function captureGraphProductionShadowV2({
+  adapter,
+  expectedD0AuthorityDigest,
+  d1CandidateBytes,
+  d1CandidateDigest,
+  d1CandidateIdentityBytes,
+  d2CandidateBytes,
+  d2CandidateDigest,
+  d2CandidateIdentityBytes,
+  releaseSubjectDigest,
+  externalAttestationSetRootDigest,
+  candidateGeneratorImplementationDigest,
+  candidateCommandDigest,
+  graphCommit,
+  graphTree,
+} = {}) {
+  if (!adapter || adapter.mode !== 'production-shadow-read-only-v2'
+      || typeof adapter.observe !== 'function'
+      || typeof adapter.previewPublication !== 'function') {
+    throw new Error('Graph production shadow requires the complete read-only production adapter');
+  }
+  exactDigest(expectedD0AuthorityDigest, 'expected Graph D0 authority');
+  exactGitIdentity(graphCommit, 'Graph production shadow commit');
+  exactGitIdentity(graphTree, 'Graph production shadow tree');
+  if (!Buffer.isBuffer(d1CandidateBytes) || d1CandidateBytes.length === 0
+      || !Buffer.isBuffer(d1CandidateIdentityBytes) || d1CandidateIdentityBytes.length === 0
+      || !Buffer.isBuffer(d2CandidateBytes) || d2CandidateBytes.length === 0
+      || !Buffer.isBuffer(d2CandidateIdentityBytes) || d2CandidateIdentityBytes.length === 0) {
+    throw new Error('V2_GRAPH_SHADOW_EXACT_D1_D2_CANDIDATES_REQUIRED');
+  }
+  exactDigest(d1CandidateDigest, 'D1 candidate');
+  exactDigest(d2CandidateDigest, 'D2 candidate');
+  exactDigest(releaseSubjectDigest, 'Graph shadow release subject');
+  exactDigest(externalAttestationSetRootDigest, 'Graph shadow external attestation set root');
+  exactDigest(candidateGeneratorImplementationDigest, 'Graph shadow candidate generator');
+  exactDigest(candidateCommandDigest, 'Graph shadow candidate command');
+  const before = await adapter.observe();
+  if (before.digest !== expectedD0AuthorityDigest) {
+    throw new Error('Graph production shadow D0 authority drifted before observation');
+  }
+  const graphOwnedConsumers = await adapter.readGraphOwnedConsumers(before.digest);
+  const prediction = await adapter.previewPublication({
+    d1CandidateBytes,
+    d1CandidateDigest,
+    d1CandidateIdentityBytes,
+    d2CandidateBytes,
+    d2CandidateDigest,
+    d2CandidateIdentityBytes,
+    expectedD0AuthorityDigest,
+  });
+  const after = await adapter.observe();
+  if (after.observationDigest !== before.observationDigest) {
+    throw new Error('Graph production shadow authority changed during observation');
+  }
+  if (prediction?.d0AuthorityDigest !== before.digest
+      || prediction?.d1?.candidateDigest !== d1CandidateDigest
+      || prediction?.d2?.candidateDigest !== d2CandidateDigest
+      || prediction?.d2?.evaluationInputAuthorityDigest !== prediction?.d1?.authorityDigest
+      || prediction?.candidateBindings?.releaseSubjectDigest !== releaseSubjectDigest
+      || prediction?.candidateBindings?.externalAttestationSetRootDigest
+        !== externalAttestationSetRootDigest
+      || prediction?.candidateBindings?.candidateGeneratorImplementationDigest
+        !== candidateGeneratorImplementationDigest
+      || prediction?.candidateBindings?.candidateCommandDigest !== candidateCommandDigest
+      || prediction?.candidateBindings?.c2D1AuthorityDigest !== prediction?.d1?.authorityDigest
+      || prediction?.productionWriteOperations !== 0
+      || prediction?.transactionBeginCount !== 1
+      || prediction?.transactionRollbackCount !== 1) {
+    throw new Error('Graph production shadow prediction is not exact and read-only');
+  }
+  exactDigest(prediction.d1.authorityDigest, 'predicted Graph D1 authority');
+  exactDigest(prediction.d2.authorityDigest, 'predicted Graph D2 authority');
+  const authorityBefore = Object.freeze({
+    digest: before.digest,
+    inventory: before.inventory,
+    triples: before.triples,
+  });
+  const authorityAfter = Object.freeze({
+    digest: after.digest,
+    inventory: after.inventory,
+    triples: after.triples,
+  });
+  const boundaryObservationDigest = canonicalDigestV2({
+    schema: 'usf-graph-production-shadow-observation-boundary-v2',
+    authority_before: authorityBefore,
+    authority_after: authorityAfter,
+  });
+  return Object.freeze({
+    schema: GRAPH_PRODUCTION_SHADOW_RECEIPT_V2,
+    protocol: SEMANTIC_PROOF_V2,
+    graph_commit: graphCommit,
+    graph_tree: graphTree,
+    release_subject_digest: releaseSubjectDigest,
+    external_attestation_set_root_digest: externalAttestationSetRootDigest,
+    candidate_generator_implementation_digest: candidateGeneratorImplementationDigest,
+    candidate_command_digest: candidateCommandDigest,
+    graph_owned_consumers: graphOwnedConsumers,
+    boundary_observation_digest: boundaryObservationDigest,
+    authority_before: authorityBefore,
+    authority_after: authorityAfter,
+    d0_authority_digest: before.digest,
+    d1_candidate_digest: d1CandidateDigest,
+    predicted_d1_authority_digest: prediction.d1.authorityDigest,
+    d2_candidate_digest: d2CandidateDigest,
+    d2_evaluation_input_authority_digest: prediction.d2.evaluationInputAuthorityDigest,
+    predicted_d2_authority_digest: prediction.d2.authorityDigest,
+    production_stardog_write_operations: 0,
+    production_cas_write_operations: 0,
+    production_journal_write_operations: 0,
+    authorization_issued: 0,
+    publication_performed: 0,
+  });
+}
+
+export function graphProductionShadowReceiptDigestV2(receipt) {
+  if (!receipt || receipt.schema !== GRAPH_PRODUCTION_SHADOW_RECEIPT_V2
+      || receipt.protocol !== SEMANTIC_PROOF_V2) {
+    throw new Error('invalid V2 Graph production shadow receipt');
+  }
+  if (canonicalJsonV2(Object.keys(receipt).sort())
+      !== canonicalJsonV2(GRAPH_PRODUCTION_SHADOW_FIELDS)) {
+    throw new Error(`V2 Graph production shadow receipt fields are not the closed protocol shape: ${canonicalJsonV2(Object.keys(receipt).sort())}`);
+  }
+  for (const [field, label] of [
+    ['boundary_observation_digest', 'Graph shadow observation boundary'],
+    ['d0_authority_digest', 'Graph shadow D0 authority'],
+    ['d1_candidate_digest', 'Graph shadow D1 candidate'],
+    ['predicted_d1_authority_digest', 'Graph shadow predicted D1 authority'],
+    ['d2_candidate_digest', 'Graph shadow D2 candidate'],
+    ['d2_evaluation_input_authority_digest', 'Graph shadow D2 evaluation input'],
+    ['predicted_d2_authority_digest', 'Graph shadow predicted D2 authority'],
+    ['release_subject_digest', 'Graph shadow release subject'],
+    ['external_attestation_set_root_digest', 'Graph shadow external attestation set root'],
+    ['candidate_generator_implementation_digest', 'Graph shadow candidate generator'],
+    ['candidate_command_digest', 'Graph shadow candidate command'],
+  ]) exactDigest(receipt[field], label);
+  exactGitIdentity(receipt.graph_commit, 'Graph shadow commit');
+  exactGitIdentity(receipt.graph_tree, 'Graph shadow tree');
+  const authorityBefore = canonicalGraphWitnessV2(receipt.authority_before);
+  const authorityAfter = canonicalGraphWitnessV2(receipt.authority_after);
+  const graphOwnedConsumers = canonicalGraphOwnedConsumersV2(
+    receipt.graph_owned_consumers, authorityBefore.digest,
+  );
+  if (receipt.d2_evaluation_input_authority_digest !== receipt.predicted_d1_authority_digest
+      || canonicalDigestV2({
+        schema: 'usf-graph-production-shadow-observation-boundary-v2',
+        authority_before: {
+          digest: authorityBefore.digest,
+          inventory: authorityBefore.inventory,
+          triples: authorityBefore.triples,
+        },
+        authority_after: {
+          digest: authorityAfter.digest,
+          inventory: authorityAfter.inventory,
+          triples: authorityAfter.triples,
+        },
+      }) !== receipt.boundary_observation_digest
+      || authorityBefore.observationDigest !== authorityAfter.observationDigest
+      || authorityBefore.digest !== receipt.d0_authority_digest
+      || canonicalJsonV2(graphOwnedConsumers) !== canonicalJsonV2(receipt.graph_owned_consumers)
+      || receipt.production_stardog_write_operations !== 0
+      || receipt.production_cas_write_operations !== 0
+      || receipt.production_journal_write_operations !== 0
+      || receipt.authorization_issued !== 0
+      || receipt.publication_performed !== 0) {
+    throw new Error('V2 Graph production shadow receipt is not exact and read-only');
+  }
+  return canonicalDigestV2(receipt);
+}
+
+export function canonicalGraphProductionShadowReceiptBytesV2(receipt) {
+  graphProductionShadowReceiptDigestV2(receipt);
+  return Buffer.from(canonicalJsonV2(receipt), 'utf8');
+}
+
+export function assertGraphProductionShadowPlanBindingV2(receipt, plan) {
+  assertProspectivePublicationPlanV2(plan);
+  const receiptDigest = graphProductionShadowReceiptDigestV2(receipt);
+  if (receiptDigest !== plan.graph_production_shadow_receipt_digest
+      || receipt.release_subject_digest !== plan.release_subject_digest
+      || receipt.d0_authority_digest !== plan.d0_authority_digest
+      || receipt.d1_candidate_digest !== plan.graph_d1_candidate_digest
+      || receipt.predicted_d1_authority_digest !== plan.predicted_d1_authority_digest
+      || receipt.d2_candidate_digest !== plan.graph_d2_candidate_digest
+      || receipt.d2_evaluation_input_authority_digest
+        !== plan.d2_evaluation_input_authority_digest
+      || receipt.predicted_d2_authority_digest !== plan.predicted_d2_authority_digest
+      || receipt.external_attestation_set_root_digest
+        !== plan.external_attestation_set_root_digest
+      || receipt.candidate_generator_implementation_digest
+        !== plan.candidate_generator_implementation_digest
+      || receipt.candidate_command_digest !== plan.candidate_command_digest
+      || receipt.graph_tree !== plan.graph_protected_tree) {
+    throw new Error('Graph production shadow receipt differs from the prospective plan');
+  }
+  return Object.freeze(receipt);
+}
 
 function exactDigest(value, label) {
   if (!SHA256.test(value || '')) throw new Error(`${label} must be an exact sha256 digest`);
@@ -131,6 +653,8 @@ export function assertProspectivePublicationPlanV2(plan) {
   if (!plan || typeof plan !== 'object' || plan.schema !== PROSPECTIVE_PUBLICATION_PLAN_V2) {
     throw new Error('V2 publisher requires one exact prospective publication plan');
   }
+  exactClosedFields(plan, PROSPECTIVE_PUBLICATION_PLAN_FIELDS,
+    'prospective publication plan');
   for (const [field, label] of [
     ['release_subject_digest', 'release subject'],
     ['derived_consumer_registry_digest', 'derived consumer registry'],
@@ -139,6 +663,12 @@ export function assertProspectivePublicationPlanV2(plan) {
     ['predicted_d1_authority_digest', 'predicted D1 authority'],
     ['d2_evaluation_input_authority_digest', 'D2 evaluation input'],
     ['predicted_d2_authority_digest', 'predicted D2 authority'],
+    ['graph_d1_candidate_digest', 'Graph D1 candidate'],
+    ['graph_d2_candidate_digest', 'Graph D2 candidate'],
+    ['graph_production_shadow_receipt_digest', 'Graph production shadow receipt'],
+    ['external_attestation_set_root_digest', 'external attestation set root'],
+    ['candidate_generator_implementation_digest', 'candidate generator implementation'],
+    ['candidate_command_digest', 'candidate command'],
   ]) exactDigest(plan[field], label);
   if (plan.derived_consumer_registry_digest !== DERIVED_CONSUMER_REGISTRY_V2_DIGEST) {
     throw new Error('prospective plan registry differs from the exact V2 registry');
@@ -167,6 +697,10 @@ export function assertProspectivePublicationPlanV2(plan) {
   }
   const predecessorIdentities = [];
   for (const item of plan.derived_consumers) {
+    const plannedFields = item?.decision === 'EXPLICITLY_AUTHORIZED_SUCCESSOR'
+      ? [...PLANNED_DERIVED_CONSUMER_FIELDS, 'explicit_authorization_grant_digest'].sort()
+      : PLANNED_DERIVED_CONSUMER_FIELDS;
+    exactClosedFields(item, plannedFields, 'planned derived consumer');
     if (item.mandatory !== true || item.predicted_d1_authority_digest !== plan.predicted_d1_authority_digest
         || item.predicted_d2_authority_digest !== plan.predicted_d2_authority_digest) {
       throw new Error('prospective consumer authority binding differs from the plan');
@@ -190,6 +724,13 @@ export function assertProspectivePublicationPlanV2(plan) {
     }
     if (!SUCCESSOR_DECISIONS.has(item.decision) || !item.expected_successor) {
       throw new Error('mandatory consumer has an unsupported transition decision');
+    }
+    const successorFields = item.decision === 'EXPLICITLY_AUTHORIZED_SUCCESSOR'
+      ? [...DERIVED_CONSUMER_SUCCESSOR_FIELDS, 'explicit_authorization_grant_digest'].sort()
+      : DERIVED_CONSUMER_SUCCESSOR_FIELDS;
+    exactClosedFields(item.expected_successor, successorFields, 'derived consumer successor');
+    if (item.expected_successor.schema !== 'usf-derived-consumer-successor-v2') {
+      throw new Error('derived consumer successor schema is unknown');
     }
     if (canonicalDigestV2(item.expected_successor) !== item.expected_successor_digest
         || item.expected_successor.predecessor_identity_digest !== item.predecessor_identity_digest

@@ -7,7 +7,6 @@ import {
   COMPONENT_PROOFS,
   COMPONENT_SET_DIGEST,
 } from './aggregate-compiler-proof.mjs';
-import { AGGREGATE_RESULT_IRI } from './aggregate-compiler-proof-command.mjs';
 import {
   AUTHORITY_ALGORITHM,
   AUTHORITY_FINGERPRINT,
@@ -40,6 +39,7 @@ const GRAPH_CAPABILITIES = 'urn:usf:graph:capabilities';
 const GRAPH_PROOFS = 'urn:usf:graph:proofs';
 const CONTRACT = 'urn:usf:semanticcontract:compilersemanticenforcement';
 const MATERIALISATION_CONTRACT = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation';
+const AGGREGATE_RESULT_IRI = 'urn:usf:proofresult:compilersemanticenforcementaggregate';
 const PROTOCOL_IRI = 'urn:usf:semanticproofprotocol:v1';
 const PROVISIONAL_RESULT = 'urn:usf:proofresult:compilersemanticenforcementaggregateprepublication';
 const AGGREGATE_OBLIGATION = 'urn:usf:proofobligation:compilersemanticenforcementaggregate';
@@ -234,6 +234,64 @@ const COMPILER_VALIDATION_KEYS = ['authorityAfterDigest', 'authorityBeforeDigest
 const COMPILER_VALIDATION_PACKAGE_KEYS = ['descriptor', 'receipt'];
 const STAGE2_KEYS = ['compilerValidation', 'evaluationReceipt', 'evaluationReceiptDescriptor', 'executionReceipt',
   'executionReceiptDescriptor', 'package', 'publicationReceipt'];
+
+const SEMANTIC_PROOF_V2 = 'semantic-proof-v2';
+const V2_CANDIDATE_CORE_SCHEMA = 'usf-aggregate-compiler-authority-candidate-core-v2';
+const V2_CANDIDATE_CORE_KEYS = Object.freeze([
+  'compiler_identity',
+  'd0_authority_digest',
+  'd1_binding',
+  'evidence_dependency_digests',
+  'external_attestation_identities',
+  'external_attestation_set_root_digest',
+  'protocol',
+  'release_subject_digest',
+  'schema',
+  'source_identities',
+  'stage',
+]);
+const V2_CANDIDATE_INPUT_KEYS = Object.freeze([
+  'compiler_identity',
+  'd0_authority_digest',
+  'd1_binding',
+  'evidence_dependency_digests',
+  'external_attestation_identities',
+  'protocol',
+  'release_subject_digest',
+  'source_identities',
+  'stage',
+]);
+const V2_COMPILER_IDENTITY_KEYS = Object.freeze([
+  'algorithm_digest',
+  'algorithm_version',
+  'command_digest',
+  'implementation_source_digest',
+]);
+const V2_SOURCE_IDENTITY_KEYS = Object.freeze([
+  'authored_tree',
+  'repository',
+  'source_scope_digest',
+]);
+const V2_ATTESTATION_IDENTITY_KEYS = Object.freeze([
+  'attestation_digest',
+  'attestation_type',
+  'release_subject_digest',
+]);
+const V2_D1_BINDING_KEYS = Object.freeze([
+  'authority_digest',
+  'c1_candidate_digest',
+  'dependency_identity_digests',
+]);
+const V2_EXTERNAL_ATTESTATION_TYPES = new Set([
+  'implementation_evidence',
+  'option_evaluation',
+  'owner_approval',
+  'proof',
+]);
+const V2_SOURCE_REPOSITORIES = Object.freeze([
+  'maldous/usf-factory',
+  'maldous/usf-graph',
+]);
 
 const ALLOWED_DEEP_KEYS = new Set([
   ...TERMINAL_PENDING_KEYS, ...AGGREGATE_KEYS, ...EVALUATION_KEYS, ...SOURCE_KEYS, ...COMPONENT_KEYS,
@@ -1427,6 +1485,249 @@ function canonicalPatch(stage, deletions, additions) {
   ].join('\n'), 'utf8');
 }
 
+function canonicalDigestListV2(values, label, { nonempty = true } = {}) {
+  if (!Array.isArray(values) || (nonempty && values.length === 0)) {
+    fail('V2_CANDIDATE_IDENTITY_INVALID', `${label} must be a canonical digest list`);
+  }
+  values.forEach((value) => digest(value, label));
+  const canonical = [...new Set(values)].sort();
+  if (canonical.length !== values.length || canonicalJson(values) !== canonicalJson(canonical)) {
+    fail('V2_CANDIDATE_IDENTITY_INVALID', `${label} must be sorted and unique`);
+  }
+  return Object.freeze(canonical);
+}
+
+function validateV2SourceIdentities(values) {
+  if (!Array.isArray(values) || values.length !== V2_SOURCE_REPOSITORIES.length) {
+    fail('V2_CANDIDATE_SOURCE_IDENTITY_INVALID', 'exact Factory and Graph source identities are required');
+  }
+  const identities = values.map((value) => {
+    exactKeys(value, V2_SOURCE_IDENTITY_KEYS,
+      'V2_CANDIDATE_SOURCE_IDENTITY_INVALID', 'source identity');
+    if (typeof value.repository !== 'string' || value.repository.length === 0) {
+      fail('V2_CANDIDATE_SOURCE_IDENTITY_INVALID', 'source repository');
+    }
+    gitObject(value.authored_tree, `${value.repository} authored tree`);
+    digest(value.source_scope_digest, `${value.repository} source scope`);
+    return Object.freeze({
+      authored_tree: value.authored_tree,
+      repository: value.repository,
+      source_scope_digest: value.source_scope_digest,
+    });
+  });
+  const canonical = [...identities].sort((left, right) => left.repository.localeCompare(right.repository));
+  if (canonicalJson(canonical.map(({ repository }) => repository)) !== canonicalJson(V2_SOURCE_REPOSITORIES)
+      || canonicalJson(values) !== canonicalJson(canonical)) {
+    fail('V2_CANDIDATE_SOURCE_IDENTITY_INVALID',
+      'source identities must be exact Factory/Graph categories in canonical order');
+  }
+  return Object.freeze(canonical);
+}
+
+function validateV2AttestationIdentities(values, releaseSubjectDigest) {
+  if (!Array.isArray(values) || values.length !== V2_EXTERNAL_ATTESTATION_TYPES.size) {
+    fail('V2_CANDIDATE_ATTESTATION_IDENTITY_INVALID',
+      'one exact owner, implementation, evaluation and proof attestation is required');
+  }
+  const identities = values.map((value) => {
+    exactKeys(value, V2_ATTESTATION_IDENTITY_KEYS,
+      'V2_CANDIDATE_ATTESTATION_IDENTITY_INVALID', 'external attestation identity');
+    if (!V2_EXTERNAL_ATTESTATION_TYPES.has(value.attestation_type)) {
+      fail('V2_CANDIDATE_ATTESTATION_IDENTITY_INVALID',
+        `${String(value.attestation_type)} is not a pre-publication external attestation type`);
+    }
+    digest(value.attestation_digest, `${value.attestation_type} attestation bytes`);
+    digest(value.release_subject_digest, `${value.attestation_type} release subject`);
+    if (value.release_subject_digest !== releaseSubjectDigest) {
+      fail('V2_CANDIDATE_ATTESTATION_IDENTITY_INVALID',
+        `${value.attestation_type} attestation binds a different release subject`);
+    }
+    return Object.freeze({
+      attestation_digest: value.attestation_digest,
+      attestation_type: value.attestation_type,
+      release_subject_digest: value.release_subject_digest,
+    });
+  });
+  const canonical = [...identities].sort((left, right) => left.attestation_type.localeCompare(right.attestation_type));
+  if (new Set(canonical.map(({ attestation_type }) => attestation_type)).size !== canonical.length
+      || [...V2_EXTERNAL_ATTESTATION_TYPES].some((type) => !canonical.some(({ attestation_type }) => attestation_type === type))
+      || canonicalJson(values) !== canonicalJson(canonical)) {
+    fail('V2_CANDIDATE_ATTESTATION_IDENTITY_INVALID',
+      'external attestation identities must be type-scoped, sorted and unique');
+  }
+  return Object.freeze(canonical);
+}
+
+function validateV2CompilerIdentity(value) {
+  exactKeys(value, V2_COMPILER_IDENTITY_KEYS,
+    'V2_CANDIDATE_COMPILER_IDENTITY_INVALID', 'compiler identity');
+  for (const [field, label] of [
+    ['algorithm_digest', 'compiler algorithm'],
+    ['command_digest', 'compiler command'],
+    ['implementation_source_digest', 'compiler implementation source'],
+  ]) digest(value[field], label);
+  if (typeof value.algorithm_version !== 'string' || value.algorithm_version.length === 0) {
+    fail('V2_CANDIDATE_COMPILER_IDENTITY_INVALID', 'compiler algorithm version');
+  }
+  rejectPlaceholders(value);
+  return Object.freeze({ ...value });
+}
+
+function validateV2CandidateCoreInput(input) {
+  exactKeys(input, V2_CANDIDATE_INPUT_KEYS, 'V2_CANDIDATE_INPUT_SCHEMA_INVALID', 'V2 candidate input');
+  if (input.protocol !== SEMANTIC_PROOF_V2 || !['C1', 'C2'].includes(input.stage)) {
+    fail('V2_CANDIDATE_PROTOCOL_INVALID', 'protocol and stage must be semantic-proof-v2 C1 or C2');
+  }
+  digest(input.release_subject_digest, 'release subject');
+  digest(input.d0_authority_digest, 'D0 authority');
+  const sourceIdentities = validateV2SourceIdentities(input.source_identities);
+  const attestationIdentities = validateV2AttestationIdentities(
+    input.external_attestation_identities, input.release_subject_digest,
+  );
+  const externalAttestationSetRootDigest = sha256Json({
+    schema: 'usf-external-attestation-identity-set-v2',
+    external_attestation_identities: attestationIdentities,
+  });
+  const evidenceDependencyDigests = canonicalDigestListV2(
+    input.evidence_dependency_digests, 'evidence dependencies',
+  );
+  const compilerIdentity = validateV2CompilerIdentity(input.compiler_identity);
+  let d1Binding = null;
+  if (input.stage === 'C1') {
+    if (input.d1_binding !== null) {
+      fail('V2_CANDIDATE_D1_BINDING_INVALID', 'C1 cannot depend on a post-C1 authority');
+    }
+  } else {
+    exactKeys(input.d1_binding, V2_D1_BINDING_KEYS,
+      'V2_CANDIDATE_D1_BINDING_INVALID', 'C2 D1 binding');
+    digest(input.d1_binding.authority_digest, 'D1 authority');
+    digest(input.d1_binding.c1_candidate_digest, 'C1 candidate');
+    if (input.d1_binding.authority_digest === input.d0_authority_digest) {
+      fail('V2_CANDIDATE_D1_BINDING_INVALID', 'C2 must consume the exact changed D1 authority');
+    }
+    const dependencyIdentityDigests = canonicalDigestListV2(
+      input.d1_binding.dependency_identity_digests, 'D1 dependency identities',
+    );
+    d1Binding = Object.freeze({
+      authority_digest: input.d1_binding.authority_digest,
+      c1_candidate_digest: input.d1_binding.c1_candidate_digest,
+      dependency_identity_digests: dependencyIdentityDigests,
+      dependency_set_digest: sha256Json({
+        schema: 'usf-d1-dependency-identity-set-v2',
+        authority_digest: input.d1_binding.authority_digest,
+        dependency_identity_digests: dependencyIdentityDigests,
+      }),
+    });
+  }
+  rejectPlaceholders(input);
+  return Object.freeze({
+    schema: V2_CANDIDATE_CORE_SCHEMA,
+    protocol: SEMANTIC_PROOF_V2,
+    stage: input.stage,
+    release_subject_digest: input.release_subject_digest,
+    d0_authority_digest: input.d0_authority_digest,
+    source_identities: sourceIdentities,
+    external_attestation_identities: attestationIdentities,
+    external_attestation_set_root_digest: externalAttestationSetRootDigest,
+    evidence_dependency_digests: evidenceDependencyDigests,
+    compiler_identity: compilerIdentity,
+    d1_binding: d1Binding,
+  });
+}
+
+export function parseAggregateCompilerAuthorityCandidateV2IdentityBytes(bytes) {
+  if (!Buffer.isBuffer(bytes) || bytes.length === 0) {
+    fail('V2_CANDIDATE_IDENTITY_BYTES_INVALID', 'candidate identity bytes are required');
+  }
+  const text = bytes.toString('utf8');
+  if (!bytes.equals(Buffer.from(text, 'utf8'))) {
+    fail('V2_CANDIDATE_IDENTITY_BYTES_INVALID', 'candidate identity is not canonical UTF-8');
+  }
+  let value;
+  try { value = JSON.parse(text); } catch {
+    fail('V2_CANDIDATE_IDENTITY_BYTES_INVALID', 'candidate identity is not JSON');
+  }
+  exactKeys(value, V2_CANDIDATE_CORE_KEYS,
+    'V2_CANDIDATE_IDENTITY_BYTES_INVALID', 'V2 candidate identity');
+  const d1Binding = value.d1_binding === null ? null : {
+    authority_digest: value.d1_binding?.authority_digest,
+    c1_candidate_digest: value.d1_binding?.c1_candidate_digest,
+    dependency_identity_digests: value.d1_binding?.dependency_identity_digests,
+  };
+  const canonical = validateV2CandidateCoreInput({
+    protocol: value.protocol,
+    stage: value.stage,
+    release_subject_digest: value.release_subject_digest,
+    d0_authority_digest: value.d0_authority_digest,
+    source_identities: value.source_identities,
+    external_attestation_identities: value.external_attestation_identities,
+    evidence_dependency_digests: value.evidence_dependency_digests,
+    compiler_identity: value.compiler_identity,
+    d1_binding: d1Binding,
+  });
+  if (canonicalJson(canonical) !== text
+      || value.external_attestation_set_root_digest
+        !== canonical.external_attestation_set_root_digest) {
+    fail('V2_CANDIDATE_IDENTITY_BYTES_INVALID', 'candidate identity bytes are not canonical');
+  }
+  return canonical;
+}
+
+function canonicalV2CandidatePatch(stage, additions) {
+  if (new Set(additions).size !== additions.length) {
+    fail('V2_CANDIDATE_DUPLICATE_QUAD', stage);
+  }
+  return Buffer.from([
+    `# ${SEMANTIC_PROOF_V2} canonical-rdf-patch-v1 ${stage}`,
+    ...[...additions].sort().map((line) => `A ${line}`),
+    '',
+  ].join('\n'), 'utf8');
+}
+
+/**
+ * Materialise one V2 external-attestation candidate without publication state.
+ *
+ * The returned identity bytes are the content-addressed payload described by
+ * the RDF patch.  A prospective caller may place those bytes in scratch CAS;
+ * this function performs no I/O.  Publication claims, signatures, nonces,
+ * trusted times, journal state and ExplicitAuthorizationGrantV2 are excluded
+ * by the closed input schema, so they cannot perturb C1 or C2 identity.
+ */
+export function materializeAggregateCompilerAuthorityCandidateV2(input) {
+  const core = validateV2CandidateCoreInput(input);
+  const identityBytes = Buffer.from(canonicalJson(core), 'utf8');
+  const identityDigest = sha256Bytes(identityBytes);
+  const suffix = identityDigest.slice(7);
+  const canonicalName = `semanticproofv2aggregatecandidate${core.stage.toLowerCase()}${suffix}`;
+  const descriptorIri = `urn:usf:externalpayloaddescriptor:${canonicalName}`;
+  const additions = [type(descriptorIri, `${USF}ExternalPayloadDescriptor`, GRAPH_PROOFS)];
+  for (const [predicate, object] of [
+    ['canonicalName', literal(canonicalName)],
+    ['descriptorArtefactFamily', iri('urn:usf:artefactfamily:evidencepayload')],
+    ['descriptorRepresentationFormat', iri('urn:usf:representationformat:jsondata8259')],
+    ['descriptorMediaType', literal('application/json')],
+    ['descriptorDigest', literal(identityDigest)],
+    ['descriptorByteSize', typed(identityBytes.length, XSD_INTEGER)],
+    ['descriptorLocator', typed(`cas://sha256/${suffix}`, XSD_ANY_URI)],
+    ['descriptorArtefactType', typed('urn:usf:artefacttype:semanticproofv2authoritycandidate', XSD_ANY_URI)],
+    ['descriptorStorageClass', iri('urn:usf:storageclass:contentaddressedobjectstorage')],
+  ]) add(additions, descriptorIri, predicate, object);
+  const bytes = canonicalV2CandidatePatch(core.stage, additions);
+  return Object.freeze({
+    bytes,
+    candidateDigest: sha256Bytes(bytes),
+    descriptorIri,
+    identityBytes,
+    identityDigest,
+    externalAttestationSetRootDigest: core.external_attestation_set_root_digest,
+    candidateGeneratorImplementationDigest: core.compiler_identity.implementation_source_digest,
+    candidateCommandDigest: core.compiler_identity.command_digest,
+    mediaType: 'application/rdf-patch',
+    protocol: SEMANTIC_PROOF_V2,
+    stage: core.stage,
+  });
+}
+
 export function materializeAggregateCompilerAuthorityCandidate(input) {
   exactKeys(input, input?.stage === 'stage1' ? ['baseSemanticDelta', 'currentnessBinding', 'ownerAuthority', 'pendingPackage', 'stage']
     : ['currentnessBinding', 'ownerAuthority', 'pendingPackage', 'stage', 'stage2Package'],
@@ -1466,7 +1767,10 @@ export const aggregateCompilerAuthorityCandidateInternals = Object.freeze({
   FINAL_BINDING,
   OWNER_SCOPES,
   PROVISIONAL_RESULT,
+  SEMANTIC_PROOF_V2,
   VALIDATION_RESULT,
+  V2_CANDIDATE_CORE_SCHEMA,
+  V2_CANDIDATE_CORE_KEYS,
   nonPublicationDependencySetDigest,
   sha256Bytes,
   sha256Json,
