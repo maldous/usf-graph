@@ -2491,7 +2491,7 @@ sc:notificationdeliveryandpreferencesandchannels usf:hasActivationState contract
     usf:mandatoryProofObligation <urn:usf:proofobligation:p1874b31e72692fcb908b9d1c13a86f9ca955777ba0b338339d6b5f0adb5c65af>;
     usf:permittedRealisationType usf:Implementation.
 sc:providerconfigurationplane usf:hasActivationState contractstate:active;
-    usf:activationReason "Current owner-signed Factory Provider V3 implementation evidence binds the exact maintenance-census authority context through its terminal durable event while preserving the admitted source scope, coordinator fencing, provider policy, zero-paid-cost boundary and fail-closed currentness checks. Deployment and provider execution remain blocked until governed Graph publication and exact runtime read-back.";
+    usf:activationReason "Current owner-signed Factory Provider V3 implementation evidence binds the exact two-file V2 lifecycle zero-cost canonicalization successor while preserving the admitted source scope, current Provider V3 authority, coordinator fencing, provider policy, zero-paid-cost boundary and all fail-closed canonical identity checks. V2 authorization, publication, deployment and provider execution remain blocked until their separately governed terminal gates complete.";
     usf:requiresRealisationOptionEvaluation true;
     usf:mandatoryProofObligation <urn:usf:proofobligation:p7515b7117898c8bf9cedd38642fd544b19bd241c7e53cf392161edda5065843f>, <urn:usf:proofobligation:factoryproviderv3implementation>;
     usf:reliesOnProofResult <urn:usf:proofresult:providerworkforceauthorityproviderconfigurationplane>, <urn:usf:proofresult:factoryproviderv3implementation>;
@@ -4954,7 +4954,7 @@ sc:writeonlysecretsettings usf:hasValidationApplicability vas:unresolved;
   usf:canonicalName "providerworkforceboundedimplementationauthority".
 <urn:usf:claim:factoryproviderv3boundedproductionauthority> a usf:Claim;
   usf:canonicalName "factoryproviderv3boundedproductionauthority";
-  usf:definition "The exact owner-signed Factory Provider V3 implementation at commit e58e9589ea42d956ef4147179e421756005d4fe1 and tree f2857252db92e7c0149d9725c6a692a48b82bc89 retains the exact current V3 authority, repository and RunAuthorization witness through the terminal model_market.maintenance event and clears that context only afterward, so every durable event remains authority-bound and loss of context fails closed.".
+  usf:definition "The exact owner-signed Factory Provider V3 implementation at commit 5161a87b1d27de63ec31965d639905c58d9f5844 and tree ca3b5f470bacb2a03ca2025f9432127f83bffe53 canonicalizes the already-validated zero-dollar ValidationLifecycleScope limit as integer zero only at the V2 authorization-scope identity boundary, while the canonical encoder continues to reject every other floating-point value and the admitted Provider V3 source scope remains unchanged.".
 <urn:usf:nonclaim:providercredentialsauthority> a usf:NonClaim;
   usf:canonicalName "providercredentialsauthority".
 <urn:usf:nonclaim:providerresearchprovesavailability> a usf:NonClaim;
