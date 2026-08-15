@@ -999,15 +999,18 @@ async function validationScope(client, contract) {
         }
       }
     } ORDER BY ?id ?satisfaction LIMIT 257`),
-    client.select(`SELECT ?id ?satisfaction ?evidence ?evidenceExecution ?evidenceAdmissionPath WHERE {
+    client.select(`SELECT ?id ?satisfaction ?evidence ?evidenceType ?evidenceExecution ?evidenceAdmissionPath WHERE {
       ?id <urn:usf:ontology:validationForContract> <${contract}> ;
           <urn:usf:ontology:satisfiedByValidationResult> ?satisfaction .
+      ?satisfaction <urn:usf:ontology:usesAdmittedValidationEvidence> ?evidence .
       ?satisfaction <urn:usf:ontology:validationResultOfEvaluation> ?evaluation .
       ?evaluation <urn:usf:ontology:validationEvaluationOfExecution> ?execution .
-      ?evidence a <urn:usf:ontology:ValidationEvidence> ;
-        <urn:usf:ontology:validationEvidenceForExecution> ?evidenceExecution ;
-        <urn:usf:ontology:validationEvidenceAdmittedThrough> ?evidenceAdmissionPath .
-      FILTER(?evidenceExecution = ?execution)
+      OPTIONAL {
+        ?evidence a <urn:usf:ontology:ValidationEvidence> .
+        BIND("true" AS ?evidenceType)
+      }
+      OPTIONAL { ?evidence <urn:usf:ontology:validationEvidenceForExecution> ?evidenceExecution }
+      OPTIONAL { ?evidence <urn:usf:ontology:validationEvidenceAdmittedThrough> ?evidenceAdmissionPath }
     } ORDER BY ?id ?satisfaction ?evidence LIMIT 257`),
     client.select(`SELECT ?id ?satisfaction ?field ?path WHERE {
       ?id <urn:usf:ontology:validationForContract> <${contract}> ;
@@ -1057,7 +1060,7 @@ async function validationScope(client, contract) {
     'bindingAdmissionSourceTree', 'bindingAdmissionSourcePath', 'bindingAdmissionSourceScope',
     'bindingReevaluation', 'reevaluatesValidationResult', 'reevaluationAuthority', 'reevaluationResultState',
     'reevaluationExecutionReceipt', 'reevaluationEvaluationReceipt', 'evaluation', 'evaluationReceipt', 'execution',
-    'executionReceipt', 'executionProducer', 'executionAdmissionPath', 'evidence', 'evidenceExecution',
+    'executionReceipt', 'executionProducer', 'executionAdmissionPath', 'evidence', 'evidenceType', 'evidenceExecution',
     'evidenceAdmissionPath', 'producerRelease', 'producerRepository', 'producerSourceHead',
     'producerSourceTree', 'producerSourcePath', 'producerSourceScope', 'admissionProducer', 'admissionRepository',
     'admissionSourceHead', 'admissionSourceTree', 'admissionSourcePath', 'admissionSourceScope',
@@ -1118,7 +1121,7 @@ async function validationScope(client, contract) {
     if (!record) {
       throw new Error('validation evidence projection is inconsistent');
     }
-    for (const field of ['evidence', 'evidenceExecution', 'evidenceAdmissionPath']) {
+    for (const field of ['evidence', 'evidenceType', 'evidenceExecution', 'evidenceAdmissionPath']) {
       const term = value(row, field);
       if (term === null) throw new Error('validation evidence projection is incomplete');
       record[field].add(term);
@@ -1188,6 +1191,13 @@ function exactTermSet(item, left, right) {
     && leftTerms.every((term, index) => term === rightTerms[index]);
 }
 
+function completeValidationEvidenceSet(item, execution, admissionPath) {
+  return item.evidence.length > 0
+    && soleTerm(item, 'evidenceType') === 'true'
+    && soleTerm(item, 'evidenceExecution') === execution
+    && soleTerm(item, 'evidenceAdmissionPath') === admissionPath;
+}
+
 function completeSameRepositorySelfPublicationClosure(item, authorityWitnessValue) {
   const authorityDigest = authorityWitnessValue?.digest ?? null;
   const resultAuthority = soleTerm(item, 'boundAuthority');
@@ -1225,9 +1235,7 @@ function completeSameRepositorySelfPublicationClosure(item, authorityWitnessValu
     && soleTerm(item, 'execution') !== null
     && soleTerm(item, 'executionProducer') === producer
     && soleTerm(item, 'executionAdmissionPath') === admissionPath
-    && soleTerm(item, 'evidence') !== null
-    && soleTerm(item, 'evidenceExecution') === soleTerm(item, 'execution')
-    && soleTerm(item, 'evidenceAdmissionPath') === admissionPath
+    && completeValidationEvidenceSet(item, soleTerm(item, 'execution'), admissionPath)
     && soleTerm(item, 'admissionProducer') === producer
     && soleTerm(item, 'bindingProducerRelease') === soleTerm(item, 'producerRelease')
     && soleTerm(item, 'bindingRepository') === soleTerm(item, 'producerRepository')
@@ -1285,9 +1293,7 @@ function completeCrossRepositorySelfPublicationClosure(item, authorityWitnessVal
     && soleTerm(item, 'bindingEvaluationReceipt') === evaluationReceipt
     && soleTerm(item, 'executionProducer') === producer
     && soleTerm(item, 'executionAdmissionPath') === admissionPath
-    && soleTerm(item, 'evidence') !== null
-    && soleTerm(item, 'evidenceExecution') === execution
-    && soleTerm(item, 'evidenceAdmissionPath') === admissionPath
+    && completeValidationEvidenceSet(item, execution, admissionPath)
     && soleTerm(item, 'admissionProducer') === producer
     && soleTerm(item, 'bindingProducerRelease') === soleTerm(item, 'producerRelease')
     && producerRepository !== null

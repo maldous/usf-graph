@@ -236,6 +236,7 @@ function selfPublicationClosureRow(overrides = {}) {
     executionProducer: binding(validationClosure.producer),
     executionAdmissionPath: binding(validationClosure.admissionPath),
     evidence: binding(validationClosure.evidence),
+    evidenceType: binding('true'),
     evidenceExecution: binding(validationClosure.execution),
     evidenceAdmissionPath: binding(validationClosure.admissionPath),
     producerRelease: binding(validationClosure.release),
@@ -312,6 +313,7 @@ function crossRepositorySelfPublicationClosureRow(overrides = {}) {
     executionProducer: binding(crossValidationClosure.producer),
     executionAdmissionPath: binding(crossValidationClosure.admissionPath),
     evidence: binding(crossValidationClosure.evidence),
+    evidenceType: binding('true'),
     evidenceExecution: binding(crossValidationClosure.execution),
     evidenceAdmissionPath: binding(crossValidationClosure.admissionPath),
     producerRelease: binding(crossValidationClosure.release),
@@ -1250,7 +1252,7 @@ test('cross-repository validation closure accepts its exact result in a shared p
 test('D2 validation evidence is projected independently of the bounded scalar closure', async () => {
   const scalar = crossRepositorySelfPublicationClosureRow();
   const evidence = Object.fromEntries(
-    ['evidence', 'evidenceExecution', 'evidenceAdmissionPath']
+    ['evidence', 'evidenceType', 'evidenceExecution', 'evidenceAdmissionPath']
       .map((field) => [field, scalar[field]]),
   );
   for (const field of Object.keys(evidence)) delete scalar[field];
@@ -1276,9 +1278,62 @@ test('D2 validation evidence is projected independently of the bounded scalar cl
   );
   assert.ok(scalarQuery);
   assert.ok(evidenceQuery);
+  assert.ok(evidenceQuery.includes('?satisfaction <urn:usf:ontology:usesAdmittedValidationEvidence> ?evidence'));
   assert.equal(scalarQuery.includes('?evidence a <urn:usf:ontology:ValidationEvidence>'), false);
   assert.ok(scalarQuery.includes('LIMIT 257'));
   assert.ok(evidenceQuery.includes('LIMIT 257'));
+});
+
+test('D2 validation currentness accepts every exact item in a plural admitted evidence set', async () => {
+  const scalar = crossRepositorySelfPublicationClosureRow();
+  for (const field of ['evidence', 'evidenceType', 'evidenceExecution', 'evidenceAdmissionPath']) delete scalar[field];
+  const validationEvidenceRows = ['acquisition', 'evaluation', 'decision'].map((name) => ({
+    id: binding(validationObligation),
+    satisfaction: binding(crossValidationClosure.result),
+    evidence: binding(`urn:usf:validationevidence:${name}`),
+    evidenceType: binding('true'),
+    evidenceExecution: binding(crossValidationClosure.execution),
+    evidenceAdmissionPath: binding(crossValidationClosure.admissionPath),
+  }));
+  const packet = await projectContract({ client: fakeClient({
+    validationObligationRows: [{
+      ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+      ...scalar,
+    }],
+    validationEvidenceRows,
+    validationPathRows: crossRepositoryPathRows(),
+  }) }, { contract });
+  assert.equal(packet.validationObligations[0].satisfactionCurrent, true);
+  assert.equal(packet.validationSatisfied, true);
+  assert.deepEqual(packet.validationGaps, []);
+  assert.equal(packet.actionState, 'PROCEED');
+});
+
+test('D2 validation currentness rejects a plural evidence set with a substituted execution', async () => {
+  const scalar = crossRepositorySelfPublicationClosureRow();
+  for (const field of ['evidence', 'evidenceType', 'evidenceExecution', 'evidenceAdmissionPath']) delete scalar[field];
+  const validationEvidenceRows = ['acquisition', 'evaluation', 'decision'].map((name, index) => ({
+    id: binding(validationObligation),
+    satisfaction: binding(crossValidationClosure.result),
+    evidence: binding(`urn:usf:validationevidence:${name}`),
+    evidenceType: binding('true'),
+    evidenceExecution: binding(index === 2
+      ? 'urn:usf:validationexecution:substituted'
+      : crossValidationClosure.execution),
+    evidenceAdmissionPath: binding(crossValidationClosure.admissionPath),
+  }));
+  const packet = await projectContract({ client: fakeClient({
+    validationObligationRows: [{
+      ...defaultValidationObligationRows('urn:usf:validationactivationstate:activated')[0],
+      ...scalar,
+    }],
+    validationEvidenceRows,
+    validationPathRows: crossRepositoryPathRows(),
+  }) }, { contract });
+  assert.equal(packet.validationObligations[0].satisfactionCurrent, false);
+  assert.equal(packet.validationSatisfied, false);
+  assert.deepEqual(packet.validationGaps.map((item) => item.code), ['validation-satisfaction-not-current']);
+  assert.equal(packet.actionState, 'BLOCK');
 });
 
 test('D2 validation subprojections preserve their declared cardinality limits', async () => {
@@ -1304,6 +1359,7 @@ test('D2 validation subprojections preserve their declared cardinality limits', 
           id: binding(validationObligation),
           satisfaction: binding(crossValidationClosure.result),
           evidence: binding(crossValidationClosure.evidence),
+          evidenceType: binding('true'),
           evidenceExecution: binding(crossValidationClosure.execution),
           evidenceAdmissionPath: binding(crossValidationClosure.admissionPath),
         })),
