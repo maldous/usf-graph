@@ -2588,6 +2588,118 @@ export function createSemanticModelCompilationCommand({
       }
     },
 
+    // V2 publication is deliberately exposed through a protocol-specific
+    // entrypoint.  The generic V1 execute() path below continues to reject V2
+    // candidates, so a V1 envelope can never be used to commit a V2 patch.
+    async executeV2Candidate({
+      candidateBytes,
+      candidateDigest,
+      candidateIdentityBytes,
+      expectedD0AuthorityDigest,
+      expectedAuthorityDigest,
+      expectedPostAuthorityDigest,
+      publicationMode = 'validate',
+      stage,
+    }) {
+      if (!['C1', 'C2'].includes(stage)
+          || !['validate', 'commit'].includes(publicationMode)
+          || !SHA256.test(expectedD0AuthorityDigest || '')
+          || !SHA256.test(expectedAuthorityDigest || '')
+          || !SHA256.test(expectedPostAuthorityDigest || '')) {
+        throw new CompilerError('V2 production candidate configuration is incomplete', {
+          phase: 'candidate:v2-configuration',
+        });
+      }
+      const beforeWitness = await readAuthorityWitness(client);
+      const before = digest(beforeWitness);
+      if (before !== expectedAuthorityDigest) {
+        throw new CompilerError('semantic authority drifted before V2 compilation', {
+          phase: 'authority:drift',
+          expectedAuthorityDigest,
+          observedAuthorityDigest: before,
+        });
+      }
+      const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
+      checkLocalFunction(manifest);
+      const patch = parseCanonicalPatch(
+        candidateBytes,
+        candidateDigest,
+        new Set(managedGraphs(manifest)),
+      );
+      const core = exactV2CandidateCoreBinding(patch, candidateIdentityBytes, stage);
+      if (core.d0_authority_digest !== expectedD0AuthorityDigest
+          || (stage === 'C1' && expectedD0AuthorityDigest !== expectedAuthorityDigest)
+          || (stage === 'C1' && core.d1_binding !== null)
+          || (stage === 'C2'
+            && core.d1_binding?.authority_digest !== expectedAuthorityDigest)) {
+        throw new CompilerError('V2 production candidate authority binding is stale', {
+          phase: 'candidate:v2-authority-binding',
+        });
+      }
+      const result = await compilePatch({ client, manifest, patch, publicationMode });
+      const after = digest(await readAuthorityWitness(client));
+      if (publicationMode === 'validate' && after !== before) {
+        throw new CompilerError('validate-only V2 candidate changed semantic authority', {
+          phase: 'authority:validate-drift',
+        });
+      }
+      if (publicationMode === 'commit' && after !== expectedPostAuthorityDigest) {
+        throw new CompilerError('V2 candidate committed an unexpected authority digest', {
+          phase: 'authority:postcondition',
+          expectedAuthorityDigest: expectedPostAuthorityDigest,
+          observedAuthorityDigest: after,
+        });
+      }
+      return Object.freeze({
+        ...result,
+        evaluatedAuthorityDigest: before,
+        protocol: 'semantic-proof-v2',
+        stage,
+      });
+    },
+
+    async observeV2D1Dependencies({ expectedAuthorityDigest }) {
+      if (!SHA256.test(expectedAuthorityDigest || '')) {
+        throw new CompilerError('expected V2 D1 authority digest is required', {
+          phase: 'candidate:v2-configuration',
+        });
+      }
+      const before = digest(await readAuthorityWitness(client));
+      if (before !== expectedAuthorityDigest) {
+        throw new CompilerError('semantic authority drifted before V2 D1 observation', {
+          phase: 'authority:drift',
+        });
+      }
+      const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
+      checkLocalFunction(manifest);
+      let transaction;
+      try {
+        transaction = await client.begin();
+        const current = await readCanonicalStores(
+          client,
+          transaction,
+          managedGraphs(manifest),
+        );
+        const dependencyIdentityDigests = prospectiveD1DependencyIdentityDigests(
+          current.stores,
+        );
+        await client.rollback(transaction);
+        transaction = null;
+        const after = digest(await readAuthorityWitness(client));
+        if (after !== before) {
+          throw new CompilerError('V2 D1 observation changed semantic authority', {
+            phase: 'authority:validate-drift',
+          });
+        }
+        return Object.freeze({
+          authorityDigest: before,
+          dependencyIdentityDigests,
+        });
+      } finally {
+        if (transaction) await client.rollback(transaction);
+      }
+    },
+
     async inspectCandidateState({ candidateBytes, candidateDigest }) {
       const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
       checkLocalFunction(manifest);

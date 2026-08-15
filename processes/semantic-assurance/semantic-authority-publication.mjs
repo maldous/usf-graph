@@ -36,6 +36,7 @@ import {
   verifyEnvelope,
   verifyPublicationBundle,
 } from './semantic-proof-v1.mjs';
+import * as semanticProofV2 from './semantic-proof-v2.mjs';
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const PREPARE_STATES = new Set(['ROLLED_BACK', 'VALIDATED', 'VALIDATED_ROLLBACK']);
@@ -1338,7 +1339,7 @@ export async function runAggregateCompilerProductionLifecycle({
   });
 }
 
-async function configureLiveDependencies(expectedAuthorityDigest, env) {
+export async function configureLiveDependencies(expectedAuthorityDigest, env) {
   try { await fetch('http://127.0.0.1:1/', { signal: AbortSignal.timeout(20) }); } catch { /* initialise dispatcher */ }
   const dispatcherSymbol = Symbol.for('undici.globalDispatcher.1');
   const currentDispatcher = globalThis[dispatcherSymbol];
@@ -1388,6 +1389,10 @@ async function configureLiveDependencies(expectedAuthorityDigest, env) {
       verifyExternalAuthorityProofApproval: verifyEnvelope,
     }),
     readAuthorityWitness: () => readSemanticAuthorityWitness(client),
+    readGraphOwnedConsumers: ({ authorityDigest }) => readGraphOwnedProductionConsumersV2(
+      client,
+      { authorityDigest },
+    ),
     trustedTime,
     evidenceStore: createCasEvidenceStore(env.USF_CAS_ROOT || '/var/lib/usf-cas'),
   };
@@ -1420,6 +1425,282 @@ export function createReadOnlyStardogShadowClientV2(client) {
     addData: refuse,
     validateInTransaction: refuse,
     validateInTransactionWithReceipt: refuse,
+  });
+}
+
+function createGraphProductionReceiptStoreV2(
+  receiptRoot = '/var/lib/usf-programme/v2-publication-receipts',
+) {
+  mkdirSync(receiptRoot, { recursive: true, mode: 0o755 });
+  const canonicalRoot = realpathSync(receiptRoot);
+  const rootStat = lstatSync(canonicalRoot);
+  if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
+    throw new Error('V2 Graph receipt root must be a canonical directory');
+  }
+  chmodSync(canonicalRoot, 0o755);
+  return Object.freeze({
+    persist(receipt, expectedDigest = sha256(canonicalJson(receipt))) {
+      assertExpectedDigest(expectedDigest, 'V2 Graph receipt digest');
+      if (sha256(canonicalJson(receipt)) !== expectedDigest) {
+        throw new Error('V2 Graph receipt differs from its canonical digest');
+      }
+      const bytes = Buffer.from(canonicalJson(receipt), 'utf8');
+      const path = `${canonicalRoot}/${expectedDigest.slice(7)}.json`;
+      try {
+        writeFileSync(path, bytes, { flag: 'wx', mode: 0o444 });
+      } catch (error) {
+        if (error.code !== 'EEXIST' || !readFileSync(path).equals(bytes)) throw error;
+      }
+      const stat = lstatSync(path);
+      if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(path) !== path
+          || !readFileSync(path).equals(bytes)) {
+        throw new Error('V2 Graph receipt read-back differs');
+      }
+      chmodSync(path, 0o444);
+      return Object.freeze({ digest: expectedDigest, path });
+    },
+  });
+}
+
+function explicitGrantDigestsFromPlanV2(plan) {
+  const values = plan.derived_consumers
+    .map((consumer) => consumer.explicit_authorization_grant_digest)
+    .filter((value) => value !== null && value !== undefined)
+    .sort();
+  if (new Set(values).size !== values.length
+      || values.some((value) => !SHA256.test(value))) {
+    throw new Error('V2 plan explicit grant digest set is not canonical');
+  }
+  return Object.freeze(values);
+}
+
+function exactGraphProductionInputsV2(inputs, configuration) {
+  const { plan } = inputs || {};
+  semanticProofV2.assertProspectivePublicationPlanV2(plan);
+  if (plan.outcome !== 'PROCEED'
+      || plan.graph_protected_tree !== configuration.graphTree
+      || plan.factory_deployment_tree !== inputs.factory_tree
+      || inputs.graph_commit !== configuration.graphCommit
+      || inputs.graph_tree !== configuration.graphTree
+      || inputs.publisher_implementation_digest !== configuration.publisherImplementationDigest
+      || inputs.publisher_command_digest !== configuration.publisherCommandDigest) {
+    throw new Error('V2 Graph production inputs differ from the exact admitted release');
+  }
+  return Object.freeze({
+    plan,
+    planDigest: semanticProofV2.prospectivePublicationPlanDigestV2(plan),
+    explicitGrantDigests: explicitGrantDigestsFromPlanV2(plan),
+  });
+}
+
+function v2BoundaryReceipt(kind, binding, fields = {}) {
+  return Object.freeze({
+    schema: `usf-graph-${kind}-receipt-v2`,
+    protocol: 'semantic-proof-v2',
+    release_subject_digest: binding.plan.release_subject_digest,
+    prospective_publication_plan_digest: binding.planDigest,
+    explicit_authorization_grant_digests: binding.explicitGrantDigests,
+    ...fields,
+  });
+}
+
+export function createGraphProductionAdapterV2({
+  command,
+  readAuthorityWitness,
+  readGraphOwnedConsumers,
+  d1CandidateBytes,
+  d1CandidateIdentityBytes,
+  d2CandidateBytes,
+  d2CandidateIdentityBytes,
+  graphCommit,
+  graphTree,
+  publisherImplementationDigest,
+  publisherCommandDigest,
+  receiptStore = createGraphProductionReceiptStoreV2(),
+} = {}) {
+  if (!command || typeof command.previewPublicationSequence !== 'function'
+      || typeof command.executeV2Candidate !== 'function'
+      || typeof command.observeV2D1Dependencies !== 'function'
+      || typeof command.inspectCandidateState !== 'function'
+      || typeof readAuthorityWitness !== 'function'
+      || typeof readGraphOwnedConsumers !== 'function'
+      || !Buffer.isBuffer(d1CandidateIdentityBytes) || d1CandidateIdentityBytes.length === 0
+      || !Buffer.isBuffer(d2CandidateIdentityBytes) || d2CandidateIdentityBytes.length === 0
+      || !/^[0-9a-f]{40}$/.test(graphCommit || '')
+      || !/^[0-9a-f]{40}$/.test(graphTree || '')
+      || !SHA256.test(publisherImplementationDigest || '')
+      || !SHA256.test(publisherCommandDigest || '')
+      || typeof receiptStore?.persist !== 'function') {
+    throw new Error('V2 Graph production adapter configuration is incomplete');
+  }
+  const d1 = exactCandidate(d1CandidateBytes);
+  const d2 = exactCandidate(d2CandidateBytes);
+  const configuration = Object.freeze({
+    graphCommit,
+    graphTree,
+    publisherImplementationDigest,
+    publisherCommandDigest,
+  });
+  const persistBoundary = (receipt) => receiptStore.persist(receipt);
+  const preview = async (binding) => {
+    if (binding.plan.graph_d1_candidate_digest !== d1.digest
+        || binding.plan.graph_d2_candidate_digest !== d2.digest) {
+      throw new Error('V2 Graph candidate bytes differ from the approved plan');
+    }
+    const result = await command.previewPublicationSequence({
+      d1CandidateBytes: d1.bytes,
+      d1CandidateDigest: d1.digest,
+      d1CandidateIdentityBytes,
+      d2CandidateBytes: d2.bytes,
+      d2CandidateDigest: d2.digest,
+      d2CandidateIdentityBytes,
+      expectedD0AuthorityDigest: binding.plan.d0_authority_digest,
+    });
+    if (result.d0AuthorityDigest !== binding.plan.d0_authority_digest
+        || result.d1.authorityDigest !== binding.plan.predicted_d1_authority_digest
+        || canonicalJson(result.d1.dependencyIdentityDigests)
+          !== canonicalJson(binding.plan.d1_dependency_identity_digests)
+        || result.d2.authorityDigest !== binding.plan.predicted_d2_authority_digest
+        || result.d2.evaluationInputAuthorityDigest
+          !== binding.plan.d2_evaluation_input_authority_digest
+        || result.candidateBindings.releaseSubjectDigest !== binding.plan.release_subject_digest
+        || result.candidateBindings.externalAttestationSetRootDigest
+          !== binding.plan.external_attestation_set_root_digest
+        || result.candidateBindings.candidateGeneratorImplementationDigest
+          !== binding.plan.candidate_generator_implementation_digest
+        || result.candidateBindings.candidateCommandDigest
+          !== binding.plan.candidate_command_digest) {
+      throw new Error('V2 Graph production preview differs from the approved plan');
+    }
+    return result;
+  };
+  const observe = () => readAuthorityWitness();
+  return Object.freeze({
+    mode: 'production-v2',
+    observe,
+    readGraphOwnedConsumers: (authorityDigest) => readGraphOwnedConsumers({ authorityDigest }),
+    previewPublication: (input) => command.previewPublicationSequence(input),
+    async reserveGrant(inputs) {
+      const binding = exactGraphProductionInputsV2(inputs, configuration);
+      const before = await readAuthorityWitness();
+      if (before.digest !== binding.plan.d0_authority_digest) {
+        throw new Error('V2 grant reservation did not observe exact D0');
+      }
+      await preview(binding);
+      return persistBoundary(v2BoundaryReceipt('grant-reservation', binding, {
+        d0_authority_digest: before.digest,
+        graph_commit: graphCommit,
+        graph_tree: graphTree,
+      }));
+    },
+    async commitD1(inputs) {
+      const binding = exactGraphProductionInputsV2(inputs, configuration);
+      const witness = await readAuthorityWitness();
+      const state = await command.inspectCandidateState({
+        candidateBytes: d1.bytes,
+        candidateDigest: d1.digest,
+      });
+      if (witness.digest === binding.plan.d0_authority_digest && state.state === 'pre') {
+        await command.executeV2Candidate({
+          candidateBytes: d1.bytes,
+          candidateDigest: d1.digest,
+          candidateIdentityBytes: d1CandidateIdentityBytes,
+          expectedD0AuthorityDigest: binding.plan.d0_authority_digest,
+          expectedAuthorityDigest: binding.plan.d0_authority_digest,
+          expectedPostAuthorityDigest: binding.plan.predicted_d1_authority_digest,
+          publicationMode: 'commit',
+          stage: 'C1',
+        });
+      } else if (witness.digest !== binding.plan.predicted_d1_authority_digest
+          || state.state !== 'post') {
+        throw new Error('V2 D1 commit cannot reconcile the live authority and candidate state');
+      }
+      const settled = await settledWitness(readAuthorityWitness, await readAuthorityWitness());
+      if (settled.digest !== binding.plan.predicted_d1_authority_digest) {
+        throw new Error('V2 D1 did not settle at the approved authority');
+      }
+      const persisted = persistBoundary(v2BoundaryReceipt('d1-commit', binding, {
+        authority_digest: settled.digest,
+        candidate_digest: d1.digest,
+        graph_count: settled.inventory.length,
+        triples: settled.triples,
+      }));
+      return Object.freeze({ authority_digest: settled.digest, receipt_digest: persisted.digest });
+    },
+    async observeD1(inputs) {
+      const binding = exactGraphProductionInputsV2(inputs, configuration);
+      const observation = await command.observeV2D1Dependencies({
+        expectedAuthorityDigest: binding.plan.predicted_d1_authority_digest,
+      });
+      if (canonicalJson(observation.dependencyIdentityDigests)
+          !== canonicalJson(binding.plan.d1_dependency_identity_digests)) {
+        throw new Error('V2 D1 dependency observation differs from the approved plan');
+      }
+      const persisted = persistBoundary(v2BoundaryReceipt('d1-observation', binding, {
+        authority_digest: observation.authorityDigest,
+        dependency_identity_digests: observation.dependencyIdentityDigests,
+      }));
+      return Object.freeze({
+        authority_digest: observation.authorityDigest,
+        dependency_identity_digests: observation.dependencyIdentityDigests,
+        receipt_digest: persisted.digest,
+      });
+    },
+    async commitD2(inputs) {
+      const binding = exactGraphProductionInputsV2(inputs, configuration);
+      const witness = await readAuthorityWitness();
+      const state = await command.inspectCandidateState({
+        candidateBytes: d2.bytes,
+        candidateDigest: d2.digest,
+      });
+      if (witness.digest === binding.plan.predicted_d1_authority_digest && state.state === 'pre') {
+        await command.executeV2Candidate({
+          candidateBytes: d2.bytes,
+          candidateDigest: d2.digest,
+          candidateIdentityBytes: d2CandidateIdentityBytes,
+          expectedD0AuthorityDigest: binding.plan.d0_authority_digest,
+          expectedAuthorityDigest: binding.plan.predicted_d1_authority_digest,
+          expectedPostAuthorityDigest: binding.plan.predicted_d2_authority_digest,
+          publicationMode: 'commit',
+          stage: 'C2',
+        });
+      } else if (witness.digest !== binding.plan.predicted_d2_authority_digest
+          || state.state !== 'post') {
+        throw new Error('V2 D2 commit cannot reconcile the live authority and candidate state');
+      }
+      const settled = await settledWitness(readAuthorityWitness, await readAuthorityWitness());
+      if (settled.digest !== binding.plan.predicted_d2_authority_digest) {
+        throw new Error('V2 D2 did not settle at the approved authority');
+      }
+      const persisted = persistBoundary(v2BoundaryReceipt('d2-commit', binding, {
+        authority_digest: settled.digest,
+        candidate_digest: d2.digest,
+        evaluated_authority_digest: binding.plan.predicted_d1_authority_digest,
+        graph_count: settled.inventory.length,
+        triples: settled.triples,
+      }));
+      return Object.freeze({
+        authority_digest: settled.digest,
+        evaluated_authority_digest: binding.plan.predicted_d1_authority_digest,
+        receipt_digest: persisted.digest,
+      });
+    },
+    async persistTerminalReceipt(receipt, inputs) {
+      const binding = exactGraphProductionInputsV2(inputs, configuration);
+      const digest = semanticProofV2.graphPublicationReceiptDigestV2(receipt);
+      if (receipt.prospective_publication_plan_digest !== binding.planDigest) {
+        throw new Error('V2 terminal receipt differs from the approved plan');
+      }
+      return receiptStore.persist(receipt, digest);
+    },
+    async consumeGrant(receipt, inputs) {
+      const binding = exactGraphProductionInputsV2(inputs, configuration);
+      const terminalDigest = semanticProofV2.graphPublicationReceiptDigestV2(receipt);
+      return persistBoundary(v2BoundaryReceipt('grant-consumption', binding, {
+        terminal_publication_receipt_digest: terminalDigest,
+        state: 'consumed',
+      }));
+    },
   });
 }
 
@@ -1789,6 +2070,31 @@ export async function configureLiveGraphProductionShadowV2(expectedAuthorityDige
       })
     ),
     readAuthorityWitness,
+  });
+}
+
+export async function configureLiveGraphProductionV2(
+  expectedAuthorityDigest,
+  adapterConfiguration,
+  env = process.env,
+) {
+  assertExpectedDigest(expectedAuthorityDigest, 'V2 Graph production D0 authority');
+  const live = await configureLiveDependencies(expectedAuthorityDigest, env);
+  return Object.freeze({
+    adapter: createGraphProductionAdapterV2({
+      command: live.command,
+      readAuthorityWitness: live.readAuthorityWitness,
+      readGraphOwnedConsumers: live.readGraphOwnedConsumers,
+      ...adapterConfiguration,
+    }),
+    previewV2PublicationFromFrozenInputs: (frozenInputs) => (
+      live.command.previewV2PublicationFromFrozenInputs({
+        frozenInputs,
+        expectedD0AuthorityDigest: expectedAuthorityDigest,
+      })
+    ),
+    readAuthorityWitness: live.readAuthorityWitness,
+    trustedTime: live.trustedTime,
   });
 }
 

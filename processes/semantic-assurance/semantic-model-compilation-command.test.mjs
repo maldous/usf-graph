@@ -877,6 +877,30 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
     expectedAuthorityDigest: authority,
     publicationMode: 'commit',
   }), /V2 production candidate commits remain disabled/);
+  const validatedV2 = await command.executeV2Candidate({
+    candidateBytes: v2c1.bytes,
+    candidateDigest: v2c1.candidateDigest,
+    candidateIdentityBytes: v2c1.identityBytes,
+    expectedD0AuthorityDigest: authority,
+    expectedAuthorityDigest: authority,
+    expectedPostAuthorityDigest: predictedD1,
+    publicationMode: 'validate',
+    stage: 'C1',
+  });
+  assert.equal(validatedV2.protocol, 'semantic-proof-v2');
+  assert.equal(validatedV2.stage, 'C1');
+  assert.equal(validatedV2.commitOutcome.state, 'VALIDATED_ROLLBACK');
+  assert.match(live.get(graph), /"d0"/);
+  await assert.rejects(command.executeV2Candidate({
+    candidateBytes: v2c1.bytes,
+    candidateDigest: v2c1.candidateDigest,
+    candidateIdentityBytes: v2c2.identityBytes,
+    expectedD0AuthorityDigest: authority,
+    expectedAuthorityDigest: authority,
+    expectedPostAuthorityDigest: predictedD1,
+    publicationMode: 'validate',
+    stage: 'C1',
+  }), /descriptor\/core binding is not exact/u);
   await assert.rejects(command.composeCandidate({
     generatedCandidateBytes: v2c1.bytes,
     expectedAuthorityDigest: authority,

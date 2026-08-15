@@ -17,6 +17,7 @@ import { dirname, join } from 'node:path';
 import {
   assertAcceptedCompilerResult,
   createCasEvidenceStore,
+  createGraphProductionAdapterV2,
   createReadOnlyStardogShadowClientV2,
   DEFAULT_PROTOCOL_JOURNAL,
   runPublication,
@@ -32,6 +33,13 @@ import {
   publicationReceiptDigest,
   sha256,
 } from './semantic-proof-v1.mjs';
+import {
+  canonicalDigestV2,
+  DERIVED_CONSUMER_REGISTRY_V2_DIGEST,
+  graphPublicationReceiptDigestV2,
+  IDENTITY_DEPENDENCY_GRAPH_V2_DIGEST,
+  prospectivePublicationPlanDigestV2,
+} from './semantic-proof-v2.mjs';
 
 test('V2 Graph production shadow exposes reads and rollback while refusing every write surface', async () => {
   const calls = [];
@@ -59,6 +67,201 @@ test('V2 Graph production shadow exposes reads and rollback while refusing every
   ]) {
     await assert.rejects(shadow[operation](), /V2_GRAPH_PRODUCTION_WRITES_DISABLED/);
   }
+});
+
+function productionAdapterFixture() {
+  const valueDigest = (character) => `sha256:${character.repeat(64)}`;
+  const d1Bytes = Buffer.from('exact C1 candidate');
+  const d2Bytes = Buffer.from('exact C2 candidate');
+  const d0 = valueDigest('2');
+  const d1 = valueDigest('3');
+  const d2 = valueDigest('4');
+  const dependencies = Object.freeze([valueDigest('5'), valueDigest('6')]);
+  const kinds = [
+    'contract_projection',
+    'execution_scope_projection',
+    'factory_graph_witness_binding',
+    'owner_envelope_successor',
+    'run_authorization',
+    'validation_currentness_binding',
+    'workforce_policy_compatibility_binding',
+  ];
+  const consumers = kinds.map((kind, index) => {
+    const semantic = valueDigest('abcdef9'[index]);
+    const predecessor = valueDigest('8765432'[index]);
+    const materialisation = valueDigest('1234567'[index]);
+    const successor = Object.freeze({
+      authority_digest: d2,
+      consumer_iri: `urn:usf:derivedconsumer:v2:${kind.replaceAll('_', '-')}`,
+      consumer_kind: kind,
+      consumer_schema_version: 2,
+      current_policy_compatibility_digest: kind === 'workforce_policy_compatibility_binding'
+        ? valueDigest('e') : null,
+      historical_policy_identity_digest: kind === 'workforce_policy_compatibility_binding'
+        ? valueDigest('f') : null,
+      materialisation_digest: materialisation,
+      predecessor_identity_digest: predecessor,
+      producer_iri: `urn:usf:producer:${kind.replaceAll('_', '-')}:v2`,
+      record_iri: `urn:usf:derivedconsumersuccessor:v2:${kind}:${index}`,
+      registry_digest: DERIVED_CONSUMER_REGISTRY_V2_DIGEST,
+      release_subject_digest: valueDigest('1'),
+      repository_category: kind === 'factory_graph_witness_binding'
+        ? 'maldous/usf-factory' : null,
+      schema: 'usf-derived-consumer-successor-v2',
+      semantic_scope_digest: semantic,
+      transition_cause: 'PUBLICATION_DERIVED_MATERIALISATION',
+      validation_input_authority_digest: kind === 'validation_currentness_binding'
+        ? d1 : null,
+      validation_input_identity_digests: kind === 'validation_currentness_binding'
+        ? dependencies : [],
+      verification_algorithm_iri: `urn:usf:algorithm:verify-${kind.replaceAll('_', '-')}:v2`,
+      verification_algorithm_version: '2.0.0',
+    });
+    return Object.freeze({
+      block_reason: null,
+      consumer_iri: successor.consumer_iri,
+      consumer_kind: kind,
+      current_materialisation_digest: valueDigest('0123456'[index]),
+      current_semantic_scope_digest: semantic,
+      decision: 'COMPATIBLE_SUCCESSOR',
+      expected_successor: successor,
+      expected_successor_digest: canonicalDigestV2(successor),
+      mandatory: true,
+      predecessor_identity_digest: predecessor,
+      predecessor_record_digest: materialisation,
+      predicted_d1_authority_digest: d1,
+      predicted_d2_authority_digest: d2,
+      prospective_materialisation_digest: materialisation,
+      prospective_semantic_scope_digest: semantic,
+    });
+  });
+  const plan = Object.freeze({
+    d0_authority_digest: d0,
+    d1_dependency_identity_digests: dependencies,
+    d2_evaluation_input_authority_digest: d1,
+    derived_consumer_registry_digest: DERIVED_CONSUMER_REGISTRY_V2_DIGEST,
+    derived_consumers: Object.freeze(consumers),
+    factory_deployment_tree: 'a'.repeat(40),
+    graph_d1_candidate_digest: sha256(d1Bytes),
+    graph_d2_candidate_digest: sha256(d2Bytes),
+    graph_production_shadow_receipt_digest: valueDigest('b'),
+    external_attestation_set_root_digest: valueDigest('c'),
+    candidate_generator_implementation_digest: valueDigest('d'),
+    candidate_command_digest: valueDigest('e'),
+    graph_protected_tree: 'b'.repeat(40),
+    identity_dependency_graph_digest: IDENTITY_DEPENDENCY_GRAPH_V2_DIGEST,
+    outcome: 'PROCEED',
+    predicted_d1_authority_digest: d1,
+    predicted_d2_authority_digest: d2,
+    release_subject_digest: valueDigest('1'),
+    required_cas_object_digests: Object.freeze([valueDigest('7'), valueDigest('8')]),
+    schema: 'usf-prospective-publication-plan-v2',
+  });
+  return { d0, d1, d2, d1Bytes, d2Bytes, dependencies, plan, valueDigest };
+}
+
+test('V2 Graph production adapter commits exact C1/C2 once and recovers each durable boundary', async () => {
+  const fixture = productionAdapterFixture();
+  let authority = fixture.d0;
+  const calls = { C1: 0, C2: 0 };
+  const receipts = new Map();
+  const command = {
+    async previewPublicationSequence() {
+      return {
+        d0AuthorityDigest: fixture.d0,
+        d1: {
+          authorityDigest: fixture.d1,
+          dependencyIdentityDigests: fixture.dependencies,
+        },
+        d2: {
+          authorityDigest: fixture.d2,
+          evaluationInputAuthorityDigest: fixture.d1,
+        },
+        candidateBindings: {
+          releaseSubjectDigest: fixture.plan.release_subject_digest,
+          externalAttestationSetRootDigest: fixture.plan.external_attestation_set_root_digest,
+          candidateGeneratorImplementationDigest:
+            fixture.plan.candidate_generator_implementation_digest,
+          candidateCommandDigest: fixture.plan.candidate_command_digest,
+        },
+      };
+    },
+    async inspectCandidateState({ candidateDigest }) {
+      if (candidateDigest === fixture.plan.graph_d1_candidate_digest) {
+        return { state: authority === fixture.d0 ? 'pre' : 'post' };
+      }
+      return { state: authority === fixture.d1 ? 'pre' : 'post' };
+    },
+    async executeV2Candidate({ stage }) {
+      calls[stage] += 1;
+      authority = stage === 'C1' ? fixture.d1 : fixture.d2;
+      return { ok: true };
+    },
+    async observeV2D1Dependencies() {
+      return {
+        authorityDigest: authority,
+        dependencyIdentityDigests: fixture.dependencies,
+      };
+    },
+  };
+  const receiptStore = {
+    persist(receipt, expectedDigest = sha256(canonicalJson(receipt))) {
+      const observed = sha256(canonicalJson(receipt));
+      assert.equal(observed, expectedDigest);
+      assert.equal(receipts.get(observed) || canonicalJson(receipt), canonicalJson(receipt));
+      receipts.set(observed, canonicalJson(receipt));
+      return { digest: observed, path: `/receipts/${observed}.json` };
+    },
+  };
+  const adapter = createGraphProductionAdapterV2({
+    command,
+    readAuthorityWitness: async () => ({
+      digest: authority,
+      inventory: [{ graph: 'urn:test:graph', sha256: fixture.valueDigest('f'), triples: 1 }],
+      triples: 1,
+    }),
+    readGraphOwnedConsumers: async () => [],
+    d1CandidateBytes: fixture.d1Bytes,
+    d1CandidateIdentityBytes: Buffer.from('{}'),
+    d2CandidateBytes: fixture.d2Bytes,
+    d2CandidateIdentityBytes: Buffer.from('{}'),
+    graphCommit: 'c'.repeat(40),
+    graphTree: fixture.plan.graph_protected_tree,
+    publisherImplementationDigest: fixture.valueDigest('f'),
+    publisherCommandDigest: fixture.valueDigest('0'),
+    receiptStore,
+  });
+  const inputs = {
+    plan: fixture.plan,
+    factory_tree: fixture.plan.factory_deployment_tree,
+    graph_commit: 'c'.repeat(40),
+    graph_tree: fixture.plan.graph_protected_tree,
+    publisher_implementation_digest: fixture.valueDigest('f'),
+    publisher_command_digest: fixture.valueDigest('0'),
+  };
+  assert.match((await adapter.reserveGrant(inputs)).digest, /^sha256:/u);
+  const d1First = await adapter.commitD1(inputs);
+  const d1Recovered = await adapter.commitD1(inputs);
+  assert.deepEqual(d1Recovered, d1First);
+  assert.equal(calls.C1, 1);
+  const observation = await adapter.observeD1(inputs);
+  assert.deepEqual(observation.dependency_identity_digests, fixture.dependencies);
+  const d2First = await adapter.commitD2(inputs);
+  const d2Recovered = await adapter.commitD2(inputs);
+  assert.deepEqual(d2Recovered, d2First);
+  assert.equal(calls.C2, 1);
+  const terminal = {
+    schema: 'usf-semantic-publication-receipt-v2',
+    protocol: 'semantic-proof-v2',
+    publication_outcome: 'accepted',
+    prospective_publication_plan_digest: prospectivePublicationPlanDigestV2(fixture.plan),
+  };
+  const persisted = await adapter.persistTerminalReceipt(terminal, inputs);
+  assert.equal(persisted.digest, graphPublicationReceiptDigestV2(terminal));
+  assert.match((await adapter.consumeGrant(terminal, inputs)).digest, /^sha256:/u);
+  const drifted = structuredClone(inputs);
+  drifted.graph_tree = 'd'.repeat(40);
+  await assert.rejects(adapter.reserveGrant(drifted), /exact admitted release/u);
 });
 
 test('canonical source candidate generation cannot cross the strict no-write production shadow', async () => {
