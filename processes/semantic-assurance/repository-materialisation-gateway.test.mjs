@@ -1284,16 +1284,18 @@ test('D2 validation evidence is projected independently of the bounded scalar cl
   assert.ok(evidenceQuery.includes('LIMIT 257'));
 });
 
-test('D2 validation currentness accepts every exact item in a plural admitted evidence set', async () => {
+test('D2 validation currentness accepts supporting evidence beside its exact validation evidence', async () => {
   const scalar = crossRepositorySelfPublicationClosureRow();
   for (const field of ['evidence', 'evidenceType', 'evidenceExecution', 'evidenceAdmissionPath']) delete scalar[field];
-  const validationEvidenceRows = ['acquisition', 'evaluation', 'decision'].map((name) => ({
+  const validationEvidenceRows = ['validation', 'evaluation', 'decision'].map((name, index) => ({
     id: binding(validationObligation),
     satisfaction: binding(crossValidationClosure.result),
-    evidence: binding(`urn:usf:validationevidence:${name}`),
-    evidenceType: binding('true'),
-    evidenceExecution: binding(crossValidationClosure.execution),
-    evidenceAdmissionPath: binding(crossValidationClosure.admissionPath),
+    evidence: binding(`urn:usf:evidenceresult:${name}`),
+    ...(index === 0 ? {
+      evidenceType: binding('true'),
+      evidenceExecution: binding(crossValidationClosure.execution),
+      evidenceAdmissionPath: binding(crossValidationClosure.admissionPath),
+    } : {}),
   }));
   const packet = await projectContract({ client: fakeClient({
     validationObligationRows: [{
@@ -1312,15 +1314,17 @@ test('D2 validation currentness accepts every exact item in a plural admitted ev
 test('D2 validation currentness rejects a plural evidence set with a substituted execution', async () => {
   const scalar = crossRepositorySelfPublicationClosureRow();
   for (const field of ['evidence', 'evidenceType', 'evidenceExecution', 'evidenceAdmissionPath']) delete scalar[field];
-  const validationEvidenceRows = ['acquisition', 'evaluation', 'decision'].map((name, index) => ({
+  const validationEvidenceRows = ['validation', 'evaluation', 'decision'].map((name, index) => ({
     id: binding(validationObligation),
     satisfaction: binding(crossValidationClosure.result),
-    evidence: binding(`urn:usf:validationevidence:${name}`),
-    evidenceType: binding('true'),
-    evidenceExecution: binding(index === 2
-      ? 'urn:usf:validationexecution:substituted'
-      : crossValidationClosure.execution),
-    evidenceAdmissionPath: binding(crossValidationClosure.admissionPath),
+    evidence: binding(`urn:usf:evidenceresult:${name}`),
+    ...(index < 2 ? {
+      evidenceType: binding('true'),
+      evidenceExecution: binding(index === 1
+        ? 'urn:usf:validationexecution:substituted'
+        : crossValidationClosure.execution),
+      evidenceAdmissionPath: binding(crossValidationClosure.admissionPath),
+    } : {}),
   }));
   const packet = await projectContract({ client: fakeClient({
     validationObligationRows: [{

@@ -1121,11 +1121,24 @@ async function validationScope(client, contract) {
     if (!record) {
       throw new Error('validation evidence projection is inconsistent');
     }
-    for (const field of ['evidence', 'evidenceType', 'evidenceExecution', 'evidenceAdmissionPath']) {
-      const term = value(row, field);
-      if (term === null) throw new Error('validation evidence projection is incomplete');
-      record[field].add(term);
+    const evidence = value(row, 'evidence');
+    const evidenceType = value(row, 'evidenceType');
+    const evidenceExecution = value(row, 'evidenceExecution');
+    const evidenceAdmissionPath = value(row, 'evidenceAdmissionPath');
+    if (evidence === null) throw new Error('validation evidence projection is incomplete');
+    record.evidence.add(evidence);
+    if (evidenceType === null) {
+      if (evidenceExecution !== null || evidenceAdmissionPath !== null) {
+        throw new Error('validation evidence projection is incomplete');
+      }
+      continue;
     }
+    if (evidenceType !== 'true' || evidenceExecution === null || evidenceAdmissionPath === null) {
+      throw new Error('validation evidence projection is incomplete');
+    }
+    record.evidenceType.add(evidenceType);
+    record.evidenceExecution.add(evidenceExecution);
+    record.evidenceAdmissionPath.add(evidenceAdmissionPath);
   }
   const projectedObligations = [...obligations.values()].map(({ satisfactionRecords, definitions, activationReasons, targets, evidence, ownerPaths, ...obligation }) => ({
     ...obligation,
