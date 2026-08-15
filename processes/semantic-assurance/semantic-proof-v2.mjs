@@ -247,11 +247,23 @@ function exactGraphOwnedConsumerRecordV2(input, authorityDigest) {
       || !Array.isArray(input.materialisation) || input.materialisation.length === 0) {
     throw new Error('Graph-owned consumer semantic scope/materialisation is incomplete');
   }
-  const materialisation = Object.freeze(input.materialisation.map((statement) => Object.freeze({
-    subject: statement.subject,
-    predicate: statement.predicate,
-    object: Object.freeze({ ...statement.object }),
-  })));
+  const materialisationEntries = input.materialisation.map((statement) => {
+    const record = Object.freeze({
+      subject: statement.subject,
+      predicate: statement.predicate,
+      object: Object.freeze({ ...statement.object }),
+    });
+    return Object.freeze({
+      bytes: Buffer.from(canonicalJsonV2(record), 'utf8'),
+      record,
+    });
+  }).sort((left, right) => Buffer.compare(left.bytes, right.bytes));
+  for (let index = 1; index < materialisationEntries.length; index += 1) {
+    if (materialisationEntries[index - 1].bytes.equals(materialisationEntries[index].bytes)) {
+      throw new Error('Graph-owned consumer materialisation contains duplicate statements');
+    }
+  }
+  const materialisation = Object.freeze(materialisationEntries.map(({ record }) => record));
   const semanticScope = Object.freeze(stable(input.semantic_scope));
   const validationInputAuthorityDigest = input.consumer_kind === 'validation_currentness_binding'
     ? exactDigest(input.validation_input_authority_digest, 'validation D0 input authority')

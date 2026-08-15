@@ -625,6 +625,32 @@ test('Graph-owned consumers are canonically observed inside one immutable author
     [digest('3'), digest('4')]);
 });
 
+test('Graph-owned consumer materialisation is canonical-byte ordered and duplicate-free', async () => {
+  const d0 = graphWitness('a');
+  const statement = (subject, value) => Object.freeze({
+    subject,
+    predicate: 'urn:usf:ontology:canonicalName',
+    object: Object.freeze({ term_type: 'literal', value, datatype: null, language: null }),
+  });
+  const records = graphOwnedConsumerInputs();
+  const later = statement('urn:usf:z', 'later');
+  const earlier = statement('urn:usf:a', 'earlier');
+  const observe = async (materialisation) => captureGraphOwnedConsumerObservationV2({
+    adapter: createReadOnlyGraphProductionAdapterV2({
+      readAuthorityWitness: async () => d0,
+      readGraphOwnedConsumers: async () => records.map((record, index) => index === 0
+        ? { ...record, materialisation } : record),
+      command: { async previewPublicationSequence() { throw new Error('unused'); } },
+    }),
+    expectedAuthorityDigest: d0.digest,
+  });
+  const forward = await observe([later, earlier]);
+  const reverse = await observe([earlier, later]);
+  assert.deepEqual(forward, reverse);
+  assert.deepEqual(forward.consumers[0].materialisation, [earlier, later]);
+  await assert.rejects(observe([earlier, earlier]), /duplicate statements/);
+});
+
 test('Graph-owned consumer observation fails closed on drift, cardinality, schema and stale D0 input', async () => {
   const d0 = graphWitness('a');
   const drift = graphWitness('b');
