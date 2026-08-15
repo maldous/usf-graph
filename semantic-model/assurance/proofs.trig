@@ -610,7 +610,7 @@
   usf:proofAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890>;
-  usf:currentImplementationSourceSetDigest "sha256:b0125a84a1dc50bcce5f1b3bbe9af21cd5db7cd1801475a72ee1ac8c488ea6d2";
+  usf:currentImplementationSourceSetDigest "sha256:dc6bab1ff5714f15178b3eccbd174eb1e89eb2a5b736ffff06ad8cb686f1c9c9";
   usf:requiresGraphSourceBinding true.
 <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890> a usf:ProofAlgorithmVersion;
   usf:canonicalName "factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
@@ -667,16 +667,16 @@
     <urn:usf:evidenceresult:factoryproviderv3implementation>,
     <urn:usf:evidenceresult:factoryproviderv3implementationevaluation>,
     <urn:usf:evidenceresult:factoryproviderv3productionactivationdecision>;
-  usf:evidenceSetDigest "sha256:388753d51a77c71f6b6ee0f17a358274ce2bb251948c6e298f2076afebb899cd";
-  usf:implementationSourceSetDigest "sha256:b0125a84a1dc50bcce5f1b3bbe9af21cd5db7cd1801475a72ee1ac8c488ea6d2";
-  usf:proofProducerCommit "a604f5bc28b204cb5a493012bb96867eb9f220e7";
-  usf:proofProducerTree "cbfd47c4b1f6596fa4f3fb28c82496362ca34f72";
+  usf:evidenceSetDigest "sha256:82db2e558bc7b92ca68f065ac4d7e085ea3ef3bc0eb40c8e2cd99edcd29b40d3";
+  usf:implementationSourceSetDigest "sha256:dc6bab1ff5714f15178b3eccbd174eb1e89eb2a5b736ffff06ad8cb686f1c9c9";
+  usf:proofProducerCommit "e58e9589ea42d956ef4147179e421756005d4fe1";
+  usf:proofProducerTree "f2857252db92e7c0149d9725c6a692a48b82bc89";
   usf:evaluatedByValidator <urn:usf:validatorrule:validatefactoryproviderv3implementation>;
   usf:proofExecutionEnvironment env:productionshaped;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
   usf:confidenceBasis <urn:usf:evidenceresult:factoryproviderv3implementation>;
-  usf:uncertaintyStatement "This proof warrants only the exact Factory Provider V3 source at commit a604f5bc28b204cb5a493012bb96867eb9f220e7, tree cbfd47c4b1f6596fa4f3fb28c82496362ca34f72 and unchanged source scope sha256:d1473ce7cabbe40ab0edcb2ea853704339e97bea8e6742cb74464e1c15824167. It proves the exact maintenance-census authority binding precedes the first durable provider-market write and remains fenced. It does not authorize pruning, another production prune, V2 activation, deployment, provider use, natural LEARNED cycles, backup, restore or BAU.";
-  usf:evaluatedAt "2026-08-14T21:17:30Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:uncertaintyStatement "This proof warrants only the exact Factory Provider V3 source at commit e58e9589ea42d956ef4147179e421756005d4fe1, tree f2857252db92e7c0149d9725c6a692a48b82bc89 and unchanged source scope sha256:d1473ce7cabbe40ab0edcb2ea853704339e97bea8e6742cb74464e1c15824167. It proves the exact current V3 authority context remains bound through the terminal model_market.maintenance event and is cleared afterward under fail-closed fencing. It does not authorize pruning, another production prune, V2 activation, deployment, provider use, natural LEARNED cycles, backup, restore or BAU.";
+  usf:evaluatedAt "2026-08-15T02:17:48Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 
 # Historical checkpoint machinery proof. Publication A deliberately omits
