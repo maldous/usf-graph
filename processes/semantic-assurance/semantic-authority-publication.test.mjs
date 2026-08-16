@@ -17,10 +17,12 @@ import { dirname, join } from 'node:path';
 import {
   assertAcceptedCompilerResult,
   createCasEvidenceStore,
+  createGraphNativeSuccessorStoreV2,
   createGraphProductionAdapterV2,
   createReadOnlyStardogShadowClientV2,
   DEFAULT_PROTOCOL_JOURNAL,
   readImplementationWorkGrantAuthorityStateV1,
+  observeGraphRuntimeOwnershipV2,
   runPublication,
 } from './semantic-authority-publication.mjs';
 import {
@@ -1279,4 +1281,53 @@ test('reevaluation terminal verification resumes after post-commit process failu
   assert.equal(terminalAttempts, 2);
   assert.equal(compiler.calls.filter((call) => call.publicationMode === 'commit').length, 1);
   state.remove();
+});
+
+
+test('terminal V2 is irreversible: deleting the fence quad does not resurrect V1', async () => {
+  // The fence quad is a RUNTIME marker. Terminal ownership derives from durable
+  // admitted state, so removing the fence must fail closed -- never fall back to
+  // V1_OWNER. This is the difference between a fence and a barrier.
+  const nativeRoot = mkdtempSync(join(tmpdir(), 'usf-terminal-floor-'));
+  const casRoot = mkdtempSync(join(tmpdir(), 'usf-terminal-floor-cas-'));
+  const store = createGraphNativeSuccessorStoreV2({
+    nativeRoot,
+    casStore: createCasEvidenceStore(casRoot),
+  });
+
+  // No durable generation yet: an absent fence is genuinely pre-handover V1.
+  assert.equal(store.readTerminalOwnershipFloor().terminal, false);
+
+  const witness = { digest: `sha256:${'a'.repeat(64)}`, inventory: [], triples: 0 };
+  const readAuthorityWitness = async () => witness;
+  const client = { select: async () => [] };
+
+  const preTerminal = await observeGraphRuntimeOwnershipV2({
+    client,
+    expectedAuthorityDigest: witness.digest,
+    readAuthorityWitness,
+    nativeGraphStore: store,
+  });
+  assert.equal(preTerminal.ownership_state, 'V1_OWNER');
+
+  // Admit durable terminal state, then delete the fence (the client returns no
+  // fence rows at all, which is exactly the "quad deleted" case).
+  const generation = 'b'.repeat(64);
+  mkdirSync(join(nativeRoot, generation), { recursive: true });
+  writeFileSync(join(nativeRoot, generation, 'terminal-receipt.json'), '{}\n');
+
+  const floor = store.readTerminalOwnershipFloor();
+  assert.equal(floor.terminal, true);
+  assert.deepEqual(floor.generations, [`sha256:${generation}`]);
+
+  await assert.rejects(
+    () => observeGraphRuntimeOwnershipV2({
+      client,
+      expectedAuthorityDigest: witness.digest,
+      readAuthorityWitness,
+      nativeGraphStore: store,
+    }),
+    /V2_GRAPH_TERMINAL_OWNERSHIP_FENCE_MISSING/,
+    'a deleted fence over durable terminal state must fail closed, not report V1',
+  );
 });

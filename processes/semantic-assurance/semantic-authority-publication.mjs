@@ -2473,6 +2473,30 @@ export function createGraphNativeSuccessorStoreV2({
       }
       return Object.freeze({ digest, size: observed.length });
     },
+    // The irreversible terminal floor. Terminal V2 ownership is derived from
+    // DURABLE ADMITTED STATE, not from the presence of a runtime fence quad.
+    // Deleting the fence, losing the observer, restarting, restoring or
+    // reconstructing a deployment must never make V1 reachable again, so this
+    // enumerates the durable generations and reports any that already hold a
+    // terminal receipt. Read-only; it never creates anything.
+    readTerminalOwnershipFloor() {
+      const root = resolve(nativeRoot);
+      if (!existsSync(root)) return Object.freeze({ terminal: false, generations: Object.freeze([]) });
+      const stat = lstatSync(root);
+      if (!stat.isDirectory() || stat.isSymbolicLink() || realpathSync(root) !== root) {
+        throw new Error('V2 Graph native successor root is unsafe');
+      }
+      const generations = [];
+      for (const name of readdirSync(root).sort()) {
+        if (!/^[0-9a-f]{64}$/.test(name)) continue;
+        if (!existsSync(`${root}/${name}/terminal-receipt.json`)) continue;
+        generations.push(`sha256:${name}`);
+      }
+      return Object.freeze({
+        terminal: generations.length > 0,
+        generations: Object.freeze(generations),
+      });
+    },
     loadGeneration(handoverGenerationDigest) {
       if (!SHA256.test(handoverGenerationDigest || '')) {
         throw new Error('V2 Graph native generation identity is invalid');
@@ -3972,7 +3996,10 @@ export function validationCurrentnessEnvelopeFromSigningRequestV2(request, signa
 }
 
 export async function observeGraphRuntimeOwnershipV2(options = {}) {
-  const { client, expectedAuthorityDigest, readAuthorityWitness, publicationLane = null } = options;
+  const {
+    client, expectedAuthorityDigest, readAuthorityWitness, publicationLane = null,
+    nativeGraphStore = createGraphNativeSuccessorStoreV2(),
+  } = options;
   if (!client || typeof client.select !== 'function'
       || typeof readAuthorityWitness !== 'function'
       || !SHA256.test(expectedAuthorityDigest || '')) {
@@ -3992,6 +4019,17 @@ export async function observeGraphRuntimeOwnershipV2(options = {}) {
     throw new Error('V2_GRAPH_RUNTIME_OWNERSHIP_AMBIGUOUS');
   }
   if (fences.length === 0) {
+    // A missing fence is NOT evidence that V1 owns the runtime. Terminal V2 is
+    // derived from durable admitted state, so if any durable generation already
+    // holds a terminal receipt, the fence's absence means the fence was deleted
+    // or lost -- never that V1 may execute again. Fail closed; rollback to V1 is
+    // not a reachable state.
+    const floor = typeof nativeGraphStore?.readTerminalOwnershipFloor === 'function'
+      ? nativeGraphStore.readTerminalOwnershipFloor()
+      : null;
+    if (floor && floor.terminal) {
+      throw new Error('V2_GRAPH_TERMINAL_OWNERSHIP_FENCE_MISSING');
+    }
     const reservation = publicationLane === null ? null : publicationLane.readReservation();
     if (reservation !== null) {
       if (reservation.d0_authority_digest !== before.digest) {
