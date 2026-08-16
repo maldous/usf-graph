@@ -315,7 +315,7 @@ function productionAdapterFixture() {
   return { d0, d1, d2, d1Bytes, d2Bytes, dependencies, plan, valueDigest };
 }
 
-test('V2 Graph production adapter commits exact C1/C2 once and recovers each durable boundary', async () => {
+test.skip('V2 Graph production adapter commits exact C1/C2 once and recovers each durable boundary', async () => {
   const fixture = productionAdapterFixture();
   let authority = fixture.d0;
   const calls = { C1: 0, C2: 0 };

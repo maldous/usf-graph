@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto';
-import { lstatSync, readFileSync, realpathSync } from 'node:fs';
-import { relative, resolve, sep } from 'node:path';
+import {
+  closeSync, existsSync, fsyncSync, linkSync, lstatSync, openSync, readFileSync,
+  realpathSync, unlinkSync, writeFileSync,
+} from 'node:fs';
+import { dirname, relative, resolve, sep } from 'node:path';
 import { DataFactory, Parser, Store, Writer } from 'n3';
 
 import {
@@ -78,6 +81,12 @@ const V2_D1_BINDING_DEPENDENCY_PREDICATES = Object.freeze([
   'validationBindingSourceScopeDigest',
   'validationNonPublicationDependencySetDigest',
 ]);
+const V2_NATIVE_HANDOVER_FENCE = 'urn:usf:v2nativehandoverfence:current';
+const V2_NATIVE_HANDOVER_FENCE_CLASS = `${USF_ONTOLOGY}V2NativeHandoverFence`;
+const V2_HANDOVER_RESERVATION_SCHEMA = 'usf-v2-native-handover-reservation-v1';
+const V2_HANDOVER_FACTORY_PREPARE_BINDING_SCHEMA =
+  'usf-v2-native-handover-factory-prepare-binding-v1';
+const PUBLICATION_LANE_LOCK_SCHEMA = 'usf-semantic-publication-lane-lock-v1';
 const { defaultGraph, namedNode, quad } = DataFactory;
 
 const stable = (value) => Array.isArray(value)
@@ -89,6 +98,300 @@ const canonicalJson = (value) => JSON.stringify(stable(value));
 
 function sha256(bytes) {
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+}
+
+function createSemanticPublicationLaneV2(
+  programmeRoot = process.env.USF_PROGRAMME_ROOT || '/var/lib/usf-programme',
+) {
+  const requestedRoot = resolve(programmeRoot);
+  const root = () => {
+    if (!existsSync(requestedRoot)) {
+      throw new CompilerError('semantic publication lane root is missing', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    const observed = realpathSync(requestedRoot);
+    const stat = lstatSync(observed);
+    if (observed !== requestedRoot || !stat.isDirectory() || stat.isSymbolicLink()) {
+      throw new CompilerError('semantic publication lane root is unsafe', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    return observed;
+  };
+  const lockPath = () => `${root()}/semantic-publication-lane-v2.lock`;
+  const reservationPath = () => `${root()}/v2-native-handover-reservation.json`;
+  const prepareBindingPath = () => `${root()}/v2-native-handover-factory-prepare.json`;
+  const readCanonicalFile = (path) => {
+    const stat = lstatSync(path);
+    if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(path) !== path) {
+      throw new CompilerError('semantic publication reservation is unsafe', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    const bytes = readFileSync(path);
+    let value;
+    try { value = JSON.parse(bytes.toString('utf8')); } catch {
+      throw new CompilerError('semantic publication reservation is not JSON', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    if (!bytes.equals(Buffer.from(canonicalJson(value), 'utf8'))) {
+      throw new CompilerError('semantic publication reservation is not canonical', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    return Object.freeze(value);
+  };
+  const readReservation = () => {
+    const path = reservationPath();
+    return existsSync(path) ? readCanonicalFile(path) : null;
+  };
+  const validateReservation = (value) => {
+    exactObjectKeys(value, [
+      'd0_authority_digest', 'handover_generation_digest',
+      'prospective_publication_plan_digest', 'schema',
+    ], 'V2 handover publication reservation');
+    if (value.schema !== V2_HANDOVER_RESERVATION_SCHEMA
+        || !SHA256.test(value.d0_authority_digest || '')
+        || !SHA256.test(value.handover_generation_digest || '')
+        || !SHA256.test(value.prospective_publication_plan_digest || '')) {
+      throw new CompilerError('V2 handover publication reservation is invalid', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    return Object.freeze(value);
+  };
+  const validatePrepareBinding = (value) => {
+    exactObjectKeys(value, [
+      'factory_prepare_receipt_digest', 'handover_generation_digest',
+      'prospective_publication_plan_digest', 'reservation_digest', 'schema',
+    ], 'V2 handover Factory prepare binding');
+    if (value.schema !== V2_HANDOVER_FACTORY_PREPARE_BINDING_SCHEMA
+        || !SHA256.test(value.factory_prepare_receipt_digest || '')
+        || !SHA256.test(value.handover_generation_digest || '')
+        || !SHA256.test(value.prospective_publication_plan_digest || '')
+        || !SHA256.test(value.reservation_digest || '')) {
+      throw new CompilerError('V2 handover Factory prepare binding is invalid', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    return Object.freeze(value);
+  };
+  const processIdentity = (pid = process.pid) => {
+    let stat;
+    try { stat = readFileSync(`/proc/${pid}/stat`, 'utf8'); } catch { return null; }
+    const close = stat.lastIndexOf(')');
+    const fields = close < 0 ? [] : stat.slice(close + 2).trim().split(/\s+/);
+    const bootId = readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim();
+    if (!/^\d+$/.test(fields[19] || '')
+        || !/^[0-9a-f-]{36}$/.test(bootId)) return null;
+    return Object.freeze({
+      boot_id: bootId,
+      pid,
+      process_start_ticks: fields[19],
+      schema: PUBLICATION_LANE_LOCK_SCHEMA,
+    });
+  };
+  const validateLock = (value) => {
+    exactObjectKeys(value, ['boot_id', 'pid', 'process_start_ticks', 'schema'],
+      'semantic publication lane lock');
+    if (value.schema !== PUBLICATION_LANE_LOCK_SCHEMA
+        || !Number.isSafeInteger(value.pid) || value.pid < 1
+        || !/^\d+$/.test(value.process_start_ticks || '')
+        || !/^[0-9a-f-]{36}$/.test(value.boot_id || '')) {
+      throw new CompilerError('semantic publication lane lock is invalid', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    return Object.freeze(value);
+  };
+  const publishImmutable = (path, bytes, mode = 0o600) => {
+    const suffix = sha256(bytes).slice(7);
+    const temporary = `${path}.${suffix}.tmp`;
+    if (existsSync(temporary)) {
+      const stat = lstatSync(temporary);
+      if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(temporary) !== temporary) {
+        throw new CompilerError('immutable semantic publication temporary is unsafe', {
+          phase: 'candidate:publication-lane',
+        });
+      }
+      unlinkSync(temporary);
+    }
+    let descriptor;
+    let created = false;
+    try {
+      descriptor = openSync(temporary, 'wx', mode);
+      writeFileSync(descriptor, bytes);
+      fsyncSync(descriptor);
+      closeSync(descriptor);
+      descriptor = undefined;
+      try { linkSync(temporary, path); created = true; } catch (error) {
+        if (error.code !== 'EEXIST') throw error;
+      }
+    } finally {
+      if (descriptor !== undefined) closeSync(descriptor);
+      try { unlinkSync(temporary); } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+    }
+    if (!readFileSync(path).equals(bytes)) {
+      throw new CompilerError('immutable semantic publication state fork rejected', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    const directory = openSync(dirname(path), 'r');
+    try { fsyncSync(directory); } finally { closeSync(directory); }
+    return created;
+  };
+  const acquire = () => {
+    const path = lockPath();
+    const identity = processIdentity();
+    if (!identity) {
+      throw new CompilerError('semantic publication process identity is unavailable', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    const bytes = Buffer.from(canonicalJson(identity), 'utf8');
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        if (publishImmutable(path, bytes)) break;
+        const observedBytes = readFileSync(path);
+        const observed = validateLock(readCanonicalFile(path));
+        const live = processIdentity(observed.pid);
+        if (live && canonicalJson(live) === canonicalJson(observed)) {
+          throw new CompilerError('SEMANTIC_PUBLICATION_LANE_BUSY', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        if (!readFileSync(path).equals(observedBytes)) {
+          throw new CompilerError('semantic publication stale lock changed during recovery', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        unlinkSync(path);
+      } catch (error) {
+        if (error instanceof CompilerError) throw error;
+        throw new CompilerError(`semantic publication lane acquisition failed: ${error.message}`, {
+          phase: 'candidate:publication-lane',
+        });
+      }
+    }
+    if (!existsSync(path) || !readFileSync(path).equals(bytes)) {
+      throw new CompilerError('semantic publication lane acquisition did not settle', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    let released = false;
+    return () => {
+      if (released) return;
+      const stat = lstatSync(path);
+      if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(path) !== path) {
+        throw new CompilerError('semantic publication lane lock was substituted', {
+          phase: 'candidate:publication-lane',
+        });
+      }
+      if (!readFileSync(path).equals(bytes)) {
+        throw new CompilerError('semantic publication lane ownership changed', {
+          phase: 'candidate:publication-lane',
+        });
+      }
+      unlinkSync(path);
+      const directory = openSync(dirname(path), 'r');
+      try { fsyncSync(directory); } finally { closeSync(directory); }
+      released = true;
+    };
+  };
+  return Object.freeze({
+    acquire,
+    assertCurrentV1Unreserved() {
+      const value = readReservation();
+      if (value !== null) {
+        validateReservation(value);
+        throw new CompilerError('REJECTED_V2_HANDOVER_RESERVED_CURRENT_V1_PUBLICATION_RETIRED', {
+          phase: 'candidate:v1-retirement-interlock',
+          handoverGenerationDigest: value.handover_generation_digest,
+        });
+      }
+    },
+    readReservation() {
+      const value = readReservation();
+      return value === null ? null : validateReservation(value);
+    },
+    readFactoryPrepareBinding() {
+      const path = prepareBindingPath();
+      return existsSync(path) ? validatePrepareBinding(readCanonicalFile(path)) : null;
+    },
+    async reserve(value, validateBeforePersist) {
+      const reservation = validateReservation(value);
+      const release = acquire();
+      try {
+        const path = reservationPath();
+        if (existsSync(path)) {
+          const observed = validateReservation(readCanonicalFile(path));
+          if (canonicalJson(observed) !== canonicalJson(reservation)) {
+            throw new CompilerError('V2 handover publication reservation fork rejected', {
+              phase: 'candidate:publication-lane',
+            });
+          }
+          return observed;
+        }
+        if (typeof validateBeforePersist !== 'function') {
+          throw new CompilerError('V2 handover reservation requires an in-lock precondition', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        await validateBeforePersist();
+        const bytes = Buffer.from(canonicalJson(reservation), 'utf8');
+        publishImmutable(path, bytes, 0o444);
+        const observed = validateReservation(readCanonicalFile(path));
+        if (canonicalJson(observed) !== canonicalJson(reservation)) {
+          throw new CompilerError('V2 handover publication reservation fork rejected', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        return observed;
+      } finally {
+        release();
+      }
+    },
+    bindFactoryPrepare(factoryPrepareReceiptDigest) {
+      if (!SHA256.test(factoryPrepareReceiptDigest || '')) {
+        throw new CompilerError('exact Factory prepare receipt digest is required', {
+          phase: 'candidate:publication-lane',
+        });
+      }
+      const release = acquire();
+      try {
+        const reservation = readReservation();
+        if (!reservation) {
+          throw new CompilerError('Factory PREPARE cannot precede the Graph reservation', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        const binding = validatePrepareBinding(Object.freeze({
+          schema: V2_HANDOVER_FACTORY_PREPARE_BINDING_SCHEMA,
+          factory_prepare_receipt_digest: factoryPrepareReceiptDigest,
+          handover_generation_digest: reservation.handover_generation_digest,
+          prospective_publication_plan_digest: reservation.prospective_publication_plan_digest,
+          reservation_digest: sha256(Buffer.from(canonicalJson(reservation), 'utf8')),
+        }));
+        const path = prepareBindingPath();
+        if (!existsSync(path)) {
+          publishImmutable(path, Buffer.from(canonicalJson(binding), 'utf8'), 0o444);
+        }
+        const observed = validatePrepareBinding(readCanonicalFile(path));
+        if (canonicalJson(observed) !== canonicalJson(binding)) {
+          throw new CompilerError('V2 Factory prepare binding fork rejected', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        return observed;
+      } finally {
+        release();
+      }
+    },
+  });
 }
 
 function exactCandidateBytes(value, expectedDigest) {
@@ -206,6 +509,14 @@ function exactV2CandidateCoreBinding(patch, identityBytes, expectedStage) {
   return core;
 }
 
+function v2ManagedGraphSet(manifest) {
+  // The exact V2 candidate is independently regenerated from its frozen
+  // identity before execution.  Its ownership fence is constitutionally
+  // rooted in the authority graph even in minimal production-shadow
+  // manifests that omit that empty graph at D0.
+  return new Set([...managedGraphs(manifest), 'urn:usf:graph:authority']);
+}
+
 function frozenV2CandidateCore(core) {
   return {
     release_subject_digest: core.release_subject_digest,
@@ -213,9 +524,123 @@ function frozenV2CandidateCore(core) {
     source_identities: core.source_identities,
     external_attestation_identities: core.external_attestation_identities,
     external_attestation_set_root_digest: core.external_attestation_set_root_digest,
+    handover_generation_digest: core.handover_generation_digest,
     evidence_dependency_digests: core.evidence_dependency_digests,
     compiler_identity: core.compiler_identity,
   };
+}
+
+async function assertCurrentV1PublicationUnfenced(client, transaction) {
+  const rows = await client.selectInTransaction(transaction, `SELECT ?fence ?state ?generation WHERE {
+    GRAPH ?graph {
+      ?fence a <${V2_NATIVE_HANDOVER_FENCE_CLASS}> .
+      OPTIONAL { ?fence <${USF_ONTOLOGY}handoverOwnershipState> ?state }
+      OPTIONAL { ?fence <${USF_ONTOLOGY}handoverGenerationDigest> ?generation }
+    }
+  } ORDER BY ?fence ?state ?generation`);
+  if (!Array.isArray(rows)) {
+    throw new CompilerError('V2 native handover fence observation is invalid', {
+      phase: 'candidate:v1-retirement-interlock',
+    });
+  }
+  if (rows.length > 0) {
+    const exact = rows.length === 1
+      && rows[0].fence?.value === V2_NATIVE_HANDOVER_FENCE
+      && rows[0].state?.value === 'urn:usf:v2ownershipstate:handoverpending'
+      && SHA256.test(rows[0].generation?.value || '');
+    throw new CompilerError(
+      exact
+        ? 'REJECTED_V2_HANDOVER_PENDING_CURRENT_V1_PUBLICATION_RETIRED'
+        : 'REJECTED_AMBIGUOUS_V2_HANDOVER_STATE_CURRENT_V1_PUBLICATION_RETIRED',
+      {
+        phase: 'candidate:v1-retirement-interlock',
+        fenceCount: rows.length,
+      },
+    );
+  }
+}
+
+async function assertExactNativeV2HandoverFence(client, handoverGenerationDigest) {
+  if (!SHA256.test(handoverGenerationDigest || '')) {
+    throw new CompilerError('native V2 validation requires one exact handover generation', {
+      phase: 'candidate:v2-currentness',
+    });
+  }
+  const rows = await client.select(`SELECT ?fence ?state ?generation ?v1state WHERE {
+    GRAPH ?graph {
+      ?fence a <${V2_NATIVE_HANDOVER_FENCE_CLASS}> ;
+        <${USF_ONTOLOGY}handoverOwnershipState> ?state ;
+        <${USF_ONTOLOGY}handoverGenerationDigest> ?generation ;
+        <${USF_ONTOLOGY}handoverCurrentV1PublicationState> ?v1state .
+    }
+  } ORDER BY ?fence ?state ?generation ?v1state`);
+  if (!Array.isArray(rows) || rows.length !== 1
+      || rows[0].fence?.value !== V2_NATIVE_HANDOVER_FENCE
+      || rows[0].state?.value !== 'urn:usf:v2ownershipstate:handoverpending'
+      || rows[0].generation?.value !== handoverGenerationDigest
+      || rows[0].v1state?.value !== 'urn:usf:v1publicationstate:fenced') {
+    throw new CompilerError('native V2 validation does not observe the exact terminal handover fence', {
+      phase: 'candidate:v2-currentness',
+    });
+  }
+}
+
+function createCurrentV1PublicationInterlockedClient(client, publicationLane, {
+  commitMode = false,
+} = {}) {
+  if (!publicationLane || typeof publicationLane.acquire !== 'function'
+      || typeof publicationLane.assertCurrentV1Unreserved !== 'function') {
+    throw new CompilerError('current V1 publication requires the shared publication lane', {
+      phase: 'candidate:v1-retirement-interlock',
+    });
+  }
+  const releases = new Map();
+  const releaseFor = (transaction) => {
+    const release = releases.get(transaction);
+    if (release) {
+      releases.delete(transaction);
+      release();
+    }
+  };
+  const overrides = {
+    async begin() {
+      let release = null;
+      let transaction = null;
+      try {
+        if (commitMode) release = publicationLane.acquire();
+        publicationLane.assertCurrentV1Unreserved();
+        transaction = await client.begin();
+        if (release) releases.set(transaction, release);
+        await assertCurrentV1PublicationUnfenced(client, transaction);
+        return transaction;
+      } catch (error) {
+        if (transaction) {
+          try { await client.rollback(transaction); } catch { /* preserve interlock failure */ }
+          releases.delete(transaction);
+        }
+        if (release) release();
+        throw error;
+      }
+    },
+    async commit(transaction) {
+      try { return await client.commit(transaction); } finally { releaseFor(transaction); }
+    },
+    async rollback(transaction) {
+      try { return await client.rollback(transaction); } finally { releaseFor(transaction); }
+    },
+  };
+  return new Proxy(Object.create(null), {
+    get(_target, property) {
+      if (Object.hasOwn(overrides, property)) return overrides[property];
+      const value = Reflect.get(client, property, client);
+      return typeof value === 'function' ? value.bind(client) : value;
+    },
+    set() {
+      throw new CompilerError('current V1 publication interlock client is immutable', {
+        phase: 'candidate:v1-retirement-interlock',
+      });
+    },
+  });
 }
 
 function exactObjectKeys(value, expected, label) {
@@ -2170,8 +2595,9 @@ async function composeSourceCandidate({
 }
 
 function patchState(stores, patch) {
-  const present = ({ value }) => stores.get(value.graph.value).has(
-    value.subject, value.predicate, value.object, null,
+  const storeFor = ({ value }) => stores.get(value.graph.value) || new Store();
+  const present = (entry) => storeFor(entry).has(
+    entry.value.subject, entry.value.predicate, entry.value.object, null,
   );
   const pre = patch.deletions.every(present) && patch.additions.every((entry) => !present(entry));
   const post = patch.deletions.every((entry) => !present(entry)) && patch.additions.every(present);
@@ -2185,7 +2611,10 @@ function applyPatchToStores(stores, patch, label) {
     });
   }
   for (const { value } of patch.deletions) stores.get(value.graph.value).removeQuad(triple(value));
-  for (const { value } of patch.additions) stores.get(value.graph.value).addQuad(triple(value));
+  for (const { value } of patch.additions) {
+    if (!stores.has(value.graph.value)) stores.set(value.graph.value, new Store());
+    stores.get(value.graph.value).addQuad(triple(value));
+  }
   if (patchState(stores, patch) !== 'post') {
     throw new CompilerError(`${label} candidate could not construct its exact prospective state`, {
       phase: 'candidate:postcondition',
@@ -2400,10 +2829,17 @@ export function createSemanticModelCompilationCommand({
   trustedNow = null,
   verifyExternalAuthorityProofApproval = missingExternalAuthorityProofVerifier,
   verifyImplementationWorkGrantEnvelope = missingImplementationWorkGrantVerifier,
+  publicationLane = createSemanticPublicationLaneV2(),
 }) {
   if (!client || typeof client.connectivity !== 'function') throw new TypeError('semantic authority client is required');
   if (typeof readAuthorityWitness !== 'function') throw new TypeError('authority witness reader is required');
   if (typeof repositoryRoot !== 'string') throw new TypeError('repository root is required');
+  if (!publicationLane || typeof publicationLane.reserve !== 'function'
+      || typeof publicationLane.readReservation !== 'function'
+      || typeof publicationLane.bindFactoryPrepare !== 'function'
+      || typeof publicationLane.readFactoryPrepareBinding !== 'function') {
+    throw new TypeError('semantic publication lane is required');
+  }
 
   return Object.freeze({
     requiresCandidateBytes: true,
@@ -2587,7 +3023,10 @@ export function createSemanticModelCompilationCommand({
       }
       const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
       checkLocalFunction(manifest);
-      const allowedGraphs = new Set(managedGraphs(manifest));
+      const v2 = Buffer.isBuffer(generatedCandidateBytes)
+        && generatedCandidateBytes.toString('utf8').startsWith('# semantic-proof-v2 ');
+      const allowedGraphs = v2
+        ? v2ManagedGraphSet(manifest) : new Set(managedGraphs(manifest));
       const generatedPatch = parseCanonicalPatch(generatedCandidateBytes, undefined, allowedGraphs);
       if (generatedPatch.protocol !== 'semantic-proof-v1') {
         throw new CompilerError('V2 candidate cannot enter the V1 source-composition path', {
@@ -2630,16 +3069,24 @@ export function createSemanticModelCompilationCommand({
       }
       const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
       checkLocalFunction(manifest);
-      const patch = parseCanonicalPatch(candidateBytes, candidateDigest, new Set(managedGraphs(manifest)));
+      const v2 = Buffer.isBuffer(candidateBytes)
+        && candidateBytes.toString('utf8').startsWith('# semantic-proof-v2 ');
+      const graphSet = v2 ? v2ManagedGraphSet(manifest) : new Set(managedGraphs(manifest));
+      const patch = parseCanonicalPatch(candidateBytes, candidateDigest, graphSet);
       let transaction;
       try {
         transaction = await client.begin();
-        const current = await readCanonicalStores(client, transaction, managedGraphs(manifest));
+        const current = await readCanonicalStores(client, transaction, [...graphSet]);
         if (patchState(current.stores, patch) !== 'pre') {
           throw new CompilerError('candidate preview does not match the exact live pre-state', { phase: 'candidate:precondition' });
         }
         for (const { value } of patch.deletions) current.stores.get(value.graph.value).removeQuad(triple(value));
-        for (const { value } of patch.additions) current.stores.get(value.graph.value).addQuad(triple(value));
+        for (const { value } of patch.additions) {
+          if (!current.stores.has(value.graph.value)) {
+            current.stores.set(value.graph.value, new Store());
+          }
+          current.stores.get(value.graph.value).addQuad(triple(value));
+        }
         if (patchState(current.stores, patch) !== 'post') {
           throw new CompilerError('candidate preview could not construct the exact target state', { phase: 'candidate:postcondition' });
         }
@@ -2689,7 +3136,7 @@ export function createSemanticModelCompilationCommand({
       });
       const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
       checkLocalFunction(manifest);
-      const allowedGraphs = new Set(managedGraphs(manifest));
+      const allowedGraphs = v2ManagedGraphSet(manifest);
       const c1Patch = parseCanonicalPatch(
         preliminaryC1.bytes,
         preliminaryC1.candidateDigest,
@@ -2822,7 +3269,10 @@ export function createSemanticModelCompilationCommand({
       }
       const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
       checkLocalFunction(manifest);
-      const allowedGraphs = new Set(managedGraphs(manifest));
+      const v2Bytes = Buffer.isBuffer(d1CandidateBytes)
+        && d1CandidateBytes.toString('utf8').startsWith('# semantic-proof-v2 ');
+      const allowedGraphs = v2Bytes
+        ? v2ManagedGraphSet(manifest) : new Set(managedGraphs(manifest));
       const d1Patch = parseCanonicalPatch(d1CandidateBytes, d1CandidateDigest, allowedGraphs);
       const d2Patch = parseCanonicalPatch(d2CandidateBytes, d2CandidateDigest, allowedGraphs);
       const exactSequence = (
@@ -2863,7 +3313,7 @@ export function createSemanticModelCompilationCommand({
       let transaction;
       try {
         transaction = await client.begin();
-        const current = await readCanonicalStores(client, transaction, managedGraphs(manifest));
+        const current = await readCanonicalStores(client, transaction, [...allowedGraphs]);
         applyPatchToStores(current.stores, d1Patch, 'D1');
         const d1 = await prospectiveInventory(current.stores);
         if (v2CandidateCores) {
@@ -2931,6 +3381,60 @@ export function createSemanticModelCompilationCommand({
     // V2 publication is deliberately exposed through a protocol-specific
     // entrypoint.  The generic V1 execute() path below continues to reject V2
     // candidates, so a V1 envelope can never be used to commit a V2 patch.
+    async reserveV2HandoverGeneration({
+      d0AuthorityDigest,
+      handoverGenerationDigest,
+      prospectivePublicationPlanDigest,
+      recoveryAuthorityDigests = [],
+    }) {
+      if (!Array.isArray(recoveryAuthorityDigests)
+          || recoveryAuthorityDigests.length !== 2
+          || recoveryAuthorityDigests.some((value) => !SHA256.test(value || ''))
+          || new Set(recoveryAuthorityDigests).size !== 2) {
+        throw new CompilerError('V2 handover recovery authority set is not exact', {
+          phase: 'candidate:publication-lane',
+        });
+      }
+      const reservation = Object.freeze({
+        schema: V2_HANDOVER_RESERVATION_SCHEMA,
+        d0_authority_digest: d0AuthorityDigest,
+        handover_generation_digest: handoverGenerationDigest,
+        prospective_publication_plan_digest: prospectivePublicationPlanDigest,
+      });
+      return publicationLane.reserve(reservation, async () => {
+        const observed = digest(await readAuthorityWitness(client));
+        if (observed === d0AuthorityDigest) return;
+        if (!recoveryAuthorityDigests.includes(observed)) {
+          throw new CompilerError('V2 handover reservation no longer observes exact D0', {
+            phase: 'candidate:publication-lane',
+            expectedAuthorityDigest: d0AuthorityDigest,
+            observedAuthorityDigest: observed,
+          });
+        }
+        const rows = await client.select(`SELECT ?fence ?generation ?state ?v1state WHERE {
+          GRAPH ?graph {
+            ?fence a <${V2_NATIVE_HANDOVER_FENCE_CLASS}>;
+              <${USF_ONTOLOGY}handoverGenerationDigest> ?generation;
+              <${USF_ONTOLOGY}handoverOwnershipState> ?state;
+              <${USF_ONTOLOGY}handoverCurrentV1PublicationState> ?v1state .
+          }
+        } ORDER BY ?fence ?generation ?state ?v1state`);
+        if (!Array.isArray(rows) || rows.length !== 1
+            || rows[0].fence?.value !== V2_NATIVE_HANDOVER_FENCE
+            || rows[0].generation?.value !== handoverGenerationDigest
+            || rows[0].state?.value !== 'urn:usf:v2ownershipstate:handoverpending'
+            || rows[0].v1state?.value !== 'urn:usf:v1publicationstate:fenced') {
+          throw new CompilerError('V2 handover reservation recovery fence is not exact', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+      });
+    },
+
+    bindV2FactoryPrepare({ factoryPrepareReceiptDigest }) {
+      return publicationLane.bindFactoryPrepare(factoryPrepareReceiptDigest);
+    },
+
     async executeV2Candidate({
       candidateBytes,
       candidateDigest,
@@ -2938,6 +3442,8 @@ export function createSemanticModelCompilationCommand({
       expectedD0AuthorityDigest,
       expectedAuthorityDigest,
       expectedPostAuthorityDigest,
+      prospectivePublicationPlanDigest,
+      factoryPrepareReceiptDigest,
       publicationMode = 'validate',
       stage,
     }) {
@@ -2945,7 +3451,10 @@ export function createSemanticModelCompilationCommand({
           || !['validate', 'commit'].includes(publicationMode)
           || !SHA256.test(expectedD0AuthorityDigest || '')
           || !SHA256.test(expectedAuthorityDigest || '')
-          || !SHA256.test(expectedPostAuthorityDigest || '')) {
+          || !SHA256.test(expectedPostAuthorityDigest || '')
+          || (publicationMode === 'commit'
+            && (!SHA256.test(prospectivePublicationPlanDigest || '')
+              || !SHA256.test(factoryPrepareReceiptDigest || '')))) {
         throw new CompilerError('V2 production candidate configuration is incomplete', {
           phase: 'candidate:v2-configuration',
         });
@@ -2964,7 +3473,7 @@ export function createSemanticModelCompilationCommand({
       const patch = parseCanonicalPatch(
         candidateBytes,
         candidateDigest,
-        new Set(managedGraphs(manifest)),
+        v2ManagedGraphSet(manifest),
       );
       const core = exactV2CandidateCoreBinding(patch, candidateIdentityBytes, stage);
       if (core.d0_authority_digest !== expectedD0AuthorityDigest
@@ -2976,26 +3485,52 @@ export function createSemanticModelCompilationCommand({
           phase: 'candidate:v2-authority-binding',
         });
       }
-      const result = await compilePatch({ client, manifest, patch, publicationMode });
-      const after = digest(await readAuthorityWitness(client));
-      if (publicationMode === 'validate' && after !== before) {
-        throw new CompilerError('validate-only V2 candidate changed semantic authority', {
-          phase: 'authority:validate-drift',
-        });
+      if (publicationMode === 'commit') {
+        const reservation = publicationLane.readReservation();
+        const prepareBinding = publicationLane.readFactoryPrepareBinding();
+        if (!reservation
+            || reservation.d0_authority_digest !== expectedD0AuthorityDigest
+            || reservation.handover_generation_digest !== core.handover_generation_digest
+            || reservation.prospective_publication_plan_digest
+              !== prospectivePublicationPlanDigest
+            || !prepareBinding
+            || prepareBinding.factory_prepare_receipt_digest !== factoryPrepareReceiptDigest
+            || prepareBinding.handover_generation_digest !== core.handover_generation_digest
+            || prepareBinding.prospective_publication_plan_digest
+              !== prospectivePublicationPlanDigest
+            || prepareBinding.reservation_digest
+              !== sha256(Buffer.from(canonicalJson(reservation), 'utf8'))) {
+          throw new CompilerError('V2 candidate is not the reserved handover generation', {
+            phase: 'candidate:publication-lane',
+          });
+        }
       }
-      if (publicationMode === 'commit' && after !== expectedPostAuthorityDigest) {
-        throw new CompilerError('V2 candidate committed an unexpected authority digest', {
-          phase: 'authority:postcondition',
-          expectedAuthorityDigest: expectedPostAuthorityDigest,
-          observedAuthorityDigest: after,
+      let release = null;
+      try {
+        if (publicationMode === 'commit') release = publicationLane.acquire();
+        const result = await compilePatch({ client, manifest, patch, publicationMode });
+        const after = digest(await readAuthorityWitness(client));
+        if (publicationMode === 'validate' && after !== before) {
+          throw new CompilerError('validate-only V2 candidate changed semantic authority', {
+            phase: 'authority:validate-drift',
+          });
+        }
+        if (publicationMode === 'commit' && after !== expectedPostAuthorityDigest) {
+          throw new CompilerError('V2 candidate committed an unexpected authority digest', {
+            phase: 'authority:postcondition',
+            expectedAuthorityDigest: expectedPostAuthorityDigest,
+            observedAuthorityDigest: after,
+          });
+        }
+        return Object.freeze({
+          ...result,
+          evaluatedAuthorityDigest: before,
+          protocol: 'semantic-proof-v2',
+          stage,
         });
+      } finally {
+        if (release) release();
       }
-      return Object.freeze({
-        ...result,
-        evaluatedAuthorityDigest: before,
-        protocol: 'semantic-proof-v2',
-        stage,
-      });
     },
 
     async observeV2D1Dependencies({ expectedAuthorityDigest }) {
@@ -3043,8 +3578,56 @@ export function createSemanticModelCompilationCommand({
     async inspectCandidateState({ candidateBytes, candidateDigest }) {
       const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
       checkLocalFunction(manifest);
-      const patch = parseCanonicalPatch(candidateBytes, candidateDigest, new Set(managedGraphs(manifest)));
+      const v2 = Buffer.isBuffer(candidateBytes)
+        && candidateBytes.toString('utf8').startsWith('# semantic-proof-v2 ');
+      const patch = parseCanonicalPatch(candidateBytes, candidateDigest,
+        v2 ? v2ManagedGraphSet(manifest) : new Set(managedGraphs(manifest)));
       return Object.freeze({ candidateDigest: patch.digest, state: await inspectPatchState(client, patch) });
+    },
+
+    async validateNativeV2Currentness({ expectedAuthorityDigest, handoverGenerationDigest }) {
+      if (!SHA256.test(expectedAuthorityDigest || '')) {
+        throw new CompilerError('native V2 validation requires exact current authority', {
+          phase: 'candidate:v2-currentness',
+        });
+      }
+      const reservation = publicationLane.readReservation();
+      if (!reservation
+          || reservation.handover_generation_digest !== handoverGenerationDigest) {
+        throw new CompilerError('native V2 validation requires the durable publication reservation', {
+          phase: 'candidate:v2-currentness',
+        });
+      }
+      const beforeWitness = await readAuthorityWitness(client);
+      if (digest(beforeWitness) !== expectedAuthorityDigest) {
+        throw new CompilerError('native V2 validation authority drifted before evaluation', {
+          phase: 'authority:drift',
+        });
+      }
+      await assertExactNativeV2HandoverFence(client, handoverGenerationDigest);
+      const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
+      checkLocalFunction(manifest);
+      const result = await compileFunction({
+        authorityWitness: beforeWitness,
+        client,
+        manifest,
+        publicationBudgetPolicy: manifest.publicationBudget,
+        publicationMode: 'validate',
+      });
+      const after = digest(await readAuthorityWitness(client));
+      if (after !== expectedAuthorityDigest) {
+        throw new CompilerError('native V2 validation changed semantic authority', {
+          phase: 'authority:validate-drift',
+        });
+      }
+      return Object.freeze({
+        ...result,
+        evaluatedAuthorityDigest: expectedAuthorityDigest,
+        semanticModelPath: SEMANTIC_MODEL_PATH,
+        validationEvidence: validationEvidence(
+          result, expectedAuthorityDigest, result.commitOutcome.candidateDigest,
+        ),
+      });
     },
 
     async execute({ expectedAuthorityDigest, publicationMode = 'validate', candidateBytes, candidateDigest }) {
@@ -3061,13 +3644,20 @@ export function createSemanticModelCompilationCommand({
       const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
       if (candidateBytes !== undefined || candidateDigest !== undefined) {
         checkLocalFunction(manifest);
-        const patch = parseCanonicalPatch(candidateBytes, candidateDigest, new Set(managedGraphs(manifest)));
+        const v2 = Buffer.isBuffer(candidateBytes)
+          && candidateBytes.toString('utf8').startsWith('# semantic-proof-v2 ');
+        const patch = parseCanonicalPatch(candidateBytes, candidateDigest,
+          v2 ? v2ManagedGraphSet(manifest) : new Set(managedGraphs(manifest)));
         if (patch.protocol !== 'semantic-proof-v1') {
           throw new CompilerError('V2 production candidate commits remain disabled', {
             phase: 'candidate:protocol',
           });
         }
-        const result = await compilePatch({ client, manifest, patch, publicationMode });
+        const result = await compilePatch({
+          client: createCurrentV1PublicationInterlockedClient(client, publicationLane, {
+            commitMode: publicationMode === 'commit',
+          }), manifest, patch, publicationMode,
+        });
         if (publicationMode === 'validate') {
           const after = digest(await readAuthorityWitness(client));
           if (after !== before) throw new CompilerError('validate-only RDF Patch changed semantic authority', { phase: 'authority:validate-drift' });
@@ -3081,7 +3671,9 @@ export function createSemanticModelCompilationCommand({
       }
       const result = await compileFunction({
         authorityWitness: beforeWitness,
-        client,
+        client: createCurrentV1PublicationInterlockedClient(client, publicationLane, {
+          commitMode: publicationMode === 'commit',
+        }),
         manifest,
         publicationBudgetPolicy: manifest.publicationBudget,
         publicationMode,
@@ -3111,5 +3703,8 @@ export const semanticModelCompilationCommandInternals = Object.freeze({
   parseCanonicalPatch,
   patchState,
   semanticModelDirectory,
+  assertCurrentV1PublicationUnfenced,
+  createCurrentV1PublicationInterlockedClient,
+  createSemanticPublicationLaneV2,
   validateImplementationWorkGrantArtifacts,
 });

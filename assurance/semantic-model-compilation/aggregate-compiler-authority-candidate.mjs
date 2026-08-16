@@ -237,6 +237,20 @@ const STAGE2_KEYS = ['compilerValidation', 'evaluationReceipt', 'evaluationRecei
 
 const SEMANTIC_PROOF_V2 = 'semantic-proof-v2';
 const V2_CANDIDATE_CORE_SCHEMA = 'usf-aggregate-compiler-authority-candidate-core-v2';
+const V2_NATIVE_HANDOVER_GENERATION_SCHEMA = 'usf-v2-native-handover-generation-v1';
+const V2_DERIVED_CONSUMER_REGISTRY_DIGEST =
+  'sha256:de62d7097cd1b2a6eb5954bd0859eb4759188bf37d0175b288e5d0b8225d4231';
+const V2_NATIVE_HANDOVER_FENCE = 'urn:usf:v2nativehandoverfence:current';
+const V2_GRAPH_NATIVE_CONSUMERS = Object.freeze([
+  Object.freeze({
+    binding: 'urn:usf:v2nativehandovergraphbinding:owner-envelope-successor',
+    consumer: 'urn:usf:derivedconsumer:v2:owner-envelope-successor',
+  }),
+  Object.freeze({
+    binding: 'urn:usf:v2nativehandovergraphbinding:validation-currentness-binding',
+    consumer: 'urn:usf:derivedconsumer:v2:validation-currentness-binding',
+  }),
+]);
 const V2_CANDIDATE_CORE_KEYS = Object.freeze([
   'compiler_identity',
   'd0_authority_digest',
@@ -244,6 +258,7 @@ const V2_CANDIDATE_CORE_KEYS = Object.freeze([
   'evidence_dependency_digests',
   'external_attestation_identities',
   'external_attestation_set_root_digest',
+  'handover_generation_digest',
   'protocol',
   'release_subject_digest',
   'schema',
@@ -1592,6 +1607,18 @@ function validateV2CandidateCoreInput(input) {
     input.evidence_dependency_digests, 'evidence dependencies',
   );
   const compilerIdentity = validateV2CompilerIdentity(input.compiler_identity);
+  const sourceTrees = Object.fromEntries(sourceIdentities.map((identity) => [
+    identity.repository, identity.authored_tree,
+  ]));
+  const handoverGenerationDigest = sha256Json({
+    schema: V2_NATIVE_HANDOVER_GENERATION_SCHEMA,
+    release_subject_digest: input.release_subject_digest,
+    d0_authority_digest: input.d0_authority_digest,
+    derived_consumer_registry_digest: V2_DERIVED_CONSUMER_REGISTRY_DIGEST,
+    factory_deployment_tree: sourceTrees['maldous/usf-factory'],
+    graph_protected_tree: sourceTrees['maldous/usf-graph'],
+    external_attestation_set_root_digest: externalAttestationSetRootDigest,
+  });
   let d1Binding = null;
   if (input.stage === 'C1') {
     if (input.d1_binding !== null) {
@@ -1629,6 +1656,7 @@ function validateV2CandidateCoreInput(input) {
     source_identities: sourceIdentities,
     external_attestation_identities: attestationIdentities,
     external_attestation_set_root_digest: externalAttestationSetRootDigest,
+    handover_generation_digest: handoverGenerationDigest,
     evidence_dependency_digests: evidenceDependencyDigests,
     compiler_identity: compilerIdentity,
     d1_binding: d1Binding,
@@ -1667,7 +1695,8 @@ export function parseAggregateCompilerAuthorityCandidateV2IdentityBytes(bytes) {
   });
   if (canonicalJson(canonical) !== text
       || value.external_attestation_set_root_digest
-        !== canonical.external_attestation_set_root_digest) {
+        !== canonical.external_attestation_set_root_digest
+      || value.handover_generation_digest !== canonical.handover_generation_digest) {
     fail('V2_CANDIDATE_IDENTITY_BYTES_INVALID', 'candidate identity bytes are not canonical');
   }
   return canonical;
@@ -1712,6 +1741,33 @@ export function materializeAggregateCompilerAuthorityCandidateV2(input) {
     ['descriptorArtefactType', typed('urn:usf:artefacttype:semanticproofv2authoritycandidate', XSD_ANY_URI)],
     ['descriptorStorageClass', iri('urn:usf:storageclass:contentaddressedobjectstorage')],
   ]) add(additions, descriptorIri, predicate, object);
+  if (core.stage === 'C1') {
+    const sourceTrees = Object.fromEntries(core.source_identities.map((identity) => [
+      identity.repository, identity.authored_tree,
+    ]));
+    additions.push(type(V2_NATIVE_HANDOVER_FENCE, `${USF}V2NativeHandoverFence`, GRAPH_AUTHORITY));
+    for (const [predicate, object] of [
+      ['canonicalName', literal('v2nativehandovercurrent')],
+      ['handoverGenerationDigest', literal(core.handover_generation_digest)],
+      ['handoverOwnershipState', iri('urn:usf:v2ownershipstate:handoverpending')],
+      ['handoverCurrentV1PublicationState', iri('urn:usf:v1publicationstate:fenced')],
+      ['handoverReleaseSubjectDigest', literal(core.release_subject_digest)],
+      ['handoverD0AuthorityDigest', literal(core.d0_authority_digest)],
+      ['handoverDerivedConsumerRegistryDigest', literal(V2_DERIVED_CONSUMER_REGISTRY_DIGEST)],
+      ['handoverExternalAttestationSetRootDigest', literal(core.external_attestation_set_root_digest)],
+      ['handoverFactorySourceTree', literal(sourceTrees['maldous/usf-factory'])],
+      ['handoverGraphSourceTree', literal(sourceTrees['maldous/usf-graph'])],
+      ['handoverExpectedTerminalReceiptSchema', literal('usf-semantic-publication-receipt-v2')],
+    ]) add(additions, V2_NATIVE_HANDOVER_FENCE, predicate, object, GRAPH_AUTHORITY);
+  } else {
+    for (const binding of V2_GRAPH_NATIVE_CONSUMERS) {
+      additions.push(type(binding.binding, `${USF}V2NativeGraphSuccessorBinding`, GRAPH_AUTHORITY));
+      add(additions, binding.binding, 'handoverGenerationDigest', literal(core.handover_generation_digest), GRAPH_AUTHORITY);
+      add(additions, binding.binding, 'handoverGraphNativeConsumer', iri(binding.consumer), GRAPH_AUTHORITY);
+      add(additions, binding.binding, 'handoverStorageOwner', iri('urn:usf:v2nativeowner:graph'), GRAPH_AUTHORITY);
+      add(additions, V2_NATIVE_HANDOVER_FENCE, 'handoverGraphNativeSuccessorBinding', iri(binding.binding), GRAPH_AUTHORITY);
+    }
+  }
   const bytes = canonicalV2CandidatePatch(core.stage, additions);
   return Object.freeze({
     bytes,
@@ -1720,6 +1776,7 @@ export function materializeAggregateCompilerAuthorityCandidateV2(input) {
     identityBytes,
     identityDigest,
     externalAttestationSetRootDigest: core.external_attestation_set_root_digest,
+    handoverGenerationDigest: core.handover_generation_digest,
     candidateGeneratorImplementationDigest: core.compiler_identity.implementation_source_digest,
     candidateCommandDigest: core.compiler_identity.command_digest,
     mediaType: 'application/rdf-patch',
@@ -1771,6 +1828,8 @@ export const aggregateCompilerAuthorityCandidateInternals = Object.freeze({
   VALIDATION_RESULT,
   V2_CANDIDATE_CORE_SCHEMA,
   V2_CANDIDATE_CORE_KEYS,
+  V2_DERIVED_CONSUMER_REGISTRY_DIGEST,
+  V2_NATIVE_HANDOVER_FENCE,
   nonPublicationDependencySetDigest,
   sha256Bytes,
   sha256Json,

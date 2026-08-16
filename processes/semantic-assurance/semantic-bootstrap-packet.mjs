@@ -68,6 +68,88 @@ export function decodeContinuation(token) {
 // byte-identical content. See WITNESS_TOTAL_SOURCE in the authority gateway.
 export const WITNESS_TOTAL_SOURCE = 'canonical-graph-inventory';
 
+// The Graph owner boundary, shared by every production projection in this
+// repository. It lives here because this module sits below the gateway in the
+// dependency order; both owners must resolve ownership identically or a handover
+// could be observed differently by two projections of the same authority.
+//
+// Before the D2 fence the V1 proof/publication lifecycle owns actionability.
+// After it, the native V2 generation and its renewable validation-currentness
+// head do, and V1 is never consulted again.
+// The first three are determinate observations of durable admitted state. The
+// last two are resolution outcomes that are explicitly NOT an owner: an absent
+// observer, an unavailable reader or a malformed observation must never be read
+// as "V1 owns this". Unknown ownership refuses.
+export const OWNERSHIP = Object.freeze({
+  v1: 'V1_OWNER',
+  pending: 'V2_HANDOVER_PENDING',
+  terminal: 'V2_TERMINAL_OWNER',
+  unresolved: 'UNRESOLVED',
+  invalid: 'INVALID',
+});
+export const NATIVE_VALIDATION_CURRENT = 'CURRENT';
+
+export const PRETERMINAL_OWNER_BOUNDARY = Object.freeze({
+  ownershipState: OWNERSHIP.v1,
+  validationCurrentnessState: null,
+  terminalAuthorityDigest: null,
+  observationIdentityDigest: null,
+});
+
+// The composition root supplies the native observation. Neither owner reads
+// process.env mid-decision, and absence is never silently promoted to terminal
+// — nor demoted to V1. A context without the dependency cannot observe
+// ownership at all, so it refuses: "we did not look" is not evidence that V1 is
+// the owner, and treating it as such is what lets a retired V1 route execute
+// after the fence.
+export async function resolveOwnerBoundary(ctx) {
+  const observe = ctx?.observeGraphRuntimeOwnership;
+  if (typeof observe !== 'function') {
+    throw new Error(
+      `Graph runtime ownership is ${OWNERSHIP.unresolved}: `
+      + 'no ownership observer was supplied by the composition root',
+    );
+  }
+  let observation;
+  try {
+    observation = await observe();
+  } catch (cause) {
+    // A reader failure is not a V1 owner either.
+    throw new Error(
+      `Graph runtime ownership is ${OWNERSHIP.unresolved}: ownership observation failed`,
+      { cause },
+    );
+  }
+  const state = observation?.ownership_state ?? null;
+  if (state === null) {
+    throw new Error(
+      `Graph runtime ownership is ${OWNERSHIP.invalid}: observation carries no ownership state`,
+    );
+  }
+  if (state === OWNERSHIP.v1) return PRETERMINAL_OWNER_BOUNDARY;
+  if (state === OWNERSHIP.pending) {
+    return Object.freeze({
+      ownershipState: OWNERSHIP.pending,
+      validationCurrentnessState: null,
+      terminalAuthorityDigest: null,
+      observationIdentityDigest: observation.observation_identity_digest ?? null,
+    });
+  }
+  if (state !== OWNERSHIP.terminal) {
+    throw new Error(`Graph runtime ownership observation is not a closed state: ${state}`);
+  }
+  const currentness = observation.validation_currentness ?? null;
+  if (!currentness || typeof currentness.state !== 'string') {
+    throw new Error('V2 terminal ownership observation carries no validation currentness state');
+  }
+  return Object.freeze({
+    ownershipState: OWNERSHIP.terminal,
+    validationCurrentnessState: currentness.state,
+    terminalAuthorityDigest: observation.authority_digest ?? null,
+    observationIdentityDigest: observation.observation_identity_digest ?? null,
+  });
+}
+
 export async function authorityWitness(client) {
   const rows = await client.select('SELECT DISTINCT ?g WHERE { GRAPH ?g { ?s ?p ?o } } ORDER BY ?g');
   const inventory = [];
@@ -153,6 +235,9 @@ export async function bootstrapPacket(ctx, { contract, task, continuation } = {}
     error.userFacing = true;
     throw error;
   }
+  // Resolve the owner before any semantic read, so one packet describes one
+  // authority state under one owner and cannot straddle a handover boundary.
+  const owner = await resolveOwnerBoundary(ctx);
   const before = await authorityWitness(client);
   const authority = {
     database: config.database,
@@ -237,7 +322,14 @@ export async function bootstrapPacket(ctx, { contract, task, continuation } = {}
       && val(row, 'integrity') === 'urn:usf:evidenceintegritystate:valid'
       && val(row, 'within') === 'true'
       && val(row, 'applicable') === val(row, 'obligation'),
-    current: val(row, 'state') === 'urn:usf:resultstate:passed'
+    // Under terminal V2 the same identity contract holds, but WHO decides the
+    // result is still current is the native validation-currentness head, not the
+    // V1 publication lifecycle. A pending handover has no owner able to conclude
+    // anything, so nothing reads as current and the packet fails closed.
+    current: owner.ownershipState !== OWNERSHIP.pending
+      && (owner.ownershipState !== OWNERSHIP.terminal
+        || owner.validationCurrentnessState === NATIVE_VALIDATION_CURRENT)
+      && val(row, 'state') === 'urn:usf:resultstate:passed'
       && val(row, 'boundObligation') === val(row, 'obligation')
       && typeof val(row, 'boundAuthority') === 'string'
       && typeof val(row, 'boundHead') === 'string'

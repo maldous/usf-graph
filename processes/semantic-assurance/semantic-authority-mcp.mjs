@@ -201,15 +201,60 @@ export async function callTool(name, args, ctx) {
 // /documentation/x.md). Verified by the repository root carrying package.json.
 export const MCP_REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
+// The composition root for the Graph owner boundary.
+//
+// The gateway decides WHICH owner answers an actionability question; it never
+// builds the native dependencies itself and never reads process.env mid-decision.
+// Those belong here, next to the client and CAS root the server already owns.
+//
+// This resolver is always installed. It is not a feature switch: before the D2
+// fence exists the native observation itself reports V1_OWNER, and if ownership
+// cannot be observed at all the error propagates so the tool call fails closed.
+// Omitting the resolver to "keep V1 working" would be exactly the silent V1
+// fallback the handover forbids.
+export function createGraphOwnershipObserver(env = process.env) {
+  return async (client) => {
+    const [publication, semanticGateway, compilationCommand] = await Promise.all([
+      import('./semantic-authority-publication.mjs'),
+      import('./semantic-authority-gateway.mjs'),
+      import('./semantic-model-compilation-command.mjs'),
+    ]);
+    const readAuthorityWitness = (target) => semanticGateway.readSemanticAuthorityWitness(target ?? client);
+    const witness = await readAuthorityWitness(client);
+    return publication.observeGraphRuntimeOwnershipV2({
+      client,
+      expectedAuthorityDigest: witness.digest,
+      readAuthorityWitness,
+      trustedTime: async () => {
+        const rows = await client.select('SELECT (NOW() AS ?now) WHERE {}');
+        const value = rows?.[0]?.now?.value;
+        if (rows?.length !== 1 || typeof value !== 'string') {
+          throw new Error('Stardog trusted time was unavailable or ambiguous');
+        }
+        return value;
+      },
+      nativeGraphStore: publication.createGraphNativeSuccessorStoreV2({
+        nativeRoot: env.USF_V2_NATIVE_GRAPH_ROOT || '/var/lib/usf-programme/v2-native-graph-successors',
+        casStore: publication.createCasEvidenceStore(env.USF_CAS_ROOT || '/var/lib/usf-cas'),
+      }),
+      publicationLane: compilationCommand.semanticModelCompilationCommandInternals
+        .createSemanticPublicationLaneV2(env.USF_PROGRAMME_ROOT || '/var/lib/usf-programme'),
+    });
+  };
+}
+
 export async function runMcpServer({ input = process.stdin, output = process.stdout } = {}) {
   const config = loadConfig();
   const redact = makeRedactor(config);
+  const client = createClient(config);
+  const observeOwnership = createGraphOwnershipObserver();
   const ctx = {
-    client: createClient(config),
+    client,
     config,
     casRoot: process.env.USF_CAS_ROOT || null,
     coordinator: process.env.USF_COORDINATOR_MODE === 'apply',
     repositoryRoot: MCP_REPOSITORY_ROOT,
+    observeGraphRuntimeOwnership: () => observeOwnership(client),
   };
   const send = (msg) => output.write(redact(JSON.stringify(msg)) + '\n');
 

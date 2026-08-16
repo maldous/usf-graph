@@ -16,6 +16,27 @@ import {
   validateLayoutPlan, verifyArtifact,
 } from './repository-materialisation-gateway.mjs';
 
+// Preterminal gateway behaviour is asserted under an EXPLICIT V1 owner.
+// The owner boundary refuses when it cannot observe ownership, so a test that
+// omitted the observer would be asserting against UNRESOLVED, not against V1.
+// Ownership is DECLARED by every test. There is deliberately no shared default
+// that means V1: that would recreate the implicit "V1 test universe" the native
+// V2 transition exists to remove.
+//
+// BAU_TERMINAL_OWNER is the terminal native V2 owner and is what
+// ownership-irrelevant assertions run under -- the state the system will
+// actually be in. BAU_TERMINAL_OWNER is an exceptional, named fixture used
+// ONLY by tests whose scenario is genuinely pre-terminal V1 behaviour, and it
+// is retired together with V1.
+const BAU_TERMINAL_OWNER = async () => ({
+  ownership_state: 'V2_TERMINAL_OWNER',
+  authority_digest: `sha256:${'a'.repeat(64)}`,
+  observation_identity_digest: `sha256:${'1'.repeat(64)}`,
+  validation_currentness: { state: 'CURRENT' },
+});
+const V1_TRANSITION_OWNER = async () => ({ ownership_state: 'V1_OWNER' });
+
+
 const { namedNode } = DataFactory;
 const contract = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation';
 const family = 'urn:usf:artefactfamily:compiler';
@@ -549,7 +570,7 @@ test('semantic authority explicitly selects the compiler decision and exact grap
 });
 
 test('layout context is live-digest-bound and exposes active proof and authorised paths', async () => {
-  const context = await layoutContext({ client: fakeClient() });
+  const context = await layoutContext({ client: fakeClient(), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER });
   assert.match(context.authorityDigest, /^sha256:[0-9a-f]{64}$/);
   assert.equal(context.authorityDigestAlgorithm, 'sha256-rdfc10-graph-inventory-v2');
   assert.deepEqual(context.authorityGraphInventory, [{
@@ -573,8 +594,7 @@ test('contract packet projects the selected decision exact representation-format
   const packet = await projectContract({
     client: fakeClient({
       decisionFormatRows: [{ format: binding(jsonFormat) }, { format: binding(format) }],
-    }),
-  }, { contract });
+    }), observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.deepEqual(packet.authorisedFormats, [format, jsonFormat]);
 });
 
@@ -586,8 +606,7 @@ test('contract packet projects an exact two-proof two-obligation conjunction wit
     proofState: item.state,
   }));
   const packet = await projectContract({
-    client: fakeClient({ contractRows, currentness }),
-  }, { contract });
+    client: fakeClient({ contractRows, currentness }), observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.equal(packet.actionState, ACTION_STATES.proceed);
   assert.equal(packet.proofCurrentness.state, 'CURRENT');
   assert.equal(packet.proofCurrentness.proofResults.length, 2);
@@ -609,12 +628,12 @@ test('global materialisation-rule formats do not leak into decision authority', 
   const client = fakeClient({
     ruleRows: [materialisationRule(), materialisationRule(markdownFormat)],
   });
-  const packet = await projectContract({ client }, { contract });
+  const packet = await projectContract({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.deepEqual(packet.authorisedFormats, [format]);
 
   const content = '# globally valid rule, decision-denied format\n';
   await assert.rejects(
-    () => createLayoutPlan({ client }, {
+    () => createLayoutPlan({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, {
       contract,
       operations: [{
         action: 'write-file',
@@ -649,7 +668,7 @@ test('formats authorised by another accepted decision do not leak into the selec
       : [{ format: binding(format) }, { format: binding(markdownFormat) }];
   };
 
-  const context = await layoutContext({ client }, { contract: compilerContract });
+  const context = await layoutContext({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract: compilerContract });
   assert.deepEqual(context.authorisedFormats, [format]);
   assert.equal(formatQueries.length, 2);
   assert.ok(formatQueries.every((query) => query.includes(`<${compilerDecision}>`)));
@@ -659,8 +678,7 @@ test('formats authorised by another accepted decision do not leak into the selec
 test('a decision with authorised paths and zero representation formats fails closed', async () => {
   await assert.rejects(
     () => layoutContext({
-      client: fakeClient({ decisionFormatRows: [] }),
-    }),
+      client: fakeClient({ decisionFormatRows: [] }), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }),
     /authorises source paths but no representation formats/,
   );
 });
@@ -671,8 +689,7 @@ test('decision representation-format count and row mismatch fails closed', async
       client: fakeClient({
         decisionFormatCountRows: [{ count: binding('2') }],
         decisionFormatRows: [{ format: binding(format) }],
-      }),
-    }),
+      }), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }),
     /representation-format projection is incomplete/,
   );
 });
@@ -686,8 +703,7 @@ test('more than 256 decision representation formats fails closed', async () => {
       client: fakeClient({
         decisionFormatCountRows: [{ count: binding('257') }],
         decisionFormatRows,
-      }),
-    }),
+      }), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }),
     /representation-format projection exceeds 256 items/,
   );
 });
@@ -701,7 +717,7 @@ test('decision format count and bounded rows are queried after decision resoluti
     return select(query);
   };
 
-  await layoutContext({ client });
+  await layoutContext({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER });
   const contractQueryIndex = queries.findIndex((query) => query.includes('?canonicalName ?lifecycle'));
   const formatQueryIndexes = queries
     .map((query, index) => ({ query, index }))
@@ -943,8 +959,7 @@ test('readiness cannot reach ready past an unsatisfied, blocked or unresolved va
 
 test('explicit effective decision selects one of multiple complementary accepted decisions', async () => {
   const context = await layoutContext({
-    client: fakeClient({ contractRows: complementaryCompilerRows() }),
-  }, { contract: compilerContract });
+    client: fakeClient({ contractRows: complementaryCompilerRows() }), observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract: compilerContract });
   assert.equal(context.acceptedDecisionCount, 2);
   assert.equal(context.effectiveDecisionCount, 1);
   assert.equal(context.decisionResolution, 'explicit');
@@ -953,8 +968,7 @@ test('explicit effective decision selects one of multiple complementary accepted
   assert.deepEqual(context.authorisedRepositories, ['maldous/usf-graph']);
   assert.deepEqual(context.authorisedPaths, ['package.json']);
   const packet = await projectContract({
-    client: fakeClient({ contractRows: complementaryCompilerRows() }),
-  }, { contract: compilerContract });
+    client: fakeClient({ contractRows: complementaryCompilerRows() }), observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract: compilerContract });
   assert.deepEqual(packet.authorisedRepositories, ['maldous/usf-graph']);
   assert.deepEqual(packet.authorisedPaths, ['package.json']);
   assert.ok(packet.authorisedActions.length > 0);
@@ -967,12 +981,12 @@ test('multiple accepted decisions fail closed without exactly one valid effectiv
     [complementaryCompilerRows(['urn:usf:realisationdecision:notforcontract']), 'invalid-effective-decision'],
   ]) {
     const client = fakeClient({ contractRows: rows });
-    const context = await layoutContext({ client }, { contract: compilerContract });
+    const context = await layoutContext({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract: compilerContract });
     assert.equal(context.decisionResolution, expectedResolution);
     assert.equal(context.contract.decision, null);
     assert.deepEqual(context.authorisedRepositories, []);
     assert.deepEqual(context.authorisedPaths, []);
-    const packet = await projectContract({ client }, { contract: compilerContract });
+    const packet = await projectContract({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract: compilerContract });
     assert.deepEqual(packet.authorisedActions, []);
     assert.deepEqual(packet.authorisedRepositories, []);
     assert.deepEqual(packet.authorisedPaths, []);
@@ -985,32 +999,32 @@ test('layout context rejects a truncated materialisation-rule projection', async
   client.select = async (query) => query.includes('COUNT(*) AS ?count')
     ? [{ count: binding('2') }]
     : select(query);
-  await assert.rejects(() => layoutContext({ client }), /rule projection is incomplete/);
+  await assert.rejects(() => layoutContext({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }), /rule projection is incomplete/);
 });
 
 test('plans require one accepted decision, its authorised paths, and an exact plan digest', async () => {
   const content = 'export const value = 1;\n';
   const operation = { action: 'write-file', artefactFamily: family, content, contentDigest: digest(content), contentEncoding: 'utf8', index: 0, path: 'capabilities/semantic-model-compilation/value.mjs', pathRole: role, representationFormat: format };
-  const plan = await createLayoutPlan({ client: fakeClient() }, { contract, operations: [operation] });
+  const plan = await createLayoutPlan({ client: fakeClient(), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract, operations: [operation] });
 
   const missingDigest = structuredClone(plan);
   delete missingDigest.planDigest;
-  assert.ok((await validateLayoutPlan({ client: fakeClient() }, missingDigest)).failures.some((finding) => finding.code === 'plan-digest'));
+  assert.ok((await validateLayoutPlan({ client: fakeClient(), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, missingDigest)).failures.some((finding) => finding.code === 'plan-digest'));
 
   const draftRows = defaultContractRows();
   draftRows[0].decisionState = binding('urn:usf:decisionstate:draft');
-  assert.ok((await validateLayoutPlan({ client: fakeClient({ contractRows: draftRows }) }, plan)).failures.some((finding) => finding.code === 'plan-decision-not-uniquely-accepted'));
+  assert.ok((await validateLayoutPlan({ client: fakeClient({ contractRows: draftRows }), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, plan)).failures.some((finding) => finding.code === 'plan-decision-not-uniquely-accepted'));
 
   const pathlessRows = defaultContractRows();
   delete pathlessRows[0].authorisedPath;
-  assert.ok((await validateLayoutPlan({ client: fakeClient({ contractRows: pathlessRows }) }, plan)).failures.some((finding) => finding.code === 'operation-decision-path'));
+  assert.ok((await validateLayoutPlan({ client: fakeClient({ contractRows: pathlessRows }), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, plan)).failures.some((finding) => finding.code === 'operation-decision-path'));
 
   const second = { ...defaultContractRows()[0], decision: binding('urn:usf:realisationdecision:other') };
-  assert.ok((await validateLayoutPlan({ client: fakeClient({ contractRows: [...defaultContractRows(), second] }) }, plan)).failures.some((finding) => finding.code === 'plan-decision-not-uniquely-accepted'));
+  assert.ok((await validateLayoutPlan({ client: fakeClient({ contractRows: [...defaultContractRows(), second] }), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, plan)).failures.some((finding) => finding.code === 'plan-decision-not-uniquely-accepted'));
 });
 
 test('layout plan validates exact content, path role, family, format, digest and authority', async () => {
-  const ctx = { client: fakeClient() };
+  const ctx = { client: fakeClient(), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER };
   const content = 'export const value = 1;\n';
   const operations = [{ action: 'write-file', artefactFamily: family, content, contentDigest: digest(content), contentEncoding: 'utf8', index: 0, path: 'capabilities/semantic-model-compilation/value.mjs', pathRole: role, representationFormat: format }];
   const plan = await createLayoutPlan(ctx, { contract, operations });
@@ -1023,7 +1037,7 @@ test('layout plan validates exact content, path role, family, format, digest and
 });
 
 test('contract projection reports each validation obligation with its activation and satisfaction state', async () => {
-  const packet = await projectContract({ client: fakeClient() }, { contract });
+  const packet = await projectContract({ client: fakeClient(), observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.deepEqual(packet.validationObligations, [{
     id: validationObligation,
     activation: 'urn:usf:validationactivationstate:reserved',
@@ -1037,7 +1051,7 @@ test('contract projection reports each validation obligation with its activation
 // obligation must not withdraw realisation authority that an accepted decision
 // and a successful proof already granted, and must not be reported as satisfied.
 test('reserved validation withholds the validated claim without withdrawing realisation authority', async () => {
-  const packet = await projectContract({ client: fakeClient() }, { contract });
+  const packet = await projectContract({ client: fakeClient(), observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.equal(packet.actionState, 'PROCEED');
   assert.deepEqual(packet.actionStateReasons, []);
   assert.ok(packet.authorisedActions.length > 0);
@@ -1049,7 +1063,7 @@ test('reserved validation withholds the validated claim without withdrawing real
 
 test('an activated unsatisfied validation obligation projects only the exact read-only remediation scope', async () => {
   const client = fakeClient({ validationObligationRows: defaultValidationObligationRows('urn:usf:validationactivationstate:activated') });
-  const packet = await projectContract({ client }, { contract });
+  const packet = await projectContract({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.equal(packet.schemaVersion, 3);
   assert.equal(packet.actionState, 'PROCEED');
   assert.deepEqual(packet.actionStateReasons, ['missing-current-passing-validation']);
@@ -1068,7 +1082,7 @@ test('exact live family defects produce exactly three bounded read-only work row
   const plan = await planWork({ client: fakeClient({
     validationObligationRows: durableFamilyValidationRows(),
     queries,
-  }) }, { contract });
+  }), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract });
   assert.equal(plan.actionState, 'BLOCK');
   assert.equal(plan.gapCount, 3);
   assert.deepEqual(plan.gaps.map((item) => item.subject), durableFamilyValidations.map(({ id }) => id).sort());
@@ -1100,7 +1114,7 @@ test('exact live family defects produce exactly three bounded read-only work row
 test('corrected source conditions stop remediation scheduling but remain blocked without current results', async () => {
   const plan = await planWork({ client: fakeClient({
     validationObligationRows: durableFamilyValidationRows({ conditionMatched: false }),
-  }) }, { contract });
+  }), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract });
   assert.equal(plan.actionState, 'BLOCK');
   assert.equal(plan.validationSatisfied, false);
   assert.equal(plan.gapCount, 3);
@@ -1112,7 +1126,7 @@ test('a minimal corrected family with a current passing result produces no work 
   const current = satisfyingResultRow();
   const plan = await planWork({ client: fakeClient({
     validationObligationRows: durableFamilyValidationRows({ conditionMatched: false, satisfaction: current }),
-  }) }, { contract });
+  }), observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.equal(plan.gapCount, 0);
   assert.equal(plan.validationSatisfied, true);
 });
@@ -1120,10 +1134,10 @@ test('a minimal corrected family with a current passing result produces no work 
 test('reintroducing exact faulty triples adds bounded remediation metadata without changing fail-closed satisfaction', async () => {
   const corrected = await planWork({ client: fakeClient({
     validationObligationRows: durableFamilyValidationRows({ conditionMatched: false }),
-  }) }, { contract });
+  }), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract });
   const reintroduced = await planWork({ client: fakeClient({
     validationObligationRows: durableFamilyValidationRows(),
-  }) }, { contract });
+  }), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract });
   assert.equal(corrected.gapCount, 3);
   assert.ok(corrected.gaps.every((item) => item.remediationKind === undefined));
   assert.equal(reintroduced.gapCount, 3);
@@ -1135,7 +1149,7 @@ test('a corrected source condition with stale satisfaction remains blocked', asy
   const stale = satisfyingResultRow({ boundAuthority: `sha256:${'44'.repeat(32)}` });
   const plan = await planWork({ client: fakeClient({
     validationObligationRows: durableFamilyValidationRows({ conditionMatched: false, satisfaction: stale }),
-  }) }, { contract });
+  }), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract });
   assert.equal(plan.actionState, 'BLOCK');
   assert.equal(plan.gapCount, 3);
   assert.ok(plan.gaps.every((item) => item.type === 'validation-satisfaction-not-current'));
@@ -1146,7 +1160,7 @@ test('stale passing results do not satisfy durable family obligations at changed
   const stale = satisfyingResultRow({ boundAuthority: `sha256:${'44'.repeat(32)}` });
   const plan = await planWork({ client: fakeClient({
     validationObligationRows: durableFamilyValidationRows({ satisfaction: stale }),
-  }) }, { contract });
+  }), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract });
   assert.equal(plan.gapCount, 3);
   assert.ok(plan.gaps.every((item) => item.type === 'validation-satisfaction-not-current'));
   assert.ok(plan.gaps.every((item) => item.materialisationOwnerPath === 'semantic-model/permutation/families.trig'));
@@ -1156,7 +1170,7 @@ test('durable validation work planning rejects a substituted family binding', as
   const rows = durableFamilyValidationRows();
   rows[0] = { ...rows[0], target: binding('urn:usf:permutationfamily:unrelated') };
   await assert.rejects(
-    () => planWork({ client: fakeClient({ validationObligationRows: rows }) }, { contract }),
+    () => planWork({ client: fakeClient({ validationObligationRows: rows }), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract }),
     /has no exact family target/,
   );
 });
@@ -1166,7 +1180,7 @@ test('durable family validation query contains exactly the three family-specific
   const select = client.select;
   const queries = [];
   client.select = async (query) => { queries.push(query); return select(query); };
-  await planWork({ client }, { contract });
+  await planWork({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract });
   const query = queries.find((item) => item.includes('?conditionMatched'));
   assert.ok(query);
   for (const { id, family } of durableFamilyValidations) {
@@ -1186,12 +1200,12 @@ test('a fully bound current satisfaction is the only state that reports validati
       ...satisfyingResultRow(),
     }],
   });
-  const packet = await projectContract({ client }, { contract });
+  const packet = await projectContract({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.equal(packet.validationSatisfied, true);
   assert.equal(packet.validationObligations[0].satisfactionCurrent, true);
   assert.deepEqual(packet.validationGaps, []);
   assert.equal(packet.actionState, 'PROCEED');
-  const plan = await planWork({ client }, { contract });
+  const plan = await planWork({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.equal(plan.gapCount, 0);
   assert.equal(plan.actionState, 'PROCEED');
   assert.equal(plan.validationSatisfied, true);
@@ -1205,7 +1219,7 @@ test('complete validation self-publication closure is current after its authorit
       ...selfPublicationClosureRow(),
     }],
   });
-  const packet = await projectContract({ client }, { contract });
+  const packet = await projectContract({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.equal(packet.validationObligations[0].satisfactionCurrent, true);
   assert.equal(packet.validationSatisfied, true);
   assert.deepEqual(packet.validationGaps, []);
@@ -1220,7 +1234,7 @@ test('cross-repository validation closure keeps Factory production and Graph adm
     }],
     validationPathRows: crossRepositoryPathRows(),
   });
-  const packet = await projectContract({ client }, { contract });
+  const packet = await projectContract({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.equal(packet.validationObligations[0].satisfactionCurrent, true);
   assert.equal(packet.validationSatisfied, true);
   assert.deepEqual(packet.validationGaps, []);
@@ -1242,7 +1256,7 @@ test('cross-repository validation closure accepts its exact result in a shared p
     }],
     validationPathRows: crossRepositoryPathRows(),
   });
-  const packet = await projectContract({ client }, { contract });
+  const packet = await projectContract({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.equal(packet.validationObligations[0].satisfactionCurrent, true);
   assert.equal(packet.validationSatisfied, true);
   assert.deepEqual(packet.validationGaps, []);
@@ -1270,7 +1284,7 @@ test('D2 validation evidence is projected independently of the bounded scalar cl
     validationPathRows: crossRepositoryPathRows(),
     queries,
   });
-  const packet = await projectContract({ client }, { contract });
+  const packet = await projectContract({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.equal(packet.validationSatisfied, true);
   const scalarQuery = queries.find((query) => query.includes('?conditionMatched'));
   const evidenceQuery = queries.find(
@@ -1304,7 +1318,7 @@ test('D2 validation currentness accepts supporting evidence beside its exact val
     }],
     validationEvidenceRows,
     validationPathRows: crossRepositoryPathRows(),
-  }) }, { contract });
+  }), observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.equal(packet.validationObligations[0].satisfactionCurrent, true);
   assert.equal(packet.validationSatisfied, true);
   assert.deepEqual(packet.validationGaps, []);
@@ -1333,7 +1347,7 @@ test('D2 validation currentness rejects a plural evidence set with a substituted
     }],
     validationEvidenceRows,
     validationPathRows: crossRepositoryPathRows(),
-  }) }, { contract });
+  }), observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.equal(packet.validationObligations[0].satisfactionCurrent, false);
   assert.equal(packet.validationSatisfied, false);
   assert.deepEqual(packet.validationGaps.map((item) => item.code), ['validation-satisfaction-not-current']);
@@ -1379,7 +1393,7 @@ test('D2 validation subprojections preserve their declared cardinality limits', 
     },
   ]) {
     await assert.rejects(
-      () => projectContract({ client: fakeClient(item.options) }, { contract }),
+      () => projectContract({ client: fakeClient(item.options), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract }),
       item.expected,
     );
   }
@@ -1431,7 +1445,7 @@ test('cross-repository validation closure rejects scalar, reevaluation and exact
       }],
       validationPathRows: crossRepositoryPathRows(item.paths),
     });
-    const packet = await projectContract({ client }, { contract });
+    const packet = await projectContract({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
     assert.equal(packet.validationSatisfied, false, item.name);
     assert.equal(packet.validationObligations[0].satisfactionCurrent, false, item.name);
     assert.equal(packet.actionState, 'BLOCK', item.name);
@@ -1448,7 +1462,7 @@ test('validation non-publication closure rejects unrelated authority drift', asy
       ...selfPublicationClosureRow(),
     }],
   });
-  const packet = await projectContract({ client }, { contract });
+  const packet = await projectContract({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.equal(packet.validationObligations[0].satisfactionCurrent, false);
   assert.equal(packet.validationSatisfied, false);
   assert.equal(packet.actionState, 'BLOCK');
@@ -1490,7 +1504,7 @@ test('incomplete or substituted validation self-publication closures fail curren
         ...row,
       }],
     });
-    const packet = await projectContract({ client }, { contract });
+    const packet = await projectContract({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
     assert.equal(packet.validationSatisfied, false, item.name);
     assert.equal(packet.validationObligations[0].satisfactionCurrent, false, item.name);
     assert.equal(packet.actionState, 'BLOCK', item.name);
@@ -1509,7 +1523,7 @@ test('ambiguous validation self-publication authority bindings fail currentness'
   const client = fakeClient({
     validationObligationRows: [{ ...activation, ...first }, { ...activation, ...second }],
   });
-  const packet = await projectContract({ client }, { contract });
+  const packet = await projectContract({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.equal(packet.validationSatisfied, false);
   assert.equal(packet.validationObligations[0].satisfactionCurrent, false);
   assert.equal(packet.actionState, 'BLOCK');
@@ -1678,12 +1692,12 @@ const adversarialCases = [
 test('adversarial validation states never authorise action and never report satisfaction', async () => {
   for (const item of adversarialCases) {
     const client = fakeClient(item.client);
-    const packet = await projectContract({ client }, { contract });
+    const packet = await projectContract({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
     assert.equal(packet.validationSatisfied, false, item.name);
     assert.equal(packet.actionState, item.actionState, item.name);
     assert.equal(packet.validationActionState, item.validationActionState, item.name);
     if (item.actionState !== 'PROCEED') assert.deepEqual(packet.authorisedActions, [], item.name);
-    const plan = await planWork({ client }, { contract });
+    const plan = await planWork({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
     assert.equal(plan.validationSatisfied, false, item.name);
     assert.equal(plan.completionClaim, false, item.name);
     if (item.gap === null) {
@@ -1709,13 +1723,13 @@ test('applicability-level reserved resolves to RESERVED_NO_ACTION on its own axi
     // one so the outcome cannot be attributed to activation-level reservation.
     validationObligationRows: defaultValidationObligationRows('urn:usf:validationactivationstate:activated'),
   });
-  const packet = await projectContract({ client }, { contract });
+  const packet = await projectContract({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.equal(packet.validationApplicability.state, 'urn:usf:validationapplicabilitystate:reserved');
   assert.equal(packet.validationActionState, 'RESERVED_NO_ACTION');
   assert.equal(packet.validationSatisfied, false);
   assert.equal(GAP_DISPOSITIONS['validation-applicability-reserved'], 'RESERVED_NO_ACTION');
 
-  const plan = await planWork({ client }, { contract });
+  const plan = await planWork({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   const applicabilityGap = plan.gaps.find((gap) => gap.type === 'validation-applicability-reserved');
   assert.ok(applicabilityGap, 'applicability-level reserved must emit its own gap');
   assert.equal(applicabilityGap.disposition, 'RESERVED_NO_ACTION');
@@ -1733,9 +1747,8 @@ test('the two reserved axes are distinct codes on distinct subjects and cannot b
   const applicabilityReserved = await planWork({
     client: fakeClient({
       applicabilityRows: defaultApplicabilityRows('urn:usf:validationapplicabilitystate:reserved'),
-    }),
-  }, { contract });
-  const activationReserved = await planWork({ client: fakeClient() }, { contract });
+    }), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract });
+  const activationReserved = await planWork({ client: fakeClient(), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract });
 
   const codes = (plan) => plan.gaps.map((gap) => gap.type).sort();
   assert.deepEqual(codes(applicabilityReserved), ['validation-applicability-reserved', 'validation-obligation-reserved']);
@@ -1768,10 +1781,10 @@ test('reserved applicability that binds no obligation is unresolved, not reserve
     applicabilityRows: defaultApplicabilityRows('urn:usf:validationapplicabilitystate:reserved'),
     validationObligationRows: [],
   });
-  const packet = await projectContract({ client }, { contract });
+  const packet = await projectContract({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.equal(packet.validationActionState, 'RESERVED_NO_ACTION');
   assert.equal(packet.validationSatisfied, false);
-  const plan = await planWork({ client }, { contract });
+  const plan = await planWork({ client, observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract });
   assert.deepEqual(plan.gaps.map((gap) => gap.type), ['validation-applicability-reserved']);
   assert.notEqual(plan.actionState, 'PROCEED');
 });
@@ -1804,7 +1817,7 @@ test('work planning refuses a contract declaring more than one applicability sta
       ...defaultApplicabilityRows('urn:usf:validationapplicabilitystate:notrequired'),
     ],
   });
-  await assert.rejects(() => planWork({ client }, { contract }), /more than one validation applicability state/);
+  await assert.rejects(() => planWork({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract }), /more than one validation applicability state/);
 });
 
 test('every work-plan gap code declares a factory disposition and none of them is PROCEED', () => {
@@ -1821,7 +1834,7 @@ test('work-plan pagination reports the whole disposition census, so a page canno
     proofGapRows,
     validationObligationRows: defaultValidationObligationRows('urn:usf:validationactivationstate:blocked'),
   });
-  const first = await planWork({ client }, { contract });
+  const first = await planWork({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract });
   assert.equal(first.gapCount, 61);
   assert.equal(first.gaps.length, 50);
   assert.equal(first.truncated, true);
@@ -1829,7 +1842,7 @@ test('work-plan pagination reports the whole disposition census, so a page canno
   assert.equal(first.dispositionCounts.BLOCK, 61);
   assert.equal(first.actionState, 'BLOCK');
 
-  const second = await planWork({ client }, { contract, offset: 50 });
+  const second = await planWork({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract, offset: 50 });
   assert.equal(second.gaps.length, 11);
   assert.equal(second.truncated, false);
   assert.equal(second.nextOffset, null);
@@ -1848,7 +1861,7 @@ test('work planning fails closed when live authority changes while the plan is b
     calls += 1;
     return calls > 1 ? '<urn:s> <urn:p> "drifted" .\n' : construct(...args);
   };
-  await assert.rejects(() => planWork({ client }, { contract }), /live authority changed/);
+  await assert.rejects(() => planWork({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract }), /live authority changed/);
 });
 
 test("proof-blocked contract projection is available but grants no materialisation authority", async () => {
@@ -1856,7 +1869,7 @@ test("proof-blocked contract projection is available but grants no materialisati
     canonicalName: binding("compilersemanticenforcement"),
     lifecycle: binding("urn:usf:semanticlifecyclestate:planned"),
     activation: binding("urn:usf:contractactivationstate:proofblocked"),
-  }] }) }, { contract: "urn:usf:semanticcontract:compilersemanticenforcement" });
+  }] }), observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract: "urn:usf:semanticcontract:compilersemanticenforcement" });
   assert.equal(packet.contractState.proof, null);
   assert.equal(packet.contractState.decision, null);
   assert.deepEqual(packet.authorisedActions, []);
@@ -1867,7 +1880,7 @@ test("proof-blocked contract projection is available but grants no materialisati
 test('model-incomplete contract projection is available with null lifecycle and activation and no authority grants', async () => {
   const packet = await projectContract({ client: fakeClient({ contractRows: [{
     canonicalName: binding('universalservicefoundationscopeandprinciples'),
-  }] }) }, { contract: 'urn:usf:semanticcontract:universalservicefoundationscopeandprinciples' });
+  }] }), observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract: 'urn:usf:semanticcontract:universalservicefoundationscopeandprinciples' });
   assert.equal(packet.contractState.lifecycle, null);
   assert.equal(packet.contractState.activation, null);
   assert.equal(packet.contractState.proof, null);
@@ -1898,7 +1911,7 @@ const planOperation = () => {
 // A plan minted while the contract did authorise realisation, replayed against a
 // client that no longer does. Nothing about the plan itself is malformed.
 async function goodPlan() {
-  return createLayoutPlan({ client: fakeClient() }, { contract, operations: [planOperation()] });
+  return createLayoutPlan({ client: fakeClient(), observeGraphRuntimeOwnership: V1_TRANSITION_OWNER }, { contract, operations: [planOperation()] });
 }
 
 const nonProceedClients = [
@@ -1987,7 +2000,7 @@ const nonProceedClients = [
 
 test('the shared realisation verdict resolves every non-PROCEED state with its reason', async () => {
   for (const item of nonProceedClients) {
-    const verdict = await realisationVerdict({ client: item.client() }, { contract });
+    const verdict = await realisationVerdict({ client: item.client(), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract });
     assert.equal(verdict.actionState, item.expected, item.name);
     assert.ok(verdict.actionStateReasons.includes(item.reason), `${item.name}: expected reason ${item.reason}, saw ${verdict.actionStateReasons.join(',')}`);
     assert.equal(verdict.stateFailureCode, REALISATION_STATE_FAILURE_CODES[item.expected], item.name);
@@ -1999,12 +2012,12 @@ test('a non-PROCEED realisation state cannot create, validate or apply a plan', 
   for (const item of nonProceedClients) {
     // create
     await assert.rejects(
-      () => createLayoutPlan({ client: item.client() }, { contract, operations: [planOperation()] }),
+      () => createLayoutPlan({ client: item.client(), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract, operations: [planOperation()] }),
       new RegExp(REALISATION_STATE_FAILURE_CODES[item.expected]),
       `create: ${item.name}`,
     );
     // validate — a stable code, the state, and the reasons
-    const validation = await validateLayoutPlan({ client: item.client() }, plan);
+    const validation = await validateLayoutPlan({ client: item.client(), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, plan);
     assert.equal(validation.ok, false, `validate: ${item.name}`);
     assert.equal(validation.realisationActionState, item.expected, `validate state: ${item.name}`);
     const stateFailure = validation.failures.find((failure) => failure.code === REALISATION_STATE_FAILURE_CODES[item.expected]);
@@ -2012,7 +2025,7 @@ test('a non-PROCEED realisation state cannot create, validate or apply a plan', 
     assert.ok(stateFailure.reasons.includes(item.reason), `validate reason: ${item.name}`);
     // apply — refused, and never applied, even with coordinator authority
     const applied = await applyLayoutPlan(
-      { client: item.client(), coordinator: true, repositoryRoot: '/usf' },
+      { client: item.client(), coordinator: true, repositoryRoot: '/usf', observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER },
       { plan, apply: true },
     );
     assert.equal(applied.applied, false, `apply: ${item.name}`);
@@ -2030,10 +2043,10 @@ test('ambiguous scalar contract conclusions fail closed instead of taking the fi
   for (const [label, key, contradictory] of cases) {
     const rows = [...defaultContractRows(), { ...defaultContractRows()[0], [key]: contradictory }];
     const client = fakeClient({ contractRows: rows });
-    await assert.rejects(() => realisationVerdict({ client }, { contract }), new RegExp(`ambiguous ${label}`), label);
+    await assert.rejects(() => realisationVerdict({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract }), new RegExp(`ambiguous ${label}`), label);
     // The ambiguity must stop the plan surfaces too, not just the verdict.
-    await assert.rejects(() => createLayoutPlan({ client }, { contract, operations: [planOperation()] }), new RegExp(`ambiguous ${label}`), `create: ${label}`);
-    await assert.rejects(() => projectContract({ client }, { contract }), new RegExp(`ambiguous ${label}`), `project: ${label}`);
+    await assert.rejects(() => createLayoutPlan({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract, operations: [planOperation()] }), new RegExp(`ambiguous ${label}`), `create: ${label}`);
+    await assert.rejects(() => projectContract({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract }), new RegExp(`ambiguous ${label}`), `project: ${label}`);
   }
 });
 
@@ -2044,7 +2057,7 @@ test('distinct relied-on proof results are plural, while contradictory state for
     { ...defaultContractRows()[0], proof: result, proofState: binding('urn:usf:proofresultstate:failed') },
   ];
   await assert.rejects(
-    () => projectContract({ client: fakeClient({ contractRows: rows }) }, { contract }),
+    () => projectContract({ client: fakeClient({ contractRows: rows }), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract }),
     /proof result .* has ambiguous state/,
   );
 });
@@ -2063,7 +2076,7 @@ test('an unknown gap code has no disposition and cannot silently authorise anyth
 // and its obligation is reserved, so realisation authority stands while the
 // validated claim is withheld. A dry-run must complete and claim nothing.
 test('the reserved-validation contract stays PROCEED and dry-runs without a validation claim', async () => {
-  const ctx = { client: fakeClient() };
+  const ctx = { client: fakeClient(), observeGraphRuntimeOwnership: V1_TRANSITION_OWNER };
   const verdict = await realisationVerdict(ctx, { contract });
   assert.equal(verdict.actionState, ACTION_STATES.proceed);
   assert.deepEqual(verdict.actionStateReasons, []);
@@ -2157,23 +2170,23 @@ test('authority moving between the opening witness and the contract queries fail
   // The move lands as the contract row query is issued: the opening witness saw one
   // state, the semantic read saw another.
   const client = movingOnQueryClient('?canonicalName ?lifecycle');
-  await assert.rejects(() => realisationVerdict({ client }, { contract }), new RegExp(AUTHORITY_MOVED_CODE));
-  await assert.rejects(() => layoutContext({ client: movingOnQueryClient('?canonicalName ?lifecycle') }), new RegExp(AUTHORITY_MOVED_CODE));
+  await assert.rejects(() => realisationVerdict({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract }), new RegExp(AUTHORITY_MOVED_CODE));
+  await assert.rejects(() => layoutContext({ client: movingOnQueryClient('?canonicalName ?lifecycle'), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }), new RegExp(AUTHORITY_MOVED_CODE));
 });
 
 test('authority moving between the contract and validation queries fails closed', async () => {
   // The validation scope is read after the contract rows but inside the same
   // bracket, so a move here is caught by the closing witness.
   const client = movingOnQueryClient('<urn:usf:ontology:hasValidationApplicability> ?state');
-  await assert.rejects(() => realisationVerdict({ client }, { contract }), new RegExp(AUTHORITY_MOVED_CODE));
+  await assert.rejects(() => realisationVerdict({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract }), new RegExp(AUTHORITY_MOVED_CODE));
 });
 
 test('authority moving after the verdict but before plan validation fails closed', async () => {
-  const verdict = await realisationVerdict({ client: fakeClient() }, { contract });
+  const verdict = await realisationVerdict({ client: fakeClient(), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract });
   // A fresh client at a different authority state: the plan and verdict digests no
   // longer describe live authority, so validation cannot pass.
   const moved = movingClient({ moveAfterWitnessReads: 0 });
-  const validation = await validateLayoutPlan({ client: moved }, {
+  const validation = await validateLayoutPlan({ client: moved, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, {
     schemaVersion: 1,
     authorityDigest: verdict.context.authorityDigest,
     contract,
@@ -2188,19 +2201,19 @@ test('projection queries after the verdict are proven against the verdict witnes
   // The three projection queries run after the bracket closes, so their own closing
   // witness must still equal the verdict witness exactly.
   const client = movingOnQueryClient('<urn:usf:ontology:asserts>');
-  await assert.rejects(() => projectContract({ client }, { contract }), new RegExp(AUTHORITY_MOVED_CODE));
+  await assert.rejects(() => projectContract({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract }), new RegExp(AUTHORITY_MOVED_CODE));
 });
 
 test('authority moving immediately before the first apply operation refuses to touch the filesystem', async () => {
   const root = mkdtempSync(join(tmpdir(), 'usf-apply-premove-'));
   roots.push(root);
-  const plan = await createLayoutPlan({ client: fakeClient() }, { contract, operations: [writeOperation()] });
+  const plan = await createLayoutPlan({ client: fakeClient(), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract, operations: [writeOperation()] });
   // Witness reads on this client: verdict open (1) and close (2) — validation
   // consumes the passed verdict and re-reads nothing — then pre-apply (3). Move
   // authority exactly at the pre-apply read.
   const client = movingClient({ moveAfterWitnessReads: 2 });
   await assert.rejects(
-    () => applyLayoutPlan({ client, coordinator: true, repositoryRoot: root }, { plan, apply: true }),
+    () => applyLayoutPlan({ client, coordinator: true, repositoryRoot: root, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { plan, apply: true }),
     new RegExp(AUTHORITY_MOVED_CODE),
   );
   // Nothing was written: the refusal happened before the first mutation.
@@ -2225,13 +2238,13 @@ test('authority moving after the final operation rolls the plan back exactly and
     writeOperation('export const created = 1;\n', 0, 'capabilities/semantic-model-compilation/created.mjs'),
     { ...writeOperation('export const existing = false;\n', 1, 'capabilities/semantic-model-compilation/existing.mjs'), sourceDigest: digest(existingBytes) },
   ];
-  const plan = await createLayoutPlan({ client: fakeClient() }, { contract, operations });
+  const plan = await createLayoutPlan({ client: fakeClient(), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract, operations });
 
   // Witness reads: verdict open (1), verdict close (2), pre-apply (3) — all stable,
   // so the writes happen — then the post-apply check (4) observes the move.
   const client = movingClient({ moveAfterWitnessReads: 3 });
   await assert.rejects(
-    () => applyLayoutPlan({ client, coordinator: true, repositoryRoot: root }, { plan, apply: true }),
+    () => applyLayoutPlan({ client, coordinator: true, repositoryRoot: root, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { plan, apply: true }),
     (error) => {
       // The stable code survives, and rollback failures would be preserved through
       // AggregateError rather than replacing the primary error.
@@ -2252,7 +2265,7 @@ test('authority moving after the final operation rolls the plan back exactly and
 test('a stable authority applies the same plan and reports applied', async () => {
   const root = mkdtempSync(join(tmpdir(), 'usf-apply-stable-'));
   roots.push(root);
-  const ctx = { client: fakeClient(), coordinator: true, repositoryRoot: root };
+  const ctx = { client: fakeClient(), coordinator: true, repositoryRoot: root, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER };
   const plan = await createLayoutPlan(ctx, { contract, operations: [writeOperation()] });
   const applied = await applyLayoutPlan(ctx, { plan, apply: true });
   assert.equal(applied.applied, true);
@@ -2265,7 +2278,7 @@ test('a stable authority applies the same plan and reports applied', async () =>
 test('materialiser defaults to dry-run and apply is coordinator-only and idempotent', async () => {
   const root = mkdtempSync(join(tmpdir(), 'usf-materialise-'));
   try {
-    const ctx = { client: fakeClient(), repositoryRoot: root, coordinator: true };
+    const ctx = { client: fakeClient(), repositoryRoot: root, coordinator: true, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER };
     const content = 'export const value = 1;\n';
     const plan = await createLayoutPlan(ctx, { operations: [{ action: 'write-file', artefactFamily: family, content, contentDigest: digest(content), contentEncoding: 'utf8', index: 0, path: 'capabilities/semantic-model-compilation/value.mjs', pathRole: role, representationFormat: format }] });
     assert.equal((await applyLayoutPlan(ctx, { plan })).dryRun, true);
@@ -2279,7 +2292,7 @@ test('materialiser defaults to dry-run and apply is coordinator-only and idempot
 test('materialiser replaces only an exact prior digest and rolls the plan back on failure', async () => {
   const root = mkdtempSync(join(tmpdir(), 'usf-materialise-rollback-'));
   try {
-    const ctx = { client: fakeClient(), repositoryRoot: root, coordinator: true };
+    const ctx = { client: fakeClient(), repositoryRoot: root, coordinator: true, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER };
     const existing = join(root, 'capabilities/semantic-model-compilation/existing.js');
     mkdirSync(join(root, 'capabilities/semantic-model-compilation'), { recursive: true });
     writeFileSync(existing, 'prior\n');
@@ -2301,7 +2314,7 @@ test('materialiser replaces only an exact prior digest and rolls the plan back o
 test('delete rollback restores exact file and directory types, bytes, and modes after a later failure', async () => {
   const root = mkdtempSync(join(tmpdir(), 'usf-materialise-delete-mode-'));
   try {
-    const ctx = { client: fakeClient(), repositoryRoot: root, coordinator: true };
+    const ctx = { client: fakeClient(), repositoryRoot: root, coordinator: true, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER };
     const source = join(root, 'capabilities/semantic-model-compilation/mode.js');
     const directory = join(root, 'capabilities/semantic-model-compilation/mode-directory');
     const blocker = join(root, 'capabilities/semantic-model-compilation/blocker.js');
@@ -2353,7 +2366,7 @@ test('materialiser rejects symbolic-link traversal for repository and CAS paths'
   try {
     mkdirSync(join(root, 'capabilities'), { recursive: true });
     if (!fixtureSymlink(outside, join(root, 'capabilities/semantic-model-compilation'))) return;
-    const ctx = { client: fakeClient(), repositoryRoot: root, coordinator: true };
+    const ctx = { client: fakeClient(), repositoryRoot: root, coordinator: true, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER };
     const content = 'export const escaped = true;\n';
     const plan = await createLayoutPlan(ctx, { operations: [{
       action: 'write-file', artefactFamily: family, content, contentDigest: digest(content),
@@ -2389,7 +2402,7 @@ test('bounded plans may reference exact write bytes from the operator-local CAS'
     const stored = join(casRoot, 'sha256', hex.slice(0, 2), hex);
     mkdirSync(join(casRoot, 'sha256', hex.slice(0, 2)), { recursive: true });
     writeFileSync(stored, content);
-    const ctx = { client: fakeClient(), repositoryRoot: root, coordinator: true, casRoot };
+    const ctx = { client: fakeClient(), repositoryRoot: root, coordinator: true, casRoot, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER };
     const plan = await createLayoutPlan(ctx, { operations: [{
       action: 'write-file', artefactFamily: family, contentDigest,
       contentLocator: `cas://sha256/${hex}`, fileMode: '0644', index: 0,
@@ -2410,7 +2423,7 @@ test('bounded plans may reference exact write bytes from the operator-local CAS'
 });
 
 test('move and delete operations require exact source digests', async () => {
-  const ctx = { client: fakeClient() };
+  const ctx = { client: fakeClient(), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER };
   const bad = await createLayoutPlan(ctx, { operations: [{ action: 'move-path', index: 0, path: 'capabilities/semantic-model-compilation/next', pathRole: role, sourcePath: 'compiler' }] }).catch((error) => error);
   assert.match(bad.message, /operation-source-digest/);
 });
@@ -2427,7 +2440,7 @@ test('plans reject root-role descendants, forbidden segments and family naming v
     if (query.includes('a <urn:usf:ontology:ArtefactFamily>')) return [{ family: binding(rootFamily), familyName: binding('repositorydocumentation'), storage: binding('urn:usf:storageclass:gittrackedsource'), pathRole: binding(rootRole), format: binding(rootFormat), namingPattern: binding('^[A-Za-z0-9._-]+$') }];
     return originalSelect(query);
   };
-  const make = (path) => createLayoutPlan({ client }, { operations: [{ action: 'write-file', artefactFamily: rootFamily, content: '# x\n', contentDigest: digest('# x\n'), contentEncoding: 'utf8', index: 0, path, pathRole: rootRole, representationFormat: rootFormat }] });
+  const make = (path) => createLayoutPlan({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { operations: [{ action: 'write-file', artefactFamily: rootFamily, content: '# x\n', contentDigest: digest('# x\n'), contentEncoding: 'utf8', index: 0, path, pathRole: rootRole, representationFormat: rootFormat }] });
   await assert.rejects(() => make('docs/README.md'), /operation-root-descendant/);
   await assert.rejects(() => make('v2/README.md'), /operation-path/);
   await assert.rejects(() => make('bad name.md'), /operation-filename/);
@@ -2448,19 +2461,19 @@ test('operator-local CAS verification checks Stardog digest and byte size', asyn
       locator: `cas://sha256/${hex}`, artifactType: 'urn:usf:artefacttype:test',
       storageClass: 'urn:usf:storageclass:contentaddressedobjectstorage',
     };
-    const result = await verifyArtifact({ client: fakeClient({ descriptor }), casRoot: root }, { digest: contentDigest });
+    const result = await verifyArtifact({ client: fakeClient({ descriptor }), casRoot: root, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { digest: contentDigest });
     assert.equal(result.verified, true);
     const external = join(root, 'external-object');
     writeFileSync(external, bytes);
     unlinkSync(path);
     if (fixtureSymlink(external, path)) {
-      const symlinked = await verifyArtifact({ client: fakeClient({ descriptor }), casRoot: root }, { digest: contentDigest });
+      const symlinked = await verifyArtifact({ client: fakeClient({ descriptor }), casRoot: root, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { digest: contentDigest });
       assert.equal(symlinked.verified, false);
       assert.equal(symlinked.code, 'artifact-not-regular-file');
       unlinkSync(path);
     }
     writeFileSync(path, 'mutated');
-    assert.equal((await verifyArtifact({ client: fakeClient({ descriptor }), casRoot: root }, { digest: contentDigest })).verified, false);
+    assert.equal((await verifyArtifact({ client: fakeClient({ descriptor }), casRoot: root, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { digest: contentDigest })).verified, false);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -2733,17 +2746,17 @@ test('the canonical gateway consumes one exact live conflict resolution and no i
   const normalised = materialisationInternals.normaliseAuthorityConflictBinding(rawBinding, [operation]);
   const client = authorityConflictClient(normalised, sourcePaths);
   await assert.rejects(
-    () => createLayoutPlan({ client }, { contract, operations: [operation] }),
+    () => createLayoutPlan({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract, operations: [operation] }),
     /plan-realisation-blocked/,
   );
-  const plan = await createLayoutPlan({ client }, {
+  const plan = await createLayoutPlan({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, {
     contract, operations: [operation], authorityConflictBinding: rawBinding,
   });
   assert.equal(plan.authorityConflictBinding.candidateDigest, normalised.candidateDigest);
-  assert.equal((await validateLayoutPlan({ client }, plan)).ok, true);
-  assert.equal((await applyLayoutPlan({ client, coordinator: true, repositoryRoot: root }, { plan, apply: true })).applied, true);
+  assert.equal((await validateLayoutPlan({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, plan)).ok, true);
+  assert.equal((await applyLayoutPlan({ client, coordinator: true, repositoryRoot: root, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { plan, apply: true })).applied, true);
   await assert.rejects(
-    () => applyLayoutPlan({ client, coordinator: true, repositoryRoot: root }, { plan, apply: true }),
+    () => applyLayoutPlan({ client, coordinator: true, repositoryRoot: root, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { plan, apply: true }),
     /authority-conflict predecessor worktree is not exact and clean|authority-conflict resolution is single-use/,
   );
 });
@@ -2786,12 +2799,12 @@ test('an exact directory-only authority-conflict resolution cannot report replay
   };
   const normalised = materialisationInternals.normaliseAuthorityConflictBinding(rawBinding, [operation]);
   const client = authorityConflictClient(normalised, sourcePaths);
-  const plan = await createLayoutPlan({ client }, {
+  const plan = await createLayoutPlan({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, {
     contract, operations: [operation], authorityConflictBinding: rawBinding,
   });
-  assert.equal((await applyLayoutPlan({ client, coordinator: true, repositoryRoot: root }, { plan, apply: true })).applied, true);
+  assert.equal((await applyLayoutPlan({ client, coordinator: true, repositoryRoot: root, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { plan, apply: true })).applied, true);
   await assert.rejects(
-    () => applyLayoutPlan({ client, coordinator: true, repositoryRoot: root }, { plan, apply: true }),
+    () => applyLayoutPlan({ client, coordinator: true, repositoryRoot: root, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { plan, apply: true }),
     /authority-conflict resolution is single-use/,
   );
 });
@@ -2932,7 +2945,7 @@ test('production plan create, validate and apply consume one exact live implemen
   const client = fakeClient({
     validationObligationRows: defaultValidationObligationRows('urn:usf:validationactivationstate:activated'),
   });
-  const authority = await layoutContext({ client });
+  const authority = await layoutContext({ client, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER });
   const nonPublicationDependencySetDigest = materialisationInternals
     .validationNonPublicationDependencyDigest(authority.authorityGraphInventory);
   const grantCandidateDigest = `sha256:${'9'.repeat(64)}`;
@@ -2999,6 +3012,7 @@ test('production plan create, validate and apply consume one exact live implemen
     client,
     coordinator: true,
     observedAt: '2026-08-16T01:00:00Z',
+    observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER,
     readImplementationWorkGrantAuthorityState,
     repositoryRoot: root,
   };
@@ -3013,4 +3027,117 @@ test('production plan create, validate and apply consume one exact live implemen
   const replay = await applyLayoutPlan(ctx, { plan, apply: true });
   assert.equal(replay.applied, false);
   assert.equal(replay.realisationActionState, ACTION_STATES.block);
+});
+
+// ---------------------------------------------------------------------------
+// GRAPH-17 native V2 owner boundary.
+//
+// Preterminal behaviour is proven byte-identical by every test above, which
+// runs with no ownership observer and therefore under V1_OWNER. These tests
+// prove the other two owners: that terminal V2 derives the COMPLETE work-plan
+// semantics from native state without consulting the V1 proof lifecycle at all,
+// and that a pending handover fails closed instead of borrowing V1's answer.
+// ---------------------------------------------------------------------------
+
+const ownerBoundary = await import('./repository-materialisation-gateway.mjs');
+
+const terminalOwner = (state = 'CURRENT', authority = witnessDigest) => ({
+  observeGraphRuntimeOwnership: async () => ({
+    ownership_state: 'V2_TERMINAL_OWNER',
+    authority_digest: authority,
+    observation_identity_digest: `sha256:${'1'.repeat(64)}`,
+    validation_currentness: { state },
+  }),
+});
+const pendingOwner = () => ({
+  observeGraphRuntimeOwnership: async () => ({
+    ownership_state: 'V2_HANDOVER_PENDING',
+    observation_identity_digest: `sha256:${'2'.repeat(64)}`,
+  }),
+});
+// Only proof-currentness reads the algorithm binding, so its absence from the
+// issued SPARQL is a mechanical proof that the V1 resolver was never called.
+const V1_CURRENTNESS_MARKER = 'usesProofAlgorithm';
+
+test('terminal V2 derives the work plan from native currentness and never reads V1 proof currentness', async () => {
+  const queries = [];
+  const plan = await planWork({
+    client: fakeClient({ validationObligationRows: durableFamilyValidationRows({ conditionMatched: false, satisfaction: satisfyingResultRow() }), queries }),
+    ...terminalOwner() }, { contract });
+  assert.equal(plan.proofCurrentness.state, 'CURRENT');
+  assert.deepEqual(plan.proofCurrentness.reasons, []);
+  assert.equal(plan.actionState, 'PROCEED');
+  assert.equal(plan.gapCount, 0);
+  assert.equal(plan.validationSatisfied, true);
+  assert.ok(!queries.some((query) => query.includes(V1_CURRENTNESS_MARKER)),
+    'terminal V2 must not issue the V1 proof-currentness algorithm read');
+});
+
+test('terminal V2 with a stale native validation head blocks on the declared currentness code', async () => {
+  const queries = [];
+  const plan = await planWork({
+    client: fakeClient({ validationObligationRows: durableFamilyValidationRows({ conditionMatched: false, satisfaction: satisfyingResultRow() }), queries }),
+    ...terminalOwner('STALE_BLOCK') }, { contract });
+  assert.equal(plan.proofCurrentness.state, 'STALE_BLOCK');
+  assert.deepEqual(plan.proofCurrentness.reasons, ['proof-authority-binding-stale']);
+  assert.equal(plan.actionState, 'BLOCK');
+  // A stale head withdraws every satisfaction at once, so validation is not
+  // satisfied and the gap census reports it rather than staying silent.
+  assert.equal(plan.validationSatisfied, false);
+  assert.ok(plan.gapCount > 0);
+  assert.ok(!queries.some((query) => query.includes(V1_CURRENTNESS_MARKER)));
+});
+
+test('a pending handover fails closed instead of borrowing the outgoing V1 conclusion', async () => {
+  const queries = [];
+  const plan = await planWork({
+    client: fakeClient({ validationObligationRows: durableFamilyValidationRows({ conditionMatched: false, satisfaction: satisfyingResultRow() }), queries }),
+    ...pendingOwner() }, { contract });
+  assert.equal(plan.proofCurrentness.state, 'UNRESOLVED_FAIL_CLOSED');
+  assert.deepEqual(plan.proofCurrentness.reasons, ['proof-currentness-unresolved']);
+  assert.equal(plan.actionState, 'UNRESOLVED_FAIL_CLOSED');
+  assert.equal(plan.validationSatisfied, false);
+  assert.ok(!queries.some((query) => query.includes(V1_CURRENTNESS_MARKER)));
+});
+
+test('a satisfaction bound to a different authority is not current under terminal V2', async () => {
+  const plan = await planWork({
+    client: fakeClient({ validationObligationRows: durableFamilyValidationRows({ conditionMatched: false, satisfaction: satisfyingResultRow() }) }),
+    ...terminalOwner('CURRENT', `sha256:${'9'.repeat(64)}`) }, { contract });
+  assert.equal(plan.validationSatisfied, false);
+  assert.equal(plan.actionState, 'BLOCK');
+});
+
+test('the public work-plan contract is byte-shape identical under every owner', async () => {
+  const rows = () => durableFamilyValidationRows({ conditionMatched: false, satisfaction: satisfyingResultRow() });
+  const owners = [{}, terminalOwner(), terminalOwner('STALE_BLOCK'), pendingOwner()];
+  const baseline = Object.keys(await planWork({ client: fakeClient({ validationObligationRows: rows() }), observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract })).sort();
+  for (const owner of owners) {
+    const plan = await planWork({ client: fakeClient({ validationObligationRows: rows() }), ...owner, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract });
+    assert.deepEqual(Object.keys(plan).sort(), baseline, 'work-plan key set must not drift');
+    assert.equal(plan.schemaVersion, 2);
+    assert.ok(Object.values(ownerBoundary.ACTION_STATES).includes(plan.actionState));
+    assert.deepEqual(Object.keys(plan.dispositionCounts).sort(), Object.values(ownerBoundary.ACTION_STATES).slice().sort());
+    assert.deepEqual(Object.keys(plan.proofCurrentness).sort(), ['reasons', 'state', 'stateIri']);
+    for (const gap of plan.gaps) {
+      assert.ok(Object.hasOwn(ownerBoundary.GAP_DISPOSITIONS, gap.type), `gap code outside the declared vocabulary: ${gap.type}`);
+    }
+  }
+  // The declared vocabulary itself must not grow: eighteen codes, four states.
+  assert.equal(Object.keys(ownerBoundary.GAP_DISPOSITIONS).length, 18);
+  assert.equal(Object.keys(ownerBoundary.ACTION_STATES).length, 4);
+});
+
+test('an unknown ownership state is refused rather than defaulted', async () => {
+  await assert.rejects(() => planWork({
+    client: fakeClient({}),
+    observeGraphRuntimeOwnership: async () => ({ ownership_state: 'SOMETHING_ELSE' }),
+  }, { contract }), /not a closed state/);
+});
+
+test('terminal ownership without a validation currentness state is refused', async () => {
+  await assert.rejects(() => planWork({
+    client: fakeClient({}),
+    observeGraphRuntimeOwnership: async () => ({ ownership_state: 'V2_TERMINAL_OWNER', authority_digest: witnessDigest }),
+  }, { contract }), /carries no validation currentness state/);
 });

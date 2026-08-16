@@ -18,6 +18,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { createGraphOwnershipObserver } from '../../processes/semantic-assurance/semantic-authority-mcp.mjs';
 import { fileURLToPath } from 'node:url';
 
 import { loadConfig } from '../../configuration/semantic-assurance/stardog-connection.mjs';
@@ -1849,10 +1850,20 @@ export function createLiveAggregateCompilerProofDependencies({
     construct: (...args) => mutableClient.construct(...args),
     select: (...args) => mutableClient.select(...args),
   });
+  // The owner boundary refuses when it cannot observe ownership. This live
+  // assurance command therefore supplies the same composition-root observer the
+  // MCP server uses; without it an absent observation would previously have
+  // resolved to V1, a V1 recreation route reachable from a production command.
+  const observeGraphOwnership = createGraphOwnershipObserver(env);
+  const observeGraphRuntimeOwnership = () => observeGraphOwnership(client);
   return Object.freeze({
     casRoot,
     client,
-    contractProjector: (readOnlyClient, contract) => projectContract({ client: readOnlyClient }, { contract }),
+    contractProjector: (readOnlyClient, contract) => projectContract(
+      { client: readOnlyClient, observeGraphRuntimeOwnership },
+      { contract },
+    ),
+    observeGraphRuntimeOwnership,
     readAuthorityWitness: authorityWitness,
     reachableFrom,
     repositoryPath,

@@ -1,11 +1,23 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { classifySparql } from './sparql-guard.mjs';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MCP_REPOSITORY_ROOT, makeRedactor, callTool, cappedSelect, TOOLS } from './semantic-authority-mcp.mjs';
 import { BOOTSTRAP_TRACE, MAX_BOOTSTRAP_BINDINGS, MAX_BOOTSTRAP_BYTES, MAX_BOOTSTRAP_DEPTH, validContractRef, authorityDigest, authorityWitness, bootstrapPacket } from './semantic-bootstrap-packet.mjs';
+
+// Preterminal gateway behaviour is asserted under an EXPLICIT V1 owner.
+// The owner boundary refuses when it cannot observe ownership, so a test that
+// omitted the observer would be asserting against UNRESOLVED, not against V1.
+const BAU_TERMINAL_OWNER = async () => ({
+  ownership_state: 'V2_TERMINAL_OWNER',
+  authority_digest: `sha256:${'a'.repeat(64)}`,
+  observation_identity_digest: `sha256:${'1'.repeat(64)}`,
+  validation_currentness: { state: 'CURRENT' },
+});
+
 
 test('read-only query forms are accepted', () => {
   assert.equal(classifySparql('SELECT ?s WHERE { ?s ?p ?o }').form, 'SELECT');
@@ -85,7 +97,7 @@ test('usf_query caps SELECT rows and reports truncation', async () => {
 test('usf_health reports the server statistic under a name that is not a witness', async () => {
   const client = { size: async () => 577473 };
   const config = { endpoint: 'https://x', database: 'USF', auth: { kind: 'token' } };
-  const out = await callTool('usf_health', {}, { client, config });
+  const out = await callTool('usf_health', {}, { client, config, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER });
   assert.equal(out.serverStatementStatistic, 577473);
   // The ambiguous field is gone: a liveness statistic must not be readable as
   // the content witness total.
@@ -119,7 +131,7 @@ test('tool names are model-callable (no dots)', () => {
 test('lifecycle mutation tools advertise the boundary but refuse direct RDF mutation', async () => {
   for (const name of ['usf_evidence_admit', 'usf_proof_evaluate', 'usf_validation_record']) {
     await assert.rejects(
-      () => callTool(name, { authorityDigest: `sha256:${'0'.repeat(64)}`, semanticResource: 'urn:usf:test' }, { client: {}, config: {} }),
+      () => callTool(name, { authorityDigest: `sha256:${'0'.repeat(64)}`, semanticResource: 'urn:usf:test' }, { client: {}, config: {}, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }),
       /coordinator-only.*compiler.*single transaction/,
     );
   }
@@ -193,7 +205,11 @@ test('bootstrap contract packet assembles the traceability chain', async () => {
       return [];
     },
   };
-  const ctx = { client, config: { endpoint: 'https://x', database: 'USF', auth: { kind: 'token' } } };
+  const ctx = {
+    client,
+    config: { endpoint: 'https://x', database: 'USF', auth: { kind: 'token' } },
+    observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER,
+  };
   const packet = await bootstrapPacket(ctx, { contract: 'x' });
   assert.equal(packet.found, true);
   assert.equal(packet.traceability, BOOTSTRAP_TRACE);
@@ -250,14 +266,14 @@ test('bootstrap refuses an ambiguous contract reference instead of describing th
     ],
   });
   await assert.rejects(
-    () => bootstrapPacket({ client, config: { database: 'USF' } }, { contract: 'x' }),
+    () => bootstrapPacket({ client, config: { database: 'USF' }, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract: 'x' }),
     /exactly one semantic contract/,
   );
 });
 
 test('bootstrap orientation mode marks its empty arrays as unevaluated rather than clean', async () => {
   const client = bootstrapClient();
-  const packet = await bootstrapPacket({ client, config: { database: 'USF' } }, { task: 'orientation' });
+  const packet = await bootstrapPacket({ client, config: { database: 'USF' }, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { task: 'orientation' });
   assert.equal(packet.gapEvaluation, 'not-evaluated-contract-scope-required');
   assert.equal(packet.actionState, 'UNRESOLVED_FAIL_CLOSED');
   assert.equal(packet.completionClaim, false);
@@ -269,7 +285,7 @@ test('bootstrap keeps every open gap when the byte bound truncates the packet', 
   // must still be complete: they lead the fill order and the bound is enforced
   // against the full gap set.
   const client = bootstrapClient({ claimCount: 200 });
-  const packet = await bootstrapPacket({ client, config: { database: 'USF' } }, { contract: 'x' });
+  const packet = await bootstrapPacket({ client, config: { database: 'USF' }, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract: 'x' });
   assert.equal(packet.truncated, true);
   assert.ok(packet.serializedBytes <= MAX_BOOTSTRAP_BYTES);
   assert.deepEqual(packet.openGaps.map((gap) => gap.code).sort(), [
@@ -290,7 +306,7 @@ test('bootstrap reports a validation result current only when it is identity-bou
     boundAuthority: { value: 'sha256:abc' },
     boundHead: { value: 'a'.repeat(40) },
   };
-  const current = await bootstrapPacket({ client: bootstrapClient({ validationResult: [bound] }), config: { database: 'USF' } }, { contract: 'x' });
+  const current = await bootstrapPacket({ client: bootstrapClient({ validationResult: [bound] }), config: { database: 'USF' }, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract: 'x' });
   assert.equal(current.validationResults[0].current, true);
   assert.ok(!current.openGaps.some((gap) => gap.code === 'current-validation-result-unavailable'));
 
@@ -304,7 +320,7 @@ test('bootstrap reports a validation result current only when it is identity-bou
   ]) {
     const row = { ...bound, ...mutation };
     for (const key of Object.keys(mutation)) if (mutation[key] === undefined) delete row[key];
-    const packet = await bootstrapPacket({ client: bootstrapClient({ validationResult: [row] }), config: { database: 'USF' } }, { contract: 'x' });
+    const packet = await bootstrapPacket({ client: bootstrapClient({ validationResult: [row] }), config: { database: 'USF' }, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER }, { contract: 'x' });
     assert.equal(packet.validationResults[0].current, false, label);
     assert.ok(packet.openGaps.some((gap) => gap.code === 'current-validation-result-unavailable'), label);
   }
@@ -323,7 +339,7 @@ test('bootstrap continuation is deterministic and invalidates after digest chang
       return [];
     },
   };
-  const ctx = { client, config: { database: 'USF' } };
+  const ctx = { client, config: { database: 'USF' }, observeGraphRuntimeOwnership: BAU_TERMINAL_OWNER };
   const first = await bootstrapPacket(ctx, { contract: 'x' });
   const repeat = await bootstrapPacket(ctx, { contract: 'x' });
   assert.equal(first.truncated, true);
@@ -389,4 +405,78 @@ test('the materialisation repository root is the repository, not its parent', ()
     assert.ok(existsSync(join(MCP_REPOSITORY_ROOT, snapshottedRoot)), snapshottedRoot);
   }
   assert.notEqual(MCP_REPOSITORY_ROOT, resolve(MCP_REPOSITORY_ROOT, '..'));
+});
+
+// ---------------------------------------------------------------------------
+// GRAPH-17 composition root.
+//
+// The tests above drive bootstrapPacket directly. These drive the REAL public
+// dispatch path and the REAL observer factory, because an injected stub proves
+// the gateway logic while saying nothing about whether the server actually
+// wires ownership through. Both are needed.
+// ---------------------------------------------------------------------------
+
+const mcpModule = await import('./semantic-authority-mcp.mjs');
+
+const boundValidationResult = {
+  id: { value: 'urn:usf:validationresult:v1' },
+  execution: { value: 'urn:usf:validationexecution:v1' },
+  obligation: { value: 'urn:usf:validationobligation:v1' },
+  state: { value: 'urn:usf:resultstate:passed' },
+  boundObligation: { value: 'urn:usf:validationobligation:v1' },
+  boundAuthority: { value: 'sha256:abc' },
+  boundHead: { value: 'a'.repeat(40) },
+};
+// `null` means "the preterminal V1 owner", which must now be stated explicitly.
+// Omitting the observer would assert against UNRESOLVED instead, and an absent
+// observation is never evidence that V1 is the owner.
+const ownedCtx = (observation) => ({
+  client: bootstrapClient({ validationResult: [boundValidationResult] }),
+  config: { database: 'USF' },
+  observeGraphRuntimeOwnership: async () => (
+    observation === null ? { ownership_state: 'V1_OWNER' } : observation
+  ),
+});
+const terminal = (state) => ({
+  ownership_state: 'V2_TERMINAL_OWNER',
+  authority_digest: `sha256:${'a'.repeat(64)}`,
+  observation_identity_digest: `sha256:${'1'.repeat(64)}`,
+  validation_currentness: { state },
+});
+
+test('usf_bootstrap dispatch threads the owner boundary through callTool, not just the packet function', async () => {
+  const preterminal = await callTool('usf_bootstrap', { contract: 'x' }, ownedCtx(null));
+  assert.equal(preterminal.validationResults[0].current, true);
+
+  const current = await callTool('usf_bootstrap', { contract: 'x' }, ownedCtx(terminal('CURRENT')));
+  assert.equal(current.validationResults[0].current, true);
+  assert.ok(!current.openGaps.some((gap) => gap.code === 'current-validation-result-unavailable'));
+
+  // The same bytes under a stale native head must stop reading as current.
+  // If callTool failed to thread ctx through, this would be indistinguishable
+  // from the preterminal answer above — which is exactly the wiring bug an
+  // injected-observer unit test cannot detect.
+  const stale = await callTool('usf_bootstrap', { contract: 'x' }, ownedCtx(terminal('STALE_BLOCK')));
+  assert.equal(stale.validationResults[0].current, false);
+  assert.ok(stale.openGaps.some((gap) => gap.code === 'current-validation-result-unavailable'));
+
+  const pending = await callTool('usf_bootstrap', { contract: 'x' },
+    ownedCtx({ ownership_state: 'V2_HANDOVER_PENDING', observation_identity_digest: `sha256:${'2'.repeat(64)}` }));
+  assert.equal(pending.validationResults[0].current, false);
+});
+
+test('the composition root exports a real observer factory that resolves V1 ownership before any fence exists', async () => {
+  assert.equal(typeof mcpModule.createGraphOwnershipObserver, 'function');
+  const observe = mcpModule.createGraphOwnershipObserver({
+    USF_PROGRAMME_ROOT: mkdtempSync(join(tmpdir(), 'usf-mcp-lane-')),
+    USF_V2_NATIVE_GRAPH_ROOT: mkdtempSync(join(tmpdir(), 'usf-mcp-native-')),
+    USF_CAS_ROOT: mkdtempSync(join(tmpdir(), 'usf-mcp-cas-')),
+  });
+  assert.equal(typeof observe, 'function');
+  // Exercises the real dynamic imports, the real witness read and the real
+  // observeGraphRuntimeOwnershipV2 — no fence installed, so V1 owns.
+  const observation = await observe(bootstrapClient({}));
+  assert.equal(observation.ownership_state, 'V1_OWNER');
+  assert.equal(observation.current_v1_publication_state, 'ACTIVE');
+  assert.equal(observation.handover_generation_digest, null);
 });

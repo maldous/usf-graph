@@ -3,10 +3,18 @@ import { createReadStream, existsSync, lstatSync, mkdtempSync, realpathSync, rmS
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { authorityWitness, validContractRef } from './semantic-bootstrap-packet.mjs';
+import {
+  NATIVE_VALIDATION_CURRENT,
+  OWNERSHIP,
+  PRETERMINAL_OWNER_BOUNDARY,
+  authorityWitness,
+  resolveOwnerBoundary,
+  validContractRef,
+} from './semantic-bootstrap-packet.mjs';
 import {
   PROOF_CURRENTNESS,
   PROOF_CURRENTNESS_CODES,
+  PROOF_CURRENTNESS_STATE_IRI,
   proofCurrentnessVerdict,
 } from './proof-currentness.mjs';
 import { readImplementationWorkGrantAuthorityStateV1 } from './semantic-authority-publication.mjs';
@@ -133,6 +141,71 @@ export async function stableAuthorityRead(client, phase, read) {
   const after = witnessSummary(await authorityWitness(client));
   assertWitnessUnchanged(before, after, phase);
   return { witness: before, value };
+}
+
+// The Graph owner boundary.
+//
+// Every actionability conclusion this module publishes belongs to exactly one
+// authority generation. Before the handover that is the V1 proof/publication
+// lifecycle. After the D2 fence it is the native V2 generation and its renewable
+// validation-currentness head, and the V1 lifecycle is never consulted again:
+// not as a fallback, not filtered, not translated. Replacing the source here —
+// at the owner — is what keeps every downstream consumer's contract unchanged.
+const V1_OWNER_BOUNDARY = PRETERMINAL_OWNER_BOUNDARY;
+
+// Native currentness, expressed in the declared reason vocabulary so the public
+// work-plan contract is byte-shape identical. A pending handover is an absent
+// conclusion, not a negative one, so it fails closed as UNRESOLVED.
+function nativeCurrentnessVerdict(owner) {
+  const terminal = owner.ownershipState === OWNERSHIP.terminal;
+  // `facts` is part of the currentness shape every consumer already reads. Under
+  // native V2 there is no V1 proof result to name, so every collection is EMPTY
+  // rather than absent, and the shape itself is preserved. A bare `{}` satisfied
+  // the gap census (which reads the singular `proofResult` and falls back to the
+  // contract) but left `proofResults` / `mandatoryObligations` /
+  // `obligationProofResults` undefined, so projectContract threw under terminal
+  // V2. Keeping the exact shape fixes every consumer at the source instead of
+  // scattering defensive defaults.
+  if (terminal && owner.validationCurrentnessState === NATIVE_VALIDATION_CURRENT) {
+    return Object.freeze({
+      state: PROOF_CURRENTNESS.current,
+      stateIri: PROOF_CURRENTNESS_STATE_IRI[PROOF_CURRENTNESS.current],
+      reasons: Object.freeze([]),
+      facts: Object.freeze({
+      proofResults: Object.freeze([]),
+      mandatoryObligations: Object.freeze([]),
+      obligationProofResults: Object.freeze([]),
+      perProof: Object.freeze([]),
+    }),
+    });
+  }
+  const state = terminal ? PROOF_CURRENTNESS.stale : PROOF_CURRENTNESS.unresolved;
+  const code = terminal
+    ? PROOF_CURRENTNESS_CODES.authorityBindingStale
+    : PROOF_CURRENTNESS_CODES.currentnessUnresolved;
+  return Object.freeze({
+    state,
+    stateIri: PROOF_CURRENTNESS_STATE_IRI[state],
+    reasons: Object.freeze([code]),
+    facts: Object.freeze({
+    proofResults: Object.freeze([]),
+    mandatoryObligations: Object.freeze([]),
+    obligationProofResults: Object.freeze([]),
+    perProof: Object.freeze([]),
+  }),
+  });
+}
+
+// One currentness conclusion, one owner. The V1 resolver is reachable only while
+// V1 still owns the boundary.
+async function ownerBoundaryCurrentness(ctx, owner, contract, mandatoryObligations) {
+  if (owner.ownershipState === OWNERSHIP.v1) {
+    return proofCurrentnessVerdict(ctx.client, contract, {
+      mandatoryObligations,
+      observedAt: ctx.observedAt ?? null,
+    });
+  }
+  return nativeCurrentnessVerdict(owner);
 }
 
 function resolveDisposition(code) {
@@ -1524,7 +1597,15 @@ function completeSelfPublicationClosure(item, authorityWitnessValue) {
 // A satisfaction survives only while it stays identity-bound to this obligation
 // and bound to the exact authority the factory is acting on. Anything less is a
 // historical record, not a current conclusion.
-function satisfactionCurrent(obligation, authorityWitnessValue) {
+function satisfactionCurrent(obligation, authorityWitnessValue, owner = V1_OWNER_BOUNDARY) {
+  // A pending handover has no owner able to conclude anything. Fail closed
+  // rather than borrowing the outgoing V1 conclusion.
+  if (owner.ownershipState === OWNERSHIP.pending) return false;
+  const terminal = owner.ownershipState === OWNERSHIP.terminal;
+  // Terminal V2: whether a satisfaction is CURRENT is decided by the renewable
+  // native validation-currentness head, not by the V1 publication lifecycle.
+  // A stale head withdraws every satisfaction at once.
+  if (terminal && owner.validationCurrentnessState !== NATIVE_VALIDATION_CURRENT) return false;
   const authorityDigest = authorityWitnessValue?.digest ?? null;
   return obligation.satisfactions.some((item) => {
     const boundSourceHead = soleTerm(item, 'boundHead');
@@ -1534,6 +1615,14 @@ function satisfactionCurrent(obligation, authorityWitnessValue) {
       && item.invalidation.length === 0
       && item.superseded.length === 0;
     if (!exactResult) return false;
+    if (terminal) {
+      // Identity is still content-exact against the certified baseline, but the
+      // authority anchor is the terminal V2 generation and its stable
+      // non-publication closure. The live V1 publication digest is not read.
+      return (owner.terminalAuthorityDigest !== null
+          && soleTerm(item, 'boundAuthority') === owner.terminalAuthorityDigest)
+        || completeSelfPublicationClosure(item, authorityWitnessValue);
+    }
     // Preserve the historical direct-binding path exactly. The closure is an
     // additional fail-closed path for a result whose publication necessarily
     // changed the authority digest it originally evaluated.
@@ -1598,7 +1687,7 @@ function durableFamilyValidationWorkItem(obligation, contract) {
 // The complete gap set for one contract, as {code, subject} pairs. This is the
 // single definition of "outstanding" that both the paged projection and the
 // unpaged disposition census use, so a page boundary can never hide a state.
-function validationGaps(contract, scope, authorityWitnessValue) {
+function validationGaps(contract, scope, authorityWitnessValue, owner = V1_OWNER_BOUNDARY) {
   const gaps = [];
   const { applicability } = scope;
   if (applicability === null || applicability === APPLICABILITY.unresolved) {
@@ -1630,7 +1719,15 @@ function validationGaps(contract, scope, authorityWitnessValue) {
       gaps.push({ code: 'validation-obligation-activation-unresolved', subject: obligation.id });
       continue;
     }
-    if (!satisfactionCurrent(obligation, authorityWitnessValue)) {
+    // A pending handover cannot evaluate satisfaction: no owner is able to
+    // certify it. Emitting `missing-current-passing-validation` here would
+    // assert an unproven negative AND, because that code carries a declared
+    // BLOCK remediation, would schedule validation-evidence work off a
+    // conclusion nobody reached. The obligation stays visible through
+    // validationSatisfied=false and the unresolved currentness gap; it does not
+    // become actionable work.
+    if (owner.ownershipState === OWNERSHIP.pending) continue;
+    if (!satisfactionCurrent(obligation, authorityWitnessValue, owner)) {
       const code = obligation.satisfactions.length > 0 ? 'validation-satisfaction-not-current' : 'missing-current-passing-validation';
       const workItem = durableFamilyValidationWorkItem(obligation, contract);
       // Correcting the source condition ends remediation scheduling, but it
@@ -1669,8 +1766,8 @@ function validationActionStateFor(scope) {
   return ACTION_STATES.reserved;
 }
 
-function validationVerdict(contract, scope, authorityWitnessValue) {
-  const gaps = validationGaps(contract, scope, authorityWitnessValue);
+function validationVerdict(contract, scope, authorityWitnessValue, owner = V1_OWNER_BOUNDARY) {
+  const gaps = validationGaps(contract, scope, authorityWitnessValue, owner);
   const dispositions = gaps.map((gap) => resolveDisposition(gap.code));
   const realisationBlocking = gaps.filter((gap) => !VALIDATION_SCOPED_GAPS.has(gap.code));
   const validationActionState = validationActionStateFor(scope);
@@ -1682,7 +1779,8 @@ function validationVerdict(contract, scope, authorityWitnessValue) {
     // activated and currently satisfied, never merely "no gap recorded".
     validationSatisfied: scope.applicability === APPLICABILITY.required
       && scope.obligations.length > 0
-      && scope.obligations.every((item) => item.activation === ACTIVATION.activated && satisfactionCurrent(item, authorityWitnessValue)),
+      && scope.obligations.every((item) => item.activation === ACTIVATION.activated
+        && satisfactionCurrent(item, authorityWitnessValue, owner)),
     validationActionState,
   };
 }
@@ -1927,18 +2025,20 @@ export async function realisationVerdict(ctx, args = {}) {
           : Promise.resolve(null),
       ]);
       // Currentness is read inside the SAME bracket as the contract and
-      // validation state, so the verdict is one conclusion about one authority.
-      const currentness = await proofCurrentnessVerdict(ctx.client, semantics.contract.id, {
+      // validation state, so the verdict is one conclusion about one authority
+      // AND one owner. Resolving the owner inside the bracket is what stops a
+      // verdict being assembled across a handover boundary.
+      const owner = await resolveOwnerBoundary(ctx);
+      const currentness = await ownerBoundaryCurrentness(ctx, owner, semantics.contract.id,
         // `value` is in the temporal dead zone here: the enclosing
         // stableAuthorityRead destructures a binding of that name. Read the term
         // directly rather than shadowing the accessor.
-        mandatoryObligations: mandatoryRows.map((row) => row.obligation?.value).filter(Boolean),
-        observedAt: ctx.observedAt ?? null,
-      });
+        mandatoryRows.map((row) => row.obligation?.value).filter(Boolean));
       return {
         semantics,
         scope: validationScopeValue,
         currentness,
+        owner,
         conflictState,
         implementationWorkGrant,
         implementationWorkGrantIri,
@@ -1949,7 +2049,8 @@ export async function realisationVerdict(ctx, args = {}) {
   const context = withAuthority(value.semantics, witness, ctx);
   const scope = value.scope;
   const currentness = value.currentness;
-  const validation = validationVerdict(context.contract.id, scope, witness);
+  const owner = value.owner;
+  const validation = validationVerdict(context.contract.id, scope, witness, owner);
 
   // Each conjunct is explicit. A null state is unproven, not permission; a wrong
   // state is an explicit negative. Both withhold PROCEED, and they are reported
@@ -2100,6 +2201,10 @@ export async function realisationVerdict(ctx, args = {}) {
     scope,
     validation,
     currentness,
+    // The owner that produced this verdict travels with it, so a consumer
+    // cannot re-derive satisfaction under a different owner than the one the
+    // bracket resolved.
+    owner,
     actionState,
     actionStateReasons,
     stateFailureCode: REALISATION_STATE_FAILURE_CODES[actionState] ?? null,
@@ -2134,7 +2239,7 @@ export async function projectContract(ctx, args = {}) {
   const validationIds = scope.obligations.map((item) => item.id).sort();
   // Realisation authority comes from the one shared verdict, so this packet and
   // the plan tools can never disagree about the same contract.
-  const { actionState: realisationActionState, actionStateReasons, validation, currentness } = verdict;
+  const { actionState: realisationActionState, actionStateReasons, validation, currentness, owner } = verdict;
   // Validation remediation is a distinct, narrower authority surface.  When
   // every realisation blocker is exactly an activated validation obligation
   // lacking a current passing result, project a read-only analysis scope.  The
@@ -2181,7 +2286,17 @@ export async function projectContract(ctx, args = {}) {
       settledAuthorityDigest: item.settledAuthorityDigest ?? null,
     };
   }).sort((left, right) => left.proofResult.localeCompare(right.proofResult));
-  if (proofResultCores.length === 0) throw new Error('contract execution scope requires at least one exact proof chain');
+  if (proofResultCores.length === 0) {
+    // Requiring a V1 proof chain is a V1-OWNER requirement, not a universal one.
+    // Under terminal native V2 there is no V1 proof result to name -- the
+    // execution scope is warranted by the native validation-currentness head --
+    // so demanding one made projectContract throw unconditionally after the
+    // handover, taking a required consumer and a live MCP tool with it.
+    // Every non-terminal owner still fails closed.
+    if (owner?.ownershipState !== OWNERSHIP.terminal) {
+      throw new Error('contract execution scope requires at least one exact proof chain');
+    }
+  }
 
   const proofCurrentness = {
     state: currentness.state,
@@ -2328,7 +2443,7 @@ export async function projectContract(ctx, args = {}) {
     validationObligations: scope.obligations.map((item) => ({
       id: item.id,
       activation: item.activation,
-      satisfactionCurrent: satisfactionCurrent(item, verdict.witness),
+      satisfactionCurrent: satisfactionCurrent(item, verdict.witness, verdict.owner ?? V1_OWNER_BOUNDARY),
       recordedSatisfactionCount: item.satisfactions.length,
     })),
     validationActionState: validation.validationActionState,
@@ -2382,14 +2497,18 @@ export async function planWork(ctx, args = {}) {
   // The gap census consumes the same currentness conclusion the realisation
   // verdict does. Checking only hasProofResultState here is what let a stale
   // proof read as no gap at all.
-  const currentness = await proofCurrentnessVerdict(ctx.client, contract, {
-    mandatoryObligations: mandatoryRows.map((row) => value(row, 'obligation')).filter(Boolean),
-    observedAt: ctx.observedAt ?? null,
-  });
+  //
+  // Which owner answers "is this current" is resolved first. Before the handover
+  // it is the V1 proof lifecycle; after D2 it is the native V2 validation
+  // currentness head. The census structure, codes and dispositions below are
+  // identical either way — only the decision source moves.
+  const owner = await resolveOwnerBoundary(ctx);
+  const currentness = await ownerBoundaryCurrentness(ctx, owner, contract,
+    mandatoryRows.map((row) => value(row, 'obligation')).filter(Boolean));
   const after = await authorityWitness(ctx.client);
   assertWitnessUnchanged(authorityWitnessValue, witnessSummary(after), 'work plan read');
 
-  const verdict = validationVerdict(contract, scope, authorityWitnessValue);
+  const verdict = validationVerdict(contract, scope, authorityWitnessValue, owner);
   const all = [
     ...proofRows.map((row) => ({ code: 'missing-successful-proof', subject: value(row, 'subject') })),
     ...(currentness.state === PROOF_CURRENTNESS.current

@@ -1,6 +1,7 @@
 @prefix usf: <urn:usf:ontology:>.
 @prefix gcl: <urn:usf:graphclass:>.
 @prefix ng: <urn:usf:namedgraph:>.
+@prefix owl: <http://www.w3.org/2002/07/owl#>.
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
 
@@ -76,3 +77,86 @@ gcl:derivedgraph usf:mayReference gcl:observedgraph.
     <urn:usf:ontology:signingTrustClass> <urn:usf:signingtrustclass:semanticauthority>;
     <urn:usf:ontology:signingKeyFingerprint> "B6CBC89C7978AF26F53C33A197E5F20D2A340E5D";
     <urn:usf:ontology:signatureAlgorithm> "openpgp".
+
+# V2 native handover vocabulary is declared in this registered definition graph.
+# The live D1/D2 authority may assert only instances of these terms.  The D2
+# fence intentionally remains pending: terminal ownership is the non-cyclic
+# conjunction of that immutable fence, the exact two Graph-native successor
+# readbacks and the admitted terminal receipt consumed by Factory activation.
+usf:V2NativeHandoverFence a owl:Class;
+    rdfs:label "V2 native handover fence";
+    rdfs:comment "The single immutable Graph authority fence for one V2 native handover generation; its presence retires current V1 publication and never by itself establishes terminal V2 ownership.";
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:V2NativeGraphSuccessorBinding a owl:Class;
+    rdfs:label "V2 native Graph successor binding";
+    rdfs:comment "One exact consumer-to-Graph-storage-owner binding in the fenced handover generation; native payload identity is proved through typed CAS and the production reader, not by a predecessor V1 IRI.";
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:V2NativeOwnershipState a owl:Class;
+    rdfs:label "V2 native ownership state";
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:V1CurrentPublicationState a owl:Class;
+    rdfs:label "V1 current publication state";
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:V2NativeStorageOwner a owl:Class;
+    rdfs:label "V2 native storage owner";
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+
+usf:handoverGenerationDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string;
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:handoverOwnershipState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:V2NativeHandoverFence;
+    rdfs:range usf:V2NativeOwnershipState;
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:handoverCurrentV1PublicationState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:V2NativeHandoverFence;
+    rdfs:range usf:V1CurrentPublicationState;
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:handoverReleaseSubjectDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:V2NativeHandoverFence;
+    rdfs:range xsd:string;
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:handoverD0AuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:V2NativeHandoverFence;
+    rdfs:range xsd:string;
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:handoverDerivedConsumerRegistryDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:V2NativeHandoverFence;
+    rdfs:range xsd:string;
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:handoverExternalAttestationSetRootDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:V2NativeHandoverFence;
+    rdfs:range xsd:string;
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:handoverFactorySourceTree a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:V2NativeHandoverFence;
+    rdfs:range xsd:string;
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:handoverGraphSourceTree a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:V2NativeHandoverFence;
+    rdfs:range xsd:string;
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:handoverExpectedTerminalReceiptSchema a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:V2NativeHandoverFence;
+    rdfs:range xsd:string;
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:handoverGraphNativeSuccessorBinding a owl:ObjectProperty;
+    rdfs:domain usf:V2NativeHandoverFence;
+    rdfs:range usf:V2NativeGraphSuccessorBinding;
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:handoverGraphNativeConsumer a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:V2NativeGraphSuccessorBinding;
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+usf:handoverStorageOwner a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:V2NativeGraphSuccessorBinding;
+    rdfs:range usf:V2NativeStorageOwner;
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
+
+<urn:usf:v2ownershipstate:handoverpending> a usf:V2NativeOwnershipState;
+    usf:canonicalName "handoverpending";
+    rdfs:comment "Irreversible current-publication fence. Runtime is recovery-required until the exact terminal receipt and Factory activation complete the native ownership conjunction.".
+<urn:usf:v1publicationstate:fenced> a usf:V1CurrentPublicationState;
+    usf:canonicalName "fenced";
+    rdfs:comment "Current V1 publication is deterministically rejected. Historical V1 verification remains proof-only.".
+<urn:usf:v2nativeowner:graph> a usf:V2NativeStorageOwner;
+    usf:canonicalName "graph".

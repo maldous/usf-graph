@@ -525,7 +525,19 @@ const compilerValidationClient = createCompilerValidationClient({
   validateConfiguration: validateSemanticAuthorityConfiguration,
   createSemanticClient: createStardogSemanticAuthorityClient,
 });
-const live = { client: projectionClient, config };
+// The owner boundary refuses when it cannot observe ownership, so this live
+// assurance command must supply the same composition-root observer the MCP
+// server uses. Without it an absent observation would previously have resolved
+// to V1 -- a V1 recreation route reachable from a production command.
+const { createGraphOwnershipObserver } = await import(
+  pathToFileURL(join(repo, 'processes/semantic-assurance/semantic-authority-mcp.mjs')).href
+);
+const observeGraphOwnership = createGraphOwnershipObserver();
+const live = {
+  client: projectionClient,
+  config,
+  observeGraphRuntimeOwnership: () => observeGraphOwnership(projectionClient),
+};
 const liveWitness = await authorityWitness(projectionClient);
 record('live-authority-digest', evaluatedAuthorityDigest, `sha256:${liveWitness.digest}`);
 const current = await layoutContext(live, { contract });
