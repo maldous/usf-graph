@@ -32,6 +32,19 @@ const GIT_OBJECT = /^[0-9a-f]{40}$/;
 const V1_PATCH_HEADER = /^# (semantic-proof-v1) canonical-rdf-patch-v1 (base|stage1|stage2)$/;
 const V2_PATCH_HEADER = /^# (semantic-proof-v2) canonical-rdf-patch-v1 (C1|C2)$/;
 const EXTERNAL_AUTHORITY_DELTA_SCHEMA = 'usf-external-authority-conflict-resolution-delta-v1';
+const IMPLEMENTATION_WORK_GRANT_DELTA_SCHEMA = 'usf-external-implementation-work-grant-delta-v1';
+const IMPLEMENTATION_WORK_GRANT_ARTIFACT_ROLES = Object.freeze(['decision', 'grant', 'review', 'validation']);
+const IMPLEMENTATION_WORK_GRANT_PURPOSE = 'V2_NATIVE_HANDOVER implementation only';
+const IMPLEMENTATION_WORK_GRANT_ALLOWED_ACTIONS = Object.freeze([
+  'candidate_existing_file_edit', 'candidate_signing_and_protection', 'cas_closure',
+  'compilation_and_build', 'evidence_generation', 'independent_review',
+  'isolated_read_only_rehearsal', 'tests',
+]);
+const IMPLEMENTATION_WORK_GRANT_DENIED_EFFECTS = Object.freeze([
+  'a0_capture', 'authority_mutation', 'business_semantic_scope_expansion', 'deployment',
+  'implicit_path_widening', 'learned_execution', 'production_write', 'provider_contact',
+  'pruning', 'semantic_publication', 'v2_activation',
+]);
 const EXTERNAL_AUTHORITY_PROOF_SCHEMA = 'usf-authority-conflict-proof-decision-v1';
 const EXTERNAL_AUTHORITY_DOMAIN = 'urn:usf:capabilityowner:semanticmodelcompilation';
 const AUTHORITY_FINGERPRINT = 'B6CBC89C7978AF26F53C33A197E5F20D2A340E5D';
@@ -1347,6 +1360,7 @@ function assertExternalAuthorityDelta({
     resolutionIri: value.resolutionIri,
     reviewIri: value.reviewIri,
     proofResultIri: value.proofResultIri,
+    kind: 'authority_conflict',
   });
 }
 
@@ -1681,6 +1695,298 @@ function createExternalAuthorityDeltaPackage({
     resolutionIri,
     reviewIri,
     schema: EXTERNAL_AUTHORITY_DELTA_SCHEMA,
+  });
+}
+
+function missingImplementationWorkGrantVerifier() {
+  throw new CompilerError('implementation work grant envelope verifier is required', {
+    phase: 'candidate:implementation-work-grant',
+  });
+}
+
+function validateImplementationWorkGrantArtifacts({
+  artifacts,
+  authorityDigest,
+  now,
+  verifyImplementationWorkGrant = missingImplementationWorkGrantVerifier,
+}) {
+  if (!(artifacts instanceof Map)
+      || canonicalJson([...artifacts.keys()].sort()) !== canonicalJson(IMPLEMENTATION_WORK_GRANT_ARTIFACT_ROLES)) {
+    throw new CompilerError('implementation work grant artifact role set is incomplete', {
+      phase: 'candidate:implementation-work-grant',
+    });
+  }
+  const parsed = new Map([...artifacts].map(([role, bytes]) => [
+    role, parseCanonicalJsonArtifact(bytes, `implementation work grant ${role} artifact`),
+  ]));
+  const decision = parsed.get('decision').value;
+  const review = parsed.get('review').value;
+  const validation = parsed.get('validation').value;
+  const envelope = parsed.get('grant').value;
+  exactObjectKeys(decision, [
+    'allowed_actions', 'authority_pre_digest', 'decision_state', 'denied_effects',
+    'expires_at', 'issued_at', 'nonpublication_dependency_set_digest', 'purpose',
+    'repositories', 'schema_version',
+  ], 'implementation work grant decision');
+  exactObjectKeys(review, [
+    'authority_pre_digest', 'candidate_derivation_participation', 'decision_digest',
+    'governance_independent_review_satisfied', 'review_state', 'schema_version',
+  ], 'implementation work grant review');
+  exactObjectKeys(validation, [
+    'authority_pre_digest', 'decision_digest', 'review_digest', 'schema_version', 'validation_state',
+  ], 'implementation work grant validation');
+  if (decision.schema_version !== 'usf-implementation-work-grant-decision-v1'
+      || decision.authority_pre_digest !== authorityDigest
+      || decision.purpose !== IMPLEMENTATION_WORK_GRANT_PURPOSE
+      || decision.decision_state !== 'accepted'
+      || !SHA256.test(decision.nonpublication_dependency_set_digest || '')
+      || canonicalJson(decision.allowed_actions) !== canonicalJson(IMPLEMENTATION_WORK_GRANT_ALLOWED_ACTIONS)
+      || canonicalJson(decision.denied_effects) !== canonicalJson(IMPLEMENTATION_WORK_GRANT_DENIED_EFFECTS)
+      || review.schema_version !== 'usf-implementation-work-grant-review-v1'
+      || review.authority_pre_digest !== authorityDigest
+      || review.review_state !== 'accepted'
+      || review.candidate_derivation_participation !== false
+      || review.governance_independent_review_satisfied !== true
+      || validation.schema_version !== 'usf-implementation-work-grant-validation-v1'
+      || validation.authority_pre_digest !== authorityDigest
+      || validation.validation_state !== 'passed') {
+    throw new CompilerError('implementation work grant decision, review or validation is not exact and accepted', {
+      phase: 'candidate:implementation-work-grant',
+    });
+  }
+  const evidenceDigests = ['decision', 'review', 'validation'].map((role) => parsed.get(role).digest).sort();
+  let verified;
+  try {
+    verified = verifyImplementationWorkGrant(envelope, {
+      authorityPreDigest: authorityDigest,
+      evidenceDigests,
+      now,
+      repositories: decision.repositories,
+    });
+  } catch (error) {
+    throw new CompilerError(`implementation work grant envelope is invalid: ${error.message}`, {
+      phase: 'candidate:implementation-work-grant',
+    });
+  }
+  if (verified.authority_pre_digest !== authorityDigest
+      || verified.purpose !== IMPLEMENTATION_WORK_GRANT_PURPOSE
+      || canonicalJson(verified.repositories) !== canonicalJson(decision.repositories)
+      || canonicalJson(verified.allowed_actions) !== canonicalJson(decision.allowed_actions)
+      || canonicalJson(verified.denied_effects) !== canonicalJson(decision.denied_effects)
+      || verified.nonpublication_dependency_set_digest !== decision.nonpublication_dependency_set_digest
+      || review.decision_digest !== parsed.get('decision').digest
+      || validation.decision_digest !== parsed.get('decision').digest
+      || validation.review_digest !== parsed.get('review').digest
+      || decision.issued_at !== verified.issued_at || decision.expires_at !== verified.expires_at) {
+    throw new CompilerError('implementation work grant artifacts do not bind one exact candidate', {
+      phase: 'candidate:implementation-work-grant',
+    });
+  }
+  return Object.freeze({ decision, evidenceDigests, envelope, parsed, review, validation, verified });
+}
+
+function implementationWorkGrantPatch(validation) {
+  const { parsed, verified } = validation;
+  const suffix = verified.candidate_digest.slice(7);
+  const grantIri = `urn:usf:implementationworkgrant:${suffix}`;
+  const graph = 'urn:usf:graph:proofs';
+  const evidenceGraph = 'urn:usf:graph:evidence';
+  const iri = (value) => `<${value}>`;
+  const literal = (value) => JSON.stringify(value);
+  const line = (subject, predicate, object, target = graph) => `${iri(subject)} ${iri(predicate)} ${object} ${iri(target)} .`;
+  const quads = [];
+  const add = (subject, predicate, object, target = graph) => quads.push(line(subject, predicate, object, target));
+  add(grantIri, RDF_TYPE, iri(`${USF}ImplementationWorkGrant`));
+  add(grantIri, `${USF}canonicalName`, literal(suffix));
+  add(grantIri, `${USF}implementationWorkGrantAuthorityDigest`, literal(verified.authority_pre_digest));
+  add(grantIri, `${USF}implementationWorkGrantPurpose`, iri('urn:usf:implementationworkpurpose:v2nativehandover'));
+  add(grantIri, `${USF}implementationWorkGrantState`, iri('urn:usf:implementationworkgrantstate:reserved'));
+  add(grantIri, `${USF}implementationWorkGrantNonce`, literal(verified.nonce));
+  add(grantIri, `${USF}implementationWorkGrantEvidenceSetDigest`, literal(verified.evidence_set_digest));
+  add(grantIri, `${USF}implementationWorkGrantNonPublicationDependencySetDigest`,
+    literal(verified.nonpublication_dependency_set_digest));
+  add(grantIri, `${USF}implementationWorkGrantCandidateDigest`, literal(verified.candidate_digest));
+  add(grantIri, `${USF}implementationWorkGrantEnvelopeDigest`, literal(verified.envelope_digest));
+  add(grantIri, `${USF}implementationWorkGrantIssuedAt`, `"${verified.issued_at}"^^<http://www.w3.org/2001/XMLSchema#dateTime>`);
+  add(grantIri, `${USF}implementationWorkGrantExpiresAt`, `"${verified.expires_at}"^^<http://www.w3.org/2001/XMLSchema#dateTime>`);
+  for (const action of verified.allowed_actions) {
+    add(grantIri, `${USF}implementationWorkGrantAllows`, iri(`urn:usf:implementationworkaction:${action.replaceAll('_', '')}`));
+  }
+  for (const effect of verified.denied_effects) {
+    add(grantIri, `${USF}implementationWorkGrantDenies`, iri(`urn:usf:implementationworkeffect:${effect.replaceAll('_', '')}`));
+  }
+  for (const scope of verified.repositories) {
+    const scopeIri = `urn:usf:implementationworkrepositoryscope:${scope.repository.split('/').at(-1)}${scope.source_scope_digest.slice(7)}`;
+    add(grantIri, `${USF}implementationWorkGrantRepositoryScope`, iri(scopeIri));
+    add(scopeIri, RDF_TYPE, iri(`${USF}ImplementationWorkRepositoryScope`));
+    add(scopeIri, `${USF}implementationWorkRepository`, literal(scope.repository));
+    add(scopeIri, `${USF}implementationWorkPredecessorCommit`, literal(scope.predecessor_commit));
+    add(scopeIri, `${USF}implementationWorkPredecessorTree`, literal(scope.predecessor_tree));
+    add(scopeIri, `${USF}implementationWorkSourceScopeDigest`, literal(scope.source_scope_digest));
+    for (const path of scope.source_paths) add(scopeIri, `${USF}implementationWorkSourcePath`, literal(path));
+  }
+  for (const role of IMPLEMENTATION_WORK_GRANT_ARTIFACT_ROLES) {
+    const artifact = parsed.get(role);
+    const descriptor = `urn:usf:externalpayloaddescriptor:implementationworkgrant${role}${artifact.digest.slice(7)}`;
+    add(grantIri, `${USF}implementationWorkGrantEvidenceDescriptor`, iri(descriptor));
+    add(descriptor, RDF_TYPE, iri(`${USF}ExternalPayloadDescriptor`), evidenceGraph);
+    add(descriptor, `${USF}canonicalName`, literal(`implementationworkgrant${role}${artifact.digest.slice(7)}`), evidenceGraph);
+    add(descriptor, `${USF}descriptorArtefactFamily`, iri('urn:usf:artefactfamily:evidencepayload'), evidenceGraph);
+    add(descriptor, `${USF}descriptorRepresentationFormat`, iri('urn:usf:representationformat:jsondata8259'), evidenceGraph);
+    add(descriptor, `${USF}descriptorMediaType`, literal('application/json'), evidenceGraph);
+    add(descriptor, `${USF}descriptorDigest`, literal(artifact.digest), evidenceGraph);
+    add(descriptor, `${USF}descriptorByteSize`, `"${artifact.byteSize}"^^<http://www.w3.org/2001/XMLSchema#integer>`, evidenceGraph);
+    add(descriptor, `${USF}descriptorLocator`, `"cas://sha256/${artifact.digest.slice(7)}"^^<http://www.w3.org/2001/XMLSchema#anyURI>`, evidenceGraph);
+    add(descriptor, `${USF}descriptorArtefactType`, `"urn:usf:artefacttype:implementationworkgrant${role}"^^<http://www.w3.org/2001/XMLSchema#anyURI>`, evidenceGraph);
+    add(descriptor, `${USF}descriptorStorageClass`, iri('urn:usf:storageclass:contentaddressedobjectstorage'), evidenceGraph);
+  }
+  const sorted = [...new Set(quads)].sort();
+  if (sorted.length !== quads.length) {
+    throw new CompilerError('implementation work grant contains duplicate semantic operations', {
+      phase: 'candidate:implementation-work-grant',
+    });
+  }
+  const bytes = Buffer.from(['# semantic-proof-v1 canonical-rdf-patch-v1 base', ...sorted.map((value) => `A ${value}`), ''].join('\n'));
+  return Object.freeze({ bytes, digest: sha256(bytes), grantIri, permittedOperations: Object.freeze(sorted.map((value) => `A ${value}`)) });
+}
+
+function createImplementationWorkGrantDeltaPackage({
+  artifacts,
+  authorityDigest,
+  now,
+  verifyImplementationWorkGrant = missingImplementationWorkGrantVerifier,
+}) {
+  if (!SHA256.test(authorityDigest || '') || !Array.isArray(artifacts)
+      || artifacts.length !== IMPLEMENTATION_WORK_GRANT_ARTIFACT_ROLES.length) {
+    throw new CompilerError('implementation work grant package inputs are invalid', {
+      phase: 'candidate:implementation-work-grant',
+    });
+  }
+  const artifactMap = new Map();
+  for (const artifact of artifacts) {
+    exactObjectKeys(artifact, ['bytes', 'role'], 'implementation work grant artifact');
+    if (!IMPLEMENTATION_WORK_GRANT_ARTIFACT_ROLES.includes(artifact.role)
+        || artifactMap.has(artifact.role) || !Buffer.isBuffer(artifact.bytes)) {
+      throw new CompilerError('implementation work grant artifact identity is invalid', {
+        phase: 'candidate:implementation-work-grant',
+      });
+    }
+    artifactMap.set(artifact.role, Buffer.from(artifact.bytes));
+  }
+  const validation = validateImplementationWorkGrantArtifacts({
+    artifacts: artifactMap, authorityDigest, now, verifyImplementationWorkGrant,
+  });
+  const patch = implementationWorkGrantPatch(validation);
+  const descriptors = [...validation.parsed].map(([role, artifact]) => Object.freeze({
+    byteSize: artifact.byteSize, digest: artifact.digest, jcsDigest: artifact.jcsDigest, role,
+  })).sort((left, right) => left.role.localeCompare(right.role));
+  return Object.freeze({
+    artifactDescriptors: Object.freeze(descriptors),
+    authorityDigest,
+    casRootDigests: Object.freeze(descriptors.map(({ digest: value }) => value).sort()),
+    grantCandidateDigest: validation.verified.candidate_digest,
+    grantIri: patch.grantIri,
+    patchBytesBase64: patch.bytes.toString('base64'),
+    patchDigest: patch.digest,
+    permittedOperations: patch.permittedOperations,
+    schema: IMPLEMENTATION_WORK_GRANT_DELTA_SCHEMA,
+  });
+}
+
+function assertImplementationWorkGrantDelta({
+  value,
+  expectedAuthorityDigest,
+  evidenceStore,
+  allowedGraphs,
+  now,
+  verifyImplementationWorkGrant = missingImplementationWorkGrantVerifier,
+}) {
+  exactObjectKeys(value, [
+    'artifactDescriptors', 'authorityDigest', 'casRootDigests', 'grantCandidateDigest', 'grantIri',
+    'patchBytesBase64', 'patchDigest', 'permittedOperations', 'schema',
+  ], 'implementation work grant delta');
+  if (value.schema !== IMPLEMENTATION_WORK_GRANT_DELTA_SCHEMA
+      || value.authorityDigest !== expectedAuthorityDigest
+      || !SHA256.test(value.grantCandidateDigest || '') || !SHA256.test(value.patchDigest || '')
+      || value.grantIri !== `urn:usf:implementationworkgrant:${value.grantCandidateDigest.slice(7)}`) {
+    throw new CompilerError('implementation work grant delta does not bind exact authority and candidate', {
+      phase: 'candidate:implementation-work-grant',
+    });
+  }
+  if (!evidenceStore || typeof evidenceStore.verify !== 'function' || typeof evidenceStore.read !== 'function') {
+    throw new CompilerError('implementation work grant delta requires canonical CAS read and verification', {
+      phase: 'candidate:implementation-work-grant',
+    });
+  }
+  if (!Array.isArray(value.artifactDescriptors)
+      || value.artifactDescriptors.length !== IMPLEMENTATION_WORK_GRANT_ARTIFACT_ROLES.length) {
+    throw new CompilerError('implementation work grant descriptor set is incomplete', {
+      phase: 'candidate:implementation-work-grant',
+    });
+  }
+  const artifacts = new Map();
+  for (const descriptor of value.artifactDescriptors) {
+    exactObjectKeys(descriptor, ['byteSize', 'digest', 'jcsDigest', 'role'], 'implementation work grant descriptor');
+    if (!IMPLEMENTATION_WORK_GRANT_ARTIFACT_ROLES.includes(descriptor.role) || artifacts.has(descriptor.role)
+        || !SHA256.test(descriptor.digest || '') || !SHA256.test(descriptor.jcsDigest || '')
+        || !Number.isSafeInteger(descriptor.byteSize) || descriptor.byteSize < 2) {
+      throw new CompilerError('implementation work grant descriptor is invalid', {
+        phase: 'candidate:implementation-work-grant',
+      });
+    }
+    const receipt = evidenceStore.verify(descriptor.digest);
+    const bytes = evidenceStore.read(descriptor.digest);
+    if (receipt?.digest !== descriptor.digest || receipt?.size !== descriptor.byteSize
+        || !Buffer.isBuffer(bytes) || bytes.length !== descriptor.byteSize || sha256(bytes) !== descriptor.digest) {
+      throw new CompilerError('implementation work grant CAS readback failed', {
+        phase: 'candidate:implementation-work-grant',
+      });
+    }
+    const parsed = parseCanonicalJsonArtifact(bytes, `implementation work grant ${descriptor.role} CAS artifact`);
+    if (parsed.jcsDigest !== descriptor.jcsDigest) {
+      throw new CompilerError('implementation work grant CAS JCS digest mismatch', {
+        phase: 'candidate:implementation-work-grant',
+      });
+    }
+    artifacts.set(descriptor.role, bytes);
+  }
+  const roots = exactSortedUniqueStrings(value.casRootDigests, SHA256, 'implementation work grant CAS roots', { minimum: 4 });
+  if (canonicalJson(roots) !== canonicalJson(value.artifactDescriptors.map(({ digest: item }) => item).sort())) {
+    throw new CompilerError('implementation work grant descriptors do not equal exact CAS roots', {
+      phase: 'candidate:implementation-work-grant',
+    });
+  }
+  const validation = validateImplementationWorkGrantArtifacts({
+    artifacts, authorityDigest: expectedAuthorityDigest, now, verifyImplementationWorkGrant,
+  });
+  if (validation.verified.candidate_digest !== value.grantCandidateDigest) {
+    throw new CompilerError('implementation work grant candidate digest substitution was rejected', {
+      phase: 'candidate:implementation-work-grant',
+    });
+  }
+  const expected = implementationWorkGrantPatch(validation);
+  const bytes = Buffer.from(value.patchBytesBase64 || '', 'base64');
+  if (bytes.toString('base64') !== value.patchBytesBase64 || !bytes.equals(expected.bytes)
+      || value.patchDigest !== expected.digest
+      || canonicalJson(value.permittedOperations) !== canonicalJson(expected.permittedOperations)) {
+    throw new CompilerError('implementation work grant patch is not the exact derived closed operation set', {
+      phase: 'candidate:implementation-work-grant',
+    });
+  }
+  const patch = parseCanonicalPatch(bytes, value.patchDigest, allowedGraphs, new Set(['base']));
+  if (patch.deletions.length !== 0 || !patchHas(patch, value.grantIri, RDF_TYPE, `${USF}ImplementationWorkGrant`)
+      || !patchHas(patch, value.grantIri, `${USF}implementationWorkGrantState`, 'urn:usf:implementationworkgrantstate:reserved')) {
+    throw new CompilerError('implementation work grant patch is not an exact reserved grant', {
+      phase: 'candidate:implementation-work-grant',
+    });
+  }
+  return Object.freeze({
+    casRootDigests: roots,
+    grantCandidateDigest: value.grantCandidateDigest,
+    grantIri: value.grantIri,
+    patch,
+    patchDigest: value.patchDigest,
+    kind: 'implementation_work_grant',
   });
 }
 
@@ -2092,6 +2398,7 @@ export function createSemanticModelCompilationCommand({
   externalAuthorityTrustAnchor,
   trustedNow = null,
   verifyExternalAuthorityProofApproval = missingExternalAuthorityProofVerifier,
+  verifyImplementationWorkGrantEnvelope = missingImplementationWorkGrantVerifier,
 }) {
   if (!client || typeof client.connectivity !== 'function') throw new TypeError('semantic authority client is required');
   if (typeof readAuthorityWitness !== 'function') throw new TypeError('authority witness reader is required');
@@ -2117,16 +2424,25 @@ export function createSemanticModelCompilationCommand({
       const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
       checkLocalFunction(manifest);
       const observedNow = await resolveExternalAuthorityTrustedNow(operationTrustedNow, trustedNow);
-      const external = assertExternalAuthorityDelta({
-        value: externalAuthorityDelta,
-        expectedAuthorityDigest,
-        expectedSource,
-        evidenceStore,
-        allowedGraphs: new Set(managedGraphs(manifest)),
-        now: observedNow,
-        trustAnchor: externalAuthorityTrustAnchor,
-        verifyProofApprovalEnvelope: verifyExternalAuthorityProofApproval,
-      });
+      const external = externalAuthorityDelta?.schema === IMPLEMENTATION_WORK_GRANT_DELTA_SCHEMA
+        ? assertImplementationWorkGrantDelta({
+          value: externalAuthorityDelta,
+          expectedAuthorityDigest,
+          evidenceStore,
+          allowedGraphs: new Set(managedGraphs(manifest)),
+          now: observedNow,
+          verifyImplementationWorkGrant: verifyImplementationWorkGrantEnvelope,
+        })
+        : assertExternalAuthorityDelta({
+          value: externalAuthorityDelta,
+          expectedAuthorityDigest,
+          expectedSource,
+          evidenceStore,
+          allowedGraphs: new Set(managedGraphs(manifest)),
+          now: observedNow,
+          trustAnchor: externalAuthorityTrustAnchor,
+          verifyProofApprovalEnvelope: verifyExternalAuthorityProofApproval,
+        });
       if (await inspectPatchState(client, external.patch) !== 'pre') {
         throw new CompilerError('external authority delta is not an unused exact live pre-state', {
           phase: 'candidate:external-authority-delta-replay',
@@ -2135,7 +2451,12 @@ export function createSemanticModelCompilationCommand({
       if (digest(await readAuthorityWitness(client)) !== before) {
         throw new CompilerError('external delta validation changed semantic authority', { phase: 'authority:validate-drift' });
       }
-      return Object.freeze({
+      return Object.freeze(external.kind === 'implementation_work_grant' ? {
+        casRootDigests: external.casRootDigests,
+        grantCandidateDigest: external.grantCandidateDigest,
+        grantIri: external.grantIri,
+        patchDigest: external.patchDigest,
+      } : {
         casRootDigests: external.casRootDigests,
         conflictIri: external.conflictIri,
         correctionCandidateDigest: external.correctionCandidateDigest,
@@ -2163,16 +2484,26 @@ export function createSemanticModelCompilationCommand({
       const observedNow = externalAuthorityDelta === null
         ? null
         : await resolveExternalAuthorityTrustedNow(operationTrustedNow, trustedNow);
-      const external = externalAuthorityDelta === null ? null : assertExternalAuthorityDelta({
-        value: externalAuthorityDelta,
-        expectedAuthorityDigest,
-        expectedSource,
-        evidenceStore,
-        allowedGraphs: new Set(managedGraphs(manifest)),
-        now: observedNow,
-        trustAnchor: externalAuthorityTrustAnchor,
-        verifyProofApprovalEnvelope: verifyExternalAuthorityProofApproval,
-      });
+      const external = externalAuthorityDelta === null ? null
+        : externalAuthorityDelta?.schema === IMPLEMENTATION_WORK_GRANT_DELTA_SCHEMA
+          ? assertImplementationWorkGrantDelta({
+            value: externalAuthorityDelta,
+            expectedAuthorityDigest,
+            evidenceStore,
+            allowedGraphs: new Set(managedGraphs(manifest)),
+            now: observedNow,
+            verifyImplementationWorkGrant: verifyImplementationWorkGrantEnvelope,
+          })
+          : assertExternalAuthorityDelta({
+            value: externalAuthorityDelta,
+            expectedAuthorityDigest,
+            expectedSource,
+            evidenceStore,
+            allowedGraphs: new Set(managedGraphs(manifest)),
+            now: observedNow,
+            trustAnchor: externalAuthorityTrustAnchor,
+            verifyProofApprovalEnvelope: verifyExternalAuthorityProofApproval,
+          });
       if (external !== null && await inspectPatchState(client, external.patch) !== 'pre') {
         throw new CompilerError('external authority delta is not an unused exact live pre-state', {
           phase: 'candidate:external-authority-delta-replay',
@@ -2219,15 +2550,23 @@ export function createSemanticModelCompilationCommand({
           state: 'VALIDATED_ROLLBACK',
           validationReceiptDigest: validation.digest,
         }),
-        externalAuthorityDelta: external === null ? null : Object.freeze({
-          casRootDigests: external.casRootDigests,
-          conflictIri: external.conflictIri,
-          correctionCandidateDigest: external.correctionCandidateDigest,
-          patchDigest: external.patchDigest,
-          proofResultIri: external.proofResultIri,
-          resolutionIri: external.resolutionIri,
-          reviewIri: external.reviewIri,
-        }),
+        externalAuthorityDelta: external === null ? null : Object.freeze(
+          external.kind === 'implementation_work_grant' ? {
+            casRootDigests: external.casRootDigests,
+            grantCandidateDigest: external.grantCandidateDigest,
+            grantIri: external.grantIri,
+            kind: external.kind,
+            patchDigest: external.patchDigest,
+          } : {
+            casRootDigests: external.casRootDigests,
+            conflictIri: external.conflictIri,
+            correctionCandidateDigest: external.correctionCandidateDigest,
+            patchDigest: external.patchDigest,
+            proofResultIri: external.proofResultIri,
+            resolutionIri: external.resolutionIri,
+            reviewIri: external.reviewIri,
+          },
+        ),
         preservedAuthorityDelta: external === null ? null : Object.freeze({
           bytesBase64: external.patch.bytes.toString('base64'),
           digest: external.patch.digest,
@@ -2760,7 +3099,9 @@ export function createSemanticModelCompilationCommand({
 }
 
 export const semanticModelCompilationCommandInternals = Object.freeze({
+  assertImplementationWorkGrantDelta,
   assertExternalAuthorityDelta,
+  createImplementationWorkGrantDeltaPackage,
   createExternalAuthorityDeltaPackage,
   digest,
   exactCandidateBytes,
@@ -2769,4 +3110,5 @@ export const semanticModelCompilationCommandInternals = Object.freeze({
   parseCanonicalPatch,
   patchState,
   semanticModelDirectory,
+  validateImplementationWorkGrantArtifacts,
 });

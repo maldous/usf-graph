@@ -30,6 +30,99 @@ function repository() {
 
 test.after(() => repositories.forEach((root) => rmSync(root, { recursive: true, force: true })));
 
+test('implementation work grant delta is derived from exact reviewed CAS artifacts and rejects substitution', () => {
+  const allowedActions = [
+    'candidate_existing_file_edit', 'candidate_signing_and_protection', 'cas_closure',
+    'compilation_and_build', 'evidence_generation', 'independent_review',
+    'isolated_read_only_rehearsal', 'tests',
+  ];
+  const deniedEffects = [
+    'a0_capture', 'authority_mutation', 'business_semantic_scope_expansion', 'deployment',
+    'implicit_path_widening', 'learned_execution', 'production_write', 'provider_contact',
+    'pruning', 'semantic_publication', 'v2_activation',
+  ];
+  const scopes = [
+    {
+      predecessor_commit: '1'.repeat(40), predecessor_tree: '2'.repeat(40), repository: 'maldous/usf-factory',
+      source_paths: ['src/usf_factory/activation.py'],
+      source_scope_digest: contentDigest(Buffer.from(stableJson(['src/usf_factory/activation.py']))),
+    },
+    {
+      predecessor_commit: '3'.repeat(40), predecessor_tree: '4'.repeat(40), repository: 'maldous/usf-graph',
+      source_paths: ['processes/semantic-assurance/semantic-proof-v2.mjs'],
+      source_scope_digest: contentDigest(Buffer.from(stableJson(['processes/semantic-assurance/semantic-proof-v2.mjs']))),
+    },
+  ];
+  const decision = {
+    allowed_actions: allowedActions, authority_pre_digest: authorityDigest, decision_state: 'accepted',
+    denied_effects: deniedEffects, expires_at: '2026-08-20T00:00:00Z', issued_at: '2026-08-16T00:00:00Z',
+    nonpublication_dependency_set_digest: contentDigest(Buffer.from('non-publication dependency')),
+    purpose: 'V2_NATIVE_HANDOVER implementation only', repositories: scopes,
+    schema_version: 'usf-implementation-work-grant-decision-v1',
+  };
+  const decisionBytes = canonicalArtifactBytes(decision);
+  const review = {
+    authority_pre_digest: authorityDigest, candidate_derivation_participation: false,
+    decision_digest: contentDigest(decisionBytes), governance_independent_review_satisfied: true,
+    review_state: 'accepted', schema_version: 'usf-implementation-work-grant-review-v1',
+  };
+  const reviewBytes = canonicalArtifactBytes(review);
+  const validation = {
+    authority_pre_digest: authorityDigest, decision_digest: contentDigest(decisionBytes),
+    review_digest: contentDigest(reviewBytes), schema_version: 'usf-implementation-work-grant-validation-v1',
+    validation_state: 'passed',
+  };
+  const validationBytes = canonicalArtifactBytes(validation);
+  const evidenceDigests = [contentDigest(decisionBytes), contentDigest(reviewBytes), contentDigest(validationBytes)].sort();
+  const payload = {
+    algorithm: 'openpgp', allowed_actions: allowedActions, authority_pre_digest: authorityDigest,
+    claim_type: 'implementation_work_grant', denied_effects: deniedEffects,
+    evidence_set_digest: contentDigest(Buffer.from(stableJson(evidenceDigests))),
+    expires_at: decision.expires_at, fingerprint: 'B6CBC89C7978AF26F53C33A197E5F20D2A340E5D',
+    issued_at: decision.issued_at, nonce: '00000000-0000-4000-8000-000000000009',
+    nonpublication_dependency_set_digest: decision.nonpublication_dependency_set_digest,
+    principal: 'urn:usf:principal:matthewaldous', protocol: 'semantic-proof-v1',
+    purpose: decision.purpose, repositories: scopes, schema_version: 'usf-implementation-work-grant-v1',
+    signing_identity: 'urn:usf:signingidentity:matthewaldoussemanticproofv1', single_use: true,
+  };
+  const grant = { payload, signature: '-----BEGIN PGP SIGNATURE-----\ntest\n-----END PGP SIGNATURE-----\n' };
+  const grantBytes = canonicalArtifactBytes(grant);
+  const candidateDigest = contentDigest(Buffer.from(stableJson(payload)));
+  const artifacts = [
+    { bytes: decisionBytes, role: 'decision' }, { bytes: grantBytes, role: 'grant' },
+    { bytes: reviewBytes, role: 'review' }, { bytes: validationBytes, role: 'validation' },
+  ];
+  const verifier = (envelope, options) => {
+    assert.deepEqual(envelope, grant);
+    assert.deepEqual(options.evidenceDigests, evidenceDigests);
+    return { ...payload, candidate_digest: candidateDigest, envelope_digest: contentDigest(Buffer.from(stableJson(grant))) };
+  };
+  const packageValue = semanticModelCompilationCommandInternals.createImplementationWorkGrantDeltaPackage({
+    artifacts, authorityDigest, now: new Date('2026-08-16T01:00:00Z'), verifyImplementationWorkGrant: verifier,
+  });
+  const store = new Map(artifacts.map(({ bytes }) => [contentDigest(bytes), bytes]));
+  const evidenceStore = {
+    read: (digest) => store.get(digest),
+    verify: (digest) => ({ digest, size: store.get(digest)?.length }),
+  };
+  const asserted = semanticModelCompilationCommandInternals.assertImplementationWorkGrantDelta({
+    value: packageValue, expectedAuthorityDigest: authorityDigest, evidenceStore,
+    allowedGraphs: new Set(['urn:usf:graph:evidence', 'urn:usf:graph:proofs']),
+    now: new Date('2026-08-16T01:00:00Z'), verifyImplementationWorkGrant: verifier,
+  });
+  assert.equal(asserted.grantCandidateDigest, candidateDigest);
+  assert.equal(asserted.patchDigest, packageValue.patchDigest);
+  for (const predicate of ['descriptorArtefactFamily', 'descriptorRepresentationFormat', 'descriptorArtefactType']) {
+    assert.equal(packageValue.permittedOperations.filter((operation) => operation.includes(predicate)).length, 4);
+  }
+  assert.throws(() => semanticModelCompilationCommandInternals.assertImplementationWorkGrantDelta({
+    value: { ...packageValue, grantCandidateDigest: contentDigest(Buffer.from('wrong')) },
+    expectedAuthorityDigest: authorityDigest, evidenceStore,
+    allowedGraphs: new Set(['urn:usf:graph:evidence', 'urn:usf:graph:proofs']),
+    now: new Date('2026-08-16T01:00:00Z'), verifyImplementationWorkGrant: verifier,
+  }), /candidate|derived closed operation set/);
+});
+
 function client() { return { connectivity: async () => 1 }; }
 
 test('validates the canonical semantic model with an exact authority binding', async () => {

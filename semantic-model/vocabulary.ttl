@@ -1119,6 +1119,33 @@ action:cancelled a usf:ActionStatus;
     usf:canonicalName "accepted".
 <urn:usf:semanticcorrectiondecisionstate:superseded> a usf:SemanticCorrectionDecisionState;
     usf:canonicalName "superseded".
+<urn:usf:implementationworkpurpose:v2nativehandover> a usf:ImplementationWorkPurpose;
+    usf:canonicalName "v2nativehandover".
+<urn:usf:implementationworkgrantstate:reserved> a usf:ImplementationWorkGrantState;
+    usf:canonicalName "reserved".
+<urn:usf:implementationworkgrantstate:completed> a usf:ImplementationWorkGrantState;
+    usf:canonicalName "completed".
+<urn:usf:implementationworkgrantstate:expired> a usf:ImplementationWorkGrantState;
+    usf:canonicalName "expired".
+<urn:usf:implementationworkaction:candidateexistingfileedit> a usf:ImplementationWorkAction; usf:canonicalName "candidateexistingfileedit".
+<urn:usf:implementationworkaction:candidatesigningandprotection> a usf:ImplementationWorkAction; usf:canonicalName "candidatesigningandprotection".
+<urn:usf:implementationworkaction:casclosure> a usf:ImplementationWorkAction; usf:canonicalName "casclosure".
+<urn:usf:implementationworkaction:compilationandbuild> a usf:ImplementationWorkAction; usf:canonicalName "compilationandbuild".
+<urn:usf:implementationworkaction:evidencegeneration> a usf:ImplementationWorkAction; usf:canonicalName "evidencegeneration".
+<urn:usf:implementationworkaction:independentreview> a usf:ImplementationWorkAction; usf:canonicalName "independentreview".
+<urn:usf:implementationworkaction:isolatedreadonlyrehearsal> a usf:ImplementationWorkAction; usf:canonicalName "isolatedreadonlyrehearsal".
+<urn:usf:implementationworkaction:tests> a usf:ImplementationWorkAction; usf:canonicalName "tests".
+<urn:usf:implementationworkeffect:a0capture> a usf:ImplementationWorkEffect; usf:canonicalName "a0capture".
+<urn:usf:implementationworkeffect:authoritymutation> a usf:ImplementationWorkEffect; usf:canonicalName "authoritymutation".
+<urn:usf:implementationworkeffect:businesssemanticscopeexpansion> a usf:ImplementationWorkEffect; usf:canonicalName "businesssemanticscopeexpansion".
+<urn:usf:implementationworkeffect:deployment> a usf:ImplementationWorkEffect; usf:canonicalName "deployment".
+<urn:usf:implementationworkeffect:implicitpathwidening> a usf:ImplementationWorkEffect; usf:canonicalName "implicitpathwidening".
+<urn:usf:implementationworkeffect:learnedexecution> a usf:ImplementationWorkEffect; usf:canonicalName "learnedexecution".
+<urn:usf:implementationworkeffect:productionwrite> a usf:ImplementationWorkEffect; usf:canonicalName "productionwrite".
+<urn:usf:implementationworkeffect:providercontact> a usf:ImplementationWorkEffect; usf:canonicalName "providercontact".
+<urn:usf:implementationworkeffect:pruning> a usf:ImplementationWorkEffect; usf:canonicalName "pruning".
+<urn:usf:implementationworkeffect:semanticpublication> a usf:ImplementationWorkEffect; usf:canonicalName "semanticpublication".
+<urn:usf:implementationworkeffect:v2activation> a usf:ImplementationWorkEffect; usf:canonicalName "v2activation".
 <urn:usf:obligationeffect:repositorymutation> a usf:ObligationEffect;
     usf:canonicalName "repositorymutation".
 <urn:usf:obligationeffect:validationproducersourceauthorisation> a usf:ObligationEffect;

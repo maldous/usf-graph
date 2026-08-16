@@ -2833,3 +2833,184 @@ test('source digests distinguish exact file and deterministic tree state', () =>
     assert.notEqual(sourceDigest(root), first);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('implementation work grant projection permits only exact existing-file candidate work and DENY always wins', async () => {
+  if (process.env.USF_EXPECTED_CHILD_PROCESS_PERMISSION === 'denied') {
+    assert.equal(process.env.USF_HERMETIC_TEST_MODE, '1');
+    return;
+  }
+  const root = mkdtempSync(join(tmpdir(), 'usf-implementation-work-grant-'));
+  roots.push(root);
+  const predecessor = await initialiseRepository(root);
+  const paths = ['README.md'];
+  const allowedActions = [
+    'urn:usf:implementationworkaction:candidateexistingfileedit',
+    'urn:usf:implementationworkaction:candidatesigningandprotection',
+    'urn:usf:implementationworkaction:casclosure',
+    'urn:usf:implementationworkaction:compilationandbuild',
+    'urn:usf:implementationworkaction:evidencegeneration',
+    'urn:usf:implementationworkaction:independentreview',
+    'urn:usf:implementationworkaction:isolatedreadonlyrehearsal',
+    'urn:usf:implementationworkaction:tests',
+  ];
+  const deniedEffects = [
+    'urn:usf:implementationworkeffect:a0capture',
+    'urn:usf:implementationworkeffect:authoritymutation',
+    'urn:usf:implementationworkeffect:businesssemanticscopeexpansion',
+    'urn:usf:implementationworkeffect:deployment',
+    'urn:usf:implementationworkeffect:implicitpathwidening',
+    'urn:usf:implementationworkeffect:learnedexecution',
+    'urn:usf:implementationworkeffect:productionwrite',
+    'urn:usf:implementationworkeffect:providercontact',
+    'urn:usf:implementationworkeffect:pruning',
+    'urn:usf:implementationworkeffect:semanticpublication',
+    'urn:usf:implementationworkeffect:v2activation',
+  ];
+  const grantCandidateDigest = `sha256:${'9'.repeat(64)}`;
+  const graphScope = {
+    predecessorCommit: predecessor.head, predecessorTree: predecessor.tree, repository: 'maldous/usf-graph',
+    sourcePaths: paths, sourceScopeDigest: digest(JSON.stringify(paths)),
+  };
+  const grant = {
+    allowedActions, authorityDigest: `sha256:${'a'.repeat(64)}`, deniedEffects,
+    evidenceSetDigest: `sha256:${'b'.repeat(64)}`, expiresAt: '2026-08-20T00:00:00Z',
+    grantCandidateDigest, grantIri: `urn:usf:implementationworkgrant:${grantCandidateDigest.slice(7)}`,
+    issuedAt: '2026-08-16T00:00:00Z', nonce: '00000000-0000-4000-8000-000000000009',
+    nonPublicationDependencySetDigest: `sha256:${'e'.repeat(64)}`,
+    purpose: 'urn:usf:implementationworkpurpose:v2nativehandover',
+    repositories: [{
+      predecessorCommit: '3'.repeat(40), predecessorTree: '4'.repeat(40), repository: 'maldous/usf-factory',
+      sourcePaths: ['src/usf_factory/activation.py'],
+      sourceScopeDigest: digest(JSON.stringify(['src/usf_factory/activation.py'])),
+    }, graphScope],
+    state: 'urn:usf:implementationworkgrantstate:reserved', transactionState: 'reserved',
+  };
+  const operation = { action: 'write-file', path: paths[0], sourceDigest: sourceDigest(join(root, paths[0])) };
+  const verdict = materialisationInternals.evaluateImplementationWorkGrantProjection({
+    grant, nonPublicationDependencySetDigest: grant.nonPublicationDependencySetDigest, repository: graphScope.repository,
+    predecessorCommit: graphScope.predecessorCommit, predecessorTree: graphScope.predecessorTree,
+    operations: [operation], observedAt: '2026-08-16T01:00:00Z', repositoryRoot: root,
+  });
+  assert.equal(verdict.actionState, ACTION_STATES.proceed);
+  for (const mutation of [
+    { nonPublicationDependencySetDigest: `sha256:${'d'.repeat(64)}` },
+    { operations: [{ ...operation, action: 'delete-path' }] },
+    { operations: [{ ...operation, path: 'unreviewed.mjs' }] },
+    { operations: [{ ...operation, path: 'absent.mjs' }] },
+    { predecessorTree: '5'.repeat(40) },
+    { observedAt: '2026-08-21T00:00:00Z' },
+  ]) {
+    assert.equal(materialisationInternals.evaluateImplementationWorkGrantProjection({
+      grant, nonPublicationDependencySetDigest: grant.nonPublicationDependencySetDigest, repository: graphScope.repository,
+      predecessorCommit: graphScope.predecessorCommit, predecessorTree: graphScope.predecessorTree,
+      operations: [operation], observedAt: '2026-08-16T01:00:00Z', repositoryRoot: root, ...mutation,
+    }).actionState, ACTION_STATES.block);
+  }
+  assert.throws(() => materialisationInternals.normaliseImplementationWorkGrantProjection({
+    ...grant, deniedEffects: deniedEffects.slice(1),
+  }), /ALLOW or DENY/);
+  assert.throws(() => materialisationInternals.normaliseImplementationWorkGrantProjection({
+    ...grant, nonce: '------------------------------------',
+  }), /identity is invalid/);
+});
+
+test('production plan create, validate and apply consume one exact live implementation work grant', async () => {
+  if (process.env.USF_EXPECTED_CHILD_PROCESS_PERMISSION === 'denied') {
+    assert.equal(process.env.USF_HERMETIC_TEST_MODE, '1');
+    return;
+  }
+  const root = mkdtempSync(join(tmpdir(), 'usf-implementation-work-plan-'));
+  roots.push(root);
+  await initialiseRepository(root);
+  const path = 'capabilities/semantic-model-compilation/value.mjs';
+  mkdirSync(join(root, 'capabilities/semantic-model-compilation'), { recursive: true });
+  writeFileSync(join(root, path), 'export const value = 0;\n');
+  await git(root, ['add', path]);
+  await git(root, ['commit', '-q', '-m', 'exact implementation predecessor']);
+  const predecessorCommit = await git(root, ['rev-parse', 'HEAD']);
+  const predecessorTree = await git(root, ['rev-parse', 'HEAD^{tree}']);
+  const client = fakeClient({
+    validationObligationRows: defaultValidationObligationRows('urn:usf:validationactivationstate:activated'),
+  });
+  const authority = await layoutContext({ client });
+  const nonPublicationDependencySetDigest = materialisationInternals
+    .validationNonPublicationDependencyDigest(authority.authorityGraphInventory);
+  const grantCandidateDigest = `sha256:${'9'.repeat(64)}`;
+  const grant = {
+    allowedActions: [
+      'urn:usf:implementationworkaction:candidateexistingfileedit',
+      'urn:usf:implementationworkaction:candidatesigningandprotection',
+      'urn:usf:implementationworkaction:casclosure',
+      'urn:usf:implementationworkaction:compilationandbuild',
+      'urn:usf:implementationworkaction:evidencegeneration',
+      'urn:usf:implementationworkaction:independentreview',
+      'urn:usf:implementationworkaction:isolatedreadonlyrehearsal',
+      'urn:usf:implementationworkaction:tests',
+    ],
+    authorityDigest: authority.authorityDigest,
+    deniedEffects: [
+      'urn:usf:implementationworkeffect:a0capture',
+      'urn:usf:implementationworkeffect:authoritymutation',
+      'urn:usf:implementationworkeffect:businesssemanticscopeexpansion',
+      'urn:usf:implementationworkeffect:deployment',
+      'urn:usf:implementationworkeffect:implicitpathwidening',
+      'urn:usf:implementationworkeffect:learnedexecution',
+      'urn:usf:implementationworkeffect:productionwrite',
+      'urn:usf:implementationworkeffect:providercontact',
+      'urn:usf:implementationworkeffect:pruning',
+      'urn:usf:implementationworkeffect:semanticpublication',
+      'urn:usf:implementationworkeffect:v2activation',
+    ],
+    evidenceSetDigest: `sha256:${'b'.repeat(64)}`,
+    expiresAt: '2026-08-20T00:00:00Z',
+    grantCandidateDigest,
+    grantIri: `urn:usf:implementationworkgrant:${grantCandidateDigest.slice(7)}`,
+    issuedAt: '2026-08-16T00:00:00Z',
+    nonPublicationDependencySetDigest,
+    nonce: '00000000-0000-4000-8000-000000000009',
+    purpose: 'urn:usf:implementationworkpurpose:v2nativehandover',
+    repositories: [{
+      predecessorCommit: '3'.repeat(40), predecessorTree: '4'.repeat(40), repository: 'maldous/usf-factory',
+      sourcePaths: ['src/usf_factory/activation.py'],
+      sourceScopeDigest: digest(JSON.stringify(['src/usf_factory/activation.py'])),
+    }, {
+      predecessorCommit, predecessorTree, repository: 'maldous/usf-graph',
+      sourcePaths: [path], sourceScopeDigest: digest(JSON.stringify([path])),
+    }],
+    state: 'urn:usf:implementationworkgrantstate:reserved',
+    transactionState: 'reserved',
+  };
+  const readImplementationWorkGrantAuthorityState = async (_client, iri, options) => {
+    assert.equal(iri, grant.grantIri);
+    assert.equal(options.nonPublicationDependencySetDigest, nonPublicationDependencySetDigest);
+    assert.equal(options.requireReservedTransaction, true);
+    return grant;
+  };
+  const select = client.select;
+  client.select = async (query) => query.includes('a <urn:usf:ontology:ImplementationWorkGrant>')
+    ? [{ grant: binding(grant.grantIri) }]
+    : select(query);
+  const content = 'export const value = 1;\n';
+  const operations = [{
+    ...writeOperation(content, 0, path),
+    sourceDigest: sourceDigest(join(root, path)),
+  }];
+  const ctx = {
+    client,
+    coordinator: true,
+    observedAt: '2026-08-16T01:00:00Z',
+    readImplementationWorkGrantAuthorityState,
+    repositoryRoot: root,
+  };
+  const plan = await createLayoutPlan(ctx, {
+    contract,
+    operations,
+  });
+  assert.equal(plan.implementationWorkGrantBinding.grantCandidateDigest, grantCandidateDigest);
+  assert.equal((await validateLayoutPlan(ctx, plan)).ok, true);
+  assert.equal((await applyLayoutPlan(ctx, { plan, apply: true })).applied, true);
+  assert.equal(readFileSync(join(root, path), 'utf8'), content);
+  const replay = await applyLayoutPlan(ctx, { plan, apply: true });
+  assert.equal(replay.applied, false);
+  assert.equal(replay.realisationActionState, ACTION_STATES.block);
+});

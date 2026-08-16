@@ -20,6 +20,7 @@ import {
   createGraphProductionAdapterV2,
   createReadOnlyStardogShadowClientV2,
   DEFAULT_PROTOCOL_JOURNAL,
+  readImplementationWorkGrantAuthorityStateV1,
   runPublication,
 } from './semantic-authority-publication.mjs';
 import {
@@ -30,8 +31,13 @@ import {
   consumeGrantNonce,
   canonicalJson,
   envelopeDigest,
+  IMPLEMENTATION_WORK_GRANT_ALLOWED_ACTIONS,
+  IMPLEMENTATION_WORK_GRANT_DENIED_EFFECTS,
+  implementationWorkGrantCandidateDigest,
+  implementationWorkGrantEvidenceSetDigest,
   publicationReceiptDigest,
   sha256,
+  sourceScopeDigest,
 } from './semantic-proof-v1.mjs';
 import {
   canonicalDigestV2,
@@ -40,6 +46,14 @@ import {
   IDENTITY_DEPENDENCY_GRAPH_V2_DIGEST,
   prospectivePublicationPlanDigestV2,
 } from './semantic-proof-v2.mjs';
+
+function recursivelyStable(value) {
+  if (Array.isArray(value)) return value.map(recursivelyStable);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, recursivelyStable(value[key])]));
+}
+
+const canonicalArtifactBytes = (value) => Buffer.from(`${JSON.stringify(recursivelyStable(value), null, 2)}\n`);
 
 test('V2 Graph production shadow exposes reads and rollback while refusing every write surface', async () => {
   const calls = [];
@@ -67,6 +81,147 @@ test('V2 Graph production shadow exposes reads and rollback while refusing every
   ]) {
     await assert.rejects(shadow[operation](), /V2_GRAPH_PRODUCTION_WRITES_DISABLED/);
   }
+});
+
+test('implementation work grant live readback requires one exact two-repository closed grant', async () => {
+  const binding = (value) => ({ value });
+  const authorityDigest = `sha256:${'a'.repeat(64)}`;
+  const nonPublicationDependencySetDigest = `sha256:${'d'.repeat(64)}`;
+  const scopes = [
+    {
+      predecessor_commit: '2'.repeat(40), predecessor_tree: '3'.repeat(40),
+      repository: 'maldous/usf-factory', source_paths: ['src/usf_factory/activation.py'],
+      source_scope_digest: sourceScopeDigest(['src/usf_factory/activation.py']),
+    },
+    {
+      predecessor_commit: '4'.repeat(40), predecessor_tree: '5'.repeat(40),
+      repository: 'maldous/usf-graph', source_paths: ['processes/semantic-assurance/semantic-proof-v2.mjs'],
+      source_scope_digest: sourceScopeDigest(['processes/semantic-assurance/semantic-proof-v2.mjs']),
+    },
+  ];
+  const decision = {
+    allowed_actions: IMPLEMENTATION_WORK_GRANT_ALLOWED_ACTIONS,
+    authority_pre_digest: authorityDigest,
+    decision_state: 'accepted',
+    denied_effects: IMPLEMENTATION_WORK_GRANT_DENIED_EFFECTS,
+    expires_at: '2026-08-20T00:00:00Z',
+    issued_at: '2026-08-16T00:00:00Z',
+    nonpublication_dependency_set_digest: nonPublicationDependencySetDigest,
+    purpose: 'V2_NATIVE_HANDOVER implementation only',
+    repositories: scopes,
+    schema_version: 'usf-implementation-work-grant-decision-v1',
+  };
+  const decisionBytes = canonicalArtifactBytes(decision);
+  const review = {
+    authority_pre_digest: authorityDigest, candidate_derivation_participation: false,
+    decision_digest: sha256(decisionBytes), governance_independent_review_satisfied: true,
+    review_state: 'accepted', schema_version: 'usf-implementation-work-grant-review-v1',
+  };
+  const reviewBytes = canonicalArtifactBytes(review);
+  const validation = {
+    authority_pre_digest: authorityDigest, decision_digest: sha256(decisionBytes),
+    review_digest: sha256(reviewBytes), schema_version: 'usf-implementation-work-grant-validation-v1',
+    validation_state: 'passed',
+  };
+  const validationBytes = canonicalArtifactBytes(validation);
+  const evidenceDigests = [sha256(decisionBytes), sha256(reviewBytes), sha256(validationBytes)].sort();
+  const payload = {
+    algorithm: 'openpgp', allowed_actions: IMPLEMENTATION_WORK_GRANT_ALLOWED_ACTIONS,
+    authority_pre_digest: authorityDigest, claim_type: 'implementation_work_grant',
+    denied_effects: IMPLEMENTATION_WORK_GRANT_DENIED_EFFECTS,
+    evidence_set_digest: implementationWorkGrantEvidenceSetDigest(evidenceDigests),
+    expires_at: decision.expires_at, fingerprint: 'B6CBC89C7978AF26F53C33A197E5F20D2A340E5D',
+    issued_at: decision.issued_at, nonce: '00000000-0000-4000-8000-000000000009',
+    nonpublication_dependency_set_digest: nonPublicationDependencySetDigest,
+    principal: 'urn:usf:principal:matthewaldous', protocol: 'semantic-proof-v1',
+    purpose: decision.purpose, repositories: scopes, schema_version: 'usf-implementation-work-grant-v1',
+    signing_identity: 'urn:usf:signingidentity:matthewaldoussemanticproofv1', single_use: true,
+  };
+  const candidateDigest = implementationWorkGrantCandidateDigest(payload);
+  const grant = { payload, signature: '-----BEGIN PGP SIGNATURE-----\ntest\n-----END PGP SIGNATURE-----\n' };
+  const grantBytes = canonicalArtifactBytes(grant);
+  const grantIri = `urn:usf:implementationworkgrant:${candidateDigest.slice(7)}`;
+  const artifacts = new Map([
+    ['decision', decisionBytes], ['grant', grantBytes], ['review', reviewBytes], ['validation', validationBytes],
+  ]);
+  const roles = ['decision', 'grant', 'review', 'validation'];
+  const descriptors = roles.map((role) => {
+    const bytes = artifacts.get(role);
+    const digest = sha256(bytes);
+    return {
+      artefactType: binding(`urn:usf:artefacttype:implementationworkgrant${role}`),
+      byteSize: binding(String(bytes.length)), descriptor: binding(`urn:descriptor:${role}`),
+      digest: binding(digest), family: binding('urn:usf:artefactfamily:evidencepayload'),
+      format: binding('urn:usf:representationformat:jsondata8259'),
+      locator: binding(`cas://sha256/${digest.slice(7)}`), mediaType: binding('application/json'),
+      storage: binding('urn:usf:storageclass:contentaddressedobjectstorage'),
+    };
+  });
+  const allowed = IMPLEMENTATION_WORK_GRANT_ALLOWED_ACTIONS
+    .map((slug) => `urn:usf:implementationworkaction:${slug.replaceAll('_', '')}`).sort();
+  const denied = IMPLEMENTATION_WORK_GRANT_DENIED_EFFECTS
+    .map((slug) => `urn:usf:implementationworkeffect:${slug.replaceAll('_', '')}`).sort();
+  const rows = [
+    [{
+      authorityDigest: binding(authorityDigest), candidateDigest: binding(candidateDigest),
+      envelopeDigest: binding(envelopeDigest(grant)), evidenceSetDigest: binding(payload.evidence_set_digest),
+      expiresAt: binding('2026-08-20T00:00:00Z'), issuedAt: binding('2026-08-16T00:00:00Z'),
+      nonce: binding('00000000-0000-4000-8000-000000000009'),
+      nonPublicationDependencySetDigest: binding(nonPublicationDependencySetDigest),
+      purpose: binding('urn:usf:implementationworkpurpose:v2nativehandover'),
+      state: binding('urn:usf:implementationworkgrantstate:reserved'),
+    }],
+    [
+      ...allowed.map((item) => ({ kind: binding('allow'), item: binding(item) })),
+      ...denied.map((item) => ({ kind: binding('deny'), item: binding(item) })),
+      ...roles.map((role) => ({ kind: binding('evidence'), item: binding(`urn:descriptor:${role}`) })),
+    ],
+    scopes.map((scope, index) => ({
+      scope: binding(`urn:scope:${index}`), repository: binding(scope.repository), path: binding(scope.source_paths[0]),
+      predecessorCommit: binding(scope.predecessor_commit), predecessorTree: binding(scope.predecessor_tree),
+      sourceScopeDigest: binding(scope.source_scope_digest),
+    })),
+    descriptors,
+  ];
+  let call = 0;
+  const client = { select: async () => rows[call++] };
+  const evidenceStore = { read: (digest) => [...artifacts.values()].find((bytes) => sha256(bytes) === digest) };
+  const verifyImplementationWorkGrant = () => ({
+    ...payload, candidate_digest: candidateDigest, envelope_digest: envelopeDigest(grant), repositories: scopes,
+  });
+  const result = await readImplementationWorkGrantAuthorityStateV1(client, grantIri, {
+    evidenceStore, now: new Date('2026-08-16T01:00:00Z'), verifyImplementationWorkGrant,
+  });
+  assert.equal(result.repositories.length, 2);
+  assert.deepEqual(result.allowedActions, allowed);
+  assert.deepEqual(result.deniedEffects, denied);
+  assert.equal(call, 4);
+  call = 0;
+  let observedCasRoot = null;
+  const nullRootResult = await readImplementationWorkGrantAuthorityStateV1(client, grantIri, {
+    casRoot: null,
+    createEvidenceStore: (root) => {
+      observedCasRoot = root;
+      return evidenceStore;
+    },
+    now: new Date('2026-08-16T01:00:00Z'),
+    verifyImplementationWorkGrant,
+  });
+  assert.equal(observedCasRoot, '/var/lib/usf-cas');
+  assert.equal(nullRootResult.grantIri, grantIri);
+  assert.equal(call, 4);
+  call = 0;
+  const exactNonce = rows[0][0].nonce;
+  rows[0][0].nonce = binding('------------------------------------');
+  await assert.rejects(() => readImplementationWorkGrantAuthorityStateV1(client, grantIri, {
+    evidenceStore, now: new Date('2026-08-16T01:00:00Z'), verifyImplementationWorkGrant,
+  }), /scalar closure is invalid/);
+  rows[0][0].nonce = exactNonce;
+  call = 0;
+  rows[1] = rows[1].filter((row) => row.item.value !== denied[0]);
+  await assert.rejects(() => readImplementationWorkGrantAuthorityStateV1(client, grantIri, {
+    evidenceStore, now: new Date('2026-08-16T01:00:00Z'), verifyImplementationWorkGrant,
+  }), /ALLOW, DENY or evidence closure/);
 });
 
 function productionAdapterFixture() {

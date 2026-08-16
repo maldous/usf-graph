@@ -23,6 +23,7 @@ import {
   failGrantNonce,
   publicationReceiptDigest,
   readEnvelope,
+  readImplementationWorkGrantTransaction,
   readPublicationTransaction,
   readPublicationTransactionForEnvelope,
   readTrustAnchor,
@@ -34,9 +35,13 @@ import {
   sha256,
   sourceScopeDigest,
   verifyEnvelope,
+  IMPLEMENTATION_WORK_GRANT_ALLOWED_ACTIONS,
+  IMPLEMENTATION_WORK_GRANT_DENIED_EFFECTS,
+  verifyImplementationWorkGrantEnvelope,
   verifyPublicationBundle,
 } from './semantic-proof-v1.mjs';
 import * as semanticProofV2 from './semantic-proof-v2.mjs';
+import { semanticModelCompilationCommandInternals } from './semantic-model-compilation-command.mjs';
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const PREPARE_STATES = new Set(['ROLLED_BACK', 'VALIDATED', 'VALIDATED_ROLLBACK']);
@@ -89,6 +94,218 @@ const GRAPH_OWNED_CONSUMER_IRIS_V2 = Object.freeze({
   owner: 'urn:usf:derivedconsumer:v2:owner-envelope-successor',
   validation: 'urn:usf:derivedconsumer:v2:validation-currentness-binding',
 });
+
+export async function readImplementationWorkGrantAuthorityStateV1(client, grantIri, {
+  casRoot = '/var/lib/usf-cas',
+  createEvidenceStore = createCasEvidenceStore,
+  evidenceStore = null,
+  implementationWorkGrantJournalIo,
+  implementationWorkGrantLedgerPath,
+  now = new Date(),
+  nonPublicationDependencySetDigest = null,
+  requireReservedTransaction = false,
+  verifyImplementationWorkGrant = verifyImplementationWorkGrantEnvelope,
+} = {}) {
+  if (!client || typeof client.select !== 'function'
+      || !/^urn:usf:implementationworkgrant:[0-9a-f]{64}$/.test(grantIri || '')) {
+    throw new Error('implementation work grant readback requires an exact client and grant IRI');
+  }
+  const [scalarRows, setRows, scopeRows, descriptorRows] = await Promise.all([
+    client.select(`SELECT ?authorityDigest ?purpose ?state ?nonce ?evidenceSetDigest ?nonPublicationDependencySetDigest ?candidateDigest
+        ?envelopeDigest ?issuedAt ?expiresAt WHERE {
+      <${grantIri}> a <urn:usf:ontology:ImplementationWorkGrant> ;
+        <urn:usf:ontology:implementationWorkGrantAuthorityDigest> ?authorityDigest ;
+        <urn:usf:ontology:implementationWorkGrantPurpose> ?purpose ;
+        <urn:usf:ontology:implementationWorkGrantState> ?state ;
+        <urn:usf:ontology:implementationWorkGrantNonce> ?nonce ;
+        <urn:usf:ontology:implementationWorkGrantEvidenceSetDigest> ?evidenceSetDigest ;
+        <urn:usf:ontology:implementationWorkGrantNonPublicationDependencySetDigest> ?nonPublicationDependencySetDigest ;
+        <urn:usf:ontology:implementationWorkGrantCandidateDigest> ?candidateDigest ;
+        <urn:usf:ontology:implementationWorkGrantEnvelopeDigest> ?envelopeDigest ;
+        <urn:usf:ontology:implementationWorkGrantIssuedAt> ?issuedAt ;
+        <urn:usf:ontology:implementationWorkGrantExpiresAt> ?expiresAt .
+    } LIMIT 2`),
+    client.select(`SELECT ?kind ?item WHERE {
+      { <${grantIri}> <urn:usf:ontology:implementationWorkGrantAllows> ?item . BIND("allow" AS ?kind) }
+      UNION { <${grantIri}> <urn:usf:ontology:implementationWorkGrantDenies> ?item . BIND("deny" AS ?kind) }
+      UNION { <${grantIri}> <urn:usf:ontology:implementationWorkGrantEvidenceDescriptor> ?item . BIND("evidence" AS ?kind) }
+    } ORDER BY ?kind ?item LIMIT 64`),
+    client.select(`SELECT ?scope ?repository ?predecessorCommit ?predecessorTree ?sourceScopeDigest ?path WHERE {
+      <${grantIri}> <urn:usf:ontology:implementationWorkGrantRepositoryScope> ?scope .
+      ?scope a <urn:usf:ontology:ImplementationWorkRepositoryScope> ;
+        <urn:usf:ontology:implementationWorkRepository> ?repository ;
+        <urn:usf:ontology:implementationWorkPredecessorCommit> ?predecessorCommit ;
+        <urn:usf:ontology:implementationWorkPredecessorTree> ?predecessorTree ;
+        <urn:usf:ontology:implementationWorkSourceScopeDigest> ?sourceScopeDigest ;
+        <urn:usf:ontology:implementationWorkSourcePath> ?path .
+    } ORDER BY ?scope ?path LIMIT 128`),
+    client.select(`SELECT ?descriptor ?family ?format ?mediaType ?digest ?byteSize ?locator ?artefactType ?storage WHERE {
+      <${grantIri}> <urn:usf:ontology:implementationWorkGrantEvidenceDescriptor> ?descriptor .
+      ?descriptor a <urn:usf:ontology:ExternalPayloadDescriptor> ;
+        <urn:usf:ontology:descriptorArtefactFamily> ?family ;
+        <urn:usf:ontology:descriptorRepresentationFormat> ?format ;
+        <urn:usf:ontology:descriptorMediaType> ?mediaType ;
+        <urn:usf:ontology:descriptorDigest> ?digest ;
+        <urn:usf:ontology:descriptorByteSize> ?byteSize ;
+        <urn:usf:ontology:descriptorLocator> ?locator ;
+        <urn:usf:ontology:descriptorArtefactType> ?artefactType ;
+        <urn:usf:ontology:descriptorStorageClass> ?storage .
+    } ORDER BY ?descriptor LIMIT 5`),
+  ]);
+  if (scalarRows.length !== 1 || scopeRows.length < 2 || scopeRows.length >= 128
+      || setRows.length >= 64 || descriptorRows.length !== 4) {
+    throw new Error('implementation work grant readback cardinality is invalid');
+  }
+  const scalar = scalarRows[0];
+  const text = (row, key) => row?.[key]?.value ?? null;
+  const sets = (kind) => setRows.filter((row) => text(row, 'kind') === kind).map((row) => text(row, 'item')).sort();
+  const allowedActions = sets('allow');
+  const deniedEffects = sets('deny');
+  const expectedAllowed = IMPLEMENTATION_WORK_GRANT_ALLOWED_ACTIONS
+    .map((value) => `urn:usf:implementationworkaction:${value.replaceAll('_', '')}`).sort();
+  const expectedDenied = IMPLEMENTATION_WORK_GRANT_DENIED_EFFECTS
+    .map((value) => `urn:usf:implementationworkeffect:${value.replaceAll('_', '')}`).sort();
+  const evidenceDescriptors = sets('evidence');
+  if (canonicalJson(allowedActions) !== canonicalJson(expectedAllowed)
+      || canonicalJson(deniedEffects) !== canonicalJson(expectedDenied)
+      || evidenceDescriptors.length !== 4) {
+    throw new Error('implementation work grant readback ALLOW, DENY or evidence closure is incomplete');
+  }
+  const grouped = new Map();
+  for (const row of scopeRows) {
+    const scope = text(row, 'scope');
+    const current = grouped.get(scope) || {
+      predecessor_commit: text(row, 'predecessorCommit'), predecessor_tree: text(row, 'predecessorTree'),
+      repository: text(row, 'repository'), source_paths: [], source_scope_digest: text(row, 'sourceScopeDigest'),
+    };
+    if (current.repository !== text(row, 'repository')
+        || current.predecessor_commit !== text(row, 'predecessorCommit')
+        || current.predecessor_tree !== text(row, 'predecessorTree')
+        || current.source_scope_digest !== text(row, 'sourceScopeDigest')) {
+      throw new Error('implementation work repository scope readback is ambiguous');
+    }
+    current.source_paths.push(text(row, 'path'));
+    grouped.set(scope, current);
+  }
+  const repositories = [...grouped.values()].map((scope) => ({
+    ...scope, source_paths: [...new Set(scope.source_paths)].sort(),
+  })).sort((left, right) => left.repository.localeCompare(right.repository));
+  if (repositories.length !== 2
+      || repositories[0].repository !== 'maldous/usf-factory'
+      || repositories[1].repository !== 'maldous/usf-graph'
+      || repositories.some((scope) => sourceScopeDigest(scope.source_paths) !== scope.source_scope_digest)) {
+    throw new Error('implementation work grant readback repository closure is invalid');
+  }
+  if (![text(scalar, 'authorityDigest'), text(scalar, 'candidateDigest'), text(scalar, 'envelopeDigest'),
+    text(scalar, 'evidenceSetDigest'), text(scalar, 'nonPublicationDependencySetDigest')]
+    .every((value) => SHA256.test(value || ''))
+      || text(scalar, 'purpose') !== 'urn:usf:implementationworkpurpose:v2nativehandover'
+      || text(scalar, 'state') !== 'urn:usf:implementationworkgrantstate:reserved'
+      || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(text(scalar, 'nonce') || '')
+      || !Number.isFinite(Date.parse(text(scalar, 'issuedAt')))
+      || !Number.isFinite(Date.parse(text(scalar, 'expiresAt')))) {
+    throw new Error('implementation work grant readback scalar closure is invalid');
+  }
+  if (grantIri !== `urn:usf:implementationworkgrant:${text(scalar, 'candidateDigest').slice(7)}`) {
+    throw new Error('implementation work grant readback IRI does not bind its candidate digest');
+  }
+  const roles = ['decision', 'grant', 'review', 'validation'];
+  const artefactTypePrefix = 'urn:usf:artefacttype:implementationworkgrant';
+  const descriptorByRole = new Map();
+  for (const row of descriptorRows) {
+    const descriptor = text(row, 'descriptor');
+    const artefactType = text(row, 'artefactType');
+    const role = artefactType?.startsWith(artefactTypePrefix) ? artefactType.slice(artefactTypePrefix.length) : null;
+    const contentDigest = text(row, 'digest');
+    const byteSize = Number(text(row, 'byteSize'));
+    if (!roles.includes(role) || descriptorByRole.has(role) || !evidenceDescriptors.includes(descriptor)
+        || text(row, 'family') !== 'urn:usf:artefactfamily:evidencepayload'
+        || text(row, 'format') !== 'urn:usf:representationformat:jsondata8259'
+        || text(row, 'mediaType') !== 'application/json'
+        || !SHA256.test(contentDigest || '') || !Number.isSafeInteger(byteSize) || byteSize < 2
+        || text(row, 'locator') !== `cas://sha256/${contentDigest.slice(7)}`
+        || text(row, 'storage') !== 'urn:usf:storageclass:contentaddressedobjectstorage') {
+      throw new Error('implementation work grant evidence descriptor closure is invalid');
+    }
+    descriptorByRole.set(role, Object.freeze({ byteSize, contentDigest, descriptor }));
+  }
+  if (canonicalJson([...descriptorByRole.keys()].sort()) !== canonicalJson(roles)) {
+    throw new Error('implementation work grant evidence descriptor role set is incomplete');
+  }
+  const store = evidenceStore || createEvidenceStore(casRoot ?? '/var/lib/usf-cas');
+  const artifacts = new Map();
+  for (const role of roles) {
+    const descriptor = descriptorByRole.get(role);
+    const bytes = store.read(descriptor.contentDigest);
+    if (!Buffer.isBuffer(bytes) || bytes.length !== descriptor.byteSize || sha256(bytes) !== descriptor.contentDigest) {
+      throw new Error('implementation work grant CAS evidence differs from its live descriptor');
+    }
+    artifacts.set(role, bytes);
+  }
+  const validation = semanticModelCompilationCommandInternals.validateImplementationWorkGrantArtifacts({
+    artifacts,
+    authorityDigest: text(scalar, 'authorityDigest'),
+    now,
+    verifyImplementationWorkGrant,
+  });
+  const verified = validation.verified;
+  const expectedRepositories = verified.repositories.map((scope) => ({
+    predecessor_commit: scope.predecessor_commit,
+    predecessor_tree: scope.predecessor_tree,
+    repository: scope.repository,
+    source_paths: scope.source_paths,
+    source_scope_digest: scope.source_scope_digest,
+  }));
+  if (verified.candidate_digest !== text(scalar, 'candidateDigest')
+      || verified.envelope_digest !== text(scalar, 'envelopeDigest')
+      || verified.evidence_set_digest !== text(scalar, 'evidenceSetDigest')
+      || verified.nonpublication_dependency_set_digest !== text(scalar, 'nonPublicationDependencySetDigest')
+      || verified.nonce !== text(scalar, 'nonce')
+      || verified.issued_at !== text(scalar, 'issuedAt')
+      || verified.expires_at !== text(scalar, 'expiresAt')
+      || canonicalJson(repositories.map((scope) => ({
+        predecessor_commit: scope.predecessor_commit,
+        predecessor_tree: scope.predecessor_tree,
+        repository: scope.repository,
+        source_paths: scope.source_paths,
+        source_scope_digest: scope.source_scope_digest,
+      }))) !== canonicalJson(expectedRepositories)) {
+    throw new Error('implementation work grant live RDF differs from its verified canonical CAS artifacts');
+  }
+  const transaction = requireReservedTransaction
+    ? readImplementationWorkGrantTransaction(verified, {
+      journalIo: implementationWorkGrantJournalIo,
+      ledgerPath: implementationWorkGrantLedgerPath,
+      nonPublicationDependencySetDigest,
+      now,
+    })
+    : null;
+  if (requireReservedTransaction && transaction?.state !== 'reserved') {
+    throw new Error('implementation work grant has no exact durable reserved transaction');
+  }
+  return Object.freeze({
+    allowedActions: Object.freeze(allowedActions),
+    authorityDigest: text(scalar, 'authorityDigest'),
+    deniedEffects: Object.freeze(deniedEffects),
+    evidenceSetDigest: text(scalar, 'evidenceSetDigest'),
+    expiresAt: text(scalar, 'expiresAt'),
+    grantCandidateDigest: text(scalar, 'candidateDigest'),
+    grantIri,
+    issuedAt: text(scalar, 'issuedAt'),
+    nonce: text(scalar, 'nonce'),
+    nonPublicationDependencySetDigest: text(scalar, 'nonPublicationDependencySetDigest'),
+    purpose: text(scalar, 'purpose'),
+    repositories: Object.freeze(repositories.map((scope) => Object.freeze({
+      predecessorCommit: scope.predecessor_commit,
+      predecessorTree: scope.predecessor_tree,
+      repository: scope.repository,
+      sourcePaths: Object.freeze(scope.source_paths),
+      sourceScopeDigest: scope.source_scope_digest,
+    }))),
+    state: text(scalar, 'state'),
+    transactionState: transaction?.state ?? null,
+  });
+}
 
 export const DEFAULT_PROTOCOL_JOURNAL = Object.freeze({
   assertReevaluationPredecessor,
@@ -1387,6 +1604,7 @@ export async function configureLiveDependencies(expectedAuthorityDigest, env) {
       repositoryRoot: root,
       trustedNow: async () => new Date(await trustedTime()),
       verifyExternalAuthorityProofApproval: verifyEnvelope,
+      verifyImplementationWorkGrantEnvelope,
     }),
     readAuthorityWitness: () => readSemanticAuthorityWitness(client),
     readGraphOwnedConsumers: ({ authorityDigest }) => readGraphOwnedProductionConsumersV2(

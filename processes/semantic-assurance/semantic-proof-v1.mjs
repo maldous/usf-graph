@@ -28,9 +28,36 @@ export const AUTHORITY_PRINCIPAL = 'urn:usf:principal:matthewaldous';
 export const AUTHORITY_SIGNING_IDENTITY = 'urn:usf:signingidentity:matthewaldoussemanticproofv1';
 export const AUTHORITY_ALGORITHM = 'openpgp';
 export const CLAIM_TYPES = Object.freeze(['owner_assignment', 'candidate_approval', 'publication_grant']);
+export const IMPLEMENTATION_WORK_GRANT_CLAIM_TYPE = 'implementation_work_grant';
+export const IMPLEMENTATION_WORK_GRANT_SCHEMA = 'usf-implementation-work-grant-v1';
+export const IMPLEMENTATION_WORK_GRANT_PURPOSE = 'V2_NATIVE_HANDOVER implementation only';
+export const IMPLEMENTATION_WORK_GRANT_ALLOWED_ACTIONS = Object.freeze([
+  'candidate_existing_file_edit',
+  'candidate_signing_and_protection',
+  'cas_closure',
+  'compilation_and_build',
+  'evidence_generation',
+  'independent_review',
+  'isolated_read_only_rehearsal',
+  'tests',
+]);
+export const IMPLEMENTATION_WORK_GRANT_DENIED_EFFECTS = Object.freeze([
+  'a0_capture',
+  'authority_mutation',
+  'business_semantic_scope_expansion',
+  'deployment',
+  'implicit_path_widening',
+  'learned_execution',
+  'production_write',
+  'provider_contact',
+  'pruning',
+  'semantic_publication',
+  'v2_activation',
+]);
 export const DEFAULT_TRUST_ANCHOR = '/var/lib/usf-programme/trust/semantic-authority.json';
 export const DEFAULT_PUBLIC_KEY = '/var/lib/usf-programme/trust/semantic-authority-public-key.gpg';
 export const DEFAULT_REPLAY_LEDGER = '/var/lib/usf-programme/trust/semantic-proof-v1-replay-ledger.json';
+export const DEFAULT_IMPLEMENTATION_WORK_GRANT_LEDGER = DEFAULT_REPLAY_LEDGER;
 export const GPGV_EXECUTABLE = '/usr/bin/gpgv';
 export const APPROVED_AUTHORITY_SCOPES = Object.freeze([
   Object.freeze({
@@ -69,6 +96,15 @@ const PAYLOAD_FIELDS = Object.freeze([
   'algorithm', 'authority_domain', 'authority_pre_digest', 'candidate_digest', 'claim_type',
   'expires_at', 'fingerprint', 'issued_at', 'nonce', 'principal', 'protocol', 'repository',
   'signing_identity', 'single_use', 'source_scope_digest',
+]);
+const IMPLEMENTATION_WORK_GRANT_PAYLOAD_FIELDS = Object.freeze([
+  'algorithm', 'allowed_actions', 'authority_pre_digest', 'claim_type', 'denied_effects',
+  'evidence_set_digest', 'expires_at', 'fingerprint', 'issued_at', 'nonce', 'principal',
+  'nonpublication_dependency_set_digest', 'protocol', 'purpose', 'repositories',
+  'schema_version', 'signing_identity', 'single_use',
+]);
+const IMPLEMENTATION_WORK_REPOSITORY_SCOPE_FIELDS = Object.freeze([
+  'predecessor_commit', 'predecessor_tree', 'repository', 'source_paths', 'source_scope_digest',
 ]);
 const RECEIPT_FIELDS = Object.freeze([
   'action_state', 'authority_after_digest', 'authority_before_digest', 'authority_domain',
@@ -197,12 +233,64 @@ function assertApprovedAuthorityScope(anchor, authorityDomain, repository) {
 export function readEnvelope(path) {
   const envelope = JSON.parse(readFileSync(path, 'utf8'));
   exactObject(envelope, ['payload', 'signature'], 'signed envelope');
-  exactObject(envelope.payload, PAYLOAD_FIELDS, 'signed envelope payload');
+  exactObject(envelope.payload, envelope.payload?.claim_type === IMPLEMENTATION_WORK_GRANT_CLAIM_TYPE
+    ? IMPLEMENTATION_WORK_GRANT_PAYLOAD_FIELDS : PAYLOAD_FIELDS, 'signed envelope payload');
   if (typeof envelope.signature !== 'string' || !envelope.signature.includes('BEGIN PGP SIGNATURE')) {
     throw new Error('signed envelope requires one ASCII-armored OpenPGP signature');
   }
   return Object.freeze({ payload: Object.freeze({ ...envelope.payload }), signature: envelope.signature });
 }
+
+function exactCanonicalStringSet(values, expected, label) {
+  if (!Array.isArray(values) || canonicalJson(values) !== canonicalJson(expected)) {
+    throw new Error(`${label} is not the exact canonical set`);
+  }
+  return Object.freeze([...values]);
+}
+
+export function canonicalImplementationWorkRepositoryScopes(scopes) {
+  if (!Array.isArray(scopes) || scopes.length !== 2) {
+    throw new Error('implementation work grant requires exactly two repository scopes');
+  }
+  const canonical = scopes.map((scope) => {
+    exactObject(scope, IMPLEMENTATION_WORK_REPOSITORY_SCOPE_FIELDS, 'implementation work repository scope');
+    if (!['maldous/usf-factory', 'maldous/usf-graph'].includes(scope.repository)) {
+      throw new Error('implementation work grant repository is outside the closed cross-repository set');
+    }
+    if (!/^[0-9a-f]{40}$/.test(scope.predecessor_commit || '')
+        || !/^[0-9a-f]{40}$/.test(scope.predecessor_tree || '')) {
+      throw new Error('implementation work repository predecessor identity is invalid');
+    }
+    const sourcePaths = canonicalSourcePaths(scope.source_paths);
+    if (scope.source_scope_digest !== sourceScopeDigest(sourcePaths)) {
+      throw new Error('implementation work repository scope digest does not match its exact paths');
+    }
+    return Object.freeze({ ...scope, source_paths: sourcePaths });
+  }).sort((left, right) => utf8(left.repository, right.repository));
+  if (new Set(canonical.map(({ repository }) => repository)).size !== 2
+      || canonical[0].repository !== 'maldous/usf-factory'
+      || canonical[1].repository !== 'maldous/usf-graph'
+      || canonicalJson(scopes) !== canonicalJson(canonical)) {
+    throw new Error('implementation work repository scopes are not the exact canonical pair');
+  }
+  return Object.freeze(canonical);
+}
+
+export const implementationWorkGrantEvidenceSetDigest = (digests) => {
+  if (!Array.isArray(digests) || digests.length < 1 || digests.some((digest) => !SHA256.test(digest))) {
+    throw new Error('implementation work grant evidence set requires exact sha256 digests');
+  }
+  const canonical = [...digests].sort(utf8);
+  if (new Set(canonical).size !== canonical.length || canonicalJson(digests) !== canonicalJson(canonical)) {
+    throw new Error('implementation work grant evidence set is not canonical');
+  }
+  return sha256(canonicalJson(canonical));
+};
+
+export const implementationWorkGrantCandidateDigest = (payload) => {
+  exactObject(payload, IMPLEMENTATION_WORK_GRANT_PAYLOAD_FIELDS, 'implementation work grant payload');
+  return sha256(canonicalJson(payload));
+};
 
 const REAL_METADATA_IO = Object.freeze({ lstat: lstatSync, realpath: realpathSync, stat: statSync });
 
@@ -335,6 +423,81 @@ export function verifyEnvelope(envelope, {
   return Object.freeze({ ...payload, envelope_digest: envelopeDigest(envelope) });
 }
 
+export function verifyImplementationWorkGrantEnvelope(envelope, {
+  trustAnchor = readTrustAnchor(),
+  publicKeyPath = DEFAULT_PUBLIC_KEY,
+  verifyDetached = defaultDetachedVerifier,
+  authorityPreDigest,
+  repositories,
+  evidenceDigests,
+  now = new Date(),
+  metadataIo,
+} = {}) {
+  exactObject(envelope, ['payload', 'signature'], 'implementation work grant envelope');
+  const payload = exactObject(
+    envelope.payload,
+    IMPLEMENTATION_WORK_GRANT_PAYLOAD_FIELDS,
+    'implementation work grant payload',
+  );
+  assertTrustAnchor(trustAnchor);
+  if (payload.claim_type !== IMPLEMENTATION_WORK_GRANT_CLAIM_TYPE
+      || payload.schema_version !== IMPLEMENTATION_WORK_GRANT_SCHEMA
+      || payload.protocol !== trustAnchor.protocol
+      || payload.principal !== trustAnchor.principal
+      || payload.signing_identity !== AUTHORITY_SIGNING_IDENTITY
+      || payload.fingerprint !== trustAnchor.fingerprint
+      || payload.algorithm !== trustAnchor.algorithm) {
+    throw new Error('implementation work grant is not signed under the anchored Semantic Proof Protocol v1 identity');
+  }
+  if (payload.purpose !== IMPLEMENTATION_WORK_GRANT_PURPOSE) {
+    throw new Error('implementation work grant purpose mismatch');
+  }
+  exactCanonicalStringSet(payload.allowed_actions, IMPLEMENTATION_WORK_GRANT_ALLOWED_ACTIONS, 'implementation work grant ALLOW set');
+  exactCanonicalStringSet(payload.denied_effects, IMPLEMENTATION_WORK_GRANT_DENIED_EFFECTS, 'implementation work grant DENY set');
+  const canonicalRepositories = canonicalImplementationWorkRepositoryScopes(payload.repositories);
+  if (repositories !== undefined
+      && canonicalJson(canonicalRepositories) !== canonicalJson(canonicalImplementationWorkRepositoryScopes(repositories))) {
+    throw new Error('implementation work grant repository scope substitution was rejected');
+  }
+  for (const repository of canonicalRepositories) {
+    if (!trustAnchor.authorityScopes.some((scope) => scope.repository === repository.repository)) {
+      throw new Error('implementation work grant repository is not rooted in the active trust anchor');
+    }
+  }
+  exactDigest(payload.authority_pre_digest, 'implementation work grant authority pre-digest');
+  if (payload.authority_pre_digest !== authorityPreDigest) {
+    throw new Error('implementation work grant authority pre-digest mismatch');
+  }
+  if (evidenceDigests !== undefined
+      && payload.evidence_set_digest !== implementationWorkGrantEvidenceSetDigest(evidenceDigests)) {
+    throw new Error('implementation work grant evidence set mismatch');
+  }
+  exactDigest(payload.evidence_set_digest, 'implementation work grant evidence set digest');
+  exactDigest(payload.nonpublication_dependency_set_digest,
+    'implementation work grant non-publication dependency set digest');
+  if (!NONCE.test(payload.nonce) || payload.single_use !== true) {
+    throw new Error('implementation work grant must have an exact one-shot nonce');
+  }
+  const issued = timestamp(payload.issued_at, 'issued_at');
+  const expires = timestamp(payload.expires_at, 'expires_at');
+  const observed = now instanceof Date ? now.getTime() : Date.parse(now);
+  if (!Number.isFinite(observed) || issued > observed || expires <= observed || expires <= issued) {
+    throw new Error('implementation work grant is not current at trusted time');
+  }
+  const fingerprint = verifyDetached(Buffer.from(`${canonicalJson(payload)}\n`), envelope.signature, {
+    publicKeyPath, metadataIo,
+  });
+  if (fingerprint !== trustAnchor.fingerprint) {
+    throw new Error('implementation work grant signature was made by an unknown or integrity-only signer');
+  }
+  return Object.freeze({
+    ...payload,
+    candidate_digest: implementationWorkGrantCandidateDigest(payload),
+    envelope_digest: envelopeDigest(envelope),
+    repositories: canonicalRepositories,
+  });
+}
+
 export function verifyPublicationBundle({
   ownerAssignment,
   candidateApproval,
@@ -429,6 +592,147 @@ function readLedger(path, journalIo = REAL_JOURNAL_IO) {
 
 function writeLedger(path, ledger, journalIo = REAL_JOURNAL_IO) {
   assertJournalIo(journalIo).write(path, `${canonicalJson(ledger)}\n`);
+}
+
+function verifiedImplementationWorkGrant(grant) {
+  if (grant?.claim_type !== IMPLEMENTATION_WORK_GRANT_CLAIM_TYPE || grant.single_use !== true
+      || grant.schema_version !== IMPLEMENTATION_WORK_GRANT_SCHEMA
+      || grant.purpose !== IMPLEMENTATION_WORK_GRANT_PURPOSE
+      || !NONCE.test(grant.nonce) || !SHA256.test(grant.candidate_digest)
+      || !SHA256.test(grant.authority_pre_digest) || !SHA256.test(grant.envelope_digest)
+      || !SHA256.test(grant.evidence_set_digest)
+      || !SHA256.test(grant.nonpublication_dependency_set_digest)) {
+    throw new Error('only a verified exact implementation work grant can enter the durable journal');
+  }
+  canonicalImplementationWorkRepositoryScopes(grant.repositories);
+  exactCanonicalStringSet(grant.allowed_actions, IMPLEMENTATION_WORK_GRANT_ALLOWED_ACTIONS, 'implementation work grant ALLOW set');
+  exactCanonicalStringSet(grant.denied_effects, IMPLEMENTATION_WORK_GRANT_DENIED_EFFECTS, 'implementation work grant DENY set');
+  return grant;
+}
+
+function updateImplementationWorkGrantJournal(grant, ledgerPath, update, journalIo = REAL_JOURNAL_IO) {
+  verifiedImplementationWorkGrant(grant);
+  const io = assertJournalIo(journalIo);
+  return io.withLock(ledgerPath, () => {
+    const ledger = readLedger(ledgerPath, io);
+    const current = ledger.nonces[grant.nonce];
+    const next = update(ledger, current);
+    ledger.nonces[grant.nonce] = next;
+    writeLedger(ledgerPath, ledger, io);
+    return Object.freeze({ nonce: grant.nonce, ...next });
+  });
+}
+
+function assertImplementationWorkGrantCurrent(grant, {
+  nonPublicationDependencySetDigest,
+  now = new Date(),
+} = {}) {
+  verifiedImplementationWorkGrant(grant);
+  if (grant.nonpublication_dependency_set_digest !== nonPublicationDependencySetDigest) {
+    throw new Error('implementation work grant became terminal when its non-publication authority dependency moved');
+  }
+  const observed = now instanceof Date ? now.getTime() : Date.parse(now);
+  if (!Number.isFinite(observed) || timestamp(grant.expires_at, 'expires_at') <= observed) {
+    throw new Error('implementation work grant expired');
+  }
+  return grant;
+}
+
+export function reserveImplementationWorkGrant(grant, {
+  authorityDigest,
+  nonPublicationDependencySetDigest,
+  journalIo = REAL_JOURNAL_IO,
+  ledgerPath = DEFAULT_IMPLEMENTATION_WORK_GRANT_LEDGER,
+  now = new Date(),
+  observedAt = now instanceof Date ? now.toISOString().replace(/\.\d{3}Z$/, 'Z') : now,
+} = {}) {
+  assertImplementationWorkGrantCurrent(grant, { nonPublicationDependencySetDigest, now });
+  exactDigest(authorityDigest, 'implementation work grant reservation authority digest');
+  assertJournalIo(journalIo).ensureDirectory(dirname(ledgerPath));
+  return updateImplementationWorkGrantJournal(grant, ledgerPath, (ledger, current) => {
+    if (current) throw new Error('implementation work grant nonce was replayed or already reserved');
+    if (Object.values(ledger.nonces).some((record) => record.claim_type === IMPLEMENTATION_WORK_GRANT_CLAIM_TYPE
+        && record.candidate_digest === grant.candidate_digest)) {
+      throw new Error('implementation work grant candidate already has a durable reservation');
+    }
+    return {
+      authority_pre_digest: grant.authority_pre_digest,
+      candidate_digest: grant.candidate_digest,
+      claim_type: IMPLEMENTATION_WORK_GRANT_CLAIM_TYPE,
+      envelope_digest: grant.envelope_digest,
+      evidence_set_digest: grant.evidence_set_digest,
+      nonpublication_dependency_set_digest: grant.nonpublication_dependency_set_digest,
+      reservation_authority_digest: authorityDigest,
+      expires_at: grant.expires_at,
+      repositories: JSON.parse(canonicalJson(grant.repositories)),
+      reserved_at: canonicalUtcSecond(observedAt, 'reserved_at'),
+      state: 'reserved',
+    };
+  }, journalIo);
+}
+
+export function readImplementationWorkGrantTransaction(grant, {
+  authorityDigest,
+  nonPublicationDependencySetDigest,
+  journalIo = REAL_JOURNAL_IO,
+  ledgerPath = DEFAULT_IMPLEMENTATION_WORK_GRANT_LEDGER,
+  now = new Date(),
+} = {}) {
+  assertImplementationWorkGrantCurrent(grant, { nonPublicationDependencySetDigest, now });
+  const current = readLedger(ledgerPath, journalIo).nonces[grant.nonce];
+  if (!current) return null;
+  if (current.claim_type !== IMPLEMENTATION_WORK_GRANT_CLAIM_TYPE
+      || current.authority_pre_digest !== grant.authority_pre_digest
+      || current.candidate_digest !== grant.candidate_digest
+      || current.envelope_digest !== grant.envelope_digest
+      || current.evidence_set_digest !== grant.evidence_set_digest
+      || current.nonpublication_dependency_set_digest !== grant.nonpublication_dependency_set_digest
+      || canonicalJson(current.repositories) !== canonicalJson(grant.repositories)) {
+    throw new Error('implementation work grant durable binding mismatch');
+  }
+  return Object.freeze(JSON.parse(canonicalJson(current)));
+}
+
+export function completeImplementationWorkGrant(grant, completion, {
+  authorityDigest,
+  nonPublicationDependencySetDigest,
+  journalIo = REAL_JOURNAL_IO,
+  ledgerPath = DEFAULT_IMPLEMENTATION_WORK_GRANT_LEDGER,
+  now = new Date(),
+} = {}) {
+  assertImplementationWorkGrantCurrent(grant, { nonPublicationDependencySetDigest, now });
+  exactObject(completion, ['completed_at', 'evidence_set_digest', 'repositories'], 'implementation work grant completion');
+  canonicalUtcSecond(completion.completed_at, 'completed_at');
+  exactDigest(completion.evidence_set_digest, 'completion evidence set digest');
+  if (!Array.isArray(completion.repositories) || completion.repositories.length !== 2) {
+    throw new Error('implementation work grant completion requires exactly two repositories');
+  }
+  const scopes = canonicalImplementationWorkRepositoryScopes(grant.repositories);
+  const repositories = completion.repositories.map((candidate) => {
+    exactObject(candidate, ['candidate_commit', 'candidate_tree', 'changed_paths', 'repository'], 'implementation work candidate');
+    if (!/^[0-9a-f]{40}$/.test(candidate.candidate_commit || '')
+        || !/^[0-9a-f]{40}$/.test(candidate.candidate_tree || '')) {
+      throw new Error('implementation work candidate identity is invalid');
+    }
+    const scope = scopes.find((entry) => entry.repository === candidate.repository);
+    if (!scope || canonicalJson(canonicalSourcePaths(candidate.changed_paths)) !== canonicalJson(scope.source_paths)) {
+      throw new Error('implementation work completion path set differs from the frozen grant');
+    }
+    return Object.freeze({ ...candidate, changed_paths: Object.freeze([...candidate.changed_paths]) });
+  }).sort((left, right) => utf8(left.repository, right.repository));
+  if (canonicalJson(repositories) !== canonicalJson(completion.repositories)) {
+    throw new Error('implementation work completion repositories are not canonical');
+  }
+  return updateImplementationWorkGrantJournal(grant, ledgerPath, (_ledger, current) => {
+    if (!current || current.state !== 'reserved') {
+      throw new Error('implementation work grant is not in the exact reserved state');
+    }
+    return {
+      ...current,
+      completion: JSON.parse(canonicalJson({ ...completion, repositories })),
+      state: 'completed',
+    };
+  }, journalIo);
 }
 
 function verifiedGrant(grant) {

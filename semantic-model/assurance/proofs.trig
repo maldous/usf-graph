@@ -735,4 +735,49 @@
   usf:evaluatedAt "2026-08-15T05:49:22Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
   usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 
+<urn:usf:proofobligation:implementationworkgrantgovernancebootstrap> a usf:ProofObligation;
+  usf:canonicalName "implementationworkgrantgovernancebootstrap";
+  usf:obligationFor sc:compilersemanticenforcement;
+  usf:obligationEffect <urn:usf:obligationeffect:blocking>;
+  usf:usesAssuranceCell <urn:usf:assurancecell:behaviourhermetichermetic>;
+  usf:requiresRung rung:behaviour;
+  usf:requiresEvidence <urn:usf:evidencerequirement:implementationworkgrantgovernancebootstrap>.
+<urn:usf:evidencerequirement:implementationworkgrantgovernancebootstrap> a usf:EvidenceRequirement;
+  usf:canonicalName "implementationworkgrantgovernancebootstrap";
+  usf:obligationFor sc:compilersemanticenforcement;
+  usf:obligationEffect <urn:usf:obligationeffect:blocking>;
+  usf:usesAssuranceCell <urn:usf:assurancecell:behaviourhermetichermetic>;
+  usf:requiresProviderMode pmode:deterministictestsubstitute;
+  usf:requiresEnvironmentClass <urn:usf:environmentclass:hermetic>.
+<urn:usf:proof:implementationworkgrantgovernancebootstrap> a usf:Proof;
+  usf:canonicalName "implementationworkgrantgovernancebootstrap";
+  usf:atRung rung:behaviour; usf:usesProviderMode pmode:deterministictestsubstitute; usf:inEnvironment env:hermetic;
+  usf:exercises sc:compilersemanticenforcement;
+  usf:provesSubject <urn:usf:implementation:implementationworkgrantgovernancebootstrap>.
+<urn:usf:proofexecution:implementationworkgrantgovernancebootstrap> a usf:ProofExecution;
+  usf:canonicalName "implementationworkgrantgovernancebootstrap";
+  usf:executesProof <urn:usf:proof:implementationworkgrantgovernancebootstrap>;
+  usf:producesResult <urn:usf:proofresult:implementationworkgrantgovernancebootstrap>.
+<urn:usf:proofevaluation:implementationworkgrantgovernancebootstrap> a usf:ProofEvaluation;
+  usf:canonicalName "implementationworkgrantgovernancebootstrap";
+  usf:evaluatesObligation <urn:usf:proofobligation:implementationworkgrantgovernancebootstrap>;
+  usf:producesProofResult <urn:usf:proofresult:implementationworkgrantgovernancebootstrap>.
+<urn:usf:proofresult:implementationworkgrantgovernancebootstrap> a usf:ProofResult;
+  usf:canonicalName "implementationworkgrantgovernancebootstrap";
+  usf:resultState rs:passed;
+  usf:resultForProof <urn:usf:proof:implementationworkgrantgovernancebootstrap>;
+  usf:claimedRung rung:behaviour; usf:observedRung rung:behaviour; usf:hasFreshness fresh:fresh;
+  usf:usesProviderMode pmode:deterministictestsubstitute; usf:inEnvironment env:hermetic;
+  usf:hasProofResultState <urn:usf:proofresultstate:successful>;
+  usf:proofResultForObligation <urn:usf:proofobligation:implementationworkgrantgovernancebootstrap>;
+  usf:usesAdmittedEvidence <urn:usf:evidenceresult:implementationworkgrantbootstrapwarrant>;
+  usf:evidenceSetDigest "sha256:99e84165b7e05058eb91cefb84d579a91ba0db19bfa952acaf0288a4643f07f8";
+  usf:evaluatedByValidator <urn:usf:validatorrule:validateimplementationworkgrantbootstrapwarrant>;
+  usf:proofExecutionEnvironment env:hermetic;
+  usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
+  usf:confidenceBasis <urn:usf:evidenceresult:implementationworkgrantbootstrapwarrant>;
+  usf:uncertaintyStatement "This proof warrants only the exact ImplementationWorkGrant governance mechanism and its closed non-semantic authoring boundary. It does not issue Envelope 1 or authorize publication, A0, V2, deployment, production writes, providers, LEARNED, pruning or business semantic-scope expansion.";
+  usf:evaluatedAt "2026-08-16T02:38:37Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+  usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
+
 }

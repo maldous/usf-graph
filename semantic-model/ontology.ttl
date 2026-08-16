@@ -295,6 +295,19 @@ usf:SemanticAdequacyProof a owl:Class;
     rdfs:subClassOf usf:Proof;
     rdfs:label "Semantic adequacy proof";
     rdfs:comment "A deterministic evaluation of a digest-bound semantic adequacy inventory and independent review. It proves only the reviewed semantic state and never implementation behaviour.".
+usf:ImplementationWorkGrant a owl:Class;
+    rdfs:label "Implementation work grant";
+    rdfs:comment "A one-shot authority-bound permission to construct and prove an exact candidate in two closed repository scopes. It grants no semantic publication or operational effect.".
+usf:ImplementationWorkRepositoryScope a owl:Class;
+    rdfs:label "Implementation work repository scope".
+usf:ImplementationWorkGrantState a owl:Class;
+    rdfs:label "Implementation work grant state".
+usf:ImplementationWorkPurpose a owl:Class;
+    rdfs:label "Implementation work purpose".
+usf:ImplementationWorkAction a owl:Class;
+    rdfs:label "Implementation work action".
+usf:ImplementationWorkEffect a owl:Class;
+    rdfs:label "Implementation work effect".
 usf:soleSemanticAuthority a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:SemanticAuthority;
     rdfs:range xsd:boolean.
@@ -1817,6 +1830,44 @@ usf:resolvesAuthorityConflict a owl:ObjectProperty, owl:FunctionalProperty;
 usf:authorityConflictResolutionOwnerAssignment a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:SemanticCorrectionDecision;
     rdfs:range usf:OwnerAssignment.
+usf:implementationWorkGrantAuthorityDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ImplementationWorkGrant; rdfs:range xsd:string.
+usf:implementationWorkGrantPurpose a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ImplementationWorkGrant; rdfs:range usf:ImplementationWorkPurpose.
+usf:implementationWorkGrantState a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ImplementationWorkGrant; rdfs:range usf:ImplementationWorkGrantState.
+usf:implementationWorkGrantNonce a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ImplementationWorkGrant; rdfs:range xsd:string.
+usf:implementationWorkGrantEvidenceSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ImplementationWorkGrant; rdfs:range xsd:string.
+usf:implementationWorkGrantNonPublicationDependencySetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ImplementationWorkGrant; rdfs:range xsd:string.
+usf:implementationWorkGrantCandidateDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ImplementationWorkGrant; rdfs:range xsd:string.
+usf:implementationWorkGrantEnvelopeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ImplementationWorkGrant; rdfs:range xsd:string.
+usf:implementationWorkGrantIssuedAt a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ImplementationWorkGrant; rdfs:range xsd:dateTime.
+usf:implementationWorkGrantExpiresAt a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ImplementationWorkGrant; rdfs:range xsd:dateTime.
+usf:implementationWorkGrantAllows a owl:ObjectProperty;
+    rdfs:domain usf:ImplementationWorkGrant; rdfs:range usf:ImplementationWorkAction.
+usf:implementationWorkGrantDenies a owl:ObjectProperty;
+    rdfs:domain usf:ImplementationWorkGrant; rdfs:range usf:ImplementationWorkEffect.
+usf:implementationWorkGrantRepositoryScope a owl:ObjectProperty;
+    rdfs:domain usf:ImplementationWorkGrant; rdfs:range usf:ImplementationWorkRepositoryScope.
+usf:implementationWorkGrantEvidenceDescriptor a owl:ObjectProperty;
+    rdfs:domain usf:ImplementationWorkGrant; rdfs:range usf:ExternalPayloadDescriptor.
+usf:implementationWorkRepository a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ImplementationWorkRepositoryScope; rdfs:range xsd:string.
+usf:implementationWorkPredecessorCommit a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ImplementationWorkRepositoryScope; rdfs:range xsd:string.
+usf:implementationWorkPredecessorTree a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ImplementationWorkRepositoryScope; rdfs:range xsd:string.
+usf:implementationWorkSourceScopeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ImplementationWorkRepositoryScope; rdfs:range xsd:string.
+usf:implementationWorkSourcePath a owl:DatatypeProperty;
+    rdfs:domain usf:ImplementationWorkRepositoryScope; rdfs:range xsd:string.
 usf:Entity a owl:Class;
     rdfs:label "Entity";
     rdfs:comment "Root of every authored USF concept.".

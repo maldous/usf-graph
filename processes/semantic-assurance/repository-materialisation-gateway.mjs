@@ -9,6 +9,7 @@ import {
   PROOF_CURRENTNESS_CODES,
   proofCurrentnessVerdict,
 } from './proof-currentness.mjs';
+import { readImplementationWorkGrantAuthorityStateV1 } from './semantic-authority-publication.mjs';
 
 const CONTRACT = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation';
 const ACTIVE = 'urn:usf:contractactivationstate:active';
@@ -233,6 +234,31 @@ const GIT_OBJECT = /^[0-9a-f]{40}$/;
 const REPOSITORY_ID = /^[A-Za-z0-9._/-]{1,256}$/;
 const AUTHORITY_IRI = /^urn:usf:[a-z0-9]+:[a-z0-9]+$/;
 const CONFLICT_EFFECT_IRI = /^urn:usf:obligationeffect:[a-z0-9]+$/;
+const IMPLEMENTATION_WORK_GRANT_PURPOSE = 'urn:usf:implementationworkpurpose:v2nativehandover';
+const IMPLEMENTATION_WORK_GRANT_RESERVED = 'urn:usf:implementationworkgrantstate:reserved';
+const IMPLEMENTATION_WORK_ALLOWED = Object.freeze([
+  'urn:usf:implementationworkaction:candidateexistingfileedit',
+  'urn:usf:implementationworkaction:candidatesigningandprotection',
+  'urn:usf:implementationworkaction:casclosure',
+  'urn:usf:implementationworkaction:compilationandbuild',
+  'urn:usf:implementationworkaction:evidencegeneration',
+  'urn:usf:implementationworkaction:independentreview',
+  'urn:usf:implementationworkaction:isolatedreadonlyrehearsal',
+  'urn:usf:implementationworkaction:tests',
+]);
+const IMPLEMENTATION_WORK_DENIED = Object.freeze([
+  'urn:usf:implementationworkeffect:a0capture',
+  'urn:usf:implementationworkeffect:authoritymutation',
+  'urn:usf:implementationworkeffect:businesssemanticscopeexpansion',
+  'urn:usf:implementationworkeffect:deployment',
+  'urn:usf:implementationworkeffect:implicitpathwidening',
+  'urn:usf:implementationworkeffect:learnedexecution',
+  'urn:usf:implementationworkeffect:productionwrite',
+  'urn:usf:implementationworkeffect:providercontact',
+  'urn:usf:implementationworkeffect:pruning',
+  'urn:usf:implementationworkeffect:semanticpublication',
+  'urn:usf:implementationworkeffect:v2activation',
+]);
 
 function exactKeys(valueToCheck, expected, label) {
   if (!valueToCheck || typeof valueToCheck !== 'object' || Array.isArray(valueToCheck)) {
@@ -332,6 +358,129 @@ function normaliseAuthorityConflictBinding(binding, operations) {
 
 function sameSet(left, right) {
   return jcs([...new Set(left || [])].sort()) === jcs([...new Set(right || [])].sort());
+}
+
+function normaliseImplementationWorkGrantBinding(value) {
+  exactKeys(value, [
+    'evidenceSetDigest', 'grantCandidateDigest', 'grantIri',
+    'nonPublicationDependencySetDigest', 'predecessorCommit', 'predecessorTree', 'repository',
+  ], 'implementation work grant plan binding');
+  if (!SHA256.test(value.evidenceSetDigest || '')
+      || !SHA256.test(value.grantCandidateDigest || '')
+      || !SHA256.test(value.nonPublicationDependencySetDigest || '')
+      || value.grantIri !== `urn:usf:implementationworkgrant:${value.grantCandidateDigest.slice(7)}`
+      || !REPOSITORY_ID.test(value.repository || '')
+      || !GIT_OBJECT.test(value.predecessorCommit || '')
+      || !GIT_OBJECT.test(value.predecessorTree || '')) {
+    throw new Error('implementation work grant plan binding identity is invalid');
+  }
+  return Object.freeze({ ...value });
+}
+
+function normaliseImplementationWorkGrantProjection(value) {
+  exactKeys(value, [
+    'allowedActions', 'authorityDigest', 'deniedEffects', 'evidenceSetDigest', 'expiresAt',
+    'grantCandidateDigest', 'grantIri', 'issuedAt', 'nonPublicationDependencySetDigest',
+    'nonce', 'purpose', 'repositories', 'state', 'transactionState',
+  ], 'implementation work grant projection');
+  if (!SHA256.test(value.authorityDigest || '') || !SHA256.test(value.evidenceSetDigest || '')
+      || !SHA256.test(value.nonPublicationDependencySetDigest || '')
+      || !SHA256.test(value.grantCandidateDigest || '')
+      || value.grantIri !== `urn:usf:implementationworkgrant:${value.grantCandidateDigest.slice(7)}`
+      || value.purpose !== IMPLEMENTATION_WORK_GRANT_PURPOSE || value.state !== IMPLEMENTATION_WORK_GRANT_RESERVED
+      || value.transactionState !== 'reserved'
+      || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value.nonce || '')
+      || !Number.isFinite(Date.parse(value.issuedAt)) || !Number.isFinite(Date.parse(value.expiresAt))) {
+    throw new Error('implementation work grant projection identity is invalid');
+  }
+  const allowedActions = exactSortedSet(value.allowedActions, 'implementation work grant ALLOW set');
+  const deniedEffects = exactSortedSet(value.deniedEffects, 'implementation work grant DENY set');
+  if (!sameSet(allowedActions, IMPLEMENTATION_WORK_ALLOWED)
+      || !sameSet(deniedEffects, IMPLEMENTATION_WORK_DENIED)) {
+    throw new Error('implementation work grant ALLOW or DENY set differs from the closed capability');
+  }
+  if (!Array.isArray(value.repositories) || value.repositories.length !== 2) {
+    throw new Error('implementation work grant requires exactly two repository scopes');
+  }
+  const repositories = value.repositories.map((scope) => {
+    exactKeys(scope, [
+      'predecessorCommit', 'predecessorTree', 'repository', 'sourcePaths', 'sourceScopeDigest',
+    ], 'implementation work repository scope');
+    const paths = exactSortedSet(scope.sourcePaths, 'implementation work repository source paths');
+    if (!['maldous/usf-factory', 'maldous/usf-graph'].includes(scope.repository)
+        || !GIT_OBJECT.test(scope.predecessorCommit || '') || !GIT_OBJECT.test(scope.predecessorTree || '')
+        || digest(jcs(paths)) !== scope.sourceScopeDigest) {
+      throw new Error('implementation work repository scope is invalid');
+    }
+    return Object.freeze({ ...scope, sourcePaths: paths });
+  }).sort((left, right) => left.repository.localeCompare(right.repository));
+  if (jcs(repositories) !== jcs(value.repositories)
+      || repositories[0].repository !== 'maldous/usf-factory'
+      || repositories[1].repository !== 'maldous/usf-graph') {
+    throw new Error('implementation work repository scopes are not the canonical pair');
+  }
+  return Object.freeze({ ...value, allowedActions, deniedEffects, repositories: Object.freeze(repositories) });
+}
+
+function evaluateImplementationWorkGrantProjection({
+  grant,
+  nonPublicationDependencySetDigest,
+  repository,
+  predecessorCommit,
+  predecessorTree,
+  operations,
+  observedAt,
+  repositoryRoot,
+}) {
+  const failures = [];
+  let canonical;
+  try { canonical = normaliseImplementationWorkGrantProjection(grant); } catch (error) {
+    return Object.freeze({ actionState: ACTION_STATES.block, authorisedPaths: Object.freeze([]), failures: Object.freeze([{ code: 'implementation-work-grant-invalid', detail: error.message }]) });
+  }
+  const scope = canonical.repositories.find((item) => item.repository === repository);
+  if (canonical.nonPublicationDependencySetDigest !== nonPublicationDependencySetDigest) {
+    failures.push({ code: 'implementation-work-grant-stale-authority-dependency' });
+  }
+  if (!scope) failures.push({ code: 'implementation-work-grant-repository-absent' });
+  else {
+    if (scope.predecessorCommit !== predecessorCommit) failures.push({ code: 'implementation-work-grant-predecessor-commit' });
+    if (scope.predecessorTree !== predecessorTree) failures.push({ code: 'implementation-work-grant-predecessor-tree' });
+  }
+  const now = Date.parse(observedAt);
+  if (!Number.isFinite(now) || Date.parse(canonical.issuedAt) > now || Date.parse(canonical.expiresAt) <= now) {
+    failures.push({ code: 'implementation-work-grant-not-current' });
+  }
+  if (!Array.isArray(operations) || operations.length < 1 || operations.length > MAX_OPERATIONS) {
+    failures.push({ code: 'implementation-work-grant-operation-bound' });
+  } else if (scope) {
+    for (const [index, operation] of operations.entries()) {
+      if (operation?.action !== 'write-file' || !SHA256.test(operation?.sourceDigest || '')
+          || !scope.sourcePaths.includes(operation?.path)) {
+        failures.push({ code: 'implementation-work-grant-operation-outside-scope', index });
+        continue;
+      }
+      try {
+        if (!repositoryRoot) throw new Error('repository root is absent');
+        const root = realpathSync(repositoryRoot);
+        const target = resolve(root, operation.path);
+        if (!containedBy(root, target) || !existsSync(target)) throw new Error('target does not exist');
+        assertNoSymlinkSegments(root, target, 'implementation work grant target');
+        const metadata = lstatSync(target);
+        if (!metadata.isFile() || metadata.isSymbolicLink() || realpathSync(target) !== target) {
+          throw new Error('target is not one canonical existing regular file');
+        }
+        if (sourceDigest(target) !== operation.sourceDigest) throw new Error('source preimage differs');
+      } catch (error) {
+        failures.push({ code: 'implementation-work-grant-existing-source-precondition', index, detail: error.message });
+      }
+    }
+  }
+  return Object.freeze({
+    actionState: failures.length === 0 ? ACTION_STATES.proceed : ACTION_STATES.block,
+    authorisedPaths: failures.length === 0 ? scope.sourcePaths : Object.freeze([]),
+    failures: Object.freeze(failures),
+    grant: failures.length === 0 ? canonical : null,
+  });
 }
 
 function evaluateAuthorityConflictResolution({
@@ -686,13 +835,19 @@ export async function validateLayoutPlan(ctx, plan, verdict = null) {
   const resolved = verdict || await realisationVerdict(ctx, {
     contract: plan?.contract,
     authorityConflictBinding: plan?.authorityConflictBinding,
+    implementationWorkGrantBinding: plan?.implementationWorkGrantBinding,
     operations: plan?.operations,
   });
   const { context } = resolved;
   const failures = [];
+  if (plan?.authorityConflictBinding && plan?.implementationWorkGrantBinding) {
+    failures.push({ code: 'plan-authority-surface-ambiguous' });
+  }
   const expectedKeys = plan?.authorityConflictBinding
     ? ['authorityConflictBinding', 'authorityDigest', 'contract', 'operations', 'planDigest', 'schemaVersion']
-    : ['authorityDigest', 'contract', 'operations', 'planDigest', 'schemaVersion'];
+    : plan?.implementationWorkGrantBinding
+      ? ['authorityDigest', 'contract', 'implementationWorkGrantBinding', 'operations', 'planDigest', 'schemaVersion']
+      : ['authorityDigest', 'contract', 'operations', 'planDigest', 'schemaVersion'];
   if (!plan || jcs(Object.keys(plan).sort()) !== jcs(expectedKeys.sort())) failures.push({ code: 'plan-field-closure' });
   if (plan?.schemaVersion !== 1) failures.push({ code: 'plan-schema-version' });
   if (plan?.authorityDigest !== context.authorityDigest) failures.push({ code: 'plan-authority-digest' });
@@ -730,6 +885,8 @@ export async function createLayoutPlan(ctx, args = {}) {
   const verdict = await realisationVerdict(ctx, {
     contract: args.contract || CONTRACT,
     authorityConflictBinding: args.authorityConflictBinding,
+    implementationWorkGrantIri: args.implementationWorkGrantIri,
+    repository: args.repository,
     operations: args.operations,
   });
   // Refuse before a plan exists. A plan is an authorisation artefact, so it must
@@ -746,6 +903,9 @@ export async function createLayoutPlan(ctx, args = {}) {
     ...(verdict.authorityConflictBinding
       ? { authorityConflictBinding: stable(args.authorityConflictBinding) }
       : {}),
+    ...(verdict.implementationWorkGrantBinding
+      ? { implementationWorkGrantBinding: stable(verdict.implementationWorkGrantBinding) }
+      : {}),
   };
   plan.planDigest = digest(jcs(plan));
   const result = await validateLayoutPlan(ctx, plan, verdict);
@@ -761,6 +921,7 @@ export async function applyLayoutPlan(ctx, args = {}) {
   const verdict = await realisationVerdict(ctx, {
     contract: plan?.contract,
     authorityConflictBinding: plan?.authorityConflictBinding,
+    implementationWorkGrantBinding: plan?.implementationWorkGrantBinding,
     operations: plan?.operations,
   });
   const validation = await validateLayoutPlan(ctx, plan, verdict);
@@ -800,6 +961,15 @@ export async function applyLayoutPlan(ctx, args = {}) {
         throw new Error(
           `authority-conflict successor tree mismatch: expected ${verdict.authorityConflictBinding.successorSourceTree}, observed ${observedTree}`,
         );
+      }
+    } catch (error) {
+      execution.rollbackAndThrow(error);
+    }
+  }
+  if (plan.implementationWorkGrantBinding) {
+    try {
+      if (execution.operations.some((operation) => operation.state === 'already-applied')) {
+        throw new Error('implementation work grant is single-use and its source preimage has already been consumed');
       }
     } catch (error) {
       execution.rollbackAndThrow(error);
@@ -1697,6 +1867,25 @@ export async function realisationVerdict(ctx, args = {}) {
   const authorityConflictBinding = args.authorityConflictBinding
     ? normaliseAuthorityConflictBinding(args.authorityConflictBinding, args.operations)
     : null;
+  const implementationWorkGrantBinding = args.implementationWorkGrantBinding
+    ? normaliseImplementationWorkGrantBinding(args.implementationWorkGrantBinding)
+    : null;
+  if (authorityConflictBinding && implementationWorkGrantBinding) {
+    throw new Error('one materialisation transition cannot combine authority-conflict and implementation-work-grant bindings');
+  }
+  const requestedImplementationWorkGrantIri = implementationWorkGrantBinding?.grantIri
+    ?? args.implementationWorkGrantIri ?? null;
+  const requestedImplementationWorkRepository = implementationWorkGrantBinding?.repository
+    ?? args.repository ?? null;
+  if ((requestedImplementationWorkGrantIri === null) !== (requestedImplementationWorkRepository === null)
+      || (implementationWorkGrantBinding
+        && (args.implementationWorkGrantIri && args.implementationWorkGrantIri !== implementationWorkGrantBinding.grantIri
+          || args.repository && args.repository !== implementationWorkGrantBinding.repository))) {
+    throw new Error('implementation work grant identity and repository must be supplied as one exact binding');
+  }
+  if (authorityConflictBinding && requestedImplementationWorkGrantIri) {
+    throw new Error('one materialisation transition cannot consume two exceptional authority surfaces');
+  }
   // One bracket over the COMPLETE semantic read: contract, lifecycle, activation,
   // proof, decision, authorisations, materialisation rules and the whole
   // validation scope. Previously the witness was read concurrently with the
@@ -1707,11 +1896,34 @@ export async function realisationVerdict(ctx, args = {}) {
     'realisation verdict read',
     async (openingWitness) => {
       const semantics = await readLayoutSemantics(ctx, { contract: args.contract || CONTRACT });
-      const [validationScopeValue, mandatoryRows, conflictState] = await Promise.all([
+      let implementationWorkGrantIri = requestedImplementationWorkGrantIri;
+      if (!implementationWorkGrantIri && Array.isArray(args.operations) && args.operations.length > 0) {
+        const grantRows = await ctx.client.select(`SELECT ?grant WHERE {
+          ?grant a <urn:usf:ontology:ImplementationWorkGrant> ;
+            <urn:usf:ontology:implementationWorkGrantState> <urn:usf:implementationworkgrantstate:reserved> .
+        } ORDER BY ?grant LIMIT 2`);
+        if (grantRows.length > 1) throw new Error('live authority has ambiguous reserved implementation work grants');
+        implementationWorkGrantIri = grantRows[0]?.grant?.value ?? null;
+      }
+      const currentNonPublicationDependencySetDigest = validationNonPublicationDependencyDigest(openingWitness.inventory);
+      const readGrant = ctx.readImplementationWorkGrantAuthorityState
+        ?? readImplementationWorkGrantAuthorityStateV1;
+      const [validationScopeValue, mandatoryRows, conflictState, implementationWorkGrant] = await Promise.all([
         validationScope(ctx.client, semantics.contract.id),
         ctx.client.select(`SELECT ?obligation WHERE { <${semantics.contract.id}> <urn:usf:ontology:mandatoryProofObligation> ?obligation } ORDER BY ?obligation LIMIT 64`),
         authorityConflictBinding
           ? readAuthorityConflictState(ctx.client, authorityConflictBinding, openingWitness.digest)
+          : Promise.resolve(null),
+        implementationWorkGrantIri
+          ? readGrant(ctx.client, implementationWorkGrantIri, {
+            casRoot: ctx.casRoot,
+            evidenceStore: ctx.evidenceStore,
+            implementationWorkGrantJournalIo: ctx.implementationWorkGrantJournalIo,
+            implementationWorkGrantLedgerPath: ctx.implementationWorkGrantLedgerPath,
+            nonPublicationDependencySetDigest: currentNonPublicationDependencySetDigest,
+            now: ctx.trustedNow ?? ctx.observedAt ?? new Date(),
+            requireReservedTransaction: true,
+          })
           : Promise.resolve(null),
       ]);
       // Currentness is read inside the SAME bracket as the contract and
@@ -1723,7 +1935,15 @@ export async function realisationVerdict(ctx, args = {}) {
         mandatoryObligations: mandatoryRows.map((row) => row.obligation?.value).filter(Boolean),
         observedAt: ctx.observedAt ?? null,
       });
-      return { semantics, scope: validationScopeValue, currentness, conflictState };
+      return {
+        semantics,
+        scope: validationScopeValue,
+        currentness,
+        conflictState,
+        implementationWorkGrant,
+        implementationWorkGrantIri,
+        currentNonPublicationDependencySetDigest,
+      };
     },
   );
   const context = withAuthority(value.semantics, witness, ctx);
@@ -1767,6 +1987,8 @@ export async function realisationVerdict(ctx, args = {}) {
   let actionState = baseActionState;
   let actionStateReasons = reasons.map((item) => item.code).sort();
   let conflictResolution = null;
+  let implementationWorkGrant = null;
+  let effectiveImplementationWorkGrantBinding = null;
   let effectiveContext = context;
   if (authorityConflictBinding) {
     const resolutionVerdict = evaluateAuthorityConflictResolution({
@@ -1802,6 +2024,77 @@ export async function realisationVerdict(ctx, args = {}) {
       ])].sort();
     }
   }
+  if (value.implementationWorkGrantIri
+      && (requestedImplementationWorkGrantIri || baseActionState !== ACTION_STATES.proceed)) {
+    let predecessorCommit = null;
+    let predecessorTree = null;
+    try {
+      if (!ctx.repositoryRoot) throw new Error('repository root is absent');
+      predecessorCommit = await gitOutput(ctx.repositoryRoot, ['rev-parse', '--verify', 'HEAD']);
+      predecessorTree = await gitOutput(ctx.repositoryRoot, ['rev-parse', '--verify', 'HEAD^{tree}']);
+    } catch (error) {
+      actionState = ACTION_STATES.block;
+      actionStateReasons = [...new Set([...actionStateReasons, 'implementation-work-grant-repository-identity'])].sort();
+    }
+    if (predecessorCommit && predecessorTree) {
+      const matchingScopes = value.implementationWorkGrant.repositories.filter((scopeItem) => (
+        scopeItem.predecessorCommit === predecessorCommit
+        && scopeItem.predecessorTree === predecessorTree
+        && args.operations.every((operation) => scopeItem.sourcePaths.includes(operation.path))
+      ));
+      const implementationWorkRepository = requestedImplementationWorkRepository
+        ?? (matchingScopes.length === 1 ? matchingScopes[0].repository : null);
+      const grantVerdict = evaluateImplementationWorkGrantProjection({
+        grant: value.implementationWorkGrant,
+        nonPublicationDependencySetDigest: value.currentNonPublicationDependencySetDigest,
+        repository: implementationWorkRepository,
+        predecessorCommit,
+        predecessorTree,
+        operations: args.operations,
+        observedAt: ctx.trustedNow ?? ctx.observedAt ?? new Date(),
+        repositoryRoot: ctx.repositoryRoot,
+      });
+      if (grantVerdict.actionState === ACTION_STATES.proceed) {
+        implementationWorkGrant = grantVerdict.grant;
+        const scopeForRepository = implementationWorkGrant.repositories
+          .find((scopeItem) => scopeItem.repository === implementationWorkRepository);
+        effectiveImplementationWorkGrantBinding = Object.freeze({
+          evidenceSetDigest: implementationWorkGrant.evidenceSetDigest,
+          grantCandidateDigest: implementationWorkGrant.grantCandidateDigest,
+          grantIri: implementationWorkGrant.grantIri,
+          nonPublicationDependencySetDigest: implementationWorkGrant.nonPublicationDependencySetDigest,
+          predecessorCommit: scopeForRepository.predecessorCommit,
+          predecessorTree: scopeForRepository.predecessorTree,
+          repository: scopeForRepository.repository,
+        });
+        if (implementationWorkGrantBinding
+            && jcs(implementationWorkGrantBinding) !== jcs(effectiveImplementationWorkGrantBinding)) {
+          actionState = ACTION_STATES.block;
+          actionStateReasons = [...new Set([...actionStateReasons, 'implementation-work-grant-plan-binding-stale'])].sort();
+          implementationWorkGrant = null;
+          effectiveImplementationWorkGrantBinding = null;
+        } else {
+          actionState = ACTION_STATES.proceed;
+          actionStateReasons = [];
+          effectiveContext = Object.freeze({
+            ...context,
+            authorisedPaths: grantVerdict.authorisedPaths,
+            authorisedRepositories: Object.freeze([implementationWorkRepository]),
+            contract: Object.freeze({
+              ...context.contract,
+              authorisedRepository: implementationWorkRepository,
+            }),
+          });
+        }
+      } else {
+        actionState = ACTION_STATES.block;
+        actionStateReasons = [...new Set([
+          ...actionStateReasons,
+          ...grantVerdict.failures.map((item) => item.code),
+        ])].sort();
+      }
+    }
+  }
   return Object.freeze({
     context: effectiveContext,
     scope,
@@ -1812,6 +2105,8 @@ export async function realisationVerdict(ctx, args = {}) {
     stateFailureCode: REALISATION_STATE_FAILURE_CODES[actionState] ?? null,
     authorityConflictBinding,
     conflictResolution,
+    implementationWorkGrant,
+    implementationWorkGrantBinding: effectiveImplementationWorkGrantBinding,
     // The bracketing witness. Any later read that claims to describe the same
     // authority must still equal this exactly.
     witness,
@@ -2146,6 +2441,9 @@ export const materialisationInternals = Object.freeze({
   assertNoSymlinkSegments,
   containedBy,
   evaluateAuthorityConflictResolution,
+  evaluateImplementationWorkGrantProjection,
+  normaliseImplementationWorkGrantBinding,
+  normaliseImplementationWorkGrantProjection,
   normaliseAuthorityConflictBinding,
   rethrowWithRollback,
   validationNonPublicationDependencyDigest,

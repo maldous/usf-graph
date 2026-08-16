@@ -6,22 +6,32 @@ import {
   AUTHORITY_FINGERPRINT,
   AUTHORITY_PRINCIPAL,
   AUTHORITY_SIGNING_IDENTITY,
+  IMPLEMENTATION_WORK_GRANT_ALLOWED_ACTIONS,
+  IMPLEMENTATION_WORK_GRANT_CLAIM_TYPE,
+  IMPLEMENTATION_WORK_GRANT_DENIED_EFFECTS,
+  IMPLEMENTATION_WORK_GRANT_PURPOSE,
+  IMPLEMENTATION_WORK_GRANT_SCHEMA,
   FINAL_V1_GOVERNED_AUTHORITY_SCOPES,
   GOVERNED_AUTHORITY_SCOPES,
   GPGV_EXECUTABLE,
   REPOSITORY_EXTERNAL_ARTEFACT_MATERIALISATION_SCOPE,
   assertSemanticProofPublicationReceipt,
   canonicalJson,
+  canonicalImplementationWorkRepositoryScopes,
+  completeImplementationWorkGrant,
   consumeGrantNonce,
   ownerAssignmentCandidateDigest,
   publicationReceiptDigest,
+  readImplementationWorkGrantTransaction,
   recordPostPublicationReevaluation,
   recordPublicationOutcome,
   reserveGrantNonce,
+  reserveImplementationWorkGrant,
   semanticProofV1Internals,
   sha256,
   sourceScopeDigest,
   verifyEnvelope,
+  verifyImplementationWorkGrantEnvelope,
   verifyPublicationBundle,
 } from './semantic-proof-v1.mjs';
 import {
@@ -41,6 +51,7 @@ const PUBLISHED = `sha256:${'3'.repeat(64)}`;
 const AFTER = `sha256:${'4'.repeat(64)}`;
 const EXECUTION = `sha256:${'5'.repeat(64)}`;
 const EVALUATION = `sha256:${'6'.repeat(64)}`;
+const NON_PUBLICATION_DEPENDENCY = sha256('implementation-work-grant-non-publication-dependency');
 const NOW = new Date('2026-08-01T12:00:00Z');
 const permissionModelActive = typeof process.permission?.has === 'function';
 const anchor = Object.freeze({
@@ -51,6 +62,54 @@ const anchor = Object.freeze({
 const signature = '-----BEGIN PGP SIGNATURE-----\ntest\n-----END PGP SIGNATURE-----\n';
 const verifyDetached = () => AUTHORITY_FINGERPRINT;
 const nonce = (digit) => `00000000-0000-4000-8000-00000000000${digit}`;
+const WORK_SCOPES = Object.freeze([
+  Object.freeze({
+    predecessor_commit: '5'.repeat(40), predecessor_tree: '6'.repeat(40), repository: 'maldous/usf-factory',
+    source_paths: Object.freeze(['src/usf_factory/activation.py', 'tests/test_activation.py']),
+    source_scope_digest: sourceScopeDigest(['src/usf_factory/activation.py', 'tests/test_activation.py']),
+  }),
+  Object.freeze({
+    predecessor_commit: '7'.repeat(40), predecessor_tree: '8'.repeat(40), repository: 'maldous/usf-graph',
+    source_paths: Object.freeze(['processes/semantic-assurance/semantic-proof-v2.mjs']),
+    source_scope_digest: sourceScopeDigest(['processes/semantic-assurance/semantic-proof-v2.mjs']),
+  }),
+]);
+const WORK_EVIDENCE = Object.freeze([sha256('decision'), sha256('review'), sha256('validation')].sort());
+
+function implementationWorkEnvelope(overrides = {}) {
+  const payload = {
+    algorithm: 'openpgp',
+    allowed_actions: IMPLEMENTATION_WORK_GRANT_ALLOWED_ACTIONS,
+    authority_pre_digest: PRE,
+    claim_type: IMPLEMENTATION_WORK_GRANT_CLAIM_TYPE,
+    denied_effects: IMPLEMENTATION_WORK_GRANT_DENIED_EFFECTS,
+    evidence_set_digest: sha256(canonicalJson(WORK_EVIDENCE)),
+    expires_at: '2026-08-02T12:00:00Z',
+    fingerprint: AUTHORITY_FINGERPRINT,
+    issued_at: '2026-08-01T11:00:00Z',
+    nonce: nonce('9'),
+    nonpublication_dependency_set_digest: NON_PUBLICATION_DEPENDENCY,
+    principal: AUTHORITY_PRINCIPAL,
+    protocol: 'semantic-proof-v1',
+    purpose: IMPLEMENTATION_WORK_GRANT_PURPOSE,
+    repositories: WORK_SCOPES,
+    schema_version: IMPLEMENTATION_WORK_GRANT_SCHEMA,
+    signing_identity: AUTHORITY_SIGNING_IDENTITY,
+    single_use: true,
+    ...overrides,
+  };
+  return { payload, signature };
+}
+
+const verifyImplementationGrant = (value, options = {}) => verifyImplementationWorkGrantEnvelope(value, {
+  trustAnchor: anchor,
+  verifyDetached,
+  authorityPreDigest: PRE,
+  repositories: WORK_SCOPES,
+  evidenceDigests: WORK_EVIDENCE,
+  now: NOW,
+  ...options,
+});
 
 function runGpg(args, options = {}) {
   const result = spawnSync('/usr/bin/gpg', args, {
@@ -169,6 +228,78 @@ function terminalReceipt(grant, publicationPhase = 'reevaluation') {
 test('approved signer is accepted through the one canonical envelope', () => {
   assert.equal(verify(envelope('candidate_approval')).fingerprint, AUTHORITY_FINGERPRINT);
   assert.equal(canonicalJson({ b: 2, a: 1 }), '{"a":1,"b":2}');
+});
+
+test('implementation work grant is exact, cross-repository, non-semantic and separately verified', () => {
+  const grant = verifyImplementationGrant(implementationWorkEnvelope());
+  assert.equal(grant.claim_type, IMPLEMENTATION_WORK_GRANT_CLAIM_TYPE);
+  assert.equal(grant.purpose, IMPLEMENTATION_WORK_GRANT_PURPOSE);
+  assert.deepEqual(grant.repositories, WORK_SCOPES);
+  assert.match(grant.candidate_digest, /^sha256:[0-9a-f]{64}$/);
+  assert.throws(() => verify(implementationWorkEnvelope()), /signed envelope payload|claim type/);
+  assert.deepEqual(canonicalImplementationWorkRepositoryScopes(WORK_SCOPES), WORK_SCOPES);
+});
+
+test('implementation work grant rejects every authority, scope, effect, evidence, time and signer substitution', () => {
+  const substitutions = [
+    [{ authority_pre_digest: sha256('wrong') }, {}, /authority pre-digest mismatch/],
+    [{ purpose: 'broader purpose' }, {}, /purpose mismatch/],
+    [{ allowed_actions: [...IMPLEMENTATION_WORK_GRANT_ALLOWED_ACTIONS, 'semantic_publication'] }, {}, /ALLOW set/],
+    [{ denied_effects: IMPLEMENTATION_WORK_GRANT_DENIED_EFFECTS.slice(1) }, {}, /DENY set/],
+    [{ repositories: WORK_SCOPES.slice(0, 1) }, {}, /exactly two repository scopes/],
+    [{ repositories: WORK_SCOPES.map((scope, index) => index ? scope : { ...scope, predecessor_tree: '9'.repeat(40) }) }, {}, /scope substitution/],
+    [{ repositories: WORK_SCOPES.map((scope, index) => index ? scope : { ...scope, source_scope_digest: sha256('wrong') }) }, {}, /scope digest/],
+    [{ evidence_set_digest: sha256('wrong') }, {}, /evidence set mismatch/],
+    [{ expires_at: '2026-08-01T12:00:00Z' }, {}, /not current/],
+    [{ fingerprint: 'A'.repeat(40) }, {}, /anchored Semantic Proof Protocol/],
+    [{ single_use: false }, {}, /one-shot nonce/],
+  ];
+  for (const [overrides, options, pattern] of substitutions) {
+    assert.throws(() => verifyImplementationGrant(implementationWorkEnvelope(overrides), options), pattern);
+  }
+});
+
+test('implementation work grant reservation is one-shot, authority-bound and completes only exact frozen scopes', () => {
+  const ledgerPath = 'deterministic:implementation-work-grant-ledger';
+  const journalIo = memoryJournalIo(ledgerPath);
+  const grant = verifyImplementationGrant(implementationWorkEnvelope());
+  const options = {
+    authorityDigest: PRE,
+    journalIo,
+    ledgerPath,
+    nonPublicationDependencySetDigest: NON_PUBLICATION_DEPENDENCY,
+    now: NOW,
+  };
+  assert.equal(reserveImplementationWorkGrant(grant, options).state, 'reserved');
+  assert.throws(() => reserveImplementationWorkGrant(grant, options), /replayed or already reserved/);
+  assert.equal(readImplementationWorkGrantTransaction(grant, options).state, 'reserved');
+  assert.equal(readImplementationWorkGrantTransaction(grant, {
+    ...options, authorityDigest: AFTER,
+  }).state, 'reserved');
+  assert.throws(() => readImplementationWorkGrantTransaction(grant, {
+    ...options, nonPublicationDependencySetDigest: sha256('changed non-publication dependency'),
+  }), /non-publication authority dependency moved/);
+  const completion = {
+    completed_at: '2026-08-01T12:00:00Z',
+    evidence_set_digest: sha256('candidate-evidence'),
+    repositories: WORK_SCOPES.map((scope, index) => ({
+      candidate_commit: String(index + 1).repeat(40),
+      candidate_tree: String(index + 3).repeat(40),
+      changed_paths: scope.source_paths,
+      repository: scope.repository,
+    })),
+  };
+  assert.throws(() => completeImplementationWorkGrant(grant, {
+    ...completion,
+    repositories: completion.repositories.map((candidate, index) => index ? candidate : {
+      ...candidate, changed_paths: candidate.changed_paths.slice(0, 1),
+    }),
+  }, options), /path set differs/);
+  assert.equal(completeImplementationWorkGrant(grant, completion, options).state, 'completed');
+  assert.throws(() => completeImplementationWorkGrant(grant, completion, options), /exact reserved state/);
+  assert.throws(() => readImplementationWorkGrantTransaction(grant, {
+    ...options, now: new Date('2026-08-03T00:00:00Z'),
+  }), /expired/);
 });
 
 test('unknown and integrity-only signers cannot establish authority', () => {

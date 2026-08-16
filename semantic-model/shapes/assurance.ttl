@@ -397,6 +397,88 @@ shp:AuthorityConflictResolutionShape a sh:NodeShape;
         FILTER(?other != $this)
       }"""
     ].
+
+shp:ImplementationWorkGrantShape a sh:NodeShape;
+    usf:canonicalName "implementationworkgrantshape";
+    sh:targetClass usf:ImplementationWorkGrant;
+    sh:property [ sh:path usf:canonicalName; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:minLength 1 ];
+    sh:property [ sh:path usf:implementationWorkGrantAuthorityDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$" ];
+    sh:property [ sh:path usf:implementationWorkGrantPurpose; sh:minCount 1; sh:maxCount 1; sh:hasValue <urn:usf:implementationworkpurpose:v2nativehandover> ];
+    sh:property [ sh:path usf:implementationWorkGrantState; sh:minCount 1; sh:maxCount 1; sh:class usf:ImplementationWorkGrantState ];
+    sh:property [ sh:path usf:implementationWorkGrantNonce; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ];
+    sh:property [ sh:path usf:implementationWorkGrantEvidenceSetDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$" ];
+    sh:property [ sh:path usf:implementationWorkGrantNonPublicationDependencySetDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$" ];
+    sh:property [ sh:path usf:implementationWorkGrantCandidateDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$" ];
+    sh:property [ sh:path usf:implementationWorkGrantEnvelopeDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$" ];
+    sh:property [ sh:path usf:implementationWorkGrantIssuedAt; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:dateTime ];
+    sh:property [ sh:path usf:implementationWorkGrantExpiresAt; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:dateTime ];
+    sh:property [ sh:path usf:implementationWorkGrantAllows; sh:minCount 8; sh:maxCount 8; sh:class usf:ImplementationWorkAction; sh:in (
+      <urn:usf:implementationworkaction:candidateexistingfileedit> <urn:usf:implementationworkaction:candidatesigningandprotection>
+      <urn:usf:implementationworkaction:casclosure> <urn:usf:implementationworkaction:compilationandbuild>
+      <urn:usf:implementationworkaction:evidencegeneration> <urn:usf:implementationworkaction:independentreview>
+      <urn:usf:implementationworkaction:isolatedreadonlyrehearsal> <urn:usf:implementationworkaction:tests>
+    ) ];
+    sh:property [ sh:path usf:implementationWorkGrantDenies; sh:minCount 11; sh:maxCount 11; sh:class usf:ImplementationWorkEffect; sh:in (
+      <urn:usf:implementationworkeffect:a0capture> <urn:usf:implementationworkeffect:authoritymutation>
+      <urn:usf:implementationworkeffect:businesssemanticscopeexpansion> <urn:usf:implementationworkeffect:deployment>
+      <urn:usf:implementationworkeffect:implicitpathwidening> <urn:usf:implementationworkeffect:learnedexecution>
+      <urn:usf:implementationworkeffect:productionwrite> <urn:usf:implementationworkeffect:providercontact>
+      <urn:usf:implementationworkeffect:pruning> <urn:usf:implementationworkeffect:semanticpublication>
+      <urn:usf:implementationworkeffect:v2activation>
+    ) ];
+    sh:property [ sh:path usf:implementationWorkGrantRepositoryScope; sh:minCount 2; sh:maxCount 2; sh:class usf:ImplementationWorkRepositoryScope ];
+    sh:property [ sh:path usf:implementationWorkGrantEvidenceDescriptor; sh:minCount 4; sh:maxCount 4; sh:class usf:ExternalPayloadDescriptor ];
+    sh:property [
+      sh:path usf:implementationWorkGrantEvidenceDescriptor;
+      sh:qualifiedValueShape [ sh:property [ sh:path usf:descriptorArtefactType; sh:hasValue "urn:usf:artefacttype:implementationworkgrantdecision"^^xsd:anyURI ] ];
+      sh:qualifiedMinCount 1; sh:qualifiedMaxCount 1
+    ];
+    sh:property [
+      sh:path usf:implementationWorkGrantEvidenceDescriptor;
+      sh:qualifiedValueShape [ sh:property [ sh:path usf:descriptorArtefactType; sh:hasValue "urn:usf:artefacttype:implementationworkgrantgrant"^^xsd:anyURI ] ];
+      sh:qualifiedMinCount 1; sh:qualifiedMaxCount 1
+    ];
+    sh:property [
+      sh:path usf:implementationWorkGrantEvidenceDescriptor;
+      sh:qualifiedValueShape [ sh:property [ sh:path usf:descriptorArtefactType; sh:hasValue "urn:usf:artefacttype:implementationworkgrantreview"^^xsd:anyURI ] ];
+      sh:qualifiedMinCount 1; sh:qualifiedMaxCount 1
+    ];
+    sh:property [
+      sh:path usf:implementationWorkGrantEvidenceDescriptor;
+      sh:qualifiedValueShape [ sh:property [ sh:path usf:descriptorArtefactType; sh:hasValue "urn:usf:artefacttype:implementationworkgrantvalidation"^^xsd:anyURI ] ];
+      sh:qualifiedMinCount 1; sh:qualifiedMaxCount 1
+    ];
+    sh:sparql [
+      sh:prefixes usf:prefixes;
+      sh:message "implementation work grant IRI must be derived from its exact candidate digest";
+      sh:select """SELECT $this WHERE {
+        $this usf:implementationWorkGrantCandidateDigest ?candidate .
+        BIND(IRI(CONCAT("urn:usf:implementationworkgrant:", STRAFTER(STR(?candidate), "sha256:"))) AS ?expected)
+        FILTER($this != ?expected)
+      }"""
+    ];
+    sh:sparql [
+      sh:prefixes usf:prefixes;
+      sh:message "implementation work grant times, nonce and candidate identity must be unique and one-way";
+      sh:select """SELECT $this WHERE {
+        $this usf:implementationWorkGrantIssuedAt ?issued ; usf:implementationWorkGrantExpiresAt ?expires ;
+              usf:implementationWorkGrantNonce ?nonce ; usf:implementationWorkGrantCandidateDigest ?candidate .
+        FILTER(?expires <= ?issued || EXISTS {
+          ?other a usf:ImplementationWorkGrant ;
+                 (usf:implementationWorkGrantNonce|usf:implementationWorkGrantCandidateDigest) ?same .
+          FILTER(?other != $this && (?same = ?nonce || ?same = ?candidate))
+        })
+      }"""
+    ].
+
+shp:ImplementationWorkRepositoryScopeShape a sh:NodeShape;
+    usf:canonicalName "implementationworkrepositoryscopeshape";
+    sh:targetClass usf:ImplementationWorkRepositoryScope;
+    sh:property [ sh:path usf:implementationWorkRepository; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:in ( "maldous/usf-factory" "maldous/usf-graph" ) ];
+    sh:property [ sh:path usf:implementationWorkPredecessorCommit; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^[0-9a-f]{40}$" ];
+    sh:property [ sh:path usf:implementationWorkPredecessorTree; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^[0-9a-f]{40}$" ];
+    sh:property [ sh:path usf:implementationWorkSourceScopeDigest; sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string; sh:pattern "^sha256:[0-9a-f]{64}$" ];
+    sh:property [ sh:path usf:implementationWorkSourcePath; sh:minCount 1; sh:datatype xsd:string; sh:minLength 1 ].
 shp:ControlShape a sh:NodeShape;
     usf:canonicalName "controlshape";
     sh:targetClass usf:Control.
