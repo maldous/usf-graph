@@ -115,6 +115,15 @@ test('implementation work grant delta is derived from exact reviewed CAS artifac
   for (const predicate of ['descriptorArtefactFamily', 'descriptorRepresentationFormat', 'descriptorArtefactType']) {
     assert.equal(packageValue.permittedOperations.filter((operation) => operation.includes(predicate)).length, 4);
   }
+  assert.ok(packageValue.permittedOperations.some((operation) => operation.includes(
+    'urn:usf:implementationworkrepositoryscope:usffactory',
+  )));
+  assert.ok(packageValue.permittedOperations.some((operation) => operation.includes(
+    'urn:usf:implementationworkrepositoryscope:usfgraph',
+  )));
+  assert.equal(packageValue.permittedOperations.some((operation) => operation.includes(
+    'urn:usf:implementationworkrepositoryscope:usf-',
+  )), false);
   assert.throws(() => semanticModelCompilationCommandInternals.assertImplementationWorkGrantDelta({
     value: { ...packageValue, grantCandidateDigest: contentDigest(Buffer.from('wrong')) },
     expectedAuthorityDigest: authorityDigest, evidenceStore,

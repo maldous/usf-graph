@@ -1816,7 +1816,8 @@ function implementationWorkGrantPatch(validation) {
     add(grantIri, `${USF}implementationWorkGrantDenies`, iri(`urn:usf:implementationworkeffect:${effect.replaceAll('_', '')}`));
   }
   for (const scope of verified.repositories) {
-    const scopeIri = `urn:usf:implementationworkrepositoryscope:${scope.repository.split('/').at(-1)}${scope.source_scope_digest.slice(7)}`;
+    const repositoryToken = scope.repository === 'maldous/usf-factory' ? 'usffactory' : 'usfgraph';
+    const scopeIri = `urn:usf:implementationworkrepositoryscope:${repositoryToken}${scope.source_scope_digest.slice(7)}`;
     add(grantIri, `${USF}implementationWorkGrantRepositoryScope`, iri(scopeIri));
     add(scopeIri, RDF_TYPE, iri(`${USF}ImplementationWorkRepositoryScope`));
     add(scopeIri, `${USF}implementationWorkRepository`, literal(scope.repository));
