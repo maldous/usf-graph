@@ -145,6 +145,10 @@ export async function resolveOwnerBoundary(ctx) {
   return Object.freeze({
     ownershipState: OWNERSHIP.terminal,
     validationCurrentnessState: currentness.state,
+    // The native validation-currentness head travels with the boundary. It is
+    // the canonical terminal-V2 anchor for anything that, under V1, anchored on
+    // a proof result: same role, native representation, no translation.
+    nativeValidationCurrentness: Object.freeze({ ...currentness }),
     terminalAuthorityDigest: observation.authority_digest ?? null,
     observationIdentityDigest: observation.observation_identity_digest ?? null,
   });

@@ -156,8 +156,14 @@ const V1_OWNER_BOUNDARY = PRETERMINAL_OWNER_BOUNDARY;
 // Native currentness, expressed in the declared reason vocabulary so the public
 // work-plan contract is byte-shape identical. A pending handover is an absent
 // conclusion, not a negative one, so it fails closed as UNRESOLVED.
-function nativeCurrentnessVerdict(owner) {
+function nativeCurrentnessVerdict(owner, mandatoryObligations = []) {
   const terminal = owner.ownershipState === OWNERSHIP.terminal;
+  // The contract's mandatory obligations are contract facts, not proof facts:
+  // they survive the handover unchanged. Only the V1 PROOF RESULTS disappear, so
+  // `obligationProofResults` and `perProof` are empty while the obligation set
+  // itself stays exact. Emptying the obligations too would have made a terminal
+  // contract look as though it had no obligations at all.
+  const obligations = Object.freeze([...new Set(mandatoryObligations)].sort());
   // `facts` is part of the currentness shape every consumer already reads. Under
   // native V2 there is no V1 proof result to name, so every collection is EMPTY
   // rather than absent, and the shape itself is preserved. A bare `{}` satisfied
@@ -172,11 +178,11 @@ function nativeCurrentnessVerdict(owner) {
       stateIri: PROOF_CURRENTNESS_STATE_IRI[PROOF_CURRENTNESS.current],
       reasons: Object.freeze([]),
       facts: Object.freeze({
-      proofResults: Object.freeze([]),
-      mandatoryObligations: Object.freeze([]),
-      obligationProofResults: Object.freeze([]),
-      perProof: Object.freeze([]),
-    }),
+        proofResults: Object.freeze([]),
+        mandatoryObligations: obligations,
+        obligationProofResults: Object.freeze([]),
+        perProof: Object.freeze([]),
+      }),
     });
   }
   const state = terminal ? PROOF_CURRENTNESS.stale : PROOF_CURRENTNESS.unresolved;
@@ -188,11 +194,11 @@ function nativeCurrentnessVerdict(owner) {
     stateIri: PROOF_CURRENTNESS_STATE_IRI[state],
     reasons: Object.freeze([code]),
     facts: Object.freeze({
-    proofResults: Object.freeze([]),
-    mandatoryObligations: Object.freeze([]),
-    obligationProofResults: Object.freeze([]),
-    perProof: Object.freeze([]),
-  }),
+      proofResults: Object.freeze([]),
+      mandatoryObligations: obligations,
+      obligationProofResults: Object.freeze([]),
+      perProof: Object.freeze([]),
+    }),
   });
 }
 
@@ -205,7 +211,7 @@ async function ownerBoundaryCurrentness(ctx, owner, contract, mandatoryObligatio
       observedAt: ctx.observedAt ?? null,
     });
   }
-  return nativeCurrentnessVerdict(owner);
+  return nativeCurrentnessVerdict(owner, mandatoryObligations);
 }
 
 function resolveDisposition(code) {
@@ -225,6 +231,11 @@ const DECISION_FORMAT_PREDICATE = 'urn:usf:ontology:authorisesRepresentationForm
 const READ_ONLY_VALIDATION_MODE = 'urn:usf:executionscopemode:readonlysemanticvalidation';
 const MATERIALISATION_MODE = 'urn:usf:executionscopemode:repositorymaterialisation';
 const EXECUTION_SCOPE_SCHEMA = 'urn:usf:schema:contract-execution-scope-core:1';
+// Canonical IRI of a native V2 validation-currentness head. Declared in
+// semantic-model/authority.ttl as usf:V2NativeValidationCurrentnessHead. It is
+// the terminal-V2 anchor of an execution scope, occupying the same role a V1
+// ProofResult IRI occupies before the handover.
+const NATIVE_VALIDATION_CURRENTNESS_IRI_PREFIX = 'urn:usf:v2nativevalidationcurrentness:';
 const EXECUTION_SCOPE_PAYLOAD_SCHEMA = Object.freeze({
   schema: 'urn:usf:identitypayloadschema:contract-execution-scope-v1',
   canonicalisation: 'RFC8785',
@@ -2316,23 +2327,53 @@ export async function projectContract(ctx, args = {}) {
       return projected;
     }),
   };
-  const scopePair = proofCurrentness.obligationProofResults[0];
-  // The current execution-scope schema's single proof anchor is its canonical
-  // content identity, not a translation or alternate reader. This member is
-  // not a proof selection: the complete exact obligation/result bijection
-  // above has already gated CURRENT and remains present in proofCurrentness for
-  // consumer-side conjunction.
-  const scopeProof = scopePair
-    ? proofCurrentness.perProof.find((item) => item.proofResult === scopePair.proofResult) ?? null
-    : null;
-  if (!scopeProof || scopeProof.obligation !== scopePair.obligation) {
-    throw new Error('contract execution scope requires one canonical member of the exact proof-obligation set');
+  // The execution-scope schema's single anchor is its canonical content
+  // identity. Each owner supplies that anchor in ITS OWN canonical
+  // representation -- there is no translation between them, no adapter and no
+  // default. Missing or invalid current data fails closed on both branches.
+  //
+  // V1: the exact proof-obligation bijection above has already gated CURRENT;
+  // this member is not a proof selection.
+  // Terminal V2: there is no V1 proof result to name. The anchor is the native
+  // validation-currentness head, which occupies exactly the same role.
+  let scopeAnchor;
+  if (owner?.ownershipState === OWNERSHIP.terminal) {
+    const head = owner.nativeValidationCurrentness ?? null;
+    const obligationIri = proofCurrentness.mandatoryObligations[0] ?? null;
+    if (!head
+      || typeof head.digest !== 'string'
+      || typeof head.proof_result_digest !== 'string'
+      || typeof head.semantic_scope_digest !== 'string'
+      || typeof owner.terminalAuthorityDigest !== 'string'
+      || !obligationIri) {
+      throw new Error('terminal V2 execution scope requires the exact native validation-currentness head');
+    }
+    scopeAnchor = {
+      obligation: obligationIri,
+      baseAuthorityDigest: owner.terminalAuthorityDigest,
+      proofIri: `${NATIVE_VALIDATION_CURRENTNESS_IRI_PREFIX}${head.digest.slice('sha256:'.length)}`,
+      proofDigest: head.proof_result_digest,
+    };
+  } else {
+    const scopePair = proofCurrentness.obligationProofResults[0];
+    const scopeProof = scopePair
+      ? proofCurrentness.perProof.find((item) => item.proofResult === scopePair.proofResult) ?? null
+      : null;
+    if (!scopeProof || scopeProof.obligation !== scopePair.obligation) {
+      throw new Error('contract execution scope requires one canonical member of the exact proof-obligation set');
+    }
+    scopeAnchor = {
+      obligation: scopeProof.obligation,
+      baseAuthorityDigest: scopeProof.evaluatedAuthorityDigest,
+      proofIri: scopeProof.proofResult,
+      proofDigest: scopeProof.proofResultDigest,
+    };
   }
 
   const scopeMode = readOnlyValidation ? READ_ONLY_VALIDATION_MODE : MATERIALISATION_MODE;
   const scopeCore = readOnlyValidation ? {
     schema: EXECUTION_SCOPE_SCHEMA,
-    obligationIri: scopeProof.obligation,
+    obligationIri: scopeAnchor.obligation,
     contractIri: context.contract.id,
     decisionIri: context.contract.decision,
     modeIri: scopeMode,
@@ -2352,15 +2393,15 @@ export async function projectContract(ctx, args = {}) {
     permittedEffectCount: 1,
     repositoryMutationPermitted: false,
     maximumRepositoryWrites: 0,
-    prepublicationBaseAuthorityDigest: scopeProof.evaluatedAuthorityDigest,
-    prepublicationProofIri: scopeProof.proofResult,
-    prepublicationProofDigest: scopeProof.proofResultDigest,
+    prepublicationBaseAuthorityDigest: scopeAnchor.baseAuthorityDigest,
+    prepublicationProofIri: scopeAnchor.proofIri,
+    prepublicationProofDigest: scopeAnchor.proofDigest,
     payloadSchemaIri: EXECUTION_SCOPE_PAYLOAD_SCHEMA.schema,
     payloadSchemaDigest: digest(jcs(EXECUTION_SCOPE_PAYLOAD_SCHEMA)),
     predicateManifestDigest: digest(jcs(EXECUTION_SCOPE_PREDICATE_MANIFEST)),
   } : {
     schema: EXECUTION_SCOPE_SCHEMA,
-    obligationIri: scopeProof.obligation,
+    obligationIri: scopeAnchor.obligation,
     contractIri: context.contract.id,
     decisionIri: context.contract.decision,
     modeIri: scopeMode,
@@ -2376,9 +2417,9 @@ export async function projectContract(ctx, args = {}) {
     permittedEffectCount: 1,
     repositoryMutationPermitted: true,
     maximumRepositoryWrites: MAX_OPERATIONS,
-    prepublicationBaseAuthorityDigest: scopeProof.evaluatedAuthorityDigest,
-    prepublicationProofIri: scopeProof.proofResult,
-    prepublicationProofDigest: scopeProof.proofResultDigest,
+    prepublicationBaseAuthorityDigest: scopeAnchor.baseAuthorityDigest,
+    prepublicationProofIri: scopeAnchor.proofIri,
+    prepublicationProofDigest: scopeAnchor.proofDigest,
     payloadSchemaIri: EXECUTION_SCOPE_PAYLOAD_SCHEMA.schema,
     payloadSchemaDigest: digest(jcs(EXECUTION_SCOPE_PAYLOAD_SCHEMA)),
     predicateManifestDigest: digest(jcs(EXECUTION_SCOPE_PREDICATE_MANIFEST)),
@@ -2390,8 +2431,8 @@ export async function projectContract(ctx, args = {}) {
     scopeDigest,
     scopeCore,
     liveProjectionAuthorityDigest: context.authorityDigest,
-    currentProofIri: scopeProof.proofResult,
-    currentProofDigest: scopeProof.proofResultDigest,
+    currentProofIri: scopeAnchor.proofIri,
+    currentProofDigest: scopeAnchor.proofDigest,
   };
   const scopeProjectionDigest = digest(jcs(scopeProjection));
   const executionScope = {

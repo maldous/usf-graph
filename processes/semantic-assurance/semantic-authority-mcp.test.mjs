@@ -15,7 +15,18 @@ const BAU_TERMINAL_OWNER = async () => ({
   ownership_state: 'V2_TERMINAL_OWNER',
   authority_digest: `sha256:${'a'.repeat(64)}`,
   observation_identity_digest: `sha256:${'1'.repeat(64)}`,
-  validation_currentness: { state: 'CURRENT' },
+  // A terminal observation carries the complete native validation-currentness
+  // head. It is the execution scope's anchor, so an incomplete head must fail
+  // closed rather than yield a scope with no current warrant.
+  validation_currentness: {
+    state: 'CURRENT',
+    digest: `sha256:${'2'.repeat(64)}`,
+    proof_result_digest: `sha256:${'3'.repeat(64)}`,
+    evidence_set_digest: `sha256:${'4'.repeat(64)}`,
+    semantic_scope_digest: `sha256:${'5'.repeat(64)}`,
+    admission_receipt_digest: `sha256:${'6'.repeat(64)}`,
+    source: 'HANDOVER_GENESIS',
+  },
 });
 
 
