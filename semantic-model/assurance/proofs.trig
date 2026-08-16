@@ -741,14 +741,19 @@
   usf:obligationEffect <urn:usf:obligationeffect:blocking>;
   usf:usesAssuranceCell <urn:usf:assurancecell:behaviourhermetichermetic>;
   usf:requiresRung rung:behaviour;
+  usf:derivedFrom sc:compilersemanticenforcement;
   usf:requiresEvidence <urn:usf:evidencerequirement:implementationworkgrantgovernancebootstrap>.
 <urn:usf:evidencerequirement:implementationworkgrantgovernancebootstrap> a usf:EvidenceRequirement;
   usf:canonicalName "implementationworkgrantgovernancebootstrap";
   usf:obligationFor sc:compilersemanticenforcement;
   usf:obligationEffect <urn:usf:obligationeffect:blocking>;
   usf:usesAssuranceCell <urn:usf:assurancecell:behaviourhermetichermetic>;
+  usf:derivedFrom <urn:usf:proofobligation:implementationworkgrantgovernancebootstrap>;
+  usf:requiresEvidenceKind <urn:usf:evidencekind:validationevidence>;
+  usf:requiresFreshness fresh:fresh;
   usf:requiresProviderMode pmode:deterministictestsubstitute;
-  usf:requiresEnvironmentClass <urn:usf:environmentclass:hermetic>.
+  usf:requiresEnvironmentClass <urn:usf:environmentclass:hermetic>;
+  usf:requiresEvidenceStage <urn:usf:evidencestage:emitted>, <urn:usf:evidencestage:collected>, <urn:usf:evidencestage:normalised>, <urn:usf:evidencestage:ingested>, <urn:usf:evidencestage:signed>, <urn:usf:evidencestage:integrityverified>.
 <urn:usf:proof:implementationworkgrantgovernancebootstrap> a usf:Proof;
   usf:canonicalName "implementationworkgrantgovernancebootstrap";
   usf:atRung rung:behaviour; usf:usesProviderMode pmode:deterministictestsubstitute; usf:inEnvironment env:hermetic;
@@ -772,6 +777,8 @@
   usf:proofResultForObligation <urn:usf:proofobligation:implementationworkgrantgovernancebootstrap>;
   usf:usesAdmittedEvidence <urn:usf:evidenceresult:implementationworkgrantbootstrapwarrant>;
   usf:evidenceSetDigest "sha256:99e84165b7e05058eb91cefb84d579a91ba0db19bfa952acaf0288a4643f07f8";
+  usf:usesProofAlgorithm <urn:usf:proofalgorithm:compilersemanticenforcement>;
+  usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:compilersemanticenforcement1d2db0368372a56356717073eaa4c40def2a256df0d95b01d5daa460b7aed024>;
   usf:evaluatedByValidator <urn:usf:validatorrule:validateimplementationworkgrantbootstrapwarrant>;
   usf:proofExecutionEnvironment env:hermetic;
   usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;

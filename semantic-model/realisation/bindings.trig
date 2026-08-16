@@ -337,6 +337,11 @@ impl:semanticmodelcompiler a usf:Implementation;
     usf:repositoryName "semantic-model-compilation";
     usf:definition "Repository-local deterministic compiler, command boundary and proof algorithm that validate the registered semantic model and publish an exact candidate state through the controlled authority transaction.";
     usf:implementsContract sc:compilersemanticenforcement.
+<urn:usf:implementation:implementationworkgrantgovernancebootstrap> a usf:Implementation, usf:Entity;
+    usf:canonicalName "implementationworkgrantgovernancebootstrap";
+    usf:repositoryName "implementation-work-grant-governance-bootstrap";
+    usf:definition "Bounded semantic-governance mechanism that verifies and reserves one exact root-warranted implementation-only grant while denying semantic publication, authority mutation, A0, V2 activation, deployment, production writes, provider contact, LEARNED execution, pruning, business-semantic expansion and implicit path widening.";
+    usf:implementsContract sc:compilersemanticenforcement.
 port:semanticauthoritycontrol a usf:Port;
     usf:canonicalName "semanticauthoritycontrol";
     usf:repositoryName "semantic-authority-control";
