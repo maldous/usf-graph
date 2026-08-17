@@ -433,6 +433,24 @@ function exactCandidate(candidateBytes, expectedCandidateDigest) {
   return Object.freeze({ bytes: Buffer.from(candidateBytes), digest: observed });
 }
 
+// Node disables the fsync API outright under --permission, so a process running
+// inside the permission model cannot obtain a storage durability barrier at all.
+// That is observed from the process, never declared by a caller or an env var,
+// and it is reported rather than assumed: a publication that could not fsync
+// still completes atomically (open wx -> write -> link -> byte readback) but
+// must not be recorded as storage-durable.
+const PUBLICATION_DURABILITY_BARRIER = process.permission === undefined
+  ? 'FSYNC'
+  : 'UNAVAILABLE_UNDER_NODE_PERMISSION_MODEL';
+
+export function publicationDurabilityBarrier() {
+  return PUBLICATION_DURABILITY_BARRIER;
+}
+
+function durabilityBarrierSync(descriptor) {
+  if (PUBLICATION_DURABILITY_BARRIER === 'FSYNC') fsyncSync(descriptor);
+}
+
 function publishImmutableFile(path, bytes, { mode = 0o444 } = {}) {
   if (!Buffer.isBuffer(bytes) || bytes.length === 0) {
     throw new Error('immutable publication requires non-empty bytes');
@@ -449,7 +467,7 @@ function publishImmutableFile(path, bytes, { mode = 0o444 } = {}) {
   try {
     descriptor = openSync(temporary, 'wx', 0o600);
     writeFileSync(descriptor, bytes);
-    fsyncSync(descriptor);
+    durabilityBarrierSync(descriptor);
     closeSync(descriptor);
     descriptor = undefined;
     try { linkSync(temporary, path); } catch (error) {
@@ -468,8 +486,12 @@ function publishImmutableFile(path, bytes, { mode = 0o444 } = {}) {
   }
   chmodSync(path, mode);
   const directory = openSync(dirname(path), 'r');
-  try { fsyncSync(directory); } finally { closeSync(directory); }
-  return Object.freeze({ path, size: bytes.length });
+  try { durabilityBarrierSync(directory); } finally { closeSync(directory); }
+  return Object.freeze({
+    path,
+    size: bytes.length,
+    durabilityBarrier: PUBLICATION_DURABILITY_BARRIER,
+  });
 }
 
 export function createCasEvidenceStore(casRoot = '/var/lib/usf-cas') {
@@ -1649,6 +1671,10 @@ export async function configureLiveDependencies(expectedAuthorityDigest, env) {
       publicationLane: semanticModelCompilationCommandInternals.createSemanticPublicationLaneV2(
         env.USF_PROGRAMME_ROOT || '/var/lib/usf-programme',
       ),
+      nativeGraphStore: createGraphNativeSuccessorStoreV2({
+        nativeRoot: `${env.USF_PROGRAMME_ROOT || '/var/lib/usf-programme'}/v2-native-graph-successors`,
+        casStore: createCasEvidenceStore(env.USF_CAS_ROOT || '/var/lib/usf-cas'),
+      }),
       trustedNow: async () => new Date(await trustedTime()),
       verifyExternalAuthorityProofApproval: verifyEnvelope,
       verifyImplementationWorkGrantEnvelope,
@@ -4207,6 +4233,10 @@ export async function configureLiveGraphProductionShadowV2(expectedAuthorityDige
     publicationLane: semanticModelCompilationCommandInternals.createSemanticPublicationLaneV2(
       env.USF_PROGRAMME_ROOT || '/var/lib/usf-programme',
     ),
+    nativeGraphStore: createGraphNativeSuccessorStoreV2({
+      nativeRoot: `${env.USF_PROGRAMME_ROOT || '/var/lib/usf-programme'}/v2-native-graph-successors`,
+      casStore: createCasEvidenceStore(env.USF_CAS_ROOT || '/var/lib/usf-cas'),
+    }),
   });
   const readAuthorityWitness = () => readSemanticAuthorityWitness(shadowClient);
   const trustedTime = async () => {

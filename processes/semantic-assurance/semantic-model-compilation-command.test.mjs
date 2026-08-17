@@ -15,6 +15,10 @@ import {
   materializeAggregateCompilerAuthorityCandidateV2,
 } from '../../assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.mjs';
 import { semanticAuthorityInventoryDigest } from './semantic-authority-gateway.mjs';
+import {
+  createCasEvidenceStore,
+  createGraphNativeSuccessorStoreV2,
+} from './semantic-authority-publication.mjs';
 
 const authorityDigest = `sha256:${'a'.repeat(64)}`;
 const repositories = [];
@@ -26,6 +30,28 @@ function repository() {
   mkdirSync(join(root, SEMANTIC_MODEL_PATH));
   repositories.push(root);
   return root;
+}
+
+// The publication lane is an explicit dependency with no host-path default, so
+// each test roots the V1 retirement interlock in its own isolated directory
+// rather than in whatever the host happens to have at /var/lib/usf-programme.
+// Same rule for the terminal-ownership floor: an empty floor must mean "no
+// terminal generation in THIS root", never "no root was configured".
+function isolatedNativeGraphStore() {
+  const root = mkdtempSync(join(tmpdir(), 'usf-native-floor-'));
+  repositories.push(root);
+  const casRoot = mkdtempSync(join(tmpdir(), 'usf-native-floor-cas-'));
+  repositories.push(casRoot);
+  return createGraphNativeSuccessorStoreV2({
+    nativeRoot: root,
+    casStore: createCasEvidenceStore(casRoot),
+  });
+}
+
+function publicationLane() {
+  const root = mkdtempSync(join(tmpdir(), 'usf-publication-lane-'));
+  repositories.push(root);
+  return semanticModelCompilationCommandInternals.createSemanticPublicationLaneV2(root);
 }
 
 test.after(() => repositories.forEach((root) => rmSync(root, { recursive: true, force: true })));
@@ -137,6 +163,8 @@ function client() { return { connectivity: async () => 1 }; }
 test('validates the canonical semantic model with an exact authority binding', async () => {
   const calls = [];
   const command = createSemanticModelCompilationCommand({
+    publicationLane: publicationLane(),
+    nativeGraphStore: isolatedNativeGraphStore(),
     client: client(),
     repositoryRoot: repository(),
     readAuthorityWitness: async () => ({ digest: authorityDigest }),
@@ -155,6 +183,8 @@ test('validates the canonical semantic model with an exact authority binding', a
 test('fails before loading or compiling when authority drift is observed', async () => {
   let loaded = false;
   const command = createSemanticModelCompilationCommand({
+    publicationLane: publicationLane(),
+    nativeGraphStore: isolatedNativeGraphStore(),
     client: client(),
     repositoryRoot: repository(),
     readAuthorityWitness: async () => ({ digest: `sha256:${'b'.repeat(64)}` }),
@@ -168,6 +198,8 @@ test('fails before loading or compiling when authority drift is observed', async
 test('detects mutation during a validate-only transaction', async () => {
   let reads = 0;
   const command = createSemanticModelCompilationCommand({
+    publicationLane: publicationLane(),
+    nativeGraphStore: isolatedNativeGraphStore(),
     client: client(),
     repositoryRoot: repository(),
     readAuthorityWitness: async () => ({ digest: reads++ === 0 ? authorityDigest : `sha256:${'c'.repeat(64)}` }),
@@ -179,6 +211,8 @@ test('detects mutation during a validate-only transaction', async () => {
 
 test('requires an explicit digest and the canonical non-symlink path', async () => {
   const command = createSemanticModelCompilationCommand({
+    publicationLane: publicationLane(),
+    nativeGraphStore: isolatedNativeGraphStore(),
     client: client(),
     repositoryRoot: repository(),
     readAuthorityWitness: async () => ({ digest: authorityDigest }),
@@ -746,6 +780,8 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
     return { ok: true, liveValidation };
   };
   const command = createSemanticModelCompilationCommand({
+    publicationLane: publicationLane(),
+    nativeGraphStore: isolatedNativeGraphStore(),
     checkLocalFunction: () => {}, client: Object.freeze(fakeClient), compileFunction: sourceCompiler,
     loadManifestFunction: () => manifest,
     readAuthorityWitness: async () => ({ digest: authority, inventory: [], triples: 1 }),
@@ -877,6 +913,8 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
   assert.match(live.get(graph), /"d0"/);
   let driftingShadowWitnessReads = 0;
   const driftingShadowCommand = createSemanticModelCompilationCommand({
+    publicationLane: publicationLane(),
+    nativeGraphStore: isolatedNativeGraphStore(),
     checkLocalFunction: () => {},
     client: Object.freeze(fakeClient),
     compileFunction: sourceCompiler,

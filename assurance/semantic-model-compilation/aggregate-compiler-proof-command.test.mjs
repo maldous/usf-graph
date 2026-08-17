@@ -1428,9 +1428,20 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
     return { ok: true, liveValidation: { derived, receiptDigest: derived.receiptDigest } };
   };
   let verifyExternalAuthorityProofApproval = () => { throw new Error('external proof fixture not initialised'); };
+  // The publication lane and the terminal-ownership floor are explicit
+  // dependencies with no host-path default, so this test roots both in its own
+  // isolated directories rather than in /var/lib/usf-programme.
   const command = commandModule.createSemanticModelCompilationCommand({
     checkLocalFunction: () => {}, client, compileFunction: sourceCompiler,
     loadManifestFunction: () => manifest, readAuthorityWitness,
+    publicationLane: commandModule.semanticModelCompilationCommandInternals
+      .createSemanticPublicationLaneV2(mkdtempSync(join(tmpdir(), 'usf-publication-lane-'))),
+    nativeGraphStore: publisherModule.createGraphNativeSuccessorStoreV2({
+      nativeRoot: mkdtempSync(join(tmpdir(), 'usf-native-floor-')),
+      casStore: publisherModule.createCasEvidenceStore(
+        mkdtempSync(join(tmpdir(), 'usf-native-floor-cas-')),
+      ),
+    }),
     repositoryRoot: join(import.meta.dirname, '../..'),
     trustedNow: () => new Date('2026-08-11T00:05:00Z'),
     verifyExternalAuthorityProofApproval: (...args) => verifyExternalAuthorityProofApproval(...args),
@@ -1687,13 +1698,13 @@ test('pure V2 preparation produces repeatable C1/C2 with exact D1 dependency bin
   assert.equal(first.c1.candidateDigest, second.c1.candidateDigest);
   assert.equal(first.c2.candidateDigest, second.c2.candidateDigest);
   assert.equal(first.c1.candidateDigest,
-    'sha256:21888d23187b048bad5769eb9966e676b71d51c4063785a94578f04bdd252f20');
+    'sha256:757400074c32f80536a4c9a35d55f4521730ba304a6c80125981e6ca2a15a5f1');
   assert.equal(first.c1.identityDigest,
-    'sha256:edad2746fb94e7db4b259b1d29294bb867617035dae98a86efa785fbda4c3161');
+    'sha256:0ad790cab04bc6943c01e98af6d235bbe492085a5a9ced8cb624e8a7bd70248f');
   assert.equal(first.c2.candidateDigest,
-    'sha256:95412edc7d2ea76098ae6734050181e397e87e223e33ed4cd20b984cc5a1cae0');
+    'sha256:fa50a42294c08ecf54df17da10438248b0b0228f23f0e835d49806cb708c13d3');
   assert.equal(first.c2.identityDigest,
-    'sha256:8f8ff3c1d0a7fc7726e0361b638aac4ccc5092587eaf90474654eccc38edea2c');
+    'sha256:49b2b4ba3eee6496253b60908e22444c841c5e586b2bb94fd2b63091b9d9a5c7');
   assert.equal(first.d1_dependency_set_digest,
     'sha256:7bd3781d4d18bb5ffe4a8c6397118af4e893784e0f8bb39ec8d43b5bb3f76940');
   assert.equal(first.d1_authority_digest, input.d1_observation.authority_digest);
@@ -1705,7 +1716,13 @@ test('pure V2 preparation produces repeatable C1/C2 with exact D1 dependency bin
     input.frozen_inputs.compiler_identity.implementation_source_digest);
   assert.equal(first.candidate_command_digest,
     input.frozen_inputs.compiler_identity.command_digest);
+  // The V2 candidate core now carries the native handover generation digest, so
+  // it is pinned here too rather than only moving the four digests above.
+  const c1Core = JSON.parse(first.c1.identityBytes.toString('utf8'));
+  assert.equal(c1Core.handover_generation_digest,
+    'sha256:d06e5f4dea2f89300a656964e5f361eba97ba3ba8bdd0858b13561bf78a7df49');
   const c2Core = JSON.parse(first.c2.identityBytes.toString('utf8'));
+  assert.equal(c2Core.handover_generation_digest, c1Core.handover_generation_digest);
   assert.equal(c2Core.d1_binding.authority_digest, input.d1_observation.authority_digest);
   assert.equal(c2Core.d1_binding.c1_candidate_digest, first.c1.candidateDigest);
   assert.deepEqual(c2Core.d1_binding.dependency_identity_digests,

@@ -94,7 +94,7 @@ usf:V2NativeGraphSuccessorBinding a owl:Class;
 usf:V2NativeValidationCurrentnessHead a owl:Class;
     rdfs:label "V2 native validation currentness head";
     rdfs:comment "The current member of a V2 native validation-currentness lineage. It is the terminal-V2 anchor of a contract execution scope, occupying the role a V1 ProofResult occupies before the handover; it is a native record proved through typed CAS and the production reader, never a projection or translation of a V1 proof result.";
-
+    usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:V2NativeOwnershipState a owl:Class;
     rdfs:label "V2 native ownership state";
     usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.

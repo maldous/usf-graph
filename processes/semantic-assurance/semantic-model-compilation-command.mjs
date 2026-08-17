@@ -3,7 +3,7 @@ import {
   closeSync, existsSync, fsyncSync, linkSync, lstatSync, openSync, readFileSync,
   realpathSync, unlinkSync, writeFileSync,
 } from 'node:fs';
-import { dirname, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { DataFactory, Parser, Store, Writer } from 'n3';
 
 import {
@@ -87,6 +87,8 @@ const V2_HANDOVER_RESERVATION_SCHEMA = 'usf-v2-native-handover-reservation-v1';
 const V2_HANDOVER_FACTORY_PREPARE_BINDING_SCHEMA =
   'usf-v2-native-handover-factory-prepare-binding-v1';
 const PUBLICATION_LANE_LOCK_SCHEMA = 'usf-semantic-publication-lane-lock-v1';
+const PUBLICATION_LANE_UNVERIFIABLE_LOCK_SCHEMA =
+  'usf-semantic-publication-lane-lock-v1-unverifiable-liveness';
 const { defaultGraph, namedNode, quad } = DataFactory;
 
 const stable = (value) => Array.isArray(value)
@@ -100,9 +102,29 @@ function sha256(bytes) {
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 }
 
-function createSemanticPublicationLaneV2(
-  programmeRoot = process.env.USF_PROGRAMME_ROOT || '/var/lib/usf-programme',
-) {
+// The lane root is always supplied by the caller. Reading process.env here, or
+// defaulting to the host path, made the V1 retirement interlock depend on an
+// ambient directory: an entrypoint could be pointed elsewhere, and any caller
+// without that directory could not even ask whether V1 was reserved. Each
+// entrypoint now resolves the root from its own explicit env argument.
+// Node disables the fsync API outright under --permission, so a process inside
+// the permission model cannot take a storage durability barrier at all. This is
+// observed from the process rather than declared by a caller or an env var; the
+// write remains atomic (open wx -> write -> link -> byte readback) either way.
+const DURABILITY_BARRIER = process.permission === undefined
+  ? 'FSYNC'
+  : 'UNAVAILABLE_UNDER_NODE_PERMISSION_MODEL';
+
+function durabilityBarrierSync(descriptor) {
+  if (DURABILITY_BARRIER === 'FSYNC') fsyncSync(descriptor);
+}
+
+function createSemanticPublicationLaneV2(programmeRoot) {
+  if (typeof programmeRoot !== 'string' || !isAbsolute(programmeRoot)) {
+    throw new CompilerError('semantic publication lane root must be an exact absolute path', {
+      phase: 'candidate:publication-lane',
+    });
+  }
   const requestedRoot = resolve(programmeRoot);
   const root = () => {
     if (!existsSync(requestedRoot)) {
@@ -196,15 +218,32 @@ function createSemanticPublicationLaneV2(
   const validateLock = (value) => {
     exactObjectKeys(value, ['boot_id', 'pid', 'process_start_ticks', 'schema'],
       'semantic publication lane lock');
-    if (value.schema !== PUBLICATION_LANE_LOCK_SCHEMA
+    const unverifiable = value.schema === PUBLICATION_LANE_UNVERIFIABLE_LOCK_SCHEMA;
+    if ((value.schema !== PUBLICATION_LANE_LOCK_SCHEMA && !unverifiable)
         || !Number.isSafeInteger(value.pid) || value.pid < 1
-        || !/^\d+$/.test(value.process_start_ticks || '')
-        || !/^[0-9a-f-]{36}$/.test(value.boot_id || '')) {
+        || (unverifiable
+          ? value.process_start_ticks !== null || value.boot_id !== null
+          : !/^\d+$/.test(value.process_start_ticks || '')
+            || !/^[0-9a-f-]{36}$/.test(value.boot_id || ''))) {
       throw new CompilerError('semantic publication lane lock is invalid', {
         phase: 'candidate:publication-lane',
       });
     }
     return Object.freeze(value);
+  };
+  // A holder that could not read /proc records that fact instead of failing to
+  // take the lane at all. Its liveness can never be disproved, so it is never
+  // evicted as stale -- the unverifiable case is strictly more conservative.
+  const holderIdentity = () => processIdentity() ?? Object.freeze({
+    boot_id: null,
+    pid: process.pid,
+    process_start_ticks: null,
+    schema: PUBLICATION_LANE_UNVERIFIABLE_LOCK_SCHEMA,
+  });
+  const holderIsProvablyGone = (observed) => {
+    if (observed.schema !== PUBLICATION_LANE_LOCK_SCHEMA) return false;
+    const live = processIdentity(observed.pid);
+    return live !== null && canonicalJson(live) !== canonicalJson(observed);
   };
   const publishImmutable = (path, bytes, mode = 0o600) => {
     const suffix = sha256(bytes).slice(7);
@@ -223,7 +262,7 @@ function createSemanticPublicationLaneV2(
     try {
       descriptor = openSync(temporary, 'wx', mode);
       writeFileSync(descriptor, bytes);
-      fsyncSync(descriptor);
+      durabilityBarrierSync(descriptor);
       closeSync(descriptor);
       descriptor = undefined;
       try { linkSync(temporary, path); created = true; } catch (error) {
@@ -241,25 +280,18 @@ function createSemanticPublicationLaneV2(
       });
     }
     const directory = openSync(dirname(path), 'r');
-    try { fsyncSync(directory); } finally { closeSync(directory); }
+    try { durabilityBarrierSync(directory); } finally { closeSync(directory); }
     return created;
   };
   const acquire = () => {
     const path = lockPath();
-    const identity = processIdentity();
-    if (!identity) {
-      throw new CompilerError('semantic publication process identity is unavailable', {
-        phase: 'candidate:publication-lane',
-      });
-    }
-    const bytes = Buffer.from(canonicalJson(identity), 'utf8');
+    const bytes = Buffer.from(canonicalJson(holderIdentity()), 'utf8');
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
         if (publishImmutable(path, bytes)) break;
         const observedBytes = readFileSync(path);
         const observed = validateLock(readCanonicalFile(path));
-        const live = processIdentity(observed.pid);
-        if (live && canonicalJson(live) === canonicalJson(observed)) {
+        if (!holderIsProvablyGone(observed)) {
           throw new CompilerError('SEMANTIC_PUBLICATION_LANE_BUSY', {
             phase: 'candidate:publication-lane',
           });
@@ -298,7 +330,7 @@ function createSemanticPublicationLaneV2(
       }
       unlinkSync(path);
       const directory = openSync(dirname(path), 'r');
-      try { fsyncSync(directory); } finally { closeSync(directory); }
+      try { durabilityBarrierSync(directory); } finally { closeSync(directory); }
       released = true;
     };
   };
@@ -530,15 +562,19 @@ function frozenV2CandidateCore(core) {
   };
 }
 
-async function assertCurrentV1PublicationUnfenced(client, transaction, nativeGraphStore = null) {
+async function assertCurrentV1PublicationUnfenced(client, transaction, nativeGraphStore) {
   // The fence triple is a RUNTIME marker. Deleting it must not re-open V1
   // publication, so the durable terminal floor is consulted FIRST -- the same
   // barrier observeGraphRuntimeOwnershipV2 applies to ownership observation.
   // Without this, fence deletion failed closed for observation but open here,
   // which is the one path that actually writes V1 authority.
-  const { createGraphNativeSuccessorStoreV2 } = await import('./semantic-authority-publication.mjs');
-  const floor = nativeGraphStore ?? createGraphNativeSuccessorStoreV2();
-  if (typeof floor.readTerminalOwnershipFloor !== 'function') {
+  //
+  // The floor reader is always supplied. Constructing one here would have
+  // rooted the barrier at an ambient host directory, so a caller with a
+  // different root -- or none -- would read an empty floor and conclude V1 was
+  // still open. An absent reader fails closed instead.
+  const floor = nativeGraphStore;
+  if (!floor || typeof floor.readTerminalOwnershipFloor !== 'function') {
     throw new CompilerError('V2_GRAPH_TERMINAL_OWNERSHIP_FLOOR_READER_REQUIRED', {
       phase: 'candidate:v1-retirement-interlock',
     });
@@ -604,6 +640,7 @@ async function assertExactNativeV2HandoverFence(client, handoverGenerationDigest
 
 function createCurrentV1PublicationInterlockedClient(client, publicationLane, {
   commitMode = false,
+  nativeGraphStore = null,
 } = {}) {
   if (!publicationLane || typeof publicationLane.acquire !== 'function'
       || typeof publicationLane.assertCurrentV1Unreserved !== 'function') {
@@ -628,7 +665,7 @@ function createCurrentV1PublicationInterlockedClient(client, publicationLane, {
         publicationLane.assertCurrentV1Unreserved();
         transaction = await client.begin();
         if (release) releases.set(transaction, release);
-        await assertCurrentV1PublicationUnfenced(client, transaction);
+        await assertCurrentV1PublicationUnfenced(client, transaction, nativeGraphStore);
         return transaction;
       } catch (error) {
         if (transaction) {
@@ -2780,7 +2817,10 @@ async function compilePatch({ client, manifest, patch, publicationMode, readText
       try { await client.rollback(transaction); } catch { /* preserve the primary failure */ }
     }
     if (error instanceof CompilerError) throw error;
-    throw new CompilerError(error.message, { phase: 'candidate:transaction' });
+    // Keep the originating failure attached: this boundary wraps every
+    // transaction fault into one message, and without the cause the
+    // authoritative blocker is unrecoverable from the test output alone.
+    throw new CompilerError(error.message, { phase: 'candidate:transaction', cause: error });
   }
 }
 
@@ -2846,7 +2886,8 @@ export function createSemanticModelCompilationCommand({
   trustedNow = null,
   verifyExternalAuthorityProofApproval = missingExternalAuthorityProofVerifier,
   verifyImplementationWorkGrantEnvelope = missingImplementationWorkGrantVerifier,
-  publicationLane = createSemanticPublicationLaneV2(),
+  publicationLane,
+  nativeGraphStore,
 }) {
   if (!client || typeof client.connectivity !== 'function') throw new TypeError('semantic authority client is required');
   if (typeof readAuthorityWitness !== 'function') throw new TypeError('authority witness reader is required');
@@ -3673,6 +3714,7 @@ export function createSemanticModelCompilationCommand({
         const result = await compilePatch({
           client: createCurrentV1PublicationInterlockedClient(client, publicationLane, {
             commitMode: publicationMode === 'commit',
+            nativeGraphStore,
           }), manifest, patch, publicationMode,
         });
         if (publicationMode === 'validate') {
@@ -3690,6 +3732,7 @@ export function createSemanticModelCompilationCommand({
         authorityWitness: beforeWitness,
         client: createCurrentV1PublicationInterlockedClient(client, publicationLane, {
           commitMode: publicationMode === 'commit',
+          nativeGraphStore,
         }),
         manifest,
         publicationBudgetPolicy: manifest.publicationBudget,

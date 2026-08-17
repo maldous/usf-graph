@@ -2015,6 +2015,18 @@ function readDurableSemanticProofV2Journal(journalPath) {
   return new HermeticSemanticProofV2Journal(readFileSync(journalPath));
 }
 
+// Node disables the fsync API outright under --permission, so a process inside
+// the permission model cannot take a storage durability barrier at all. This is
+// observed from the process rather than declared by a caller or an env var; the
+// write remains atomic (open wx -> write -> link -> byte readback) either way.
+const DURABILITY_BARRIER = process.permission === undefined
+  ? 'FSYNC'
+  : 'UNAVAILABLE_UNDER_NODE_PERMISSION_MODEL';
+
+function durabilityBarrierSync(descriptor) {
+  if (DURABILITY_BARRIER === 'FSYNC') fsyncSync(descriptor);
+}
+
 function publicationJournalProcessIdentity(pid = process.pid) {
   let processStat;
   try { processStat = readFileSync(`/proc/${pid}/stat`, 'utf8'); } catch { return null; }
@@ -2030,9 +2042,37 @@ function publicationJournalProcessIdentity(pid = process.pid) {
   });
 }
 
-function acquirePublicationJournalLock(lockPath) {
+// Liveness probing needs /proc, which the Node permission model does not grant.
+// Losing it must make the lock STRONGER, not weaker: a holder whose liveness
+// nobody can verify still gets exclusion through the exclusive link, and no
+// holder may be evicted as stale unless its death is positively provable.
+const JOURNAL_LOCK_LIVENESS_SCHEMA = 'usf-semantic-publication-journal-lock-v2';
+const JOURNAL_LOCK_UNVERIFIABLE_SCHEMA =
+  'usf-semantic-publication-journal-lock-v2-unverifiable-liveness';
+
+function publicationJournalHolderIdentity() {
   const identity = publicationJournalProcessIdentity();
-  if (identity === null) throw new Error('V2 publication journal process identity unavailable');
+  if (identity !== null) return identity;
+  return Object.freeze({
+    schema: JOURNAL_LOCK_UNVERIFIABLE_SCHEMA,
+    boot_id: null,
+    pid: process.pid,
+    process_start_ticks: null,
+  });
+}
+
+function publicationJournalHolderIsProvablyGone(observed) {
+  // Only the strong schema records enough to disprove liveness, and only a
+  // successful probe of the recorded pid counts as a disproof. An unreadable
+  // /proc yields null, which means "unknown" -- never "gone".
+  if (observed?.schema !== JOURNAL_LOCK_LIVENESS_SCHEMA) return false;
+  const live = publicationJournalProcessIdentity(observed.pid);
+  if (live === null) return false;
+  return canonicalJsonV2(live) !== canonicalJsonV2(observed);
+}
+
+function acquirePublicationJournalLock(lockPath) {
+  const identity = publicationJournalHolderIdentity();
   const bytes = Buffer.from(canonicalJsonV2(identity), 'utf8');
   const temporary = `${lockPath}.${process.pid}.${sha256V2(bytes).slice(7)}.tmp`;
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -2047,7 +2087,7 @@ function acquirePublicationJournalLock(lockPath) {
     try {
       descriptor = openSync(temporary, 'wx', 0o600);
       writeFileSync(descriptor, bytes);
-      fsyncSync(descriptor);
+      durabilityBarrierSync(descriptor);
       closeSync(descriptor);
       descriptor = undefined;
       try { linkSync(temporary, lockPath); } catch (error) {
@@ -2064,7 +2104,7 @@ function acquirePublicationJournalLock(lockPath) {
     const observedBytes = readFileSync(lockPath);
     if (observedBytes.equals(bytes)) {
       const directory = openSync(dirname(lockPath), 'r');
-      try { fsyncSync(directory); } finally { closeSync(directory); }
+      try { durabilityBarrierSync(directory); } finally { closeSync(directory); }
       let released = false;
       return () => {
         if (released) return;
@@ -2073,7 +2113,7 @@ function acquirePublicationJournalLock(lockPath) {
         }
         unlinkSync(lockPath);
         const directoryDescriptor = openSync(dirname(lockPath), 'r');
-        try { fsyncSync(directoryDescriptor); } finally { closeSync(directoryDescriptor); }
+        try { durabilityBarrierSync(directoryDescriptor); } finally { closeSync(directoryDescriptor); }
         released = true;
       };
     }
@@ -2081,10 +2121,7 @@ function acquirePublicationJournalLock(lockPath) {
     try { observed = JSON.parse(observedBytes.toString('utf8')); } catch {
       throw new Error('V2 publication journal lock is not recoverable canonical JSON');
     }
-    const observedIdentity = publicationJournalProcessIdentity(observed.pid);
-    if (observed.schema !== 'usf-semantic-publication-journal-lock-v2'
-        || observedIdentity !== null
-          && canonicalJsonV2(observedIdentity) === canonicalJsonV2(observed)) {
+    if (!publicationJournalHolderIsProvablyGone(observed)) {
       throw new Error('V2_PUBLICATION_JOURNAL_BUSY');
     }
     if (!readFileSync(lockPath).equals(observedBytes)) {

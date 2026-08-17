@@ -33,6 +33,7 @@ import {
 import {
   createSemanticModelCompilationCommand,
   SEMANTIC_MODEL_PATH,
+  semanticModelCompilationCommandInternals,
 } from './semantic-model-compilation-command.mjs';
 import {
   consumeGrantNonce,
@@ -61,6 +62,25 @@ function recursivelyStable(value) {
 }
 
 const canonicalArtifactBytes = (value) => Buffer.from(`${JSON.stringify(recursivelyStable(value), null, 2)}\n`);
+
+
+// The publication lane is an explicit dependency with no host-path default, so
+// each test roots the V1 retirement interlock in an isolated directory instead
+// of whatever the host happens to have at /var/lib/usf-programme.
+// The terminal-ownership floor is an explicit dependency too: an empty floor
+// must mean "this root holds no terminal generation", never "no root was
+// configured", so each test roots it in its own directory.
+function isolatedNativeGraphStore() {
+  return createGraphNativeSuccessorStoreV2({
+    nativeRoot: mkdtempSync(join(tmpdir(), 'usf-native-floor-')),
+    casStore: createCasEvidenceStore(mkdtempSync(join(tmpdir(), 'usf-native-floor-cas-'))),
+  });
+}
+
+function isolatedPublicationLane() {
+  const root = mkdtempSync(join(tmpdir(), 'usf-publication-lane-'));
+  return semanticModelCompilationCommandInternals.createSemanticPublicationLaneV2(root);
+}
 
 test('V2 Graph production shadow exposes reads and rollback while refusing every write surface', async () => {
   const calls = [];
@@ -420,6 +440,8 @@ test('canonical source candidate generation cannot cross the strict no-write pro
     };
     const shadow = createReadOnlyStardogShadowClientV2(raw);
     const command = createSemanticModelCompilationCommand({
+    publicationLane: isolatedPublicationLane(),
+    nativeGraphStore: isolatedNativeGraphStore(),
       client: shadow,
       repositoryRoot: root,
       readAuthorityWitness: async () => ({ digest: raw.expectedAuthorityDigest }),
@@ -922,6 +944,8 @@ test('actual RDF Patch compiler adapter validates and commits the identical cano
     publicationBudget: { maximumProjectedStatementCount: 999999 },
   };
   const compiler = createSemanticModelCompilationCommand({
+    publicationLane: isolatedPublicationLane(),
+    nativeGraphStore: isolatedNativeGraphStore(),
     checkLocalFunction: () => {}, client,
     loadManifestFunction: () => manifest,
     readAuthorityWitness: async () => witness(value === 'old' ? PRE : FINAL),
