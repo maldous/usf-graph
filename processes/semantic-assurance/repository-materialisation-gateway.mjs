@@ -1810,7 +1810,8 @@ function validationVerdict(contract, scope, authorityWitnessValue, owner) {
   };
 }
 
-async function readAuthorityConflictState(client, binding, authorityDigest) {
+async function readAuthorityConflictState(ctx, binding, authorityDigest, owner) {
+  const client = ctx.client;
   const escapedRepository = binding.repository.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
   const [surfaceRows, resolutionRows, setRows] = await Promise.all([
     client.select(`SELECT DISTINCT ?surfaceContract ?authorisedPath ?authorisedFormat ?surfaceObligation WHERE {
@@ -1912,9 +1913,15 @@ async function readAuthorityConflictState(client, binding, authorityDigest) {
     // canonical non-publication dependency closure rather than a synthetic
     // settled-authority literal. Reuse the one proof-currentness resolver that
     // governs contract projection instead of inventing a second binding shape.
-    const currentness = await proofCurrentnessVerdict(client, surface.contract, {
-      mandatoryObligations: [...surface.mandatoryObligations].sort(),
-    });
+    // At the OWNER BOUNDARY: terminal V2 derives currentness from the native
+    // validation-currentness head, exactly as the contract projection does. The
+    // V1 resolver is reached only under a positively observed V1 owner.
+    const currentness = await ownerBoundaryCurrentness(
+      ctx,
+      owner,
+      surface.contract,
+      [...surface.mandatoryObligations].sort(),
+    );
     if (currentness.state !== PROOF_CURRENTNESS.current) continue;
     applicableSurfaces.push(Object.freeze({
       contract: surface.contract,
@@ -2029,13 +2036,21 @@ export async function realisationVerdict(ctx, args = {}) {
         implementationWorkGrantIri = grantRows[0]?.grant?.value ?? null;
       }
       const currentNonPublicationDependencySetDigest = validationNonPublicationDependencyDigest(openingWitness.inventory);
+      // The owner is resolved BEFORE the concurrent read, not after it. The
+      // authority-conflict surface filters on proof currentness, and reading it
+      // with the V1 resolver while the owner was still unknown let a V1
+      // currentness verdict widen the authorised path/format/repository set and
+      // flip a blocked action state to PROCEED under terminal V2. Still inside
+      // the same stableAuthorityRead bracket, so the verdict remains one
+      // conclusion about one authority AND one owner.
+      const owner = await resolveOwnerBoundary(ctx);
       const readGrant = ctx.readImplementationWorkGrantAuthorityState
         ?? readImplementationWorkGrantAuthorityStateV1;
       const [validationScopeValue, mandatoryRows, conflictState, implementationWorkGrant] = await Promise.all([
         validationScope(ctx.client, semantics.contract.id),
         ctx.client.select(`SELECT ?obligation WHERE { <${semantics.contract.id}> <urn:usf:ontology:mandatoryProofObligation> ?obligation } ORDER BY ?obligation LIMIT 64`),
         authorityConflictBinding
-          ? readAuthorityConflictState(ctx.client, authorityConflictBinding, openingWitness.digest)
+          ? readAuthorityConflictState(ctx, authorityConflictBinding, openingWitness.digest, owner)
           : Promise.resolve(null),
         implementationWorkGrantIri
           ? readGrant(ctx.client, implementationWorkGrantIri, {
@@ -2051,9 +2066,7 @@ export async function realisationVerdict(ctx, args = {}) {
       ]);
       // Currentness is read inside the SAME bracket as the contract and
       // validation state, so the verdict is one conclusion about one authority
-      // AND one owner. Resolving the owner inside the bracket is what stops a
-      // verdict being assembled across a handover boundary.
-      const owner = await resolveOwnerBoundary(ctx);
+      // AND one owner.
       const currentness = await ownerBoundaryCurrentness(ctx, owner, semantics.contract.id,
         // `value` is in the temporal dead zone here: the enclosing
         // stableAuthorityRead destructures a binding of that name. Read the term
