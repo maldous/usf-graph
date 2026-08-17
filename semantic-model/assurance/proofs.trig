@@ -122,9 +122,9 @@
 <urn:usf:proofalgorithm:repositorymaterialisationcontrolplane> a usf:ProofAlgorithm;
     usf:canonicalName "repositorymaterialisationcontrolplane";
     usf:proofAlgorithmSourcePath "assurance/semantic-model-compilation/materialisation-proof.mjs";
-    usf:proofAlgorithmSourceDigest "sha256:d86889cc874c6850b745515f6d517d47aa925e6f187347c64b9447639e110a89";
+    usf:proofAlgorithmSourceDigest "sha256:5bbee593c18cec115d121984e7565ec1732b25d17eef1d1d32006d3683a184e2";
     usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:repositorymaterialisationcontrolplaned86889cc874c6850b745515f6d517d47aa925e6f187347c64b9447639e110a89>;
-    usf:currentAlgorithmSourceDigest "sha256:d86889cc874c6850b745515f6d517d47aa925e6f187347c64b9447639e110a89";
+    usf:currentAlgorithmSourceDigest "sha256:5bbee593c18cec115d121984e7565ec1732b25d17eef1d1d32006d3683a184e2";
     usf:currentImplementationSourceSetDigest "sha256:d0c6ff91c4ae76204bfb0de199bdd0f107814df285b582526d16ef187d09e9c6";
     usf:currentDependencySetDigest "sha256:e4f19cbe73df0c6c14835eeaf1768e358dfb9e10f2352830a5d4700f669fa205";
     usf:currentDependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
@@ -159,6 +159,10 @@
     usf:canonicalName "repositorymaterialisationcontrolplaned86889cc874c6850b745515f6d517d47aa925e6f187347c64b9447639e110a89";
     usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:repositorymaterialisationcontrolplane>;
     usf:proofAlgorithmVersionIdentifier "1.5.0".
+<urn:usf:proofalgorithmversion:repositorymaterialisationcontrolplane5bbee593c18cec115d121984e7565ec1732b25d17eef1d1d32006d3683a184e2> a usf:ProofAlgorithmVersion;
+    usf:canonicalName "repositorymaterialisationcontrolplane5bbee593c18cec115d121984e7565ec1732b25d17eef1d1d32006d3683a184e2";
+    usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:repositorymaterialisationcontrolplane>;
+    usf:proofAlgorithmVersionIdentifier "1.6.0".
 <urn:usf:proof:repositorymaterialisationcontrolplane> a usf:Proof;
     usf:canonicalName "repositorymaterialisationcontrolplane";
     usf:atRung rung:behaviour;
@@ -245,11 +249,15 @@
 <urn:usf:proofalgorithm:compilersemanticenforcement> a usf:ProofAlgorithm;
     usf:canonicalName "compilersemanticenforcement";
     usf:proofAlgorithmSourcePath "assurance/semantic-model-compilation/compiler-proof.mjs";
-    usf:proofAlgorithmSourceDigest "sha256:1d2db0368372a56356717073eaa4c40def2a256df0d95b01d5daa460b7aed024".
+    usf:proofAlgorithmSourceDigest "sha256:e4ff88726a24a7c0ba30ac26909f7dd94ae0205ea7f97e9f62e37c2e8f6af471".
 <urn:usf:proofalgorithmversion:compilersemanticenforcement1d2db0368372a56356717073eaa4c40def2a256df0d95b01d5daa460b7aed024> a usf:ProofAlgorithmVersion;
     usf:canonicalName "compilersemanticenforcement1d2db0368372a56356717073eaa4c40def2a256df0d95b01d5daa460b7aed024";
     usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:compilersemanticenforcement>;
     usf:proofAlgorithmVersionIdentifier "2.2.1".
+<urn:usf:proofalgorithmversion:compilersemanticenforcemente4ff88726a24a7c0ba30ac26909f7dd94ae0205ea7f97e9f62e37c2e8f6af471> a usf:ProofAlgorithmVersion;
+    usf:canonicalName "compilersemanticenforcemente4ff88726a24a7c0ba30ac26909f7dd94ae0205ea7f97e9f62e37c2e8f6af471";
+    usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:compilersemanticenforcement>;
+    usf:proofAlgorithmVersionIdentifier "2.3.0".
 <urn:usf:proof:compilerhermeticsubstitute> a usf:Proof;
     usf:canonicalName "compilerhermeticsubstitute";
     usf:atRung rung:behaviour;
@@ -685,8 +693,8 @@
 <urn:usf:proofalgorithm:eventhistorycheckpointpruning> a usf:ProofAlgorithm;
   usf:canonicalName "eventhistorycheckpointpruning";
   usf:proofAlgorithmSourcePath "assurance/semantic-model-compilation/aggregate-compiler-proof-command.mjs";
-  usf:proofAlgorithmSourceDigest "sha256:a0331b2ed51be211cb9eb6dfe92a5b7d6eb7a06dffe7ed2eda54a6fa23065350";
-  usf:currentAlgorithmSourceDigest "sha256:a0331b2ed51be211cb9eb6dfe92a5b7d6eb7a06dffe7ed2eda54a6fa23065350";
+  usf:proofAlgorithmSourceDigest "sha256:9de639f7393b01af1e2075f1a411f3cac07a592426fc59881376888d4a97e568";
+  usf:currentAlgorithmSourceDigest "sha256:9de639f7393b01af1e2075f1a411f3cac07a592426fc59881376888d4a97e568";
   usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:eventhistorycheckpointpruninga0331b2ed51be211cb9eb6dfe92a5b7d6eb7a06dffe7ed2eda54a6fa23065350>;
   usf:currentImplementationSourceSetDigest "sha256:92ad836cb939ca24d90a94940987702268ee5ec16eaa3484cf23151b8585ca60";
   usf:requiresGraphSourceBinding true.
@@ -694,6 +702,10 @@
   usf:canonicalName "eventhistorycheckpointpruninga0331b2ed51be211cb9eb6dfe92a5b7d6eb7a06dffe7ed2eda54a6fa23065350";
   usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:eventhistorycheckpointpruning>;
   usf:proofAlgorithmVersionIdentifier "1.0.0".
+<urn:usf:proofalgorithmversion:eventhistorycheckpointpruning9de639f7393b01af1e2075f1a411f3cac07a592426fc59881376888d4a97e568> a usf:ProofAlgorithmVersion;
+  usf:canonicalName "eventhistorycheckpointpruning9de639f7393b01af1e2075f1a411f3cac07a592426fc59881376888d4a97e568";
+  usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:eventhistorycheckpointpruning>;
+  usf:proofAlgorithmVersionIdentifier "1.1.0".
 <urn:usf:proof:eventhistorycheckpointpruning> a usf:Proof;
   usf:canonicalName "eventhistorycheckpointpruning";
   usf:atRung rung:behaviour;
