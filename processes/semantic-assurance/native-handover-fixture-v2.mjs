@@ -20,6 +20,7 @@ import {
   prospectivePublicationPlanDigestV2,
   closureTransactionIdV2,
   graphOwnedNativeObservationDigestV2,
+  terminalReceipt,
 } from './semantic-proof-v2.mjs';
 
 const digest = (character) => `sha256:${character.repeat(64)}`;
@@ -376,4 +377,15 @@ export function fixture({
   PREPARED.set(plan, Object.freeze({ factoryPrepareReceipt, graphReservationReceipt }));
   return { closure, consumers, d0, d1, d2, dependencies, factoryPrepareReceipt, generation,
     graphReservationReceipt, plan, readbacks };
+}
+
+
+// The canonical 16-field terminal receipt, built by the production definition.
+// A fixture must never hand-roll this shape: the adapter test previously carried
+// a 4-field literal with a lowercase publication_outcome, which is exactly how
+// it drifted out of shape and ended up skipped.
+export function canonicalTerminalReceipt(
+  inputs, closureReceipt, acceptedAt, grantConsumptionReceiptDigest,
+) {
+  return terminalReceipt(inputs, closureReceipt, acceptedAt, grantConsumptionReceiptDigest);
 }

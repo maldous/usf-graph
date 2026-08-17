@@ -13,7 +13,11 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { fixture as provenFixture, preparedReceipts } from './native-handover-fixture-v2.mjs';
+import {
+  canonicalTerminalReceipt,
+  fixture as provenFixture,
+  preparedReceipts,
+} from './native-handover-fixture-v2.mjs';
 
 import {
   assertAcceptedCompilerResult,
@@ -246,13 +250,7 @@ function productionAdapterFixture() {
   };
 }
 
-// STILL SKIPPED, one layer from green. Everything below it now consumes the
-// shared canonical builder; the last stale piece is this test's hand-rolled
-// terminal receipt literal (publication_outcome 'accepted' vs required
-// 'ACCEPTED', and only 4 of the 16 GRAPH_TERMINAL_RECEIPT_FIELDS). The correct
-// shape is built by the module-private terminalReceipt() at
-// semantic-proof-v2.mjs:1665 -- export it and call it here.
-test.skip('V2 Graph production adapter commits exact C1/C2 once and recovers each durable boundary', async () => {
+test('V2 Graph production adapter commits exact C1/C2 once and recovers each durable boundary', async () => {
   const fixture = productionAdapterFixture();
   let authority = fixture.d0;
   const calls = { C1: 0, C2: 0 };
@@ -357,6 +355,12 @@ test.skip('V2 Graph production adapter commits exact C1/C2 once and recovers eac
     graph_tree: fixture.plan.graph_protected_tree,
     publisher_implementation_digest: fixture.valueDigest('f'),
     publisher_command_digest: fixture.valueDigest('0'),
+    // coordinationIdentity binds the Factory executor and command alongside the
+    // publisher's, plus the predicted terminal receipt time.
+    factory_executor_implementation_digest: fixture.valueDigest('1'),
+    factory_closure_command_digest: fixture.valueDigest('2'),
+    terminal_receipt_at: '2026-08-01T12:00:00Z',
+    factory_closure_receipt: fixture.closure,
   };
   assert.match((await adapter.reserveGrant(inputs)).digest, /^sha256:/u);
   const d1First = await adapter.commitD1(inputs);
@@ -369,15 +373,27 @@ test.skip('V2 Graph production adapter commits exact C1/C2 once and recovers eac
   const d2Recovered = await adapter.commitD2(inputs);
   assert.deepEqual(d2Recovered, d2First);
   assert.equal(calls.C2, 1);
-  const terminal = {
-    schema: 'usf-semantic-publication-receipt-v2',
-    protocol: 'semantic-proof-v2',
-    publication_outcome: 'accepted',
-    prospective_publication_plan_digest: prospectivePublicationPlanDigestV2(fixture.plan),
-  };
+  // Production consumes the one-shot grant BEFORE importing the terminal
+  // receipt, so a crash between them leaves a consumed grant and no activation
+  // rather than an activation over a replayable grant. consumeGrant is also what
+  // persists the durable Factory closure the terminal receipt then requires, and
+  // it takes the CLOSURE receipt -- the previous order (and argument) could
+  // never have run.
+  const consumed = await adapter.consumeGrant(fixture.closure, inputs);
+  assert.match(consumed.digest, /^sha256:/u);
+
+  // The canonical 16-field receipt, from the production builder. The previous
+  // 4-field literal (with a lowercase publication_outcome) is exactly the drift
+  // that got this test skipped.
+  const terminal = canonicalTerminalReceipt(
+    inputs,
+    fixture.closure,
+    '2026-08-01T12:00:00Z',
+    consumed.digest,
+  );
+
   const persisted = await adapter.persistTerminalReceipt(terminal, inputs);
   assert.equal(persisted.digest, graphPublicationReceiptDigestV2(terminal));
-  assert.match((await adapter.consumeGrant(terminal, inputs)).digest, /^sha256:/u);
   const drifted = structuredClone(inputs);
   drifted.graph_tree = 'd'.repeat(40);
   await assert.rejects(adapter.reserveGrant(drifted), /exact admitted release/u);

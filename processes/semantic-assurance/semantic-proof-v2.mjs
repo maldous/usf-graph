@@ -1662,7 +1662,11 @@ function coordinationIdentity(inputs) {
   });
 }
 
-function terminalReceipt(inputs, closureReceipt, acceptedAt, grantConsumptionReceiptDigest) {
+// Exported so fixtures build the canonical 16-field terminal receipt through
+// this one definition instead of hand-rolling a literal that goes stale.
+export function terminalReceipt(
+  inputs, closureReceipt, acceptedAt, grantConsumptionReceiptDigest,
+) {
   return Object.freeze({
     schema: GRAPH_PUBLICATION_RECEIPT_V2,
     protocol: SEMANTIC_PROOF_V2,
