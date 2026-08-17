@@ -13,6 +13,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { fixture as provenFixture, preparedReceipts } from './native-handover-fixture-v2.mjs';
 
 import {
   assertAcceptedCompilerResult,
@@ -227,102 +228,52 @@ test('implementation work grant live readback requires one exact two-repository 
 });
 
 function productionAdapterFixture() {
+  // Consumes the SHARED canonical builder. A divergent local copy is exactly
+  // how this test went stale and ended up skipped.
   const valueDigest = (character) => `sha256:${character.repeat(64)}`;
   const d1Bytes = Buffer.from('exact C1 candidate');
   const d2Bytes = Buffer.from('exact C2 candidate');
-  const d0 = valueDigest('2');
-  const d1 = valueDigest('3');
-  const d2 = valueDigest('4');
-  const dependencies = Object.freeze([valueDigest('5'), valueDigest('6')]);
-  const kinds = [
-    'contract_projection',
-    'execution_scope_projection',
-    'factory_graph_witness_binding',
-    'owner_envelope_successor',
-    'run_authorization',
-    'validation_currentness_binding',
-    'workforce_policy_compatibility_binding',
-  ];
-  const consumers = kinds.map((kind, index) => {
-    const semantic = valueDigest('abcdef9'[index]);
-    const predecessor = valueDigest('8765432'[index]);
-    const materialisation = valueDigest('1234567'[index]);
-    const successor = Object.freeze({
-      authority_digest: d2,
-      consumer_iri: `urn:usf:derivedconsumer:v2:${kind.replaceAll('_', '-')}`,
-      consumer_kind: kind,
-      consumer_schema_version: 2,
-      current_policy_compatibility_digest: kind === 'workforce_policy_compatibility_binding'
-        ? valueDigest('e') : null,
-      historical_policy_identity_digest: kind === 'workforce_policy_compatibility_binding'
-        ? valueDigest('f') : null,
-      materialisation_digest: materialisation,
-      predecessor_identity_digest: predecessor,
-      producer_iri: `urn:usf:producer:${kind.replaceAll('_', '-')}:v2`,
-      record_iri: `urn:usf:derivedconsumersuccessor:v2:${kind}:${index}`,
-      registry_digest: DERIVED_CONSUMER_REGISTRY_V2_DIGEST,
-      release_subject_digest: valueDigest('1'),
-      repository_category: kind === 'factory_graph_witness_binding'
-        ? 'maldous/usf-factory' : null,
-      schema: 'usf-derived-consumer-successor-v2',
-      semantic_scope_digest: semantic,
-      transition_cause: 'PUBLICATION_DERIVED_MATERIALISATION',
-      validation_input_authority_digest: kind === 'validation_currentness_binding'
-        ? d1 : null,
-      validation_input_identity_digests: kind === 'validation_currentness_binding'
-        ? dependencies : [],
-      verification_algorithm_iri: `urn:usf:algorithm:verify-${kind.replaceAll('_', '-')}:v2`,
-      verification_algorithm_version: '2.0.0',
-    });
-    return Object.freeze({
-      block_reason: null,
-      consumer_iri: successor.consumer_iri,
-      consumer_kind: kind,
-      current_materialisation_digest: valueDigest('0123456'[index]),
-      current_semantic_scope_digest: semantic,
-      decision: 'COMPATIBLE_SUCCESSOR',
-      expected_successor: successor,
-      expected_successor_digest: canonicalDigestV2(successor),
-      mandatory: true,
-      predecessor_identity_digest: predecessor,
-      predecessor_record_digest: materialisation,
-      predicted_d1_authority_digest: d1,
-      predicted_d2_authority_digest: d2,
-      prospective_materialisation_digest: materialisation,
-      prospective_semantic_scope_digest: semantic,
-    });
+  const built = provenFixture({
+    graphD1CandidateDigest: sha256(d1Bytes),
+    graphD2CandidateDigest: sha256(d2Bytes),
   });
-  const plan = Object.freeze({
-    d0_authority_digest: d0,
-    d1_dependency_identity_digests: dependencies,
-    d2_evaluation_input_authority_digest: d1,
-    derived_consumer_registry_digest: DERIVED_CONSUMER_REGISTRY_V2_DIGEST,
-    derived_consumers: Object.freeze(consumers),
-    factory_deployment_tree: 'a'.repeat(40),
-    graph_d1_candidate_digest: sha256(d1Bytes),
-    graph_d2_candidate_digest: sha256(d2Bytes),
-    graph_production_shadow_receipt_digest: valueDigest('b'),
-    external_attestation_set_root_digest: valueDigest('c'),
-    candidate_generator_implementation_digest: valueDigest('d'),
-    candidate_command_digest: valueDigest('e'),
-    graph_protected_tree: 'b'.repeat(40),
-    identity_dependency_graph_digest: IDENTITY_DEPENDENCY_GRAPH_V2_DIGEST,
-    outcome: 'PROCEED',
-    predicted_d1_authority_digest: d1,
-    predicted_d2_authority_digest: d2,
-    release_subject_digest: valueDigest('1'),
-    required_cas_object_digests: Object.freeze([valueDigest('7'), valueDigest('8')]),
-    schema: 'usf-prospective-publication-plan-v2',
-  });
-  return { d0, d1, d2, d1Bytes, d2Bytes, dependencies, plan, valueDigest };
+  return {
+    ...built,
+    d1Bytes,
+    d2Bytes,
+    valueDigest,
+    planDigest: prospectivePublicationPlanDigestV2(built.plan),
+  };
 }
 
+// STILL SKIPPED, one layer from green. Everything below it now consumes the
+// shared canonical builder; the last stale piece is this test's hand-rolled
+// terminal receipt literal (publication_outcome 'accepted' vs required
+// 'ACCEPTED', and only 4 of the 16 GRAPH_TERMINAL_RECEIPT_FIELDS). The correct
+// shape is built by the module-private terminalReceipt() at
+// semantic-proof-v2.mjs:1665 -- export it and call it here.
 test.skip('V2 Graph production adapter commits exact C1/C2 once and recovers each durable boundary', async () => {
   const fixture = productionAdapterFixture();
   let authority = fixture.d0;
   const calls = { C1: 0, C2: 0 };
   const receipts = new Map();
   const command = {
+    async reserveV2HandoverGeneration({
+      d0AuthorityDigest, handoverGenerationDigest, prospectivePublicationPlanDigest,
+    }) {
+      return {
+        d0_authority_digest: d0AuthorityDigest,
+        handover_generation_digest: handoverGenerationDigest,
+        prospective_publication_plan_digest: prospectivePublicationPlanDigest,
+      };
+    },
+    bindV2FactoryPrepare({ factoryPrepareReceiptDigest }) {
+      return {
+        factory_prepare_receipt_digest: factoryPrepareReceiptDigest,
+        handover_generation_digest: fixture.plan.handover_generation_digest,
+        prospective_publication_plan_digest: fixture.planDigest,
+      };
+    },
     async previewPublicationSequence() {
       return {
         d0AuthorityDigest: fixture.d0,
@@ -370,8 +321,14 @@ test.skip('V2 Graph production adapter commits exact C1/C2 once and recovers eac
       return { digest: observed, path: `/receipts/${observed}.json` };
     },
   };
+  const nativeGraphStore = createGraphNativeSuccessorStoreV2({
+    nativeRoot: mkdtempSync(join(tmpdir(), 'usf-adapter-native-')),
+    casStore: createCasEvidenceStore(mkdtempSync(join(tmpdir(), 'usf-adapter-cas-'))),
+  });
   const adapter = createGraphProductionAdapterV2({
     command,
+    nativeGraphStore,
+    trustedTime: async () => '2026-08-01T12:00:00Z',
     readAuthorityWitness: async () => ({
       digest: authority,
       inventory: [{ graph: 'urn:test:graph', sha256: fixture.valueDigest('f'), triples: 1 }],
@@ -382,7 +339,7 @@ test.skip('V2 Graph production adapter commits exact C1/C2 once and recovers eac
     d1CandidateIdentityBytes: Buffer.from('{}'),
     d2CandidateBytes: fixture.d2Bytes,
     d2CandidateIdentityBytes: Buffer.from('{}'),
-    graphCommit: 'c'.repeat(40),
+    graphCommit: fixture.plan.graph_protected_commit,
     graphTree: fixture.plan.graph_protected_tree,
     publisherImplementationDigest: fixture.valueDigest('f'),
     publisherCommandDigest: fixture.valueDigest('0'),
@@ -390,8 +347,13 @@ test.skip('V2 Graph production adapter commits exact C1/C2 once and recovers eac
   });
   const inputs = {
     plan: fixture.plan,
+    // Both receipts come from the shared canonical builder, which computes them
+    // with the real digest functions -- no hand-rolled literal to go stale.
+    graph_reservation_receipt: preparedReceipts(fixture.plan).graphReservationReceipt,
+    factory_prepare_receipt: preparedReceipts(fixture.plan).factoryPrepareReceipt,
+    factory_commit: fixture.plan.factory_deployment_commit,
     factory_tree: fixture.plan.factory_deployment_tree,
-    graph_commit: 'c'.repeat(40),
+    graph_commit: fixture.plan.graph_protected_commit,
     graph_tree: fixture.plan.graph_protected_tree,
     publisher_implementation_digest: fixture.valueDigest('f'),
     publisher_command_digest: fixture.valueDigest('0'),

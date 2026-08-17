@@ -6,7 +6,6 @@ import { join, resolve } from 'node:path';
 import {
   NATIVE_VALIDATION_CURRENT,
   OWNERSHIP,
-  PRETERMINAL_OWNER_BOUNDARY,
   authorityWitness,
   resolveOwnerBoundary,
   validContractRef,
@@ -151,7 +150,6 @@ export async function stableAuthorityRead(client, phase, read) {
 // validation-currentness head, and the V1 lifecycle is never consulted again:
 // not as a fallback, not filtered, not translated. Replacing the source here —
 // at the owner — is what keeps every downstream consumer's contract unchanged.
-const V1_OWNER_BOUNDARY = PRETERMINAL_OWNER_BOUNDARY;
 
 // Native currentness, expressed in the declared reason vocabulary so the public
 // work-plan contract is byte-shape identical. A pending handover is an absent
@@ -1608,7 +1606,21 @@ function completeSelfPublicationClosure(item, authorityWitnessValue) {
 // A satisfaction survives only while it stays identity-bound to this obligation
 // and bound to the exact authority the factory is acting on. Anything less is a
 // historical record, not a current conclusion.
-function satisfactionCurrent(obligation, authorityWitnessValue, owner = V1_OWNER_BOUNDARY) {
+function requireResolvedOwner(owner, label) {
+  // "Owner not supplied" is not V1. These are the last places a default could
+  // silently reinstate the V1 branch, so an absent or non-determinate owner
+  // refuses instead.
+  const state = owner?.ownershipState ?? null;
+  if (state !== OWNERSHIP.v1 && state !== OWNERSHIP.pending && state !== OWNERSHIP.terminal) {
+    throw new Error(
+      `${label} requires a resolved owner boundary; got ${state ?? OWNERSHIP.unresolved}`,
+    );
+  }
+  return owner;
+}
+
+function satisfactionCurrent(obligation, authorityWitnessValue, owner) {
+  requireResolvedOwner(owner, 'satisfactionCurrent');
   // A pending handover has no owner able to conclude anything. Fail closed
   // rather than borrowing the outgoing V1 conclusion.
   if (owner.ownershipState === OWNERSHIP.pending) return false;
@@ -1698,7 +1710,8 @@ function durableFamilyValidationWorkItem(obligation, contract) {
 // The complete gap set for one contract, as {code, subject} pairs. This is the
 // single definition of "outstanding" that both the paged projection and the
 // unpaged disposition census use, so a page boundary can never hide a state.
-function validationGaps(contract, scope, authorityWitnessValue, owner = V1_OWNER_BOUNDARY) {
+function validationGaps(contract, scope, authorityWitnessValue, owner) {
+  requireResolvedOwner(owner, 'validationGaps');
   const gaps = [];
   const { applicability } = scope;
   if (applicability === null || applicability === APPLICABILITY.unresolved) {
@@ -1777,7 +1790,8 @@ function validationActionStateFor(scope) {
   return ACTION_STATES.reserved;
 }
 
-function validationVerdict(contract, scope, authorityWitnessValue, owner = V1_OWNER_BOUNDARY) {
+function validationVerdict(contract, scope, authorityWitnessValue, owner) {
+  requireResolvedOwner(owner, 'validationVerdict');
   const gaps = validationGaps(contract, scope, authorityWitnessValue, owner);
   const dispositions = gaps.map((gap) => resolveDisposition(gap.code));
   const realisationBlocking = gaps.filter((gap) => !VALIDATION_SCOPED_GAPS.has(gap.code));
@@ -2231,7 +2245,14 @@ export async function realisationVerdict(ctx, args = {}) {
 
 export async function projectContract(ctx, args = {}) {
   const contract = args.contract || CONTRACT;
-  const verdict = args.verdict || await realisationVerdict(ctx, { contract });
+  // The verdict is ALWAYS derived here. It was previously accepted from `args`,
+  // and `callTool` performs no schema validation, so a caller could supply a
+  // whole verdict and bypass resolveOwnerBoundary -- the only ownership
+  // resolution on this path. `authorised`, `authorisedActions`,
+  // `authorisedRepositories` and `authorisedPaths` are all computed from it, so
+  // that injection handed the caller its own authority. No production caller
+  // ever passed it.
+  const verdict = await realisationVerdict(ctx, { contract });
   const { context, scope } = verdict;
   const [assertions, requirements, obligations] = await Promise.all([
     ctx.client.select(`SELECT ?relation ?id WHERE { <${context.contract.id}> ?relation ?id . FILTER(?relation IN (<urn:usf:ontology:asserts>, <urn:usf:ontology:disclaims>)) } ORDER BY ?relation ?id LIMIT 256`),
@@ -2484,7 +2505,7 @@ export async function projectContract(ctx, args = {}) {
     validationObligations: scope.obligations.map((item) => ({
       id: item.id,
       activation: item.activation,
-      satisfactionCurrent: satisfactionCurrent(item, verdict.witness, verdict.owner ?? V1_OWNER_BOUNDARY),
+      satisfactionCurrent: satisfactionCurrent(item, verdict.witness, verdict.owner),
       recordedSatisfactionCount: item.satisfactions.length,
     })),
     validationActionState: validation.validationActionState,
