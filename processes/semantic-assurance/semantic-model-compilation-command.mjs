@@ -530,7 +530,24 @@ function frozenV2CandidateCore(core) {
   };
 }
 
-async function assertCurrentV1PublicationUnfenced(client, transaction) {
+async function assertCurrentV1PublicationUnfenced(client, transaction, nativeGraphStore = null) {
+  // The fence triple is a RUNTIME marker. Deleting it must not re-open V1
+  // publication, so the durable terminal floor is consulted FIRST -- the same
+  // barrier observeGraphRuntimeOwnershipV2 applies to ownership observation.
+  // Without this, fence deletion failed closed for observation but open here,
+  // which is the one path that actually writes V1 authority.
+  const { createGraphNativeSuccessorStoreV2 } = await import('./semantic-authority-publication.mjs');
+  const floor = nativeGraphStore ?? createGraphNativeSuccessorStoreV2();
+  if (typeof floor.readTerminalOwnershipFloor !== 'function') {
+    throw new CompilerError('V2_GRAPH_TERMINAL_OWNERSHIP_FLOOR_READER_REQUIRED', {
+      phase: 'candidate:v1-retirement-interlock',
+    });
+  }
+  if (floor.readTerminalOwnershipFloor().terminal) {
+    throw new CompilerError('REJECTED_V2_TERMINAL_CURRENT_V1_PUBLICATION_RETIRED', {
+      phase: 'candidate:v1-retirement-interlock',
+    });
+  }
   const rows = await client.selectInTransaction(transaction, `SELECT ?fence ?state ?generation WHERE {
     GRAPH ?graph {
       ?fence a <${V2_NATIVE_HANDOVER_FENCE_CLASS}> .

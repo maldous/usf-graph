@@ -103,7 +103,14 @@ const HERMETIC_DURABLE_JOURNAL_IO = Object.freeze({
   },
 });
 
-function fixture({ d0Override = null } = {}) {
+// Exported so the Graph production-adapter test reuses this proven builder
+// instead of maintaining a divergent copy that goes stale on every schema
+// change -- which is exactly how the C1/C2 test came to be skipped.
+export function fixture({
+  d0Override = null,
+  graphD1CandidateDigest = null,
+  graphD2CandidateDigest = null,
+} = {}) {
   const releaseSubject = digest('1');
   const d0 = d0Override || digest('2');
   const d1 = digest('3');
@@ -320,8 +327,8 @@ function fixture({ d0Override = null } = {}) {
     derived_consumers: Object.freeze(consumers),
     factory_deployment_tree: 'a'.repeat(40),
     factory_deployment_commit: factoryCommit,
-    graph_d1_candidate_digest: digest('9'),
-    graph_d2_candidate_digest: digest('a'),
+    graph_d1_candidate_digest: graphD1CandidateDigest || digest('9'),
+    graph_d2_candidate_digest: graphD2CandidateDigest || digest('a'),
     graph_production_shadow_receipt_digest: digest('b'),
     external_attestation_set_root_digest: digest('c'),
     candidate_generator_implementation_digest: digest('d'),
@@ -429,7 +436,8 @@ function fixture({ d0Override = null } = {}) {
     factoryCommit, factoryTree: plan.factory_deployment_tree,
   });
   PREPARED.set(plan, Object.freeze({ factoryPrepareReceipt, graphReservationReceipt }));
-  return { closure, factoryPrepareReceipt, graphReservationReceipt, plan };
+  return { closure, consumers, d0, d1, d2, dependencies, factoryPrepareReceipt, generation,
+    graphReservationReceipt, plan, readbacks };
 }
 
 function adapter(plan, {

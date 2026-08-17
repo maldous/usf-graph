@@ -4024,10 +4024,14 @@ export async function observeGraphRuntimeOwnershipV2(options = {}) {
     // holds a terminal receipt, the fence's absence means the fence was deleted
     // or lost -- never that V1 may execute again. Fail closed; rollback to V1 is
     // not a reachable state.
-    const floor = typeof nativeGraphStore?.readTerminalOwnershipFloor === 'function'
-      ? nativeGraphStore.readTerminalOwnershipFloor()
-      : null;
-    if (floor && floor.terminal) {
+    // The floor is REQUIRED, not duck-typed. A store that cannot report it
+    // cannot establish that V1 is the owner either, so a missing reader refuses
+    // instead of silently degrading to V1 -- which would reopen the exact
+    // fence-deletion hole this barrier exists to close.
+    if (typeof nativeGraphStore?.readTerminalOwnershipFloor !== 'function') {
+      throw new Error('V2_GRAPH_TERMINAL_OWNERSHIP_FLOOR_READER_REQUIRED');
+    }
+    if (nativeGraphStore.readTerminalOwnershipFloor().terminal) {
       throw new Error('V2_GRAPH_TERMINAL_OWNERSHIP_FENCE_MISSING');
     }
     const reservation = publicationLane === null ? null : publicationLane.readReservation();
