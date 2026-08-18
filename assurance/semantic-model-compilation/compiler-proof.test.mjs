@@ -50,7 +50,8 @@ function focusedResult(root, passed = true) {
   const networkIsolatorBinding = fileBinding('/usr/bin/unshare', compilerProofInternals.sha256('unshare'), 3);
   const environment = {
     LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', TEMP: '<RUNTIME_ROOT>', TMP: '<RUNTIME_ROOT>', TMPDIR: '<RUNTIME_ROOT>',
-    TZ: 'UTC', USF_HERMETIC_TEST_MODE: '1', USF_TEST_INVENTORY_DIGEST: tests.digest,
+    TZ: 'UTC', USF_EXPECTED_CHILD_PROCESS_PERMISSION: 'denied',
+    USF_HERMETIC_TEST_MODE: '1', USF_TEST_INVENTORY_DIGEST: tests.digest,
   };
   const nodeFlags = [
     '--frozen-intrinsics', '--permission', '--allow-fs-read=<SNAPSHOT_ROOT>', '--allow-fs-read=<RUNTIME_ROOT>', '--allow-fs-write=<RUNTIME_ROOT>',
@@ -677,7 +678,8 @@ test('rejects mixed, mislabeled, live-claiming and self-referential evidence', (
   const networkIsolatorBinding = binding('/usr/bin/unshare', compilerProofInternals.sha256('unshare'), 3);
   const environment = {
     LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', TEMP: '<RUNTIME_ROOT>', TMP: '<RUNTIME_ROOT>', TMPDIR: '<RUNTIME_ROOT>',
-    TZ: 'UTC', USF_HERMETIC_TEST_MODE: '1', USF_TEST_INVENTORY_DIGEST: testInventoryDigest,
+    TZ: 'UTC', USF_EXPECTED_CHILD_PROCESS_PERMISSION: 'denied',
+    USF_HERMETIC_TEST_MODE: '1', USF_TEST_INVENTORY_DIGEST: testInventoryDigest,
   };
   const nodeFlags = [
     '--frozen-intrinsics', '--permission', '--allow-fs-read=<SNAPSHOT_ROOT>', '--allow-fs-read=<RUNTIME_ROOT>', '--allow-fs-write=<RUNTIME_ROOT>',

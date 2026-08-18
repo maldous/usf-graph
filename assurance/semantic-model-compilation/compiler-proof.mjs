@@ -308,6 +308,7 @@ function validateExecutionSourceClosure(manifest) {
     TMP: '<RUNTIME_ROOT>',
     TMPDIR: '<RUNTIME_ROOT>',
     TZ: 'UTC',
+    USF_EXPECTED_CHILD_PROCESS_PERMISSION: 'denied',
     USF_HERMETIC_TEST_MODE: '1',
     USF_TEST_INVENTORY_DIGEST: manifest.testInventoryDigest,
   };

@@ -13,6 +13,7 @@ import {
   EVENT_HISTORY_CHECKPOINT_DEPENDENCY_PATHS,
   EVENT_HISTORY_CHECKPOINT_IMPLEMENTATION_PATHS,
   PROVISIONAL_AGGREGATE_RESULT_IRI,
+  aggregateCompilerProofCommandInternals,
   assertEventHistoryCheckpointWorktreeBinding,
   createAggregateCompilerProofProducer,
   eventHistoryCheckpointEvidenceCore,
@@ -49,6 +50,70 @@ const requiredHistoryMode = ['lin', 'ear'].join('');
 const oneParentHistoryShape = ['one-parent-lin', 'ear'].join('');
 const ACTIVE_AUTHORITY_SOURCE = `<urn:usf:ownerassignment:test> a <urn:usf:ontology:OwnerAssignment>;
   <urn:usf:ontology:assignmentState> "active".\n`;
+const CANDIDATE_EVIDENCE_PATH = 'semantic-model/assurance/evidence.trig';
+// One of the exact evidence identities the compiler proof produces, and therefore
+// one of the only identities the renewal path will consider.
+const RENEWABLE_EVIDENCE_IRI = 'urn:usf:evidenceresult:compilerhermeticsubstituteruntime';
+// Live record: window already closed at TRUSTED_AT, 30-day prior window.
+const LIVE_RENEWAL_COLLECTED_AT = '2026-06-25T00:00:00Z';
+const LIVE_RENEWAL_VALID_UNTIL = '2026-07-25T00:00:00Z';
+const RENEWAL_COLLECTED_AT = '2026-07-31T00:00:00Z';
+const RENEWAL_VALID_UNTIL = '2026-08-30T00:00:00Z';
+const RENEWAL_ALGORITHM = `sha256:${'b'.repeat(64)}`;
+const RENEWAL_IMPLEMENTATION = `sha256:${'d'.repeat(64)}`;
+
+/** A self-consistent evidence manifest payload, as the compiler proof writes it. */
+function renewalPayload(overrides = {}) {
+  const core = {
+    evaluatedAt: RENEWAL_COLLECTED_AT,
+    evaluatedAuthorityDigest: D0,
+    evidenceScope: 'HERMETIC_SUBSTITUTE',
+    implementationSourceDigest: RENEWAL_IMPLEMENTATION,
+    proofAlgorithmDigest: RENEWAL_ALGORITHM,
+    schemaVersion: 2,
+    ...overrides,
+  };
+  const canonical = aggregateCompilerProofInternals.canonicalJson(core);
+  const evidenceDigest = sha256(Buffer.from(canonical, 'utf8'));
+  return Buffer.from(aggregateCompilerProofInternals.canonicalJson({ ...core, evidenceDigest }), 'utf8');
+}
+
+/** The candidate's own assertion of the renewed record, in authored TriG. */
+function renewalEvidenceSource(overrides = {}) {
+  const record = {
+    admissionState: 'urn:usf:evidenceadmissionstate:admitted',
+    collectedAt: RENEWAL_COLLECTED_AT,
+    freshness: 'urn:usf:freshness:fresh',
+    freshnessState: 'urn:usf:evidencefreshnessstate:fresh',
+    integrityState: 'urn:usf:evidenceintegritystate:valid',
+    iri: RENEWABLE_EVIDENCE_IRI,
+    validUntil: RENEWAL_VALID_UNTIL,
+    withinValidityScope: 'true',
+    ...overrides,
+  };
+  return `<${record.iri}> a <urn:usf:ontology:EvidenceResult>;
+  <urn:usf:ontology:contentDigest> "${record.contentDigest}";
+  <urn:usf:ontology:collectedAt> "${record.collectedAt}";
+  <urn:usf:ontology:validUntil> "${record.validUntil}";
+  <urn:usf:ontology:hasAdmissionState> <${record.admissionState}>;
+  <urn:usf:ontology:hasFreshness> <${record.freshness}>;
+  <urn:usf:ontology:hasFreshnessState> <${record.freshnessState}>;
+  <urn:usf:ontology:hasIntegrityState> <${record.integrityState}>;
+  <urn:usf:ontology:withinValidityScope> "${record.withinValidityScope}".\n`;
+}
+
+/** Component rows whose first component's evidence is the expired renewable identity. */
+function expiredRenewableRows(casRoot, overrides = {}) {
+  const rows = componentRows(casRoot);
+  rows[0] = {
+    ...rows[0],
+    collectedAt: binding(LIVE_RENEWAL_COLLECTED_AT),
+    evidence: binding(RENEWABLE_EVIDENCE_IRI),
+    validUntil: binding(LIVE_RENEWAL_VALID_UNTIL),
+    ...overrides,
+  };
+  return rows;
+}
 const pendingInitialProjection = (overrides = {}) => ({
   actionState: 'BLOCK',
   contractState: {
@@ -327,7 +392,17 @@ function inProcessEvaluateProof(input) {
   });
 }
 
-function fixture({ authoritySource = ACTIVE_AUTHORITY_SOURCE, explicitBranch = true } = {}) {
+function fixture({
+  authoritySource = ACTIVE_AUTHORITY_SOURCE, explicitBranch = true, evidenceSource = null,
+} = {}) {
+  // The candidate evidence source is written into the fixture repository AND
+  // returned by the injected reader, so a renewal is exercised identically under
+  // the real git-backed reader and under the permission-model in-process reader.
+  const sourceTextFor = (path) => {
+    if (path === 'semantic-model/authority.ttl') return authoritySource;
+    if (path === CANDIDATE_EVIDENCE_PATH && evidenceSource !== null) return evidenceSource;
+    return `${path}\n`;
+  };
   const root = mkdtempSync(join(tmpdir(), 'aggregate-producer-'));
   roots.push(root);
   const repositoryPath = join(root, 'repo');
@@ -337,7 +412,7 @@ function fixture({ authoritySource = ACTIVE_AUTHORITY_SOURCE, explicitBranch = t
   for (const path of AGGREGATE_REVIEWED_SOURCE_PATHS) {
     const target = join(repositoryPath, path);
     mkdirSync(join(target, '..'), { recursive: true });
-    writeFileSync(target, path === 'semantic-model/authority.ttl' ? authoritySource : `${path}\n`);
+    writeFileSync(target, sourceTextFor(path));
   }
   if (!CHILD_PROCESS_DENIED) {
     git(repositoryPath, 'init', '-q', '-b', 'main');
@@ -350,7 +425,7 @@ function fixture({ authoritySource = ACTIVE_AUTHORITY_SOURCE, explicitBranch = t
   const injected = {
     ...((CHILD_PROCESS_DENIED || PERMISSION_MODEL_ENABLED) ? {
       evaluateProof: inProcessEvaluateProof,
-      readSourceText: ({ path }) => path === 'semantic-model/authority.ttl' ? authoritySource : `${path}\n`,
+      readSourceText: ({ path }) => sourceTextFor(path),
       resolveSourceBinding: inProcessSourceBinding,
     } : {}),
     ...(PERMISSION_MODEL_ENABLED ? { syncDescriptor: () => {} } : {}),
@@ -1778,4 +1853,235 @@ test('V2 preparation excludes all publication volatility and rejects attempts to
     assert.throws(() => prepareAggregateCompilerAuthorityCandidatesV2(invalid),
       (error) => error.code === 'AGGREGATE_V2_CANDIDATE_INPUT_INVALID');
   }
+});
+
+// --- Component evidence renewal -------------------------------------------
+// A closed component window used to be terminal: the warrant read that refuses
+// it is a PRE-publication read of live authority, so no publication could ever
+// install fresh evidence, and expiry was an unrecoverable liveness trap. A
+// renewal is accepted only when three independent anchors agree — the digest the
+// candidate's own aggregate constants pin, the record the signed candidate
+// asserts in its authored evidence source, and the bytes in CAS.
+
+const { acceptComponentEvidenceRenewal, newRenewalBatch } = aggregateCompilerProofCommandInternals;
+
+function renewalCall(base, { overrides = {}, payload = renewalPayload(), batch = newRenewalBatch(), source } = {}) {
+  const contentDigest = putCas(base.casRoot, payload);
+  return () => acceptComponentEvidenceRenewal({
+    authorityDigest: D0,
+    batch,
+    casRoot: base.casRoot,
+    evaluatedAt: TRUSTED_AT,
+    iri: RENEWABLE_EVIDENCE_IRI,
+    liveCollectedAt: LIVE_RENEWAL_COLLECTED_AT,
+    liveValidUntil: LIVE_RENEWAL_VALID_UNTIL,
+    renewalSource: { text: source ?? renewalEvidenceSource({ contentDigest, ...overrides }) },
+  });
+}
+
+test('a verified renewal is accepted for an evidence identity whose window has closed', () => {
+  const base = fixture();
+  const batch = newRenewalBatch();
+  const payload = renewalPayload();
+  const accepted = renewalCall(base, { batch, payload })();
+  assert.equal(accepted.contentDigest, sha256(payload));
+  assert.equal(accepted.validUntil, RENEWAL_VALID_UNTIL);
+  assert.equal(accepted.bytes.equals(payload), true);
+  assert.equal(batch.proofAlgorithmDigest, RENEWAL_ALGORITHM);
+  assert.equal(batch.implementationSourceDigest, RENEWAL_IMPLEMENTATION);
+  assert.deepEqual(batch.renewed, [{
+    collectedAt: RENEWAL_COLLECTED_AT,
+    contentDigest: sha256(payload),
+    iri: RENEWABLE_EVIDENCE_IRI,
+    validUntil: RENEWAL_VALID_UNTIL,
+  }]);
+  // Only the identities the compiler proof itself produces are ever renewable.
+  assert.deepEqual(aggregateCompilerProofCommandInternals.RENEWABLE_COMPONENT_EVIDENCE, [
+    'urn:usf:evidenceresult:compilerhermeticsubstituteruntime',
+    'urn:usf:evidenceresult:compilerhermeticsubstitutevalidation',
+    'urn:usf:evidenceresult:compilerliveauthorityruntime',
+    'urn:usf:evidenceresult:compilerliveauthoritytransactionvalidation',
+  ]);
+});
+
+test('an absent, unusable or misidentified renewal keeps the historical stale verdict', () => {
+  const stale = (error) => error.code === 'AGGREGATE_COMPONENT_STALE';
+  const base = fixture();
+  const contentDigest = putCas(base.casRoot, renewalPayload());
+  // No renewal source at all — exactly the pre-repair path.
+  assert.throws(() => acceptComponentEvidenceRenewal({
+    authorityDigest: D0, batch: newRenewalBatch(), casRoot: base.casRoot, evaluatedAt: TRUSTED_AT,
+    iri: RENEWABLE_EVIDENCE_IRI, liveCollectedAt: LIVE_RENEWAL_COLLECTED_AT,
+    liveValidUntil: LIVE_RENEWAL_VALID_UNTIL, renewalSource: null,
+  }), stale);
+  for (const source of ['', 'this is not TriG {{{', renewalEvidenceSource({
+    contentDigest, iri: 'urn:usf:evidenceresult:someotherevidence',
+  })]) {
+    assert.throws(renewalCall(base, { source }), stale, `source ${source.slice(0, 24)} must stay stale`);
+  }
+  // A non-single-valued assertion is not a usable renewal.
+  assert.throws(renewalCall(base, {
+    source: renewalEvidenceSource({ contentDigest })
+      + `<${RENEWABLE_EVIDENCE_IRI}> <urn:usf:ontology:validUntil> "2027-01-01T00:00:00Z".\n`,
+  }), stale);
+  // A live record with no measurable prior window cannot be silently widened.
+  assert.throws(() => acceptComponentEvidenceRenewal({
+    authorityDigest: D0, batch: newRenewalBatch(), casRoot: base.casRoot, evaluatedAt: TRUSTED_AT,
+    iri: RENEWABLE_EVIDENCE_IRI, liveCollectedAt: null,
+    liveValidUntil: LIVE_RENEWAL_VALID_UNTIL,
+    renewalSource: { text: renewalEvidenceSource({ contentDigest }) },
+  }), stale);
+});
+
+test('a renewal may not relax any admitted state the live-record path requires', () => {
+  const base = fixture();
+  for (const overrides of [
+    { admissionState: 'urn:usf:evidenceadmissionstate:rejected' },
+    { freshness: 'urn:usf:freshness:stale' },
+    { freshnessState: 'urn:usf:evidencefreshnessstate:stale' },
+    { integrityState: 'urn:usf:evidenceintegritystate:invalid' },
+    { withinValidityScope: 'false' },
+  ]) {
+    assert.throws(renewalCall(base, { overrides }), (error) => error.code === 'AGGREGATE_COMPONENT_STALE',
+      `state defect ${JSON.stringify(overrides)} must stay stale`);
+  }
+});
+
+test('a renewal window must be open, strictly newer, not future-dated and never widened', () => {
+  const base = fixture();
+  for (const [label, overrides] of [
+    ['still closed at evaluation time', { validUntil: '2026-07-30T00:00:00Z' }],
+    ['not newer than the record it renews', { validUntil: LIVE_RENEWAL_VALID_UNTIL }],
+    ['collected no later than the prior record', { collectedAt: LIVE_RENEWAL_COLLECTED_AT }],
+    ['collected before the prior record', { collectedAt: '2026-06-01T00:00:00Z' }],
+    ['future-dated collection', { collectedAt: '2026-09-01T00:00:00Z', validUntil: '2026-10-01T00:00:00Z' }],
+    ['widened beyond the prior window', { collectedAt: '2026-07-26T00:00:00Z', validUntil: '2026-09-30T00:00:00Z' }],
+    ['inverted window', { collectedAt: RENEWAL_VALID_UNTIL, validUntil: RENEWAL_COLLECTED_AT }],
+    ['unparsable collection time', { collectedAt: 'not-a-timestamp' }],
+    ['unparsable expiry', { validUntil: 'not-a-timestamp' }],
+  ]) {
+    assert.throws(renewalCall(base, { overrides }),
+      (error) => error.code === 'AGGREGATE_COMPONENT_STALE', `${label} must stay stale`);
+  }
+  // Exactly the prior window length is permitted; one second more is not.
+  const exact = renewalCall(base, {
+    overrides: { collectedAt: '2026-07-26T00:00:00Z', validUntil: '2026-08-25T00:00:00Z' },
+  })();
+  assert.equal(exact.validUntil, '2026-08-25T00:00:00Z');
+  assert.throws(renewalCall(base, {
+    overrides: { collectedAt: '2026-07-26T00:00:00Z', validUntil: '2026-08-25T00:00:01Z' },
+  }), (error) => error.code === 'AGGREGATE_COMPONENT_STALE');
+});
+
+test('a renewal must name real CAS bytes that are a self-consistent evidence manifest', () => {
+  const base = fixture();
+  // Asserted digest with no CAS object behind it.
+  assert.throws(() => acceptComponentEvidenceRenewal({
+    authorityDigest: D0, batch: newRenewalBatch(), casRoot: base.casRoot, evaluatedAt: TRUSTED_AT,
+    iri: RENEWABLE_EVIDENCE_IRI, liveCollectedAt: LIVE_RENEWAL_COLLECTED_AT,
+    liveValidUntil: LIVE_RENEWAL_VALID_UNTIL,
+    renewalSource: { text: renewalEvidenceSource({ contentDigest: `sha256:${'7'.repeat(64)}` }) },
+  }), (error) => error.code === 'AGGREGATE_COMPONENT_STALE');
+
+  // A digest that is not a digest at all.
+  assert.throws(renewalCall(base, { overrides: { contentDigest: 'not-a-digest' } }),
+    (error) => error.code === 'AGGREGATE_COMPONENT_STALE');
+
+  // Bytes stored under a digest they do not hash to.
+  const claimed = sha256(renewalPayload());
+  const mismatched = fixture();
+  putCas(mismatched.casRoot, Buffer.from('not the manifest', 'utf8'), claimed);
+  assert.throws(() => acceptComponentEvidenceRenewal({
+    authorityDigest: D0, batch: newRenewalBatch(), casRoot: mismatched.casRoot, evaluatedAt: TRUSTED_AT,
+    iri: RENEWABLE_EVIDENCE_IRI, liveCollectedAt: LIVE_RENEWAL_COLLECTED_AT,
+    liveValidUntil: LIVE_RENEWAL_VALID_UNTIL,
+    renewalSource: { text: renewalEvidenceSource({ contentDigest: claimed }) },
+  }), (error) => error.code === 'AGGREGATE_COMPONENT_STALE');
+
+  // An orphaned attestation can never be presented as a renewal.
+  assert.throws(renewalCall(base, { overrides: { contentDigest: ORPHANED_ATTESTATION_DIGEST } }),
+    (error) => error.code === 'AGGREGATE_ORPHAN_EVIDENCE_REJECTED');
+
+  // Payloads that are not a self-consistent manifest, or whose provenance does
+  // not bind the exact pre-publication authority and a real re-run.
+  const selfInconsistent = (() => {
+    const parsed = JSON.parse(renewalPayload().toString('utf8'));
+    parsed.evidenceDigest = `sha256:${'5'.repeat(64)}`;
+    return Buffer.from(aggregateCompilerProofInternals.canonicalJson(parsed), 'utf8');
+  })();
+  const noEmbeddedDigest = Buffer.from(aggregateCompilerProofInternals.canonicalJson({
+    evaluatedAt: RENEWAL_COLLECTED_AT, proofAlgorithmDigest: RENEWAL_ALGORITHM,
+  }), 'utf8');
+  for (const [label, payload] of [
+    ['not JSON', Buffer.from('{ not json', 'utf8')],
+    ['a JSON array', Buffer.from('[]', 'utf8')],
+    ['self-inconsistent evidenceDigest', selfInconsistent],
+    ['no embedded evidenceDigest', noEmbeddedDigest],
+    ['bound to a different authority', renewalPayload({ evaluatedAuthorityDigest: D1 })],
+    ['a re-run predating the window it renews', renewalPayload({ evaluatedAt: '2026-07-01T00:00:00Z' })],
+    ['a future-dated re-run', renewalPayload({ evaluatedAt: '2026-09-01T00:00:00Z' })],
+    ['no algorithm digest', renewalPayload({ proofAlgorithmDigest: 'not-a-digest' })],
+    ['no implementation source digest', renewalPayload({ implementationSourceDigest: 'not-a-digest' })],
+  ]) {
+    assert.throws(renewalCall(base, { payload }),
+      (error) => error.code === 'AGGREGATE_COMPONENT_STALE', `payload ${label} must stay stale`);
+  }
+});
+
+test('renewals assembled from more than one proof run are rejected', () => {
+  const base = fixture();
+  const batch = newRenewalBatch();
+  renewalCall(base, { batch })();
+  // A second renewal in the same batch must come from the same run: one shared
+  // algorithm digest and one shared implementation source digest.
+  for (const payload of [
+    renewalPayload({ proofAlgorithmDigest: `sha256:${'e'.repeat(64)}` }),
+    renewalPayload({ implementationSourceDigest: `sha256:${'f'.repeat(64)}` }),
+  ]) {
+    const contentDigest = putCas(base.casRoot, payload);
+    assert.throws(() => acceptComponentEvidenceRenewal({
+      authorityDigest: D0, batch, casRoot: base.casRoot, evaluatedAt: TRUSTED_AT,
+      iri: 'urn:usf:evidenceresult:compilerhermeticsubstitutevalidation',
+      liveCollectedAt: LIVE_RENEWAL_COLLECTED_AT, liveValidUntil: LIVE_RENEWAL_VALID_UNTIL,
+      renewalSource: { text: renewalEvidenceSource({
+        contentDigest, iri: 'urn:usf:evidenceresult:compilerhermeticsubstitutevalidation',
+      }) },
+    }), (error) => error.code === 'AGGREGATE_COMPONENT_STALE');
+  }
+});
+
+test('an expired component with no renewal still fails closed through the producer', async () => {
+  const base = fixture();
+  await assert.rejects(() => harness(base, expiredRenewableRows(base.casRoot))
+    .producer.preparePending({ requestedAuthorityDigest: D0 }),
+  (error) => error.code === 'AGGREGATE_COMPONENT_STALE');
+});
+
+test('a renewal that disagrees with the pinned shared-evidence digest is a substitution', async () => {
+  // The third anchor: even a fully verified renewal cannot stand unless the
+  // candidate's own aggregate constants pin that exact digest for the identity.
+  const payload = renewalPayload();
+  const base = fixture({ evidenceSource: renewalEvidenceSource({ contentDigest: sha256(payload) }) });
+  putCas(base.casRoot, payload);
+  await assert.rejects(() => harness(base, expiredRenewableRows(base.casRoot))
+    .producer.preparePending({ requestedAuthorityDigest: D0 }),
+  (error) => error.code === 'AGGREGATE_SHARED_EVIDENCE_SUBSTITUTED');
+});
+
+test('an unexpired component never parses the candidate evidence source', async () => {
+  // The non-renewal path stays bit-for-bit historical: with nothing expired an
+  // unparsable candidate evidence source is read but never parsed.
+  let reads = 0;
+  const base = fixture();
+  const observed = {
+    ...base,
+    readSourceText: async ({ path }) => {
+      if (path === CANDIDATE_EVIDENCE_PATH) reads += 1;
+      return path === 'semantic-model/authority.ttl' ? ACTIVE_AUTHORITY_SOURCE : 'this is not TriG {{{';
+    },
+  };
+  const pending = await harness(observed, componentRows(base.casRoot))
+    .producer.preparePending({ requestedAuthorityDigest: D0 });
+  assert.equal(pending.aggregateResult.evaluation.evaluatedAt, TRUSTED_AT);
+  assert.equal(reads, 1, 'read once, never parsed');
 });

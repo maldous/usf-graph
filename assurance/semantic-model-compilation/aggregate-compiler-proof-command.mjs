@@ -18,6 +18,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { Parser } from 'n3';
 import { createGraphOwnershipObserver } from '../../processes/semantic-assurance/semantic-authority-mcp.mjs';
 import { fileURLToPath } from 'node:url';
 
@@ -41,6 +42,8 @@ import {
   COMPONENT_PROOFS,
   COMPONENT_SET_DIGEST,
   ORPHANED_ATTESTATION_DIGEST,
+  SHARED_HERMETIC_EVIDENCE,
+  SHARED_LIVE_AUTHORITY_EVIDENCE,
   aggregateCompilerProofInternals,
   evaluateAggregateCompilerProof,
 } from './aggregate-compiler-proof.mjs';
@@ -155,6 +158,35 @@ export const EVENT_HISTORY_CHECKPOINT_DEPENDENCY_PATHS = Object.freeze([
 ]);
 
 const AUTHORITY_SOURCE_PATH = 'semantic-model/authority.ttl';
+// A component evidence window that has closed cannot be repaired by publishing,
+// because the warrant read that refuses it is a PRE-publication read of live
+// authority: preparePending -> readFacts -> stableAuthorityRead asserts the live
+// witness equals the pre-publication digest and then queries that authority, so
+// a refreshed record in the candidate is only visible to the post-publication
+// read in produceInitial. Expiry was therefore an unrecoverable liveness trap.
+// The renewal path below closes it without weakening anything: it accepts only a
+// record the signed candidate itself asserts for the same evidence identity, and
+// verifies strictly more about it than the live-record path verifies. This source
+// path is already inside AGGREGATE_REVIEWED_SOURCE_PATHS, so the renewal
+// introduces no new input, no new trust source and no producer bypass.
+const EVIDENCE_SOURCE_PATH = 'semantic-model/assurance/evidence.trig';
+// Exactly the component evidence identities the compiler proof itself produces.
+// Nothing else is renewable, so the renewal path can never reach an evidence
+// identity the compiler proof cannot re-produce.
+const RENEWABLE_COMPONENT_EVIDENCE = Object.freeze([...new Set(
+  [...SHARED_HERMETIC_EVIDENCE, ...SHARED_LIVE_AUTHORITY_EVIDENCE].map(({ iri }) => iri),
+)].sort());
+const ONTOLOGY = 'urn:usf:ontology:';
+const RENEWAL_PREDICATES = Object.freeze({
+  [`${ONTOLOGY}contentDigest`]: 'contentDigest',
+  [`${ONTOLOGY}collectedAt`]: 'collectedAt',
+  [`${ONTOLOGY}validUntil`]: 'validUntil',
+  [`${ONTOLOGY}hasAdmissionState`]: 'admissionState',
+  [`${ONTOLOGY}hasFreshness`]: 'freshness',
+  [`${ONTOLOGY}hasFreshnessState`]: 'freshnessState',
+  [`${ONTOLOGY}hasIntegrityState`]: 'integrityState',
+  [`${ONTOLOGY}withinValidityScope`]: 'withinValidityScope',
+});
 const RECEIPT_DESCRIPTOR_KEYS = Object.freeze([
   'byteLength', 'bytesBase64', 'digest', 'iri', 'mediaType', 'persistenceReceiptDigest',
 ]);
@@ -181,7 +213,7 @@ SELECT ?result ?obligation ?proofState ?resultState ?resultFreshness ?proof ?exe
        ?algorithm ?algorithmVersion ?algorithmVersionIdentifier ?algorithmSourceDigest
        ?historicalAuthorityDigest ?resultEvaluatedAt ?invalidatedAt ?supersededBy
        ?evidence ?evidenceDigest ?admissionState ?evidenceFreshness ?evidenceFreshnessState
-       ?integrityState ?evidenceStage ?withinValidityScope ?validFrom ?validUntil
+       ?integrityState ?evidenceStage ?withinValidityScope ?validFrom ?validUntil ?collectedAt
 WHERE {
   VALUES ?result { ${COMPONENT_VALUES} }
   ?result <urn:usf:ontology:proofResultForObligation> ?obligation ;
@@ -211,6 +243,7 @@ WHERE {
             <urn:usf:ontology:withinValidityScope> ?withinValidityScope ;
             <urn:usf:ontology:validUntil> ?validUntil .
   OPTIONAL { ?evidence <urn:usf:ontology:validFrom> ?validFrom }
+  OPTIONAL { ?evidence <urn:usf:ontology:collectedAt> ?collectedAt }
   OPTIONAL { ?result <urn:usf:ontology:invalidatedAt> ?invalidatedAt }
   OPTIONAL { ?result <urn:usf:ontology:supersededBy> ?supersededBy }
 }
@@ -864,6 +897,146 @@ function assertAuthoritySourceReady(source) {
   }
 }
 
+/**
+ * Read the evidence records the signed candidate asserts, for the exact evidence
+ * identities whose live window may have closed. Parsed from the authored TriG at
+ * the resolved source head, never from the working tree, so a renewal can only
+ * come from reviewed, signed bytes.
+ */
+export function parseCandidateEvidenceRecords(sourceText, iris) {
+  // Never throws. A renewal is an optional repair path, so anything that makes it
+  // unusable — absent, unparsable, or a non-single-valued assertion — must leave
+  // the caller with the historical AGGREGATE_COMPONENT_STALE verdict rather than
+  // introduce a new observable outcome.
+  if (typeof sourceText !== 'string' || sourceText.length === 0) return null;
+  const wanted = new Set(iris);
+  let quads;
+  try {
+    quads = new Parser({ format: 'application/trig' }).parse(sourceText);
+  } catch {
+    return null;
+  }
+  const records = new Map();
+  const rejected = new Set();
+  for (const quad of quads) {
+    if (!wanted.has(quad.subject.value)) continue;
+    const field = RENEWAL_PREDICATES[quad.predicate.value];
+    if (!field) continue;
+    const record = records.get(quad.subject.value) || {};
+    if (Object.hasOwn(record, field) && record[field] !== quad.object.value) {
+      rejected.add(quad.subject.value);
+      continue;
+    }
+    record[field] = quad.object.value;
+    records.set(quad.subject.value, record);
+  }
+  for (const iri of rejected) records.delete(iri);
+  return records;
+}
+
+/**
+ * Accept a renewal for one component evidence identity whose live window has
+ * closed. Every condition is independently established; any shortfall fails
+ * closed as AGGREGATE_COMPONENT_STALE, so behaviour with no renewal present is
+ * exactly the historical behaviour.
+ */
+function acceptComponentEvidenceRenewal({
+  iri, renewalSource, casRoot, evaluatedAt, liveValidUntil, liveCollectedAt, authorityDigest, batch,
+}) {
+  const stale = () => fail('AGGREGATE_COMPONENT_STALE', iri);
+  // Local, non-throwing validators: every shortfall on the renewal path must
+  // surface as AGGREGATE_COMPONENT_STALE, never as a different code, so a
+  // malformed renewal is observationally identical to no renewal at all.
+  const asDigest = (value) => (SHA256.test(value || '') ? value : stale());
+  const asTime = (value) => (RFC3339_SECOND.test(value || '') && Number.isFinite(Date.parse(value))
+    ? value : stale());
+  if (!renewalSource) stale();
+  // Parsed lazily and once: when no component window has closed the candidate
+  // evidence source is never parsed at all, so the non-renewal path is
+  // bit-for-bit the historical path.
+  if (batch.records === undefined) {
+    batch.records = parseCandidateEvidenceRecords(renewalSource.text, RENEWABLE_COMPONENT_EVIDENCE);
+  }
+  const candidate = batch.records === null ? undefined : batch.records.get(iri);
+  if (!candidate) stale();
+  // The renewal must present the same admitted, fresh, integral, in-scope state
+  // the live-record path requires. A renewal may not relax any of them.
+  if (candidate.admissionState !== 'urn:usf:evidenceadmissionstate:admitted'
+      || candidate.freshness !== 'urn:usf:freshness:fresh'
+      || candidate.freshnessState !== 'urn:usf:evidencefreshnessstate:fresh'
+      || candidate.integrityState !== 'urn:usf:evidenceintegritystate:valid'
+      || candidate.withinValidityScope !== 'true') {
+    stale();
+  }
+  // Windows: open now, strictly newer than the record it renews, not
+  // future-dated, and never longer than the window it replaces. The live
+  // collectedAt is required, so a record with no measurable window cannot be
+  // silently widened.
+  const collectedAt = asTime(candidate.collectedAt);
+  const validUntil = asTime(candidate.validUntil);
+  if (liveCollectedAt === null) stale();
+  const renewedWindow = Date.parse(validUntil) - Date.parse(collectedAt);
+  const priorWindow = Date.parse(liveValidUntil) - Date.parse(liveCollectedAt);
+  if (Date.parse(validUntil) <= Date.parse(evaluatedAt)
+      || Date.parse(validUntil) <= Date.parse(liveValidUntil)
+      || Date.parse(collectedAt) <= Date.parse(liveCollectedAt)
+      || Date.parse(collectedAt) > Date.parse(evaluatedAt)
+      || !(renewedWindow > 0) || renewedWindow > priorWindow) {
+    stale();
+  }
+  // Identity: the asserted digest must name bytes that exist in CAS and hash to
+  // it (readCasBytes enforces both), and those bytes must be a self-consistent
+  // evidence manifest whose embedded evidenceDigest is the digest of the rest.
+  const contentDigest = asDigest(candidate.contentDigest);
+  if (contentDigest === ORPHANED_ATTESTATION_DIGEST) fail('AGGREGATE_ORPHAN_EVIDENCE_REJECTED', iri);
+  // Any failure to establish the renewal bytes is a stale component, never a new
+  // observable code: the renewal path must be indistinguishable from no renewal
+  // whenever it does not fully verify. The orphan guard is deliberate and is the
+  // same rejection the live-record path raises for that digest.
+  let bytes;
+  try {
+    bytes = readCasBytes(casRoot, contentDigest);
+  } catch (error) {
+    if (error?.code === 'AGGREGATE_ORPHAN_EVIDENCE_REJECTED') throw error;
+    stale();
+  }
+  let payload;
+  try {
+    payload = JSON.parse(bytes.toString('utf8'));
+  } catch {
+    stale();
+  }
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) stale();
+  const { evidenceDigest: embedded, ...core } = payload;
+  if (!SHA256.test(embedded || '')
+      || sha256Bytes(Buffer.from(canonicalJson(core), 'utf8')) !== embedded) {
+    stale();
+  }
+  // Provenance: the re-run must have been evaluated against the exact
+  // pre-publication authority this operation is evaluating, must post-date the
+  // window it renews, and every renewal in one batch must come from a single
+  // proof run under one algorithm.
+  const proofAlgorithmDigest = asDigest(core.proofAlgorithmDigest);
+  const payloadEvaluatedAt = asTime(core.evaluatedAt);
+  if (Date.parse(payloadEvaluatedAt) <= Date.parse(liveValidUntil)
+      || Date.parse(payloadEvaluatedAt) > Date.parse(evaluatedAt)) {
+    stale();
+  }
+  if (Object.hasOwn(core, 'evaluatedAuthorityDigest')
+      && core.evaluatedAuthorityDigest !== authorityDigest) {
+    stale();
+  }
+  if (batch.proofAlgorithmDigest === null) {
+    batch.proofAlgorithmDigest = proofAlgorithmDigest;
+    batch.implementationSourceDigest = asDigest(core.implementationSourceDigest);
+  } else if (batch.proofAlgorithmDigest !== proofAlgorithmDigest
+      || batch.implementationSourceDigest !== core.implementationSourceDigest) {
+    stale();
+  }
+  batch.renewed.push({ collectedAt, contentDigest, iri, validUntil });
+  return Object.freeze({ bytes, contentDigest, validUntil });
+}
+
 function validateInjectedSourceBinding(value, expectedReachableFrom) {
   exactObjectKeys(value, [
     'head', 'reachableFrom', 'repository', 'sourcePaths', 'sourceScopeDigest', 'tree',
@@ -1035,12 +1208,15 @@ async function readTrustedTime(client) {
   return timestamp(new Date(Date.parse(observed)).toISOString().replace(/\.\d{3}Z$/, 'Z'), 'Stardog trusted time');
 }
 
-function normalizeFacts(rows, casRoot, observedAt, evaluatedAt, authorityDigest, writeRecord) {
+function normalizeFacts(rows, casRoot, observedAt, evaluatedAt, authorityDigest, writeRecord, renewalSource = null) {
   const expectedResults = new Set(COMPONENT_PROOFS.map(({ result }) => result));
   const rowResults = new Set(rows.map((row) => binding(row, 'result')));
   if ([...rowResults].some((result) => !expectedResults.has(result))) {
     fail('AGGREGATE_UNEXPECTED_COMPONENT', [...rowResults].filter((result) => !expectedResults.has(result)).join(','));
   }
+  // One batch across every component, so a renewal set assembled from more than
+  // one proof run — or under more than one algorithm — cannot be accepted.
+  const batch = { implementationSourceDigest: null, proofAlgorithmDigest: null, records: undefined, renewed: [] };
   const components = [];
   for (const expected of COMPONENT_PROOFS) {
     const resultRows = rows.filter((row) => binding(row, 'result') === expected.result);
@@ -1099,13 +1275,27 @@ function normalizeFacts(rows, casRoot, observedAt, evaluatedAt, authorityDigest,
       const evidenceValidUntil = timestamp(exactScalar(evidenceRows, 'validUntil', iri), `${iri} validUntil`);
       const evidenceValidFrom = exactScalar(evidenceRows, 'validFrom', iri, { optional: true });
       if (evidenceValidFrom !== null) timestamp(evidenceValidFrom, `${iri} validFrom`);
-      if (Date.parse(evidenceValidUntil) <= Date.parse(evaluatedAt)
-          || (evidenceValidFrom !== null && Date.parse(evidenceValidFrom) > Date.parse(observedAt))) {
+      const evidenceCollectedAt = exactScalar(evidenceRows, 'collectedAt', iri, { optional: true });
+      if (evidenceCollectedAt !== null) timestamp(evidenceCollectedAt, `${iri} collectedAt`);
+      if (evidenceValidFrom !== null && Date.parse(evidenceValidFrom) > Date.parse(observedAt)) {
         fail('AGGREGATE_COMPONENT_STALE', iri);
       }
-      if (validUntil === null || evidenceValidUntil < validUntil) validUntil = evidenceValidUntil;
-      const bytes = readCasBytes(casRoot, evidenceDigest);
-      evidenceReferences.push({ bytesBase64: bytes.toString('base64'), digest: evidenceDigest, iri });
+      let effectiveDigest = evidenceDigest;
+      let effectiveValidUntil = evidenceValidUntil;
+      let bytes;
+      if (Date.parse(evidenceValidUntil) <= Date.parse(evaluatedAt)) {
+        const renewal = acceptComponentEvidenceRenewal({
+          authorityDigest, batch, casRoot, evaluatedAt, iri,
+          liveCollectedAt: evidenceCollectedAt, liveValidUntil: evidenceValidUntil, renewalSource,
+        });
+        effectiveDigest = renewal.contentDigest;
+        effectiveValidUntil = renewal.validUntil;
+        bytes = renewal.bytes;
+      } else {
+        bytes = readCasBytes(casRoot, evidenceDigest);
+      }
+      if (validUntil === null || effectiveValidUntil < validUntil) validUntil = effectiveValidUntil;
+      evidenceReferences.push({ bytesBase64: bytes.toString('base64'), digest: effectiveDigest, iri });
     }
     const evidenceDescriptors = evidenceReferences.map(({ digest: evidenceDigest, iri }) => ({ digest: evidenceDigest, iri }));
     const historicalResult = writeRecord({
@@ -1163,7 +1353,7 @@ function normalizeFacts(rows, casRoot, observedAt, evaluatedAt, authorityDigest,
   return components;
 }
 
-async function readFacts(dependencies, requestedAuthorityDigest) {
+async function readFacts(dependencies, requestedAuthorityDigest, renewalSource = null) {
   return stableAuthorityRead(dependencies, requestedAuthorityDigest, async () => {
     const [rows, dependentValidationRows, evaluatedAt] = await Promise.all([
       queryComponentRows(dependencies.client), dependencies.client.select(DEPENDENT_VALIDATION_FACTS_QUERY),
@@ -1171,7 +1361,7 @@ async function readFacts(dependencies, requestedAuthorityDigest) {
     ]);
     return Object.freeze({
       components: normalizeFacts(rows, dependencies.casRoot, evaluatedAt, evaluatedAt, requestedAuthorityDigest,
-        dependencies.writeRecord),
+        dependencies.writeRecord, renewalSource),
       dependentValidation: normalizeDependentValidation(dependentValidationRows, dependencies.casRoot),
       evaluatedAt,
     });
@@ -1656,7 +1846,23 @@ export function createAggregateCompilerProofProducer({
 
     async preparePending({ requestedAuthorityDigest }) {
       const aggregateSourceBinding = await operationSourceBinding(dependencies);
-      const { components, dependentValidation, evaluatedAt } = await readFacts(dependencies, requestedAuthorityDigest);
+      // Renewals are read from the same reviewed, signed source head the source
+      // binding already resolved and verified. Only consulted for an evidence
+      // identity whose live window has already closed.
+      let candidateEvidenceSource;
+      try {
+        candidateEvidenceSource = await dependencies.readSourceText({
+          head: aggregateSourceBinding.head,
+          path: EVIDENCE_SOURCE_PATH,
+          repositoryPath: dependencies.repositoryPath,
+        });
+      } catch (error) {
+        if (error?.code?.startsWith('AGGREGATE_')) throw error;
+        fail('AGGREGATE_PRODUCER_SOURCE_UNAVAILABLE', error?.message || 'candidate evidence source dependency failed');
+      }
+      const { components, dependentValidation, evaluatedAt } = await readFacts(
+        dependencies, requestedAuthorityDigest, Object.freeze({ text: candidateEvidenceSource }),
+      );
       const aggregate = evaluateProof({
         authorityDigest: requestedAuthorityDigest,
         components,
@@ -1922,6 +2128,11 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 }
 
 export const aggregateCompilerProofCommandInternals = Object.freeze({
+  RENEWABLE_COMPONENT_EVIDENCE,
+  acceptComponentEvidenceRenewal,
+  newRenewalBatch: () => ({
+    implementationSourceDigest: null, proofAlgorithmDigest: null, records: undefined, renewed: [],
+  }),
   normalizeFacts,
   readCasBytes,
   sourceBinding: gitSourceBinding,
