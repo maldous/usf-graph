@@ -843,7 +843,10 @@ test('canonical Graph publisher exports the separately versioned V2 coordinator'
   assert.equal(publisher.HermeticSemanticProofV2Journal, HermeticSemanticProofV2Journal);
 });
 
-test('V2 validation currentness descendants are exact, admitted, linear and time-current', () => {
+// "fork-free" rather than the tracker product word origin-independence forbids:
+// the lineage rejects any envelope the chain walk does not reach, which is the
+// property this asserts, and the detector's own error code is LINEAGE_FORK.
+test('V2 validation currentness descendants are exact, admitted, fork-free and time-current', () => {
   const values = fixture();
   const validation = values.plan.derived_consumers.find(
     (item) => item.consumer_kind === 'validation_currentness_binding',
