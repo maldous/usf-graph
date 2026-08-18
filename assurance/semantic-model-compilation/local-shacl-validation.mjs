@@ -598,7 +598,17 @@ export function runLocalShaclValidation({ repositoryRoot, runtime, arguments: va
     env: { LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', PATH: '/usr/bin:/bin', TZ: 'UTC' },
     input: effectiveLocalShaclPythonSource,
     maxBuffer: 64 * 1024 * 1024,
-    timeout: 600_000,
+    // The affected-closure workload has outgrown a ten-minute ceiling. The compiler
+    // proof passes the deduplicated union of the static SHACL focus roots and the
+    // realisation-option evaluation roots: 14 and 1,620 sharing 6, so 1,628 roots
+    // as of 2026-08-18 (argv 3,257 = 1 + 2 x 1,628, which corroborates the count).
+    // Each call validates the full transitive closure of those roots twice
+    // (AFFECTED_AUTHORED and AFFECTED_REGISTERED_DERIVED_SNAPSHOT), while
+    // runLocalCompatibleShacl calls it twice over to prove determinism. At
+    // 600_000 the producer failed ETIMEDOUT and the proof became un-rerunnable —
+    // undetected, because the admitted evidence stayed inside its validity window.
+    // This is a ceiling, not a delay: a genuinely hung run still fails closed.
+    timeout: 3_600_000,
   });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`local SHACL validation failed (${result.status}): ${result.stderr.trim()}`);
