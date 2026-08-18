@@ -915,6 +915,17 @@ export async function evaluateCompilerSemanticEnforcement({
   runFocusedTests,
   runLocalCompatibleShacl,
   realisationOptionClosure,
+  // createSemanticModelCompilationCommand requires a publication lane, and the V2
+  // paths require a native successor store, with no ambient host-path default. The
+  // proof therefore receives both from its command layer instead of resolving host
+  // paths itself. Both are inert under publicationMode 'validate' — the candidate
+  // transaction is rolled back — but the constructor refuses without the lane, and
+  // omitting it made this proof un-rerunnable with "semantic publication lane is
+  // required". Every other caller of the constructor already supplies both; this
+  // was the single call site left behind, and nothing re-runs it while the admitted
+  // evidence stays fresh.
+  publicationLane,
+  nativeGraphStore,
   createCommand = createSemanticModelCompilationCommand,
 }) {
   if (!SHA256.test(authorityDigest || '')) throw new Error('authorityDigest must be an exact sha256 digest');
@@ -961,7 +972,9 @@ export async function evaluateCompilerSemanticEnforcement({
   const localShaclRun = await runLocalCompatibleShacl();
   const localShacl = validateLocalShaclEvidence(localShaclRun);
   const client = await createLiveClient();
-  const command = createCommand({ client, readAuthorityWitness, repositoryRoot });
+  const command = createCommand({
+    client, readAuthorityWitness, repositoryRoot, publicationLane, nativeGraphStore,
+  });
   const compilation = await command.execute({ expectedAuthorityDigest: authorityDigest, publicationMode: 'validate' });
   const liveValidation = validateLiveValidationEvidence(compilation.liveValidation, localShacl);
   const cases = [

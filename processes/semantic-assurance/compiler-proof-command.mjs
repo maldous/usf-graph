@@ -20,6 +20,8 @@ import { discoverTestInventory, executeTestInventory, TEST_PROFILES } from '../.
 import { createStardogSemanticAuthorityClient } from '../../provider-bindings/stardog/semantic-authority.mjs';
 import { validateSemanticAuthorityConfiguration } from '../../configuration/semantic-assurance/semantic-authority.mjs';
 import { readSemanticAuthorityWitness } from './semantic-authority-gateway.mjs';
+import { semanticModelCompilationCommandInternals } from './semantic-model-compilation-command.mjs';
+import { createCasEvidenceStore, createGraphNativeSuccessorStoreV2 } from './semantic-authority-publication.mjs';
 
 export const compilerProofSourcePaths = Object.freeze([
   '.github/workflows/validate-spec.yml',
@@ -227,6 +229,11 @@ export async function runCompilerProof({
   evaluatedAt,
   repositoryRoot,
   casRoot = '/var/lib/usf-cas',
+  // Host path for the publication lane and native successor store, resolved here
+  // in the command layer exactly as the publication composition root does, so the
+  // proof algorithm itself stays free of host paths. Mirrors the existing casRoot
+  // parameter shape.
+  programmeRoot = process.env.USF_PROGRAMME_ROOT || '/var/lib/usf-programme',
   authorityControl,
   localShaclRuntime,
 }) {
@@ -305,6 +312,14 @@ export async function runCompilerProof({
     runFocusedTests,
     runLocalCompatibleShacl,
     realisationOptionClosure,
+    // Built from the canonical factories, the same way configureLiveDependencies
+    // and the production shadow path build them. Inert under publicationMode
+    // 'validate', but the command constructor requires the lane.
+    publicationLane: semanticModelCompilationCommandInternals.createSemanticPublicationLaneV2(programmeRoot),
+    nativeGraphStore: createGraphNativeSuccessorStoreV2({
+      nativeRoot: `${programmeRoot}/v2-native-graph-successors`,
+      casStore: createCasEvidenceStore(casRoot),
+    }),
   });
 }
 
