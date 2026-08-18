@@ -88,3 +88,38 @@ A task is complete only when its contract obligations are satisfied with real
 evidence and the applicable validators pass — not because tests, reports,
 external work records, or existing code say so. Report an explicit readiness verdict and any
 residual gap. Do not overclaim.
+
+## Operational continuity and skill maintenance
+
+Keep volatile run state and durable operating rules separate.
+
+- The live authority and an explicit handover/checkpoint record are the source
+  of truth for volatile state: authority/repository identities, route position,
+  active scope, tests, counters, defects, leases/grants, safety counters, and
+  the exact next operation. Do not copy transient digests, PIDs, counts,
+  expiries, or one-run observations into this skill.
+- During a long autonomous route, refresh the handover immediately after every
+  material state change and after every irreversible or externally visible
+  lifecycle transition. If no such transition occurs, reconcile it with live
+  state at least once per hour while active work continues.
+- A material state change includes admission/publication, authority change,
+  candidate freeze/reseal, grant acquisition/consumption, ownership transition,
+  activation/deployment, restart, provider contact, prune, backup/restore,
+  natural-cycle completion, route/scope change, or discovery of a new blocker
+  or safety invariant.
+- Before a one-shot or otherwise non-repeatable operation, record the exact
+  pre-state, expected identity/result, and independent read-back method. After
+  the operation, independently establish whether it committed and refresh the
+  handover before beginning the next transition.
+- Promote reusable knowledge into the appropriate skill as soon as it becomes
+  an invariant: after a safety/governance failure, after a previously unknown
+  prerequisite is proven, or when the same failure pattern is encountered a
+  second time. Record the trigger, required check/action, failure code or stop
+  condition, and the evidence/validator that proves compliance.
+- At every named lifecycle milestone and before declaring BAU, reconcile the
+  applicable USF, admission, and reporting skills against the route just
+  executed. Add missing reusable rules before continuing or closing the route;
+  remove superseded rules rather than leaving parallel legacy paths.
+- A checkpoint or reporting milestone is not itself a reason to stop. Continue
+  autonomously after refreshing durable state unless an explicit semantic,
+  governance, safety, or authorization stop condition is actually true.
