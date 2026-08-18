@@ -14,7 +14,7 @@ import {
 export const AGGREGATE_ALGORITHM_VERSION = '2.1.0';
 export const AGGREGATE_REPOSITORY = 'maldous/usf-graph';
 export const GIT_EXECUTABLE = '/usr/bin/git';
-export const ORPHANED_ATTESTATION_DIGEST = 'sha256:a7148e9b618f5dda16b588e45739742e0aa6ea0ae34dd5639daa41a6eed8224d';
+export const ORPHANED_ATTESTATION_DIGEST = 'sha256:aa55d33f1b29892fc4ad7e8ea690f479f14d8a0babc0a6edb2379ca6876c1842';
 export const SHARED_HERMETIC_RESULTS = Object.freeze([
   'urn:usf:proofresult:compilercontractbehaviour',
   'urn:usf:proofresult:compilerhermeticsubstitute',
@@ -22,11 +22,11 @@ export const SHARED_HERMETIC_RESULTS = Object.freeze([
 export const SHARED_HERMETIC_EVIDENCE = Object.freeze([
   Object.freeze({
     iri: 'urn:usf:evidenceresult:compilerhermeticsubstituteruntime',
-    digest: 'sha256:ac5490b46604ca6eb25d739248eb9fb6a188dd7d587edf6215c61b1a593f787c',
+    digest: 'sha256:65efe71e32fd678fa8786169c53cc39f6cc3a8bebe9a24dbbcddc6d497b65a6e',
   }),
   Object.freeze({
     iri: 'urn:usf:evidenceresult:compilerhermeticsubstitutevalidation',
-    digest: 'sha256:ac5490b46604ca6eb25d739248eb9fb6a188dd7d587edf6215c61b1a593f787c',
+    digest: 'sha256:65efe71e32fd678fa8786169c53cc39f6cc3a8bebe9a24dbbcddc6d497b65a6e',
   }),
 ]);
 export const SHARED_LIVE_AUTHORITY_RESULTS = Object.freeze([
@@ -35,11 +35,11 @@ export const SHARED_LIVE_AUTHORITY_RESULTS = Object.freeze([
 export const SHARED_LIVE_AUTHORITY_EVIDENCE = Object.freeze([
   Object.freeze({
     iri: 'urn:usf:evidenceresult:compilerliveauthorityruntime',
-    digest: 'sha256:164c0f372063fe1b0addd39127a5380bcf15e3db5014283a9a62a671f41aff55',
+    digest: 'sha256:e4a8d53b08e19aba1c8e9cf06d2a7b465098e5c742dfef2159c257c4680168e5',
   }),
   Object.freeze({
     iri: 'urn:usf:evidenceresult:compilerliveauthoritytransactionvalidation',
-    digest: 'sha256:164c0f372063fe1b0addd39127a5380bcf15e3db5014283a9a62a671f41aff55',
+    digest: 'sha256:e4a8d53b08e19aba1c8e9cf06d2a7b465098e5c742dfef2159c257c4680168e5',
   }),
 ]);
 export const COMPONENT_PROOFS = Object.freeze([

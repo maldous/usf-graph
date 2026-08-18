@@ -249,11 +249,15 @@
 <urn:usf:proofalgorithm:compilersemanticenforcement> a usf:ProofAlgorithm;
     usf:canonicalName "compilersemanticenforcement";
     usf:proofAlgorithmSourcePath "assurance/semantic-model-compilation/compiler-proof.mjs";
-    usf:proofAlgorithmSourceDigest "sha256:e4ff88726a24a7c0ba30ac26909f7dd94ae0205ea7f97e9f62e37c2e8f6af471".
+    usf:proofAlgorithmSourceDigest "sha256:422e27d675b5ddd715de745f00669b4282ba925bdea6f1c0bd1308eeb08feab9".
 <urn:usf:proofalgorithmversion:compilersemanticenforcement1d2db0368372a56356717073eaa4c40def2a256df0d95b01d5daa460b7aed024> a usf:ProofAlgorithmVersion;
     usf:canonicalName "compilersemanticenforcement1d2db0368372a56356717073eaa4c40def2a256df0d95b01d5daa460b7aed024";
     usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:compilersemanticenforcement>;
     usf:proofAlgorithmVersionIdentifier "2.2.1".
+<urn:usf:proofalgorithmversion:compilersemanticenforcement422e27d675b5ddd715de745f00669b4282ba925bdea6f1c0bd1308eeb08feab9> a usf:ProofAlgorithmVersion;
+    usf:canonicalName "compilersemanticenforcement422e27d675b5ddd715de745f00669b4282ba925bdea6f1c0bd1308eeb08feab9";
+    usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:compilersemanticenforcement>;
+    usf:proofAlgorithmVersionIdentifier "2.3.1".
 <urn:usf:proofalgorithmversion:compilersemanticenforcemente4ff88726a24a7c0ba30ac26909f7dd94ae0205ea7f97e9f62e37c2e8f6af471> a usf:ProofAlgorithmVersion;
     usf:canonicalName "compilersemanticenforcemente4ff88726a24a7c0ba30ac26909f7dd94ae0205ea7f97e9f62e37c2e8f6af471";
     usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:compilersemanticenforcement>;
@@ -285,16 +289,16 @@
     usf:hasProofResultState <urn:usf:proofresultstate:successful>;
     usf:proofResultForObligation <urn:usf:proofobligation:compilersemantics>;
     usf:usesAdmittedEvidence <urn:usf:evidenceresult:compilerhermeticsubstitutevalidation>, <urn:usf:evidenceresult:compilerhermeticsubstituteruntime>;
-    usf:evidenceSetDigest "sha256:72605408479efedbc873c44c3d5a7dcf2add80084cdb3c0244e52ffde77f4a67";
+    usf:evidenceSetDigest "sha256:ee74dcd2f6ccead41b3d846772bef87f2338b537729bb9cba04e71932b408898";
     usf:usesProofAlgorithm <urn:usf:proofalgorithm:compilersemanticenforcement>;
-    usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:compilersemanticenforcement1d2db0368372a56356717073eaa4c40def2a256df0d95b01d5daa460b7aed024>;
+    usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:compilersemanticenforcement422e27d675b5ddd715de745f00669b4282ba925bdea6f1c0bd1308eeb08feab9>;
     usf:evaluatedByValidator <urn:usf:validatorrule:validateassuranceconformance>;
     usf:proofExecutionEnvironment env:hermetic;
     usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
     usf:confidenceBasis <urn:usf:evidenceresult:compilerhermeticsubstitutevalidation>, <urn:usf:evidenceresult:compilerhermeticsubstituteruntime>;
     usf:uncertaintyStatement "Proves repository-local deterministic compilation, validation, negative controls, digest generation and provider-independent failure handling only; it does not prove live Stardog access, publication, rollback or source-authority parity.";
     usf:proofNonclaim <urn:usf:nonclaim:hermeticsubstituteevidencedoesnotproveauthoritycontrol>, <urn:usf:nonclaim:hermeticevaluationsignatureprovidesproductionauthenticity>;
-    usf:evaluatedAt "2026-07-18T16:36:54Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+    usf:evaluatedAt "2026-08-18T12:08:10Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
     usf:hasAuthorityBinding <urn:usf:proofauthoritybinding:compilerhermeticsubstitute>;
     usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 <urn:usf:proof:compilercontractbehaviour> a usf:Proof;
@@ -324,16 +328,16 @@
     usf:hasProofResultState <urn:usf:proofresultstate:successful>;
     usf:proofResultForObligation <urn:usf:proofobligation:p10cc239b81b3890d5714e8996d369bd08394965220eae7c34aa7c3ccbfc2467b>;
     usf:usesAdmittedEvidence <urn:usf:evidenceresult:compilerhermeticsubstitutevalidation>, <urn:usf:evidenceresult:compilerhermeticsubstituteruntime>;
-    usf:evidenceSetDigest "sha256:72605408479efedbc873c44c3d5a7dcf2add80084cdb3c0244e52ffde77f4a67";
+    usf:evidenceSetDigest "sha256:ee74dcd2f6ccead41b3d846772bef87f2338b537729bb9cba04e71932b408898";
     usf:usesProofAlgorithm <urn:usf:proofalgorithm:compilersemanticenforcement>;
-    usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:compilersemanticenforcement1d2db0368372a56356717073eaa4c40def2a256df0d95b01d5daa460b7aed024>;
+    usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:compilersemanticenforcement422e27d675b5ddd715de745f00669b4282ba925bdea6f1c0bd1308eeb08feab9>;
     usf:evaluatedByValidator <urn:usf:validatorrule:validateassuranceconformance>;
     usf:proofExecutionEnvironment env:hermetic;
     usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
     usf:confidenceBasis <urn:usf:evidenceresult:compilerhermeticsubstitutevalidation>, <urn:usf:evidenceresult:compilerhermeticsubstituteruntime>;
     usf:uncertaintyStatement "Closes the independently derived contract-behaviour obligation only within the deterministic substitute cell; live authority-control behaviour is established by a separate proof result.";
     usf:proofNonclaim <urn:usf:nonclaim:hermeticsubstituteevidencedoesnotproveauthoritycontrol>, <urn:usf:nonclaim:hermeticevaluationsignatureprovidesproductionauthenticity>;
-    usf:evaluatedAt "2026-07-18T16:36:54Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+    usf:evaluatedAt "2026-08-18T12:08:10Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
     usf:hasAuthorityBinding <urn:usf:proofauthoritybinding:compilercontractbehaviour>;
     usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 <urn:usf:proof:compilerliveauthoritycontrol> a usf:Proof;
@@ -363,21 +367,21 @@
     usf:hasProofResultState <urn:usf:proofresultstate:successful>;
     usf:proofResultForObligation <urn:usf:proofobligation:compilerliveauthoritycontrol>;
     usf:usesAdmittedEvidence <urn:usf:evidenceresult:compilerliveauthoritytransactionvalidation>, <urn:usf:evidenceresult:compilerliveauthorityruntime>;
-    usf:evidenceSetDigest "sha256:38f69d84d7a60372de291bacc755ea105c99ee2a04cbca5e64c9206574109748";
+    usf:evidenceSetDigest "sha256:c94e323240d5871c0b736dc4cef6ca2bff5167827319c2baa3ee141bf39e2dce";
     usf:usesProofAlgorithm <urn:usf:proofalgorithm:compilersemanticenforcement>;
-    usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:compilersemanticenforcement1d2db0368372a56356717073eaa4c40def2a256df0d95b01d5daa460b7aed024>;
+    usf:usesAlgorithmVersion <urn:usf:proofalgorithmversion:compilersemanticenforcement422e27d675b5ddd715de745f00669b4282ba925bdea6f1c0bd1308eeb08feab9>;
     usf:evaluatedByValidator <urn:usf:validatorrule:validateassuranceconformance>;
     usf:proofExecutionEnvironment env:authoritycontrol;
     usf:hasConfidenceState <urn:usf:proofconfidencestate:warranted>;
     usf:confidenceBasis <urn:usf:evidenceresult:compilerliveauthoritytransactionvalidation>, <urn:usf:evidenceresult:compilerliveauthorityruntime>;
     usf:uncertaintyStatement "Proves exact-digest live Stardog access, candidate validation, validate-and-rollback, CAS verification and zero post-transaction authority drift; it is not hermetic, staging or production-live evidence.";
     usf:proofNonclaim <urn:usf:nonclaim:liveauthoritycontrolevidenceisnothermetic>, <urn:usf:nonclaim:hermeticevaluationsignatureprovidesproductionauthenticity>;
-    usf:evaluatedAt "2026-07-18T16:36:54Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+    usf:evaluatedAt "2026-08-18T12:08:10Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
     usf:hasAuthorityBinding <urn:usf:proofauthoritybinding:compilerliveauthoritycontrol>;
     usf:hasInvalidationCondition <urn:usf:proofinvalidationcondition:evidenceinvalidated>, <urn:usf:proofinvalidationcondition:evidencestale>, <urn:usf:proofinvalidationcondition:authoritydigestchanged>.
 <urn:usf:proofauthoritybinding:compilerhermeticsubstitute> a usf:ProofAuthorityBinding;
     usf:canonicalName "compilerhermeticsubstitute";
-    usf:bindingEvaluatedAuthorityDigest "sha256:dd3a24e0ad666a94c51988fe92a1083cfe0e35de1247e5f7884ff2eacabf0573";
+    usf:bindingEvaluatedAuthorityDigest "sha256:8207e0ef1ea3b239f2fb30e4eaa6870bf17d6319f5b4e425aaaefb1510ec9fae";
     usf:bindingDependencySetDigest "sha256:1b7147be19433f3c0420c0d08559554b7a90e30d02b73cb12f508211916f588c";
     usf:bindingDependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
     usf:usesAuthorityBindingRule <urn:usf:authoritybindingrule:selfpublicationclosure>;
@@ -386,7 +390,7 @@
     usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:coverage"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:obligations"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:readiness"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:surfaces"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:proofs"^^<http://www.w3.org/2001/XMLSchema#anyURI>.
 <urn:usf:proofauthoritybinding:compilercontractbehaviour> a usf:ProofAuthorityBinding;
     usf:canonicalName "compilercontractbehaviour";
-    usf:bindingEvaluatedAuthorityDigest "sha256:dd3a24e0ad666a94c51988fe92a1083cfe0e35de1247e5f7884ff2eacabf0573";
+    usf:bindingEvaluatedAuthorityDigest "sha256:8207e0ef1ea3b239f2fb30e4eaa6870bf17d6319f5b4e425aaaefb1510ec9fae";
     usf:bindingDependencySetDigest "sha256:1b7147be19433f3c0420c0d08559554b7a90e30d02b73cb12f508211916f588c";
     usf:bindingDependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
     usf:usesAuthorityBindingRule <urn:usf:authoritybindingrule:selfpublicationclosure>;
@@ -395,7 +399,7 @@
     usf:excludedAuthorityGraphIri "urn:usf:graph:capabilities"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:coverage"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:obligations"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:readiness"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:derived:surfaces"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:evidence"^^<http://www.w3.org/2001/XMLSchema#anyURI>, "urn:usf:graph:proofs"^^<http://www.w3.org/2001/XMLSchema#anyURI>.
 <urn:usf:proofauthoritybinding:compilerliveauthoritycontrol> a usf:ProofAuthorityBinding;
     usf:canonicalName "compilerliveauthoritycontrol";
-    usf:bindingEvaluatedAuthorityDigest "sha256:dd3a24e0ad666a94c51988fe92a1083cfe0e35de1247e5f7884ff2eacabf0573";
+    usf:bindingEvaluatedAuthorityDigest "sha256:8207e0ef1ea3b239f2fb30e4eaa6870bf17d6319f5b4e425aaaefb1510ec9fae";
     usf:bindingDependencySetDigest "sha256:1b7147be19433f3c0420c0d08559554b7a90e30d02b73cb12f508211916f588c";
     usf:bindingDependencyDigestAlgorithm "sha256-rdfc10-nonpublication-graph-inventory-v1";
     usf:usesAuthorityBindingRule <urn:usf:authoritybindingrule:selfpublicationclosure>;
@@ -615,11 +619,15 @@
 <urn:usf:proofalgorithm:factoryproviderv3implementation> a usf:ProofAlgorithm;
   usf:canonicalName "factoryproviderv3implementation";
   usf:proofAlgorithmSourcePath "assurance/semantic-model-compilation/aggregate-compiler-proof.mjs";
-  usf:proofAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
-  usf:currentAlgorithmSourceDigest "sha256:c218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
-  usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890>;
+  usf:proofAlgorithmSourceDigest "sha256:5b4f210217c040ab6258489d30d80ebb1aa3e720e04fc7cd1577294b847e9a64";
+  usf:currentAlgorithmSourceDigest "sha256:5b4f210217c040ab6258489d30d80ebb1aa3e720e04fc7cd1577294b847e9a64";
+  usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:factoryproviderv3implementation5b4f210217c040ab6258489d30d80ebb1aa3e720e04fc7cd1577294b847e9a64>;
   usf:currentImplementationSourceSetDigest "sha256:02a9e0a54ee63969d2d9c59bf7cd707334862c5228e0f6525faa2e908e031f9d";
   usf:requiresGraphSourceBinding true.
+<urn:usf:proofalgorithmversion:factoryproviderv3implementation5b4f210217c040ab6258489d30d80ebb1aa3e720e04fc7cd1577294b847e9a64> a usf:ProofAlgorithmVersion;
+  usf:canonicalName "factoryproviderv3implementation5b4f210217c040ab6258489d30d80ebb1aa3e720e04fc7cd1577294b847e9a64";
+  usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:factoryproviderv3implementation>;
+  usf:proofAlgorithmVersionIdentifier "1.0.2".
 <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890> a usf:ProofAlgorithmVersion;
   usf:canonicalName "factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:factoryproviderv3implementation>;
@@ -693,8 +701,8 @@
 <urn:usf:proofalgorithm:eventhistorycheckpointpruning> a usf:ProofAlgorithm;
   usf:canonicalName "eventhistorycheckpointpruning";
   usf:proofAlgorithmSourcePath "assurance/semantic-model-compilation/aggregate-compiler-proof-command.mjs";
-  usf:proofAlgorithmSourceDigest "sha256:9de639f7393b01af1e2075f1a411f3cac07a592426fc59881376888d4a97e568";
-  usf:currentAlgorithmSourceDigest "sha256:9de639f7393b01af1e2075f1a411f3cac07a592426fc59881376888d4a97e568";
+  usf:proofAlgorithmSourceDigest "sha256:130221d9a8f069b92b4c57cc172b5d7676432d26a89aa346694f907abf11a3a6";
+  usf:currentAlgorithmSourceDigest "sha256:130221d9a8f069b92b4c57cc172b5d7676432d26a89aa346694f907abf11a3a6";
   usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:eventhistorycheckpointpruninga0331b2ed51be211cb9eb6dfe92a5b7d6eb7a06dffe7ed2eda54a6fa23065350>;
   usf:currentImplementationSourceSetDigest "sha256:92ad836cb939ca24d90a94940987702268ee5ec16eaa3484cf23151b8585ca60";
   usf:requiresGraphSourceBinding true.

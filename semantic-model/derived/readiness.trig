@@ -1,4 +1,5 @@
 GRAPH <urn:usf:graph:derived:readiness> {
+  <urn:usf:decisionevaluation:backupandrestoreeventhistorycheckpointpruning> <urn:usf:ontology:evaluationClosureState> <urn:usf:evaluationclosurestate:complete> .
   <urn:usf:decisionevaluation:providerconfigurationplanefactoryworkforce> <urn:usf:ontology:evaluationClosureState> <urn:usf:evaluationclosurestate:complete> .
   <urn:usf:decisionevaluation:providerenvironmentclassificationfactoryworkforce> <urn:usf:ontology:evaluationClosureState> <urn:usf:evaluationclosurestate:complete> .
   <urn:usf:decisionevaluation:repositoryarchitectureandnaming> <urn:usf:ontology:evaluationClosureState> <urn:usf:evaluationclosurestate:complete> .
@@ -93,9 +94,9 @@ GRAPH <urn:usf:graph:derived:readiness> {
   <urn:usf:readiness:r3e3ac950c6a515eb0f440ac348b2944a4f0c47fa713f297b71a29eef3db463e9> <urn:usf:ontology:canonicalName> "r3e3ac950c6a515eb0f440ac348b2944a4f0c47fa713f297b71a29eef3db463e9" .
   <urn:usf:readiness:r3e3ac950c6a515eb0f440ac348b2944a4f0c47fa713f297b71a29eef3db463e9> <urn:usf:ontology:derivedFrom> <urn:usf:capability:repositoryexternalartefactmaterialisation> .
   <urn:usf:readiness:r3e3ac950c6a515eb0f440ac348b2944a4f0c47fa713f297b71a29eef3db463e9> <urn:usf:ontology:readinessOf> <urn:usf:capability:repositoryexternalartefactmaterialisation> .
-  <urn:usf:readiness:r3e3ac950c6a515eb0f440ac348b2944a4f0c47fa713f297b71a29eef3db463e9> <urn:usf:ontology:readinessReason> <urn:usf:readinessreason:missingblockingobligation> .
+  <urn:usf:readiness:r3e3ac950c6a515eb0f440ac348b2944a4f0c47fa713f297b71a29eef3db463e9> <urn:usf:ontology:readinessReason> <urn:usf:readinessreason:incompatibleprovidermode> .
   <urn:usf:readiness:r3e3ac950c6a515eb0f440ac348b2944a4f0c47fa713f297b71a29eef3db463e9> <urn:usf:ontology:readinessRung> <urn:usf:proofrung:discovery> .
-  <urn:usf:readiness:r3e3ac950c6a515eb0f440ac348b2944a4f0c47fa713f297b71a29eef3db463e9> <urn:usf:ontology:readinessState> <urn:usf:readinessstate:notready> .
+  <urn:usf:readiness:r3e3ac950c6a515eb0f440ac348b2944a4f0c47fa713f297b71a29eef3db463e9> <urn:usf:ontology:readinessState> <urn:usf:readinessstate:incompatible> .
   <urn:usf:readiness:r45b8ba3f0dbe36d41ebb2255db730c5ca4871b6d64682cc26da281797aff6b40> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:Readiness> .
   <urn:usf:readiness:r45b8ba3f0dbe36d41ebb2255db730c5ca4871b6d64682cc26da281797aff6b40> <urn:usf:ontology:canonicalName> "r45b8ba3f0dbe36d41ebb2255db730c5ca4871b6d64682cc26da281797aff6b40" .
   <urn:usf:readiness:r45b8ba3f0dbe36d41ebb2255db730c5ca4871b6d64682cc26da281797aff6b40> <urn:usf:ontology:derivedFrom> <urn:usf:capability:scheduledjobsbuiltinontheeventsubstrate> .
@@ -394,9 +395,9 @@ GRAPH <urn:usf:graph:derived:readiness> {
   <urn:usf:readiness:rcbe9afa16b1d4a2a32ca60763eca5098e5fbcb999b7ce053db9dd6b9d17c4749> <urn:usf:ontology:canonicalName> "rcbe9afa16b1d4a2a32ca60763eca5098e5fbcb999b7ce053db9dd6b9d17c4749" .
   <urn:usf:readiness:rcbe9afa16b1d4a2a32ca60763eca5098e5fbcb999b7ce053db9dd6b9d17c4749> <urn:usf:ontology:derivedFrom> <urn:usf:capability:providerconfigurationplane> .
   <urn:usf:readiness:rcbe9afa16b1d4a2a32ca60763eca5098e5fbcb999b7ce053db9dd6b9d17c4749> <urn:usf:ontology:readinessOf> <urn:usf:capability:providerconfigurationplane> .
-  <urn:usf:readiness:rcbe9afa16b1d4a2a32ca60763eca5098e5fbcb999b7ce053db9dd6b9d17c4749> <urn:usf:ontology:readinessReason> <urn:usf:readinessreason:missingblockingobligation> .
+  <urn:usf:readiness:rcbe9afa16b1d4a2a32ca60763eca5098e5fbcb999b7ce053db9dd6b9d17c4749> <urn:usf:ontology:readinessReason> <urn:usf:readinessreason:incompatibleprovidermode> .
   <urn:usf:readiness:rcbe9afa16b1d4a2a32ca60763eca5098e5fbcb999b7ce053db9dd6b9d17c4749> <urn:usf:ontology:readinessRung> <urn:usf:proofrung:discovery> .
-  <urn:usf:readiness:rcbe9afa16b1d4a2a32ca60763eca5098e5fbcb999b7ce053db9dd6b9d17c4749> <urn:usf:ontology:readinessState> <urn:usf:readinessstate:notready> .
+  <urn:usf:readiness:rcbe9afa16b1d4a2a32ca60763eca5098e5fbcb999b7ce053db9dd6b9d17c4749> <urn:usf:ontology:readinessState> <urn:usf:readinessstate:incompatible> .
   <urn:usf:readiness:rcdd365de185dc2141b4af9f5f0d38256b155b624d4dbf5a64574dbb2f331f076> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:usf:ontology:Readiness> .
   <urn:usf:readiness:rcdd365de185dc2141b4af9f5f0d38256b155b624d4dbf5a64574dbb2f331f076> <urn:usf:ontology:canonicalName> "rcdd365de185dc2141b4af9f5f0d38256b155b624d4dbf5a64574dbb2f331f076" .
   <urn:usf:readiness:rcdd365de185dc2141b4af9f5f0d38256b155b624d4dbf5a64574dbb2f331f076> <urn:usf:ontology:derivedFrom> <urn:usf:capability:observabilitybuiltinalertingandincidents> .
