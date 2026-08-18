@@ -25,6 +25,21 @@ export const compilerProofSourcePaths = Object.freeze([
   '.github/workflows/validate-spec.yml',
   'package.json',
   'package-lock.json',
+  // Transitively imported by the discovered semantic-assurance test set but absent
+  // from this source list, so validateExecutionSourceClosure rejected the proof:
+  // every resolved repository module must appear in the implementation source
+  // digest. Eight are pre-existing; native-handover-fixture-v2.mjs arrived with
+  // this candidate. Computed as the static import closure of the discovered tests,
+  // not guessed.
+  'assurance/permutation-closure/family-census.mjs',
+  'assurance/permutation-closure/family-registry.mjs',
+  'capabilities/repository-external-artefact-materialisation/generated-output-validation/formats.mjs',
+  'capabilities/repository-external-artefact-materialisation/generated-output-validation/index.mjs',
+  'capabilities/repository-external-artefact-materialisation/generated-output-validation/paths.mjs',
+  'capabilities/repository-external-artefact-materialisation/generated-output-validation/release.mjs',
+  'capabilities/repository-external-artefact-materialisation/generated-output-validation/validation-error.mjs',
+  'capabilities/repository-external-artefact-materialisation/generation-authority-binding.mjs',
+  'processes/semantic-assurance/native-handover-fixture-v2.mjs',
   'capabilities/semantic-model-compilation/authority-dataset.mjs',
   'capabilities/semantic-model-compilation/authority-dataset.test.mjs',
   'capabilities/semantic-model-compilation/compiler.mjs',
