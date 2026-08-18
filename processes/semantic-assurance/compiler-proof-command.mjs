@@ -244,7 +244,13 @@ export async function runCompilerProof({
   const runFocusedTests = async () => {
     const { output, ...result } = executeTestInventory(testInventory, {
       repositoryRoot,
-      snapshotPaths: ['.github', 'assurance', 'capabilities', 'configuration', 'node_modules', 'package-lock.json', 'package.json', 'processes', 'provider-bindings', 'semantic-model'],
+      // 'operations' carries no discovered tests, so test discovery never pulls it
+      // in, yet the authority-binding regressions read
+      // operations/programme/update-checkpoint.mjs to prove no compiled-in authority
+      // digest survives there. runTestProfile already stages it for the same reason;
+      // this direct executeTestInventory call did not, so the guard was unenforceable
+      // in the compiler proof and the proof itself could not re-run.
+      snapshotPaths: ['.github', 'assurance', 'capabilities', 'configuration', 'node_modules', 'operations', 'package-lock.json', 'package.json', 'processes', 'provider-bindings', 'semantic-model'],
       snapshotExclusions: ['node_modules/.bin'],
     });
     return result;
