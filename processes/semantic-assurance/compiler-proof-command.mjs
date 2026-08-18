@@ -43,8 +43,16 @@ export const compilerProofSourcePaths = Object.freeze([
   'provider-bindings/stardog/semantic-authority.mjs',
   'provider-bindings/stardog/semantic-authority.test.mjs',
   'provider-bindings/stardog/stardog-read-gateway.mjs',
+  // The programme-authority-binding proof reads all four generation sources; three
+  // were absent here, so the proof's hermetic snapshot did not contain files its own
+  // test opens and the proof became un-rerunnable with ENOENT. Latent since that test
+  // landed (815ec13, 2026-07-25): the admitted evidence stayed inside its validity
+  // window until 2026-08-17, so nothing re-ran the proof to expose it.
+  'operations/programme/update-checkpoint.mjs',
   'processes/semantic-assurance/compiler-proof-command.mjs',
   'processes/semantic-assurance/compiler-proof-command.test.mjs',
+  'processes/semantic-assurance/permutation-authority-projection-capture.mjs',
+  'processes/semantic-assurance/programme-authority-capture.mjs',
   'processes/semantic-assurance/repository-materialisation-command.mjs',
   'processes/semantic-assurance/repository-materialisation-command.test.mjs',
   'processes/semantic-assurance/repository-materialisation-gateway.mjs',
