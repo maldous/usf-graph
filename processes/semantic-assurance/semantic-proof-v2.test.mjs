@@ -921,3 +921,32 @@ test('V2 validation currentness descendants are exact, admitted, fork-free and t
     ...options, verifySignature: () => false,
   }), /signature is invalid/);
 });
+
+// The publisher is spawned as a subprocess by the Factory's Graph readers, so its CLI
+// entrypoint must actually deliver a result or a diagnosis. It previously awaited main()
+// during its own module evaluation, which deadlocked an import cycle
+// (semantic-authority-publication -> semantic-model-compilation-command ->
+// aggregate-compiler-proof-command -> semantic-authority-publication) and made Node exit 13
+// with empty stdout and empty stderr, so a successful observation was indistinguishable from
+// a failure. Every consumer then reported a generic failure such as
+// V2_NATIVE_GRAPH_OWNERSHIP_OBSERVATION_FAILED.
+test('the publisher CLI entrypoint reports a diagnosis instead of exiting unsettled', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const entrypoint = new URL('./semantic-authority-publication.mjs', import.meta.url).pathname;
+  let status = 0;
+  let stderr = '';
+  try {
+    execFileSync(process.execPath, [entrypoint, '--mode=not-a-real-mode'], {
+      stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8', timeout: 120_000,
+    });
+  } catch (error) {
+    status = typeof error.status === 'number' ? error.status : -1;
+    stderr = `${error.stderr ?? ''}`;
+  }
+  // 13 is Node's unsettled-top-level-await exit: it must never be how this CLI fails.
+  assert.notEqual(status, 13, 'entrypoint exited with an unsettled top-level await');
+  assert.notEqual(status, 0, 'an invalid mode must fail');
+  assert.match(stderr, /--mode is not one of the closed semantic publication modes/,
+    'the refusal must reach stderr');
+  assert.doesNotMatch(stderr, /unsettled top-level await/);
+});

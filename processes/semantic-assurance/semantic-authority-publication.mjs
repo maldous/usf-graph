@@ -4547,7 +4547,28 @@ export async function main({
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  await main();
+  // main() must not be awaited during this module's own evaluation. It dynamically imports
+  // semantic-model-compilation-command.mjs, which statically imports
+  // aggregate-compiler-proof-command.mjs, which imports this module back. A top-level await
+  // here keeps this module suspended mid-evaluation, so that cycle can never resolve: the
+  // dynamic import never settles, no I/O is left pending, the event loop drains, and Node
+  // reports an unsettled top-level await and exits 13 having written neither the payload nor
+  // the error. Every consumer that spawns this file as a subprocess saw only a non-zero exit
+  // with empty stdout even when the operation had in fact succeeded — the Factory's Graph
+  // ownership reader raised V2_NATIVE_GRAPH_OWNERSHIP_OBSERVATION_FAILED for exactly this.
+  //
+  // setImmediate defers the call until after evaluation completes, so the cycle resolves
+  // normally. The referenced timer keeps the loop alive until main() settles, and the
+  // explicit handlers guarantee the payload reaches stdout or the diagnosis reaches stderr.
+  const keepEventLoopReferenced = setInterval(() => {}, 2_147_483_647);
+  setImmediate(() => {
+    main()
+      .catch((error) => {
+        process.stderr.write(`${error?.stack ?? String(error)}\n`);
+        process.exitCode = 1;
+      })
+      .finally(() => clearInterval(keepEventLoopReferenced));
+  });
 }
 
 export {
