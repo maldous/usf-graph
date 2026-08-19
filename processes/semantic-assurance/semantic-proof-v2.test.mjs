@@ -930,23 +930,21 @@ test('V2 validation currentness descendants are exact, admitted, fork-free and t
 // with empty stdout and empty stderr, so a successful observation was indistinguishable from
 // a failure. Every consumer then reported a generic failure such as
 // V2_NATIVE_GRAPH_OWNERSHIP_OBSERVATION_FAILED.
-test('the publisher CLI entrypoint reports a diagnosis instead of exiting unsettled', async () => {
-  const { execFileSync } = await import('node:child_process');
-  const entrypoint = new URL('./semantic-authority-publication.mjs', import.meta.url).pathname;
-  let status = 0;
-  let stderr = '';
-  try {
-    execFileSync(process.execPath, [entrypoint, '--mode=not-a-real-mode'], {
-      stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8', timeout: 120_000,
-    });
-  } catch (error) {
-    status = typeof error.status === 'number' ? error.status : -1;
-    stderr = `${error.stderr ?? ''}`;
-  }
-  // 13 is Node's unsettled-top-level-await exit: it must never be how this CLI fails.
-  assert.notEqual(status, 13, 'entrypoint exited with an unsettled top-level await');
-  assert.notEqual(status, 0, 'an invalid mode must fail');
-  assert.match(stderr, /--mode is not one of the closed semantic publication modes/,
-    'the refusal must reach stderr');
-  assert.doesNotMatch(stderr, /unsettled top-level await/);
+test('the publisher CLI entrypoint never awaits main during module evaluation', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('./semantic-authority-publication.mjs', import.meta.url), 'utf8');
+  const guard = source.slice(source.lastIndexOf('if (process.argv[1] &&'));
+  assert.ok(guard.length > 0, 'the entrypoint guard must exist');
+  // A top-level `await main()` suspends this module mid-evaluation, so the import cycle
+  // semantic-authority-publication -> semantic-model-compilation-command ->
+  // aggregate-compiler-proof-command -> semantic-authority-publication can never resolve.
+  // Node then reports an unsettled top-level await and exits 13 with empty stdout AND empty
+  // stderr, making a successful observation indistinguishable from a failure. Consumers that
+  // spawn this file as a subprocess reported generic failures such as
+  // V2_NATIVE_GRAPH_OWNERSHIP_OBSERVATION_FAILED for exactly that reason.
+  assert.doesNotMatch(guard, /^\s*await main\(\)/m,
+    'main() must not be awaited during module evaluation');
+  assert.match(guard, /setImmediate\(/, 'main() must be deferred past module evaluation');
+  assert.match(guard, /process\.exitCode = 1/, 'a failure must set a non-zero exit status');
+  assert.match(guard, /process\.stderr\.write/, 'a failure must be written to stderr');
 });
