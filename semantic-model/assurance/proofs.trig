@@ -621,7 +621,7 @@
   usf:proofAlgorithmSourcePath "assurance/semantic-model-compilation/aggregate-compiler-proof.mjs";
   usf:proofAlgorithmSourceDigest "sha256:5b4f210217c040ab6258489d30d80ebb1aa3e720e04fc7cd1577294b847e9a64";
   usf:currentAlgorithmSourceDigest "sha256:5b4f210217c040ab6258489d30d80ebb1aa3e720e04fc7cd1577294b847e9a64";
-  usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:factoryproviderv3implementation5b4f210217c040ab6258489d30d80ebb1aa3e720e04fc7cd1577294b847e9a64>;
+  usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890>;
   usf:currentImplementationSourceSetDigest "sha256:02a9e0a54ee63969d2d9c59bf7cd707334862c5228e0f6525faa2e908e031f9d";
   usf:requiresGraphSourceBinding true.
 <urn:usf:proofalgorithmversion:factoryproviderv3implementation5b4f210217c040ab6258489d30d80ebb1aa3e720e04fc7cd1577294b847e9a64> a usf:ProofAlgorithmVersion;
