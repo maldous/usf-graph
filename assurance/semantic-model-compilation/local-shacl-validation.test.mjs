@@ -295,6 +295,120 @@ test('review and candidate authorisation guards use SHACL-SPARQL-compatible pred
   assert.equal((shapes.match(/FILTER \(\?predicate IN \(usf:establishesSemanticTruth,/gu) ?? []).length, 5);
 });
 
+function publisherImplementationStore() {
+  return new Store(new Parser({ format: 'application/trig' }).parse(
+    readFileSync(join(repositoryRoot, 'semantic-model/assurance/proofs.trig'), 'utf8'),
+  ));
+}
+
+function authoredPublisherImplementations(store) {
+  return store.getSubjects(
+    namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
+    usf('PublisherImplementation'),
+    null,
+  );
+}
+
+// (1) processes/** is the intended scope for a publisher implementation identity, and it is
+// the ONLY scope: an assurance/** path here would mean the concept had drifted into the
+// proof-algorithm space it deliberately does not occupy.
+test('every authored publisher implementation uses a processes path for its command and its source set', () => {
+  const store = publisherImplementationStore();
+  const publishers = authoredPublisherImplementations(store);
+  assert.ok(publishers.length > 0, 'at least one publisher implementation must be authored');
+  for (const publisher of publishers) {
+    const sourcePaths = store.getObjects(publisher, usf('publisherSourcePath'), null);
+    assert.equal(sourcePaths.length, 1, publisher.value);
+    assert.match(sourcePaths[0].value, /^processes\/[A-Za-z0-9._/-]+$/u, publisher.value);
+    const implementationPaths = store.getObjects(
+      publisher, usf('publisherImplementationSourcePath'), null,
+    );
+    assert.ok(implementationPaths.length > 0, publisher.value);
+    for (const path of implementationPaths) {
+      assert.match(path.value, /^processes\/[A-Za-z0-9._/-]+$/u, `${publisher.value} ${path.value}`);
+    }
+    assert.ok(
+      implementationPaths.some((path) => path.value === sourcePaths[0].value),
+      `${publisher.value}: the command module must be part of its own implementation set`,
+    );
+  }
+});
+
+// (2) The source path, command digest and implementation source set digest are mandatory and
+// EXACT: each is recomputed here from the committed bytes, in the same framing the model uses
+// for every implementation source set digest, so a stale or invented digest cannot survive.
+test('every authored publisher implementation binds exact command and implementation set digests', () => {
+  const store = publisherImplementationStore();
+  const publishers = authoredPublisherImplementations(store);
+  assert.ok(publishers.length > 0);
+  const stable = (value) => (Array.isArray(value)
+    ? value.map(stable)
+    : value && typeof value === 'object'
+      ? Object.fromEntries(Object.keys(value).sort(
+        (left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)),
+      ).map((key) => [key, stable(value[key])]))
+      : value);
+  const digestOf = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+  for (const publisher of publishers) {
+    const sourcePath = store.getObjects(publisher, usf('publisherSourcePath'), null)[0].value;
+    const commandDigests = store.getObjects(publisher, usf('publisherCommandDigest'), null);
+    assert.equal(commandDigests.length, 1, publisher.value);
+    assert.equal(
+      commandDigests[0].value,
+      digestOf(readFileSync(join(repositoryRoot, sourcePath))),
+      `${publisher.value}: command digest must be the exact committed bytes`,
+    );
+    const setDigests = store.getObjects(
+      publisher, usf('publisherImplementationSourceSetDigest'), null,
+    );
+    assert.equal(setDigests.length, 1, publisher.value);
+    const records = store.getObjects(publisher, usf('publisherImplementationSourcePath'), null)
+      .map((path) => path.value)
+      .sort((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)))
+      .map((path) => {
+        const bytes = readFileSync(join(repositoryRoot, path));
+        return { byteSize: bytes.length, digest: digestOf(bytes), path };
+      });
+    assert.equal(
+      setDigests[0].value,
+      digestOf(Buffer.from(JSON.stringify(stable(records)))),
+      `${publisher.value}: implementation set digest must be the exact committed byte set`,
+    );
+  }
+});
+
+// (3) ProofAlgorithm remains assurance/**-only. The publisher concept exists precisely so
+// that constraint did not have to be widened, so no subject may hold both types and no
+// publisher may appear in the proof-algorithm space.
+test('publisher implementations never occupy the assurance-only proof algorithm space', () => {
+  const store = publisherImplementationStore();
+  const rdfType = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
+  const publishers = authoredPublisherImplementations(store);
+  for (const publisher of publishers) {
+    assert.equal(
+      store.getQuads(publisher, rdfType, usf('ProofAlgorithm'), null).length,
+      0,
+      `${publisher.value}: must not also be a proof algorithm`,
+    );
+    assert.equal(
+      store.getObjects(publisher, usf('proofAlgorithmSourcePath'), null).length,
+      0,
+      `${publisher.value}: must not carry a proof algorithm source path`,
+    );
+  }
+  const shapes = readFileSync(
+    join(repositoryRoot, 'semantic-model/shapes/assurance.ttl'), 'utf8',
+  );
+  assert.match(shapes, /sh:targetClass usf:PublisherImplementation;\n\s+sh:closed true;/u,
+    'the publisher implementation shape must stay closed');
+  const validation = readFileSync(
+    join(repositoryRoot, 'assurance/semantic-model-compilation/local-shacl-validation.test.mjs'),
+    'utf8',
+  );
+  assert.match(validation, /\/\^assurance\\\/\[A-Za-z0-9\._\/-\]\+\$\/u/u,
+    'the assurance-only proof algorithm path rule must remain in force');
+});
+
 test('every authored proof algorithm uses a Graph assurance path and exact current source digest', () => {
   const store = new Store(new Parser({ format: 'application/trig' }).parse(
     readFileSync(join(repositoryRoot, 'semantic-model/assurance/proofs.trig'), 'utf8'),

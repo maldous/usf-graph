@@ -44,6 +44,10 @@ usf:ProofAlgorithm a owl:Class;
 usf:ProofAlgorithmVersion a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Proof algorithm version".
+usf:PublisherImplementation a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Publisher implementation";
+    rdfs:comment "Digest-bound identity of a repository publisher implementation under processes/**, whose command and implementation source set are recorded in a publication's coordination identity. A proof algorithm is the assurance/** counterpart and stays restricted to that scope.".
 usf:ProofConfidenceState a owl:Class;
     rdfs:subClassOf usf:ControlledValue;
     rdfs:label "Proof confidence state".
@@ -416,6 +420,18 @@ usf:usesAlgorithmVersion a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:range usf:ProofAlgorithmVersion.
 usf:proofAlgorithmSourcePath a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:string.
+usf:publisherSourcePath a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PublisherImplementation;
+    rdfs:range xsd:string.
+usf:publisherCommandDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PublisherImplementation;
+    rdfs:range xsd:string.
+usf:publisherImplementationSourcePath a owl:DatatypeProperty;
+    rdfs:domain usf:PublisherImplementation;
+    rdfs:range xsd:string.
+usf:publisherImplementationSourceSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:PublisherImplementation;
     rdfs:range xsd:string.
 usf:proofAlgorithmSourceDigest a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:ProofAlgorithm;
