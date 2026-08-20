@@ -1,6 +1,69 @@
 {
-  "recordKind": "USF_PERMUTATION_AUTHORITY_CAPTURE_SCOPE",
-  "schemaVersion": 1,
+  "packetDesignInputs": {
+    "candidateCatalogues": {
+      "newCandidateActionCatalogue": "urn:usf:graph:permutation-actions (122 ActionKinds, 11 groups) - CANDIDATE, unpublished",
+      "newCandidateTransportCatalogue": "urn:usf:graph:permutation-transports (13 transports, 7 HTTP methods, 12 patterns, 4 directions, 6 session models) - CANDIDATE, unpublished",
+      "newCandidateVocabulary": "urn:usf:graph:permutation-vocabulary (closure dispositions x6, review dispositions x2, role-permission kinds x7, principal kinds x7, selector kinds x11, surface classifications x10, reason codes x12) - CANDIDATE, unpublished"
+    },
+    "exemplars": {
+      "negative": {
+        "emptyRoles": [
+          "manager",
+          "securityadmin",
+          "tenantadmin",
+          "tenantmember",
+          "viewer"
+        ],
+        "eventBusCapabilityDeclaresNoEvents": "urn:usf:capability:eventbusdurablequeuesdlqredrive has 0 eventForContract subjects (semantic gap)",
+        "gatewayOperationsWithoutPermissions": 11,
+        "noTokenModel": "zero TokenScope/TokenProfile/TokenClaimConstraint/PrincipalKind instances in authority",
+        "noTransportBinding": "Interface instances carry no transport/interaction predicate",
+        "transitionsWithoutPermissionOrTrigger": "119 of 150 transitions lack onEvent; none carry permissions"
+      },
+      "positive": {
+        "commandWithAudit": "urn:usf:operation:authloginpost requiresPermission perm:authlogin; emitsAuditEvent aud:authenticationloginattempt",
+        "eventRich": "workflowenginescheduledjobsapprovals: 17 events with publisher/consumer/delivery",
+        "operationWithPermission": "urn:usf:operation:auditeventsget requiresPermission urn:usf:permission:auditread (Query)",
+        "portWithModes": "auditofprivilegedaccess: 6 ports, 4 provider modes, 2 tenant boundaries",
+        "roleGrant": "urn:usf:role:auditor grantsPermission urn:usf:permission:auditread"
+      }
+    },
+    "predicateMap": {
+      "auditevent": "recordsOperation, auditCategory, auditSeverity (9 instances)",
+      "capability->contract": "urn:usf:ontology:hasContract",
+      "capability->facet": "urn:usf:ontology:declaresFacet (640; facets carry facetKind/facetStatus/facetStatement only)",
+      "configkey->capability": "urn:usf:ontology:configures",
+      "configkey->secret": "urn:usf:ontology:hasSecretClassification; configurationForEnvironment",
+      "datamodel->capability": "urn:usf:ontology:backsCapability",
+      "event->contract": "urn:usf:ontology:eventForContract",
+      "event->delivery": "urn:usf:ontology:hasDeliverySemantics",
+      "event->publisher/consumer": "urn:usf:ontology:requiredPublisher / urn:usf:ontology:requiredConsumer",
+      "interface->contract": "urn:usf:ontology:interfaceForContract",
+      "interface->operation": "urn:usf:ontology:hasOperation",
+      "obligations": "ProofObligation/TestObligation/EvidenceRequirement -> urn:usf:ontology:obligationFor -> contract",
+      "operation->auditevent": "urn:usf:ontology:emitsAuditEvent (9 commands)",
+      "operation->permission": "urn:usf:ontology:requiresPermission (all 35 interface operations)",
+      "operationTypes": [
+        "urn:usf:ontology:Query (26)",
+        "urn:usf:ontology:Command (9)",
+        "urn:usf:ontology:GatewayOperation (11; gatewayOperationIdentifier, mutatesSemanticAuthority, coordinatorOnly)"
+      ],
+      "permission->boundary": "urn:usf:ontology:boundedBy (tb:tenant on 27 of 28; routeaccessnone unbounded)",
+      "port->contract": "urn:usf:ontology:portForContract",
+      "port->providermode": "urn:usf:ontology:permitsProviderMode",
+      "port->tenantboundary": "urn:usf:ontology:enforcesTenantBoundary",
+      "role->permission": "urn:usf:ontology:grantsPermission (ONLY auditor->auditread, serviceworker->jobcreate)",
+      "transition": "urn:usf:ontology:fromState / toState / onEvent (31 of 150 have onEvent; NO contract/permission binding on transitions)",
+      "ui": "Surface/Form: uiRequiresPermission, surfaceKind, surfaceRoute->Route(routeKind); ViewModel: loadsOperation, bindsInterface; Journey: mapsToCapability",
+      "workflow->contract": "urn:usf:ontology:workflowForContract",
+      "workflow->states/transitions": "urn:usf:ontology:hasState / urn:usf:ontology:hasTransition (7 workflows own all 163 states / 150 transitions)"
+    },
+    "workerRules": [
+      "Consume this packet or direct bounded usf_query results; semantic-model/** is a registered materialisation, not the RDF source of truth.",
+      "Any mismatch between packet identities and source-derived identities fails closed and is reported.",
+      "All new semantics are UNVERIFIED_CANDIDATE_MATERIALISATION until coordinator publication."
+    ]
+  },
   "projectedClassIris": [
     "http://www.w3.org/2002/07/owl#Class",
     "urn:usf:ontology:ADRRecord",
@@ -274,6 +337,7 @@
     "urn:usf:ontology:ProvenanceRecord",
     "urn:usf:ontology:Provider",
     "urn:usf:ontology:ProviderMode",
+    "urn:usf:ontology:PublisherImplementation",
     "urn:usf:ontology:Query",
     "urn:usf:ontology:Readiness",
     "urn:usf:ontology:ReadinessGate",
@@ -602,69 +666,6 @@
     "urn:usf:ontology:workflowExecutionPolicy",
     "urn:usf:ontology:workflowForContract"
   ],
-  "packetDesignInputs": {
-    "predicateMap": {
-      "auditevent": "recordsOperation, auditCategory, auditSeverity (9 instances)",
-      "capability->contract": "urn:usf:ontology:hasContract",
-      "capability->facet": "urn:usf:ontology:declaresFacet (640; facets carry facetKind/facetStatus/facetStatement only)",
-      "configkey->capability": "urn:usf:ontology:configures",
-      "configkey->secret": "urn:usf:ontology:hasSecretClassification; configurationForEnvironment",
-      "datamodel->capability": "urn:usf:ontology:backsCapability",
-      "event->contract": "urn:usf:ontology:eventForContract",
-      "event->delivery": "urn:usf:ontology:hasDeliverySemantics",
-      "event->publisher/consumer": "urn:usf:ontology:requiredPublisher / urn:usf:ontology:requiredConsumer",
-      "interface->contract": "urn:usf:ontology:interfaceForContract",
-      "interface->operation": "urn:usf:ontology:hasOperation",
-      "obligations": "ProofObligation/TestObligation/EvidenceRequirement -> urn:usf:ontology:obligationFor -> contract",
-      "operation->auditevent": "urn:usf:ontology:emitsAuditEvent (9 commands)",
-      "operation->permission": "urn:usf:ontology:requiresPermission (all 35 interface operations)",
-      "operationTypes": [
-        "urn:usf:ontology:Query (26)",
-        "urn:usf:ontology:Command (9)",
-        "urn:usf:ontology:GatewayOperation (11; gatewayOperationIdentifier, mutatesSemanticAuthority, coordinatorOnly)"
-      ],
-      "permission->boundary": "urn:usf:ontology:boundedBy (tb:tenant on 27 of 28; routeaccessnone unbounded)",
-      "port->contract": "urn:usf:ontology:portForContract",
-      "port->providermode": "urn:usf:ontology:permitsProviderMode",
-      "port->tenantboundary": "urn:usf:ontology:enforcesTenantBoundary",
-      "role->permission": "urn:usf:ontology:grantsPermission (ONLY auditor->auditread, serviceworker->jobcreate)",
-      "transition": "urn:usf:ontology:fromState / toState / onEvent (31 of 150 have onEvent; NO contract/permission binding on transitions)",
-      "ui": "Surface/Form: uiRequiresPermission, surfaceKind, surfaceRoute->Route(routeKind); ViewModel: loadsOperation, bindsInterface; Journey: mapsToCapability",
-      "workflow->contract": "urn:usf:ontology:workflowForContract",
-      "workflow->states/transitions": "urn:usf:ontology:hasState / urn:usf:ontology:hasTransition (7 workflows own all 163 states / 150 transitions)"
-    },
-    "workerRules": [
-      "Consume this packet or direct bounded usf_query results; semantic-model/** is a registered materialisation, not the RDF source of truth.",
-      "Any mismatch between packet identities and source-derived identities fails closed and is reported.",
-      "All new semantics are UNVERIFIED_CANDIDATE_MATERIALISATION until coordinator publication."
-    ],
-    "exemplars": {
-      "negative": {
-        "emptyRoles": [
-          "manager",
-          "securityadmin",
-          "tenantadmin",
-          "tenantmember",
-          "viewer"
-        ],
-        "eventBusCapabilityDeclaresNoEvents": "urn:usf:capability:eventbusdurablequeuesdlqredrive has 0 eventForContract subjects (semantic gap)",
-        "gatewayOperationsWithoutPermissions": 11,
-        "noTokenModel": "zero TokenScope/TokenProfile/TokenClaimConstraint/PrincipalKind instances in authority",
-        "noTransportBinding": "Interface instances carry no transport/interaction predicate",
-        "transitionsWithoutPermissionOrTrigger": "119 of 150 transitions lack onEvent; none carry permissions"
-      },
-      "positive": {
-        "commandWithAudit": "urn:usf:operation:authloginpost requiresPermission perm:authlogin; emitsAuditEvent aud:authenticationloginattempt",
-        "eventRich": "workflowenginescheduledjobsapprovals: 17 events with publisher/consumer/delivery",
-        "operationWithPermission": "urn:usf:operation:auditeventsget requiresPermission urn:usf:permission:auditread (Query)",
-        "portWithModes": "auditofprivilegedaccess: 6 ports, 4 provider modes, 2 tenant boundaries",
-        "roleGrant": "urn:usf:role:auditor grantsPermission urn:usf:permission:auditread"
-      }
-    },
-    "candidateCatalogues": {
-      "newCandidateVocabulary": "urn:usf:graph:permutation-vocabulary (closure dispositions x6, review dispositions x2, role-permission kinds x7, principal kinds x7, selector kinds x11, surface classifications x10, reason codes x12) - CANDIDATE, unpublished",
-      "newCandidateActionCatalogue": "urn:usf:graph:permutation-actions (122 ActionKinds, 11 groups) - CANDIDATE, unpublished",
-      "newCandidateTransportCatalogue": "urn:usf:graph:permutation-transports (13 transports, 7 HTTP methods, 12 patterns, 4 directions, 6 session models) - CANDIDATE, unpublished"
-    }
-  }
+  "recordKind": "USF_PERMUTATION_AUTHORITY_CAPTURE_SCOPE",
+  "schemaVersion": 1
 }
