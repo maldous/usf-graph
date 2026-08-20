@@ -632,6 +632,29 @@
   usf:canonicalName "factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:factoryproviderv3implementation>;
   usf:proofAlgorithmVersionIdentifier "1.0.1".
+# Exact V2 native publisher identity.  The V2 native handover folds the publisher's
+# implementation and command identity into the coordination identity digest and the 16-field
+# terminal receipt, so that identity must be declared and digest bound here rather than
+# asserted by whoever happens to run the publication.  The source digest is the exact
+# committed bytes of the publisher command module.  The implementation source set digest is
+# sha256(canonicalJson([{path, digest, byteSize}, ...])) over the three modules that
+# implement the V2 native publication - the command and live production adapter, the handover
+# generation reservation command, and the V2 protocol state machine - read from the same
+# commit through git, which is the framing already used for every implementation source set
+# digest in this model.  This declares identity only: no proof obligation is attached and no
+# new class or gate is introduced.
+<urn:usf:proofalgorithm:nativev2publisher> a usf:ProofAlgorithm;
+  usf:canonicalName "nativev2publisher";
+  usf:proofAlgorithmSourcePath "processes/semantic-assurance/semantic-authority-publication.mjs";
+  usf:proofAlgorithmSourceDigest "sha256:4a198fd361558245587c8b1c5a247261e9907c2d0d9180056c9a8b566330eff9";
+  usf:currentAlgorithmSourceDigest "sha256:4a198fd361558245587c8b1c5a247261e9907c2d0d9180056c9a8b566330eff9";
+  usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:nativev2publisher4a198fd361558245587c8b1c5a247261e9907c2d0d9180056c9a8b566330eff9>;
+  usf:currentImplementationSourceSetDigest "sha256:ebd512316c732c146af9ae5c1460bf705037c8c3f785fc4c3b2ed82d064f2392";
+  usf:requiresGraphSourceBinding true.
+<urn:usf:proofalgorithmversion:nativev2publisher4a198fd361558245587c8b1c5a247261e9907c2d0d9180056c9a8b566330eff9> a usf:ProofAlgorithmVersion;
+  usf:canonicalName "nativev2publisher4a198fd361558245587c8b1c5a247261e9907c2d0d9180056c9a8b566330eff9";
+  usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:nativev2publisher>;
+  usf:proofAlgorithmVersionIdentifier "1.0.0".
 <urn:usf:proofobligation:factoryproviderv3implementation> a usf:ProofObligation;
   usf:canonicalName "factoryproviderv3implementation";
   usf:obligationFor <urn:usf:semanticcontract:providerconfigurationplane>;
