@@ -724,7 +724,7 @@
     "processes/semantic-assurance/semantic-proof-v2.mjs",
     "processes/semantic-assurance/semantic-proof-v2.test.mjs";
   usf:admissionProducerImplementationSourceSetDigest
-    "sha256:e83856ffc5de3c6ccf7b43ab8786d652b3add1fed4ff9edf109849499cc65354".
+    "sha256:a364867ffa0fca2d69a8a9416560be76f32aea14995b1b80d3c7dc959ecf78b5".
 <urn:usf:proofobligation:factoryproviderv3implementation> a usf:ProofObligation;
   usf:canonicalName "factoryproviderv3implementation";
   usf:obligationFor <urn:usf:semanticcontract:providerconfigurationplane>;
