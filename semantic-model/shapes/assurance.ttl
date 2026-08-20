@@ -1146,3 +1146,92 @@ _:publisherimplementationshape-implementationsetdigest sh:path usf:publisherImpl
     sh:pattern "^sha256:[0-9a-f]{64}$";
     sh:message "publisherimplementationsetdigest: publisher implementation must carry exactly one exact implementation source set digest".
 shp:PublisherImplementationShape sh:property _:publisherimplementationshape-implementationsetdigest.
+
+# The Factory-side native V2 closure executor. Scoped to src/** in maldous/usf-factory, so it
+# shares no path space with a publisher implementation and the processes/** constraint there is
+# untouched. Every identity-bearing property is mandatory and exactly shaped, and the identity
+# binds the exact protected commit so a stale executor cannot satisfy a current plan.
+shp:ClosureExecutorImplementationShape a sh:NodeShape;
+    usf:canonicalName "closureexecutorimplementationshape";
+    sh:targetClass usf:ClosureExecutorImplementation;
+    sh:closed true;
+    sh:ignoredProperties (<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>).
+_:closureexecutorshape-canonicalname sh:path usf:canonicalName;
+    sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:message "closureexecutorcanonicalname: closure executor must carry exactly one canonical name".
+shp:ClosureExecutorImplementationShape sh:property _:closureexecutorshape-canonicalname.
+_:closureexecutorshape-repository sh:path usf:closureExecutorRepository;
+    sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:pattern "^maldous/usf-factory$";
+    sh:message "closureexecutorrepository: closure executor must bind the exact Factory repository".
+shp:ClosureExecutorImplementationShape sh:property _:closureexecutorshape-repository.
+_:closureexecutorshape-commit sh:path usf:closureExecutorSourceCommit;
+    sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:pattern "^[0-9a-f]{40}$";
+    sh:message "closureexecutorcommit: closure executor must bind one exact protected commit".
+shp:ClosureExecutorImplementationShape sh:property _:closureexecutorshape-commit.
+_:closureexecutorshape-tree sh:path usf:closureExecutorSourceTree;
+    sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:pattern "^[0-9a-f]{40}$";
+    sh:message "closureexecutortree: closure executor must bind one exact protected tree".
+shp:ClosureExecutorImplementationShape sh:property _:closureexecutorshape-tree.
+_:closureexecutorshape-commandpath sh:path usf:closureExecutorCommandPath;
+    sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:pattern "^src/usf_factory/[A-Za-z0-9._/-]+$";
+    sh:message "closureexecutorcommandpath: closure executor must carry exactly one src/usf_factory command path".
+shp:ClosureExecutorImplementationShape sh:property _:closureexecutorshape-commandpath.
+_:closureexecutorshape-commanddigest sh:path usf:closureExecutorCommandDigest;
+    sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "closureexecutorcommanddigest: closure executor must carry exactly one exact command digest".
+shp:ClosureExecutorImplementationShape sh:property _:closureexecutorshape-commanddigest.
+_:closureexecutorshape-sourcepath sh:path usf:closureExecutorImplementationSourcePath;
+    sh:minCount 1; sh:datatype xsd:string;
+    sh:pattern "^src/usf_factory/[A-Za-z0-9._/-]+$";
+    sh:message "closureexecutorsourceset: closure executor must enumerate its src/usf_factory implementation sources".
+shp:ClosureExecutorImplementationShape sh:property _:closureexecutorshape-sourcepath.
+_:closureexecutorshape-setdigest sh:path usf:closureExecutorImplementationSourceSetDigest;
+    sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "closureexecutorsetdigest: closure executor must carry exactly one exact implementation source set digest".
+shp:ClosureExecutorImplementationShape sh:property _:closureexecutorshape-setdigest.
+
+# The producer whose evidence a validation-currentness renewal admits. Its identity digest is
+# taken over the producer's own implementation bytes, because a source scope digest is shared
+# with other subjects and therefore does not identify a producer.
+shp:EvidenceAdmissionProducerIdentityShape a sh:NodeShape;
+    usf:canonicalName "evidenceadmissionproduceridentityshape";
+    sh:targetClass usf:EvidenceAdmissionProducerIdentity;
+    sh:closed true;
+    sh:ignoredProperties (<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>).
+_:admissionproducershape-canonicalname sh:path usf:canonicalName;
+    sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:message "admissionproducercanonicalname: producer identity must carry exactly one canonical name".
+shp:EvidenceAdmissionProducerIdentityShape sh:property _:admissionproducershape-canonicalname.
+_:admissionproducershape-producer sh:path usf:admissionProducerValidationProducer;
+    sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "admissionproducervalidationproducer: producer identity must bind exactly one validation producer".
+shp:EvidenceAdmissionProducerIdentityShape sh:property _:admissionproducershape-producer.
+_:admissionproducershape-path sh:path usf:admissionProducerEvidenceAdmissionPath;
+    sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:message "admissionproducerevidenceadmissionpath: producer identity must bind exactly one evidence admission path".
+shp:EvidenceAdmissionProducerIdentityShape sh:property _:admissionproducershape-path.
+_:admissionproducershape-repository sh:path usf:admissionProducerRepository;
+    sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:pattern "^maldous/usf-graph$";
+    sh:message "admissionproducerrepository: producer identity must bind the exact producing repository".
+shp:EvidenceAdmissionProducerIdentityShape sh:property _:admissionproducershape-repository.
+_:admissionproducershape-scopedigest sh:path usf:admissionProducerSourceScopeDigest;
+    sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "admissionproducerscopedigest: producer identity must bind the exact admitted source scope digest".
+shp:EvidenceAdmissionProducerIdentityShape sh:property _:admissionproducershape-scopedigest.
+_:admissionproducershape-sourcepath sh:path usf:admissionProducerImplementationSourcePath;
+    sh:minCount 1; sh:datatype xsd:string;
+    sh:message "admissionproducersourceset: producer identity must enumerate its implementation sources".
+shp:EvidenceAdmissionProducerIdentityShape sh:property _:admissionproducershape-sourcepath.
+_:admissionproducershape-setdigest sh:path usf:admissionProducerImplementationSourceSetDigest;
+    sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "admissionproducersetdigest: producer identity must carry exactly one exact implementation source set digest".
+shp:EvidenceAdmissionProducerIdentityShape sh:property _:admissionproducershape-setdigest.

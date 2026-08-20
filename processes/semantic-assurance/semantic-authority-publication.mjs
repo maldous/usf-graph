@@ -49,6 +49,7 @@ import * as semanticProofV2 from './semantic-proof-v2.mjs';
 import { semanticModelCompilationCommandInternals } from './semantic-model-compilation-command.mjs';
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
+const GIT_OBJECT_ID = /^[0-9a-f]{40}$/;
 const PREPARE_STATES = new Set(['ROLLED_BACK', 'VALIDATED', 'VALIDATED_ROLLBACK']);
 const COMMIT_STATE = 'COMMITTED';
 const POST_PUBLICATION_JOURNAL_STATES = new Set([
@@ -4267,6 +4268,114 @@ export async function configureLiveGraphProductionShadowV2(expectedAuthorityDige
   });
 }
 
+export const NATIVE_V2_CLOSURE_EXECUTOR_CANONICAL_NAME = 'factorynativev2closureexecutor';
+export const NATIVE_V2_ADMISSION_PRODUCER_CANONICAL_NAME =
+  'compilersemanticenforcementaggregateevidenceadmissionproducer';
+
+const ADMITTED_CLOSURE_EXECUTOR_QUERY = `PREFIX usf: <urn:usf:ontology:>
+SELECT ?executor ?repository ?commit ?tree ?commandPath ?commandDigest ?setDigest WHERE {
+  ?executor a usf:ClosureExecutorImplementation ;
+    usf:canonicalName ?canonicalName ;
+    usf:closureExecutorRepository ?repository ;
+    usf:closureExecutorSourceCommit ?commit ;
+    usf:closureExecutorSourceTree ?tree ;
+    usf:closureExecutorCommandPath ?commandPath ;
+    usf:closureExecutorCommandDigest ?commandDigest ;
+    usf:closureExecutorImplementationSourceSetDigest ?setDigest .
+  FILTER(STR(?canonicalName) = ?requestedName)
+}`;
+
+const ADMITTED_ADMISSION_PRODUCER_QUERY = `PREFIX usf: <urn:usf:ontology:>
+SELECT ?identity ?producer ?admissionPath ?repository ?scopeDigest ?setDigest WHERE {
+  ?identity a usf:EvidenceAdmissionProducerIdentity ;
+    usf:canonicalName ?canonicalName ;
+    usf:admissionProducerValidationProducer ?producer ;
+    usf:admissionProducerEvidenceAdmissionPath ?admissionPath ;
+    usf:admissionProducerRepository ?repository ;
+    usf:admissionProducerSourceScopeDigest ?scopeDigest ;
+    usf:admissionProducerImplementationSourceSetDigest ?setDigest .
+  FILTER(STR(?canonicalName) = ?requestedName)
+}`;
+
+const soleRow = async (client, query, canonicalName, code) => {
+  if (!client || typeof client.select !== 'function') {
+    throw new Error(`${code}_CLIENT_REQUIRED`);
+  }
+  if (typeof canonicalName !== 'string' || canonicalName.length === 0) {
+    throw new Error(`${code}_CANONICAL_NAME_REQUIRED`);
+  }
+  const rows = await client.select(query.replace('?requestedName', `"${canonicalName}"`));
+  if (!Array.isArray(rows) || rows.length !== 1) throw new Error(`${code}_NOT_EXACTLY_ONE`);
+  return rows[0];
+};
+const termValue = (term) => (term && typeof term === 'object' ? term.value : term);
+
+// The Factory-side closure executor identity, resolved from LIVE AUTHORITY. There is no
+// fallback: absent, duplicated or malformed declarations refuse the publication, and the
+// admitted commit/tree must be the plan's exact Factory deployment so a stale executor cannot
+// satisfy a current plan.
+export async function readAdmittedClosureExecutorIdentityV2(
+  client,
+  canonicalName = NATIVE_V2_CLOSURE_EXECUTOR_CANONICAL_NAME,
+) {
+  const row = await soleRow(client, ADMITTED_CLOSURE_EXECUTOR_QUERY, canonicalName,
+    'V2_CLOSURE_EXECUTOR_IDENTITY');
+  const repository = termValue(row.repository);
+  const commit = termValue(row.commit);
+  const tree = termValue(row.tree);
+  const commandPath = termValue(row.commandPath);
+  const commandDigest = termValue(row.commandDigest);
+  const implementationSourceSetDigest = termValue(row.setDigest);
+  if (repository !== 'maldous/usf-factory') {
+    throw new Error('V2_CLOSURE_EXECUTOR_IDENTITY_REPOSITORY_INVALID');
+  }
+  if (!GIT_OBJECT_ID.test(commit || '') || !GIT_OBJECT_ID.test(tree || '')) {
+    throw new Error('V2_CLOSURE_EXECUTOR_IDENTITY_SOURCE_INVALID');
+  }
+  if (typeof commandPath !== 'string'
+      || !/^src\/usf_factory\/[A-Za-z0-9._/-]+$/u.test(commandPath)) {
+    throw new Error('V2_CLOSURE_EXECUTOR_IDENTITY_COMMAND_PATH_INVALID');
+  }
+  if (!SHA256.test(commandDigest || '') || !SHA256.test(implementationSourceSetDigest || '')) {
+    throw new Error('V2_CLOSURE_EXECUTOR_IDENTITY_DIGEST_INVALID');
+  }
+  return Object.freeze({
+    commandDigest, commandPath, commit, implementationSourceSetDigest, repository, tree,
+  });
+}
+
+// The evidence-admission producer identity used by a validation-currentness renewal. The
+// identity digest is the producer's implementation source set digest: a source scope digest is
+// shared with other subjects and does not identify a producer.
+export async function readAdmittedEvidenceAdmissionProducerIdentityV2(
+  client,
+  canonicalName = NATIVE_V2_ADMISSION_PRODUCER_CANONICAL_NAME,
+) {
+  const row = await soleRow(client, ADMITTED_ADMISSION_PRODUCER_QUERY, canonicalName,
+    'V2_ADMISSION_PRODUCER_IDENTITY');
+  const validationProducerIri = termValue(row.producer);
+  const evidenceAdmissionPathIri = termValue(row.admissionPath);
+  const repository = termValue(row.repository);
+  const sourceScopeDigest = termValue(row.scopeDigest);
+  const identityDigest = termValue(row.setDigest);
+  if (typeof validationProducerIri !== 'string'
+      || !validationProducerIri.startsWith('urn:usf:validationproducer:')
+      || typeof evidenceAdmissionPathIri !== 'string'
+      || !evidenceAdmissionPathIri.startsWith('urn:usf:evidenceadmissionpath:')) {
+    throw new Error('V2_ADMISSION_PRODUCER_IDENTITY_BINDING_INVALID');
+  }
+  if (repository !== 'maldous/usf-graph') {
+    throw new Error('V2_ADMISSION_PRODUCER_IDENTITY_REPOSITORY_INVALID');
+  }
+  if (!SHA256.test(sourceScopeDigest || '') || !SHA256.test(identityDigest || '')) {
+    throw new Error('V2_ADMISSION_PRODUCER_IDENTITY_DIGEST_INVALID');
+  }
+  return Object.freeze({
+    evidenceAdmissionPathIri, identityDigest, repository, sourceScopeDigest,
+    validationProducerIri,
+  });
+}
+
 export const NATIVE_V2_PUBLISHER_CANONICAL_NAME = 'nativev2publisher';
 
 const ADMITTED_PUBLISHER_IMPLEMENTATION_QUERY = `PREFIX usf: <urn:usf:ontology:>
@@ -4327,12 +4436,23 @@ export async function configureLiveGraphProductionV2(
   // authority-derived configuration, so a caller-supplied identity that authority does not
   // declare is refused instead of silently satisfying its own comparison.
   const admittedPublisher = await readAdmittedPublisherIdentityV2(live.client);
+  // The Factory-side closure executor and the evidence-admission producer are resolved from
+  // authority on exactly the same terms as the publisher: caller-supplied values are discarded
+  // and the admitted ones substituted, so `exactGraphProductionInputsV2` compares the inputs
+  // file against authority rather than against the caller's own assertion.
+  const admittedClosureExecutor = await readAdmittedClosureExecutorIdentityV2(live.client);
+  const admittedAdmissionProducer =
+    await readAdmittedEvidenceAdmissionProducerIdentityV2(live.client);
   const {
     publisherImplementationDigest: _callerPublisherImplementationDigest,
     publisherCommandDigest: _callerPublisherCommandDigest,
+    factoryExecutorImplementationDigest: _callerFactoryExecutorImplementationDigest,
+    factoryClosureCommandDigest: _callerFactoryClosureCommandDigest,
     ...callerConfiguration
   } = adapterConfiguration || {};
   return Object.freeze({
+    admittedAdmissionProducer,
+    admittedClosureExecutor,
     admittedPublisher,
     adapter: createGraphProductionAdapterV2({
       command: live.command,
@@ -4342,6 +4462,8 @@ export async function configureLiveGraphProductionV2(
       ...callerConfiguration,
       publisherImplementationDigest: admittedPublisher.implementationSourceSetDigest,
       publisherCommandDigest: admittedPublisher.commandDigest,
+      factoryExecutorImplementationDigest: admittedClosureExecutor.implementationSourceSetDigest,
+      factoryClosureCommandDigest: admittedClosureExecutor.commandDigest,
     }),
     previewV2PublicationFromFrozenInputs: (frozenInputs) => (
       live.command.previewV2PublicationFromFrozenInputs({
@@ -4509,9 +4631,32 @@ export async function main({
         casStore: createCasEvidenceStore(env.USF_CAS_ROOT || '/var/lib/usf-cas'),
       }),
     }, env);
+    // Authority-resolved coordination identity. The caller's Factory executor and closure
+    // command values are DISCARDED and the admitted ones substituted, the admitted executor
+    // must describe the plan's exact Factory deployment (so a stale executor cannot satisfy a
+    // current plan), and any validation-currentness renewal rule must name the admitted
+    // evidence-admission producer.
+    const executor = live.admittedClosureExecutor;
+    if (executor.commit !== inputs.plan.factory_deployment_commit
+        || executor.tree !== inputs.plan.factory_deployment_tree) {
+      throw new Error('V2_CLOSURE_EXECUTOR_IDENTITY_IS_NOT_THE_PLANNED_FACTORY_SOURCE');
+    }
+    const producer = live.admittedAdmissionProducer;
+    for (const item of inputs.plan.derived_consumers || []) {
+      const renewalRule = item?.expected_successor?.payload_preimage
+        ?.native_state?.renewal_rule;
+      if (!renewalRule) continue;
+      if (renewalRule.evidence_admission_producer_identity_digest !== producer.identityDigest
+          || renewalRule.validation_producer_iri !== producer.validationProducerIri
+          || renewalRule.evidence_admission_path_iri !== producer.evidenceAdmissionPathIri) {
+        throw new Error('V2_ADMISSION_PRODUCER_IDENTITY_IS_NOT_THE_ADMITTED_PRODUCER');
+      }
+    }
     const trustedAt = (await trustedInstant(live.trustedTime)).canonical;
     const result = await semanticProofV2.advanceDurableSemanticProofV2Publication({
       ...inputs,
+      factory_executor_implementation_digest: executor.implementationSourceSetDigest,
+      factory_closure_command_digest: executor.commandDigest,
       graph_adapter: live.adapter,
       trusted_at: trustedAt,
     }, {

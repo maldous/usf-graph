@@ -28,6 +28,8 @@ import {
   DEFAULT_PROTOCOL_JOURNAL,
   readImplementationWorkGrantAuthorityStateV1,
   observeGraphRuntimeOwnershipV2,
+  readAdmittedClosureExecutorIdentityV2,
+  readAdmittedEvidenceAdmissionProducerIdentityV2,
   readAdmittedPublisherIdentityV2,
   runPublication,
 } from './semantic-authority-publication.mjs';
@@ -1400,4 +1402,110 @@ test('the live V2 production configuration overrides any caller-supplied publish
     /publisherImplementationDigest: admittedPublisher\.implementationSourceSetDigest/u,
   );
   assert.match(source, /publisherCommandDigest: admittedPublisher\.commandDigest/u);
+});
+
+// The Factory-side closure executor identity is authority-resolved and fail-closed. Absent,
+// ambiguous, malformed, wrong-repository, wrong-path, wrong-source-set and wrong-command
+// declarations must all refuse, and the caller must never be able to substitute its own.
+test('the V2 closure executor identity is resolved from authority and fails closed', async () => {
+  const admitted = Object.freeze({
+    canonicalName: { value: 'factorynativev2closureexecutor' },
+    commandDigest: { value: `sha256:${'1'.repeat(64)}` },
+    commandPath: { value: 'src/usf_factory/cli.py' },
+    commit: { value: 'a'.repeat(40) },
+    executor: { value: 'urn:usf:closureexecutorimplementation:factorynativev2closureexecutor' },
+    repository: { value: 'maldous/usf-factory' },
+    setDigest: { value: `sha256:${'2'.repeat(64)}` },
+    tree: { value: 'b'.repeat(40) },
+  });
+  const clientReturning = (rows) => ({ select: async () => rows });
+
+  const resolved = await readAdmittedClosureExecutorIdentityV2(clientReturning([admitted]));
+  assert.equal(resolved.repository, 'maldous/usf-factory');
+  assert.equal(resolved.commandPath, 'src/usf_factory/cli.py');
+  assert.equal(resolved.commandDigest, admitted.commandDigest.value);
+  assert.equal(resolved.implementationSourceSetDigest, admitted.setDigest.value);
+  assert.equal(resolved.commit, admitted.commit.value);
+  assert.equal(resolved.tree, admitted.tree.value);
+
+  for (const [rows, pattern, label] of [
+    [[], /V2_CLOSURE_EXECUTOR_IDENTITY_NOT_EXACTLY_ONE/u, 'absent'],
+    [[admitted, admitted], /V2_CLOSURE_EXECUTOR_IDENTITY_NOT_EXACTLY_ONE/u, 'ambiguous'],
+    [[{ ...admitted, repository: { value: 'maldous/usf-graph' } }],
+      /V2_CLOSURE_EXECUTOR_IDENTITY_REPOSITORY_INVALID/u, 'wrong repository'],
+    [[{ ...admitted, commandPath: { value: 'processes/semantic-assurance/x.mjs' } }],
+      /V2_CLOSURE_EXECUTOR_IDENTITY_COMMAND_PATH_INVALID/u, 'wrong path space'],
+    [[{ ...admitted, commandDigest: { value: 'sha256:not-a-digest' } }],
+      /V2_CLOSURE_EXECUTOR_IDENTITY_DIGEST_INVALID/u, 'malformed command digest'],
+    [[{ ...admitted, setDigest: { value: 'nope' } }],
+      /V2_CLOSURE_EXECUTOR_IDENTITY_DIGEST_INVALID/u, 'malformed source set digest'],
+    [[{ ...admitted, commit: { value: 'short' } }],
+      /V2_CLOSURE_EXECUTOR_IDENTITY_SOURCE_INVALID/u, 'malformed commit'],
+  ]) {
+    await assert.rejects(() => readAdmittedClosureExecutorIdentityV2(clientReturning(rows)),
+      pattern, label);
+  }
+  await assert.rejects(() => readAdmittedClosureExecutorIdentityV2({}),
+    /V2_CLOSURE_EXECUTOR_IDENTITY_CLIENT_REQUIRED/u, 'no query surface to fall back to');
+});
+
+test('the V2 evidence-admission producer identity is resolved from authority and fails closed', async () => {
+  const admitted = Object.freeze({
+    admissionPath: { value: 'urn:usf:evidenceadmissionpath:compilersemanticenforcementaggregate' },
+    canonicalName: { value: 'compilersemanticenforcementaggregateevidenceadmissionproducer' },
+    identity: { value: 'urn:usf:evidenceadmissionproduceridentity:x' },
+    producer: { value: 'urn:usf:validationproducer:compilersemanticenforcementaggregate' },
+    repository: { value: 'maldous/usf-graph' },
+    scopeDigest: { value: `sha256:${'3'.repeat(64)}` },
+    setDigest: { value: `sha256:${'4'.repeat(64)}` },
+  });
+  const clientReturning = (rows) => ({ select: async () => rows });
+
+  const resolved =
+    await readAdmittedEvidenceAdmissionProducerIdentityV2(clientReturning([admitted]));
+  // The identity digest is the producer's implementation source set digest, NOT its source
+  // scope digest: a source scope is shared with other subjects and does not identify a producer.
+  assert.equal(resolved.identityDigest, admitted.setDigest.value);
+  assert.notEqual(resolved.identityDigest, resolved.sourceScopeDigest);
+  assert.equal(resolved.validationProducerIri, admitted.producer.value);
+  assert.equal(resolved.evidenceAdmissionPathIri, admitted.admissionPath.value);
+
+  for (const [rows, pattern, label] of [
+    [[], /V2_ADMISSION_PRODUCER_IDENTITY_NOT_EXACTLY_ONE/u, 'absent'],
+    [[admitted, admitted], /V2_ADMISSION_PRODUCER_IDENTITY_NOT_EXACTLY_ONE/u, 'ambiguous'],
+    [[{ ...admitted, producer: { value: 'urn:usf:validationobligation:x' } }],
+      /V2_ADMISSION_PRODUCER_IDENTITY_BINDING_INVALID/u, 'wrong producer kind'],
+    [[{ ...admitted, admissionPath: { value: 'urn:usf:evidenceresult:x' } }],
+      /V2_ADMISSION_PRODUCER_IDENTITY_BINDING_INVALID/u, 'wrong admission path kind'],
+    [[{ ...admitted, repository: { value: 'maldous/usf-factory' } }],
+      /V2_ADMISSION_PRODUCER_IDENTITY_REPOSITORY_INVALID/u, 'wrong repository'],
+    [[{ ...admitted, setDigest: { value: 'sha256:nope' } }],
+      /V2_ADMISSION_PRODUCER_IDENTITY_DIGEST_INVALID/u, 'malformed identity digest'],
+  ]) {
+    await assert.rejects(
+      () => readAdmittedEvidenceAdmissionProducerIdentityV2(clientReturning(rows)),
+      pattern, label);
+  }
+  await assert.rejects(() => readAdmittedEvidenceAdmissionProducerIdentityV2({}),
+    /V2_ADMISSION_PRODUCER_IDENTITY_CLIENT_REQUIRED/u, 'no query surface to fall back to');
+});
+
+test('live V2 production discards caller-selected executor and producer identities', () => {
+  const source = readFileSync(
+    new URL('./semantic-authority-publication.mjs', import.meta.url), 'utf8',
+  );
+  // Caller-supplied Factory identities are destructured away and replaced by authority's.
+  assert.match(source, /factoryExecutorImplementationDigest: _callerFactoryExecutorImplementationDigest/u);
+  assert.match(source, /factoryClosureCommandDigest: _callerFactoryClosureCommandDigest/u);
+  assert.match(source,
+    /factoryExecutorImplementationDigest: admittedClosureExecutor\.implementationSourceSetDigest/u);
+  assert.match(source, /factoryClosureCommandDigest: admittedClosureExecutor\.commandDigest/u);
+  // A stale executor cannot satisfy a current plan, and the renewal rule must name the
+  // admitted producer.
+  assert.match(source, /V2_CLOSURE_EXECUTOR_IDENTITY_IS_NOT_THE_PLANNED_FACTORY_SOURCE/u);
+  assert.match(source, /V2_ADMISSION_PRODUCER_IDENTITY_IS_NOT_THE_ADMITTED_PRODUCER/u);
+  // And the publish path must pass authority's values, never the inputs file's.
+  assert.match(source,
+    /factory_executor_implementation_digest: executor\.implementationSourceSetDigest/u);
+  assert.match(source, /factory_closure_command_digest: executor\.commandDigest/u);
 });
