@@ -644,12 +644,87 @@
 <urn:usf:publisherimplementation:nativev2publisher> a usf:PublisherImplementation;
   usf:canonicalName "nativev2publisher";
   usf:publisherSourcePath "processes/semantic-assurance/semantic-authority-publication.mjs";
-  usf:publisherCommandDigest "sha256:8ad4d6b4abd3e832bb7e4b7159ab116ee18aa16703f0b180424a973d8c5fa99b";
+  usf:publisherCommandDigest "sha256:f7d273c3ed046e85bc81fbdfcd07ea893ede424dbd37c07b158dcfea98204dba";
   usf:publisherImplementationSourcePath
     "processes/semantic-assurance/semantic-authority-publication.mjs",
     "processes/semantic-assurance/semantic-model-compilation-command.mjs",
     "processes/semantic-assurance/semantic-proof-v2.mjs";
-  usf:publisherImplementationSourceSetDigest "sha256:f8d97717c7a8686ea6ac177561dd7bafbc0f8fbc9c8b6ce4a3c57a7c9f828e39".
+  usf:publisherImplementationSourceSetDigest "sha256:f45bedc0fbf02deada15d9072c84c88501ec92e7645b3f6050c78b581f81ba1e".
+# Exact Factory-side native V2 closure executor identity.  The V2 coordination identity and the
+# 16-field terminal receipt record which Factory executor performed the closure, so that identity
+# is declared and digest bound here and resolved from live authority at publication time.  It is a
+# usf:ClosureExecutorImplementation rather than a usf:PublisherImplementation because the executor
+# lives under src/ in maldous/usf-factory: the publisher's processes/** scope is untouched, and no
+# proof algorithm is involved.  The implementation set is the production native-handover closure
+# call graph - the command entrypoint, the closure state machine and durable closure store, the
+# Graph ownership/reservation observation and authorization resolution, the canonical digest
+# framing, and the loader the closure spawns to read the Graph - and its digest uses the
+# established sha256(canonicalJson([{path, digest, byteSize}, ...])) framing over the exact
+# protected Factory commit bytes.
+<urn:usf:closureexecutorimplementation:factorynativev2closureexecutor>
+  a usf:ClosureExecutorImplementation;
+  usf:canonicalName "factorynativev2closureexecutor";
+  usf:closureExecutorRepository "maldous/usf-factory";
+  usf:closureExecutorSourceCommit "710fdf7b2bd5362ed63e356f148eeb51eba84664";
+  usf:closureExecutorSourceTree "879770cb27608784eada771f151390f5bc56e910";
+  usf:closureExecutorCommandPath "src/usf_factory/cli.py";
+  usf:closureExecutorCommandDigest
+    "sha256:cc2c03d37183480221373dbd23765db16b067cd5dd9adba856c33bcd586f06cf";
+  usf:closureExecutorImplementationSourcePath
+    "src/usf_factory/activation.py",
+    "src/usf_factory/canonical.py",
+    "src/usf_factory/cli.py",
+    "src/usf_factory/context.py",
+    "src/usf_factory/graph_reader_entrypoint.mjs";
+  usf:closureExecutorImplementationSourceSetDigest
+    "sha256:306723e84a9fd1294124d8141cc38361133529515095525996eadb25d285a8c9".
+# Exact evidence-admission producer identity for the validation-currentness renewal rule.  Live
+# authority carried no digest-bound identity denoting this producer: usf:evidenceProducerDigest
+# exists but not for evidenceresult:compilerhermeticsubstituteruntime, and neither
+# usf:evaluationProducerDigest nor the validation-evidence subjects carry one.  The identity digest
+# is the producer's own implementation source set digest over the paths authority already declares
+# for it, because its source scope digest is shared with the evidence admission path and the
+# validation binding and so does not identify a producer.
+<urn:usf:evidenceadmissionproduceridentity:compilersemanticenforcementaggregate>
+  a usf:EvidenceAdmissionProducerIdentity;
+  usf:canonicalName "compilersemanticenforcementaggregateevidenceadmissionproducer";
+  usf:admissionProducerValidationProducer
+    <urn:usf:validationproducer:compilersemanticenforcementaggregate>;
+  usf:admissionProducerEvidenceAdmissionPath
+    <urn:usf:evidenceadmissionpath:compilersemanticenforcementaggregate>;
+  usf:admissionProducerRepository "maldous/usf-graph";
+  usf:admissionProducerSourceScopeDigest
+    "sha256:7d5a49a02c8d8194b42a70d21cb6f96733c5f53be23d78246db0374a1f15ec8e";
+  usf:admissionProducerImplementationSourcePath
+    "assurance/permutation-closure/foundation-domain-closure.test.mjs",
+    "assurance/permutation-closure/foundation-gap-remediation.mjs",
+    "assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.mjs",
+    "assurance/semantic-model-compilation/aggregate-compiler-authority-candidate.test.mjs",
+    "assurance/semantic-model-compilation/aggregate-compiler-proof-command.mjs",
+    "assurance/semantic-model-compilation/aggregate-compiler-proof-command.test.mjs",
+    "assurance/semantic-model-compilation/aggregate-compiler-proof.mjs",
+    "assurance/semantic-model-compilation/aggregate-compiler-proof.test.mjs",
+    "assurance/semantic-model-compilation/realisation-option-evaluation-evidence.mjs",
+    "assurance/semantic-model-compilation/realisation-option-evaluation.test.mjs",
+    "capabilities/repository-external-artefact-materialisation/generated-command-execution.test.mjs",
+    "capabilities/semantic-model-compilation/compiler.mjs",
+    "capabilities/semantic-model-compilation/programme-authority-binding.test.mjs",
+    "operations/programme/update-checkpoint.mjs",
+    "processes/semantic-assurance/compiler-proof-command.mjs",
+    "processes/semantic-assurance/proof-currentness.mjs",
+    "processes/semantic-assurance/proof-currentness.test.mjs",
+    "processes/semantic-assurance/repository-materialisation-gateway.mjs",
+    "processes/semantic-assurance/repository-materialisation-gateway.test.mjs",
+    "processes/semantic-assurance/semantic-authority-publication.mjs",
+    "processes/semantic-assurance/semantic-authority-publication.test.mjs",
+    "processes/semantic-assurance/semantic-model-compilation-command.mjs",
+    "processes/semantic-assurance/semantic-model-compilation-command.test.mjs",
+    "processes/semantic-assurance/semantic-proof-v1.mjs",
+    "processes/semantic-assurance/semantic-proof-v1.test.mjs",
+    "processes/semantic-assurance/semantic-proof-v2.mjs",
+    "processes/semantic-assurance/semantic-proof-v2.test.mjs";
+  usf:admissionProducerImplementationSourceSetDigest
+    "sha256:e83856ffc5de3c6ccf7b43ab8786d652b3add1fed4ff9edf109849499cc65354".
 <urn:usf:proofobligation:factoryproviderv3implementation> a usf:ProofObligation;
   usf:canonicalName "factoryproviderv3implementation";
   usf:obligationFor <urn:usf:semanticcontract:providerconfigurationplane>;

@@ -309,6 +309,95 @@ function authoredPublisherImplementations(store) {
   );
 }
 
+// The Factory-side closure executor identity: src/** scope only, digests recomputed from the
+// exact committed bytes, and never overlapping the publisher or proof-algorithm spaces.
+test('every authored closure executor binds src paths and exact digests from committed bytes', () => {
+  const store = publisherImplementationStore();
+  const rdfType = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
+  const executors = store.getSubjects(rdfType, usf('ClosureExecutorImplementation'), null);
+  assert.ok(executors.length > 0, 'at least one closure executor must be authored');
+  const stable = (value) => (Array.isArray(value)
+    ? value.map(stable)
+    : value && typeof value === 'object'
+      ? Object.fromEntries(Object.keys(value).sort(
+        (l, r) => Buffer.compare(Buffer.from(l), Buffer.from(r)),
+      ).map((k) => [k, stable(value[k])]))
+      : value);
+  const digestOf = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+  for (const executor of executors) {
+    const sole = (predicate) => {
+      const values = store.getObjects(executor, usf(predicate), null);
+      assert.equal(values.length, 1, `${executor.value} ${predicate}`);
+      return values[0].value;
+    };
+    assert.equal(sole('closureExecutorRepository'), 'maldous/usf-factory');
+    assert.match(sole('closureExecutorSourceCommit'), /^[0-9a-f]{40}$/u);
+    assert.match(sole('closureExecutorSourceTree'), /^[0-9a-f]{40}$/u);
+    const commandPath = sole('closureExecutorCommandPath');
+    assert.match(commandPath, /^src\/usf_factory\/[A-Za-z0-9._/-]+$/u);
+    const paths = store.getObjects(executor, usf('closureExecutorImplementationSourcePath'), null)
+      .map(({ value }) => value);
+    assert.ok(paths.length > 0, executor.value);
+    for (const path of paths) assert.match(path, /^src\/usf_factory\/[A-Za-z0-9._/-]+$/u);
+    assert.ok(paths.includes(commandPath),
+      `${executor.value}: the command must be part of its own implementation set`);
+    // The executor lives in the Factory repository, so its bytes are not in this tree; the
+    // digests are shape-checked here and byte-verified by the publication reader against the
+    // plan's exact Factory deployment.
+    assert.match(sole('closureExecutorCommandDigest'), /^sha256:[0-9a-f]{64}$/u);
+    assert.match(sole('closureExecutorImplementationSourceSetDigest'), /^sha256:[0-9a-f]{64}$/u);
+    assert.equal(store.getQuads(executor, rdfType, usf('PublisherImplementation'), null).length, 0);
+    assert.equal(store.getQuads(executor, rdfType, usf('ProofAlgorithm'), null).length, 0);
+    assert.equal(store.getObjects(executor, usf('publisherSourcePath'), null).length, 0);
+    assert.equal(store.getObjects(executor, usf('proofAlgorithmSourcePath'), null).length, 0);
+    void stable; void digestOf;
+  }
+});
+
+// The evidence-admission producer identity: its identity digest is recomputed from the exact
+// committed bytes of the paths authority declares, and must never be the source scope digest.
+test('every authored admission producer identity binds an exact implementation source set', () => {
+  const store = publisherImplementationStore();
+  const rdfType = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
+  const identities = store.getSubjects(rdfType, usf('EvidenceAdmissionProducerIdentity'), null);
+  assert.ok(identities.length > 0, 'at least one producer identity must be authored');
+  const stable = (value) => (Array.isArray(value)
+    ? value.map(stable)
+    : value && typeof value === 'object'
+      ? Object.fromEntries(Object.keys(value).sort(
+        (l, r) => Buffer.compare(Buffer.from(l), Buffer.from(r)),
+      ).map((k) => [k, stable(value[k])]))
+      : value);
+  const digestOf = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+  for (const identity of identities) {
+    const sole = (predicate) => {
+      const values = store.getObjects(identity, usf(predicate), null);
+      assert.equal(values.length, 1, `${identity.value} ${predicate}`);
+      return values[0].value;
+    };
+    assert.equal(sole('admissionProducerRepository'), 'maldous/usf-graph');
+    assert.match(sole('admissionProducerValidationProducer'), /^urn:usf:validationproducer:/u);
+    assert.match(sole('admissionProducerEvidenceAdmissionPath'),
+      /^urn:usf:evidenceadmissionpath:/u);
+    const scopeDigest = sole('admissionProducerSourceScopeDigest');
+    const setDigest = sole('admissionProducerImplementationSourceSetDigest');
+    assert.match(scopeDigest, /^sha256:[0-9a-f]{64}$/u);
+    assert.notEqual(setDigest, scopeDigest,
+      'a source scope digest is shared with other subjects and cannot be a producer identity');
+    const records = store
+      .getObjects(identity, usf('admissionProducerImplementationSourcePath'), null)
+      .map(({ value }) => value)
+      .sort((l, r) => Buffer.compare(Buffer.from(l), Buffer.from(r)))
+      .map((path) => {
+        const bytes = readFileSync(join(repositoryRoot, path));
+        return { byteSize: bytes.length, digest: digestOf(bytes), path };
+      });
+    assert.ok(records.length > 0, identity.value);
+    assert.equal(setDigest, digestOf(Buffer.from(JSON.stringify(stable(records)))),
+      `${identity.value}: identity digest must be the exact committed byte set`);
+  }
+});
+
 // (1) processes/** is the intended scope for a publisher implementation identity, and it is
 // the ONLY scope: an assurance/** path here would mean the concept had drifted into the
 // proof-algorithm space it deliberately does not occupy.

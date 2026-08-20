@@ -2842,7 +2842,7 @@ test('bounded authority capture is complete for the exact canonical family regis
   const missingPredicates = [...requiredPredicates].filter((iri) => !projectedPredicates.has(iri)).sort();
   assert.deepEqual(missingClasses, []);
   assert.deepEqual(missingPredicates, []);
-  assert.equal(scope.projectedClassIris.length, 377);
+  assert.equal(scope.projectedClassIris.length, 379);
   assert.equal(scope.projectedPredicateIris.length, 221);
   assert.deepEqual(scope.projectedClassIris, [...projectedClasses].sort());
   assert.deepEqual(scope.projectedPredicateIris, [...projectedPredicates].sort());
