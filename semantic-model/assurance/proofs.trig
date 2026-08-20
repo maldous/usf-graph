@@ -632,6 +632,24 @@
   usf:canonicalName "factoryproviderv3implementationc218bbdc9a1a911a63435b283d947e9d4b2d63c36ab5e446a3f034e46a821890";
   usf:proofAlgorithmVersionOf <urn:usf:proofalgorithm:factoryproviderv3implementation>;
   usf:proofAlgorithmVersionIdentifier "1.0.1".
+# Exact V2 native publisher identity.  The V2 native handover folds the publisher's command
+# and implementation identity into the coordination identity digest and the 16-field terminal
+# receipt, so that identity is declared and digest bound here and resolved from live
+# authority at publication time - never asserted by whoever runs the publication.  It is a
+# usf:PublisherImplementation rather than a usf:ProofAlgorithm because the publisher lives
+# under processes/ and the proof-algorithm space stays restricted to assurance/.  The command
+# digest is the exact committed bytes of the command module; the implementation source set
+# digest is sha256(canonicalJson([{path, digest, byteSize}, ...])) over the enumerated
+# modules, the framing already used for every implementation source set digest in this model.
+<urn:usf:publisherimplementation:nativev2publisher> a usf:PublisherImplementation;
+  usf:canonicalName "nativev2publisher";
+  usf:publisherSourcePath "processes/semantic-assurance/semantic-authority-publication.mjs";
+  usf:publisherCommandDigest "sha256:8ad4d6b4abd3e832bb7e4b7159ab116ee18aa16703f0b180424a973d8c5fa99b";
+  usf:publisherImplementationSourcePath
+    "processes/semantic-assurance/semantic-authority-publication.mjs",
+    "processes/semantic-assurance/semantic-model-compilation-command.mjs",
+    "processes/semantic-assurance/semantic-proof-v2.mjs";
+  usf:publisherImplementationSourceSetDigest "sha256:f8d97717c7a8686ea6ac177561dd7bafbc0f8fbc9c8b6ce4a3c57a7c9f828e39".
 <urn:usf:proofobligation:factoryproviderv3implementation> a usf:ProofObligation;
   usf:canonicalName "factoryproviderv3implementation";
   usf:obligationFor <urn:usf:semanticcontract:providerconfigurationplane>;
