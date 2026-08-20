@@ -44,6 +44,14 @@ usf:ProofAlgorithm a owl:Class;
 usf:ProofAlgorithmVersion a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Proof algorithm version".
+usf:ClosureExecutorImplementation a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Closure executor implementation";
+    rdfs:comment "Digest-bound identity of the repository-side closure executor that advances a V2 native handover, bound to its exact repository, protected commit, enumerated implementation sources and canonical command. It is the src/** counterpart to a publisher implementation and shares no scope with it.".
+usf:EvidenceAdmissionProducerIdentity a owl:Class;
+    rdfs:subClassOf usf:Entity;
+    rdfs:label "Evidence admission producer identity";
+    rdfs:comment "Digest-bound identity of the producer whose evidence a validation-currentness renewal admits, bound to its exact validation producer, evidence admission path, repository, source scope and enumerated implementation sources. A source scope digest alone does not identify a producer, so the identity digest is taken over the producer's own implementation bytes.".
 usf:PublisherImplementation a owl:Class;
     rdfs:subClassOf usf:Entity;
     rdfs:label "Publisher implementation";
@@ -420,6 +428,45 @@ usf:usesAlgorithmVersion a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:range usf:ProofAlgorithmVersion.
 usf:proofAlgorithmSourcePath a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:ProofAlgorithm;
+    rdfs:range xsd:string.
+usf:closureExecutorRepository a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ClosureExecutorImplementation;
+    rdfs:range xsd:string.
+usf:closureExecutorSourceCommit a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ClosureExecutorImplementation;
+    rdfs:range xsd:string.
+usf:closureExecutorSourceTree a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ClosureExecutorImplementation;
+    rdfs:range xsd:string.
+usf:closureExecutorCommandPath a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ClosureExecutorImplementation;
+    rdfs:range xsd:string.
+usf:closureExecutorCommandDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ClosureExecutorImplementation;
+    rdfs:range xsd:string.
+usf:closureExecutorImplementationSourcePath a owl:DatatypeProperty;
+    rdfs:domain usf:ClosureExecutorImplementation;
+    rdfs:range xsd:string.
+usf:closureExecutorImplementationSourceSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:ClosureExecutorImplementation;
+    rdfs:range xsd:string.
+usf:admissionProducerValidationProducer a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceAdmissionProducerIdentity;
+    rdfs:range usf:Entity.
+usf:admissionProducerEvidenceAdmissionPath a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceAdmissionProducerIdentity;
+    rdfs:range usf:Entity.
+usf:admissionProducerRepository a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceAdmissionProducerIdentity;
+    rdfs:range xsd:string.
+usf:admissionProducerSourceScopeDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceAdmissionProducerIdentity;
+    rdfs:range xsd:string.
+usf:admissionProducerImplementationSourcePath a owl:DatatypeProperty;
+    rdfs:domain usf:EvidenceAdmissionProducerIdentity;
+    rdfs:range xsd:string.
+usf:admissionProducerImplementationSourceSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:EvidenceAdmissionProducerIdentity;
     rdfs:range xsd:string.
 usf:publisherSourcePath a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:PublisherImplementation;
