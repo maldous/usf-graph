@@ -28,6 +28,7 @@ import {
   DEFAULT_PROTOCOL_JOURNAL,
   readImplementationWorkGrantAuthorityStateV1,
   observeGraphRuntimeOwnershipV2,
+  readAdmittedPublisherIdentityV2,
   runPublication,
 } from './semantic-authority-publication.mjs';
 import {
@@ -1332,4 +1333,71 @@ test('terminal V2 is irreversible: deleting the fence quad does not resurrect V1
     /V2_GRAPH_TERMINAL_OWNERSHIP_FENCE_MISSING/,
     'a deleted fence over durable terminal state must fail closed, not report V1',
   );
+});
+
+// (4) No caller-supplied or fallback identity can satisfy the V2 publisher binding. The
+// identity is resolved from live authority only: an absent, duplicated, or malformed
+// declaration refuses the publication instead of letting the caller assert its own digests
+// into the coordination identity and the terminal receipt.
+test('the V2 publisher identity is resolved from authority and never supplied by the caller', async () => {
+  const admitted = Object.freeze({
+    canonicalName: { value: 'nativev2publisher' },
+    commandDigest: { value: `sha256:${'a'.repeat(64)}` },
+    publisher: { value: 'urn:usf:publisherimplementation:nativev2publisher' },
+    setDigest: { value: `sha256:${'b'.repeat(64)}` },
+    sourcePath: { value: 'processes/semantic-assurance/semantic-authority-publication.mjs' },
+  });
+  const clientReturning = (rows) => ({ select: async () => rows });
+
+  const resolved = await readAdmittedPublisherIdentityV2(clientReturning([admitted]));
+  assert.equal(resolved.commandDigest, admitted.commandDigest.value);
+  assert.equal(resolved.implementationSourceSetDigest, admitted.setDigest.value);
+  assert.equal(resolved.sourcePath, admitted.sourcePath.value);
+
+  // No declaration must not degrade to a caller-supplied or default identity.
+  await assert.rejects(
+    () => readAdmittedPublisherIdentityV2(clientReturning([])),
+    /V2_PUBLISHER_IDENTITY_NOT_EXACTLY_ONE/u,
+  );
+  // An ambiguous declaration must refuse rather than pick one.
+  await assert.rejects(
+    () => readAdmittedPublisherIdentityV2(clientReturning([admitted, admitted])),
+    /V2_PUBLISHER_IDENTITY_NOT_EXACTLY_ONE/u,
+  );
+  // An assurance path here would mean the identity had drifted out of its processes scope.
+  await assert.rejects(
+    () => readAdmittedPublisherIdentityV2(clientReturning([{
+      ...admitted,
+      sourcePath: { value: 'assurance/semantic-model-compilation/aggregate-compiler-proof.mjs' },
+    }])),
+    /V2_PUBLISHER_IDENTITY_SOURCE_PATH_INVALID/u,
+  );
+  // A non-exact digest must refuse rather than be recorded.
+  await assert.rejects(
+    () => readAdmittedPublisherIdentityV2(clientReturning([{
+      ...admitted, commandDigest: { value: 'sha256:not-a-digest' },
+    }])),
+    /V2_PUBLISHER_IDENTITY_DIGEST_INVALID/u,
+  );
+  // There is no query surface to fall back to.
+  await assert.rejects(
+    () => readAdmittedPublisherIdentityV2({}),
+    /V2_PUBLISHER_IDENTITY_CLIENT_REQUIRED/u,
+  );
+});
+
+test('the live V2 production configuration overrides any caller-supplied publisher identity', () => {
+  const source = readFileSync(
+    new URL('./semantic-authority-publication.mjs', import.meta.url), 'utf8',
+  );
+  // The caller's publisher digests are destructured away and replaced by the authority
+  // values, so `exactGraphProductionInputsV2` compares the v2-inputs file against authority
+  // rather than against the caller's own assertion.
+  assert.match(source, /publisherImplementationDigest: _callerPublisherImplementationDigest/u);
+  assert.match(source, /publisherCommandDigest: _callerPublisherCommandDigest/u);
+  assert.match(
+    source,
+    /publisherImplementationDigest: admittedPublisher\.implementationSourceSetDigest/u,
+  );
+  assert.match(source, /publisherCommandDigest: admittedPublisher\.commandDigest/u);
 });

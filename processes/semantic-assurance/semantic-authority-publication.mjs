@@ -4267,6 +4267,54 @@ export async function configureLiveGraphProductionShadowV2(expectedAuthorityDige
   });
 }
 
+export const NATIVE_V2_PUBLISHER_CANONICAL_NAME = 'nativev2publisher';
+
+const ADMITTED_PUBLISHER_IMPLEMENTATION_QUERY = `PREFIX usf: <urn:usf:ontology:>
+SELECT ?publisher ?sourcePath ?commandDigest ?setDigest WHERE {
+  ?publisher a usf:PublisherImplementation ;
+    usf:canonicalName ?canonicalName ;
+    usf:publisherSourcePath ?sourcePath ;
+    usf:publisherCommandDigest ?commandDigest ;
+    usf:publisherImplementationSourceSetDigest ?setDigest .
+  FILTER(STR(?canonicalName) = ?requestedName)
+}`;
+
+// The publisher's identity is recorded permanently in the coordination identity digest and
+// the terminal receipt, so it is resolved from LIVE AUTHORITY and never from the caller.
+// There is deliberately no fallback: an absent, duplicated or malformed declaration refuses
+// the publication rather than letting whoever runs it assert an identity of their choosing.
+export async function readAdmittedPublisherIdentityV2(
+  client,
+  canonicalName = NATIVE_V2_PUBLISHER_CANONICAL_NAME,
+) {
+  if (!client || typeof client.select !== 'function') {
+    throw new Error('V2_PUBLISHER_IDENTITY_CLIENT_REQUIRED');
+  }
+  if (typeof canonicalName !== 'string' || canonicalName.length === 0) {
+    throw new Error('V2_PUBLISHER_IDENTITY_CANONICAL_NAME_REQUIRED');
+  }
+  const rows = await client.select(
+    ADMITTED_PUBLISHER_IMPLEMENTATION_QUERY.replace(
+      '?requestedName',
+      `"${canonicalName}"`,
+    ),
+  );
+  if (!Array.isArray(rows) || rows.length !== 1) {
+    throw new Error('V2_PUBLISHER_IDENTITY_NOT_EXACTLY_ONE');
+  }
+  const value = (term) => (term && typeof term === 'object' ? term.value : term);
+  const sourcePath = value(rows[0].sourcePath);
+  const commandDigest = value(rows[0].commandDigest);
+  const implementationSourceSetDigest = value(rows[0].setDigest);
+  if (typeof sourcePath !== 'string' || !/^processes\/[A-Za-z0-9._/-]+$/u.test(sourcePath)) {
+    throw new Error('V2_PUBLISHER_IDENTITY_SOURCE_PATH_INVALID');
+  }
+  if (!SHA256.test(commandDigest || '') || !SHA256.test(implementationSourceSetDigest || '')) {
+    throw new Error('V2_PUBLISHER_IDENTITY_DIGEST_INVALID');
+  }
+  return Object.freeze({ commandDigest, implementationSourceSetDigest, sourcePath });
+}
+
 export async function configureLiveGraphProductionV2(
   expectedAuthorityDigest,
   adapterConfiguration,
@@ -4274,13 +4322,26 @@ export async function configureLiveGraphProductionV2(
 ) {
   assertExpectedDigest(expectedAuthorityDigest, 'V2 Graph production D0 authority');
   const live = await configureLiveDependencies(expectedAuthorityDigest, env);
+  // Resolve the publisher identity from authority and let it OVERRIDE anything the caller
+  // supplied. `exactGraphProductionInputsV2` then compares the v2-inputs file against this
+  // authority-derived configuration, so a caller-supplied identity that authority does not
+  // declare is refused instead of silently satisfying its own comparison.
+  const admittedPublisher = await readAdmittedPublisherIdentityV2(live.client);
+  const {
+    publisherImplementationDigest: _callerPublisherImplementationDigest,
+    publisherCommandDigest: _callerPublisherCommandDigest,
+    ...callerConfiguration
+  } = adapterConfiguration || {};
   return Object.freeze({
+    admittedPublisher,
     adapter: createGraphProductionAdapterV2({
       command: live.command,
       readAuthorityWitness: live.readAuthorityWitness,
       readGraphOwnedConsumers: live.readGraphOwnedConsumers,
       trustedTime: live.trustedTime,
-      ...adapterConfiguration,
+      ...callerConfiguration,
+      publisherImplementationDigest: admittedPublisher.implementationSourceSetDigest,
+      publisherCommandDigest: admittedPublisher.commandDigest,
     }),
     previewV2PublicationFromFrozenInputs: (frozenInputs) => (
       live.command.previewV2PublicationFromFrozenInputs({

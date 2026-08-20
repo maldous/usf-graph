@@ -1102,3 +1102,47 @@ shp:ValidationSelfPublicationAuthorityBindingShape a sh:NodeShape;
       sh:message "validationpublicationclosure: authority closure requires the same externally verified, admitted CAS descriptor across validation and envelope verification";
       sh:select "SELECT $this WHERE { $this usf:validationBindingEnvelopeVerification ?verification ; usf:validationBindingExternalVerifier ?externalVerifier ; usf:validationBindingVerificationCASDescriptor ?descriptor . FILTER NOT EXISTS { ?verification a usf:SemanticProofEnvelopeVerification ; usf:verifiedByExternalVerifier ?externalVerifier ; usf:verificationCASDescriptor ?descriptor ; usf:hasEnvelopeVerificationAdmission ?admission . ?externalVerifier a usf:SemanticProofExternalVerifier ; usf:externalVerifierIdentity ?externalVerifierIdentity . ?admission a usf:SemanticProofEnvelopeVerificationAdmission ; usf:admitsEnvelopeVerification ?verification ; usf:admittedVerificationCASDescriptor ?descriptor ; usf:verificationAdmissionState <urn:usf:resultstate:passed> ; usf:verificationAdmissionReceiptDigest ?admissionReceipt . ?descriptor a usf:SemanticProofVerificationCASDescriptor ; usf:semanticProofCASVerificationState <urn:usf:resultstate:passed> ; usf:semanticProofCASDescriptorReceiptDigest ?descriptorReceipt . } }"
     ].
+
+# A publisher implementation is a digest-bound identity for a processes/** publisher whose
+# command and implementation source set are recorded permanently in a publication's
+# coordination identity and terminal receipt. The shape is CLOSED and every identity-bearing
+# property is mandatory and exactly shaped, so a partial or reshaped declaration is refused
+# rather than silently admitting an identity the publisher would then assert.
+shp:PublisherImplementationShape a sh:NodeShape;
+    usf:canonicalName "publisherimplementationshape";
+    sh:targetClass usf:PublisherImplementation;
+    sh:closed true;
+    sh:ignoredProperties (<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>).
+_:publisherimplementationshape-canonicalname sh:path usf:canonicalName;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:datatype xsd:string;
+    sh:message "publisherimplementationcanonicalname: publisher implementation must carry exactly one canonical name".
+shp:PublisherImplementationShape sh:property _:publisherimplementationshape-canonicalname.
+_:publisherimplementationshape-sourcepath sh:path usf:publisherSourcePath;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:datatype xsd:string;
+    sh:pattern "^processes/[A-Za-z0-9._/-]+$";
+    sh:message "publisherimplementationsourcepath: publisher implementation must carry exactly one processes/** command source path".
+shp:PublisherImplementationShape sh:property _:publisherimplementationshape-sourcepath.
+_:publisherimplementationshape-commanddigest sh:path usf:publisherCommandDigest;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "publisherimplementationcommanddigest: publisher implementation must carry exactly one exact command digest".
+shp:PublisherImplementationShape sh:property _:publisherimplementationshape-commanddigest.
+_:publisherimplementationshape-implementationsourcepath sh:path usf:publisherImplementationSourcePath;
+    sh:minCount 1;
+    sh:datatype xsd:string;
+    sh:pattern "^processes/[A-Za-z0-9._/-]+$";
+    sh:message "publisherimplementationsourceset: publisher implementation must enumerate its processes/** implementation source paths".
+shp:PublisherImplementationShape sh:property _:publisherimplementationshape-implementationsourcepath.
+_:publisherimplementationshape-implementationsetdigest sh:path usf:publisherImplementationSourceSetDigest;
+    sh:minCount 1;
+    sh:maxCount 1;
+    sh:datatype xsd:string;
+    sh:pattern "^sha256:[0-9a-f]{64}$";
+    sh:message "publisherimplementationsetdigest: publisher implementation must carry exactly one exact implementation source set digest".
+shp:PublisherImplementationShape sh:property _:publisherimplementationshape-implementationsetdigest.
