@@ -1209,11 +1209,13 @@ _:admissionproducershape-canonicalname sh:path usf:canonicalName;
     sh:message "admissionproducercanonicalname: producer identity must carry exactly one canonical name".
 shp:EvidenceAdmissionProducerIdentityShape sh:property _:admissionproducershape-canonicalname.
 _:admissionproducershape-producer sh:path usf:admissionProducerValidationProducer;
-    sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:pattern "^urn:usf:validationproducer:[A-Za-z0-9._-]+$";
     sh:message "admissionproducervalidationproducer: producer identity must bind exactly one validation producer".
 shp:EvidenceAdmissionProducerIdentityShape sh:property _:admissionproducershape-producer.
 _:admissionproducershape-path sh:path usf:admissionProducerEvidenceAdmissionPath;
-    sh:minCount 1; sh:maxCount 1; sh:nodeKind sh:IRI;
+    sh:minCount 1; sh:maxCount 1; sh:datatype xsd:string;
+    sh:pattern "^urn:usf:evidenceadmissionpath:[A-Za-z0-9._-]+$";
     sh:message "admissionproducerevidenceadmissionpath: producer identity must bind exactly one evidence admission path".
 shp:EvidenceAdmissionProducerIdentityShape sh:property _:admissionproducershape-path.
 _:admissionproducershape-repository sh:path usf:admissionProducerRepository;
