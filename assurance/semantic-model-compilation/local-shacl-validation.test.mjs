@@ -309,6 +309,31 @@ function authoredPublisherImplementations(store) {
   );
 }
 
+// The live model requires canonicalName to equal the IRI's local segment. That rule lives in
+// shapes.ttl and is only enforced at publication, where it surfaces as
+// "V1_LIFECYCLE_FAILED: authored state failed SHACL validation" after the proof work has
+// already run. Check it here for the identities this repository authors, so the mismatch is
+// caught locally instead of at the end of a publication.
+test('authored coordination identities name themselves after their IRI local segment', () => {
+  const store = publisherImplementationStore();
+  const rdfType = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
+  const classes = [
+    'PublisherImplementation', 'ClosureExecutorImplementation',
+    'EvidenceAdmissionProducerIdentity',
+  ];
+  let checked = 0;
+  for (const className of classes) {
+    for (const subject of store.getSubjects(rdfType, usf(className), null)) {
+      const names = store.getObjects(subject, usf('canonicalName'), null);
+      assert.equal(names.length, 1, subject.value);
+      assert.equal(names[0].value, subject.value.split(':').pop(),
+        `${subject.value}: canonicalName must equal the IRI local segment`);
+      checked += 1;
+    }
+  }
+  assert.ok(checked >= 3, 'all three coordination identities must be authored');
+});
+
 // The Factory-side closure executor identity: src/** scope only, digests recomputed from the
 // exact committed bytes, and never overlapping the publisher or proof-algorithm spaces.
 test('every authored closure executor binds src paths and exact digests from committed bytes', () => {

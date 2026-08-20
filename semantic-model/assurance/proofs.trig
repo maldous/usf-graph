@@ -685,7 +685,7 @@
 # is the producer's own implementation source set digest over the paths authority already declares
 # for it, because its source scope digest is shared with the evidence admission path and the
 # validation binding and so does not identify a producer.
-<urn:usf:evidenceadmissionproduceridentity:compilersemanticenforcementaggregate>
+<urn:usf:evidenceadmissionproduceridentity:compilersemanticenforcementaggregateevidenceadmissionproducer>
   a usf:EvidenceAdmissionProducerIdentity;
   usf:canonicalName "compilersemanticenforcementaggregateevidenceadmissionproducer";
   usf:admissionProducerValidationProducer
