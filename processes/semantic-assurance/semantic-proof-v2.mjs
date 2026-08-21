@@ -1078,6 +1078,10 @@ export function assertValidationCurrentnessDescendantV2(envelope, {
   });
 }
 
+export const assertFactoryNativeStateV2Exported = (successor) => (
+  assertFactoryNativeStateV2(successor, successor.payload_preimage.native_state)
+);
+
 function assertFactoryNativeStateV2(successor, nativeState) {
   if (successor.storage_owner !== 'FACTORY') return;
   const closed = (fields, schema, label) => {
@@ -1092,12 +1096,31 @@ function assertFactoryNativeStateV2(successor, nativeState) {
       && nativeState.permitted_actions.some((action) => protectedActions.has(action));
     if (nativeState.schema_version !== 2
         || (requiresProtectedScope
-          && nativeState.protected_delivery_scope?.authority_digest !== successor.authority_digest)
-        || nativeState.validation_lifecycle_scope === null
-        || nativeState.validation_lifecycle_scope === undefined
-        || nativeState.validation_lifecycle_scope.trusted_time_authority_digest
-          !== successor.authority_digest) {
+          && nativeState.protected_delivery_scope?.authority_digest !== successor.authority_digest)) {
       throw new Error('native V2 RunAuthorization is not current and D2-bound');
+    }
+    // Whether this handover carries a validation-evidence lifecycle is the OWNER's declaration,
+    // carried by the admitted authorization scope as validation_lifecycle_scope_digest. Demanding
+    // one unconditionally makes every contract without a validation-evidence lifecycle
+    // unpublishable, and the only way to satisfy it would be to invent the owner-supplied IRIs
+    // the scope is explicitly forbidden from inventing.
+    const declaredLifecycleDigest = successor.semantic_scope_preimage
+      ?.execution?.validation_lifecycle_scope_digest ?? null;
+    const carried = nativeState.validation_lifecycle_scope;
+    if (declaredLifecycleDigest === null) {
+      if (carried !== null && carried !== undefined
+          && carried.trusted_time_authority_digest !== successor.authority_digest) {
+        throw new Error('native V2 RunAuthorization is not current and D2-bound');
+      }
+      return;
+    }
+    if (carried === null || carried === undefined
+        || carried.trusted_time_authority_digest !== successor.authority_digest) {
+      throw new Error('native V2 RunAuthorization is not current and D2-bound');
+    }
+    // Declared means the successor must carry THAT scope, not merely a D2-bound lookalike.
+    if (canonicalDigestV2(carried) !== declaredLifecycleDigest) {
+      throw new Error('native V2 RunAuthorization lifecycle scope is not the admitted scope');
     }
     return;
   }
