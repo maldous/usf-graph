@@ -5,35 +5,37 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import {
+  DERIVED_CONSUMER_REGISTRY_V2_DIGEST,
+  HermeticSemanticProofV2Journal,
+  IDENTITY_DEPENDENCY_GRAPH_V2_DIGEST,
+  SemanticProofV2JournalState,
   advanceDurableSemanticProofV2Publication,
   advanceSemanticProofV2Publication,
-  assertValidationCurrentnessDescendantV2,
+  assertFactoryNativeStateV2Exported,
   assertGraphProductionShadowPlanBindingV2,
+  assertProspectivePublicationPlanV2,
+  assertValidationCurrentnessDescendantV2,
+  canonicalDigestV2,
   canonicalGraphOwnedConsumerObservationBytesV2,
   canonicalGraphOwnedConsumerRecordBytesV2,
   canonicalGraphProductionShadowReceiptBytesV2,
+  canonicalJsonV2,
   captureGraphOwnedConsumerObservationV2,
   captureGraphProductionShadowV2,
-  canonicalJsonV2,
-  canonicalDigestV2,
   closureTransactionIdV2,
   createReadOnlyGraphProductionAdapterV2,
-  DERIVED_CONSUMER_REGISTRY_V2_DIGEST,
   factoryClosureReceiptDigestV2,
   factoryPrepareReceiptDigestV2,
-  graphOwnedNativeObservationDigestV2,
   graphOwnedConsumerObservationDigestV2,
   graphOwnedConsumerRecordDigestV2,
+  graphOwnedNativeObservationDigestV2,
+  graphProductionShadowReceiptDigestV2,
   graphPublicationReceiptDigestV2,
   graphReservationReceiptDigestV2,
-  graphProductionShadowReceiptDigestV2,
-  HermeticSemanticProofV2Journal,
-  IDENTITY_DEPENDENCY_GRAPH_V2_DIGEST,
   nativeHandoverGenerationDigestV2,
   nativeReadbackSetDigestV2,
   nativeSuccessorReadbackDigestV2,
   prospectivePublicationPlanDigestV2,
-  SemanticProofV2JournalState,
 } from './semantic-proof-v2.mjs';
 import { semanticAuthorityInventoryDigest } from './semantic-authority-gateway.mjs';
 import { fixture, preparedReceipts } from './native-handover-fixture-v2.mjs';
@@ -947,4 +949,54 @@ test('the publisher CLI entrypoint never awaits main during module evaluation', 
   assert.match(guard, /setImmediate\(/, 'main() must be deferred past module evaluation');
   assert.match(guard, /process\.exitCode = 1/, 'a failure must set a non-zero exit status');
   assert.match(guard, /process\.stderr\.write/, 'a failure must be written to stderr');
+});
+
+
+// The lifecycle demand was mirrored on BOTH sides: the Factory validator and this Graph one both
+// required a ValidationLifecycleScope on every run_authorization successor. A contract with no
+// authored validation-evidence lifecycle could therefore never publish, and the only way to
+// satisfy either check was to invent the owner-supplied IRIs the scope forbids inventing.
+test('the Graph refuses to demand a lifecycle scope the owner never declared', () => {
+  const authority = `sha256:${'7'.repeat(64)}`;
+  const lifecycle = Object.freeze({
+    trusted_time_authority_digest: authority,
+    max_paid_cost_microusd: 0,
+  });
+  const base = (nativeState, scopePreimage) => Object.freeze({
+    consumer_kind: 'run_authorization',
+    storage_owner: 'FACTORY',
+    authority_digest: authority,
+    semantic_scope_preimage: scopePreimage,
+    payload_preimage: Object.freeze({ native_state: nativeState }),
+  });
+  const complete = (extra) => Object.freeze({
+    schema_version: 2, permitted_actions: [], ...extra,
+  });
+
+  // No declaration: absence is valid, and the Factory is never forced to invent one.
+  assertFactoryNativeStateV2Exported(
+    base(complete({ validation_lifecycle_scope: null }), { execution: {} }),
+  );
+  // No declaration but one carried: still held to its D2 binding.
+  assert.throws(
+    () => assertFactoryNativeStateV2Exported(base(
+      complete({ validation_lifecycle_scope: { ...lifecycle, trusted_time_authority_digest: `sha256:${'8'.repeat(64)}` } }),
+      { execution: {} },
+    )),
+    /not current and D2-bound/u,
+  );
+  // Declared: it must be carried, D2-bound, and the EXACT admitted scope.
+  const declared = { execution: { validation_lifecycle_scope_digest: canonicalDigestV2(lifecycle) } };
+  assertFactoryNativeStateV2Exported(base(complete({ validation_lifecycle_scope: lifecycle }), declared));
+  assert.throws(
+    () => assertFactoryNativeStateV2Exported(base(complete({ validation_lifecycle_scope: null }), declared)),
+    /not current and D2-bound/u,
+  );
+  assert.throws(
+    () => assertFactoryNativeStateV2Exported(base(
+      complete({ validation_lifecycle_scope: { ...lifecycle, max_paid_cost_microusd: 0, extra: 'substituted' } }),
+      declared,
+    )),
+    /not the admitted scope/u,
+  );
 });
