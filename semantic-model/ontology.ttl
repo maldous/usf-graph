@@ -450,12 +450,12 @@ usf:closureExecutorImplementationSourcePath a owl:DatatypeProperty;
 usf:closureExecutorImplementationSourceSetDigest a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:ClosureExecutorImplementation;
     rdfs:range xsd:string.
-usf:admissionProducerValidationProducer a owl:ObjectProperty, owl:FunctionalProperty;
+usf:admissionProducerValidationProducer a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:EvidenceAdmissionProducerIdentity;
-    rdfs:range usf:Entity.
-usf:admissionProducerEvidenceAdmissionPath a owl:ObjectProperty, owl:FunctionalProperty;
+    rdfs:range xsd:string.
+usf:admissionProducerEvidenceAdmissionPath a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:EvidenceAdmissionProducerIdentity;
-    rdfs:range usf:Entity.
+    rdfs:range xsd:string.
 usf:admissionProducerRepository a owl:DatatypeProperty, owl:FunctionalProperty;
     rdfs:domain usf:EvidenceAdmissionProducerIdentity;
     rdfs:range xsd:string.

@@ -688,10 +688,13 @@
 <urn:usf:evidenceadmissionproduceridentity:compilersemanticenforcementaggregateevidenceadmissionproducer>
   a usf:EvidenceAdmissionProducerIdentity;
   usf:canonicalName "compilersemanticenforcementaggregateevidenceadmissionproducer";
+  # Recorded as exact identifier strings, not IRI references: both subjects are produced by
+  # the compiler into live authority and are not declared in the authored model, so an IRI
+  # reference here is an unresolved reference in the authored closure.
   usf:admissionProducerValidationProducer
-    <urn:usf:validationproducer:compilersemanticenforcementaggregate>;
+    "urn:usf:validationproducer:compilersemanticenforcementaggregate";
   usf:admissionProducerEvidenceAdmissionPath
-    <urn:usf:evidenceadmissionpath:compilersemanticenforcementaggregate>;
+    "urn:usf:evidenceadmissionpath:compilersemanticenforcementaggregate";
   usf:admissionProducerRepository "maldous/usf-graph";
   usf:admissionProducerSourceScopeDigest
     "sha256:7d5a49a02c8d8194b42a70d21cb6f96733c5f53be23d78246db0374a1f15ec8e";
