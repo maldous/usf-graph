@@ -191,8 +191,18 @@ function createSemanticPublicationLaneV2(programmeRoot) {
   };
   const validateSupersession = (value) => {
     exactObjectKeys(value, [
-      'retired_at', 'schema', 'superseded_reservation', 'zero_effect_proof',
+      'retired_at', 'retirement_reason', 'schema', 'superseded_reservation', 'zero_effect_proof',
     ], 'V2 handover reservation supersession');
+    // DEFECTIVE bars the generation forever: its plan was proven unusable. SEQUENCING records
+    // that the plan was sound and the retirement was only needed to re-establish an ordering
+    // requirement, so the same generation may be reserved again. Barring both made retiring a
+    // GOOD generation a dead end, because the generation digest is deterministic from authority
+    // and source -- there is no different digest to reserve at the same authority.
+    if (!['DEFECTIVE', 'SEQUENCING'].includes(value.retirement_reason)) {
+      throw new CompilerError('V2 handover retirement reason must be DEFECTIVE or SEQUENCING', {
+        phase: 'candidate:publication-lane',
+      });
+    }
     if (value.schema !== V2_HANDOVER_SUPERSESSION_SCHEMA) {
       throw new CompilerError('V2 handover reservation supersession is invalid', {
         phase: 'candidate:publication-lane',
@@ -407,8 +417,21 @@ function createSemanticPublicationLaneV2(programmeRoot) {
         const path = reservationPath();
         // A retired generation can never come back. Without this, superseding a reservation and
         // then re-reserving the same generation would resurrect a plan that was proven unusable.
-        if (existsSync(supersessionPath(reservation.handover_generation_digest))) {
+        const retirement = existsSync(supersessionPath(reservation.handover_generation_digest))
+          ? validateSupersession(readCanonicalFile(supersessionPath(
+            reservation.handover_generation_digest)))
+          : null;
+        if (retirement !== null && retirement.retirement_reason === 'DEFECTIVE') {
           throw new CompilerError('V2 handover generation was superseded and cannot reserve', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        if (retirement !== null
+            && retirement.superseded_reservation.prospective_publication_plan_digest
+              !== reservation.prospective_publication_plan_digest) {
+          // A sequencing retirement permits the SAME plan to reserve again, never a different
+          // one wearing the same generation digest.
+          throw new CompilerError('V2 handover generation was superseded under a different plan', {
             phase: 'candidate:publication-lane',
           });
         }
@@ -444,7 +467,7 @@ function createSemanticPublicationLaneV2(programmeRoot) {
       const path = supersessionPath(generationDigest);
       return existsSync(path) ? validateSupersession(readCanonicalFile(path)) : null;
     },
-    async supersede(zeroEffectProof, retiredAt) {
+    async supersede(zeroEffectProof, retiredAt, retirementReason) {
       const release = acquire();
       try {
         const path = reservationPath();
@@ -463,6 +486,7 @@ function createSemanticPublicationLaneV2(programmeRoot) {
         }
         const record = validateSupersession({
           retired_at: retiredAt,
+          retirement_reason: retirementReason,
           schema: V2_HANDOVER_SUPERSESSION_SCHEMA,
           superseded_reservation: reservation,
           zero_effect_proof: zeroEffectProof,

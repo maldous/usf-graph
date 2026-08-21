@@ -1103,7 +1103,7 @@ test('a zero-effect reservation retires, stays auditable, and frees exactly one 
   await lane.reserve(RESERVATION_A, async () => {});
   assert.deepEqual(lane.readReservation(), RESERVATION_A);
 
-  const record = await lane.supersede(ZERO_EFFECT, RETIRED_AT);
+  const record = await lane.supersede(ZERO_EFFECT, RETIRED_AT, 'DEFECTIVE');
   // The retired reservation survives verbatim, so nothing is erased by retiring it.
   assert.deepEqual(record.superseded_reservation, RESERVATION_A);
   assert.equal(record.retired_at, RETIRED_AT);
@@ -1127,7 +1127,7 @@ test('a zero-effect reservation retires, stays auditable, and frees exactly one 
 test('retirement is idempotent for the same act and refuses a divergent one', async () => {
   const lane = publicationLane();
   await lane.reserve(RESERVATION_A, async () => {});
-  const first = await lane.supersede(ZERO_EFFECT, RETIRED_AT);
+  const first = await lane.supersede(ZERO_EFFECT, RETIRED_AT, 'DEFECTIVE');
   await lane.reserve(RESERVATION_B, async () => {});
   // Re-retiring the same generation is refused because it is no longer the live reservation;
   // the record itself is unchanged and still readable.
@@ -1149,7 +1149,7 @@ test('retirement is refused unless zero durable effect is proven', async () => {
     const lane = publicationLane();
     await lane.reserve(RESERVATION_A, async () => {});
     await assert.rejects(
-      lane.supersede({ ...ZERO_EFFECT, [field]: value }, RETIRED_AT),
+      lane.supersede({ ...ZERO_EFFECT, [field]: value }, RETIRED_AT, 'DEFECTIVE'),
       new RegExp(`supersession refused: ${field}`, 'u'),
     );
     // The reservation must still be live after a refused retirement.
@@ -1163,7 +1163,7 @@ test('retirement is refused when authority moved, when nothing is reserved, and 
   await assert.rejects(
     moved.supersede(
       { ...ZERO_EFFECT, observed_authority_digest: `sha256:${'f'.repeat(64)}` },
-      RETIRED_AT,
+      RETIRED_AT, 'DEFECTIVE',
     ),
     /observed a different authority/u,
   );
@@ -1185,8 +1185,51 @@ test('retirement is refused when authority moved, when nothing is reserved, and 
 test('a retirement record must be exact', async () => {
   const lane = publicationLane();
   await lane.reserve(RESERVATION_A, async () => {});
-  await assert.rejects(lane.supersede(ZERO_EFFECT, '2026-08-21T09:00:00'), /retirement time/u);
+  await assert.rejects(lane.supersede(ZERO_EFFECT, '2026-08-21T09:00:00', 'DEFECTIVE'), /retirement time/u);
   const { grant_consumed: _dropped, ...incomplete } = ZERO_EFFECT;
-  await assert.rejects(lane.supersede(incomplete, RETIRED_AT), /zero-effect proof/u);
+  await assert.rejects(lane.supersede(incomplete, RETIRED_AT, 'DEFECTIVE'), /zero-effect proof/u);
+  assert.deepEqual(lane.readReservation(), RESERVATION_A);
+});
+
+
+test('a sequencing retirement lets the same generation reserve again', async () => {
+  // The generation digest is deterministic from authority and source, so a GOOD generation
+  // retired only to re-establish an ordering requirement has no alternative digest to reserve
+  // at the same authority. Barring it made retiring a sound plan a dead end.
+  const lane = publicationLane();
+  await lane.reserve(RESERVATION_A, async () => {});
+  const record = await lane.supersede(ZERO_EFFECT, RETIRED_AT, 'SEQUENCING');
+  assert.equal(record.retirement_reason, 'SEQUENCING');
+  assert.equal(lane.readReservation(), null);
+  await lane.reserve(RESERVATION_A, async () => {});
+  assert.deepEqual(lane.readReservation(), RESERVATION_A);
+  // ...but only that exact plan: a different plan wearing the same generation digest is refused.
+  await lane.supersede(ZERO_EFFECT, RETIRED_AT, 'SEQUENCING');
+  await assert.rejects(
+    lane.reserve(
+      { ...RESERVATION_A, prospective_publication_plan_digest: `sha256:${'9'.repeat(64)}` },
+      async () => {},
+    ),
+    /superseded under a different plan/u,
+  );
+});
+
+test('a defective retirement still bars the generation forever', async () => {
+  const lane = publicationLane();
+  await lane.reserve(RESERVATION_A, async () => {});
+  await lane.supersede(ZERO_EFFECT, RETIRED_AT, 'DEFECTIVE');
+  await assert.rejects(
+    lane.reserve(RESERVATION_A, async () => {}),
+    /superseded and cannot reserve/u,
+  );
+});
+
+test('a retirement reason outside the closed set is refused', async () => {
+  const lane = publicationLane();
+  await lane.reserve(RESERVATION_A, async () => {});
+  await assert.rejects(
+    lane.supersede(ZERO_EFFECT, RETIRED_AT, 'BECAUSE_I_SAID_SO'),
+    /retirement reason must be DEFECTIVE or SEQUENCING/u,
+  );
   assert.deepEqual(lane.readReservation(), RESERVATION_A);
 });
