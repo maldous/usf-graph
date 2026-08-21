@@ -1071,3 +1071,122 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
   await command.execute({ candidateBytes: stage2.bytes, candidateDigest: stage2.digest, expectedAuthorityDigest: d1, publicationMode: 'commit' });
   assert.match(live.get(graph), /"final"/);
 });
+
+// A reservation is singular and immutable, so a generation that proves unusable would otherwise
+// wedge the lane forever: a corrected plan has a different digest and reserving it is a fork.
+// Retirement is therefore a governed, append-only act, admissible ONLY while the reservation has
+// produced nothing durable, and the retired reservation's own bytes are preserved verbatim.
+const RESERVATION_A = Object.freeze({
+  d0_authority_digest: `sha256:${'a'.repeat(64)}`,
+  handover_generation_digest: `sha256:${'b'.repeat(64)}`,
+  prospective_publication_plan_digest: `sha256:${'c'.repeat(64)}`,
+  schema: 'usf-v2-native-handover-reservation-v1',
+});
+const RESERVATION_B = Object.freeze({
+  ...RESERVATION_A,
+  handover_generation_digest: `sha256:${'d'.repeat(64)}`,
+  prospective_publication_plan_digest: `sha256:${'e'.repeat(64)}`,
+});
+const ZERO_EFFECT = Object.freeze({
+  conflicting_publication_present: false,
+  d1_authority_present: false,
+  d2_authority_present: false,
+  grant_consumed: false,
+  observed_authority_digest: RESERVATION_A.d0_authority_digest,
+  successors_root_present: false,
+  terminal_receipt_present: false,
+});
+const RETIRED_AT = '2026-08-21T09:00:00Z';
+
+test('a zero-effect reservation retires, stays auditable, and frees exactly one new reservation', async () => {
+  const lane = publicationLane();
+  await lane.reserve(RESERVATION_A, async () => {});
+  assert.deepEqual(lane.readReservation(), RESERVATION_A);
+
+  const record = await lane.supersede(ZERO_EFFECT, RETIRED_AT);
+  // The retired reservation survives verbatim, so nothing is erased by retiring it.
+  assert.deepEqual(record.superseded_reservation, RESERVATION_A);
+  assert.equal(record.retired_at, RETIRED_AT);
+  assert.deepEqual(
+    lane.readSupersession(RESERVATION_A.handover_generation_digest).superseded_reservation,
+    RESERVATION_A,
+  );
+  // ...and it is no longer live, so there is never more than one live reservation.
+  assert.equal(lane.readReservation(), null);
+
+  // The retired generation can never come back, even though its plan digest is known.
+  await assert.rejects(
+    lane.reserve(RESERVATION_A, async () => {}),
+    /superseded and cannot reserve/u,
+  );
+  // Exactly one corrected generation may now reserve.
+  await lane.reserve(RESERVATION_B, async () => {});
+  assert.deepEqual(lane.readReservation(), RESERVATION_B);
+});
+
+test('retirement is idempotent for the same act and refuses a divergent one', async () => {
+  const lane = publicationLane();
+  await lane.reserve(RESERVATION_A, async () => {});
+  const first = await lane.supersede(ZERO_EFFECT, RETIRED_AT);
+  await lane.reserve(RESERVATION_B, async () => {});
+  // Re-retiring the same generation is refused because it is no longer the live reservation;
+  // the record itself is unchanged and still readable.
+  assert.deepEqual(
+    lane.readSupersession(RESERVATION_A.handover_generation_digest),
+    first,
+  );
+});
+
+test('retirement is refused unless zero durable effect is proven', async () => {
+  for (const [field, value] of [
+    ['grant_consumed', true],
+    ['d1_authority_present', true],
+    ['d2_authority_present', true],
+    ['terminal_receipt_present', true],
+    ['successors_root_present', true],
+    ['conflicting_publication_present', true],
+  ]) {
+    const lane = publicationLane();
+    await lane.reserve(RESERVATION_A, async () => {});
+    await assert.rejects(
+      lane.supersede({ ...ZERO_EFFECT, [field]: value }, RETIRED_AT),
+      new RegExp(`supersession refused: ${field}`, 'u'),
+    );
+    // The reservation must still be live after a refused retirement.
+    assert.deepEqual(lane.readReservation(), RESERVATION_A);
+  }
+});
+
+test('retirement is refused when authority moved, when nothing is reserved, and when a prepare bound', async () => {
+  const moved = publicationLane();
+  await moved.reserve(RESERVATION_A, async () => {});
+  await assert.rejects(
+    moved.supersede(
+      { ...ZERO_EFFECT, observed_authority_digest: `sha256:${'f'.repeat(64)}` },
+      RETIRED_AT,
+    ),
+    /observed a different authority/u,
+  );
+  assert.deepEqual(moved.readReservation(), RESERVATION_A);
+
+  const empty = publicationLane();
+  await assert.rejects(empty.supersede(ZERO_EFFECT, RETIRED_AT), /no reservation to supersede/u);
+
+  const bound = publicationLane();
+  await bound.reserve(RESERVATION_A, async () => {});
+  bound.bindFactoryPrepare(`sha256:${'9'.repeat(64)}`);
+  await assert.rejects(
+    bound.supersede(ZERO_EFFECT, RETIRED_AT),
+    /already bound a Factory prepare/u,
+  );
+  assert.deepEqual(bound.readReservation(), RESERVATION_A);
+});
+
+test('a retirement record must be exact', async () => {
+  const lane = publicationLane();
+  await lane.reserve(RESERVATION_A, async () => {});
+  await assert.rejects(lane.supersede(ZERO_EFFECT, '2026-08-21T09:00:00'), /retirement time/u);
+  const { grant_consumed: _dropped, ...incomplete } = ZERO_EFFECT;
+  await assert.rejects(lane.supersede(incomplete, RETIRED_AT), /zero-effect proof/u);
+  assert.deepEqual(lane.readReservation(), RESERVATION_A);
+});

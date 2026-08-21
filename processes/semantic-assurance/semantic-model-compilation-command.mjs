@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
-  closeSync, existsSync, fsyncSync, linkSync, lstatSync, openSync, readFileSync,
+  closeSync, existsSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync,
   realpathSync, unlinkSync, writeFileSync,
 } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
@@ -84,6 +84,7 @@ const V2_D1_BINDING_DEPENDENCY_PREDICATES = Object.freeze([
 const V2_NATIVE_HANDOVER_FENCE = 'urn:usf:v2nativehandoverfence:current';
 const V2_NATIVE_HANDOVER_FENCE_CLASS = `${USF_ONTOLOGY}V2NativeHandoverFence`;
 const V2_HANDOVER_RESERVATION_SCHEMA = 'usf-v2-native-handover-reservation-v1';
+const V2_HANDOVER_SUPERSESSION_SCHEMA = 'usf-v2-native-handover-supersession-v1';
 const V2_HANDOVER_FACTORY_PREPARE_BINDING_SCHEMA =
   'usf-v2-native-handover-factory-prepare-binding-v1';
 const PUBLICATION_LANE_LOCK_SCHEMA = 'usf-semantic-publication-lane-lock-v1';
@@ -144,6 +145,10 @@ function createSemanticPublicationLaneV2(programmeRoot) {
   const lockPath = () => `${root()}/semantic-publication-lane-v2.lock`;
   const reservationPath = () => `${root()}/v2-native-handover-reservation.json`;
   const prepareBindingPath = () => `${root()}/v2-native-handover-factory-prepare.json`;
+  const supersessionDirectory = () => `${root()}/v2-native-handover-superseded`;
+  const supersessionPath = (generationDigest) => (
+    `${supersessionDirectory()}/${generationDigest.slice(7)}.json`
+  );
   const readCanonicalFile = (path) => {
     const stat = lstatSync(path);
     if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(path) !== path) {
@@ -179,6 +184,47 @@ function createSemanticPublicationLaneV2(programmeRoot) {
         || !SHA256.test(value.handover_generation_digest || '')
         || !SHA256.test(value.prospective_publication_plan_digest || '')) {
       throw new CompilerError('V2 handover publication reservation is invalid', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    return Object.freeze(value);
+  };
+  const validateSupersession = (value) => {
+    exactObjectKeys(value, [
+      'retired_at', 'schema', 'superseded_reservation', 'zero_effect_proof',
+    ], 'V2 handover reservation supersession');
+    if (value.schema !== V2_HANDOVER_SUPERSESSION_SCHEMA) {
+      throw new CompilerError('V2 handover reservation supersession is invalid', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    validateReservation(value.superseded_reservation);
+    const proof = value.zero_effect_proof;
+    // A reservation may only be retired while it demonstrably produced NOTHING durable. Each
+    // flag is an observation the caller had to make against production state; all of them must
+    // be present and false/absent, and the observed authority must still be the reservation's
+    // own D0, or the reservation is not zero-effect and must never be retired.
+    exactObjectKeys(proof, [
+      'conflicting_publication_present', 'd1_authority_present', 'd2_authority_present',
+      'grant_consumed', 'observed_authority_digest', 'successors_root_present',
+      'terminal_receipt_present',
+    ], 'V2 handover reservation zero-effect proof');
+    if (proof.observed_authority_digest !== value.superseded_reservation.d0_authority_digest) {
+      throw new CompilerError('V2 handover supersession observed a different authority', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    for (const flag of ['conflicting_publication_present', 'd1_authority_present',
+      'd2_authority_present', 'grant_consumed', 'successors_root_present',
+      'terminal_receipt_present']) {
+      if (proof[flag] !== false) {
+        throw new CompilerError(`V2 handover supersession refused: ${flag}`, {
+          phase: 'candidate:publication-lane',
+        });
+      }
+    }
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value.retired_at || '')) {
+      throw new CompilerError('V2 handover supersession retirement time is not exact', {
         phase: 'candidate:publication-lane',
       });
     }
@@ -359,6 +405,13 @@ function createSemanticPublicationLaneV2(programmeRoot) {
       const release = acquire();
       try {
         const path = reservationPath();
+        // A retired generation can never come back. Without this, superseding a reservation and
+        // then re-reserving the same generation would resurrect a plan that was proven unusable.
+        if (existsSync(supersessionPath(reservation.handover_generation_digest))) {
+          throw new CompilerError('V2 handover generation was superseded and cannot reserve', {
+            phase: 'candidate:publication-lane',
+          });
+        }
         if (existsSync(path)) {
           const observed = validateReservation(readCanonicalFile(path));
           if (canonicalJson(observed) !== canonicalJson(reservation)) {
@@ -383,6 +436,65 @@ function createSemanticPublicationLaneV2(programmeRoot) {
           });
         }
         return observed;
+      } finally {
+        release();
+      }
+    },
+    readSupersession(generationDigest) {
+      const path = supersessionPath(generationDigest);
+      return existsSync(path) ? validateSupersession(readCanonicalFile(path)) : null;
+    },
+    async supersede(zeroEffectProof, retiredAt) {
+      const release = acquire();
+      try {
+        const path = reservationPath();
+        if (!existsSync(path)) {
+          throw new CompilerError('V2 handover has no reservation to supersede', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        const reservation = validateReservation(readCanonicalFile(path));
+        // Retiring a reservation that already bound a Factory prepare would discard a
+        // committed coordination step, so that is refused outright.
+        if (existsSync(prepareBindingPath())) {
+          throw new CompilerError('V2 handover reservation already bound a Factory prepare', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        const record = validateSupersession({
+          retired_at: retiredAt,
+          schema: V2_HANDOVER_SUPERSESSION_SCHEMA,
+          superseded_reservation: reservation,
+          zero_effect_proof: zeroEffectProof,
+        });
+        const recordPath = supersessionPath(reservation.handover_generation_digest);
+        if (existsSync(recordPath)) {
+          // Idempotent: an identical retirement is the same governed act, a different one is a
+          // second history for one generation and is refused.
+          const observed = validateSupersession(readCanonicalFile(recordPath));
+          if (canonicalJson(observed) !== canonicalJson(record)) {
+            throw new CompilerError('V2 handover supersession fork rejected', {
+              phase: 'candidate:publication-lane',
+            });
+          }
+        } else {
+          mkdirSync(supersessionDirectory(), { recursive: true, mode: 0o700 });
+          publishImmutable(recordPath, Buffer.from(canonicalJson(record), 'utf8'), 0o444);
+        }
+        // The retired reservation's own bytes are now preserved inside the durable, immutable
+        // supersession record, so releasing the live pointer destroys no history. Only after
+        // that record is readable back is the pointer released, so a crash in between leaves the
+        // reservation live rather than the generation unaccounted for.
+        const persisted = validateSupersession(readCanonicalFile(recordPath));
+        if (canonicalJson(persisted.superseded_reservation) !== canonicalJson(reservation)) {
+          throw new CompilerError('V2 handover supersession did not preserve the reservation', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        unlinkSync(path);
+        const directory = openSync(dirname(path), 'r');
+        try { durabilityBarrierSync(directory); } finally { closeSync(directory); }
+        return persisted;
       } finally {
         release();
       }
