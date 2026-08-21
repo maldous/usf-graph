@@ -969,6 +969,17 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
   });
   assert.equal(v2Shadow.d2.evaluationInputAuthorityDigest, v2Shadow.d1.authorityDigest);
   assert.equal(v2Shadow.candidateBindings.c2D1AuthorityDigest, v2Shadow.d1.authorityDigest);
+  // The production publisher's grant reservation compares the approved plan against
+  // `result.d1.dependencyIdentityDigests` from THIS producer, so the candidate-bytes path must
+  // report the live-derived set on `d1` exactly as previewV2PublicationFromFrozenInputs does.
+  // While it was exposed only under candidateBindings, that comparison read undefined, and
+  // canonicalJson(undefined) is undefined rather than a canonical string -- so no plan could
+  // ever match and the reservation was unreachable.
+  assert.deepEqual([...v2Shadow.d1.dependencyIdentityDigests], dependencyDigests);
+  assert.deepEqual(
+    [...v2Shadow.d1.dependencyIdentityDigests],
+    [...v2Shadow.candidateBindings.c2D1DependencyIdentityDigests],
+  );
   assert.equal(v2Shadow.candidateBindings.externalAttestationSetRootDigest,
     v2c1.externalAttestationSetRootDigest);
   assert.match(live.get(graph), /"d0"/);

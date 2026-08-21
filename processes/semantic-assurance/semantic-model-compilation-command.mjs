@@ -3374,10 +3374,17 @@ export function createSemanticModelCompilationCommand({
         const current = await readCanonicalStores(client, transaction, [...allowedGraphs]);
         applyPatchToStores(current.stores, d1Patch, 'D1');
         const d1 = await prospectiveInventory(current.stores);
+        // The D1 dependency identity set is live-derived inside this shadow transaction, and it
+        // is the value the production publisher compares against the approved plan. It must
+        // therefore reach the caller on `d1`, exactly as previewV2PublicationFromFrozenInputs
+        // reports it. Exposing it only under `candidateBindings` left
+        // `d1.dependencyIdentityDigests` permanently undefined, and canonicalJson(undefined) is
+        // undefined rather than a canonical string, so the grant reservation's comparison could
+        // never hold for ANY plan -- empty dependency set included.
+        const dependencyIdentityDigests = v2CandidateCores
+          ? prospectiveD1DependencyIdentityDigests(current.stores)
+          : null;
         if (v2CandidateCores) {
-          const dependencyIdentityDigests = prospectiveD1DependencyIdentityDigests(
-            current.stores,
-          );
           if (v2CandidateCores.c2.d1_binding.authority_digest !== d1.authorityDigest
               || canonicalJson(
                 v2CandidateCores.c2.d1_binding.dependency_identity_digests,
@@ -3409,6 +3416,9 @@ export function createSemanticModelCompilationCommand({
           d1: Object.freeze({
             ...d1,
             candidateDigest: d1Patch.digest,
+            ...(dependencyIdentityDigests === null ? {} : {
+              dependencyIdentityDigests: Object.freeze([...dependencyIdentityDigests]),
+            }),
           }),
           d2: Object.freeze({
             ...d2,

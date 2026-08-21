@@ -422,6 +422,108 @@ test('V2 Graph production adapter commits exact C1/C2 once and recovers each dur
   await assert.rejects(adapter.reserveGrant(drifted), /exact admitted release/u);
 });
 
+test('grant reservation refuses a preview that omits the D1 dependency identity set', async () => {
+  // The reservation's plan comparison reads `result.d1.dependencyIdentityDigests`. Every
+  // test double supplied that field while the real candidate-bytes producer
+  // (previewPublicationSequence) exposed the set only under candidateBindings, so the
+  // comparison read undefined in production and canonicalJson(undefined) is undefined
+  // rather than a canonical string -- no plan could match, and D0 was unreachable for
+  // every possible plan, empty dependency set included. This pins the publisher's side of
+  // that contract: a preview without the set must be refused, not silently accepted.
+  const fixture = productionAdapterFixture();
+  const previewWithout = {
+    d0AuthorityDigest: fixture.d0,
+    d1: { authorityDigest: fixture.d1 },
+    d2: { authorityDigest: fixture.d2, evaluationInputAuthorityDigest: fixture.d1 },
+    candidateBindings: {
+      releaseSubjectDigest: fixture.plan.release_subject_digest,
+      externalAttestationSetRootDigest: fixture.plan.external_attestation_set_root_digest,
+      candidateGeneratorImplementationDigest:
+        fixture.plan.candidate_generator_implementation_digest,
+      candidateCommandDigest: fixture.plan.candidate_command_digest,
+      c2D1DependencyIdentityDigests: fixture.dependencies,
+    },
+  };
+  const buildAdapter = (preview) => createGraphProductionAdapterV2({
+    command: {
+      async previewPublicationSequence() { return preview; },
+      async reserveV2HandoverGeneration({
+        d0AuthorityDigest, handoverGenerationDigest, prospectivePublicationPlanDigest,
+      }) {
+        return {
+          d0_authority_digest: d0AuthorityDigest,
+          handover_generation_digest: handoverGenerationDigest,
+          prospective_publication_plan_digest: prospectivePublicationPlanDigest,
+        };
+      },
+      // The adapter requires its whole command surface before it will construct, so the
+      // remaining members are present but never reached: this test stops at the reservation's
+      // plan comparison.
+      bindV2FactoryPrepare({ factoryPrepareReceiptDigest }) {
+        return {
+          factory_prepare_receipt_digest: factoryPrepareReceiptDigest,
+          handover_generation_digest: fixture.plan.handover_generation_digest,
+          prospective_publication_plan_digest: fixture.planDigest,
+        };
+      },
+      async executeV2Candidate() { throw new Error('candidate execution must not be reached'); },
+      async observeV2D1Dependencies() {
+        throw new Error('D1 dependency observation must not be reached');
+      },
+      async inspectCandidateState() { return { state: 'pre' }; },
+    },
+    nativeGraphStore: createGraphNativeSuccessorStoreV2({
+      nativeRoot: mkdtempSync(join(tmpdir(), 'usf-adapter-native-')),
+      casStore: createCasEvidenceStore(mkdtempSync(join(tmpdir(), 'usf-adapter-cas-'))),
+    }),
+    trustedTime: async () => '2026-08-01T12:00:00Z',
+    readAuthorityWitness: async () => ({
+      digest: fixture.d0,
+      inventory: [{ graph: 'urn:test:graph', sha256: fixture.valueDigest('f'), triples: 1 }],
+      triples: 1,
+    }),
+    readGraphOwnedConsumers: async () => [],
+    d1CandidateBytes: fixture.d1Bytes,
+    d1CandidateIdentityBytes: Buffer.from('{}'),
+    d2CandidateBytes: fixture.d2Bytes,
+    d2CandidateIdentityBytes: Buffer.from('{}'),
+    graphCommit: fixture.plan.graph_protected_commit,
+    graphTree: fixture.plan.graph_protected_tree,
+    publisherImplementationDigest: fixture.valueDigest('f'),
+    publisherCommandDigest: fixture.valueDigest('0'),
+    receiptStore: {
+      persist(receipt) {
+        const observed = sha256(canonicalJson(receipt));
+        return { digest: observed, path: `/receipts/${observed}.json` };
+      },
+    },
+  });
+  const inputs = {
+    plan: fixture.plan,
+    factory_commit: fixture.plan.factory_deployment_commit,
+    factory_tree: fixture.plan.factory_deployment_tree,
+    graph_commit: fixture.plan.graph_protected_commit,
+    graph_tree: fixture.plan.graph_protected_tree,
+    publisher_implementation_digest: fixture.valueDigest('f'),
+    publisher_command_digest: fixture.valueDigest('0'),
+    factory_executor_implementation_digest: fixture.valueDigest('1'),
+    factory_closure_command_digest: fixture.valueDigest('2'),
+    terminal_receipt_at: '2026-08-01T12:00:00Z',
+    factory_closure_receipt: fixture.closure,
+  };
+  await assert.rejects(
+    buildAdapter(previewWithout).reserveGrant(inputs),
+    /production preview differs from the approved plan/u,
+  );
+  // The same preview WITH the live-derived set on d1 reserves, so the refusal above is
+  // attributable to the missing field and to nothing else in the fixture.
+  const previewWith = {
+    ...previewWithout,
+    d1: { authorityDigest: fixture.d1, dependencyIdentityDigests: fixture.dependencies },
+  };
+  assert.match((await buildAdapter(previewWith).reserveGrant(inputs)).digest, /^sha256:/u);
+});
+
 test('canonical source candidate generation cannot cross the strict no-write production shadow', async () => {
   const root = mkdtempSync(join(tmpdir(), 'usf-graph-shadow-source-'));
   try {
