@@ -649,7 +649,7 @@
     "processes/semantic-assurance/semantic-authority-publication.mjs",
     "processes/semantic-assurance/semantic-model-compilation-command.mjs",
     "processes/semantic-assurance/semantic-proof-v2.mjs";
-  usf:publisherImplementationSourceSetDigest "sha256:92d115f5af8e60f4fae1a1c0e8dc5a154846cba4d42a757a64d1ef9b5f543e7a".
+  usf:publisherImplementationSourceSetDigest "sha256:c5ac5383067ebd7f2daf317ee7713053349e9c889ccf18b2aa31e9732246d15f".
 # Exact Factory-side native V2 closure executor identity.  The V2 coordination identity and the
 # 16-field terminal receipt record which Factory executor performed the closure, so that identity
 # is declared and digest bound here and resolved from live authority at publication time.  It is a
@@ -665,11 +665,11 @@
   a usf:ClosureExecutorImplementation;
   usf:canonicalName "factorynativev2closureexecutor";
   usf:closureExecutorRepository "maldous/usf-factory";
-  usf:closureExecutorSourceCommit "92ae9bd1c5379cae06bdee90742d10191823d5fe";
-  usf:closureExecutorSourceTree "6c95f9ba6c1ff8607db773221c427bc8409b1e8c";
+  usf:closureExecutorSourceCommit "f1bc80cf3ee75ba34888dcf7772758d6ddcce1ab";
+  usf:closureExecutorSourceTree "4a21671d49164951d4a9b8c0f626e44363106189";
   usf:closureExecutorCommandPath "src/usf_factory/cli.py";
   usf:closureExecutorCommandDigest
-    "sha256:cc2c03d37183480221373dbd23765db16b067cd5dd9adba856c33bcd586f06cf";
+    "sha256:255a8e8f812764f9183f6d28e1ac611ea6ea31f36c7e5d7cbb15cda8d52e2d25";
   usf:closureExecutorImplementationSourcePath
     "src/usf_factory/activation.py",
     "src/usf_factory/canonical.py",
@@ -677,7 +677,7 @@
     "src/usf_factory/context.py",
     "src/usf_factory/graph_reader_entrypoint.mjs";
   usf:closureExecutorImplementationSourceSetDigest
-    "sha256:8ce5b5a96f6f67b61ae889beb0cfe37fee563b50750795638419bd17dd5b9b75".
+    "sha256:e156930f24474cb95577d97f45789ac90ee2b0a6596c6263224b1cc594eacdeb".
 # Exact evidence-admission producer identity for the validation-currentness renewal rule.  Live
 # authority carried no digest-bound identity denoting this producer: usf:evidenceProducerDigest
 # exists but not for evidenceresult:compilerhermeticsubstituteruntime, and neither
@@ -727,7 +727,7 @@
     "processes/semantic-assurance/semantic-proof-v2.mjs",
     "processes/semantic-assurance/semantic-proof-v2.test.mjs";
   usf:admissionProducerImplementationSourceSetDigest
-    "sha256:a80a7eb31f9581184c755920f72a988de940aa963ea11989f46acc959ee037c3".
+    "sha256:41c1f32082a8768e284c32dcb1fd763181ba288d6f16a47bbb99871afa4d7924".
 <urn:usf:proofobligation:factoryproviderv3implementation> a usf:ProofObligation;
   usf:canonicalName "factoryproviderv3implementation";
   usf:obligationFor <urn:usf:semanticcontract:providerconfigurationplane>;
