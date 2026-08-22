@@ -1137,6 +1137,55 @@ test('retirement is idempotent for the same act and refuses a divergent one', as
   );
 });
 
+test('a sequencing retirement leaves the re-reserved generation retirable again', async () => {
+  // SEQUENCING deliberately permits the SAME plan to reserve again. When retirement was a single
+  // record per generation, that second reservation could never be released: supersede() could
+  // only write a record that collided with the first, so the live pointer wedged permanently and
+  // no plan -- corrected or original -- could ever reserve again. Retirement is therefore an
+  // append-only history whose latest record governs.
+  const lane = publicationLane();
+  await lane.reserve(RESERVATION_A, async () => {});
+  const first = await lane.supersede(ZERO_EFFECT, RETIRED_AT, 'SEQUENCING');
+  assert.equal(lane.readReservation(), null);
+
+  // The same plan lawfully reserves again under a sequencing retirement...
+  await lane.reserve(RESERVATION_A, async () => {});
+  assert.deepEqual(lane.readReservation(), RESERVATION_A);
+
+  // ...and that second reservation can itself be retired, on its own proof, at its own time.
+  const second = await lane.supersede(ZERO_EFFECT, '2026-08-21T22:38:40Z', 'DEFECTIVE');
+  assert.equal(lane.readReservation(), null);
+  assert.equal(second.retirement_reason, 'DEFECTIVE');
+
+  // Both retirements survive: the history is append-only and the first is not rewritten.
+  const history = lane.readSupersessionHistory(RESERVATION_A.handover_generation_digest);
+  assert.deepEqual(history, [first, second]);
+  // The latest record governs, so the generation is now barred forever.
+  assert.deepEqual(lane.readSupersession(RESERVATION_A.handover_generation_digest), second);
+  await assert.rejects(
+    lane.reserve(RESERVATION_A, async () => {}),
+    /superseded and cannot reserve/u,
+  );
+  // A corrected generation is still free to reserve.
+  await lane.reserve(RESERVATION_B, async () => {});
+  assert.deepEqual(lane.readReservation(), RESERVATION_B);
+});
+
+test('a byte-identical retirement retry appends nothing', async () => {
+  const lane = publicationLane();
+  await lane.reserve(RESERVATION_A, async () => {});
+  const first = await lane.supersede(ZERO_EFFECT, RETIRED_AT, 'SEQUENCING');
+  await lane.reserve(RESERVATION_A, async () => {});
+  // Same reservation, same proof, same time, same reason: one governed act, retried.
+  const retry = await lane.supersede(ZERO_EFFECT, RETIRED_AT, 'SEQUENCING');
+  assert.deepEqual(retry, first);
+  assert.deepEqual(
+    lane.readSupersessionHistory(RESERVATION_A.handover_generation_digest),
+    [first],
+  );
+  assert.equal(lane.readReservation(), null);
+});
+
 test('retirement is refused unless zero durable effect is proven', async () => {
   for (const [field, value] of [
     ['grant_consumed', true],

@@ -146,9 +146,29 @@ function createSemanticPublicationLaneV2(programmeRoot) {
   const reservationPath = () => `${root()}/v2-native-handover-reservation.json`;
   const prepareBindingPath = () => `${root()}/v2-native-handover-factory-prepare.json`;
   const supersessionDirectory = () => `${root()}/v2-native-handover-superseded`;
-  const supersessionPath = (generationDigest) => (
-    `${supersessionDirectory()}/${generationDigest.slice(7)}.json`
+  // A generation's retirements are an append-only history, not one record. A SEQUENCING
+  // retirement deliberately permits the same plan to reserve again, so that second reservation
+  // must be retirable too -- otherwise the live pointer could never be released and the lane
+  // would wedge permanently. Ordinal 1 keeps the original filename so existing records stay
+  // exactly where they are.
+  const supersessionPath = (generationDigest, ordinal = 1) => (
+    ordinal <= 1
+      ? `${supersessionDirectory()}/${generationDigest.slice(7)}.json`
+      : `${supersessionDirectory()}/${generationDigest.slice(7)}.${ordinal}.json`
   );
+  const supersessionHistory = (generationDigest) => {
+    const records = [];
+    for (let ordinal = 1; ; ordinal += 1) {
+      const path = supersessionPath(generationDigest, ordinal);
+      if (!existsSync(path)) break;
+      records.push(Object.freeze({
+        ordinal,
+        path,
+        record: validateSupersession(readCanonicalFile(path)),
+      }));
+    }
+    return records;
+  };
   const readCanonicalFile = (path) => {
     const stat = lstatSync(path);
     if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(path) !== path) {
@@ -417,10 +437,10 @@ function createSemanticPublicationLaneV2(programmeRoot) {
         const path = reservationPath();
         // A retired generation can never come back. Without this, superseding a reservation and
         // then re-reserving the same generation would resurrect a plan that was proven unusable.
-        const retirement = existsSync(supersessionPath(reservation.handover_generation_digest))
-          ? validateSupersession(readCanonicalFile(supersessionPath(
-            reservation.handover_generation_digest)))
-          : null;
+        const history = supersessionHistory(reservation.handover_generation_digest);
+        const retirement = history.length === 0
+          ? null
+          : history[history.length - 1].record;
         if (retirement !== null && retirement.retirement_reason === 'DEFECTIVE') {
           throw new CompilerError('V2 handover generation was superseded and cannot reserve', {
             phase: 'candidate:publication-lane',
@@ -464,8 +484,11 @@ function createSemanticPublicationLaneV2(programmeRoot) {
       }
     },
     readSupersession(generationDigest) {
-      const path = supersessionPath(generationDigest);
-      return existsSync(path) ? validateSupersession(readCanonicalFile(path)) : null;
+      const history = supersessionHistory(generationDigest);
+      return history.length === 0 ? null : history[history.length - 1].record;
+    },
+    readSupersessionHistory(generationDigest) {
+      return supersessionHistory(generationDigest).map((entry) => entry.record);
     },
     async supersede(zeroEffectProof, retiredAt, retirementReason) {
       const release = acquire();
@@ -491,17 +514,26 @@ function createSemanticPublicationLaneV2(programmeRoot) {
           superseded_reservation: reservation,
           zero_effect_proof: zeroEffectProof,
         });
-        const recordPath = supersessionPath(reservation.handover_generation_digest);
-        if (existsSync(recordPath)) {
-          // Idempotent: an identical retirement is the same governed act, a different one is a
-          // second history for one generation and is refused.
-          const observed = validateSupersession(readCanonicalFile(recordPath));
-          if (canonicalJson(observed) !== canonicalJson(record)) {
-            throw new CompilerError('V2 handover supersession fork rejected', {
-              phase: 'candidate:publication-lane',
-            });
-          }
+        const history = supersessionHistory(reservation.handover_generation_digest);
+        const latest = history.length === 0 ? null : history[history.length - 1];
+        if (latest !== null && latest.record.retirement_reason === 'DEFECTIVE') {
+          // Unreachable through reserve(), which refuses a DEFECTIVE generation outright. Assert
+          // it anyway so a defective retirement can never be followed by anything.
+          throw new CompilerError('V2 handover generation was retired as defective', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        let recordPath;
+        if (latest !== null && canonicalJson(latest.record) === canonicalJson(record)) {
+          // Idempotent: a byte-identical retirement is a retry of the same governed act.
+          recordPath = latest.path;
         } else {
+          // A genuinely new retirement of a lawfully re-reserved generation appends to the
+          // history; it never overwrites or contradicts a record already written.
+          recordPath = supersessionPath(
+            reservation.handover_generation_digest,
+            history.length + 1,
+          );
           mkdirSync(supersessionDirectory(), { recursive: true, mode: 0o700 });
           publishImmutable(recordPath, Buffer.from(canonicalJson(record), 'utf8'), 0o444);
         }
