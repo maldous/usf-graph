@@ -2998,19 +2998,15 @@ async function prospectiveInventory(stores) {
     //
     // Both digests are now derived exactly as the witness derives them, so prediction and
     // observation are one meaning of the same state rather than two.
-    const [record, dependencyRecord] = await Promise.all([
-      canonicalGraphDigest(content),
-      canonicalInventoryGraphDigest(graph, content),
-    ]);
+    // The RECORD SHAPE is closed downstream (aggregate-compiler-authority-candidate's exactKeys
+    // rejects any extra key with CANDIDATE_CURRENTNESS_BINDING_INVALID), so only the digest
+    // FUNCTION changes here -- which is the entire defect. dependencySha256 is deliberately not
+    // added: the witness carries it for its own consumers, this prospective record must not.
+    const record = await canonicalGraphDigest(content);
     // Match readSemanticAuthorityWitness exactly: Stardog's graph inventory
     // contains only named graphs with at least one triple.
     if (record.triples > 0) {
-      inventory.push(Object.freeze({
-        graph,
-        sha256: `sha256:${record.sha256}`,
-        triples: record.triples,
-        dependencySha256: `sha256:${dependencyRecord.sha256}`,
-      }));
+      inventory.push(Object.freeze({ graph, sha256: `sha256:${record.sha256}`, triples: record.triples }));
     }
   }
   const triples = inventory.reduce((total, record) => total + record.triples, 0);
@@ -3480,17 +3476,8 @@ export function createSemanticModelCompilationCommand({
           // Same correction as prospectiveInventory: the inventory's sha256 must be the digest
           // readSemanticAuthorityWitness reports, or a predicted inventory cannot be compared
           // against a committed one.
-          const content = await graphText(store);
-          const [record, dependencyRecord] = await Promise.all([
-            canonicalGraphDigest(content),
-            canonicalInventoryGraphDigest(graph, content),
-          ]);
-          inventory.push(Object.freeze({
-            graph,
-            sha256: `sha256:${record.sha256}`,
-            triples: record.triples,
-            dependencySha256: `sha256:${dependencyRecord.sha256}`,
-          }));
+          const record = await canonicalGraphDigest(await graphText(store));
+          inventory.push(Object.freeze({ graph, sha256: `sha256:${record.sha256}`, triples: record.triples }));
         }
         await client.rollback(transaction);
         transaction = null;
