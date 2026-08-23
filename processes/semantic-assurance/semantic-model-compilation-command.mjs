@@ -27,7 +27,9 @@ import {
 import {
   prepareAggregateCompilerAuthorityCandidatesV2,
 } from '../../assurance/semantic-model-compilation/aggregate-compiler-proof-command.mjs';
-import { semanticAuthorityInventoryDigest } from './semantic-authority-gateway.mjs';
+import {
+  readSemanticAuthorityWitness, semanticAuthorityInventoryDigest,
+} from './semantic-authority-gateway.mjs';
 
 export const SEMANTIC_MODEL_PATH = 'semantic-model';
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
@@ -85,13 +87,17 @@ const V2_NATIVE_HANDOVER_FENCE = 'urn:usf:v2nativehandoverfence:current';
 const V2_NATIVE_HANDOVER_FENCE_CLASS = `${USF_ONTOLOGY}V2NativeHandoverFence`;
 const V2_HANDOVER_RESERVATION_SCHEMA = 'usf-v2-native-handover-reservation-v1';
 const V2_HANDOVER_SUPERSESSION_SCHEMA = 'usf-v2-native-handover-supersession-v1';
-const V2_HANDOVER_D1_RECOVERY_SCHEMA = 'usf-v2-native-handover-d1-recovery-v1';
+// v1 records exist durably and are IMMUTABLE history: the first recovery was written before the
+// fence observation was required. They stay readable verbatim; only new records may be written,
+// and only under v2, which demands the complete effect inventory including the semantic fence.
+const V2_HANDOVER_D1_RECOVERY_SCHEMA_LEGACY = 'usf-v2-native-handover-d1-recovery-v1';
+const V2_HANDOVER_D1_RECOVERY_SCHEMA = 'usf-v2-native-handover-d1-recovery-v2';
 const V2_HANDOVER_FACTORY_PREPARE_BINDING_SCHEMA =
   'usf-v2-native-handover-factory-prepare-binding-v1';
 const PUBLICATION_LANE_LOCK_SCHEMA = 'usf-semantic-publication-lane-lock-v1';
 const PUBLICATION_LANE_UNVERIFIABLE_LOCK_SCHEMA =
   'usf-semantic-publication-lane-lock-v1-unverifiable-liveness';
-const { defaultGraph, namedNode, quad } = DataFactory;
+const { defaultGraph, literal, namedNode, quad } = DataFactory;
 
 const stable = (value) => Array.isArray(value)
   ? value.map(stable)
@@ -119,6 +125,50 @@ const DURABILITY_BARRIER = process.permission === undefined
 
 function durabilityBarrierSync(descriptor) {
   if (DURABILITY_BARRIER === 'FSYNC') fsyncSync(descriptor);
+}
+
+// Atomic, immutable, durability-barriered publication of one exact byte sequence.
+//
+// Module scope because the abandonment journal needs the SAME primitive as the publication
+// lane. Duplicating a durability/immutability primitive is how two subtly different
+// definitions of "durable" come to exist in one system, so there is exactly one.
+function publishImmutableFile(path, bytes, mode = 0o600) {
+  const suffix = sha256(bytes).slice(7);
+  const temporary = `${path}.${suffix}.tmp`;
+  if (existsSync(temporary)) {
+    const stat = lstatSync(temporary);
+    if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(temporary) !== temporary) {
+      throw new CompilerError('immutable semantic publication temporary is unsafe', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    unlinkSync(temporary);
+  }
+  let descriptor;
+  let created = false;
+  try {
+    descriptor = openSync(temporary, 'wx', mode);
+    writeFileSync(descriptor, bytes);
+    durabilityBarrierSync(descriptor);
+    closeSync(descriptor);
+    descriptor = undefined;
+    try { linkSync(temporary, path); created = true; } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+    }
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+    try { unlinkSync(temporary); } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+  }
+  if (!readFileSync(path).equals(bytes)) {
+    throw new CompilerError('immutable semantic publication state fork rejected', {
+      phase: 'candidate:publication-lane',
+    });
+  }
+  const directory = openSync(dirname(path), 'r');
+  try { durabilityBarrierSync(directory); } finally { closeSync(directory); }
+  return created;
 }
 
 function createSemanticPublicationLaneV2(programmeRoot) {
@@ -221,7 +271,8 @@ function createSemanticPublicationLaneV2(programmeRoot) {
       'd1_effect', 'recovered_at', 'recovery_reason', 'schema',
       'superseded_prepare_binding', 'superseded_reservation',
     ], 'V2 handover D1 recovery');
-    if (value.schema !== V2_HANDOVER_D1_RECOVERY_SCHEMA) {
+    const legacy = value.schema === V2_HANDOVER_D1_RECOVERY_SCHEMA_LEGACY;
+    if (!legacy && value.schema !== V2_HANDOVER_D1_RECOVERY_SCHEMA) {
       throw new CompilerError('V2 handover D1 recovery schema is invalid', {
         phase: 'candidate:publication-lane',
       });
@@ -239,11 +290,57 @@ function createSemanticPublicationLaneV2(programmeRoot) {
     validateReservation(value.superseded_reservation);
     validatePrepareBinding(value.superseded_prepare_binding);
     const effect = value.d1_effect;
-    exactObjectKeys(effect, [
+    // The SEMANTIC FENCE is part of the effect inventory, not an afterthought. The first version
+    // of this record observed only later FACTORY boundaries (D2, successors, terminal receipt,
+    // activation) and concluded the generation was cleanly recoverable -- while the D1 commit had
+    // installed a handover-pending fence into semantic authority that retired V1 publication.
+    // Local lane availability is not semantic-authority availability, and a recovery that cannot
+    // see the fence cannot know what it is releasing.
+    exactObjectKeys(effect, legacy ? [
       'activation_present', 'd1_journal_boundary_present', 'd2_authority_present',
       'journal_states', 'observed_post_d1_authority_digest', 'pre_d1_authority_digest',
       'successors_root_present', 'terminal_receipt_present',
+    ] : [
+      'activation_present', 'd1_journal_boundary_present', 'd2_authority_present',
+      'graph_semantic_fence', 'journal_states', 'observed_post_d1_authority_digest',
+      'pre_d1_authority_digest', 'successors_root_present', 'terminal_receipt_present',
     ], 'V2 handover D1 recovery effect');
+    if (legacy) {
+      // Readable, never writable, and never a basis for releasing anything again.
+      return Object.freeze(value);
+    }
+    const fence = effect.graph_semantic_fence;
+    exactObjectKeys(fence, [
+      'authority_digest_at_observation', 'current_v1_publication_state', 'fence_content_digest',
+      'generation_digest', 'installed', 'ownership_state', 'row_cardinality',
+      'successor_binding_cardinality', 'terminal_floor_terminal',
+    ], 'V2 handover D1 recovery fence observation');
+    if (fence.authority_digest_at_observation !== effect.observed_post_d1_authority_digest) {
+      throw new CompilerError('fence observation authority differs from the observed post-D1 authority', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    // An UNRESOLVED semantic fence must refuse. Releasing coordination state while authority
+    // still retires V1 publication is what stranded the previous generation: the lane looked
+    // clean and the system was still fenced.
+    if (fence.installed !== false) {
+      throw new CompilerError(
+        'V2 handover D1 recovery refused: an unresolved Graph semantic handover fence is installed',
+        { phase: 'candidate:publication-lane' },
+      );
+    }
+    for (const [field, expected] of [['row_cardinality', 0], ['successor_binding_cardinality', 0]]) {
+      if (fence[field] !== expected) {
+        throw new CompilerError(`V2 handover D1 recovery refused: fence ${field} is not ${expected}`, {
+          phase: 'candidate:publication-lane',
+        });
+      }
+    }
+    if (fence.terminal_floor_terminal !== false) {
+      throw new CompilerError('V2 handover D1 recovery refused: durable terminal ownership exists', {
+        phase: 'candidate:publication-lane',
+      });
+    }
     for (const field of ['pre_d1_authority_digest', 'observed_post_d1_authority_digest']) {
       if (!SHA256.test(effect[field] || '')) {
         throw new CompilerError(`V2 handover D1 recovery ${field} is not exact`, {
@@ -388,44 +485,7 @@ function createSemanticPublicationLaneV2(programmeRoot) {
     const live = processIdentity(observed.pid);
     return live !== null && canonicalJson(live) !== canonicalJson(observed);
   };
-  const publishImmutable = (path, bytes, mode = 0o600) => {
-    const suffix = sha256(bytes).slice(7);
-    const temporary = `${path}.${suffix}.tmp`;
-    if (existsSync(temporary)) {
-      const stat = lstatSync(temporary);
-      if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(temporary) !== temporary) {
-        throw new CompilerError('immutable semantic publication temporary is unsafe', {
-          phase: 'candidate:publication-lane',
-        });
-      }
-      unlinkSync(temporary);
-    }
-    let descriptor;
-    let created = false;
-    try {
-      descriptor = openSync(temporary, 'wx', mode);
-      writeFileSync(descriptor, bytes);
-      durabilityBarrierSync(descriptor);
-      closeSync(descriptor);
-      descriptor = undefined;
-      try { linkSync(temporary, path); created = true; } catch (error) {
-        if (error.code !== 'EEXIST') throw error;
-      }
-    } finally {
-      if (descriptor !== undefined) closeSync(descriptor);
-      try { unlinkSync(temporary); } catch (error) {
-        if (error.code !== 'ENOENT') throw error;
-      }
-    }
-    if (!readFileSync(path).equals(bytes)) {
-      throw new CompilerError('immutable semantic publication state fork rejected', {
-        phase: 'candidate:publication-lane',
-      });
-    }
-    const directory = openSync(dirname(path), 'r');
-    try { durabilityBarrierSync(directory); } finally { closeSync(directory); }
-    return created;
-  };
+  const publishImmutable = publishImmutableFile;
   const acquire = () => {
     const path = lockPath();
     const bytes = Buffer.from(canonicalJson(holderIdentity()), 'utf8');
@@ -3075,6 +3135,1114 @@ async function inspectPatchState(client, patch) {
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// Governed abandonment of ONE fenced, uncompletable handover generation.
+//
+// This exists because the lifecycle had no terminal edge for the state a failed D1 leaves behind:
+// authority fenced (V1 publication retired), no D2, no successors, no terminal receipt, and a
+// generation whose plan can never match live authority. Forward was impossible and backward was
+// impossible, so the system was permanently stuck.
+//
+// It is NOT a "clear fence" primitive and must never become one. The only reachable effect is
+// bounded by an owner-signed one-shot grant whose signature covers the exact authority, the exact
+// fence contents, the exact generation, the exact recovery evidence and the exact effect digest.
+//
+// It also fixes the commit-ordering defect that caused the incident: the predicted post-authority
+// is derived INSIDE the transaction, from the staged candidate, using the same canonical
+// inventory semantics as the live witness. Commit happens only after the prediction is known and
+// consistent, so nothing after commit can turn a committed success into an apparent no-effect.
+const HANDOVER_ABANDONMENT_INTENT_SCHEMA = 'usf-v2-handover-abandonment-intent-v1';
+const HANDOVER_ABANDONMENT_RECORD_CLASS = `${USF_ONTOLOGY}V2NativeHandoverAbandonment`;
+const OWL_CLASS = 'http://www.w3.org/2002/07/owl#Class';
+
+// The exact fence predicates this transition may remove. Enumerated rather than "delete whatever
+// is attached to the fence subject", so an unexpected predicate fails closed instead of being
+// silently swept away.
+const V2_HANDOVER_FENCE_PREDICATES = Object.freeze([
+  'canonicalName',
+  'handoverCurrentV1PublicationState',
+  'handoverD0AuthorityDigest',
+  'handoverDerivedConsumerRegistryDigest',
+  'handoverExpectedTerminalReceiptSchema',
+  'handoverExternalAttestationSetRootDigest',
+  'handoverFactorySourceTree',
+  'handoverGenerationDigest',
+  'handoverGraphSourceTree',
+  'handoverOwnershipState',
+  'handoverReleaseSubjectDigest',
+]);
+
+// The fence's exact content, including WHICH subject in WHICH graph carries it. Folding only
+// predicate/object would give two differently-named fences the same digest, and a grant bound to
+// that digest would transfer between them -- exactly the substitution this digest exists to stop.
+export function canonicalHandoverFenceDigest(rows) {
+  const body = [...rows]
+    .map((row) => {
+      const term = row.objectTerm ?? { type: 'literal', value: row.object };
+      const suffix = term.type === 'uri' ? '<>'
+        : `"${term.datatype ?? ''}"${term.language ?? ''}`;
+      return `${row.graph} ${row.fence} ${row.predicate} ${term.value} ${suffix}`;
+    })
+    .sort()
+    .join('\n');
+  return `sha256:${createHash('sha256').update(`${body}\n`, 'utf8').digest('hex')}`;
+}
+
+async function readHandoverFenceRows(client, transaction) {
+  const rows = await client.selectInTransaction(transaction, `SELECT ?fence ?p ?o ?g WHERE {
+    GRAPH ?g {
+      ?fence a <${V2_NATIVE_HANDOVER_FENCE_CLASS}> .
+      ?fence ?p ?o
+    }
+  } ORDER BY ?fence ?p ?o`);
+  if (!Array.isArray(rows)) {
+    throw new CompilerError('handover fence observation is invalid', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  const value = (term) => (term && typeof term === 'object' ? term.value : term);
+  // The exact RDF term, not its lexical form. `sha256:...` reads as a plausible IRI and is
+  // stored as a literal; guessing from the string shape made the staged deletion miss the quad
+  // it was supposed to remove, so term identity is carried through explicitly.
+  const objectTerm = (term) => {
+    if (!term || typeof term !== 'object') return Object.freeze({ type: 'literal', value: String(term) });
+    if (term.type === 'uri') return Object.freeze({ type: 'uri', value: term.value });
+    if (term.type === 'literal') {
+      return Object.freeze({
+        type: 'literal',
+        value: term.value,
+        ...(term.datatype ? { datatype: term.datatype } : {}),
+        ...(term['xml:lang'] ? { language: term['xml:lang'] } : {}),
+      });
+    }
+    throw new CompilerError('handover abandonment refused: the fence carries a non-ground term', {
+      phase: 'candidate:handover-abandonment', termType: term.type,
+    });
+  };
+  const observed = rows.map((row) => Object.freeze({
+    fence: value(row.fence),
+    predicate: value(row.p),
+    object: value(row.o),
+    objectTerm: objectTerm(row.o),
+    graph: value(row.g),
+  }));
+  const subjects = new Set(observed.map((row) => row.fence));
+  const graphs = new Set(observed.map((row) => row.graph));
+  if (observed.length === 0) {
+    throw new CompilerError('handover abandonment refused: no semantic handover fence exists', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  if (subjects.size !== 1 || graphs.size !== 1) {
+    throw new CompilerError('handover abandonment refused: fence is duplicated or ambiguous', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  // The runtime V2 classes are declared as owl:Class in the AUTHORITY graph itself, alongside the
+  // instances they type -- not in the ontology source. The abandonment record's class belongs in
+  // exactly the same place, so the reader observes whether it is already declared and the effect
+  // adds the declaration only when it is absent.
+  const declared = await client.selectInTransaction(transaction, `SELECT ?graph WHERE {
+    GRAPH ?graph { <${HANDOVER_ABANDONMENT_RECORD_CLASS}> a <${OWL_CLASS}> }
+  }`);
+  if (!Array.isArray(declared)) {
+    throw new CompilerError('handover abandonment vocabulary observation is invalid', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  return Object.freeze({
+    rows: Object.freeze(observed),
+    fence: [...subjects][0],
+    graph: [...graphs][0],
+    recordClassDeclared: declared.length > 0,
+    contentDigest: canonicalHandoverFenceDigest(observed),
+  });
+}
+
+function fenceField(observation, predicate) {
+  const matches = observation.rows.filter(
+    (row) => row.predicate === `${USF_ONTOLOGY}${predicate}`,
+  );
+  if (matches.length !== 1) {
+    throw new CompilerError(`handover abandonment refused: fence ${predicate} is not exact`, {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  return matches[0].object;
+}
+
+export function handoverAbandonmentEffectDigest(effect) {
+  return `sha256:${createHash('sha256').update(canonicalJson(effect), 'utf8').digest('hex')}`;
+}
+
+// The exact proposed authority delta, derived from observed state alone. Deterministic, so the
+// grant can be signed over its digest before the transition ever runs.
+export function buildHandoverAbandonmentEffect(observation, {
+  generationDigest, preD1AuthorityDigest, observedPostD1AuthorityDigest,
+  d1RecoveryRecordDigest, recoveredAt,
+}) {
+  const unexpected = observation.rows.filter((row) => row.predicate !== `${RDF_TYPE}`
+    && !V2_HANDOVER_FENCE_PREDICATES.includes(row.predicate.replace(USF_ONTOLOGY, '')));
+  if (unexpected.length > 0) {
+    throw new CompilerError('handover abandonment refused: fence carries unexpected predicates', {
+      phase: 'candidate:handover-abandonment',
+      predicates: unexpected.map((row) => row.predicate),
+    });
+  }
+  const record = `${observation.fence}:abandoned`;
+  const iri = (value) => Object.freeze({ type: 'uri', value });
+  const text = (value) => Object.freeze({ type: 'literal', value });
+  return Object.freeze({
+    schema: 'usf-v2-handover-abandonment-effect-v2',
+    // Remove ONLY the pending fence representation, so current-state queries deterministically
+    // resolve to the unfenced state. Each deletion names the EXACT observed term.
+    deletions: Object.freeze([...observation.rows]
+      .map((row) => Object.freeze({
+        graph: row.graph,
+        subject: row.fence,
+        predicate: row.predicate,
+        object: row.object,
+        objectTerm: row.objectTerm ?? text(row.object),
+      }))
+      .sort((left, right) => (left.predicate + left.object).localeCompare(right.predicate + right.object))),
+    // Preserve the abandonment as HISTORY. It deliberately asserts no ownership state, no
+    // successor, no terminal receipt and no activation.
+    additions: Object.freeze([
+      [RDF_TYPE, iri(HANDOVER_ABANDONMENT_RECORD_CLASS)],
+      [`${USF_ONTOLOGY}abandonedHandoverGenerationDigest`, text(generationDigest)],
+      [`${USF_ONTOLOGY}abandonedHandoverFenceContentDigest`, text(observation.contentDigest)],
+      [`${USF_ONTOLOGY}abandonedHandoverPreD1AuthorityDigest`, text(preD1AuthorityDigest)],
+      [`${USF_ONTOLOGY}abandonedHandoverObservedD1AuthorityDigest`, text(observedPostD1AuthorityDigest)],
+      [`${USF_ONTOLOGY}abandonedHandoverRecoveryRecordDigest`, text(d1RecoveryRecordDigest)],
+      [`${USF_ONTOLOGY}abandonedHandoverReason`, text('DEFECTIVE_AFTER_D1_UNCOMPLETABLE')],
+      [`${USF_ONTOLOGY}abandonedHandoverRecoveredAt`, text(recoveredAt)],
+    ].map(([predicate, objectTerm]) => Object.freeze({
+      graph: observation.graph,
+      subject: record,
+      predicate,
+      object: objectTerm.value,
+      objectTerm,
+    })).concat(observation.recordClassDeclared === true ? [] : [Object.freeze({
+      // The record's own class, declared where V2NativeHandoverFence and
+      // V2NativeGraphSuccessorBinding are declared. Semantic authority refuses an instance of an
+      // undeclared urn:usf:ontology: class, and it is right to: a record nothing can interpret is
+      // not history, it is residue.
+      graph: observation.graph,
+      subject: HANDOVER_ABANDONMENT_RECORD_CLASS,
+      predicate: RDF_TYPE,
+      object: OWL_CLASS,
+      objectTerm: iri(OWL_CLASS),
+    })]).sort((left, right) => (left.subject + left.predicate + left.object)
+      .localeCompare(right.subject + right.predicate + right.object))),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Governed ABANDON of one fenced, uncompletable V2 native handover.
+// ---------------------------------------------------------------------------
+//
+// A handover whose D1 committed but which can never reach its terminal receipt leaves semantic
+// authority permanently fenced: V1 publication is retired and V2 never arrives. That is not a
+// state any amount of retrying escapes, so the protocol needs one lawful terminal edge out of it.
+//
+// This is that edge, and it is deliberately the narrowest possible one. It is NOT a patch
+// facility, NOT a fence-clearing utility, and NOT reachable without an owner-signed grant bound
+// to this exact authority, fence, generation, recovery record and mutation. No generic entry
+// point is exported: the only way in is to present a grant that already names everything.
+//
+// It also fixes the ordering defect that produced the incident it exists to resolve. Previously a
+// prediction was computed OUTSIDE the transaction and compared to authority AFTER commit, so a
+// prediction computed with the wrong digest function turned a committed success into an apparent
+// failure and invited a replay. Here the prediction is derived INSIDE the transaction from the
+// staged candidate using the same canonical inventory semantics as the live witness, is made
+// durable BEFORE commit, and everything after commit is classification only.
+const HANDOVER_ABANDONMENT_JOURNAL_SCHEMA = 'usf-v2-handover-abandonment-journal-v1';
+const HANDOVER_ABANDONMENT_INTENT_FIELDS = Object.freeze([
+  'action', 'authority_pre_digest', 'created_at', 'd1_recovery_record_digest',
+  'fence_content_digest', 'grant_digest', 'handover_generation_digest', 'implementation_identity',
+  'nonce', 'operation_id', 'permitted_effect_digest', 'schema', 'state',
+]);
+const HANDOVER_ABANDONMENT_READY_FIELDS = Object.freeze([
+  'operation_id', 'predicted_post_authority', 'schema', 'state',
+  'transaction_preimage_digest', 'validated_candidate_inventory_digest',
+]);
+const HANDOVER_ABANDONMENT_CLASSIFICATION_FIELDS = Object.freeze([
+  'classification', 'classified_at', 'observed_authority_digest', 'operation_id',
+  'reached_commit', 'schema', 'state',
+]);
+const HANDOVER_ABANDONMENT_ACTION = 'abandon-fenced-handover';
+const PRE_STATE = 'PRE_STATE';
+const PREDICTED_POST_STATE = 'PREDICTED_POST_STATE';
+const UNEXPECTED_THIRD_STATE = 'UNEXPECTED_THIRD_STATE';
+
+// A two-stage, append-only, immutable journal. INTENT_PREPARED records that an attempt is about
+// to be made; READY_TO_COMMIT records that every precondition passed and the exact predicted
+// outcome is known. Commit may be called only once READY_TO_COMMIT is durable, so the presence of
+// READY_TO_COMMIT without a classification is precisely the ambiguous-commit condition.
+//
+// Attempts are ordinal because a proven no-effect attempt must be retryable while a committed one
+// must never be. Every file is written once, 0444, atomically, behind a durability barrier.
+function createHandoverAbandonmentJournal(programmeRoot) {
+  if (typeof programmeRoot !== 'string' || !isAbsolute(programmeRoot)) {
+    throw new CompilerError('handover abandonment journal root must be an exact absolute path', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  const root = resolve(programmeRoot);
+  const directory = () => {
+    const path = `${root}${sep}v2-native-handover-abandonment`;
+    mkdirSync(path, { recursive: true, mode: 0o700 });
+    return path;
+  };
+  const operationPath = (operationId, suffix) =>
+    `${directory()}${sep}${operationId}.attempt-${suffix}.json`;
+  const noncePath = (nonce, suffix) => `${directory()}${sep}nonce-${nonce}.${suffix}.json`;
+
+  const readExact = (path) => {
+    const stat = lstatSync(path);
+    if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(path) !== path) {
+      throw new CompilerError('handover abandonment journal entry is unsafe', {
+        phase: 'candidate:handover-abandonment', path,
+      });
+    }
+    const bytes = readFileSync(path);
+    let value;
+    try { value = JSON.parse(bytes.toString('utf8')); } catch {
+      throw new CompilerError('handover abandonment journal entry is not JSON', {
+        phase: 'candidate:handover-abandonment', path,
+      });
+    }
+    if (!bytes.equals(Buffer.from(canonicalJson(value), 'utf8'))) {
+      throw new CompilerError('handover abandonment journal entry is not canonical', {
+        phase: 'candidate:handover-abandonment', path,
+      });
+    }
+    return Object.freeze(value);
+  };
+  const readOptional = (path) => (existsSync(path) ? readExact(path) : null);
+  const write = (path, value) => {
+    publishImmutableFile(path, Buffer.from(canonicalJson(value), 'utf8'), 0o444);
+    return readExact(path);
+  };
+
+  const readAttempt = (operationId, ordinal) => {
+    const intent = readOptional(operationPath(operationId, `${ordinal}.intent-prepared`));
+    if (intent === null) return null;
+    exactObjectKeys(intent, HANDOVER_ABANDONMENT_INTENT_FIELDS, 'handover abandonment intent');
+    const ready = readOptional(operationPath(operationId, `${ordinal}.ready-to-commit`));
+    if (ready !== null) {
+      exactObjectKeys(ready, HANDOVER_ABANDONMENT_READY_FIELDS, 'handover abandonment readiness');
+    }
+    const classification = readOptional(operationPath(operationId, `${ordinal}.classification`));
+    if (classification !== null) {
+      exactObjectKeys(classification, HANDOVER_ABANDONMENT_CLASSIFICATION_FIELDS,
+        'handover abandonment classification');
+    }
+    return Object.freeze({
+      ordinal,
+      intent,
+      ready,
+      classification,
+      state: classification !== null ? 'CLASSIFIED'
+        : ready !== null ? 'READY_TO_COMMIT' : 'INTENT_PREPARED',
+    });
+  };
+
+  const readOperation = (operationId) => {
+    const attempts = [];
+    for (let ordinal = 0; ordinal < 64; ordinal += 1) {
+      const attempt = readAttempt(operationId, ordinal);
+      if (attempt === null) break;
+      attempts.push(attempt);
+    }
+    return Object.freeze({
+      operation_id: operationId,
+      attempts: Object.freeze(attempts),
+      open: attempts.find((attempt) => attempt.classification === null) ?? null,
+      committed: attempts.find(
+        (attempt) => attempt.classification?.classification === PREDICTED_POST_STATE) ?? null,
+    });
+  };
+
+  return Object.freeze({
+    readOperation,
+    // Which operation, if any, has already used this one-shot nonce.
+    nonceOwner(nonce) {
+      const claim = readOptional(noncePath(nonce, 'claim'));
+      return claim === null ? null : claim.operation_id;
+    },
+    nonceCommitted(nonce) {
+      return readOptional(noncePath(nonce, 'committed')) !== null;
+    },
+    beginAttempt(intent) {
+      exactObjectKeys(intent, HANDOVER_ABANDONMENT_INTENT_FIELDS, 'handover abandonment intent');
+      const operation = readOperation(intent.operation_id);
+      if (operation.committed !== null) {
+        throw new CompilerError(
+          'handover abandonment refused: this operation already committed', {
+            phase: 'candidate:handover-abandonment', operation_id: intent.operation_id,
+          });
+      }
+      if (operation.open !== null) {
+        throw new CompilerError(
+          'handover abandonment refused: an earlier attempt is unclassified and must be recovered first',
+          {
+            phase: 'candidate:handover-abandonment',
+            operation_id: intent.operation_id,
+            attempt: operation.open.ordinal,
+            attempt_state: operation.open.state,
+          });
+      }
+      // The one-shot nonce is claimed for exactly one operation, first writer wins. A divergent
+      // reuse -- same nonce, different authority/fence/generation/effect -- is refused here.
+      const claim = { operation_id: intent.operation_id, schema: HANDOVER_ABANDONMENT_JOURNAL_SCHEMA };
+      publishImmutableFile(noncePath(intent.nonce, 'claim'),
+        Buffer.from(canonicalJson(claim), 'utf8'), 0o444);
+      const owner = readExact(noncePath(intent.nonce, 'claim')).operation_id;
+      if (owner !== intent.operation_id) {
+        throw new CompilerError(
+          'handover abandonment refused: this one-shot nonce is already bound to a different operation',
+          {
+            phase: 'candidate:handover-abandonment',
+            nonce: intent.nonce, bound_operation_id: owner,
+          });
+      }
+      const ordinal = operation.attempts.length;
+      write(operationPath(intent.operation_id, `${ordinal}.intent-prepared`), intent);
+      return readAttempt(intent.operation_id, ordinal);
+    },
+    markReadyToCommit(operationId, ordinal, fields) {
+      const record = {
+        ...fields,
+        operation_id: operationId,
+        schema: HANDOVER_ABANDONMENT_JOURNAL_SCHEMA,
+        state: 'READY_TO_COMMIT',
+      };
+      exactObjectKeys(record, HANDOVER_ABANDONMENT_READY_FIELDS, 'handover abandonment readiness');
+      write(operationPath(operationId, `${ordinal}.ready-to-commit`), record);
+      return readAttempt(operationId, ordinal);
+    },
+    classify(operationId, ordinal, fields) {
+      const record = {
+        ...fields,
+        operation_id: operationId,
+        schema: HANDOVER_ABANDONMENT_JOURNAL_SCHEMA,
+        state: 'CLASSIFIED',
+      };
+      exactObjectKeys(record, HANDOVER_ABANDONMENT_CLASSIFICATION_FIELDS,
+        'handover abandonment classification');
+      write(operationPath(operationId, `${ordinal}.classification`), record);
+      const attempt = readAttempt(operationId, ordinal);
+      // A committed success makes the nonce permanently unusable. A proven no-effect attempt
+      // deliberately does NOT consume it: refusing a lawful retry forever is its own failure.
+      if (record.classification === PREDICTED_POST_STATE) {
+        publishImmutableFile(
+          noncePath(attempt.intent.nonce, 'committed'),
+          Buffer.from(canonicalJson({
+            operation_id: operationId,
+            attempt: ordinal,
+            schema: HANDOVER_ABANDONMENT_JOURNAL_SCHEMA,
+          }), 'utf8'),
+          0o444,
+        );
+      }
+      return attempt;
+    },
+  });
+}
+
+// The in-transaction mirror of readSemanticAuthorityWitness. Same graph enumeration, same
+// per-graph RDFC-10 canonicalisation, same empty-graph exclusion, same fold. If these two ever
+// disagree the prediction is worthless, so this deliberately reuses the witness's own fold rather
+// than reimplementing it.
+async function readTransactionAuthorityInventory(client, transaction) {
+  const rows = await client.selectInTransaction(
+    transaction, 'SELECT DISTINCT ?g WHERE { GRAPH ?g { ?s ?p ?o } } ORDER BY ?g');
+  if (!Array.isArray(rows)) {
+    throw new CompilerError('transaction authority inventory response is invalid', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  const graphs = rows.map((row) => (row.g && typeof row.g === 'object' ? row.g.value : row.g));
+  if (graphs.some((graph) => typeof graph !== 'string' || graph.length === 0)
+      || new Set(graphs).size !== graphs.length) {
+    throw new CompilerError('transaction authority graph inventory is invalid', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  graphs.sort();
+  const inventory = [];
+  for (const graph of graphs) {
+    const content = await client.constructInTransaction(
+      transaction, `CONSTRUCT { ?s ?p ?o } WHERE { GRAPH <${graph}> { ?s ?p ?o } }`);
+    let parsed;
+    try {
+      parsed = new Parser({ format: TURTLE, baseIRI: 'urn:usf:' }).parse(content || '');
+    } catch (error) {
+      throw new CompilerError(
+        `transaction authority graph could not be canonicalised: ${error.message}`, {
+          phase: 'candidate:handover-abandonment', graph,
+        });
+    }
+    const record = await canonicalGraphDigest(await nquadsText(parsed.map(
+      (item) => quad(item.subject, item.predicate, item.object, defaultGraph()))));
+    if (record.triples > 0) {
+      inventory.push(Object.freeze({
+        graph, sha256: `sha256:${record.sha256}`, triples: record.triples,
+      }));
+    }
+  }
+  const triples = inventory.reduce((total, record) => total + record.triples, 0);
+  return Object.freeze({
+    digest: semanticAuthorityInventoryDigest(inventory, triples),
+    inventory: Object.freeze(inventory),
+    triples,
+  });
+}
+
+// Every later-boundary absence, re-derived from authority inside the transaction. None of these
+// are taken from the recovery record: a record asserting absence is a claim, and this transition
+// requires observation.
+async function assertAbandonmentPreconditionsInTransaction(client, transaction, {
+  generationDigest, nativeGraphStore,
+}) {
+  const count = async (label, sparql) => {
+    const rows = await client.selectInTransaction(transaction, sparql);
+    if (!Array.isArray(rows)) {
+      throw new CompilerError(`handover abandonment ${label} observation is invalid`, {
+        phase: 'candidate:handover-abandonment',
+      });
+    }
+    return rows;
+  };
+  const successors = await count('successor binding', `SELECT ?binding WHERE {
+    GRAPH ?g { ?binding a <${USF_ONTOLOGY}V2NativeGraphSuccessorBinding> }
+  } ORDER BY ?binding`);
+  if (successors.length !== 0) {
+    throw new CompilerError('handover abandonment refused: a V2 native successor binding exists', {
+      phase: 'candidate:handover-abandonment', cardinality: successors.length,
+    });
+  }
+  const links = await count('successor link', `SELECT ?fence WHERE {
+    GRAPH ?g { ?fence <${USF_ONTOLOGY}handoverGraphNativeSuccessorBinding> ?binding }
+  } ORDER BY ?fence`);
+  if (links.length !== 0) {
+    throw new CompilerError('handover abandonment refused: the fence already binds a successor', {
+      phase: 'candidate:handover-abandonment', cardinality: links.length,
+    });
+  }
+  const owners = await count('storage owner', `SELECT ?subject WHERE {
+    GRAPH ?g { ?subject <${USF_ONTOLOGY}handoverStorageOwner> ?owner }
+  } ORDER BY ?subject`);
+  if (owners.length !== 0) {
+    throw new CompilerError('handover abandonment refused: terminal V2 storage ownership exists', {
+      phase: 'candidate:handover-abandonment', cardinality: owners.length,
+    });
+  }
+  const generations = await count('generation', `SELECT DISTINCT ?generation WHERE {
+    GRAPH ?g { ?subject <${USF_ONTOLOGY}handoverGenerationDigest> ?generation }
+  } ORDER BY ?generation`);
+  const distinct = generations.map(
+    (row) => (row.generation && typeof row.generation === 'object'
+      ? row.generation.value : row.generation));
+  if (distinct.length !== 1 || distinct[0] !== generationDigest) {
+    throw new CompilerError(
+      'handover abandonment refused: authority does not hold exactly this one live generation', {
+        phase: 'candidate:handover-abandonment', generations: distinct,
+      });
+  }
+  const abandonments = await count('abandonment', `SELECT ?record WHERE {
+    GRAPH ?g { ?record a <${HANDOVER_ABANDONMENT_RECORD_CLASS}> }
+  } ORDER BY ?record`);
+  if (abandonments.length !== 0) {
+    throw new CompilerError(
+      'handover abandonment refused: an abandonment record already exists', {
+        phase: 'candidate:handover-abandonment', cardinality: abandonments.length,
+      });
+  }
+  // Terminal receipt, successor root and activation are DURABLE artefacts, not authority
+  // triples. An absent reader fails closed rather than reading an empty floor and concluding
+  // the handover never got that far -- the same fail-closed rule the V1 interlock uses.
+  if (!nativeGraphStore || typeof nativeGraphStore.readTerminalOwnershipFloor !== 'function'
+      || typeof nativeGraphStore.loadGeneration !== 'function') {
+    throw new CompilerError('V2_GRAPH_TERMINAL_OWNERSHIP_FLOOR_READER_REQUIRED', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  if (nativeGraphStore.readTerminalOwnershipFloor().terminal) {
+    throw new CompilerError('handover abandonment refused: durable terminal ownership exists', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  const durable = nativeGraphStore.loadGeneration(generationDigest);
+  if (durable?.terminal_receipt) {
+    throw new CompilerError('handover abandonment refused: a terminal receipt exists', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  if (durable?.successor_root || durable?.activation) {
+    throw new CompilerError(
+      'handover abandonment refused: successor root or activation evidence exists', {
+        phase: 'candidate:handover-abandonment',
+      });
+  }
+}
+
+// Stage the exact permitted effect onto the isolated stores. Deliberately not a patch API: it
+// accepts only the deterministic effect this module builds, and refuses if the observed
+// pre-state is not exactly what that effect was derived from.
+function stageHandoverAbandonmentEffect(stores, effect) {
+  // The effect names exact RDF terms, so nothing here infers a term kind from a lexical form.
+  const term = (entry) => {
+    const observed = entry.objectTerm;
+    if (!observed || typeof observed !== 'object') {
+      throw new CompilerError('handover abandonment effect entry has no exact object term', {
+        phase: 'candidate:handover-abandonment', predicate: entry.predicate,
+      });
+    }
+    if (observed.type === 'uri') return namedNode(observed.value);
+    if (observed.type !== 'literal') {
+      throw new CompilerError('handover abandonment effect names a non-ground object term', {
+        phase: 'candidate:handover-abandonment', termType: observed.type,
+      });
+    }
+    if (observed.language) return literal(observed.value, observed.language);
+    if (observed.datatype) return literal(observed.value, namedNode(observed.datatype));
+    return literal(observed.value);
+  };
+  const quads = (entries) => entries.map((entry) => ({
+    graph: entry.graph,
+    quad: quad(namedNode(entry.subject), namedNode(entry.predicate), term(entry),
+      defaultGraph()),
+  }));
+  const deletions = quads(effect.deletions);
+  const additions = quads(effect.additions);
+  const store = (graph) => {
+    if (!stores.has(graph)) {
+      throw new CompilerError('handover abandonment effect names an unisolated graph', {
+        phase: 'candidate:handover-abandonment', graph,
+      });
+    }
+    return stores.get(graph);
+  };
+  const present = (entry) => store(entry.graph).has(
+    entry.quad.subject, entry.quad.predicate, entry.quad.object, null);
+  if (!deletions.every(present) || additions.some(present)) {
+    throw new CompilerError(
+      'handover abandonment refused: authority is not in the exact pre-state the effect was derived from',
+      { phase: 'candidate:handover-abandonment' });
+  }
+  for (const entry of deletions) store(entry.graph).removeQuad(entry.quad);
+  for (const entry of additions) store(entry.graph).addQuad(entry.quad);
+  if (deletions.some(present) || !additions.every(present)) {
+    throw new CompilerError(
+      'handover abandonment could not construct its exact post-state', {
+        phase: 'candidate:handover-abandonment',
+      });
+  }
+}
+
+// Read authority independently of any transaction. Post-commit classification must never look at
+// the transaction it is classifying.
+async function readIndependentAuthorityDigest(client) {
+  const witness = await readSemanticAuthorityWitness(client);
+  const digest = typeof witness?.digest === 'string' ? witness.digest : null;
+  if (digest === null || !SHA256.test(digest)) {
+    throw new CompilerError('independent authority observation is not one exact digest', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  return digest;
+}
+
+function classifyObservedAuthority(observed, { authorityPreDigest, predictedPostAuthority }) {
+  if (predictedPostAuthority !== null && observed === predictedPostAuthority) {
+    return PREDICTED_POST_STATE;
+  }
+  if (observed === authorityPreDigest) return PRE_STATE;
+  return UNEXPECTED_THIRD_STATE;
+}
+
+export function handoverAbandonmentOperationId({
+  nonce, authorityPreDigest, fenceContentDigest, handoverGenerationDigest,
+  d1RecoveryRecordDigest, permittedEffectDigest,
+}) {
+  return createHash('sha256').update(canonicalJson({
+    action: HANDOVER_ABANDONMENT_ACTION,
+    authority_pre_digest: authorityPreDigest,
+    d1_recovery_record_digest: d1RecoveryRecordDigest,
+    fence_content_digest: fenceContentDigest,
+    handover_generation_digest: handoverGenerationDigest,
+    nonce,
+    permitted_effect_digest: permittedEffectDigest,
+  }), 'utf8').digest('hex');
+}
+
+// Classification-only recovery. It never opens a transaction, never stages anything and never
+// commits. Its entire job is to turn an interrupted attempt into one of three exact statements
+// about authority, and to say whether a lawful retry is permitted.
+export async function recoverHandoverAbandonment({
+  client, journal, operationId, readAuthorityDigest = null, now,
+}) {
+  const operation = journal.readOperation(operationId);
+  if (operation.attempts.length === 0) {
+    throw new CompilerError('handover abandonment recovery found no durable intent', {
+      phase: 'candidate:handover-abandonment', operation_id: operationId,
+    });
+  }
+  if (operation.open === null) {
+    const last = operation.attempts[operation.attempts.length - 1];
+    return Object.freeze({
+      outcome: 'ALREADY_CLASSIFIED',
+      classification: last.classification.classification,
+      attempt: last.ordinal,
+      mutated: false,
+      retry_permitted: last.classification.classification === PRE_STATE,
+      record: last.classification,
+    });
+  }
+  const attempt = operation.open;
+  const observed = await (readAuthorityDigest ?? (() => readIndependentAuthorityDigest(client)))();
+  // INTENT_PREPARED proves commit was never reached: READY_TO_COMMIT is made durable first, and
+  // commit is called only after that. So there is no prediction to compare against, and any
+  // authority other than the pre-state is somebody else's change, not this attempt's.
+  const predicted = attempt.state === 'READY_TO_COMMIT'
+    ? attempt.ready.predicted_post_authority : null;
+  const classification = classifyObservedAuthority(observed, {
+    authorityPreDigest: attempt.intent.authority_pre_digest,
+    predictedPostAuthority: predicted,
+  });
+  const record = journal.classify(operationId, attempt.ordinal, {
+    classification,
+    classified_at: now,
+    observed_authority_digest: observed,
+    reached_commit: attempt.state === 'READY_TO_COMMIT',
+  });
+  return Object.freeze({
+    outcome: 'CLASSIFIED',
+    classification,
+    attempt: attempt.ordinal,
+    // A committed effect is a mutation this operation caused; anything else is not.
+    mutated: classification === PREDICTED_POST_STATE,
+    // Only a proven no-effect attempt may be retried, and only through this path.
+    retry_permitted: classification === PRE_STATE,
+    record: record.classification,
+  });
+}
+
+// The governed abandonment transition. There is no parameter that widens what it may do: the
+// grant names the authority, the fence, the generation, the recovery record and the exact
+// mutation, and every one of those is re-observed inside the transaction before commit.
+export async function abandonFencedHandover({
+  client,
+  manifest,
+  grantEnvelope,
+  verifyGrant,
+  journal,
+  nativeGraphStore,
+  d1RecoveryRecord,
+  d1RecoveryRecordDigest,
+  implementationIdentity,
+  now,
+  readText = readFileSync,
+  failpoint = async () => {},
+}) {
+  if (!client || typeof client.begin !== 'function' || typeof client.commit !== 'function') {
+    throw new CompilerError('handover abandonment requires a transactional authority client', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  if (typeof verifyGrant !== 'function') {
+    throw new CompilerError('handover abandonment requires the owner grant verifier', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(now || '')) {
+    throw new CompilerError('handover abandonment time is not exact', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  if (!SHA256.test(d1RecoveryRecordDigest || '')) {
+    throw new CompilerError('handover abandonment D1 recovery record digest is not exact', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  if (!SHA256.test(implementationIdentity || '')) {
+    throw new CompilerError('handover abandonment implementation identity is not exact', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+
+  // --- Stage A: authenticate, identify, then observe. Read-only; nothing durable yet. -----
+  //
+  // The grant is authenticated BEFORE anything is observed, because the grant is what identifies
+  // the operation. After a committed success the fence no longer exists, so an operation identity
+  // derived from observation could not be computed at all -- and an exact replay must still be
+  // able to find its own immutable result rather than failing on a precondition.
+  const declared = verifyGrant(grantEnvelope, { now: new Date(now) });
+  const operationId = handoverAbandonmentOperationId({
+    nonce: declared.nonce,
+    authorityPreDigest: declared.authority_pre_digest,
+    fenceContentDigest: declared.fence_content_digest,
+    handoverGenerationDigest: declared.handover_generation_digest,
+    d1RecoveryRecordDigest: declared.d1_recovery_record_digest,
+    permittedEffectDigest: declared.permitted_effect_digest,
+  });
+
+  // An EXACT replay after confirmed success returns the immutable result and mutates nothing.
+  const existing = journal.readOperation(operationId);
+  if (existing.committed !== null) {
+    return Object.freeze({
+      outcome: 'ALREADY_COMMITTED',
+      classification: PREDICTED_POST_STATE,
+      operation_id: operationId,
+      attempt: existing.committed.ordinal,
+      authority_pre_digest: existing.committed.intent.authority_pre_digest,
+      predicted_post_authority: existing.committed.ready.predicted_post_authority,
+      observed_authority_digest: existing.committed.classification.observed_authority_digest,
+      mutated: false,
+      replayed: true,
+    });
+  }
+  // A DIVERGENT use of the same one-shot nonce is refused: the nonce belongs to one operation.
+  if (journal.nonceCommitted(declared.nonce)) {
+    throw new CompilerError('handover abandonment refused: this one-shot nonce already committed a mutation', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  if (declared.d1_recovery_record_digest !== d1RecoveryRecordDigest) {
+    throw new CompilerError('handover abandonment refused: the grant names a different D1 recovery record', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+
+  // The D1 recovery record is EVIDENCE of a recorded recovery, never a source of absence claims:
+  // every absence this transition depends on is re-observed from authority below. That is why a
+  // legacy v1 record is usable here as evidence while remaining unable to release anything -- the
+  // two capabilities are different, and only one of them ever trusted the record's own claims.
+  const recoveryEffect = d1RecoveryRecord?.d1_effect;
+  if (!recoveryEffect || !SHA256.test(recoveryEffect.pre_d1_authority_digest || '')
+      || !SHA256.test(recoveryEffect.observed_post_d1_authority_digest || '')) {
+    throw new CompilerError('handover abandonment D1 recovery evidence is not exact', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  if (`sha256:${createHash('sha256').update(
+    Buffer.from(canonicalJson(d1RecoveryRecord), 'utf8')).digest('hex')}` !== d1RecoveryRecordDigest) {
+    throw new CompilerError('handover abandonment D1 recovery record digest does not match its bytes', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  if (recoveryEffect.pre_d1_authority_digest
+      === recoveryEffect.observed_post_d1_authority_digest) {
+    throw new CompilerError('handover abandonment refused: the recovery record observed no D1 authority transition', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  // The record's absence claims are never TRUSTED, but a record that claims a LATER boundary DID
+  // happen contradicts the very condition this transition exists for. Evidence that disagrees
+  // with observation fails closed rather than being quietly ignored, because one of the two is
+  // wrong and neither may be assumed.
+  for (const boundary of ['activation_present', 'd2_authority_present', 'successors_root_present',
+    'terminal_receipt_present']) {
+    if (recoveryEffect[boundary] === true) {
+      throw new CompilerError(
+        `handover abandonment refused: the recovery record records ${boundary}`, {
+          phase: 'candidate:handover-abandonment',
+        });
+    }
+  }
+
+  const observedAuthority = await readIndependentAuthorityDigest(client);
+  if (recoveryEffect.observed_post_d1_authority_digest !== observedAuthority) {
+    throw new CompilerError('handover abandonment refused: the recovered D1 authority is not the current authority', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+
+  let preObservation;
+  {
+    const transaction = await client.begin();
+    try {
+      preObservation = await readHandoverFenceRows(client, transaction);
+    } finally {
+      try { await client.rollback(transaction); } catch { /* observation only */ }
+    }
+  }
+  const generationDigest = fenceField(preObservation, 'handoverGenerationDigest');
+  if (!SHA256.test(generationDigest || '')
+      || generationDigest !== d1RecoveryRecord.superseded_reservation?.handover_generation_digest) {
+    throw new CompilerError('handover abandonment refused: the fence generation is not the recovered generation', {
+      phase: 'candidate:handover-abandonment',
+      fence_generation: generationDigest,
+      recovered_generation: d1RecoveryRecord.superseded_reservation?.handover_generation_digest ?? null,
+    });
+  }
+  const effect = buildHandoverAbandonmentEffect(preObservation, {
+    generationDigest,
+    preD1AuthorityDigest: recoveryEffect.pre_d1_authority_digest,
+    observedPostD1AuthorityDigest: recoveryEffect.observed_post_d1_authority_digest,
+    d1RecoveryRecordDigest,
+    recoveredAt: now,
+  });
+  const permittedEffectDigest = handoverAbandonmentEffectDigest(effect);
+
+  // Now re-verify the SAME grant against everything actually observed. The first verification
+  // proved authenticity; this one proves the grant describes THIS world.
+  const grant = verifyGrant(grantEnvelope, {
+    authorityPreDigest: observedAuthority,
+    fenceContentDigest: preObservation.contentDigest,
+    handoverGenerationDigest: generationDigest,
+    d1RecoveryRecordDigest,
+    permittedEffectDigest,
+    now: new Date(now),
+  });
+  if (grant.envelope_digest !== declared.envelope_digest) {
+    throw new CompilerError('handover abandonment refused: the grant is not the one that identified this operation', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  if (grant.pre_d1_authority_digest !== recoveryEffect.pre_d1_authority_digest
+      || grant.observed_post_d1_authority_digest
+        !== recoveryEffect.observed_post_d1_authority_digest) {
+    throw new CompilerError('handover abandonment refused: the grant does not describe the recovered D1 transition', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  const admitted = grant.repositories.some(
+    (repository) => repository.source_scope_digest === implementationIdentity);
+  if (!admitted) {
+    throw new CompilerError('handover abandonment refused: this implementation identity is not admitted by the grant', {
+      phase: 'candidate:handover-abandonment', implementation_identity: implementationIdentity,
+    });
+  }
+
+  await failpoint('before-intent-prepared');
+  const attempt = journal.beginAttempt({
+    action: HANDOVER_ABANDONMENT_ACTION,
+    authority_pre_digest: observedAuthority,
+    created_at: now,
+    d1_recovery_record_digest: d1RecoveryRecordDigest,
+    fence_content_digest: preObservation.contentDigest,
+    grant_digest: grant.envelope_digest,
+    handover_generation_digest: generationDigest,
+    implementation_identity: implementationIdentity,
+    nonce: grant.nonce,
+    operation_id: operationId,
+    permitted_effect_digest: permittedEffectDigest,
+    schema: HANDOVER_ABANDONMENT_JOURNAL_SCHEMA,
+    state: 'INTENT_PREPARED',
+  });
+  await failpoint('after-intent-prepared');
+
+  // --- Stage B: the authority transaction. ------------------------------------------------
+  let committed = false;
+  let predictedPostAuthority = null;
+  let transaction;
+  try {
+    await failpoint('before-transaction-open');
+    transaction = await client.begin();
+    await failpoint('after-transaction-open');
+
+    // Re-read authority and every precondition INSIDE the transaction. The values observed in
+    // stage A are treated as a proposal, never as fact.
+    const inTransactionBefore = await readTransactionAuthorityInventory(client, transaction);
+    if (inTransactionBefore.digest !== observedAuthority) {
+      throw new CompilerError('handover abandonment refused: authority changed before the transaction opened', {
+        phase: 'candidate:handover-abandonment',
+        expected: observedAuthority, observed: inTransactionBefore.digest,
+      });
+    }
+    await failpoint('after-authority-read');
+
+    const observation = await readHandoverFenceRows(client, transaction);
+    if (observation.contentDigest !== preObservation.contentDigest) {
+      throw new CompilerError('handover abandonment refused: the fence changed before the transaction opened', {
+        phase: 'candidate:handover-abandonment',
+      });
+    }
+    if (fenceField(observation, 'handoverGenerationDigest') !== generationDigest) {
+      throw new CompilerError('handover abandonment refused: the fence generation changed', {
+        phase: 'candidate:handover-abandonment',
+      });
+    }
+    if (fenceField(observation, 'handoverOwnershipState')
+        !== 'urn:usf:v2ownershipstate:handoverpending') {
+      throw new CompilerError('handover abandonment refused: ownership state is not handover-pending', {
+        phase: 'candidate:handover-abandonment',
+      });
+    }
+    if (fenceField(observation, 'handoverCurrentV1PublicationState')
+        !== 'urn:usf:v1publicationstate:fenced') {
+      throw new CompilerError('handover abandonment refused: current V1 publication is not fenced', {
+        phase: 'candidate:handover-abandonment',
+      });
+    }
+    if (fenceField(observation, 'handoverD0AuthorityDigest')
+        !== recoveryEffect.pre_d1_authority_digest) {
+      throw new CompilerError('handover abandonment refused: the fence D0 authority is not the recovered pre-D1 authority', {
+        phase: 'candidate:handover-abandonment',
+      });
+    }
+    await assertAbandonmentPreconditionsInTransaction(client, transaction, {
+      generationDigest, nativeGraphStore,
+    });
+    await failpoint('after-fence-validation');
+
+    // Re-verify the grant against the TRANSACTION-VIEW values, not stage A's.
+    const transactionGrant = verifyGrant(grantEnvelope, {
+      authorityPreDigest: inTransactionBefore.digest,
+      fenceContentDigest: observation.contentDigest,
+      handoverGenerationDigest: generationDigest,
+      d1RecoveryRecordDigest,
+      permittedEffectDigest,
+      now: new Date(now),
+    });
+    if (transactionGrant.envelope_digest !== grant.envelope_digest
+        || transactionGrant.nonce !== grant.nonce) {
+      throw new CompilerError('handover abandonment refused: the grant is not the one the intent recorded', {
+        phase: 'candidate:handover-abandonment',
+      });
+    }
+    await failpoint('after-grant-verification');
+
+    // Stage the exact permitted effect and nothing else.
+    const { stores } = await readCanonicalStores(
+      client, transaction, [...v2ManagedGraphSet(manifest), observation.graph]);
+    stageHandoverAbandonmentEffect(stores, effect);
+    await replaceStores(client, transaction, stores);
+    await failpoint('after-mutation-staging');
+
+    const shapes = shapeConstraints(manifest);
+    const validation = await client.validateInTransactionWithReceipt(transaction, shapes);
+    if (validation?.conforms !== true) {
+      const report = await client.reportInTransaction(transaction, shapes);
+      throw new CompilerError('handover abandonment candidate failed live SHACL validation', {
+        phase: 'candidate:handover-abandonment', report,
+      });
+    }
+    for (const rule of integrityRules(manifest)) {
+      const violations = await client.selectInTransaction(
+        transaction, readText(rule.path, 'utf8'));
+      if (violations.length > 0) {
+        throw new CompilerError('handover abandonment candidate failed semantic integrity validation', {
+          phase: 'candidate:handover-abandonment',
+          integrityRule: rule.file, violations: violations.slice(0, 20),
+        });
+      }
+    }
+    await failpoint('after-shacl-validation');
+
+    // The fence must be gone and the history record present, observed through authority itself.
+    const remaining = await client.selectInTransaction(transaction, `SELECT ?fence WHERE {
+      GRAPH ?g { ?fence a <${V2_NATIVE_HANDOVER_FENCE_CLASS}> }
+    }`);
+    if (!Array.isArray(remaining) || remaining.length !== 0) {
+      throw new CompilerError('handover abandonment did not resolve the fence in transaction view', {
+        phase: 'candidate:handover-abandonment',
+      });
+    }
+    const history = await client.selectInTransaction(transaction, `SELECT ?record WHERE {
+      GRAPH ?g { ?record a <${HANDOVER_ABANDONMENT_RECORD_CLASS}> }
+    }`);
+    if (!Array.isArray(history) || history.length !== 1) {
+      throw new CompilerError('handover abandonment did not install exactly one history record', {
+        phase: 'candidate:handover-abandonment',
+      });
+    }
+
+    const candidate = await readTransactionAuthorityInventory(client, transaction);
+    await failpoint('after-candidate-inventory');
+    predictedPostAuthority = candidate.digest;
+    if (!SHA256.test(predictedPostAuthority)
+        || predictedPostAuthority === inTransactionBefore.digest) {
+      throw new CompilerError('handover abandonment produced no distinct authority transition', {
+        phase: 'candidate:handover-abandonment',
+      });
+    }
+    // The prediction must be internally consistent: recomputing the fold from the same inventory
+    // must reproduce it exactly, and the only graph that may have moved is the fence's.
+    if (semanticAuthorityInventoryDigest(candidate.inventory, candidate.triples)
+        !== predictedPostAuthority) {
+      throw new CompilerError('handover abandonment prediction is not internally consistent', {
+        phase: 'candidate:handover-abandonment',
+      });
+    }
+    const before = new Map(inTransactionBefore.inventory.map((r) => [r.graph, r.sha256]));
+    const after = new Map(candidate.inventory.map((r) => [r.graph, r.sha256]));
+    const moved = [...new Set([...before.keys(), ...after.keys()])]
+      .filter((graph) => before.get(graph) !== after.get(graph));
+    if (moved.length !== 1 || moved[0] !== observation.graph) {
+      throw new CompilerError('handover abandonment moved a graph outside the fence graph', {
+        phase: 'candidate:handover-abandonment', moved,
+      });
+    }
+    await failpoint('after-prediction');
+
+    await failpoint('before-ready-to-commit');
+    journal.markReadyToCommit(operationId, attempt.ordinal, {
+      predicted_post_authority: predictedPostAuthority,
+      transaction_preimage_digest: `sha256:${createHash('sha256').update(canonicalJson({
+        authority_pre_digest: inTransactionBefore.digest,
+        effect,
+        permitted_effect_digest: permittedEffectDigest,
+      }), 'utf8').digest('hex')}`,
+      validated_candidate_inventory_digest: `sha256:${createHash('sha256')
+        .update(canonicalJson(candidate.inventory), 'utf8').digest('hex')}`,
+    });
+    await failpoint('after-ready-to-commit');
+
+    await failpoint('immediately-before-commit');
+    committed = true;
+    await client.commit(transaction);
+  } catch (error) {
+    // Only a transaction that never reached commit may be rolled back. Once commit has been
+    // ATTEMPTED the outcome is a question for read-back, never for another write.
+    if (!committed && transaction !== undefined) {
+      try { await client.rollback(transaction); } catch { /* already gone */ }
+    }
+    throw error;
+  }
+  await failpoint('commit-success-before-readback');
+
+  // --- Stage C: classification only. ------------------------------------------------------
+  //
+  // Nothing below may turn a committed transition into an apparent failure. A failed read-back
+  // leaves the attempt at READY_TO_COMMIT, which is exactly the ambiguous-commit condition the
+  // recovery path exists to classify -- it never triggers a second commit.
+  const observedAfter = await readIndependentAuthorityDigest(client);
+  const classification = classifyObservedAuthority(observedAfter, {
+    authorityPreDigest: observedAuthority,
+    predictedPostAuthority,
+  });
+  let journalError = null;
+  try {
+    journal.classify(operationId, attempt.ordinal, {
+      classification,
+      classified_at: now,
+      observed_authority_digest: observedAfter,
+      reached_commit: true,
+    });
+  } catch (error) {
+    // Local bookkeeping failed AFTER a semantic commit. The commit is not undone by that, and
+    // must not be reported as a failure. Semantic state, not this file, is the authority; the
+    // recovery path reclassifies from read-back if this is ever revisited.
+    journalError = error.message;
+  }
+  return Object.freeze({
+    outcome: 'COMMITTED',
+    classification,
+    operation_id: operationId,
+    attempt: attempt.ordinal,
+    authority_pre_digest: observedAuthority,
+    predicted_post_authority: predictedPostAuthority,
+    observed_authority_digest: observedAfter,
+    mutated: classification === PREDICTED_POST_STATE,
+    replayed: false,
+    journal_error: journalError,
+  });
+}
+
 async function compilePatch({ client, manifest, patch, publicationMode, readText = readFileSync }) {
   let transaction;
   try {
@@ -4088,6 +5256,13 @@ export function createSemanticModelCompilationCommand({
 }
 
 export const semanticModelCompilationCommandInternals = Object.freeze({
+  createHandoverAbandonmentJournal,
+  readHandoverFenceRows,
+  readTransactionAuthorityInventory,
+  stageHandoverAbandonmentEffect,
+  assertAbandonmentPreconditionsInTransaction,
+  HANDOVER_ABANDONMENT_RECORD_CLASS,
+  V2_HANDOVER_FENCE_PREDICATES,
   assertImplementationWorkGrantDelta,
   assertExternalAuthorityDelta,
   createImplementationWorkGrantDeltaPackage,

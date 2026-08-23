@@ -1137,10 +1137,24 @@ test('retirement is idempotent for the same act and refuses a divergent one', as
   );
 });
 
+// A RESOLVED semantic fence: the recovery may release coordination state only when authority
+// itself no longer fences current V1 publication.
+const D1_RESOLVED_FENCE = Object.freeze({
+  authority_digest_at_observation: `sha256:${'9'.repeat(64)}`,
+  current_v1_publication_state: 'urn:usf:v1publicationstate:current',
+  fence_content_digest: `sha256:${'0'.repeat(64)}`,
+  generation_digest: RESERVATION_A.handover_generation_digest,
+  installed: false,
+  ownership_state: 'urn:usf:v2ownershipstate:none',
+  row_cardinality: 0,
+  successor_binding_cardinality: 0,
+  terminal_floor_terminal: false,
+});
 const D1_EFFECT = Object.freeze({
   activation_present: false,
   d1_journal_boundary_present: false,
   d2_authority_present: false,
+  graph_semantic_fence: D1_RESOLVED_FENCE,
   journal_states: Object.freeze(['PLANNED', 'RESERVED']),
   observed_post_d1_authority_digest: `sha256:${'9'.repeat(64)}`,
   pre_d1_authority_digest: RESERVATION_A.d0_authority_digest,
@@ -1192,14 +1206,62 @@ test('D1 recovery refuses anything that is not the exact stranded condition', as
     return lane;
   };
 
-  // No authority transition => this is a zero-effect supersession wearing the wrong name.
+  // No authority transition => this is a zero-effect supersession wearing the wrong name. The
+  // fence observation moves with it, so the refusal proves THIS property and not the
+  // fence-consistency check that would otherwise fire first.
   let lane = await fresh();
   await assert.rejects(
     lane.recoverAfterD1({
       ...D1_EFFECT,
+      graph_semantic_fence: {
+        ...D1_RESOLVED_FENCE,
+        authority_digest_at_observation: RESERVATION_A.d0_authority_digest,
+      },
       observed_post_d1_authority_digest: RESERVATION_A.d0_authority_digest,
     }, RECOVERED_AT),
     /observed no authority transition/u,
+  );
+  assert.notEqual(lane.readReservation(), null, 'a refused recovery must release nothing');
+
+  // A fence observed at a DIFFERENT authority than the one the recovery claims cannot speak for
+  // that authority at all.
+  lane = await fresh();
+  await assert.rejects(
+    lane.recoverAfterD1({
+      ...D1_EFFECT,
+      graph_semantic_fence: {
+        ...D1_RESOLVED_FENCE, authority_digest_at_observation: `sha256:${'4'.repeat(64)}`,
+      },
+    }, RECOVERED_AT),
+    /fence observation authority differs from the observed post-D1 authority/u,
+  );
+  assert.notEqual(lane.readReservation(), null);
+
+  // The incident itself: an UNRESOLVED fence still retiring V1 publication must refuse, however
+  // clean local coordination state looks.
+  for (const [field, value, pattern] of [
+    ['installed', true, /unresolved Graph semantic handover fence is installed/u],
+    ['row_cardinality', 12, /fence row_cardinality is not 0/u],
+    ['successor_binding_cardinality', 2, /fence successor_binding_cardinality is not 0/u],
+    ['terminal_floor_terminal', true, /durable terminal ownership exists/u],
+  ]) {
+    lane = await fresh();
+    await assert.rejects(
+      lane.recoverAfterD1({
+        ...D1_EFFECT, graph_semantic_fence: { ...D1_RESOLVED_FENCE, [field]: value },
+      }, RECOVERED_AT),
+      pattern,
+    );
+    assert.notEqual(lane.readReservation(), null, `${field} refusal must release nothing`);
+    assert.notEqual(lane.readFactoryPrepareBinding(), null);
+  }
+
+  // A v1-shaped effect can no longer be WRITTEN: the fence observation is mandatory.
+  lane = await fresh();
+  const { graph_semantic_fence: _omitted, ...legacyShaped } = D1_EFFECT;
+  await assert.rejects(
+    lane.recoverAfterD1(legacyShaped, RECOVERED_AT),
+    /invalid closed schema/u,
   );
   assert.notEqual(lane.readReservation(), null, 'a refused recovery must release nothing');
   assert.notEqual(lane.readFactoryPrepareBinding(), null);

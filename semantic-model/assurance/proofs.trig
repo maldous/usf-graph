@@ -649,7 +649,7 @@
     "processes/semantic-assurance/semantic-authority-publication.mjs",
     "processes/semantic-assurance/semantic-model-compilation-command.mjs",
     "processes/semantic-assurance/semantic-proof-v2.mjs";
-  usf:publisherImplementationSourceSetDigest "sha256:c55871bd6fe358e9d683265592d7395468157865c0423a16b3fc706da42e801c".
+  usf:publisherImplementationSourceSetDigest "sha256:0addb53c25f6a52e31da7175b55c51244a30ff54591be2946958e114bf6790b7".
 # Exact Factory-side native V2 closure executor identity.  The V2 coordination identity and the
 # 16-field terminal receipt record which Factory executor performed the closure, so that identity
 # is declared and digest bound here and resolved from live authority at publication time.  It is a
@@ -727,7 +727,7 @@
     "processes/semantic-assurance/semantic-proof-v2.mjs",
     "processes/semantic-assurance/semantic-proof-v2.test.mjs";
   usf:admissionProducerImplementationSourceSetDigest
-    "sha256:b8662ed34f3c8567326d0376cb4d940504312742ee18c4e7aeda1d9c8923b1ce".
+    "sha256:e2f41d34c687d3b7fbc88fd735c41744c7e3ac798f713acce58e6b08aa310519".
 <urn:usf:proofobligation:factoryproviderv3implementation> a usf:ProofObligation;
   usf:canonicalName "factoryproviderv3implementation";
   usf:obligationFor <urn:usf:semanticcontract:providerconfigurationplane>;
