@@ -85,6 +85,7 @@ const V2_NATIVE_HANDOVER_FENCE = 'urn:usf:v2nativehandoverfence:current';
 const V2_NATIVE_HANDOVER_FENCE_CLASS = `${USF_ONTOLOGY}V2NativeHandoverFence`;
 const V2_HANDOVER_RESERVATION_SCHEMA = 'usf-v2-native-handover-reservation-v1';
 const V2_HANDOVER_SUPERSESSION_SCHEMA = 'usf-v2-native-handover-supersession-v1';
+const V2_HANDOVER_D1_RECOVERY_SCHEMA = 'usf-v2-native-handover-d1-recovery-v1';
 const V2_HANDOVER_FACTORY_PREPARE_BINDING_SCHEMA =
   'usf-v2-native-handover-factory-prepare-binding-v1';
 const PUBLICATION_LANE_LOCK_SCHEMA = 'usf-semantic-publication-lane-lock-v1';
@@ -156,6 +157,9 @@ function createSemanticPublicationLaneV2(programmeRoot) {
       ? `${supersessionDirectory()}/${generationDigest.slice(7)}.json`
       : `${supersessionDirectory()}/${generationDigest.slice(7)}.${ordinal}.json`
   );
+  const d1RecoveryPath = (generationDigest) => (
+    `${supersessionDirectory()}/${generationDigest.slice(7)}.d1-recovery.json`
+  );
   const supersessionHistory = (generationDigest) => {
     const records = [];
     for (let ordinal = 1; ; ordinal += 1) {
@@ -209,6 +213,69 @@ function createSemanticPublicationLaneV2(programmeRoot) {
     }
     return Object.freeze(value);
   };
+  // A generation whose D1 committed but whose journal never recorded it. Unlike a supersession
+  // this does NOT claim zero effect: it records the real authority transition, and is admitted
+  // only when every LATER boundary is provably absent.
+  const validateD1Recovery = (value) => {
+    exactObjectKeys(value, [
+      'd1_effect', 'recovered_at', 'recovery_reason', 'schema',
+      'superseded_prepare_binding', 'superseded_reservation',
+    ], 'V2 handover D1 recovery');
+    if (value.schema !== V2_HANDOVER_D1_RECOVERY_SCHEMA) {
+      throw new CompilerError('V2 handover D1 recovery schema is invalid', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    if (value.recovery_reason !== 'DEFECTIVE_AFTER_D1') {
+      throw new CompilerError('V2 handover D1 recovery reason must be DEFECTIVE_AFTER_D1', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value.recovered_at || '')) {
+      throw new CompilerError('V2 handover D1 recovery time is not exact', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    validateReservation(value.superseded_reservation);
+    validatePrepareBinding(value.superseded_prepare_binding);
+    const effect = value.d1_effect;
+    exactObjectKeys(effect, [
+      'activation_present', 'd1_journal_boundary_present', 'd2_authority_present',
+      'journal_states', 'observed_post_d1_authority_digest', 'pre_d1_authority_digest',
+      'successors_root_present', 'terminal_receipt_present',
+    ], 'V2 handover D1 recovery effect');
+    for (const field of ['pre_d1_authority_digest', 'observed_post_d1_authority_digest']) {
+      if (!SHA256.test(effect[field] || '')) {
+        throw new CompilerError(`V2 handover D1 recovery ${field} is not exact`, {
+          phase: 'candidate:publication-lane',
+        });
+      }
+    }
+    // The whole point: authority MUST have moved. A recovery that claims no transition is a
+    // supersession wearing the wrong name and belongs on the zero-effect path instead.
+    if (effect.pre_d1_authority_digest === effect.observed_post_d1_authority_digest) {
+      throw new CompilerError('V2 handover D1 recovery observed no authority transition', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    // Every LATER boundary must be absent, or this is not the stranded-at-D1 condition.
+    for (const flag of ['d1_journal_boundary_present', 'd2_authority_present',
+      'successors_root_present', 'terminal_receipt_present', 'activation_present']) {
+      if (effect[flag] !== false) {
+        throw new CompilerError(`V2 handover D1 recovery refused: ${flag}`, {
+          phase: 'candidate:publication-lane',
+        });
+      }
+    }
+    if (!Array.isArray(effect.journal_states)
+        || canonicalJson(effect.journal_states) !== canonicalJson(['PLANNED', 'RESERVED'])) {
+      throw new CompilerError('V2 handover D1 recovery journal is not stranded at RESERVED', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    return Object.freeze(value);
+  };
+
   const validateSupersession = (value) => {
     exactObjectKeys(value, [
       'retired_at', 'retirement_reason', 'schema', 'superseded_reservation', 'zero_effect_proof',
@@ -479,6 +546,79 @@ function createSemanticPublicationLaneV2(programmeRoot) {
           });
         }
         return observed;
+      } finally {
+        release();
+      }
+    },
+    readD1Recovery(generationDigest) {
+      const path = d1RecoveryPath(generationDigest);
+      return existsSync(path) ? validateD1Recovery(readCanonicalFile(path)) : null;
+    },
+    // Recover a generation whose D1 COMMITTED but whose D1 journal boundary did not.
+    //
+    // The ordinary supersession path cannot serve this state, and must not: it requires a
+    // zero-effect proof, and here the D1 authority transition is REAL. It also refuses once a
+    // Factory PREPARE is bound, which is correct -- discarding a committed coordination step
+    // silently would be worse than being stuck.
+    //
+    // So this records the effect rather than denying it. The record is immutable and names the
+    // exact pre-D1 authority, the exact observed post-D1 authority, the reservation, the bound
+    // PREPARE and the journal states, and it is admitted ONLY when every later boundary is
+    // provably absent. Only after the record is durably readable does it unbind the PREPARE and
+    // release the lane.
+    async recoverAfterD1(evidence, recoveredAt) {
+      const release = acquire();
+      try {
+        const reservation = validateReservation(readCanonicalFile(reservationPath()));
+        const prepare = validatePrepareBinding(readCanonicalFile(prepareBindingPath()));
+        if (prepare.handover_generation_digest !== reservation.handover_generation_digest) {
+          throw new CompilerError('bound PREPARE names a different generation', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        const record = validateD1Recovery({
+          schema: V2_HANDOVER_D1_RECOVERY_SCHEMA,
+          recovered_at: recoveredAt,
+          recovery_reason: 'DEFECTIVE_AFTER_D1',
+          superseded_reservation: reservation,
+          superseded_prepare_binding: prepare,
+          d1_effect: evidence,
+        });
+        const path = d1RecoveryPath(reservation.handover_generation_digest);
+        if (existsSync(path)) {
+          const observed = validateD1Recovery(readCanonicalFile(path));
+          if (canonicalJson(observed) !== canonicalJson(record)) {
+            throw new CompilerError('V2 handover D1 recovery fork rejected', {
+              phase: 'candidate:publication-lane',
+            });
+          }
+        } else {
+          mkdirSync(supersessionDirectory(), { recursive: true, mode: 0o700 });
+          publishImmutable(path, Buffer.from(canonicalJson(record), 'utf8'), 0o444);
+        }
+        // Read the durable record back BEFORE releasing anything, so a crash in between leaves
+        // the reservation and PREPARE intact rather than the generation unaccounted for.
+        const persisted = validateD1Recovery(readCanonicalFile(path));
+        if (canonicalJson(persisted.superseded_reservation) !== canonicalJson(reservation)
+            || canonicalJson(persisted.superseded_prepare_binding) !== canonicalJson(prepare)) {
+          throw new CompilerError('V2 handover D1 recovery did not preserve its inputs', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        for (const [target, label] of [
+          [prepareBindingPath(), 'prepare binding'],
+          [reservationPath(), 'reservation'],
+        ]) {
+          unlinkSync(target);
+          const directory = openSync(dirname(target), 'r');
+          try { durabilityBarrierSync(directory); } finally { closeSync(directory); }
+          if (existsSync(target)) {
+            throw new CompilerError(`V2 handover D1 recovery could not release the ${label}`, {
+              phase: 'candidate:publication-lane',
+            });
+          }
+        }
+        return persisted;
       } finally {
         release();
       }
@@ -2847,7 +2987,22 @@ function applyPatchToStores(stores, patch, label) {
 async function prospectiveInventory(stores) {
   const inventory = [];
   for (const [graph, store] of [...stores.entries()].sort(([left], [right]) => left.localeCompare(right))) {
-    const record = await canonicalInventoryGraphDigest(graph, await graphText(store));
+    const content = await graphText(store);
+    // `semanticAuthorityInventoryDigest` folds record.sha256 per graph, and
+    // readSemanticAuthorityWitness populates that field from canonicalGraphDigest while this
+    // predictor populated it from canonicalInventoryGraphDigest. Two different digest functions
+    // for the same field meant the predicted authority digest could NEVER equal the digest a
+    // commit produces -- provably so: the prediction differed even for graphs the patch never
+    // touches. The D1 postcondition was therefore unsatisfiable, and because the commit runs
+    // before the check, every attempt advanced authority irreversibly and then failed.
+    //
+    // Both digests are now derived exactly as the witness derives them, so prediction and
+    // observation are one meaning of the same state rather than two.
+    // The RECORD SHAPE is closed downstream (aggregate-compiler-authority-candidate's exactKeys
+    // rejects any extra key with CANDIDATE_CURRENTNESS_BINDING_INVALID), so only the digest
+    // FUNCTION changes here -- which is the entire defect. dependencySha256 is deliberately not
+    // added: the witness carries it for its own consumers, this prospective record must not.
+    const record = await canonicalGraphDigest(content);
     // Match readSemanticAuthorityWitness exactly: Stardog's graph inventory
     // contains only named graphs with at least one triple.
     if (record.triples > 0) {
@@ -3318,7 +3473,10 @@ export function createSemanticModelCompilationCommand({
         }
         const inventory = [];
         for (const [graph, store] of [...current.stores.entries()].sort(([left], [right]) => left.localeCompare(right))) {
-          const record = await canonicalInventoryGraphDigest(graph, await graphText(store));
+          // Same correction as prospectiveInventory: the inventory's sha256 must be the digest
+          // readSemanticAuthorityWitness reports, or a predicted inventory cannot be compared
+          // against a committed one.
+          const record = await canonicalGraphDigest(await graphText(store));
           inventory.push(Object.freeze({ graph, sha256: `sha256:${record.sha256}`, triples: record.triples }));
         }
         await client.rollback(transaction);
