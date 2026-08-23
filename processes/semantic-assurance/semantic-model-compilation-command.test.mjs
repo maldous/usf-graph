@@ -1137,6 +1137,101 @@ test('retirement is idempotent for the same act and refuses a divergent one', as
   );
 });
 
+const D1_EFFECT = Object.freeze({
+  activation_present: false,
+  d1_journal_boundary_present: false,
+  d2_authority_present: false,
+  journal_states: Object.freeze(['PLANNED', 'RESERVED']),
+  observed_post_d1_authority_digest: `sha256:${'9'.repeat(64)}`,
+  pre_d1_authority_digest: RESERVATION_A.d0_authority_digest,
+  successors_root_present: false,
+  terminal_receipt_present: false,
+});
+const RECOVERED_AT = '2026-08-23T04:00:00Z';
+
+test('a committed-but-unrecorded D1 recovers without pretending it was zero-effect', async () => {
+  // The stranded condition: D1 COMMITTED (authority moved) but the journal never recorded the
+  // boundary, and a Factory PREPARE is bound. The zero-effect supersession path cannot serve
+  // this and must not -- it would deny a real authority transition, and it refuses once a
+  // PREPARE is bound because discarding a committed coordination step silently is worse than
+  // being stuck. Before this capability existed the lane was permanently wedged.
+  const lane = publicationLane();
+  await lane.reserve(RESERVATION_A, async () => {});
+  lane.bindFactoryPrepare(`sha256:${'a'.repeat(64)}`);
+
+  // The zero-effect path is correctly closed in this state.
+  await assert.rejects(
+    lane.supersede(ZERO_EFFECT, RETIRED_AT, 'DEFECTIVE'),
+    /already bound a Factory prepare/u,
+  );
+
+  const record = await lane.recoverAfterD1(D1_EFFECT, RECOVERED_AT);
+  assert.equal(record.recovery_reason, 'DEFECTIVE_AFTER_D1');
+  // The real authority transition is RECORDED, not denied.
+  assert.equal(record.d1_effect.pre_d1_authority_digest, RESERVATION_A.d0_authority_digest);
+  assert.equal(record.d1_effect.observed_post_d1_authority_digest, `sha256:${'9'.repeat(64)}`);
+  // Inputs preserved verbatim.
+  assert.deepEqual(record.superseded_reservation, RESERVATION_A);
+  assert.equal(
+    record.superseded_prepare_binding.factory_prepare_receipt_digest, `sha256:${'a'.repeat(64)}`);
+  // The lane is genuinely available and the PREPARE is unbound.
+  assert.equal(lane.readReservation(), null);
+  assert.equal(lane.readFactoryPrepareBinding(), null);
+  // The record is durable and rereadable.
+  assert.deepEqual(lane.readD1Recovery(RESERVATION_A.handover_generation_digest), record);
+  // A corrected generation may now reserve.
+  await lane.reserve(RESERVATION_B, async () => {});
+  assert.deepEqual(lane.readReservation(), RESERVATION_B);
+});
+
+test('D1 recovery refuses anything that is not the exact stranded condition', async () => {
+  const fresh = async () => {
+    const lane = publicationLane();
+    await lane.reserve(RESERVATION_A, async () => {});
+    lane.bindFactoryPrepare(`sha256:${'a'.repeat(64)}`);
+    return lane;
+  };
+
+  // No authority transition => this is a zero-effect supersession wearing the wrong name.
+  let lane = await fresh();
+  await assert.rejects(
+    lane.recoverAfterD1({
+      ...D1_EFFECT,
+      observed_post_d1_authority_digest: RESERVATION_A.d0_authority_digest,
+    }, RECOVERED_AT),
+    /observed no authority transition/u,
+  );
+  assert.notEqual(lane.readReservation(), null, 'a refused recovery must release nothing');
+  assert.notEqual(lane.readFactoryPrepareBinding(), null);
+
+  // Any LATER boundary present means this is not stranded-at-D1.
+  for (const flag of ['d1_journal_boundary_present', 'd2_authority_present',
+    'successors_root_present', 'terminal_receipt_present', 'activation_present']) {
+    lane = await fresh();
+    await assert.rejects(
+      lane.recoverAfterD1({ ...D1_EFFECT, [flag]: true }, RECOVERED_AT),
+      new RegExp(`D1 recovery refused: ${flag}`, 'u'),
+    );
+    assert.notEqual(lane.readReservation(), null);
+  }
+
+  // A journal beyond RESERVED is not this condition either.
+  lane = await fresh();
+  await assert.rejects(
+    lane.recoverAfterD1({ ...D1_EFFECT, journal_states: ['PLANNED', 'RESERVED', 'D1_COMMITTED'] },
+      RECOVERED_AT),
+    /not stranded at RESERVED/u,
+  );
+
+  // An inexact recovery time is refused.
+  lane = await fresh();
+  await assert.rejects(
+    lane.recoverAfterD1(D1_EFFECT, '2026-08-23T04:00:00'),
+    /recovery time is not exact/u,
+  );
+  assert.notEqual(lane.readReservation(), null);
+});
+
 test('a sequencing retirement leaves the re-reserved generation retirable again', async () => {
   // SEQUENCING deliberately permits the SAME plan to reserve again. When retirement was a single
   // record per generation, that second reservation could never be released: supersede() could
