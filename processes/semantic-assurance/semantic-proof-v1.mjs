@@ -97,6 +97,31 @@ const PAYLOAD_FIELDS = Object.freeze([
   'expires_at', 'fingerprint', 'issued_at', 'nonce', 'principal', 'protocol', 'repository',
   'signing_identity', 'single_use', 'source_scope_digest',
 ]);
+export const HANDOVER_ABANDONMENT_GRANT_CLAIM_TYPE = 'handover_abandonment_grant';
+export const HANDOVER_ABANDONMENT_GRANT_SCHEMA = 'usf-handover-abandonment-grant-v1';
+export const HANDOVER_ABANDONMENT_GRANT_PURPOSE =
+  'V2_NATIVE_HANDOVER abandonment of one uncompletable fenced generation only';
+// The ONLY effect this grant may authorise. It exists so a fenced-but-uncompletable handover has
+// a lawful terminal edge; it is not a publication capability and must never become one.
+export const HANDOVER_ABANDONMENT_GRANT_ALLOWED_ACTIONS = Object.freeze([
+  'abandon-fenced-handover',
+]);
+export const HANDOVER_ABANDONMENT_GRANT_DENIED_EFFECTS = Object.freeze([
+  'activate-v2-terminal-ownership',
+  'commit-arbitrary-authority-patch',
+  'install-v2-native-successor',
+  'install-v2-terminal-receipt',
+  'publish-v1-semantic-authority',
+  'retire-v1-publication',
+]);
+const HANDOVER_ABANDONMENT_GRANT_PAYLOAD_FIELDS = Object.freeze([
+  'algorithm', 'allowed_actions', 'authority_pre_digest', 'claim_type', 'd1_recovery_record_digest',
+  'denied_effects', 'expires_at', 'fence_content_digest', 'fingerprint',
+  'handover_generation_digest', 'issued_at', 'nonce', 'observed_post_d1_authority_digest',
+  'permitted_effect_digest', 'pre_d1_authority_digest', 'principal', 'protocol', 'purpose',
+  'repositories', 'schema_version', 'signing_identity', 'single_use',
+]);
+
 const IMPLEMENTATION_WORK_GRANT_PAYLOAD_FIELDS = Object.freeze([
   'algorithm', 'allowed_actions', 'authority_pre_digest', 'claim_type', 'denied_effects',
   'evidence_set_digest', 'expires_at', 'fingerprint', 'issued_at', 'nonce', 'principal',
@@ -246,6 +271,35 @@ function exactCanonicalStringSet(values, expected, label) {
     throw new Error(`${label} is not the exact canonical set`);
   }
   return Object.freeze([...values]);
+}
+
+// The abandonment grant authorises ONE authority transition performed by ONE implementation, so
+// it carries exactly one repository scope. It deliberately does NOT reuse the implementation-work
+// canonicaliser: that one requires the closed Graph+Factory pair because implementation work
+// spans both repositories, and importing that cardinality here would describe a different grant.
+export function canonicalHandoverAbandonmentRepositoryScopes(scopes) {
+  if (!Array.isArray(scopes) || scopes.length !== 1) {
+    throw new Error('handover abandonment grant requires exactly one repository scope');
+  }
+  const scope = scopes[0];
+  exactObject(scope, IMPLEMENTATION_WORK_REPOSITORY_SCOPE_FIELDS,
+    'handover abandonment repository scope');
+  if (scope.repository !== 'maldous/usf-graph') {
+    throw new Error('handover abandonment grant may only scope the Graph authority implementation');
+  }
+  if (!/^[0-9a-f]{40}$/.test(scope.predecessor_commit || '')
+      || !/^[0-9a-f]{40}$/.test(scope.predecessor_tree || '')) {
+    throw new Error('handover abandonment repository predecessor identity is invalid');
+  }
+  const sourcePaths = canonicalSourcePaths(scope.source_paths);
+  if (scope.source_scope_digest !== sourceScopeDigest(sourcePaths)) {
+    throw new Error('handover abandonment repository scope digest does not match its exact paths');
+  }
+  const canonical = Object.freeze([Object.freeze({ ...scope, source_paths: sourcePaths })]);
+  if (canonicalJson(scopes) !== canonicalJson(canonical)) {
+    throw new Error('handover abandonment repository scope is not exactly canonical');
+  }
+  return canonical;
 }
 
 export function canonicalImplementationWorkRepositoryScopes(scopes) {
@@ -493,6 +547,99 @@ export function verifyImplementationWorkGrantEnvelope(envelope, {
   return Object.freeze({
     ...payload,
     candidate_digest: implementationWorkGrantCandidateDigest(payload),
+    envelope_digest: envelopeDigest(envelope),
+    repositories: canonicalRepositories,
+  });
+}
+
+// Verify a one-shot owner-signed grant to abandon ONE fenced, uncompletable handover.
+//
+// Rooted in the same live trust anchor as every other owner-signed envelope: same protocol,
+// principal, signing identity, fingerprint and algorithm, same detached-signature verifier. It
+// adds no new trust root and can authorise nothing else, because the payload binds the exact
+// authority, the exact fence contents, the exact generation, the exact recovery evidence and the
+// exact permitted effect. Substituting any of those invalidates the signature.
+export function verifyHandoverAbandonmentGrantEnvelope(envelope, {
+  trustAnchor = readTrustAnchor(),
+  publicKeyPath = DEFAULT_PUBLIC_KEY,
+  verifyDetached = defaultDetachedVerifier,
+  authorityPreDigest,
+  fenceContentDigest,
+  handoverGenerationDigest,
+  d1RecoveryRecordDigest,
+  permittedEffectDigest,
+  now = new Date(),
+  metadataIo,
+} = {}) {
+  exactObject(envelope, ['payload', 'signature'], 'handover abandonment grant envelope');
+  const payload = exactObject(
+    envelope.payload,
+    HANDOVER_ABANDONMENT_GRANT_PAYLOAD_FIELDS,
+    'handover abandonment grant payload',
+  );
+  assertTrustAnchor(trustAnchor);
+  if (payload.claim_type !== HANDOVER_ABANDONMENT_GRANT_CLAIM_TYPE
+      || payload.schema_version !== HANDOVER_ABANDONMENT_GRANT_SCHEMA
+      || payload.protocol !== trustAnchor.protocol
+      || payload.principal !== trustAnchor.principal
+      || payload.signing_identity !== AUTHORITY_SIGNING_IDENTITY
+      || payload.fingerprint !== trustAnchor.fingerprint
+      || payload.algorithm !== trustAnchor.algorithm) {
+    throw new Error('handover abandonment grant is not signed under the anchored Semantic Proof Protocol v1 identity');
+  }
+  if (payload.purpose !== HANDOVER_ABANDONMENT_GRANT_PURPOSE) {
+    throw new Error('handover abandonment grant purpose mismatch');
+  }
+  exactCanonicalStringSet(payload.allowed_actions, HANDOVER_ABANDONMENT_GRANT_ALLOWED_ACTIONS,
+    'handover abandonment grant ALLOW set');
+  exactCanonicalStringSet(payload.denied_effects, HANDOVER_ABANDONMENT_GRANT_DENIED_EFFECTS,
+    'handover abandonment grant DENY set');
+  const canonicalRepositories = canonicalHandoverAbandonmentRepositoryScopes(payload.repositories);
+  for (const repository of canonicalRepositories) {
+    if (!trustAnchor.authorityScopes.some((scope) => scope.repository === repository.repository)) {
+      throw new Error('handover abandonment grant repository is not rooted in the active trust anchor');
+    }
+  }
+  // Each binding below makes the grant unusable for any other authority, fence, generation,
+  // recovery record or mutation.
+  for (const [field, expected, label] of [
+    ['authority_pre_digest', authorityPreDigest, 'authority pre-digest'],
+    ['fence_content_digest', fenceContentDigest, 'fence content digest'],
+    ['handover_generation_digest', handoverGenerationDigest, 'handover generation digest'],
+    ['d1_recovery_record_digest', d1RecoveryRecordDigest, 'D1 recovery record digest'],
+    ['permitted_effect_digest', permittedEffectDigest, 'permitted effect digest'],
+  ]) {
+    exactDigest(payload[field], `handover abandonment grant ${label}`);
+    if (expected !== undefined && payload[field] !== expected) {
+      throw new Error(`handover abandonment grant ${label} mismatch`);
+    }
+  }
+  exactDigest(payload.pre_d1_authority_digest, 'handover abandonment grant pre-D1 authority digest');
+  exactDigest(payload.observed_post_d1_authority_digest,
+    'handover abandonment grant observed post-D1 authority digest');
+  if (payload.pre_d1_authority_digest === payload.observed_post_d1_authority_digest) {
+    throw new Error('handover abandonment grant records no D1 authority transition');
+  }
+  if (payload.observed_post_d1_authority_digest !== payload.authority_pre_digest) {
+    throw new Error('handover abandonment grant observed post-D1 authority is not the current authority');
+  }
+  if (!NONCE.test(payload.nonce) || payload.single_use !== true) {
+    throw new Error('handover abandonment grant must have an exact one-shot nonce');
+  }
+  const issued = timestamp(payload.issued_at, 'issued_at');
+  const expires = timestamp(payload.expires_at, 'expires_at');
+  const observed = now instanceof Date ? now.getTime() : Date.parse(now);
+  if (!Number.isFinite(observed) || issued > observed || expires <= observed || expires <= issued) {
+    throw new Error('handover abandonment grant is not current at trusted time');
+  }
+  const fingerprint = verifyDetached(Buffer.from(`${canonicalJson(payload)}\n`), envelope.signature, {
+    publicKeyPath, metadataIo,
+  });
+  if (fingerprint !== trustAnchor.fingerprint) {
+    throw new Error('handover abandonment grant signature was made by an unknown or integrity-only signer');
+  }
+  return Object.freeze({
+    ...payload,
     envelope_digest: envelopeDigest(envelope),
     repositories: canonicalRepositories,
   });

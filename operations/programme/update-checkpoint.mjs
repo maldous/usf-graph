@@ -243,12 +243,12 @@ const directiveReconciled = goalDigest === reconciledGoalDigest;
 // currency, so a superseded acquisition surfaces as an explicit state instead
 // of either crashing generation or silently passing as current.
 const optionAcquisitionSource = {
-  acquisitionInputDigest: 'sha256:7d5f9939c26e1524a5d38e6eecd46d26a8bb476f69e8ad1859f459150db59a3d',
-  acquisitionSetDigest: 'sha256:be26125ea7f9ba92a44e05f711678c97b0769b75c102f0efb14875eea37623c0',
+  acquisitionInputDigest: 'sha256:888c59419db507dd248c12470a42a4184fbfb1a89f3aeda068a30e7309c2b873',
+  acquisitionSetDigest: 'sha256:775db1bd3c9c2093a1a4dbc757c58fb48078fdc693b1b3c95647cb35e60541e0',
   byteSize: 5526,
-  casPath: '/var/lib/usf-cas/sha256/7d/7d5f9939c26e1524a5d38e6eecd46d26a8bb476f69e8ad1859f459150db59a3d',
+  casPath: '/var/lib/usf-cas/sha256/88/888c59419db507dd248c12470a42a4184fbfb1a89f3aeda068a30e7309c2b873',
   collectedAt: '2026-07-20T02:00:39Z',
-  collectorDigest: 'sha256:315cb068463808d958d621840c715ce66f93a1a14c1777bc1bd498ec06ad1c69',
+  collectorDigest: 'sha256:7bfb8d674b781734ff72081d7c602de07f78451a2b5ac18ad3c3f9a859b91cb1',
   validUntil: '2027-07-15T02:00:39Z',
 };
 const optionAcquisitionBytes = readFileSync(optionAcquisitionSource.casPath);
