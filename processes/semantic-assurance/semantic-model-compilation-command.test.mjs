@@ -9,6 +9,7 @@ import { DataFactory, Parser, Writer } from 'n3';
 import {
   SEMANTIC_MODEL_PATH,
   createSemanticModelCompilationCommand,
+  handoverD1ReconciliationReceiptDigest,
   semanticModelCompilationCommandInternals,
 } from './semantic-model-compilation-command.mjs';
 import {
@@ -52,6 +53,15 @@ function publicationLane() {
   const root = mkdtempSync(join(tmpdir(), 'usf-publication-lane-'));
   repositories.push(root);
   return semanticModelCompilationCommandInternals.createSemanticPublicationLaneV2(root);
+}
+
+function rootedPublicationLane() {
+  const root = mkdtempSync(join(tmpdir(), 'usf-publication-lane-'));
+  repositories.push(root);
+  return {
+    lane: semanticModelCompilationCommandInternals.createSemanticPublicationLaneV2(root),
+    root,
+  };
 }
 
 test.after(() => repositories.forEach((root) => rmSync(root, { recursive: true, force: true })));
@@ -1163,6 +1173,54 @@ const D1_EFFECT = Object.freeze({
 });
 const RECOVERED_AT = '2026-08-23T04:00:00Z';
 
+// The exact current D1 identities from the independently observed Graph and Factory projections.
+// They exercise the generic receipt with the incident bindings without making the implementation
+// depend on one job or recovery order.
+const CURRENT_D1_RESERVATION = Object.freeze({
+  d0_authority_digest: 'sha256:9ac4626f471ef05c3d89ef4ba66c28bbb322867d89275b1dc7200d38d7e48b5a',
+  handover_generation_digest:
+    'sha256:d939e2bafe8e54e99c2e1f4955ba10112b5c1b390f2471040288c748fe6ee603',
+  prospective_publication_plan_digest:
+    'sha256:1f84e021e15e04b8db191349b5e9774a014ecbe33864762378234f41042ae43e',
+  schema: 'usf-v2-native-handover-reservation-v1',
+});
+const CURRENT_D1_AUTHORITY =
+  'sha256:a38ff9c34bb2c6051c6be37d1c2ac71ed56d88c687b432a96b45e92d6fc97b13';
+const CURRENT_D1_EFFECT = Object.freeze({
+  ...D1_EFFECT,
+  graph_semantic_fence: Object.freeze({
+    ...D1_RESOLVED_FENCE,
+    authority_digest_at_observation: CURRENT_D1_AUTHORITY,
+    generation_digest: CURRENT_D1_RESERVATION.handover_generation_digest,
+  }),
+  observed_post_d1_authority_digest: CURRENT_D1_AUTHORITY,
+  pre_d1_authority_digest: CURRENT_D1_RESERVATION.d0_authority_digest,
+});
+const CURRENT_FACTORY_RECONCILIATION = Object.freeze({
+  candidate_digest:
+    'sha256:ffd7bb4b699dbdd60abceda4cb8e256552716bbb3ef00ba43186d0ff60184da9',
+  generation_id: CURRENT_D1_RESERVATION.handover_generation_digest,
+  graph_publication_receipt_keys: Object.freeze([]),
+  journal_states: Object.freeze(['PLANNED', 'RESERVED']),
+  plan_digest: CURRENT_D1_RESERVATION.prospective_publication_plan_digest,
+  projection_digest:
+    'sha256:e9c2064b3e3834780aa8bffbddf749d4c1f0bcd6a55d92ff8aba690c7e31919e',
+  terminal_receipt_keys: Object.freeze([]),
+  transaction_id:
+    'sha256:dc0d9482c8a7d0292636dc0ff8250b5c915f5e17d45260c1bc04746a9aa2bb6c',
+});
+const CURRENT_FACTORY_PREPARE =
+  'sha256:6bbcb5153178cb82f28b5c1826200a7d052fbccd75f286989411560ba5c9a559';
+const RECONCILED_AT = '2026-08-25T20:23:57Z';
+
+async function currentD1RecoveredLane(rooted = false) {
+  const context = rooted ? rootedPublicationLane() : { lane: publicationLane() };
+  await context.lane.reserve(CURRENT_D1_RESERVATION, async () => {});
+  context.lane.bindFactoryPrepare(CURRENT_FACTORY_PREPARE);
+  await context.lane.recoverAfterD1(CURRENT_D1_EFFECT, RECOVERED_AT);
+  return context;
+}
+
 test('a committed-but-unrecorded D1 recovers without pretending it was zero-effect', async () => {
   // The stranded condition: D1 COMMITTED (authority moved) but the journal never recorded the
   // boundary, and a Factory PREPARE is bound. The zero-effect supersession path cannot serve
@@ -1196,6 +1254,120 @@ test('a committed-but-unrecorded D1 recovers without pretending it was zero-effe
   // A corrected generation may now reserve.
   await lane.reserve(RESERVATION_B, async () => {});
   assert.deepEqual(lane.readReservation(), RESERVATION_B);
+});
+
+test('a canonical transaction-bound D1 receipt permanently excludes its generation and plan', async () => {
+  const { lane } = await currentD1RecoveredLane();
+  const receipt = await lane.recordD1Reconciliation(
+    CURRENT_FACTORY_RECONCILIATION, RECONCILED_AT,
+  );
+  assert.deepEqual(receipt, {
+    d1_recovery_record_digest: receipt.d1_recovery_record_digest,
+    disposition: 'DEFECTIVE_AFTER_D1',
+    factory_graph_publication_receipt_keys: [],
+    factory_journal_states: ['PLANNED', 'RESERVED'],
+    factory_projection_digest: CURRENT_FACTORY_RECONCILIATION.projection_digest,
+    factory_terminal_receipt_keys: [],
+    graph_d1_candidate_digest: CURRENT_FACTORY_RECONCILIATION.candidate_digest,
+    handover_generation_digest: CURRENT_FACTORY_RECONCILIATION.generation_id,
+    observed_post_d1_authority_digest: CURRENT_D1_AUTHORITY,
+    pre_d1_authority_digest: CURRENT_D1_RESERVATION.d0_authority_digest,
+    prospective_publication_plan_digest: CURRENT_FACTORY_RECONCILIATION.plan_digest,
+    reconciled_at: RECONCILED_AT,
+    schema: 'usf-v2-native-handover-d1-reconciliation-receipt-v1',
+    selection_state: 'PERMANENTLY_EXCLUDED',
+    transaction_id: CURRENT_FACTORY_RECONCILIATION.transaction_id,
+  });
+  assert.match(receipt.d1_recovery_record_digest, /^sha256:[0-9a-f]{64}$/u);
+  assert.match(handoverD1ReconciliationReceiptDigest(receipt), /^sha256:[0-9a-f]{64}$/u);
+  assert.deepEqual(lane.readD1Reconciliation(receipt.transaction_id), receipt);
+  assert.deepEqual(
+    await lane.recordD1Reconciliation(CURRENT_FACTORY_RECONCILIATION, RECONCILED_AT),
+    receipt,
+    'the exact transaction receipt is idempotent',
+  );
+
+  await assert.rejects(
+    lane.reserve({
+      ...CURRENT_D1_RESERVATION,
+      prospective_publication_plan_digest: `sha256:${'7'.repeat(64)}`,
+    }, async () => {}),
+    /V2_HANDOVER_DEFECTIVE_GENERATION_OR_PLAN_PERMANENTLY_EXCLUDED/u,
+    'the generation is permanently excluded even with another plan',
+  );
+  await assert.rejects(
+    lane.reserve({
+      ...CURRENT_D1_RESERVATION,
+      d0_authority_digest: CURRENT_D1_AUTHORITY,
+      handover_generation_digest: `sha256:${'8'.repeat(64)}`,
+    }, async () => {}),
+    /V2_HANDOVER_DEFECTIVE_GENERATION_OR_PLAN_PERMANENTLY_EXCLUDED/u,
+    'the plan is permanently excluded even under another generation',
+  );
+  const corrected = {
+    ...CURRENT_D1_RESERVATION,
+    d0_authority_digest: CURRENT_D1_AUTHORITY,
+    handover_generation_digest: `sha256:${'8'.repeat(64)}`,
+    prospective_publication_plan_digest: `sha256:${'7'.repeat(64)}`,
+  };
+  await lane.reserve(corrected, async () => {});
+  assert.deepEqual(lane.readReservation(), corrected);
+});
+
+test('D1 reconciliation is fail-closed, immutable, and fences ordinary execution', async () => {
+  const rooted = await currentD1RecoveredLane(true);
+  const receipt = await rooted.lane.recordD1Reconciliation(
+    CURRENT_FACTORY_RECONCILIATION, RECONCILED_AT,
+  );
+
+  await assert.rejects(
+    rooted.lane.recordD1Reconciliation({
+      ...CURRENT_FACTORY_RECONCILIATION,
+      transaction_id: `sha256:${'6'.repeat(64)}`,
+    }, RECONCILED_AT),
+    /subject fork rejected/u,
+    'another transaction cannot reconcile the same defective subject',
+  );
+  for (const [change, pattern] of [
+    [{ candidate_digest: 'not-a-digest' }, /candidate_digest is not exact/u],
+    [{ graph_publication_receipt_keys: ['unexpected'] }, /not stranded at RESERVED/u],
+    [{ journal_states: ['PLANNED', 'RESERVED', 'D1_COMMITTED'] }, /not stranded at RESERVED/u],
+    [{ terminal_receipt_keys: ['unexpected'] }, /not stranded at RESERVED/u],
+  ]) {
+    const context = await currentD1RecoveredLane();
+    await assert.rejects(
+      context.lane.recordD1Reconciliation(
+        { ...CURRENT_FACTORY_RECONCILIATION, ...change }, RECONCILED_AT,
+      ),
+      pattern,
+    );
+  }
+  const inexactTime = await currentD1RecoveredLane();
+  await assert.rejects(
+    inexactTime.lane.recordD1Reconciliation(CURRENT_FACTORY_RECONCILIATION,
+      '2026-08-25T20:23:57.799Z'),
+    /time is not exact/u,
+  );
+  await assert.rejects(
+    publicationLane().recordD1Reconciliation(CURRENT_FACTORY_RECONCILIATION, RECONCILED_AT),
+    /requires its recovery record/u,
+  );
+
+  // Simulate a stale/tampered live pointer that predates the receipt. Selection and the next
+  // execution boundary both fail closed against the durable receipt; neither can advance it.
+  writeFileSync(
+    join(rooted.root, 'v2-native-handover-reservation.json'),
+    stableJson(CURRENT_D1_RESERVATION),
+  );
+  assert.throws(
+    () => rooted.lane.readReservation(),
+    /V2_HANDOVER_DEFECTIVE_GENERATION_OR_PLAN_PERMANENTLY_EXCLUDED/u,
+  );
+  assert.throws(
+    () => rooted.lane.bindFactoryPrepare(`sha256:${'5'.repeat(64)}`),
+    /V2_HANDOVER_DEFECTIVE_GENERATION_OR_PLAN_PERMANENTLY_EXCLUDED/u,
+  );
+  assert.equal(receipt.selection_state, 'PERMANENTLY_EXCLUDED');
 });
 
 test('D1 recovery refuses anything that is not the exact stranded condition', async () => {
