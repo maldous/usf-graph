@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
   closeSync, existsSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync,
+  readdirSync,
   realpathSync, unlinkSync, writeFileSync,
 } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
@@ -92,6 +93,8 @@ const V2_HANDOVER_SUPERSESSION_SCHEMA = 'usf-v2-native-handover-supersession-v1'
 // and only under v2, which demands the complete effect inventory including the semantic fence.
 const V2_HANDOVER_D1_RECOVERY_SCHEMA_LEGACY = 'usf-v2-native-handover-d1-recovery-v1';
 const V2_HANDOVER_D1_RECOVERY_SCHEMA = 'usf-v2-native-handover-d1-recovery-v2';
+const V2_HANDOVER_D1_RECONCILIATION_SCHEMA =
+  'usf-v2-native-handover-d1-reconciliation-receipt-v1';
 const V2_HANDOVER_FACTORY_PREPARE_BINDING_SCHEMA =
   'usf-v2-native-handover-factory-prepare-binding-v1';
 const PUBLICATION_LANE_LOCK_SCHEMA = 'usf-semantic-publication-lane-lock-v1';
@@ -108,6 +111,10 @@ const canonicalJson = (value) => JSON.stringify(stable(value));
 
 function sha256(bytes) {
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+}
+
+export function handoverD1ReconciliationReceiptDigest(receipt) {
+  return sha256(Buffer.from(canonicalJson(receipt), 'utf8'));
 }
 
 // The lane root is always supplied by the caller. Reading process.env here, or
@@ -209,6 +216,9 @@ function createSemanticPublicationLaneV2(programmeRoot) {
   );
   const d1RecoveryPath = (generationDigest) => (
     `${supersessionDirectory()}/${generationDigest.slice(7)}.d1-recovery.json`
+  );
+  const d1ReconciliationPath = (transactionId) => (
+    `${supersessionDirectory()}/${transactionId.slice(7)}.d1-reconciliation.json`
   );
   const supersessionHistory = (generationDigest) => {
     const records = [];
@@ -371,6 +381,86 @@ function createSemanticPublicationLaneV2(programmeRoot) {
       });
     }
     return Object.freeze(value);
+  };
+
+  // A reconciliation receipt records the exact Factory transaction that produced the Graph D1
+  // candidate and binds it to Graph's already-durable D1 recovery record. It is deliberately a
+  // receipt, not a lifecycle transition: recording it changes neither authority nor Factory.
+  const validateD1Reconciliation = (value) => {
+    exactObjectKeys(value, [
+      'd1_recovery_record_digest', 'disposition', 'factory_graph_publication_receipt_keys',
+      'factory_journal_states', 'factory_projection_digest', 'factory_terminal_receipt_keys',
+      'graph_d1_candidate_digest', 'handover_generation_digest',
+      'observed_post_d1_authority_digest', 'pre_d1_authority_digest',
+      'prospective_publication_plan_digest', 'reconciled_at', 'schema', 'selection_state',
+      'transaction_id',
+    ], 'V2 handover D1 reconciliation receipt');
+    if (value.schema !== V2_HANDOVER_D1_RECONCILIATION_SCHEMA) {
+      throw new CompilerError('V2 handover D1 reconciliation receipt schema is invalid', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    for (const field of [
+      'd1_recovery_record_digest', 'factory_projection_digest', 'graph_d1_candidate_digest',
+      'handover_generation_digest', 'observed_post_d1_authority_digest',
+      'pre_d1_authority_digest', 'prospective_publication_plan_digest', 'transaction_id',
+    ]) {
+      if (!SHA256.test(value[field] || '')) {
+        throw new CompilerError(`V2 handover D1 reconciliation ${field} is not exact`, {
+          phase: 'candidate:publication-lane',
+        });
+      }
+    }
+    if (value.disposition !== 'DEFECTIVE_AFTER_D1'
+        || value.selection_state !== 'PERMANENTLY_EXCLUDED') {
+      throw new CompilerError('V2 handover D1 reconciliation disposition is invalid', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value.reconciled_at || '')) {
+      throw new CompilerError('V2 handover D1 reconciliation time is not exact', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    if (canonicalJson(value.factory_journal_states) !== canonicalJson(['PLANNED', 'RESERVED'])
+        || canonicalJson(value.factory_graph_publication_receipt_keys) !== canonicalJson([])
+        || canonicalJson(value.factory_terminal_receipt_keys) !== canonicalJson([])) {
+      throw new CompilerError('V2 handover D1 reconciliation Factory boundary is not stranded', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    if (value.pre_d1_authority_digest === value.observed_post_d1_authority_digest) {
+      throw new CompilerError('V2 handover D1 reconciliation observed no authority transition', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    return Object.freeze(value);
+  };
+
+  const d1Reconciliations = () => {
+    const directory = supersessionDirectory();
+    if (!existsSync(directory)) return [];
+    return readdirSync(directory)
+      .filter((name) => /^[0-9a-f]{64}\.d1-reconciliation\.json$/.test(name))
+      .sort()
+      .map((name) => validateD1Reconciliation(readCanonicalFile(`${directory}/${name}`)));
+  };
+
+  const assertNotD1Reconciled = (reservation) => {
+    const receipt = d1Reconciliations().find((candidate) => (
+      candidate.handover_generation_digest === reservation.handover_generation_digest
+      || candidate.prospective_publication_plan_digest
+        === reservation.prospective_publication_plan_digest
+    ));
+    if (receipt !== undefined) {
+      throw new CompilerError(
+        'V2_HANDOVER_DEFECTIVE_GENERATION_OR_PLAN_PERMANENTLY_EXCLUDED', {
+          phase: 'candidate:publication-lane',
+          reconciliation_receipt_digest: handoverD1ReconciliationReceiptDigest(receipt),
+          transaction_id: receipt.transaction_id,
+        },
+      );
+    }
   };
 
   const validateSupersession = (value) => {
@@ -551,7 +641,10 @@ function createSemanticPublicationLaneV2(programmeRoot) {
     },
     readReservation() {
       const value = readReservation();
-      return value === null ? null : validateReservation(value);
+      if (value === null) return null;
+      const reservation = validateReservation(value);
+      assertNotD1Reconciled(reservation);
+      return reservation;
     },
     readFactoryPrepareBinding() {
       const path = prepareBindingPath();
@@ -562,6 +655,10 @@ function createSemanticPublicationLaneV2(programmeRoot) {
       const release = acquire();
       try {
         const path = reservationPath();
+        // A reconciliation receipt is a permanent selection fence for BOTH identities. Checking
+        // the plan as well as the generation prevents the same defective transaction from being
+        // reintroduced under a freshly-derived generation digest.
+        assertNotD1Reconciled(reservation);
         // A retired generation can never come back. Without this, superseding a reservation and
         // then re-reserving the same generation would resurrect a plan that was proven unusable.
         const history = supersessionHistory(reservation.handover_generation_digest);
@@ -613,6 +710,107 @@ function createSemanticPublicationLaneV2(programmeRoot) {
     readD1Recovery(generationDigest) {
       const path = d1RecoveryPath(generationDigest);
       return existsSync(path) ? validateD1Recovery(readCanonicalFile(path)) : null;
+    },
+    readD1Reconciliation(transactionId) {
+      if (!SHA256.test(transactionId || '')) {
+        throw new CompilerError('exact D1 reconciliation transaction id is required', {
+          phase: 'candidate:publication-lane',
+        });
+      }
+      const path = d1ReconciliationPath(transactionId);
+      return existsSync(path) ? validateD1Reconciliation(readCanonicalFile(path)) : null;
+    },
+    // Persist the minimum transaction-bound receipt only after Graph's immutable D1 recovery
+    // record exists and every Factory boundary independently says the transaction stopped at
+    // RESERVED. The receipt is idempotent for identical evidence and rejects every fork.
+    async recordD1Reconciliation(factoryEvidence, reconciledAt) {
+      exactObjectKeys(factoryEvidence, [
+        'candidate_digest', 'generation_id', 'graph_publication_receipt_keys',
+        'journal_states', 'plan_digest', 'projection_digest', 'terminal_receipt_keys',
+        'transaction_id',
+      ], 'Factory D1 reconciliation evidence');
+      for (const field of [
+        'candidate_digest', 'generation_id', 'plan_digest', 'projection_digest', 'transaction_id',
+      ]) {
+        if (!SHA256.test(factoryEvidence[field] || '')) {
+          throw new CompilerError(`Factory D1 reconciliation ${field} is not exact`, {
+            phase: 'candidate:publication-lane',
+          });
+        }
+      }
+      if (canonicalJson(factoryEvidence.journal_states) !== canonicalJson(['PLANNED', 'RESERVED'])
+          || canonicalJson(factoryEvidence.graph_publication_receipt_keys) !== canonicalJson([])
+          || canonicalJson(factoryEvidence.terminal_receipt_keys) !== canonicalJson([])) {
+        throw new CompilerError('Factory D1 reconciliation evidence is not stranded at RESERVED', {
+          phase: 'candidate:publication-lane',
+        });
+      }
+      const release = acquire();
+      try {
+        const recoveryPath = d1RecoveryPath(factoryEvidence.generation_id);
+        if (!existsSync(recoveryPath)) {
+          throw new CompilerError('V2 handover D1 reconciliation requires its recovery record', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        const recovery = validateD1Recovery(readCanonicalFile(recoveryPath));
+        const reservation = recovery.superseded_reservation;
+        if (reservation.handover_generation_digest !== factoryEvidence.generation_id
+            || reservation.prospective_publication_plan_digest !== factoryEvidence.plan_digest) {
+          throw new CompilerError('Factory D1 reconciliation differs from the recovered reservation', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        if (canonicalJson(recovery.d1_effect.journal_states)
+            !== canonicalJson(factoryEvidence.journal_states)) {
+          throw new CompilerError('Factory D1 reconciliation journal differs from Graph recovery', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        const receipt = validateD1Reconciliation({
+          d1_recovery_record_digest: sha256(
+            Buffer.from(canonicalJson(recovery), 'utf8'),
+          ),
+          disposition: 'DEFECTIVE_AFTER_D1',
+          factory_graph_publication_receipt_keys: factoryEvidence.graph_publication_receipt_keys,
+          factory_journal_states: factoryEvidence.journal_states,
+          factory_projection_digest: factoryEvidence.projection_digest,
+          factory_terminal_receipt_keys: factoryEvidence.terminal_receipt_keys,
+          graph_d1_candidate_digest: factoryEvidence.candidate_digest,
+          handover_generation_digest: factoryEvidence.generation_id,
+          observed_post_d1_authority_digest:
+            recovery.d1_effect.observed_post_d1_authority_digest,
+          pre_d1_authority_digest: recovery.d1_effect.pre_d1_authority_digest,
+          prospective_publication_plan_digest: factoryEvidence.plan_digest,
+          reconciled_at: reconciledAt,
+          schema: V2_HANDOVER_D1_RECONCILIATION_SCHEMA,
+          selection_state: 'PERMANENTLY_EXCLUDED',
+          transaction_id: factoryEvidence.transaction_id,
+        });
+        const conflicting = d1Reconciliations().find((candidate) => (
+          candidate.handover_generation_digest === receipt.handover_generation_digest
+          || candidate.prospective_publication_plan_digest
+            === receipt.prospective_publication_plan_digest
+        ));
+        if (conflicting !== undefined && canonicalJson(conflicting) !== canonicalJson(receipt)) {
+          throw new CompilerError('V2 handover D1 reconciliation subject fork rejected', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        const path = d1ReconciliationPath(receipt.transaction_id);
+        if (!existsSync(path)) {
+          publishImmutable(path, Buffer.from(canonicalJson(receipt), 'utf8'), 0o444);
+        }
+        const persisted = validateD1Reconciliation(readCanonicalFile(path));
+        if (canonicalJson(persisted) !== canonicalJson(receipt)) {
+          throw new CompilerError('V2 handover D1 reconciliation fork rejected', {
+            phase: 'candidate:publication-lane',
+          });
+        }
+        return persisted;
+      } finally {
+        release();
+      }
     },
     // Recover a generation whose D1 COMMITTED but whose D1 journal boundary did not.
     //
@@ -769,6 +967,7 @@ function createSemanticPublicationLaneV2(programmeRoot) {
             phase: 'candidate:publication-lane',
           });
         }
+        assertNotD1Reconciled(reservation);
         const binding = validatePrepareBinding(Object.freeze({
           schema: V2_HANDOVER_FACTORY_PREPARE_BINDING_SCHEMA,
           factory_prepare_receipt_digest: factoryPrepareReceiptDigest,
