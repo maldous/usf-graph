@@ -79,6 +79,7 @@ const AGGREGATE_EVALUATION_EVIDENCE_IRI =
   'urn:usf:validationevidence:compilersemanticenforcementaggregateevaluation';
 const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
 const USF_ONTOLOGY = 'urn:usf:ontology:';
+const XSD_ANY_URI = 'http://www.w3.org/2001/XMLSchema#anyURI';
 const GRAPH_OWNER_RESOURCES_V2 = Object.freeze({
   assignment: 'urn:usf:ownerassignment:semanticmodelcompilation:matthewaldous',
   verification: 'urn:usf:semanticproofverification:ownerassignment:semanticmodelcompilation:matthewaldous',
@@ -99,6 +100,10 @@ const GRAPH_VALIDATION_RESOURCES_V2 = Object.freeze({
 const GRAPH_OWNED_CONSUMER_IRIS_V2 = Object.freeze({
   owner: 'urn:usf:derivedconsumer:v2:owner-envelope-successor',
   validation: 'urn:usf:derivedconsumer:v2:validation-currentness-binding',
+});
+const GRAPH_NATIVE_SUCCESSOR_BINDING_IRIS_V2 = Object.freeze({
+  owner: 'urn:usf:v2nativehandovergraphbinding:ownerenvelopesuccessor',
+  validation: 'urn:usf:v2nativehandovergraphbinding:validationcurrentnessbinding',
 });
 
 export async function readImplementationWorkGrantAuthorityStateV1(client, grantIri, {
@@ -3538,23 +3543,35 @@ export async function resolveGraphNativeOwnershipV2({
         <${USF_ONTOLOGY}handoverCurrentV1PublicationState> ?v1state;
         <${USF_ONTOLOGY}handoverGraphNativeSuccessorBinding> ?binding .
       ?binding a <${USF_ONTOLOGY}V2NativeGraphSuccessorBinding>;
-        <${USF_ONTOLOGY}handoverGraphNativeConsumer> ?consumer;
+        <${USF_ONTOLOGY}handoverGraphNativeConsumerIri> ?consumer;
         <${USF_ONTOLOGY}handoverStorageOwner> ?owner;
         <${USF_ONTOLOGY}handoverGenerationDigest> ?generation .
+      FILTER(isLiteral(?consumer) && DATATYPE(?consumer) = <${XSD_ANY_URI}>)
     }
   } ORDER BY ?consumer`);
-  const expectedConsumers = [
-    'urn:usf:derivedconsumer:v2:owner-envelope-successor',
-    'urn:usf:derivedconsumer:v2:validation-currentness-binding',
+  const expectedBindings = [
+    {
+      binding: GRAPH_NATIVE_SUCCESSOR_BINDING_IRIS_V2.owner,
+      consumer: GRAPH_OWNED_CONSUMER_IRIS_V2.owner,
+    },
+    {
+      binding: GRAPH_NATIVE_SUCCESSOR_BINDING_IRIS_V2.validation,
+      consumer: GRAPH_OWNED_CONSUMER_IRIS_V2.validation,
+    },
   ];
   if (!Array.isArray(rows) || rows.length !== 2
       || rows.some((row) => row.fence?.value !== 'urn:usf:v2nativehandoverfence:current'
         || row.generation?.value !== generationDigest
         || row.state?.value !== 'urn:usf:v2ownershipstate:handoverpending'
         || row.v1state?.value !== 'urn:usf:v1publicationstate:fenced'
+        || row.binding?.type !== 'uri'
+        || row.consumer?.type !== 'literal'
+        || row.consumer?.datatype !== XSD_ANY_URI
         || row.owner?.value !== 'urn:usf:v2nativeowner:graph')
-      || canonicalJson(rows.map((row) => row.consumer?.value))
-        !== canonicalJson(expectedConsumers)) {
+      || canonicalJson(rows.map((row) => ({
+        binding: row.binding?.value,
+        consumer: row.consumer?.value,
+      }))) !== canonicalJson(expectedBindings)) {
     throw new Error('V2_GRAPH_NATIVE_OWNERSHIP_FENCE_MISMATCH');
   }
   const durable = nativeGraphStore.loadGeneration(generationDigest);

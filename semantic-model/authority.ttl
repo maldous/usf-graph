@@ -150,6 +150,13 @@ usf:handoverGraphNativeSuccessorBinding a owl:ObjectProperty;
     usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:handoverGraphNativeConsumer a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:V2NativeGraphSuccessorBinding;
+    owl:deprecated true;
+    rdfs:comment "Superseded historical object representation retained for semantic lineage. Current V2 handover candidates use handoverGraphNativeConsumerIri and must not assert this property.";
+    usf:termUsageState <urn:usf:termusagestate:zeroinstancebydesign>;
+    usf:termUsageRationale "No D2 instance was admitted with this property; it remains declared only to preserve the protected-source and D1 authority vocabulary lineage.".
+usf:handoverGraphNativeConsumerIri a owl:DatatypeProperty, owl:FunctionalProperty;
+    rdfs:domain usf:V2NativeGraphSuccessorBinding;
+    rdfs:range xsd:anyURI;
     usf:termUsageState <urn:usf:termusagestate:usedbysemanticquery>.
 usf:handoverStorageOwner a owl:ObjectProperty, owl:FunctionalProperty;
     rdfs:domain usf:V2NativeGraphSuccessorBinding;

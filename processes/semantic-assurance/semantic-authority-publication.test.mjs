@@ -31,6 +31,7 @@ import {
   readAdmittedClosureExecutorIdentityV2,
   readAdmittedEvidenceAdmissionProducerIdentityV2,
   readAdmittedPublisherIdentityV2,
+  resolveGraphNativeOwnershipV2,
   runPublication,
 } from './semantic-authority-publication.mjs';
 import {
@@ -84,6 +85,65 @@ function isolatedPublicationLane() {
   const root = mkdtempSync(join(tmpdir(), 'usf-publication-lane-'));
   return semanticModelCompilationCommandInternals.createSemanticPublicationLaneV2(root);
 }
+
+test('V2 native ownership accepts only exact anyURI consumer identifiers', async () => {
+  const generation = `sha256:${'a'.repeat(64)}`;
+  const fence = {
+    fence: { type: 'uri', value: 'urn:usf:v2nativehandoverfence:current' },
+    generation: { type: 'literal', value: generation },
+    state: { type: 'uri', value: 'urn:usf:v2ownershipstate:handoverpending' },
+    v1state: { type: 'uri', value: 'urn:usf:v1publicationstate:fenced' },
+  };
+  const consumers = [
+    'urn:usf:derivedconsumer:v2:owner-envelope-successor',
+    'urn:usf:derivedconsumer:v2:validation-currentness-binding',
+  ];
+  const bindings = [
+    'urn:usf:v2nativehandovergraphbinding:ownerenvelopesuccessor',
+    'urn:usf:v2nativehandovergraphbinding:validationcurrentnessbinding',
+  ];
+  const rows = consumers.map((consumer, index) => ({
+    ...fence,
+    binding: { type: 'uri', value: bindings[index] },
+    consumer: { type: 'literal', value: consumer, datatype: 'http://www.w3.org/2001/XMLSchema#anyURI' },
+    owner: { type: 'uri', value: 'urn:usf:v2nativeowner:graph' },
+  }));
+  const queries = [];
+  const resolver = (consumerRows) => resolveGraphNativeOwnershipV2({
+    client: { select: async (query) => {
+      queries.push(query);
+      return query.includes('?binding ?consumer') ? consumerRows : [fence];
+    } },
+    readAuthorityWitness: async () => ({ digest: `sha256:${'b'.repeat(64)}` }),
+    nativeGraphStore: {
+      read() { return null; },
+      loadGeneration() { return { plan: null, terminal_receipt: null }; },
+    },
+    readRuntimeSourceIdentity: async () => ({ clean: true, commit: 'c'.repeat(40), tree: 'd'.repeat(40) }),
+    trustedTime: async () => '2026-08-27T00:00:00Z',
+  });
+
+  await assert.rejects(resolver(rows), /V2_GRAPH_NATIVE_OWNERSHIP_RECOVERY_REQUIRED/u);
+  assert.match(queries[1], /handoverGraphNativeConsumerIri/u);
+  assert.match(queries[1], /isLiteral\(\?consumer\)/u);
+  assert.match(queries[1], /XMLSchema#anyURI/u);
+
+  const iriRows = rows.map((row) => ({
+    ...row, consumer: { type: 'uri', value: row.consumer.value },
+  }));
+  await assert.rejects(resolver(iriRows), /V2_GRAPH_NATIVE_OWNERSHIP_FENCE_MISMATCH/u);
+  const untypedRows = rows.map((row) => ({
+    ...row, consumer: { type: 'literal', value: row.consumer.value },
+  }));
+  await assert.rejects(resolver(untypedRows), /V2_GRAPH_NATIVE_OWNERSHIP_FENCE_MISMATCH/u);
+  const substitutedBindingRows = rows.map((row, index) => index === 0 ? {
+    ...row,
+    binding: { type: 'uri', value: 'urn:usf:v2nativehandovergraphbinding:substituted' },
+  } : row);
+  await assert.rejects(
+    resolver(substitutedBindingRows), /V2_GRAPH_NATIVE_OWNERSHIP_FENCE_MISMATCH/u,
+  );
+});
 
 test('V2 Graph production shadow exposes reads and rollback while refusing every write surface', async () => {
   const calls = [];
