@@ -1384,12 +1384,22 @@ export async function runPublication({
   });
 }
 
-function canonicalAuthorityInventory(witness) {
+function canonicalNonPublicationDependencyInventory(witness) {
   if (!Array.isArray(witness?.inventory) || witness.inventory.length === 0) {
     throw new Error('authority witness inventory is required for prospective dependency closure');
   }
   const records = witness.inventory.map((record) => {
-    const transportedDigest = record.sha256 || record.digest;
+    // The witness carries two deliberately different graph identities:
+    // sha256 is the content-only digest used by the authority witness, while
+    // dependencySha256 binds the graph name as required by the independent
+    // non-publication dependency inspector. The latter is mandatory here;
+    // substituting the former recreates the incident this boundary prevents.
+    if (typeof record?.dependencySha256 !== 'string') {
+      throw new Error(
+        'authority witness dependencySha256 is required for prospective dependency closure',
+      );
+    }
+    const transportedDigest = record.dependencySha256;
     const sha256 = /^[0-9a-f]{64}$/.test(transportedDigest || '')
       ? `sha256:${transportedDigest}`
       : transportedDigest;
@@ -1409,16 +1419,18 @@ async function stabilizedCandidate({
   input,
   command,
   expectedAuthorityDigest,
-  initialInventory,
+  initialDependencyInventory,
   preservedAuthorityDelta = null,
 }) {
-  const materialize = (inventory) => materializeAggregateCompilerAuthorityCandidate({
+  const materialize = (dependencyInventory) => materializeAggregateCompilerAuthorityCandidate({
     ...input,
-    currentnessBinding: { prospectiveAuthorityInventory: inventory },
+    currentnessBinding: {
+      prospectiveNonPublicationDependencyInventory: dependencyInventory,
+    },
     stage,
   });
-  const compose = async (inventory) => {
-    const generated = materialize(inventory);
+  const compose = async (dependencyInventory) => {
+    const generated = materialize(dependencyInventory);
     const composed = await command.composeCandidate({
       generatedCandidateBytes: generated.bytes,
       expectedAuthorityDigest,
@@ -1430,24 +1442,29 @@ async function stabilizedCandidate({
       candidateDigest: composed.digest,
     });
   };
-  const seed = await compose(initialInventory);
+  const seed = await compose(initialDependencyInventory);
   const firstPreview = await command.previewCandidateInventory({
     candidateBytes: seed.bytes,
     candidateDigest: seed.candidateDigest,
     expectedAuthorityDigest,
   });
-  const candidate = await compose(firstPreview.inventory);
+  const candidate = await compose(firstPreview.dependencyInventory);
   const settledPreview = await command.previewCandidateInventory({
     candidateBytes: candidate.bytes,
     candidateDigest: candidate.candidateDigest,
     expectedAuthorityDigest,
   });
   const firstDigest = aggregateCompilerAuthorityCandidateInternals
-    .nonPublicationDependencySetDigest(firstPreview.inventory);
+    .nonPublicationDependencySetDigest(firstPreview.dependencyInventory);
   const settledDigest = aggregateCompilerAuthorityCandidateInternals
-    .nonPublicationDependencySetDigest(settledPreview.inventory);
+    .nonPublicationDependencySetDigest(settledPreview.dependencyInventory);
   if (firstDigest !== settledDigest) throw new Error(`${stage} prospective non-publication dependency inventory did not stabilize`);
-  return Object.freeze({ candidate, dependencySetDigest: settledDigest, inventory: settledPreview.inventory });
+  return Object.freeze({
+    candidate,
+    dependencyInventory: settledPreview.dependencyInventory,
+    dependencySetDigest: settledDigest,
+    inventory: settledPreview.inventory,
+  });
 }
 
 export async function runAggregateCompilerProductionLifecycle({
@@ -1511,7 +1528,7 @@ export async function runAggregateCompilerProductionLifecycle({
     },
     command,
     expectedAuthorityDigest,
-    initialInventory: canonicalAuthorityInventory(d0),
+    initialDependencyInventory: canonicalNonPublicationDependencyInventory(d0),
   });
   const stage1Claims = await claimProvider(Object.freeze({
     authorityDigest: expectedAuthorityDigest,
@@ -1568,7 +1585,7 @@ export async function runAggregateCompilerProductionLifecycle({
     input: { ownerAuthority, pendingPackage: refreshedPendingPackage, stage2Package },
     command,
     expectedAuthorityDigest: d1.digest,
-    initialInventory: canonicalAuthorityInventory(d1),
+    initialDependencyInventory: canonicalNonPublicationDependencyInventory(d1),
     preservedAuthorityDelta: base.preservedAuthorityDelta,
   });
   const stage2Claims = await claimProvider(Object.freeze({

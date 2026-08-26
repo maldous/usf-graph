@@ -16,35 +16,72 @@ export const SELF_PUBLICATION_EXCLUDED_GRAPHS = Object.freeze([
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const HEX = /^[0-9a-f]{64}$/;
 
-function normalizedInventory(inventory) {
+const stable = (value) => Array.isArray(value)
+  ? value.map(stable)
+  : value && typeof value === 'object'
+    ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])]))
+    : value;
+const canonicalJson = (value) => JSON.stringify(stable(value));
+
+function normalizedExcludedGraphs(excludedGraphs) {
+  if (!Array.isArray(excludedGraphs) || excludedGraphs.length === 0) {
+    throw new Error('excluded authority graphs are required');
+  }
+  const normalized = [...excludedGraphs].sort();
+  if (new Set(normalized).size !== normalized.length
+      || normalized.some((graph) => typeof graph !== 'string' || !graph.startsWith('urn:usf:graph:'))) {
+    throw new Error('invalid excluded authority graph set');
+  }
+  return normalized;
+}
+
+function normalizedInventory(inventory, digestField) {
   if (!Array.isArray(inventory) || inventory.length === 0) throw new Error('authority graph inventory is required');
   const seen = new Set();
   return inventory.map((record) => {
     const graph = record?.graph;
-    const raw = record?.sha256 ?? record?.digest;
-    const sha256 = typeof raw === 'string' && raw.startsWith('sha256:') ? raw.slice(7) : raw;
-    const triples = Number(record?.triples);
+    const raw = record?.[digestField];
+    const sha256 = typeof raw === 'string' && HEX.test(raw) ? `sha256:${raw}` : raw;
+    const triples = record?.triples;
     if (typeof graph !== 'string' || !graph.startsWith('urn:usf:graph:')) throw new Error('invalid authority graph IRI');
     if (seen.has(graph)) throw new Error('duplicate authority graph');
-    if (!HEX.test(sha256 ?? '')) throw new Error('invalid authority graph digest');
+    if (!SHA256.test(sha256 ?? '')) throw new Error('invalid authority graph digest');
     if (!Number.isSafeInteger(triples) || triples < 0) throw new Error('invalid authority graph triple count');
     seen.add(graph);
     return { graph, sha256, triples };
   }).sort((left, right) => left.graph.localeCompare(right.graph));
 }
 
-export function authorityDependencySetDigest(inventory, excludedGraphs = SELF_PUBLICATION_EXCLUDED_GRAPHS) {
-  const excluded = new Set(excludedGraphs);
-  if (excluded.size !== excludedGraphs.length) throw new Error('duplicate excluded authority graph');
-  const records = normalizedInventory(inventory);
-  for (const graph of excluded) {
-    if (!records.some((record) => record.graph === graph)) throw new Error(`excluded authority graph absent: ${graph}`);
-  }
-  const body = records
-    .filter((record) => !excluded.has(record.graph))
-    .map((record) => `${record.graph}=${record.sha256}:${record.triples}`)
-    .join('\n');
-  return `sha256:${createHash('sha256').update(`${AUTHORITY_DEPENDENCY_DIGEST_ALGORITHM}\n${body}`).digest('hex')}`;
+// Canonical algorithm over an already graph-name-bound dependency inventory.
+// This is the single serialization used by candidate construction and every
+// live-currentness consumer. Full authority/content identity remains separate.
+export function nonPublicationDependencySetDigest(
+  inventory,
+  excludedGraphs = SELF_PUBLICATION_EXCLUDED_GRAPHS,
+) {
+  const canonicalExcludedGraphs = normalizedExcludedGraphs(excludedGraphs);
+  const excluded = new Set(canonicalExcludedGraphs);
+  const graphs = normalizedInventory(inventory, 'sha256')
+    // Named graphs with no triples do not exist in the live authority
+    // inventory and therefore cannot contribute an identity record.
+    .filter((record) => record.triples > 0 && !excluded.has(record.graph));
+  return `sha256:${createHash('sha256').update(canonicalJson({
+    algorithm: AUTHORITY_DEPENDENCY_DIGEST_ALGORITHM,
+    excludedGraphs: canonicalExcludedGraphs,
+    graphs,
+  })).digest('hex')}`;
+}
+
+// Live authority witnesses carry both content identity (sha256) and the
+// named-graph dependency identity (dependencySha256). Never reinterpret the
+// former as the latter: absence is an incomplete witness and fails closed.
+export function authorityDependencySetDigest(
+  inventory,
+  excludedGraphs = SELF_PUBLICATION_EXCLUDED_GRAPHS,
+) {
+  const graphBoundInventory = normalizedInventory(inventory, 'dependencySha256')
+    .map(({ graph, sha256, triples }) => ({ graph, sha256, triples }));
+  return nonPublicationDependencySetDigest(graphBoundInventory, excludedGraphs);
 }
 
 function sameExactSet(left, right) {

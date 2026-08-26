@@ -558,6 +558,11 @@ test('compile: validates the exact candidate and rolls back without publication'
   assert.equal(result.commitOutcome.exactCandidateStateVerified, true);
   assert.match(result.commitOutcome.candidateDigest, /^sha256:[0-9a-f]{64}$/);
   assert.ok(result.commitOutcome.candidateGraphs.length > 0);
+  for (const record of result.commitOutcome.candidateGraphs) {
+    assert.match(record.sha256, /^[0-9a-f]{64}$/);
+    assert.match(record.dependencySha256, /^[0-9a-f]{64}$/);
+    if (record.triples > 0) assert.notEqual(record.dependencySha256, record.sha256);
+  }
 });
 
 test('compile: rejects an unknown publication mode before opening a transaction', async () => {

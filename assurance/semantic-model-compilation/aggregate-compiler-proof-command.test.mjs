@@ -31,6 +31,7 @@ import {
 } from './aggregate-compiler-proof.mjs';
 import { canonicalJson as semanticProofCanonicalJson, publicationReceiptDigest } from '../../processes/semantic-assurance/semantic-proof-v1.mjs';
 import { semanticModelCompilationCommandInternals } from '../../processes/semantic-assurance/semantic-model-compilation-command.mjs';
+import { semanticAuthorityInventoryDigest } from '../../processes/semantic-assurance/semantic-authority-gateway.mjs';
 
 const roots = [];
 const D0 = `sha256:${'0'.repeat(64)}`;
@@ -149,6 +150,7 @@ const EXPECTED_REVIEWED_SOURCE_PATHS = Object.freeze([
   'assurance/semantic-model-compilation/realisation-option-evaluation-evidence.mjs',
   'assurance/semantic-model-compilation/realisation-option-evaluation.test.mjs',
   'capabilities/repository-external-artefact-materialisation/generated-command-execution.test.mjs',
+  'capabilities/semantic-model-compilation/authority-binding.mjs',
   'capabilities/semantic-model-compilation/compiler.mjs',
   'capabilities/semantic-model-compilation/programme-authority-binding.test.mjs',
   'operations/programme/update-checkpoint.mjs',
@@ -1381,22 +1383,33 @@ function externalAuthorityLifecycleFixture(commandModule, protocolModule, source
 }
 
 test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROCEED', async () => {
-  const [{ DataFactory, Parser, Store, Writer }, compilerModule, publisherModule, commandModule, protocolModule] = await Promise.all([
+  const [
+    { DataFactory, Parser, Store, Writer },
+    compilerModule,
+    publisherModule,
+    commandModule,
+    protocolModule,
+    materialisationModule,
+    candidateModule,
+  ] = await Promise.all([
     import('n3'),
     import('../../capabilities/semantic-model-compilation/compiler.mjs'),
     import('../../processes/semantic-assurance/semantic-authority-publication.mjs'),
     import('../../processes/semantic-assurance/semantic-model-compilation-command.mjs'),
     import('../../processes/semantic-assurance/semantic-proof-v1.mjs'),
+    import('../../processes/semantic-assurance/repository-materialisation-gateway.mjs'),
+    import('./aggregate-compiler-authority-candidate.mjs'),
   ]);
-  const d0 = `sha256:${'a'.repeat(64)}`;
-  const d1 = `sha256:${'b'.repeat(64)}`;
-  const d2 = `sha256:${'c'.repeat(64)}`;
+  let d0 = null;
+  let d1 = null;
+  let d2 = null;
   const authorityGraph = 'urn:usf:graph:authority';
   const bindingsGraph = 'urn:usf:graph:bindings';
   const capabilitiesGraph = 'urn:usf:graph:capabilities';
   const evidenceGraph = 'urn:usf:graph:evidence';
   const proofsGraph = 'urn:usf:graph:proofs';
   const shapesGraph = 'urn:usf:graph:shapes';
+  const unmanagedGraph = 'urn:usf:graph:externally-managed-live-state';
   const graphs = [authorityGraph, bindingsGraph, capabilitiesGraph, evidenceGraph, proofsGraph, shapesGraph];
   let phase = 0;
   let live = new Map(graphs.map((graph) => [graph, new Store()]));
@@ -1432,6 +1445,13 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
   let transactionIndex = 0;
   const cloneDataset = (dataset) => new Map([...dataset].map(([graph, store]) => [graph, new Store(store.getQuads(null, null, null, null))]));
   const trackedSource = cloneDataset(live);
+  live.set(unmanagedGraph, new Store([
+    DataFactory.quad(
+      DataFactory.namedNode('urn:usf:external-state:retained'),
+      DataFactory.namedNode('urn:usf:ontology:state'),
+      DataFactory.literal('unchanged'),
+    ),
+  ]));
   const serialize = async (store, format = 'Turtle') => new Promise((resolveText, reject) => {
     const writer = new Writer({ format });
     writer.addQuads(store.getQuads(null, null, null, null));
@@ -1441,7 +1461,14 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
     async connectivity() { return 1; },
     async begin() { const id = `tx-${transactionIndex += 1}`; transactions.set(id, cloneDataset(live)); return id; },
     async rollback(id) { transactions.delete(id); },
-    async commit(id) { live = transactions.get(id); transactions.delete(id); phase += 1; },
+    async commit(id) {
+      live = transactions.get(id);
+      transactions.delete(id);
+      phase += 1;
+      const committedDigest = (await readAuthorityWitness()).digest;
+      if (phase === 1) d1 = committedDigest;
+      if (phase === 2) d2 = committedDigest;
+    },
     async constructInTransaction(id, query) {
       const graph = /GRAPH <([^>]+)>/.exec(query)?.[1];
       return serialize(transactions.get(id).get(graph));
@@ -1458,24 +1485,48 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
       return { conforms: true, receiptDigest: `sha256:${'d'.repeat(64)}` };
     },
     async reportInTransaction() { return []; },
-    async selectInTransaction() { return []; },
+    async selectInTransaction(id, query) {
+      if (/SELECT DISTINCT \?g WHERE \{ GRAPH \?g \{ \?s \?p \?o \} \}/.test(query)) {
+        return [...transactions.get(id)]
+          .filter(([, store]) => store.size > 0)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([graph]) => ({ g: DataFactory.namedNode(graph) }));
+      }
+      return [];
+    },
   };
-  const authorityDigest = () => [d0, d1, d2][Math.min(phase, 2)];
+  let observedDistinctDependencyDigest = false;
   const readAuthorityWitness = async () => {
     const inventory = [];
     let triples = 0;
     for (const [graph, store] of [...live].sort(([left], [right]) => left.localeCompare(right))) {
-      const nquads = new Store(store.getQuads(null, null, null, null).map((item) => DataFactory.quad(
-        item.subject, item.predicate, item.object, DataFactory.namedNode(graph),
-      )));
-      const record = await compilerModule.canonicalGraphDigest(await serialize(nquads, 'N-Quads'));
+      const content = await serialize(store, 'N-Quads');
+      const [record, dependencyRecord] = await Promise.all([
+        compilerModule.canonicalGraphDigest(content),
+        compilerModule.canonicalInventoryGraphDigest(graph, content),
+      ]);
       // The live authority gateway transports canonical per-graph RDFC digests
-      // as lowercase hex; the publication lifecycle canonicalises the scheme.
-      inventory.push({ graph, sha256: record.sha256, triples: record.triples });
-      triples += record.triples;
+      // as lowercase hex and separately carries the graph-name-bound digest
+      // used by the non-publication dependency inspector. These are different
+      // identities by design and the production lifecycle must preserve both.
+      if (record.triples > 0) {
+        observedDistinctDependencyDigest ||= record.sha256 !== dependencyRecord.sha256;
+        inventory.push({
+          graph,
+          sha256: record.sha256,
+          dependencySha256: dependencyRecord.sha256,
+          triples: record.triples,
+        });
+        triples += record.triples;
+      }
     }
-    return { digest: authorityDigest(), inventory, triples };
+    return {
+      digest: semanticAuthorityInventoryDigest(inventory, triples),
+      inventory,
+      triples,
+    };
   };
+  d0 = (await readAuthorityWitness()).digest;
   const manifest = {
     authored: [
       { file: 'capabilities.trig', graph: capabilitiesGraph, order: 2 },
@@ -1523,6 +1574,7 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
   });
   const base = fixture();
   let finalPackage;
+  let terminalDependencyObservation = null;
   const refreshedProducerPaths = [
     'src/usf_factory/adaptive_routing.py',
     'src/usf_factory/provider_plane_runtime.py',
@@ -1570,7 +1622,7 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
       finalPackage = await harness(base, [], { authority: d1 }).producer.prepareFinalPackage(input);
       return finalPackage;
     },
-    produceTerminal(input) {
+    async produceTerminal(input) {
       const receipt = finalPackage.compilerValidation.receipt;
       const evidenceDescriptors = [finalPackage.executionReceiptDescriptor, finalPackage.evaluationReceiptDescriptor];
       const rows = evidenceDescriptors.map((descriptor) => ({
@@ -1591,8 +1643,40 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
         validationExecution: binding('urn:usf:validationexecution:compilersemanticenforcementaggregate'),
         validationResult: binding('urn:usf:validationresult:compilersemanticenforcementaggregate'),
       }));
+      const terminalWitness = await readAuthorityWitness();
+      const currentDependency = materialisationModule.materialisationInternals
+        .validationNonPublicationDependencyDigest(terminalWitness.inventory);
+      const dependencyValues = live.get(proofsGraph).getObjects(
+        DataFactory.namedNode(
+          candidateModule.aggregateCompilerAuthorityCandidateInternals
+            .FACTORY_PROVIDER_V3_VALIDATION_BINDING,
+        ),
+        DataFactory.namedNode(
+          'urn:usf:ontology:validationNonPublicationDependencySetDigest',
+        ),
+        null,
+      ).map((term) => term.value);
+      const candidateDependency = dependencyValues.length === 1 ? dependencyValues[0] : null;
+      const dependencyCurrent = candidateDependency === currentDependency;
+      terminalDependencyObservation = Object.freeze({
+        candidateDependency,
+        currentDependency,
+        dependencyCurrent,
+      });
       return harness(base, [], {
         authority: d2,
+        dependentProjection: dependentTerminalProjection(d2, dependencyCurrent ? {} : {
+          actionState: 'BLOCK',
+          actionStateReasons: ['validation-non-publication-dependency-mismatch'],
+          validationActionState: 'BLOCK',
+          validationGaps: ['validation-non-publication-dependency-mismatch'],
+          validationObligations: [{
+            id: 'urn:usf:validationobligation:providerconfigurationplane',
+            recordedSatisfactionCount: 1,
+            satisfactionCurrent: false,
+          }],
+          validationSatisfied: false,
+        }),
         receiptBinding: {
           evaluatedAuthorityDigest: binding(d1), evaluationReceiptDigest: binding(input.stage1Preparation.evaluationReceiptDigest),
           executionReceiptDigest: binding(input.stage1Preparation.executionReceiptDigest),
@@ -1647,7 +1731,7 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
   const ledgerPath = join(base.repositoryPath, '..', 'publication-ledger.json');
   writeFileSync(ledgerPath, '{"nonces":{},"protocol":"semantic-proof-v1"}\n', { mode: 0o600 });
   let nonce = 0;
-  const result = await publisherModule.runAggregateCompilerProductionLifecycle({
+  const lifecycleOptions = {
     expectedAuthorityDigest: d0, externalAuthorityDelta, ownerAssignments, trustAnchor, producer,
     command, readAuthorityWitness,
     trustedTime: async () => '2026-08-01T00:05:00Z',
@@ -1675,8 +1759,39 @@ test('production aggregate adapter executes D0 through D1 and D2 to CURRENT PROC
         },
       }),
     },
-  });
+  };
+  const contentOnlyWitness = await readAuthorityWitness();
+  await assert.rejects(
+    () => publisherModule.runAggregateCompilerProductionLifecycle({
+      ...lifecycleOptions,
+      readAuthorityWitness: async () => ({
+        ...contentOnlyWitness,
+        inventory: contentOnlyWitness.inventory.map((record) => Object.fromEntries(
+          Object.entries(record).filter(([key]) => key !== 'dependencySha256'),
+        )),
+      }),
+    }),
+    /authority witness dependencySha256 is required for prospective dependency closure/,
+  );
+  assert.equal(phase, 0);
+  assert.equal(nonce, 0);
+  const result = await publisherModule.runAggregateCompilerProductionLifecycle(lifecycleOptions);
   assert.equal(result.terminal.current_proof_results, 1);
+  assert.equal(observedDistinctDependencyDigest, true);
+  assert.ok(terminalDependencyObservation);
+  assert.equal(terminalDependencyObservation.dependencyCurrent, true);
+  assert.equal(
+    terminalDependencyObservation.candidateDependency,
+    terminalDependencyObservation.currentDependency,
+  );
+  const terminalWitness = await readAuthorityWitness();
+  const expectedTerminalInventory = terminalWitness.inventory.map(({ graph, sha256, triples }) => ({
+    graph,
+    sha256: `sha256:${sha256}`,
+    triples,
+  }));
+  assert.deepEqual(result.stage2.inventory, expectedTerminalInventory);
+  assert.equal(result.stage2.inventory.some(({ graph }) => graph === unmanagedGraph), true);
   assert.equal(result.externalAuthorityDelta.patchDigest, externalAuthorityDelta.patchDigest);
   assert.equal(result.terminal.proof_currentness, 'CURRENT');
   assert.equal(result.terminal.action_state, 'PROCEED');

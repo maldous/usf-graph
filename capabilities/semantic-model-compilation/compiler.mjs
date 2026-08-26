@@ -484,9 +484,17 @@ const countInTx = async (client, tx, graph) => {
 async function candidateGraphWitness(stores) {
   const graphs = [];
   for (const graph of [...stores.keys()].sort()) {
-    graphs.push({ graph, ...await canonicalGraphDigest(await nquadsFor(
-      stores.get(graph).getQuads(null, null, null, null),
-    )) });
+    const content = await nquadsFor(stores.get(graph).getQuads(null, null, null, null));
+    const [contentDigest, dependencyDigest] = await Promise.all([
+      canonicalGraphDigest(content),
+      canonicalInventoryGraphDigest(graph, content),
+    ]);
+    if (contentDigest.triples !== dependencyDigest.triples) {
+      throw new CompilerError('candidate dependency graph digest changed the graph triple count', {
+        phase: 'authority:inventory',
+      });
+    }
+    graphs.push({ graph, ...contentDigest, dependencySha256: dependencyDigest.sha256 });
   }
   const body = graphs.map(({ graph, sha256, triples }) => `${graph}=${sha256}:${triples}`).join('\n');
   return {

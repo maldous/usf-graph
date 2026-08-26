@@ -644,12 +644,12 @@
 <urn:usf:publisherimplementation:nativev2publisher> a usf:PublisherImplementation;
   usf:canonicalName "nativev2publisher";
   usf:publisherSourcePath "processes/semantic-assurance/semantic-authority-publication.mjs";
-  usf:publisherCommandDigest "sha256:f7d273c3ed046e85bc81fbdfcd07ea893ede424dbd37c07b158dcfea98204dba";
+  usf:publisherCommandDigest "sha256:0c1993900d91ee923773321c328d6228d9696269c561d535649aef90b745efa4";
   usf:publisherImplementationSourcePath
     "processes/semantic-assurance/semantic-authority-publication.mjs",
     "processes/semantic-assurance/semantic-model-compilation-command.mjs",
     "processes/semantic-assurance/semantic-proof-v2.mjs";
-  usf:publisherImplementationSourceSetDigest "sha256:34abebca60de004b5d1eaeb1ec09acb04b903d25f4c5f6d6bd8876e63a5f2446".
+  usf:publisherImplementationSourceSetDigest "sha256:11527c868e1154a3080ad77d1359b3d96aa7fdcc4dfba10f8cc3ae4ad157fc47".
 # Exact Factory-side native V2 closure executor identity.  The V2 coordination identity and the
 # 16-field terminal receipt record which Factory executor performed the closure, so that identity
 # is declared and digest bound here and resolved from live authority at publication time.  It is a
@@ -697,7 +697,7 @@
     "urn:usf:evidenceadmissionpath:compilersemanticenforcementaggregate";
   usf:admissionProducerRepository "maldous/usf-graph";
   usf:admissionProducerSourceScopeDigest
-    "sha256:7d5a49a02c8d8194b42a70d21cb6f96733c5f53be23d78246db0374a1f15ec8e";
+    "sha256:4351326f91de11bc94fc9ad1e7880287a05c88e614e8e174a309663a98385f86";
   usf:admissionProducerImplementationSourcePath
     "assurance/permutation-closure/foundation-domain-closure.test.mjs",
     "assurance/permutation-closure/foundation-gap-remediation.mjs",
@@ -710,6 +710,7 @@
     "assurance/semantic-model-compilation/realisation-option-evaluation-evidence.mjs",
     "assurance/semantic-model-compilation/realisation-option-evaluation.test.mjs",
     "capabilities/repository-external-artefact-materialisation/generated-command-execution.test.mjs",
+    "capabilities/semantic-model-compilation/authority-binding.mjs",
     "capabilities/semantic-model-compilation/compiler.mjs",
     "capabilities/semantic-model-compilation/programme-authority-binding.test.mjs",
     "operations/programme/update-checkpoint.mjs",
@@ -727,7 +728,7 @@
     "processes/semantic-assurance/semantic-proof-v2.mjs",
     "processes/semantic-assurance/semantic-proof-v2.test.mjs";
   usf:admissionProducerImplementationSourceSetDigest
-    "sha256:0320a1162210bfca4ff3f6d9b073bde0de25791eb245d213ae4e47ac198d30fe".
+    "sha256:6be3707cf87405d43ca4fdea3b4d2515db491e569ec1a242d27744f3fbcaaf36".
 <urn:usf:proofobligation:factoryproviderv3implementation> a usf:ProofObligation;
   usf:canonicalName "factoryproviderv3implementation";
   usf:obligationFor <urn:usf:semanticcontract:providerconfigurationplane>;
@@ -797,8 +798,8 @@
 <urn:usf:proofalgorithm:eventhistorycheckpointpruning> a usf:ProofAlgorithm;
   usf:canonicalName "eventhistorycheckpointpruning";
   usf:proofAlgorithmSourcePath "assurance/semantic-model-compilation/aggregate-compiler-proof-command.mjs";
-  usf:proofAlgorithmSourceDigest "sha256:130221d9a8f069b92b4c57cc172b5d7676432d26a89aa346694f907abf11a3a6";
-  usf:currentAlgorithmSourceDigest "sha256:130221d9a8f069b92b4c57cc172b5d7676432d26a89aa346694f907abf11a3a6";
+  usf:proofAlgorithmSourceDigest "sha256:6101dbe908058560b9ba35469e047691e5df9a034b061dd08b08d0564ac7ed74";
+  usf:currentAlgorithmSourceDigest "sha256:6101dbe908058560b9ba35469e047691e5df9a034b061dd08b08d0564ac7ed74";
   usf:currentAlgorithmVersion <urn:usf:proofalgorithmversion:eventhistorycheckpointpruninga0331b2ed51be211cb9eb6dfe92a5b7d6eb7a06dffe7ed2eda54a6fa23065350>;
   usf:currentImplementationSourceSetDigest "sha256:92ad836cb939ca24d90a94940987702268ee5ec16eaa3484cf23151b8585ca60";
   usf:requiresGraphSourceBinding true.

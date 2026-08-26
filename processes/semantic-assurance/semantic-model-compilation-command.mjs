@@ -3754,7 +3754,7 @@ function createHandoverAbandonmentJournal(programmeRoot) {
 // per-graph RDFC-10 canonicalisation, same empty-graph exclusion, same fold. If these two ever
 // disagree the prediction is worthless, so this deliberately reuses the witness's own fold rather
 // than reimplementing it.
-async function readTransactionAuthorityInventory(client, transaction) {
+async function readTransactionAuthorityInventory(client, transaction, additionalGraphs = []) {
   const rows = await client.selectInTransaction(
     transaction, 'SELECT DISTINCT ?g WHERE { GRAPH ?g { ?s ?p ?o } } ORDER BY ?g');
   if (!Array.isArray(rows)) {
@@ -3770,33 +3770,66 @@ async function readTransactionAuthorityInventory(client, transaction) {
     });
   }
   graphs.sort();
-  const inventory = [];
-  for (const graph of graphs) {
-    const content = await client.constructInTransaction(
-      transaction, `CONSTRUCT { ?s ?p ?o } WHERE { GRAPH <${graph}> { ?s ?p ?o } }`);
-    let parsed;
-    try {
-      parsed = new Parser({ format: TURTLE, baseIRI: 'urn:usf:' }).parse(content || '');
-    } catch (error) {
-      throw new CompilerError(
-        `transaction authority graph could not be canonicalised: ${error.message}`, {
-          phase: 'candidate:handover-abandonment', graph,
-        });
-    }
-    const record = await canonicalGraphDigest(await nquadsText(parsed.map(
-      (item) => quad(item.subject, item.predicate, item.object, defaultGraph()))));
-    if (record.triples > 0) {
-      inventory.push(Object.freeze({
-        graph, sha256: `sha256:${record.sha256}`, triples: record.triples,
-      }));
-    }
+  const allowed = [...new Set(additionalGraphs)];
+  if (allowed.some((graph) => typeof graph !== 'string' || graph.length === 0)) {
+    throw new CompilerError('additional transaction authority graph set is invalid', {
+      phase: 'candidate:transaction-inventory',
+    });
   }
-  const triples = inventory.reduce((total, record) => total + record.triples, 0);
+  const { stores } = await readCanonicalStores(client, transaction, [...graphs, ...allowed]);
+  const prospective = await prospectiveInventory(stores);
   return Object.freeze({
-    digest: semanticAuthorityInventoryDigest(inventory, triples),
-    inventory: Object.freeze(inventory),
-    triples,
+    digest: prospective.authorityDigest,
+    inventory: prospective.inventory,
+    observedGraphs: Object.freeze(graphs),
+    stores,
+    triples: prospective.triples,
   });
+}
+
+function canonicalWitnessInventory(witness) {
+  if (!Array.isArray(witness?.inventory)) {
+    throw new CompilerError('opening authority witness has no graph inventory', {
+      phase: 'candidate:transaction-inventory',
+    });
+  }
+  const observed = new Set();
+  const inventory = witness.inventory.map((record) => {
+    const raw = record?.sha256;
+    const sha256Value = /^[0-9a-f]{64}$/.test(raw || '') ? `sha256:${raw}` : raw;
+    if (typeof record?.graph !== 'string' || record.graph.length === 0
+        || observed.has(record.graph) || !SHA256.test(sha256Value || '')
+        || !Number.isSafeInteger(record.triples) || record.triples <= 0) {
+      throw new CompilerError('opening authority witness graph inventory is invalid', {
+        phase: 'candidate:transaction-inventory',
+      });
+    }
+    observed.add(record.graph);
+    return Object.freeze({ graph: record.graph, sha256: sha256Value, triples: record.triples });
+  }).sort((left, right) => left.graph.localeCompare(right.graph));
+  return Object.freeze(inventory);
+}
+
+function assertTransactionSnapshotMatchesWitness(snapshot, witness) {
+  const openingInventory = canonicalWitnessInventory(witness);
+  const openingGraphs = openingInventory.map(({ graph }) => graph);
+  if (canonicalJson(snapshot.observedGraphs) !== canonicalJson(openingGraphs)) {
+    throw new CompilerError('transaction authority graph set differs from the opening witness', {
+      phase: 'candidate:transaction-inventory',
+    });
+  }
+  const openingTriples = openingInventory.reduce((total, record) => total + record.triples, 0);
+  const openingFold = semanticAuthorityInventoryDigest(openingInventory, openingTriples);
+  if (digest(witness) !== openingFold) {
+    throw new CompilerError('opening authority witness digest does not match its graph inventory', {
+      phase: 'candidate:transaction-inventory',
+    });
+  }
+  if (snapshot.digest !== openingFold) {
+    throw new CompilerError('transaction authority state differs from the opening witness', {
+      phase: 'candidate:transaction-inventory',
+    });
+  }
 }
 
 // Every later-boundary absence, re-derived from authority inside the transaction. None of these
@@ -4812,7 +4845,9 @@ export function createSemanticModelCompilationCommand({
 
     async previewCandidateInventory({ candidateBytes, candidateDigest, expectedAuthorityDigest }) {
       if (!SHA256.test(expectedAuthorityDigest || '')) throw new CompilerError('expected authority digest is required', { phase: 'authority:configuration' });
-      if (digest(await readAuthorityWitness(client)) !== expectedAuthorityDigest) {
+      const openingWitness = await readAuthorityWitness(client);
+      const before = digest(openingWitness);
+      if (before !== expectedAuthorityDigest) {
         throw new CompilerError('semantic authority drifted before candidate preview', { phase: 'authority:drift' });
       }
       const manifest = loadManifestFunction(semanticModelDirectory(repositoryRoot));
@@ -4824,7 +4859,8 @@ export function createSemanticModelCompilationCommand({
       let transaction;
       try {
         transaction = await client.begin();
-        const current = await readCanonicalStores(client, transaction, [...graphSet]);
+        const current = await readTransactionAuthorityInventory(client, transaction, graphSet);
+        assertTransactionSnapshotMatchesWitness(current, openingWitness);
         if (patchState(current.stores, patch) !== 'pre') {
           throw new CompilerError('candidate preview does not match the exact live pre-state', { phase: 'candidate:precondition' });
         }
@@ -4839,16 +4875,46 @@ export function createSemanticModelCompilationCommand({
           throw new CompilerError('candidate preview could not construct the exact target state', { phase: 'candidate:postcondition' });
         }
         const inventory = [];
+        const dependencyInventory = [];
         for (const [graph, store] of [...current.stores.entries()].sort(([left], [right]) => left.localeCompare(right))) {
           // Same correction as prospectiveInventory: the inventory's sha256 must be the digest
           // readSemanticAuthorityWitness reports, or a predicted inventory cannot be compared
           // against a committed one.
-          const record = await canonicalGraphDigest(await graphText(store));
-          inventory.push(Object.freeze({ graph, sha256: `sha256:${record.sha256}`, triples: record.triples }));
+          const content = await graphText(store);
+          const [record, dependencyRecord] = await Promise.all([
+            canonicalGraphDigest(content), canonicalInventoryGraphDigest(graph, content),
+          ]);
+          if (record.triples !== dependencyRecord.triples) {
+            throw new CompilerError('candidate preview graph inventories disagree on triple count', {
+              phase: 'authority:inventory', graph,
+            });
+          }
+          // Empty named graphs are not part of the live witness and therefore
+          // cannot contribute to either prospective identity.
+          if (record.triples > 0) {
+            inventory.push(Object.freeze({
+              graph, sha256: `sha256:${record.sha256}`, triples: record.triples,
+            }));
+            dependencyInventory.push(Object.freeze({
+              graph, sha256: `sha256:${dependencyRecord.sha256}`, triples: record.triples,
+            }));
+          }
         }
         await client.rollback(transaction);
         transaction = null;
-        return Object.freeze({ candidateDigest: patch.digest, inventory: Object.freeze(inventory) });
+        const after = digest(await readAuthorityWitness(client));
+        if (after !== before) {
+          throw new CompilerError('candidate preview changed semantic authority', {
+            phase: 'authority:validate-drift',
+            beforeAuthorityDigest: before,
+            afterAuthorityDigest: after,
+          });
+        }
+        return Object.freeze({
+          candidateDigest: patch.digest,
+          dependencyInventory: Object.freeze(dependencyInventory),
+          inventory: Object.freeze(inventory),
+        });
       } finally {
         if (transaction) await client.rollback(transaction);
       }
@@ -4872,7 +4938,8 @@ export function createSemanticModelCompilationCommand({
           phase: 'candidate:configuration',
         });
       }
-      const before = digest(await readAuthorityWitness(client));
+      const openingWitness = await readAuthorityWitness(client);
+      const before = digest(openingWitness);
       if (before !== expectedD0AuthorityDigest) {
         throw new CompilerError('semantic authority drifted before V2 publication shadow', {
           phase: 'authority:drift',
@@ -4897,11 +4964,8 @@ export function createSemanticModelCompilationCommand({
       let transaction;
       try {
         transaction = await client.begin();
-        const current = await readCanonicalStores(
-          client,
-          transaction,
-          managedGraphs(manifest),
-        );
+        const current = await readTransactionAuthorityInventory(client, transaction, allowedGraphs);
+        assertTransactionSnapshotMatchesWitness(current, openingWitness);
         applyPatchToStores(current.stores, c1Patch, 'D1');
         const d1 = await prospectiveInventory(current.stores);
         const dependencyIdentityDigests = prospectiveD1DependencyIdentityDigests(
@@ -5010,7 +5074,8 @@ export function createSemanticModelCompilationCommand({
           phase: 'authority:configuration',
         });
       }
-      const before = digest(await readAuthorityWitness(client));
+      const openingWitness = await readAuthorityWitness(client);
+      const before = digest(openingWitness);
       if (before !== expectedD0AuthorityDigest) {
         throw new CompilerError('semantic authority drifted before publication shadow', {
           phase: 'authority:drift',
@@ -5064,7 +5129,8 @@ export function createSemanticModelCompilationCommand({
       let transaction;
       try {
         transaction = await client.begin();
-        const current = await readCanonicalStores(client, transaction, [...allowedGraphs]);
+        const current = await readTransactionAuthorityInventory(client, transaction, allowedGraphs);
+        assertTransactionSnapshotMatchesWitness(current, openingWitness);
         applyPatchToStores(current.stores, d1Patch, 'D1');
         const d1 = await prospectiveInventory(current.stores);
         // The D1 dependency identity set is live-derived inside this shadow transaction, and it
@@ -5458,6 +5524,7 @@ export const semanticModelCompilationCommandInternals = Object.freeze({
   createHandoverAbandonmentJournal,
   readHandoverFenceRows,
   readTransactionAuthorityInventory,
+  assertTransactionSnapshotMatchesWitness,
   stageHandoverAbandonmentEffect,
   assertAbandonmentPreconditionsInTransaction,
   HANDOVER_ABANDONMENT_RECORD_CLASS,

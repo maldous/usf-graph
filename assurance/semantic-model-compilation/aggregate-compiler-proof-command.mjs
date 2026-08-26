@@ -100,6 +100,7 @@ export const AGGREGATE_REVIEWED_SOURCE_PATHS = Object.freeze([
   'assurance/semantic-model-compilation/realisation-option-evaluation-evidence.mjs',
   'assurance/semantic-model-compilation/realisation-option-evaluation.test.mjs',
   'capabilities/repository-external-artefact-materialisation/generated-command-execution.test.mjs',
+  'capabilities/semantic-model-compilation/authority-binding.mjs',
   'capabilities/semantic-model-compilation/compiler.mjs',
   'capabilities/semantic-model-compilation/programme-authority-binding.test.mjs',
   'operations/programme/update-checkpoint.mjs',
