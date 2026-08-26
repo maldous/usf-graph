@@ -1297,6 +1297,127 @@ const CURRENT_FACTORY_RECONCILIATION = Object.freeze({
 const CURRENT_FACTORY_PREPARE =
   'sha256:6bbcb5153178cb82f28b5c1826200a7d052fbccd75f286989411560ba5c9a559';
 const RECONCILED_AT = '2026-08-25T20:23:57Z';
+const canonicalTestDigest = (value) => `sha256:${createHash('sha256')
+  .update(Buffer.from(stableJson(value), 'utf8')).digest('hex')}`;
+
+function currentJournaledD1Evidence(prepareBinding = null) {
+  const digest = canonicalTestDigest;
+  const releaseSubject = `sha256:${'4'.repeat(64)}`;
+  const coordination = `sha256:${'3'.repeat(64)}`;
+  const grants = [];
+  const dependencies = [`sha256:${'2'.repeat(64)}`];
+  const commitReceipt = {
+    authority_digest: CURRENT_D1_AUTHORITY,
+    candidate_digest: CURRENT_FACTORY_RECONCILIATION.candidate_digest,
+    explicit_authorization_grant_digests: grants,
+    graph_count: 40,
+    prospective_publication_plan_digest: CURRENT_D1_RESERVATION
+      .prospective_publication_plan_digest,
+    protocol: 'semantic-proof-v2',
+    release_subject_digest: releaseSubject,
+    schema: 'usf-graph-d1-commit-receipt-v2',
+    triples: 122_645,
+  };
+  const observationReceipt = {
+    authority_digest: CURRENT_D1_AUTHORITY,
+    dependency_identity_digests: dependencies,
+    explicit_authorization_grant_digests: grants,
+    prospective_publication_plan_digest: CURRENT_D1_RESERVATION
+      .prospective_publication_plan_digest,
+    protocol: 'semantic-proof-v2',
+    release_subject_digest: releaseSubject,
+    schema: 'usf-graph-d1-observation-receipt-v2',
+  };
+  const commitDigest = digest(commitReceipt);
+  const observationDigest = digest(observationReceipt);
+  const reservationReceipt = `sha256:${'1'.repeat(64)}`;
+  const common = [
+    CURRENT_D1_RESERVATION.prospective_publication_plan_digest,
+    `sha256:${'5'.repeat(64)}`,
+    `sha256:${'6'.repeat(64)}`,
+  ].sort();
+  const entries = [];
+  const receiptSets = [
+    common,
+    [...common, reservationReceipt].sort(),
+    [...common, commitDigest].sort(),
+    [...common, observationDigest, ...dependencies].sort(),
+  ];
+  for (const [index, state] of [
+    'PLANNED', 'RESERVED', 'D1_COMMITTED', 'D1_DEPENDENCIES_OBSERVED',
+  ].entries()) {
+    entries.push({
+      coordination_identity_digest: coordination,
+      d0_authority_digest: CURRENT_D1_RESERVATION.d0_authority_digest,
+      d1_authority_digest: index >= 2 ? CURRENT_D1_AUTHORITY : null,
+      d2_authority_digest: null,
+      previous_entry_digest: index === 0 ? null : digest(entries[index - 1]),
+      prospective_publication_plan_digest: CURRENT_D1_RESERVATION
+        .prospective_publication_plan_digest,
+      receipt_digests: receiptSets[index],
+      release_subject_digest: releaseSubject,
+      schema: 'usf-semantic-publication-journal-v2',
+      state,
+      transaction_id: CURRENT_FACTORY_RECONCILIATION.transaction_id,
+      trusted_at: `2026-08-25T20:0${index}:00Z`,
+    });
+  }
+  const journal = {
+    boundary_receipts: {
+      d1_commit: commitDigest,
+      d1_observation: observationDigest,
+      grant_reservation: reservationReceipt,
+    },
+    entries,
+    grant_consumed: false,
+    publication_state: null,
+    schema: 'usf-hermetic-semantic-proof-v2-journal',
+    terminal_receipt: null,
+    terminal_receipt_digest: null,
+  };
+  const factoryProjection = {
+    ...CURRENT_FACTORY_RECONCILIATION,
+    graph_terminal_required: true,
+  };
+  const later = {
+    activation_present: false,
+    d2_authority_present: false,
+    observed_authority_digest: CURRENT_D1_AUTHORITY,
+    successors_root_present: false,
+    terminal_receipt_present: false,
+  };
+  const evidence = {
+    captured_at: '2026-08-25T20:05:00Z',
+    factory_projection: factoryProjection,
+    factory_projection_digest: digest(factoryProjection),
+    graph_d1_commit_receipt: commitReceipt,
+    graph_d1_commit_receipt_digest: commitDigest,
+    graph_d1_observation_receipt: observationReceipt,
+    graph_d1_observation_receipt_digest: observationDigest,
+    graph_journal: journal,
+    graph_journal_digest: digest(journal),
+    handover_generation_digest: CURRENT_D1_RESERVATION.handover_generation_digest,
+    later_boundary_observation: later,
+    later_boundary_observation_digest: digest(later),
+    observed_post_d1_authority_digest: CURRENT_D1_AUTHORITY,
+    pre_d1_authority_digest: CURRENT_D1_RESERVATION.d0_authority_digest,
+    prospective_publication_plan_digest: CURRENT_D1_RESERVATION
+      .prospective_publication_plan_digest,
+    recovery_reason: 'DEFECTIVE_AFTER_D1',
+    schema: 'usf-v2-native-handover-journaled-d1-recovery-evidence-v1',
+    superseded_prepare_binding: prepareBinding ?? {
+      factory_prepare_receipt_digest: CURRENT_FACTORY_PREPARE,
+      handover_generation_digest: CURRENT_D1_RESERVATION.handover_generation_digest,
+      prospective_publication_plan_digest: CURRENT_D1_RESERVATION
+        .prospective_publication_plan_digest,
+      reservation_digest: digest(CURRENT_D1_RESERVATION),
+      schema: 'usf-v2-native-handover-factory-prepare-binding-v1',
+    },
+    superseded_reservation: CURRENT_D1_RESERVATION,
+    transaction_id: CURRENT_FACTORY_RECONCILIATION.transaction_id,
+  };
+  return evidence;
+}
 
 async function currentD1RecoveredLane(rooted = false) {
   const context = rooted ? rootedPublicationLane() : { lane: publicationLane() };
@@ -1397,6 +1518,114 @@ test('a canonical transaction-bound D1 receipt permanently excludes its generati
   };
   await lane.reserve(corrected, async () => {});
   assert.deepEqual(lane.readReservation(), corrected);
+});
+
+test('journaled D1 recovery persists reconciliation before releasing reservation and PREPARE', async () => {
+  const lane = publicationLane();
+  await lane.reserve(CURRENT_D1_RESERVATION, async () => {});
+  const prepare = lane.bindFactoryPrepare(CURRENT_FACTORY_PREPARE);
+  const evidence = currentJournaledD1Evidence(prepare);
+
+  const result = await lane.recoverJournaledAfterD1(evidence, RECONCILED_AT, async () => {});
+  assert.deepEqual(result.recovery_record, evidence);
+  assert.equal(result.reconciliation_receipt.selection_state, 'PERMANENTLY_EXCLUDED');
+  assert.equal(result.reconciliation_receipt.factory_projection_digest,
+    CURRENT_FACTORY_RECONCILIATION.projection_digest);
+  assert.deepEqual(lane.readD1Recovery(CURRENT_D1_RESERVATION.handover_generation_digest), evidence);
+  assert.deepEqual(lane.readD1Reconciliation(CURRENT_FACTORY_RECONCILIATION.transaction_id),
+    result.reconciliation_receipt);
+  assert.deepEqual(await lane.recordD1Reconciliation(
+    CURRENT_FACTORY_RECONCILIATION, RECONCILED_AT), result.reconciliation_receipt,
+    'the existing reconciliation API reads the journaled recovery form idempotently');
+  assert.equal(lane.readReservation(), null);
+  assert.equal(lane.readFactoryPrepareBinding(), null);
+  await assert.rejects(
+    lane.reserve(CURRENT_D1_RESERVATION, async () => {}),
+    /V2_HANDOVER_DEFECTIVE_GENERATION_OR_PLAN_PERMANENTLY_EXCLUDED/u,
+  );
+  assert.deepEqual(await lane.recoverJournaledAfterD1(
+    evidence, RECONCILED_AT, async () => {}), result,
+    'an exact replay is idempotent after both coordination pointers are released');
+});
+
+test('journaled D1 recovery refuses candidate substitution and every claimed later boundary', async () => {
+  const fresh = async () => {
+    const lane = publicationLane();
+    await lane.reserve(CURRENT_D1_RESERVATION, async () => {});
+    const prepare = lane.bindFactoryPrepare(CURRENT_FACTORY_PREPARE);
+    return { lane, evidence: currentJournaledD1Evidence(prepare) };
+  };
+
+  let context = await fresh();
+  const substitutedFactory = {
+    ...context.evidence.factory_projection,
+    candidate_digest: `sha256:${'7'.repeat(64)}`,
+  };
+  await assert.rejects(
+    context.lane.recoverJournaledAfterD1({
+      ...context.evidence,
+      factory_projection: substitutedFactory,
+      factory_projection_digest: canonicalTestDigest(substitutedFactory),
+    }, RECONCILED_AT, async () => {}),
+    /Factory projection is not the exact RESERVED transaction/u,
+  );
+  assert.notEqual(context.lane.readReservation(), null);
+  assert.notEqual(context.lane.readFactoryPrepareBinding(), null);
+
+  for (const boundary of [
+    'activation_present', 'd2_authority_present', 'successors_root_present',
+    'terminal_receipt_present',
+  ]) {
+    context = await fresh();
+    const later = { ...context.evidence.later_boundary_observation, [boundary]: true };
+    await assert.rejects(
+      context.lane.recoverJournaledAfterD1({
+        ...context.evidence,
+        later_boundary_observation: later,
+        later_boundary_observation_digest: canonicalTestDigest(later),
+      }, RECONCILED_AT, async () => {}),
+      /records a later boundary/u,
+    );
+    assert.notEqual(context.lane.readReservation(), null, `${boundary} must release nothing`);
+    assert.notEqual(context.lane.readFactoryPrepareBinding(), null);
+  }
+
+  context = await fresh();
+  const entries = context.evidence.graph_journal.entries.map((entry, index) => index === 3
+    ? { ...entry, d2_authority_digest: `sha256:${'8'.repeat(64)}` } : entry);
+  const journal = { ...context.evidence.graph_journal, entries };
+  await assert.rejects(
+    context.lane.recoverJournaledAfterD1({
+      ...context.evidence,
+      graph_journal: journal,
+      graph_journal_digest: canonicalTestDigest(journal),
+    }, RECONCILED_AT, async () => {}),
+    /publication journal drifted from its exact D1 prefix/u,
+  );
+  assert.notEqual(context.lane.readReservation(), null);
+  assert.notEqual(context.lane.readFactoryPrepareBinding(), null);
+});
+
+test('journaled D1 recovery requires a fresh in-lock state check before persistence', async () => {
+  const lane = publicationLane();
+  await lane.reserve(CURRENT_D1_RESERVATION, async () => {});
+  const prepare = lane.bindFactoryPrepare(CURRENT_FACTORY_PREPARE);
+  const evidence = currentJournaledD1Evidence(prepare);
+
+  await assert.rejects(
+    lane.recoverJournaledAfterD1(evidence, RECONCILED_AT),
+    /requires in-lock current-state validation/u,
+  );
+  await assert.rejects(
+    lane.recoverJournaledAfterD1(evidence, RECONCILED_AT, async () => {
+      throw new Error('D2 appeared during recovery');
+    }),
+    /D2 appeared during recovery/u,
+  );
+  assert.equal(lane.readD1Recovery(CURRENT_D1_RESERVATION.handover_generation_digest), null);
+  assert.equal(lane.readD1Reconciliation(CURRENT_FACTORY_RECONCILIATION.transaction_id), null);
+  assert.deepEqual(lane.readReservation(), CURRENT_D1_RESERVATION);
+  assert.deepEqual(lane.readFactoryPrepareBinding(), prepare);
 });
 
 test('D1 reconciliation is fail-closed, immutable, and fences ordinary execution', async () => {

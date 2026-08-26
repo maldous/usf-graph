@@ -49,6 +49,8 @@ const SHAPES_GRAPH = 'urn:usf:graph:shapes';
 
 const GENERATION = `sha256:${'d9'.repeat(32)}`;
 const PRE_D1 = `sha256:${'9a'.repeat(32)}`;
+const PLAN = `sha256:${'1f'.repeat(32)}`;
+const TRANSACTION = `sha256:${'58'.repeat(32)}`;
 const NOW = '2026-08-23T12:00:00Z';
 const IMPLEMENTATION_PATHS = Object.freeze([
   'processes/semantic-assurance/semantic-model-compilation-command.mjs',
@@ -412,6 +414,137 @@ function recoveryRecord(overrides = {}) {
   return { record, digest };
 }
 
+function journaledD1RecoveryEvidence({ observedPostD1, preD1 = PRE_D1 } = {}) {
+  const digest = (value) => `sha256:${createHash('sha256')
+    .update(Buffer.from(canonicalJson(value), 'utf8')).digest('hex')}`;
+  const releaseSubject = `sha256:${'47'.repeat(32)}`;
+  const coordination = `sha256:${'c0'.repeat(32)}`;
+  const commonReceipts = [
+    PLAN,
+    `sha256:${'cb'.repeat(32)}`,
+    `sha256:${'de'.repeat(32)}`,
+  ].sort();
+  const commitReceipt = {
+    authority_digest: observedPostD1,
+    candidate_digest: `sha256:${'57'.repeat(32)}`,
+    explicit_authorization_grant_digests: [],
+    graph_count: 40,
+    prospective_publication_plan_digest: PLAN,
+    protocol: 'semantic-proof-v2',
+    release_subject_digest: releaseSubject,
+    schema: 'usf-graph-d1-commit-receipt-v2',
+    triples: 122_645,
+  };
+  const observationReceipt = {
+    authority_digest: observedPostD1,
+    dependency_identity_digests: [`sha256:${'d1'.repeat(32)}`],
+    explicit_authorization_grant_digests: [],
+    prospective_publication_plan_digest: PLAN,
+    protocol: 'semantic-proof-v2',
+    release_subject_digest: releaseSubject,
+    schema: 'usf-graph-d1-observation-receipt-v2',
+  };
+  const commitDigest = digest(commitReceipt);
+  const observationDigest = digest(observationReceipt);
+  const reservationDigest = `sha256:${'6b'.repeat(32)}`;
+  const entries = [];
+  for (const [index, state] of [
+    'PLANNED', 'RESERVED', 'D1_COMMITTED', 'D1_DEPENDENCIES_OBSERVED',
+  ].entries()) {
+    const receiptDigests = [...commonReceipts];
+    if (index === 1) receiptDigests.push(reservationDigest);
+    if (index === 2) receiptDigests.push(commitDigest);
+    if (index === 3) receiptDigests.push(
+      observationDigest, ...observationReceipt.dependency_identity_digests,
+    );
+    receiptDigests.sort();
+    entries.push({
+      coordination_identity_digest: coordination,
+      d0_authority_digest: preD1,
+      d1_authority_digest: index >= 2 ? observedPostD1 : null,
+      d2_authority_digest: null,
+      previous_entry_digest: index === 0 ? null : digest(entries[index - 1]),
+      prospective_publication_plan_digest: PLAN,
+      receipt_digests: receiptDigests,
+      release_subject_digest: releaseSubject,
+      schema: 'usf-semantic-publication-journal-v2',
+      state,
+      transaction_id: TRANSACTION,
+      trusted_at: `2026-08-23T11:0${index}:00Z`,
+    });
+  }
+  const graphJournal = {
+    boundary_receipts: {
+      d1_commit: commitDigest,
+      d1_observation: observationDigest,
+      grant_reservation: reservationDigest,
+    },
+    entries,
+    grant_consumed: false,
+    publication_state: null,
+    schema: 'usf-hermetic-semantic-proof-v2-journal',
+    terminal_receipt: null,
+    terminal_receipt_digest: null,
+  };
+  const factoryProjection = {
+    candidate_digest: commitReceipt.candidate_digest,
+    generation_id: GENERATION,
+    graph_publication_receipt_keys: [],
+    graph_terminal_required: true,
+    journal_states: ['PLANNED', 'RESERVED'],
+    plan_digest: PLAN,
+    projection_digest: `sha256:${'e9'.repeat(32)}`,
+    terminal_receipt_keys: [],
+    transaction_id: TRANSACTION,
+  };
+  const laterBoundaryObservation = {
+    activation_present: false,
+    d2_authority_present: false,
+    observed_authority_digest: observedPostD1,
+    successors_root_present: false,
+    terminal_receipt_present: false,
+  };
+  const record = {
+    captured_at: '2026-08-23T11:05:00Z',
+    factory_projection: factoryProjection,
+    factory_projection_digest: digest(factoryProjection),
+    graph_d1_commit_receipt: commitReceipt,
+    graph_d1_commit_receipt_digest: commitDigest,
+    graph_d1_observation_receipt: observationReceipt,
+    graph_d1_observation_receipt_digest: observationDigest,
+    graph_journal: graphJournal,
+    graph_journal_digest: digest(graphJournal),
+    handover_generation_digest: GENERATION,
+    later_boundary_observation: laterBoundaryObservation,
+    later_boundary_observation_digest: digest(laterBoundaryObservation),
+    observed_post_d1_authority_digest: observedPostD1,
+    pre_d1_authority_digest: preD1,
+    prospective_publication_plan_digest: PLAN,
+    recovery_reason: 'DEFECTIVE_AFTER_D1',
+    schema: 'usf-v2-native-handover-journaled-d1-recovery-evidence-v1',
+    superseded_prepare_binding: {
+      factory_prepare_receipt_digest: `sha256:${'6b'.repeat(32)}`,
+      handover_generation_digest: GENERATION,
+      prospective_publication_plan_digest: PLAN,
+      reservation_digest: digest({
+        d0_authority_digest: preD1,
+        handover_generation_digest: GENERATION,
+        prospective_publication_plan_digest: PLAN,
+        schema: 'usf-v2-native-handover-reservation-v1',
+      }),
+      schema: 'usf-v2-native-handover-factory-prepare-binding-v1',
+    },
+    superseded_reservation: {
+      d0_authority_digest: preD1,
+      handover_generation_digest: GENERATION,
+      prospective_publication_plan_digest: PLAN,
+      schema: 'usf-v2-native-handover-reservation-v1',
+    },
+    transaction_id: TRANSACTION,
+  };
+  return { record, digest: digest(record) };
+}
+
 const nativeGraphStore = (overrides = {}) => ({
   readTerminalOwnershipFloor: () => ({ terminal: overrides.terminal ?? false }),
   loadGeneration: () => ({
@@ -442,7 +575,16 @@ async function scenario({
   // A recovery record claiming the SAME authority before and after D1 claims no transition.
   const resolved = recovery.preD1 === 'SAME_AS_OBSERVED'
     ? { ...recovery, preD1: authority } : recovery;
-  const { record, digest } = recoveryRecord({ observedPostD1: authority, ...resolved });
+  const { record, digest } = resolved.journaled
+    ? journaledD1RecoveryEvidence({ observedPostD1: authority, preD1: resolved.preD1 })
+    : recoveryRecord({ observedPostD1: authority, ...resolved });
+  const recoveryEffect = record.d1_effect ?? {
+    ...record.later_boundary_observation,
+    pre_d1_authority_digest: record.pre_d1_authority_digest,
+    observed_post_d1_authority_digest: record.observed_post_d1_authority_digest,
+  };
+  const recoveredGeneration = record.superseded_reservation?.handover_generation_digest
+    ?? record.handover_generation_digest;
 
   // The fence and effect as the transition itself would derive them.
   const fenceRows = (await client.select(
@@ -466,9 +608,9 @@ async function scenario({
   try {
     permittedEffectDigest = handoverAbandonmentEffectDigest(buildHandoverAbandonmentEffect(
       observation, {
-        generationDigest: record.superseded_reservation.handover_generation_digest,
-        preD1AuthorityDigest: record.d1_effect.pre_d1_authority_digest,
-        observedPostD1AuthorityDigest: record.d1_effect.observed_post_d1_authority_digest,
+        generationDigest: recoveredGeneration,
+        preD1AuthorityDigest: recoveryEffect.pre_d1_authority_digest,
+        observedPostD1AuthorityDigest: recoveryEffect.observed_post_d1_authority_digest,
         d1RecoveryRecordDigest: digest,
         recoveredAt: NOW,
       }));
@@ -478,10 +620,10 @@ async function scenario({
     authority_pre_digest: authority,
     d1_recovery_record_digest: digest,
     fence_content_digest: observation.contentDigest,
-    handover_generation_digest: record.superseded_reservation.handover_generation_digest,
-    observed_post_d1_authority_digest: record.d1_effect.observed_post_d1_authority_digest,
+    handover_generation_digest: recoveredGeneration,
+    observed_post_d1_authority_digest: recoveryEffect.observed_post_d1_authority_digest,
     permitted_effect_digest: permittedEffectDigest,
-    pre_d1_authority_digest: record.d1_effect.pre_d1_authority_digest,
+    pre_d1_authority_digest: recoveryEffect.pre_d1_authority_digest,
     nonce,
     ...grant,
   }, { signWith: grant.signWith ?? FINGERPRINT });
@@ -560,6 +702,15 @@ test('abandonment commits exactly the permitted effect and its prediction matche
   assert.equal(operation.committed.ordinal, 0);
   // The one-shot nonce is now permanently spent.
   assert.equal(context.journal.nonceCommitted(operation.attempts[0].intent.nonce), true);
+});
+
+test('abandonment accepts exact journaled D1 evidence without replaying D1', async () => {
+  const context = await scenario({ recovery: { journaled: true } });
+  const result = await context.run();
+  assert.equal(result.outcome, 'COMMITTED');
+  assert.equal(result.classification, 'PREDICTED_POST_STATE');
+  assert.equal(result.mutated, true);
+  assert.equal(context.client.counters.commit, 1);
 });
 
 test('the operation id is derived from every binding, so no two operations can collide', () => {

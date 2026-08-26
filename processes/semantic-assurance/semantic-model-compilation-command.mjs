@@ -93,6 +93,8 @@ const V2_HANDOVER_SUPERSESSION_SCHEMA = 'usf-v2-native-handover-supersession-v1'
 // and only under v2, which demands the complete effect inventory including the semantic fence.
 const V2_HANDOVER_D1_RECOVERY_SCHEMA_LEGACY = 'usf-v2-native-handover-d1-recovery-v1';
 const V2_HANDOVER_D1_RECOVERY_SCHEMA = 'usf-v2-native-handover-d1-recovery-v2';
+const V2_HANDOVER_JOURNALED_D1_RECOVERY_EVIDENCE_SCHEMA =
+  'usf-v2-native-handover-journaled-d1-recovery-evidence-v1';
 const V2_HANDOVER_D1_RECONCILIATION_SCHEMA =
   'usf-v2-native-handover-d1-reconciliation-receipt-v1';
 const V2_HANDOVER_FACTORY_PREPARE_BINDING_SCHEMA =
@@ -277,6 +279,10 @@ function createSemanticPublicationLaneV2(programmeRoot) {
   // this does NOT claim zero effect: it records the real authority transition, and is admitted
   // only when every LATER boundary is provably absent.
   const validateD1Recovery = (value) => {
+    if (value?.schema === V2_HANDOVER_JOURNALED_D1_RECOVERY_EVIDENCE_SCHEMA) {
+      validateJournaledD1RecoveryEvidence(value);
+      return Object.freeze(value);
+    }
     exactObjectKeys(value, [
       'd1_effect', 'recovered_at', 'recovery_reason', 'schema',
       'superseded_prepare_binding', 'superseded_reservation',
@@ -461,6 +467,104 @@ function createSemanticPublicationLaneV2(programmeRoot) {
         },
       );
     }
+  };
+
+  const validateFactoryD1ReconciliationEvidence = (factoryEvidence) => {
+    exactObjectKeys(factoryEvidence, [
+      'candidate_digest', 'generation_id', 'graph_publication_receipt_keys',
+      'journal_states', 'plan_digest', 'projection_digest', 'terminal_receipt_keys',
+      'transaction_id',
+    ], 'Factory D1 reconciliation evidence');
+    for (const field of [
+      'candidate_digest', 'generation_id', 'plan_digest', 'projection_digest', 'transaction_id',
+    ]) {
+      if (!SHA256.test(factoryEvidence[field] || '')) {
+        throw new CompilerError(`Factory D1 reconciliation ${field} is not exact`, {
+          phase: 'candidate:publication-lane',
+        });
+      }
+    }
+    if (canonicalJson(factoryEvidence.journal_states) !== canonicalJson(['PLANNED', 'RESERVED'])
+        || canonicalJson(factoryEvidence.graph_publication_receipt_keys) !== canonicalJson([])
+        || canonicalJson(factoryEvidence.terminal_receipt_keys) !== canonicalJson([])) {
+      throw new CompilerError('Factory D1 reconciliation evidence is not stranded at RESERVED', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    return Object.freeze(factoryEvidence);
+  };
+
+  const persistD1Reconciliation = (recoveryValue, factoryEvidenceValue, reconciledAt) => {
+    const factoryEvidence = validateFactoryD1ReconciliationEvidence(factoryEvidenceValue);
+    const recovery = validateD1Recovery(recoveryValue);
+    const normalized = normalizeHandoverAbandonmentD1Evidence(recovery);
+    const reservation = recovery.superseded_reservation;
+    if (reservation.handover_generation_digest !== factoryEvidence.generation_id
+        || reservation.prospective_publication_plan_digest !== factoryEvidence.plan_digest) {
+      throw new CompilerError('Factory D1 reconciliation differs from the recovered reservation', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    const recoveredFactoryStates = recovery.schema
+        === V2_HANDOVER_JOURNALED_D1_RECOVERY_EVIDENCE_SCHEMA
+      ? recovery.factory_projection.journal_states
+      : recovery.d1_effect.journal_states;
+    if (canonicalJson(recoveredFactoryStates) !== canonicalJson(factoryEvidence.journal_states)) {
+      throw new CompilerError('Factory D1 reconciliation journal differs from Graph recovery', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    if (recovery.schema === V2_HANDOVER_JOURNALED_D1_RECOVERY_EVIDENCE_SCHEMA) {
+      const { graph_terminal_required: _required, ...recordedFactory } = recovery.factory_projection;
+      if (canonicalJson(recordedFactory) !== canonicalJson(factoryEvidence)
+          || recovery.graph_d1_commit_receipt.candidate_digest
+            !== factoryEvidence.candidate_digest) {
+        throw new CompilerError(
+          'Factory D1 reconciliation differs from the journaled D1 Factory projection', {
+            phase: 'candidate:publication-lane',
+          },
+        );
+      }
+    }
+    const receipt = validateD1Reconciliation({
+      d1_recovery_record_digest: canonicalObjectDigest(recovery),
+      disposition: 'DEFECTIVE_AFTER_D1',
+      factory_graph_publication_receipt_keys: factoryEvidence.graph_publication_receipt_keys,
+      factory_journal_states: factoryEvidence.journal_states,
+      factory_projection_digest: factoryEvidence.projection_digest,
+      factory_terminal_receipt_keys: factoryEvidence.terminal_receipt_keys,
+      graph_d1_candidate_digest: factoryEvidence.candidate_digest,
+      handover_generation_digest: factoryEvidence.generation_id,
+      observed_post_d1_authority_digest:
+        normalized.recoveryEffect.observed_post_d1_authority_digest,
+      pre_d1_authority_digest: normalized.recoveryEffect.pre_d1_authority_digest,
+      prospective_publication_plan_digest: factoryEvidence.plan_digest,
+      reconciled_at: reconciledAt,
+      schema: V2_HANDOVER_D1_RECONCILIATION_SCHEMA,
+      selection_state: 'PERMANENTLY_EXCLUDED',
+      transaction_id: factoryEvidence.transaction_id,
+    });
+    const conflicting = d1Reconciliations().find((candidate) => (
+      candidate.handover_generation_digest === receipt.handover_generation_digest
+      || candidate.prospective_publication_plan_digest
+        === receipt.prospective_publication_plan_digest
+    ));
+    if (conflicting !== undefined && canonicalJson(conflicting) !== canonicalJson(receipt)) {
+      throw new CompilerError('V2 handover D1 reconciliation subject fork rejected', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    const path = d1ReconciliationPath(receipt.transaction_id);
+    if (!existsSync(path)) {
+      publishImmutable(path, Buffer.from(canonicalJson(receipt), 'utf8'), 0o444);
+    }
+    const persisted = validateD1Reconciliation(readCanonicalFile(path));
+    if (canonicalJson(persisted) !== canonicalJson(receipt)) {
+      throw new CompilerError('V2 handover D1 reconciliation fork rejected', {
+        phase: 'candidate:publication-lane',
+      });
+    }
+    return persisted;
   };
 
   const validateSupersession = (value) => {
@@ -724,27 +828,7 @@ function createSemanticPublicationLaneV2(programmeRoot) {
     // record exists and every Factory boundary independently says the transaction stopped at
     // RESERVED. The receipt is idempotent for identical evidence and rejects every fork.
     async recordD1Reconciliation(factoryEvidence, reconciledAt) {
-      exactObjectKeys(factoryEvidence, [
-        'candidate_digest', 'generation_id', 'graph_publication_receipt_keys',
-        'journal_states', 'plan_digest', 'projection_digest', 'terminal_receipt_keys',
-        'transaction_id',
-      ], 'Factory D1 reconciliation evidence');
-      for (const field of [
-        'candidate_digest', 'generation_id', 'plan_digest', 'projection_digest', 'transaction_id',
-      ]) {
-        if (!SHA256.test(factoryEvidence[field] || '')) {
-          throw new CompilerError(`Factory D1 reconciliation ${field} is not exact`, {
-            phase: 'candidate:publication-lane',
-          });
-        }
-      }
-      if (canonicalJson(factoryEvidence.journal_states) !== canonicalJson(['PLANNED', 'RESERVED'])
-          || canonicalJson(factoryEvidence.graph_publication_receipt_keys) !== canonicalJson([])
-          || canonicalJson(factoryEvidence.terminal_receipt_keys) !== canonicalJson([])) {
-        throw new CompilerError('Factory D1 reconciliation evidence is not stranded at RESERVED', {
-          phase: 'candidate:publication-lane',
-        });
-      }
+      validateFactoryD1ReconciliationEvidence(factoryEvidence);
       const release = acquire();
       try {
         const recoveryPath = d1RecoveryPath(factoryEvidence.generation_id);
@@ -754,60 +838,95 @@ function createSemanticPublicationLaneV2(programmeRoot) {
           });
         }
         const recovery = validateD1Recovery(readCanonicalFile(recoveryPath));
-        const reservation = recovery.superseded_reservation;
-        if (reservation.handover_generation_digest !== factoryEvidence.generation_id
-            || reservation.prospective_publication_plan_digest !== factoryEvidence.plan_digest) {
-          throw new CompilerError('Factory D1 reconciliation differs from the recovered reservation', {
-            phase: 'candidate:publication-lane',
-          });
-        }
-        if (canonicalJson(recovery.d1_effect.journal_states)
-            !== canonicalJson(factoryEvidence.journal_states)) {
-          throw new CompilerError('Factory D1 reconciliation journal differs from Graph recovery', {
-            phase: 'candidate:publication-lane',
-          });
-        }
-        const receipt = validateD1Reconciliation({
-          d1_recovery_record_digest: sha256(
-            Buffer.from(canonicalJson(recovery), 'utf8'),
-          ),
-          disposition: 'DEFECTIVE_AFTER_D1',
-          factory_graph_publication_receipt_keys: factoryEvidence.graph_publication_receipt_keys,
-          factory_journal_states: factoryEvidence.journal_states,
-          factory_projection_digest: factoryEvidence.projection_digest,
-          factory_terminal_receipt_keys: factoryEvidence.terminal_receipt_keys,
-          graph_d1_candidate_digest: factoryEvidence.candidate_digest,
-          handover_generation_digest: factoryEvidence.generation_id,
-          observed_post_d1_authority_digest:
-            recovery.d1_effect.observed_post_d1_authority_digest,
-          pre_d1_authority_digest: recovery.d1_effect.pre_d1_authority_digest,
-          prospective_publication_plan_digest: factoryEvidence.plan_digest,
-          reconciled_at: reconciledAt,
-          schema: V2_HANDOVER_D1_RECONCILIATION_SCHEMA,
-          selection_state: 'PERMANENTLY_EXCLUDED',
-          transaction_id: factoryEvidence.transaction_id,
+        return persistD1Reconciliation(recovery, factoryEvidence, reconciledAt);
+      } finally {
+        release();
+      }
+    },
+    // A correctly journaled D1 is a different recovery state from the older crash window. Its
+    // exact journal and both boundary receipts already exist, so this operation records those
+    // facts, creates the permanent generation/plan exclusion, reads both records back, and only
+    // then releases the active reservation and PREPARE under the same publication-lane lock.
+    async recoverJournaledAfterD1(evidence, reconciledAt, validateBeforePersist) {
+      const record = validateD1Recovery(evidence);
+      if (record.schema !== V2_HANDOVER_JOURNALED_D1_RECOVERY_EVIDENCE_SCHEMA) {
+        throw new CompilerError('journaled D1 recovery requires its exact evidence schema', {
+          phase: 'candidate:publication-lane',
         });
-        const conflicting = d1Reconciliations().find((candidate) => (
-          candidate.handover_generation_digest === receipt.handover_generation_digest
-          || candidate.prospective_publication_plan_digest
-            === receipt.prospective_publication_plan_digest
-        ));
-        if (conflicting !== undefined && canonicalJson(conflicting) !== canonicalJson(receipt)) {
-          throw new CompilerError('V2 handover D1 reconciliation subject fork rejected', {
+      }
+      if (typeof validateBeforePersist !== 'function') {
+        throw new CompilerError('journaled D1 recovery requires in-lock current-state validation', {
+          phase: 'candidate:publication-lane',
+        });
+      }
+      const release = acquire();
+      try {
+        const recoveryPath = d1RecoveryPath(record.handover_generation_digest);
+        const hadRecovery = existsSync(recoveryPath);
+        if (hadRecovery) {
+          const observed = validateD1Recovery(readCanonicalFile(recoveryPath));
+          if (canonicalJson(observed) !== canonicalJson(record)) {
+            throw new CompilerError('V2 handover journaled D1 recovery fork rejected', {
+              phase: 'candidate:publication-lane',
+            });
+          }
+        }
+        const expectedPointers = [
+          [reservationPath(), validateReservation, record.superseded_reservation, 'reservation'],
+          [prepareBindingPath(), validatePrepareBinding, record.superseded_prepare_binding,
+            'prepare binding'],
+        ];
+        for (const [path, validate, expected, label] of expectedPointers) {
+          if (!existsSync(path)) {
+            if (!hadRecovery) {
+              throw new CompilerError(`journaled D1 recovery requires its active ${label}`, {
+                phase: 'candidate:publication-lane',
+              });
+            }
+            continue;
+          }
+          const observed = validate(readCanonicalFile(path));
+          if (canonicalJson(observed) !== canonicalJson(expected)) {
+            throw new CompilerError(`journaled D1 recovery ${label} differs from its evidence`, {
+              phase: 'candidate:publication-lane',
+            });
+          }
+        }
+        // The evidence was assembled before this lock was acquired. Re-observe the exact
+        // authority, journal and durable later-boundary state while no publication-lane actor can
+        // advance the pointers, immediately before the first immutable recovery write. A stale
+        // observation must leave both pointers intact and create no recovery/exclusion record.
+        await validateBeforePersist();
+        if (!hadRecovery) {
+          mkdirSync(supersessionDirectory(), { recursive: true, mode: 0o700 });
+          publishImmutable(recoveryPath, Buffer.from(canonicalJson(record), 'utf8'), 0o444);
+        }
+        const persistedRecovery = validateD1Recovery(readCanonicalFile(recoveryPath));
+        if (canonicalJson(persistedRecovery) !== canonicalJson(record)) {
+          throw new CompilerError('V2 handover journaled D1 recovery read-back differs', {
             phase: 'candidate:publication-lane',
           });
         }
-        const path = d1ReconciliationPath(receipt.transaction_id);
-        if (!existsSync(path)) {
-          publishImmutable(path, Buffer.from(canonicalJson(receipt), 'utf8'), 0o444);
+        const { graph_terminal_required: _required, ...factoryEvidence } =
+          record.factory_projection;
+        const reconciliation = persistD1Reconciliation(
+          persistedRecovery, factoryEvidence, reconciledAt,
+        );
+        for (const [path, _validate, _expected, label] of expectedPointers.reverse()) {
+          if (!existsSync(path)) continue;
+          unlinkSync(path);
+          const directory = openSync(dirname(path), 'r');
+          try { durabilityBarrierSync(directory); } finally { closeSync(directory); }
+          if (existsSync(path)) {
+            throw new CompilerError(`journaled D1 recovery could not release the ${label}`, {
+              phase: 'candidate:publication-lane',
+            });
+          }
         }
-        const persisted = validateD1Reconciliation(readCanonicalFile(path));
-        if (canonicalJson(persisted) !== canonicalJson(receipt)) {
-          throw new CompilerError('V2 handover D1 reconciliation fork rejected', {
-            phase: 'candidate:publication-lane',
-          });
-        }
-        return persisted;
+        return Object.freeze({
+          recovery_record: persistedRecovery,
+          reconciliation_receipt: reconciliation,
+        });
       } finally {
         release();
       }
@@ -4062,6 +4181,272 @@ export async function recoverHandoverAbandonment({
   });
 }
 
+function canonicalObjectDigest(value) {
+  return sha256(Buffer.from(canonicalJson(value), 'utf8'));
+}
+
+function validateJournaledD1RecoveryEvidence(value) {
+  const phase = 'candidate:handover-abandonment';
+  const refuse = (message) => {
+    throw new CompilerError(`handover abandonment refused: ${message}`, { phase });
+  };
+  const exactDigest = (candidate, label) => {
+    if (!SHA256.test(candidate || '')) refuse(`${label} is not exact`);
+  };
+  const exactTime = (candidate, label) => {
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(candidate || '')
+        || Number.isNaN(Date.parse(candidate))) refuse(`${label} is not exact`);
+  };
+  const exactDigestSet = (candidate, label, minimum = 1) => {
+    if (!Array.isArray(candidate) || candidate.length < minimum
+        || candidate.some((item) => !SHA256.test(item || ''))
+        || canonicalJson(candidate) !== canonicalJson([...new Set(candidate)].sort())) {
+      refuse(`${label} is not an exact sorted digest set`);
+    }
+  };
+  const assertDigestBinding = (candidate, expected, label) => {
+    exactDigest(expected, `${label} digest`);
+    if (canonicalObjectDigest(candidate) !== expected) refuse(`${label} digest does not match its bytes`);
+  };
+
+  exactObjectKeys(value, [
+    'captured_at', 'factory_projection', 'factory_projection_digest',
+    'graph_d1_commit_receipt', 'graph_d1_commit_receipt_digest',
+    'graph_d1_observation_receipt', 'graph_d1_observation_receipt_digest',
+    'graph_journal', 'graph_journal_digest', 'handover_generation_digest',
+    'later_boundary_observation', 'later_boundary_observation_digest',
+    'observed_post_d1_authority_digest', 'pre_d1_authority_digest',
+    'prospective_publication_plan_digest', 'recovery_reason', 'schema',
+    'superseded_prepare_binding', 'superseded_reservation', 'transaction_id',
+  ], 'journaled D1 recovery evidence');
+  if (value.schema !== V2_HANDOVER_JOURNALED_D1_RECOVERY_EVIDENCE_SCHEMA
+      || value.recovery_reason !== 'DEFECTIVE_AFTER_D1') {
+    refuse('journaled D1 recovery evidence identity is invalid');
+  }
+  exactTime(value.captured_at, 'journaled D1 evidence capture time');
+  for (const [field, label] of [
+    ['transaction_id', 'transaction'],
+    ['handover_generation_digest', 'generation'],
+    ['prospective_publication_plan_digest', 'plan'],
+    ['pre_d1_authority_digest', 'pre-D1 authority'],
+    ['observed_post_d1_authority_digest', 'post-D1 authority'],
+  ]) exactDigest(value[field], `journaled D1 ${label}`);
+  if (value.pre_d1_authority_digest === value.observed_post_d1_authority_digest) {
+    refuse('journaled D1 evidence records no authority transition');
+  }
+
+  const commit = value.graph_d1_commit_receipt;
+  exactObjectKeys(commit, [
+    'authority_digest', 'candidate_digest', 'explicit_authorization_grant_digests',
+    'graph_count', 'prospective_publication_plan_digest', 'protocol',
+    'release_subject_digest', 'schema', 'triples',
+  ], 'journaled D1 commit receipt');
+  if (commit.schema !== 'usf-graph-d1-commit-receipt-v2'
+      || commit.protocol !== 'semantic-proof-v2'
+      || commit.authority_digest !== value.observed_post_d1_authority_digest
+      || commit.prospective_publication_plan_digest
+        !== value.prospective_publication_plan_digest
+      || !Number.isSafeInteger(commit.graph_count) || commit.graph_count < 1
+      || !Number.isSafeInteger(commit.triples) || commit.triples < 1) {
+    refuse('journaled D1 commit receipt differs from the exact D1 transition');
+  }
+  exactDigest(commit.candidate_digest, 'journaled D1 candidate');
+  exactDigest(commit.release_subject_digest, 'journaled D1 release subject');
+  exactDigestSet(commit.explicit_authorization_grant_digests,
+    'journaled D1 authorization grants', 0);
+  assertDigestBinding(commit, value.graph_d1_commit_receipt_digest, 'journaled D1 commit receipt');
+
+  const observation = value.graph_d1_observation_receipt;
+  exactObjectKeys(observation, [
+    'authority_digest', 'dependency_identity_digests',
+    'explicit_authorization_grant_digests', 'prospective_publication_plan_digest',
+    'protocol', 'release_subject_digest', 'schema',
+  ], 'journaled D1 observation receipt');
+  if (observation.schema !== 'usf-graph-d1-observation-receipt-v2'
+      || observation.protocol !== 'semantic-proof-v2'
+      || observation.authority_digest !== value.observed_post_d1_authority_digest
+      || observation.prospective_publication_plan_digest
+        !== value.prospective_publication_plan_digest
+      || observation.release_subject_digest !== commit.release_subject_digest
+      || canonicalJson(observation.explicit_authorization_grant_digests)
+        !== canonicalJson(commit.explicit_authorization_grant_digests)) {
+    refuse('journaled D1 observation receipt differs from the exact D1 transition');
+  }
+  exactDigestSet(observation.dependency_identity_digests,
+    'journaled D1 dependency identities');
+  exactDigestSet(observation.explicit_authorization_grant_digests,
+    'journaled D1 observation authorization grants', 0);
+  assertDigestBinding(observation, value.graph_d1_observation_receipt_digest,
+    'journaled D1 observation receipt');
+
+  const journal = value.graph_journal;
+  exactObjectKeys(journal, [
+    'boundary_receipts', 'entries', 'grant_consumed', 'publication_state', 'schema',
+    'terminal_receipt', 'terminal_receipt_digest',
+  ], 'journaled D1 publication journal');
+  if (journal.schema !== 'usf-hermetic-semantic-proof-v2-journal'
+      || journal.grant_consumed !== false || journal.publication_state !== null
+      || journal.terminal_receipt !== null || journal.terminal_receipt_digest !== null) {
+    refuse('journaled D1 publication journal records a later boundary');
+  }
+  exactObjectKeys(journal.boundary_receipts,
+    ['d1_commit', 'd1_observation', 'grant_reservation'],
+    'journaled D1 boundary receipts');
+  if (journal.boundary_receipts.d1_commit !== value.graph_d1_commit_receipt_digest
+      || journal.boundary_receipts.d1_observation
+        !== value.graph_d1_observation_receipt_digest) {
+    refuse('journaled D1 boundary receipts do not bind the exact D1 receipts');
+  }
+  exactDigest(journal.boundary_receipts.grant_reservation,
+    'journaled D1 grant reservation receipt');
+  const states = ['PLANNED', 'RESERVED', 'D1_COMMITTED', 'D1_DEPENDENCIES_OBSERVED'];
+  if (!Array.isArray(journal.entries) || journal.entries.length !== states.length) {
+    refuse('journaled D1 publication journal is not the exact current D1 prefix');
+  }
+  let coordinationIdentity = null;
+  let releaseSubject = null;
+  let trustedAt = null;
+  let commonReceipts = null;
+  for (const [index, entry] of journal.entries.entries()) {
+    exactObjectKeys(entry, [
+      'coordination_identity_digest', 'd0_authority_digest', 'd1_authority_digest',
+      'd2_authority_digest', 'previous_entry_digest',
+      'prospective_publication_plan_digest', 'receipt_digests', 'release_subject_digest',
+      'schema', 'state', 'transaction_id', 'trusted_at',
+    ], 'journaled D1 publication journal entry');
+    exactDigest(entry.coordination_identity_digest, 'journaled D1 coordination identity');
+    exactDigest(entry.release_subject_digest, 'journaled D1 journal release subject');
+    exactTime(entry.trusted_at, 'journaled D1 journal trusted time');
+    exactDigestSet(entry.receipt_digests, 'journaled D1 journal receipts');
+    if (entry.schema !== 'usf-semantic-publication-journal-v2'
+        || entry.state !== states[index]
+        || entry.transaction_id !== value.transaction_id
+        || entry.prospective_publication_plan_digest
+          !== value.prospective_publication_plan_digest
+        || entry.d0_authority_digest !== value.pre_d1_authority_digest
+        || entry.d1_authority_digest !== (index >= 2
+          ? value.observed_post_d1_authority_digest : null)
+        || entry.d2_authority_digest !== null
+        || entry.previous_entry_digest !== (index === 0
+          ? null : canonicalObjectDigest(journal.entries[index - 1]))
+        || !entry.receipt_digests.includes(value.prospective_publication_plan_digest)
+        || (trustedAt !== null && entry.trusted_at < trustedAt)) {
+      refuse('journaled D1 publication journal drifted from its exact D1 prefix');
+    }
+    coordinationIdentity ??= entry.coordination_identity_digest;
+    releaseSubject ??= entry.release_subject_digest;
+    if (entry.coordination_identity_digest !== coordinationIdentity
+        || entry.release_subject_digest !== releaseSubject) {
+      refuse('journaled D1 publication journal changed coordination identity');
+    }
+    trustedAt = entry.trusted_at;
+    if (index === 0) commonReceipts = entry.receipt_digests;
+  }
+  const expectedReceiptSets = [
+    commonReceipts,
+    [...commonReceipts, journal.boundary_receipts.grant_reservation].sort(),
+    [...commonReceipts, value.graph_d1_commit_receipt_digest].sort(),
+    [...commonReceipts, value.graph_d1_observation_receipt_digest,
+      ...observation.dependency_identity_digests].sort(),
+  ].map((items) => [...new Set(items)].sort());
+  if (expectedReceiptSets.some((expected, index) =>
+    canonicalJson(journal.entries[index].receipt_digests) !== canonicalJson(expected))
+      || releaseSubject !== commit.release_subject_digest
+      || value.captured_at < trustedAt) {
+    refuse('journaled D1 publication journal receipt chain is invalid');
+  }
+  assertDigestBinding(journal, value.graph_journal_digest, 'journaled D1 publication journal');
+
+  const factory = value.factory_projection;
+  exactObjectKeys(factory, [
+    'candidate_digest', 'generation_id', 'graph_publication_receipt_keys',
+    'graph_terminal_required', 'journal_states', 'plan_digest', 'projection_digest',
+    'terminal_receipt_keys', 'transaction_id',
+  ], 'journaled D1 Factory projection');
+  if (factory.transaction_id !== value.transaction_id
+      || factory.generation_id !== value.handover_generation_digest
+      || factory.plan_digest !== value.prospective_publication_plan_digest
+      || factory.candidate_digest !== commit.candidate_digest
+      || canonicalJson(factory.journal_states) !== canonicalJson(['PLANNED', 'RESERVED'])
+      || factory.graph_terminal_required !== true
+      || canonicalJson(factory.graph_publication_receipt_keys) !== canonicalJson([])
+      || canonicalJson(factory.terminal_receipt_keys) !== canonicalJson([])) {
+    refuse('journaled D1 Factory projection is not the exact RESERVED transaction');
+  }
+  exactDigest(factory.projection_digest, 'journaled D1 source Factory projection');
+  assertDigestBinding(factory, value.factory_projection_digest,
+    'journaled D1 Factory projection');
+
+  const reservation = value.superseded_reservation;
+  exactObjectKeys(reservation, [
+    'd0_authority_digest', 'handover_generation_digest',
+    'prospective_publication_plan_digest', 'schema',
+  ], 'journaled D1 superseded reservation');
+  if (reservation.schema !== V2_HANDOVER_RESERVATION_SCHEMA
+      || reservation.d0_authority_digest !== value.pre_d1_authority_digest
+      || reservation.handover_generation_digest !== value.handover_generation_digest
+      || reservation.prospective_publication_plan_digest
+        !== value.prospective_publication_plan_digest) {
+    refuse('journaled D1 superseded reservation differs from the exact transaction');
+  }
+  const prepare = value.superseded_prepare_binding;
+  exactObjectKeys(prepare, [
+    'factory_prepare_receipt_digest', 'handover_generation_digest',
+    'prospective_publication_plan_digest', 'reservation_digest', 'schema',
+  ], 'journaled D1 superseded PREPARE binding');
+  if (prepare.schema !== V2_HANDOVER_FACTORY_PREPARE_BINDING_SCHEMA
+      || prepare.handover_generation_digest !== value.handover_generation_digest
+      || prepare.prospective_publication_plan_digest
+        !== value.prospective_publication_plan_digest
+      || prepare.reservation_digest !== canonicalObjectDigest(reservation)) {
+    refuse('journaled D1 superseded PREPARE differs from the exact transaction');
+  }
+  exactDigest(prepare.factory_prepare_receipt_digest,
+    'journaled D1 Factory PREPARE receipt');
+
+  const later = value.later_boundary_observation;
+  exactObjectKeys(later, [
+    'activation_present', 'd2_authority_present', 'observed_authority_digest',
+    'successors_root_present', 'terminal_receipt_present',
+  ], 'journaled D1 later-boundary observation');
+  if (later.observed_authority_digest !== value.observed_post_d1_authority_digest
+      || later.d2_authority_present !== false || later.successors_root_present !== false
+      || later.terminal_receipt_present !== false || later.activation_present !== false) {
+    refuse('journaled D1 evidence records a later boundary');
+  }
+  assertDigestBinding(later, value.later_boundary_observation_digest,
+    'journaled D1 later-boundary observation');
+
+  return Object.freeze({
+    generationDigest: value.handover_generation_digest,
+    recoveryEffect: Object.freeze({
+      activation_present: later.activation_present,
+      d2_authority_present: later.d2_authority_present,
+      observed_post_d1_authority_digest: value.observed_post_d1_authority_digest,
+      pre_d1_authority_digest: value.pre_d1_authority_digest,
+      successors_root_present: later.successors_root_present,
+      terminal_receipt_present: later.terminal_receipt_present,
+    }),
+  });
+}
+
+function normalizeHandoverAbandonmentD1Evidence(value) {
+  if (value?.schema === V2_HANDOVER_JOURNALED_D1_RECOVERY_EVIDENCE_SCHEMA) {
+    return validateJournaledD1RecoveryEvidence(value);
+  }
+  const recoveryEffect = value?.d1_effect;
+  if (!recoveryEffect || !SHA256.test(recoveryEffect.pre_d1_authority_digest || '')
+      || !SHA256.test(recoveryEffect.observed_post_d1_authority_digest || '')) {
+    throw new CompilerError('handover abandonment D1 recovery evidence is not exact', {
+      phase: 'candidate:handover-abandonment',
+    });
+  }
+  return Object.freeze({
+    generationDigest: value.superseded_reservation?.handover_generation_digest ?? null,
+    recoveryEffect,
+  });
+}
+
 // The governed abandonment transition. There is no parameter that widens what it may do: the
 // grant names the authority, the fence, the generation, the recovery record and the exact
 // mutation, and every one of those is re-observed inside the transaction before commit.
@@ -4152,13 +4537,8 @@ export async function abandonFencedHandover({
   // every absence this transition depends on is re-observed from authority below. That is why a
   // legacy v1 record is usable here as evidence while remaining unable to release anything -- the
   // two capabilities are different, and only one of them ever trusted the record's own claims.
-  const recoveryEffect = d1RecoveryRecord?.d1_effect;
-  if (!recoveryEffect || !SHA256.test(recoveryEffect.pre_d1_authority_digest || '')
-      || !SHA256.test(recoveryEffect.observed_post_d1_authority_digest || '')) {
-    throw new CompilerError('handover abandonment D1 recovery evidence is not exact', {
-      phase: 'candidate:handover-abandonment',
-    });
-  }
+  const normalizedRecovery = normalizeHandoverAbandonmentD1Evidence(d1RecoveryRecord);
+  const recoveryEffect = normalizedRecovery.recoveryEffect;
   if (`sha256:${createHash('sha256').update(
     Buffer.from(canonicalJson(d1RecoveryRecord), 'utf8')).digest('hex')}` !== d1RecoveryRecordDigest) {
     throw new CompilerError('handover abandonment D1 recovery record digest does not match its bytes', {
@@ -4203,11 +4583,11 @@ export async function abandonFencedHandover({
   }
   const generationDigest = fenceField(preObservation, 'handoverGenerationDigest');
   if (!SHA256.test(generationDigest || '')
-      || generationDigest !== d1RecoveryRecord.superseded_reservation?.handover_generation_digest) {
+      || generationDigest !== normalizedRecovery.generationDigest) {
     throw new CompilerError('handover abandonment refused: the fence generation is not the recovered generation', {
       phase: 'candidate:handover-abandonment',
       fence_generation: generationDigest,
-      recovered_generation: d1RecoveryRecord.superseded_reservation?.handover_generation_digest ?? null,
+      recovered_generation: normalizedRecovery.generationDigest,
     });
   }
   const effect = buildHandoverAbandonmentEffect(preObservation, {

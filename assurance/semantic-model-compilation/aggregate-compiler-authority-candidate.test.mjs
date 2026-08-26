@@ -33,6 +33,12 @@ import {
 } from '../../capabilities/semantic-model-compilation/authority-binding.mjs';
 
 const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
+const OWL_DATATYPE_PROPERTY = 'http://www.w3.org/2002/07/owl#DatatypeProperty';
+const OWL_FUNCTIONAL_PROPERTY = 'http://www.w3.org/2002/07/owl#FunctionalProperty';
+const OWL_OBJECT_PROPERTY = 'http://www.w3.org/2002/07/owl#ObjectProperty';
+const OWL_DEPRECATED = 'http://www.w3.org/2002/07/owl#deprecated';
+const RDFS_RANGE = 'http://www.w3.org/2000/01/rdf-schema#range';
+const XSD_ANY_URI = 'http://www.w3.org/2001/XMLSchema#anyURI';
 const USF = 'urn:usf:ontology:';
 const FINAL_RESULT = 'urn:usf:proofresult:compilersemanticenforcementaggregate';
 const FINAL_PROOF = 'urn:usf:proof:compilersemanticenforcementaggregate';
@@ -1331,6 +1337,50 @@ test('V2 C2 binds the exact C1 candidate and exact D1 dependency identity set', 
   changed.d1_binding.dependency_identity_digests = [digest('b'), digest('f')];
   assert.notEqual(materializeAggregateCompilerAuthorityCandidateV2(changed).candidateDigest,
     c2.candidateDigest);
+});
+
+test('V2 C2 uses integrity-safe binding identities and exact anyURI consumer identifiers', () => {
+  const c2 = materializeAggregateCompilerAuthorityCandidateV2(v2CandidateInput('C2'));
+  const quads = parsePatch(c2.bytes).additions;
+  const bindings = [
+    ['urn:usf:v2nativehandovergraphbinding:ownerenvelopesuccessor',
+      'urn:usf:derivedconsumer:v2:owner-envelope-successor'],
+    ['urn:usf:v2nativehandovergraphbinding:validationcurrentnessbinding',
+      'urn:usf:derivedconsumer:v2:validation-currentness-binding'],
+  ];
+  for (const [binding, consumer] of bindings) {
+    assert.equal(typedAs(quads, binding, `${USF}V2NativeGraphSuccessorBinding`), true);
+    const values = quads.filter((quad) => quad.subject.value === binding
+      && quad.predicate.value === `${USF}handoverGraphNativeConsumerIri`);
+    assert.equal(values.length, 1);
+    assert.equal(values[0].object.termType, 'Literal');
+    assert.equal(values[0].object.value, consumer);
+    assert.equal(values[0].object.datatype.value, XSD_ANY_URI);
+  }
+  assert.equal(quads.some((quad) => quad.subject.value.startsWith('urn:usf:')
+    && /[-_]/u.test(quad.subject.value.replace(/^.*:/u, ''))), false);
+
+  const integrityRule = readFileSync(
+    join(REPOSITORY_ROOT, 'semantic-model/rules/integrity.rq'), 'utf8',
+  );
+  assert.match(integrityRule, /BIND\("hyphenatedidentifier" AS \?violation\)/u);
+  assert.match(integrityRule, /BIND\("unresolvedreference" AS \?violation\)/u);
+  assert.equal(quads.some((quad) => quad.object.termType === 'NamedNode'
+    && bindings.some(([, consumer]) => quad.object.value === consumer)), false);
+});
+
+test('V2 Graph-native consumer vocabulary is a functional anyURI datatype property', () => {
+  const authority = sourceQuads('semantic-model/authority.ttl', 'text/turtle');
+  const property = `${USF}handoverGraphNativeConsumerIri`;
+  assert.equal(typedAs(authority, property, OWL_DATATYPE_PROPERTY), true);
+  assert.equal(typedAs(authority, property, OWL_FUNCTIONAL_PROPERTY), true);
+  assert.deepEqual(objects(authority, property, RDFS_RANGE), [XSD_ANY_URI]);
+  const predecessor = `${USF}handoverGraphNativeConsumer`;
+  assert.equal(typedAs(authority, predecessor, OWL_OBJECT_PROPERTY), true);
+  assert.equal(typedAs(authority, predecessor, OWL_FUNCTIONAL_PROPERTY), true);
+  assert.deepEqual(objects(authority, predecessor, OWL_DEPRECATED), ['true']);
+  assert.deepEqual(objects(authority, predecessor, `${USF}termUsageState`),
+    ['urn:usf:termusagestate:zeroinstancebydesign']);
 });
 
 test('V2 semantic identity changes alter C1 while publication volatility is not an input', () => {

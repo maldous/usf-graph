@@ -1892,7 +1892,7 @@ test('pure V2 preparation produces repeatable C1/C2 with exact D1 dependency bin
   assert.equal(first.c1.identityDigest,
     'sha256:0ad790cab04bc6943c01e98af6d235bbe492085a5a9ced8cb624e8a7bd70248f');
   assert.equal(first.c2.candidateDigest,
-    'sha256:fa50a42294c08ecf54df17da10438248b0b0228f23f0e835d49806cb708c13d3');
+    'sha256:f4e80bc3aeb71fa73dc00be6ca4d45a49d5ce2e4c991501fe35c6eb5b1bc7c7d');
   assert.equal(first.c2.identityDigest,
     'sha256:49b2b4ba3eee6496253b60908e22444c841c5e586b2bb94fd2b63091b9d9a5c7');
   assert.equal(first.d1_dependency_set_digest,

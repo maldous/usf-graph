@@ -237,11 +237,11 @@ const V2_DERIVED_CONSUMER_REGISTRY_DIGEST =
 const V2_NATIVE_HANDOVER_FENCE = 'urn:usf:v2nativehandoverfence:current';
 const V2_GRAPH_NATIVE_CONSUMERS = Object.freeze([
   Object.freeze({
-    binding: 'urn:usf:v2nativehandovergraphbinding:owner-envelope-successor',
+    binding: 'urn:usf:v2nativehandovergraphbinding:ownerenvelopesuccessor',
     consumer: 'urn:usf:derivedconsumer:v2:owner-envelope-successor',
   }),
   Object.freeze({
-    binding: 'urn:usf:v2nativehandovergraphbinding:validation-currentness-binding',
+    binding: 'urn:usf:v2nativehandovergraphbinding:validationcurrentnessbinding',
     consumer: 'urn:usf:derivedconsumer:v2:validation-currentness-binding',
   }),
 ]);
@@ -1755,7 +1755,7 @@ export function materializeAggregateCompilerAuthorityCandidateV2(input) {
     for (const binding of V2_GRAPH_NATIVE_CONSUMERS) {
       additions.push(type(binding.binding, `${USF}V2NativeGraphSuccessorBinding`, GRAPH_AUTHORITY));
       add(additions, binding.binding, 'handoverGenerationDigest', literal(core.handover_generation_digest), GRAPH_AUTHORITY);
-      add(additions, binding.binding, 'handoverGraphNativeConsumer', iri(binding.consumer), GRAPH_AUTHORITY);
+      add(additions, binding.binding, 'handoverGraphNativeConsumerIri', typed(binding.consumer, XSD_ANY_URI), GRAPH_AUTHORITY);
       add(additions, binding.binding, 'handoverStorageOwner', iri('urn:usf:v2nativeowner:graph'), GRAPH_AUTHORITY);
       add(additions, V2_NATIVE_HANDOVER_FENCE, 'handoverGraphNativeSuccessorBinding', iri(binding.binding), GRAPH_AUTHORITY);
     }
