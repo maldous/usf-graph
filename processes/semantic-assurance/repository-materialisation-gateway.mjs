@@ -17,6 +17,11 @@ import {
   proofCurrentnessVerdict,
 } from './proof-currentness.mjs';
 import { readImplementationWorkGrantAuthorityStateV1 } from './semantic-authority-publication.mjs';
+import {
+  AUTHORITY_DEPENDENCY_DIGEST_ALGORITHM as NON_PUBLICATION_DEPENDENCY_ALGORITHM,
+  SELF_PUBLICATION_EXCLUDED_GRAPHS as NON_PUBLICATION_EXCLUDED_GRAPHS,
+  authorityDependencySetDigest,
+} from '../../capabilities/semantic-model-compilation/authority-binding.mjs';
 
 const CONTRACT = 'urn:usf:semanticcontract:repositoryexternalartefactmaterialisation';
 const ACTIVE = 'urn:usf:contractactivationstate:active';
@@ -53,18 +58,6 @@ const ACTIVATION = Object.freeze({
 const VALIDATION_NON_PUBLICATION_CLOSURE = 'urn:usf:authoritybindingrule:validationnonpublicationdependencyclosure';
 const VALIDATION_CROSS_REPOSITORY_NON_PUBLICATION_CLOSURE =
   'urn:usf:authoritybindingrule:validationcrossrepositorynonpublicationclosure';
-const NON_PUBLICATION_DEPENDENCY_ALGORITHM = 'sha256-rdfc10-nonpublication-graph-inventory-v1';
-const NON_PUBLICATION_EXCLUDED_GRAPHS = Object.freeze([
-  'urn:usf:graph:capabilities',
-  'urn:usf:graph:derived:coverage',
-  'urn:usf:graph:derived:evidence',
-  'urn:usf:graph:derived:obligations',
-  'urn:usf:graph:derived:readiness',
-  'urn:usf:graph:derived:surfaces',
-  'urn:usf:graph:evidence',
-  'urn:usf:graph:proofs',
-]);
-const NON_PUBLICATION_DIGEST_BINDING_GRAPH = 'urn:usf:graph:proofs';
 const PASSED_RESULT = 'urn:usf:resultstate:passed';
 
 // One gap code -> one factory disposition. A code with no entry here is a
@@ -1417,35 +1410,11 @@ function soleTerm(item, field) {
 }
 
 function validationNonPublicationDependencyDigest(inventory) {
-  if (!Array.isArray(inventory)) return null;
-  const excluded = new Set(NON_PUBLICATION_EXCLUDED_GRAPHS);
-  // The binding carrying this digest is in the proofs graph. Excluding that
-  // exact graph makes the prospective D2 calculation non-recursive while all
-  // non-publication authority graphs remain content-bound.
-  if (!excluded.has(NON_PUBLICATION_DIGEST_BINDING_GRAPH)) return null;
-  const graphs = [];
-  const observed = new Set();
-  for (const record of inventory) {
-    const observedDigest = record?.dependencySha256 ?? record?.sha256 ?? record?.digest;
-    const normalizedDigest = /^[0-9a-f]{64}$/.test(observedDigest || '')
-      ? `sha256:${observedDigest}` : observedDigest;
-    if (!record || typeof record.graph !== 'string' || record.graph.length === 0
-        || !/^sha256:[0-9a-f]{64}$/.test(normalizedDigest || '')
-        || !Number.isSafeInteger(record.triples) || record.triples < 0
-        || observed.has(record.graph)) return null;
-    observed.add(record.graph);
-    if (!excluded.has(record.graph)) graphs.push({
-      graph: record.graph,
-      sha256: normalizedDigest,
-      triples: record.triples,
-    });
+  try {
+    return authorityDependencySetDigest(inventory, NON_PUBLICATION_EXCLUDED_GRAPHS);
+  } catch {
+    return null;
   }
-  graphs.sort((left, right) => left.graph.localeCompare(right.graph));
-  return digest(jcs({
-    algorithm: NON_PUBLICATION_DEPENDENCY_ALGORITHM,
-    excludedGraphs: NON_PUBLICATION_EXCLUDED_GRAPHS,
-    graphs,
-  }));
 }
 
 function exactTermSet(item, left, right) {

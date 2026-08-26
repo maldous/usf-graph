@@ -20,6 +20,10 @@ import {
   createCasEvidenceStore,
   createGraphNativeSuccessorStoreV2,
 } from './semantic-authority-publication.mjs';
+import {
+  canonicalGraphDigest,
+  canonicalInventoryGraphDigest,
+} from '../../capabilities/semantic-model-compilation/compiler.mjs';
 
 const authorityDigest = `sha256:${'a'.repeat(64)}`;
 const repositories = [];
@@ -65,6 +69,38 @@ function rootedPublicationLane() {
 }
 
 test.after(() => repositories.forEach((root) => rmSync(root, { recursive: true, force: true })));
+
+test('candidate transaction snapshots require one self-consistent opening authority state', () => {
+  const graph = 'urn:usf:graph:authority';
+  const inventory = [{ graph, sha256: `sha256:${'1'.repeat(64)}`, triples: 1 }];
+  const openingFold = semanticAuthorityInventoryDigest(inventory, 1);
+  const snapshot = { digest: openingFold, observedGraphs: [graph] };
+  const assertSnapshot = semanticModelCompilationCommandInternals
+    .assertTransactionSnapshotMatchesWitness;
+
+  assert.doesNotThrow(() => assertSnapshot(snapshot, {
+    digest: openingFold,
+    inventory,
+  }));
+  assert.throws(() => assertSnapshot(snapshot, {
+    digest: `sha256:${'2'.repeat(64)}`,
+    inventory,
+  }), /opening authority witness digest does not match its graph inventory/);
+  assert.throws(() => assertSnapshot({
+    ...snapshot,
+    observedGraphs: [graph, 'urn:usf:graph:unexpected'],
+  }, {
+    digest: openingFold,
+    inventory,
+  }), /transaction authority graph set differs from the opening witness/);
+  assert.throws(() => assertSnapshot({
+    ...snapshot,
+    digest: `sha256:${'3'.repeat(64)}`,
+  }, {
+    digest: openingFold,
+    inventory,
+  }), /transaction authority state differs from the opening witness/);
+});
 
 test('implementation work grant delta is derived from exact reviewed CAS artifacts and rejects substitution', () => {
   const allowedActions = [
@@ -703,6 +739,7 @@ test('external authority operations accept exact immutable CAS content and rejec
 test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated deltas', async () => {
   const root = repository();
   const graph = 'urn:test:graph';
+  const unmanagedGraph = 'urn:test:unmanaged-live-graph';
   const proofsGraph = 'urn:usf:graph:proofs';
   const bindingsGraph = 'urn:usf:graph:bindings';
   const evidenceGraph = 'urn:usf:graph:evidence';
@@ -730,10 +767,11 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
   writeFileSync(shapesPath, '@prefix sh: <http://www.w3.org/ns/shacl#> .\n');
   let live = new Map([
     [graph, '<urn:test:s> <urn:test:p> "d0" .\n'],
+    [unmanagedGraph, '<urn:test:retained> <urn:test:state> "unchanged" .\n'],
     [bindingsGraph, bindingFacts],
     [evidenceGraph, evidenceFacts],
   ]);
-  let authority = `sha256:${'d'.repeat(64)}`;
+  let authority = null;
   const snapshots = new Map();
   const addedPayloads = [];
   let next = 0;
@@ -741,7 +779,11 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
     async connectivity() { return 1; },
     async begin() { const id = `tx-${next += 1}`; snapshots.set(id, new Map(live)); return id; },
     async rollback(id) { snapshots.delete(id); },
-    async commit(id) { live = snapshots.get(id); snapshots.delete(id); authority = `sha256:${String(next).padStart(64, '0')}`; },
+    async commit(id) {
+      live = snapshots.get(id);
+      snapshots.delete(id);
+      authority = (await readCommandWitness()).digest;
+    },
     async constructInTransaction(id, query) {
       const name = /GRAPH <([^>]+)>/.exec(query)?.[1];
       return snapshots.get(id).get(name) || '';
@@ -767,7 +809,15 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
     },
     async validateInTransactionWithReceipt() { return { conforms: true, receiptDigest: `sha256:${'e'.repeat(64)}` }; },
     async reportInTransaction() { return []; },
-    async selectInTransaction() { return []; },
+    async selectInTransaction(id, query) {
+      if (/SELECT DISTINCT \?g WHERE \{ GRAPH \?g \{ \?s \?p \?o \} \}/.test(query)) {
+        return [...snapshots.get(id)]
+          .filter(([, content]) => content.trim().length > 0)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([name]) => ({ g: DataFactory.namedNode(name) }));
+      }
+      return [];
+    },
   };
   const manifest = {
     authored: [], definitions: [
@@ -789,12 +839,37 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
     await transactionClient.rollback(tx);
     return { ok: true, liveValidation };
   };
+  const readCommandWitness = async (witnessDigest = null) => {
+    const inventory = [];
+    let triples = 0;
+    for (const [name, content] of [...live].sort(([left], [right]) => left.localeCompare(right))) {
+      const [record, dependencyRecord] = await Promise.all([
+        canonicalGraphDigest(content),
+        canonicalInventoryGraphDigest(name, content),
+      ]);
+      if (record.triples > 0) {
+        inventory.push({
+          graph: name,
+          sha256: record.sha256,
+          dependencySha256: dependencyRecord.sha256,
+          triples: record.triples,
+        });
+        triples += record.triples;
+      }
+    }
+    return {
+      digest: witnessDigest ?? semanticAuthorityInventoryDigest(inventory, triples),
+      inventory,
+      triples,
+    };
+  };
+  authority = (await readCommandWitness()).digest;
   const command = createSemanticModelCompilationCommand({
     publicationLane: publicationLane(),
     nativeGraphStore: isolatedNativeGraphStore(),
     checkLocalFunction: () => {}, client: Object.freeze(fakeClient), compileFunction: sourceCompiler,
     loadManifestFunction: () => manifest,
-    readAuthorityWitness: async () => ({ digest: authority, inventory: [], triples: 1 }),
+    readAuthorityWitness: () => readCommandWitness(),
     repositoryRoot: root,
   });
   const candidate = (label) => {
@@ -921,6 +996,9 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
   assert.equal(firstTwoStep.transactionRollbackCount, 1);
   assert.equal(addedPayloads.length, writesBeforeTwoStep);
   assert.match(live.get(graph), /"d0"/);
+  assert.equal(firstTwoStep.d1.inventory.some(({ graph: name }) => name === unmanagedGraph), true);
+  assert.equal(firstTwoStep.d2.inventory.some(({ graph: name }) => name === unmanagedGraph), true);
+  assert.equal(live.get(unmanagedGraph), '<urn:test:retained> <urn:test:state> "unchanged" .\n');
   let driftingShadowWitnessReads = 0;
   const driftingShadowCommand = createSemanticModelCompilationCommand({
     publicationLane: publicationLane(),
@@ -929,13 +1007,9 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
     client: Object.freeze(fakeClient),
     compileFunction: sourceCompiler,
     loadManifestFunction: () => manifest,
-    readAuthorityWitness: async () => ({
-      digest: driftingShadowWitnessReads++ === 0
-        ? authority
-        : `sha256:${'f'.repeat(64)}`,
-      inventory: [],
-      triples: 1,
-    }),
+    readAuthorityWitness: () => readCommandWitness(
+      driftingShadowWitnessReads++ === 0 ? authority : `sha256:${'f'.repeat(64)}`,
+    ),
     repositoryRoot: root,
   });
   await assert.rejects(driftingShadowCommand.previewV2PublicationFromFrozenInputs({
@@ -954,6 +1028,14 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
     candidateDigest: v2c1.candidateDigest,
     expectedAuthorityDigest: authority,
   });
+  assert.equal(d1Inventory.dependencyInventory.length, d1Inventory.inventory.length);
+  assert.deepEqual(
+    d1Inventory.dependencyInventory.map(({ graph, triples }) => ({ graph, triples })),
+    d1Inventory.inventory.map(({ graph, triples }) => ({ graph, triples })),
+  );
+  assert.equal(d1Inventory.inventory.some((record, index) => (
+    record.sha256 !== d1Inventory.dependencyInventory[index].sha256
+  )), true);
   const nonemptyD1Inventory = d1Inventory.inventory.filter((item) => item.triples > 0);
   const predictedD1 = semanticAuthorityInventoryDigest(
     nonemptyD1Inventory,
@@ -979,6 +1061,9 @@ test('composes and applies exact D0 stage1 and D1 stage2 source-plus-generated d
   });
   assert.equal(v2Shadow.d2.evaluationInputAuthorityDigest, v2Shadow.d1.authorityDigest);
   assert.equal(v2Shadow.candidateBindings.c2D1AuthorityDigest, v2Shadow.d1.authorityDigest);
+  assert.equal(v2Shadow.d1.inventory.some(({ graph: name }) => name === unmanagedGraph), true);
+  assert.equal(v2Shadow.d2.inventory.some(({ graph: name }) => name === unmanagedGraph), true);
+  assert.equal(live.get(unmanagedGraph), '<urn:test:retained> <urn:test:state> "unchanged" .\n');
   // The production publisher's grant reservation compares the approved plan against
   // `result.d1.dependencyIdentityDigests` from THIS producer, so the candidate-bytes path must
   // report the live-derived set on `d1` exactly as previewV2PublicationFromFrozenInputs does.

@@ -19,6 +19,11 @@ import {
   publicationReceiptDigest,
   sourceScopeDigest,
 } from '../../processes/semantic-assurance/semantic-proof-v1.mjs';
+import {
+  AUTHORITY_DEPENDENCY_DIGEST_ALGORITHM as DEPENDENCY_DIGEST_ALGORITHM,
+  SELF_PUBLICATION_EXCLUDED_GRAPHS as EXCLUDED_AUTHORITY_GRAPHS,
+  nonPublicationDependencySetDigest,
+} from '../../capabilities/semantic-model-compilation/authority-binding.mjs';
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const GIT_OBJECT = /^[0-9a-f]{40}$/;
@@ -97,7 +102,6 @@ const CHECKPOINT_PRODUCER_SOURCE_PATHS = Object.freeze([
   'tests/test_v3_maintenance.py',
 ]);
 const CROSS_REPOSITORY_VALIDATION_RULE = 'urn:usf:authoritybindingrule:validationcrossrepositorynonpublicationclosure';
-const DEPENDENCY_DIGEST_ALGORITHM = 'sha256-rdfc10-nonpublication-graph-inventory-v1';
 const DURABLE_FAMILY_VALIDATIONS = Object.freeze([
   Object.freeze({
     obligation: 'urn:usf:validationobligation:operationexpectedoutcomeerrorclass',
@@ -126,16 +130,6 @@ const AGGREGATE_ASSURANCE_CELLS = Object.freeze([
 const TRANSITIONAL_REALISATIONS = Object.freeze([
   'urn:usf:realisation:semanticauthoritycontrol',
   'urn:usf:realisation:semanticcontractcompilersemanticenforcement',
-]);
-const EXCLUDED_AUTHORITY_GRAPHS = Object.freeze([
-  'urn:usf:graph:capabilities',
-  'urn:usf:graph:derived:coverage',
-  'urn:usf:graph:derived:evidence',
-  'urn:usf:graph:derived:obligations',
-  'urn:usf:graph:derived:readiness',
-  'urn:usf:graph:derived:surfaces',
-  'urn:usf:graph:evidence',
-  'urn:usf:graph:proofs',
 ]);
 
 const OWNER_SCOPES = Object.freeze({
@@ -222,7 +216,7 @@ const ADMISSION_KEYS = ['receiptDigest'];
 const DESCRIPTOR_KEYS = ['byteLength', 'digest', 'mediaType', 'receiptDigest'];
 const VERIFIER_KEYS = ['identityDigest', 'implementationRelease', 'sourceHead', 'sourcePaths', 'sourceScopeDigest',
   'sourceTree', 'trustAnchorDigest'];
-const CURRENTNESS_BINDING_KEYS = ['prospectiveAuthorityInventory'];
+const CURRENTNESS_BINDING_KEYS = ['prospectiveNonPublicationDependencyInventory'];
 const INVENTORY_RECORD_KEYS = ['graph', 'sha256', 'triples'];
 const BASE_DELTA_KEYS = ['authorityPreDigest', 'bytesBase64', 'candidateDigest', 'exactCandidateStateVerified',
   'mediaType', 'state', 'validationReceiptDigest'];
@@ -569,38 +563,36 @@ function validateOwners(owners, pending) {
 
 function validateCurrentnessBinding(binding) {
   exactKeys(binding, CURRENTNESS_BINDING_KEYS, 'CANDIDATE_CURRENTNESS_BINDING_INVALID', 'currentness binding');
-  if (!Array.isArray(binding.prospectiveAuthorityInventory) || binding.prospectiveAuthorityInventory.length === 0) {
-    fail('CANDIDATE_CURRENTNESS_BINDING_INVALID', 'prospective authority inventory is absent');
+  if (!Array.isArray(binding.prospectiveNonPublicationDependencyInventory)
+      || binding.prospectiveNonPublicationDependencyInventory.length === 0) {
+    fail('CANDIDATE_CURRENTNESS_BINDING_INVALID', 'prospective non-publication dependency inventory is absent');
   }
   const observed = new Set();
-  const prospectiveAuthorityInventory = binding.prospectiveAuthorityInventory.map((record) => {
-    exactKeys(record, INVENTORY_RECORD_KEYS, 'CANDIDATE_CURRENTNESS_BINDING_INVALID', 'authority inventory record');
-    if (typeof record.graph !== 'string' || record.graph.length === 0 || observed.has(record.graph)
-        || !Number.isSafeInteger(record.triples) || record.triples < 0) {
-      fail('CANDIDATE_CURRENTNESS_BINDING_INVALID', 'prospective authority inventory is malformed or duplicated');
-    }
-    digest(record.sha256, `${record.graph} prospective graph digest`);
-    observed.add(record.graph);
-    return Object.freeze({ graph: record.graph, sha256: record.sha256, triples: record.triples });
-  }).sort((left, right) => left.graph.localeCompare(right.graph));
-  if (canonicalJson(binding.prospectiveAuthorityInventory) !== canonicalJson(prospectiveAuthorityInventory)) {
-    fail('CANDIDATE_CURRENTNESS_BINDING_INVALID', 'prospective authority inventory is not canonical');
+  const prospectiveNonPublicationDependencyInventory = binding
+    .prospectiveNonPublicationDependencyInventory.map((record) => {
+      exactKeys(record, INVENTORY_RECORD_KEYS, 'CANDIDATE_CURRENTNESS_BINDING_INVALID',
+        'non-publication dependency inventory record');
+      if (typeof record.graph !== 'string' || record.graph.length === 0 || observed.has(record.graph)
+          || !Number.isSafeInteger(record.triples) || record.triples < 0) {
+        fail('CANDIDATE_CURRENTNESS_BINDING_INVALID',
+          'prospective non-publication dependency inventory is malformed or duplicated');
+      }
+      digest(record.sha256, `${record.graph} prospective graph digest`);
+      observed.add(record.graph);
+      return Object.freeze({ graph: record.graph, sha256: record.sha256, triples: record.triples });
+    }).sort((left, right) => left.graph.localeCompare(right.graph));
+  if (canonicalJson(binding.prospectiveNonPublicationDependencyInventory)
+      !== canonicalJson(prospectiveNonPublicationDependencyInventory)) {
+    fail('CANDIDATE_CURRENTNESS_BINDING_INVALID',
+      'prospective non-publication dependency inventory is not canonical');
   }
   return Object.freeze({
-    dependencySetDigest: nonPublicationDependencySetDigest(prospectiveAuthorityInventory),
-    prospectiveAuthorityInventory: Object.freeze(prospectiveAuthorityInventory),
-  });
-}
-
-function nonPublicationDependencySetDigest(inventory) {
-  const excluded = new Set(EXCLUDED_AUTHORITY_GRAPHS);
-  if (!excluded.has(GRAPH_PROOFS)) fail('CANDIDATE_CURRENTNESS_BINDING_INVALID', 'digest-carrying graph is not excluded');
-  const graphs = inventory.filter(({ graph }) => !excluded.has(graph))
-    .map(({ graph, sha256, triples }) => ({ graph, sha256, triples }));
-  return sha256Json({
-    algorithm: DEPENDENCY_DIGEST_ALGORITHM,
-    excludedGraphs: EXCLUDED_AUTHORITY_GRAPHS,
-    graphs,
+    dependencySetDigest: nonPublicationDependencySetDigest(
+      prospectiveNonPublicationDependencyInventory,
+    ),
+    prospectiveNonPublicationDependencyInventory: Object.freeze(
+      prospectiveNonPublicationDependencyInventory,
+    ),
   });
 }
 

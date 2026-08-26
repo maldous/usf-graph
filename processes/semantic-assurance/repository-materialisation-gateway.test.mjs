@@ -6,8 +6,12 @@ import test from 'node:test';
 
 import { DataFactory, Parser, Store } from 'n3';
 
-import { canonicalInventoryGraphDigest } from '../../capabilities/semantic-model-compilation/compiler.mjs';
+import {
+  canonicalGraphDigest,
+  canonicalInventoryGraphDigest,
+} from '../../capabilities/semantic-model-compilation/compiler.mjs';
 import { censusFamilies, familyRegistry } from '../../assurance/permutation-closure/family-census.mjs';
+import { semanticAuthorityInventoryDigest } from './semantic-authority-gateway.mjs';
 
 import {
   ACTION_STATES, applyLayoutPlan, AUTHORITY_MOVED_CODE, createLayoutPlan, digest, GAP_DISPOSITIONS,
@@ -145,15 +149,36 @@ const validationObligation = 'urn:usf:validationobligation:repositoryexternalart
 // The fake's authority witness is one graph with one triple. The witness total
 // is the inventory sum, not the client's size() reading, so that one triple fixes
 // the digest a satisfying result has to bind to be current.
-const witnessDigest = 'sha256:a28dfd4cb3960f9078f558caf098cb215aabad01c74593035ccab63acaf90e76';
 const AUTHORITY_NQUADS = '<urn:s> <urn:p> "materialisation" .\n';
-const authorityGraphDependencyDigest = (await canonicalInventoryGraphDigest('urn:g', AUTHORITY_NQUADS)).sha256;
+const authorityGraph = 'urn:usf:graph:test-authority';
+const authorityGraphContentDigest = await canonicalGraphDigest(AUTHORITY_NQUADS);
+const witnessDigest = semanticAuthorityInventoryDigest([{
+  graph: authorityGraph,
+  ...authorityGraphContentDigest,
+}], authorityGraphContentDigest.triples);
+const authorityGraphDependencyDigest = (await canonicalInventoryGraphDigest(authorityGraph, AUTHORITY_NQUADS)).sha256;
 const validationDependency = () => materialisationInternals
   .validationNonPublicationDependencyDigest([{
     dependencySha256: authorityGraphDependencyDigest,
-    graph: 'urn:g',
+    graph: authorityGraph,
     triples: 1,
   }]);
+
+test('validation dependency projection rejects a content digest without dependencySha256', () => {
+  assert.equal(materialisationInternals.validationNonPublicationDependencyDigest([{
+    graph: authorityGraph,
+    sha256: `sha256:${'a'.repeat(64)}`,
+    triples: 1,
+  }]), null);
+});
+
+test('validation dependency projection rejects non-numeric inventory fields', () => {
+  assert.equal(materialisationInternals.validationNonPublicationDependencyDigest([{
+    dependencySha256: authorityGraphDependencyDigest,
+    graph: authorityGraph,
+    triples: '1',
+  }]), null);
+});
 
 function defaultApplicabilityRows(state = 'urn:usf:validationapplicabilitystate:required', extra = {}) {
   return [{
@@ -511,7 +536,7 @@ function fakeClient({
         return decisionFormatRows;
       }
       if (query.includes('COUNT(*) AS ?count')) return [{ count: binding(String(ruleRows.length)) }];
-      if (query.includes('SELECT DISTINCT ?g')) return [{ g: binding('urn:g') }];
+      if (query.includes('SELECT DISTINCT ?g')) return [{ g: binding(authorityGraph) }];
       if (query.includes('?canonicalName ?lifecycle')) return contractRows;
       if (query.includes('<urn:usf:ontology:hasValidationApplicability> ?state')) return applicabilityRows;
       if (query.includes('BIND("bindingSourcePath" AS ?field)')) return validationPathRows;
@@ -586,7 +611,7 @@ test('layout context is live-digest-bound and exposes active proof and authorise
   assert.equal(context.authorityDigestAlgorithm, 'sha256-rdfc10-graph-inventory-v2');
   assert.deepEqual(context.authorityGraphInventory, [{
     dependencySha256: context.authorityGraphInventory[0].dependencySha256,
-    graph: 'urn:g',
+    graph: authorityGraph,
     sha256: context.authorityGraphInventory[0].sha256,
     triples: 1,
   }]);

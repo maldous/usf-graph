@@ -27,6 +27,10 @@ import {
   materializeAggregateCompilerAuthorityCandidateV2,
   parseAggregateCompilerAuthorityCandidateV2IdentityBytes,
 } from './aggregate-compiler-authority-candidate.mjs';
+import {
+  SELF_PUBLICATION_EXCLUDED_GRAPHS,
+  authorityDependencySetDigest,
+} from '../../capabilities/semantic-model-compilation/authority-binding.mjs';
 
 const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
 const USF = 'urn:usf:ontology:';
@@ -84,6 +88,35 @@ const SOURCE_BINDING = {
 };
 const SOURCE_BINDING_DIGEST = aggregateCompilerProofInternals.sourceBindingDigest(SOURCE_BINDING);
 const REPOSITORY_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+test('candidate and live authority consumers share one non-publication dependency digest', () => {
+  const liveInventory = [
+    { graph: 'urn:usf:graph:authority', sha256: digest('4'), dependencySha256: digest('5'), triples: 1 },
+    ...SELF_PUBLICATION_EXCLUDED_GRAPHS.map((graph, index) => ({
+      graph,
+      sha256: digest(String((index + 6) % 10)),
+      dependencySha256: digest(String((index + 7) % 10)),
+      triples: 1,
+    })),
+  ].sort((left, right) => left.graph.localeCompare(right.graph));
+  const prospectiveDependencyInventory = liveInventory.map(({ graph, dependencySha256, triples }) => ({
+    graph,
+    sha256: dependencySha256,
+    triples,
+  }));
+
+  const candidateDigest = internals.nonPublicationDependencySetDigest(
+    prospectiveDependencyInventory,
+  );
+  assert.equal(candidateDigest, authorityDependencySetDigest(liveInventory));
+  // This established vector is the pre-existing candidate/gateway v1 JCS
+  // representation. Keeping it explicit prevents two consumers that share a
+  // helper from agreeing on a silently changed serialization.
+  assert.equal(
+    candidateDigest,
+    'sha256:4dca3423ad197b19bafc13d51dc2a654c3dcc981435e9f7343992dad42f69240',
+  );
+});
 
 const V2_FROZEN_INPUT = Object.freeze({
   protocol: 'semantic-proof-v2',
@@ -523,7 +556,10 @@ function baseSemanticDelta() {
 
 const stage1Input = () => ({
   baseSemanticDelta: baseSemanticDelta(),
-  currentnessBinding: { prospectiveAuthorityInventory: PROSPECTIVE_INVENTORY.map((record) => ({ ...record })) },
+  currentnessBinding: {
+    prospectiveNonPublicationDependencyInventory: PROSPECTIVE_INVENTORY
+      .map((record) => ({ ...record })),
+  },
   ownerAuthority: ownerAuthority(),
   pendingPackage: pendingPackage(),
   stage: 'stage1',
@@ -531,7 +567,10 @@ const stage1Input = () => ({
 const stage2Input = () => {
   const stage1CandidateDigest = materializeAggregateCompilerAuthorityCandidate(stage1Input()).candidateDigest;
   return {
-    currentnessBinding: { prospectiveAuthorityInventory: PROSPECTIVE_INVENTORY.map((record) => ({ ...record })) },
+    currentnessBinding: {
+      prospectiveNonPublicationDependencyInventory: PROSPECTIVE_INVENTORY
+        .map((record) => ({ ...record })),
+    },
     ownerAuthority: ownerAuthority(),
     pendingPackage: { ...pendingPackage(), checkpointValidation: checkpointValidation() },
     stage: 'stage2',
@@ -1069,7 +1108,8 @@ test('rejects placeholders and all-zero digests', () => {
   placeholder.ownerAuthority.semanticmodelcompilation.verifier.implementationRelease = 'TBD';
   assert.throws(() => materializeAggregateCompilerAuthorityCandidate(placeholder),
     { code: 'CANDIDATE_PLACEHOLDER_REJECTED' });
-  const zero = stage1Input(); zero.currentnessBinding.prospectiveAuthorityInventory[0].sha256 = digest('0');
+  const zero = stage1Input();
+  zero.currentnessBinding.prospectiveNonPublicationDependencyInventory[0].sha256 = digest('0');
   assert.throws(() => materializeAggregateCompilerAuthorityCandidate(zero),
     { code: 'CANDIDATE_DIGEST_INVALID' });
 });
