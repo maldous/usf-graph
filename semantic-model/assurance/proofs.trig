@@ -665,11 +665,11 @@
   a usf:ClosureExecutorImplementation;
   usf:canonicalName "factorynativev2closureexecutor";
   usf:closureExecutorRepository "maldous/usf-factory";
-  usf:closureExecutorSourceCommit "230b3895fa83fb2c7318f48f325d4f15c9e8d332";
-  usf:closureExecutorSourceTree "3dca0437384f7470484079daae4ed327f7f2c32a";
+  usf:closureExecutorSourceCommit "e67aa4e77c1c0691fd2a66b0204d6b20278094a3";
+  usf:closureExecutorSourceTree "302cb08fae83935e1fee2722e8a7817f8e961738";
   usf:closureExecutorCommandPath "src/usf_factory/cli.py";
   usf:closureExecutorCommandDigest
-    "sha256:ec42f9b5645933e09d1bb2f894a85ae0a55da875e6a783257aa431ee515268d4";
+    "sha256:342866dbfd33f7657dbc08cc1c48ecf1071c1b6734eeced585af13adf4224744";
   usf:closureExecutorImplementationSourcePath
     "src/usf_factory/activation.py",
     "src/usf_factory/canonical.py",
@@ -677,7 +677,7 @@
     "src/usf_factory/context.py",
     "src/usf_factory/graph_reader_entrypoint.mjs";
   usf:closureExecutorImplementationSourceSetDigest
-    "sha256:69a836965751263e8a10b3df940e7e85a029eb97c68e219469954cd822e60e88".
+    "sha256:6f1f93f0bab5fedfe37966b34ec1dcbc566d59d7ba443cb3a371ce420f4d8409".
 # Exact evidence-admission producer identity for the validation-currentness renewal rule.  Live
 # authority carried no digest-bound identity denoting this producer: usf:evidenceProducerDigest
 # exists but not for evidenceresult:compilerhermeticsubstituteruntime, and neither
